@@ -35,7 +35,6 @@ MODULE metadynamics_types
             set_meta_env,&
             meta_env_release,&
             metavar_type,&
-            wall_type,&
             multiple_walkers_type
 
 ! *****************************************************************************

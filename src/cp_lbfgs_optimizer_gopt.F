@@ -50,16 +50,13 @@ MODULE cp_lbfgs_optimizer_gopt
   PUBLIC :: cp_lbfgs_opt_gopt_type
 
   ! core methods
-  PUBLIC :: cp_create, cp_release, cp_retain, cp_get, cp_next
 
   ! special methos
-  PUBLIC :: cp_step, cp_stop
 
   ! underlying functions
   PUBLIC :: cp_opt_gopt_create, cp_opt_gopt_release,&
-       cp_opt_gopt_get, cp_opt_gopt_next,&
-       cp_opt_gopt_step, cp_opt_gopt_stop,&
-       cp_opt_gopt_retain
+            cp_opt_gopt_next,&
+            cp_opt_gopt_stop
 
   ! initalize the object
   INTERFACE cp_create

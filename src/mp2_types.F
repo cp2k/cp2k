@@ -36,7 +36,7 @@ MODULE mp2_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
 
-  PUBLIC :: mp2_type, mp2_direct_type, &
+  PUBLIC :: mp2_type,&
             integ_mat_buffer_type,&
             integ_mat_buffer_type_2D,&
             mp2_method_none,&
@@ -49,10 +49,8 @@ MODULE mp2_types
             ri_mp2_laplace,&
             init_TShPSC_lmax
 
-  PUBLIC :: mp2_env_create, mp2_env_release,mp2_biel_type,&
-            pair_list_type_mp2,&
-            mp2_potential_type, mp2_gpw_type, ri_rpa_type, ri_mp2_type,&
-            mp2_laplace_type, grad_util
+  PUBLIC :: mp2_env_create, mp2_env_release, mp2_biel_type,&
+            pair_list_type_mp2
 
   INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 

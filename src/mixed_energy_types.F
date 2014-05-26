@@ -35,8 +35,7 @@ MODULE mixed_energy_types
 
 ! Public subroutines
   PUBLIC :: allocate_mixed_energy,&
-            deallocate_mixed_energy,&
-            init_mixed_energy
+            deallocate_mixed_energy
 
 CONTAINS
 

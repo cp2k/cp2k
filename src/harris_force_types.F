@@ -23,15 +23,11 @@ MODULE harris_force_types
   INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
-  PUBLIC :: harris_force_type, &
-            harris_force_p_type
+  PUBLIC :: harris_force_type
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_force_retain, &
-            harris_force_release, &
-            harris_force_set,&
-            harris_force_get, &
-            harris_force_clear, &
+  PUBLIC :: harris_force_release,&
+            harris_force_clear,&
             harris_force_create
 
 ! *****************************************************************************

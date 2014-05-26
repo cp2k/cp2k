@@ -165,15 +165,13 @@ MODULE semi_empirical_types
             rotmat_create,&
             rotmat_release,&
             get_se_param,&
-            set_se_param,&
             write_se_param,&
             se_int_control_type,&
             setup_se_int_control_type,&
             se_int_screen_type,&
             se_taper_type,&
             se_taper_release,&
-            se_taper_create,&
-            ewald_gks_type
+            se_taper_create
 
 CONTAINS
 

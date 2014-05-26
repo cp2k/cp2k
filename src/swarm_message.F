@@ -76,11 +76,11 @@ MODULE swarm_message
  END INTERFACE swarm_message_get
 
 
- PUBLIC :: swarm_message_type, swarm_message_add, swarm_message_get
- PUBLIC :: swarm_message_mpi_send, swarm_message_mpi_recv, swarm_message_mpi_bcast
- PUBLIC :: swarm_message_file_write, swarm_message_file_read
- PUBLIC :: swarm_message_length, swarm_message_haskey, swarm_message_equal
- PUBLIC :: swarm_message_free
+  PUBLIC :: swarm_message_type, swarm_message_add, swarm_message_get
+  PUBLIC :: swarm_message_mpi_send, swarm_message_mpi_recv, swarm_message_mpi_bcast
+  PUBLIC :: swarm_message_file_write, swarm_message_file_read
+  PUBLIC :: swarm_message_haskey, swarm_message_equal
+  PUBLIC :: swarm_message_free
 
 
  CONTAINS

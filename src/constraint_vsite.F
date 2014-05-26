@@ -33,8 +33,6 @@ MODULE constraint_vsite
 
   PRIVATE
   PUBLIC :: shake_vsite_int,&
-            force_vsite_int,&
-            force_vsite_ext,&
             shake_vsite_ext,&
             vsite_force_control
 

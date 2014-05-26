@@ -28,17 +28,17 @@ MODULE tmc_analysis_types
   PUBLIC :: tmc_analysis_env, tmc_ana_list_type
   PUBLIC :: tmc_ana_env_create, tmc_ana_env_release
   PUBLIC :: tmc_ana_density_create
-  PUBLIC :: pair_correl_type, tmc_ana_pair_correl_create, &
+  PUBLIC :: pair_correl_type, tmc_ana_pair_correl_create,&
             search_pair_in_list, atom_pairs_type
   PUBLIC :: dipole_moment_type, tmc_ana_dipole_moment_create
-  PUBLIC :: dipole_analysis_type, tmc_ana_dipole_analysis_create
-  PUBLIC :: displacement_type, tmc_ana_displacement_create
+  PUBLIC :: tmc_ana_dipole_analysis_create
+  PUBLIC :: tmc_ana_displacement_create
 
 
   CHARACTER(LEN= default_path_length ), PARAMETER, &
-    PUBLIC :: tmc_ana_density_file_name            = "tmc_ana_density.dat"
+  PUBLIC :: tmc_ana_density_file_name            = "tmc_ana_density.dat"
   CHARACTER(LEN= default_path_length ), PARAMETER, &
-    PUBLIC :: tmc_ana_pair_correl_file_name        = "tmc_ana_g_r.dat"
+  PUBLIC :: tmc_ana_pair_correl_file_name        = "tmc_ana_g_r.dat"
 
   INTEGER, PARAMETER, PUBLIC                      :: ana_type_default = 0
   INTEGER, PARAMETER, PUBLIC                      :: ana_type_ice     = 1

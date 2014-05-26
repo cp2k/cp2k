@@ -56,7 +56,6 @@ MODULE input_cp2k_poisson
 
   PUBLIC :: create_poisson_section,&
             create_gspace_interp_section,&
-            create_multipole_section,&
             create_ewald_section
 !***
 CONTAINS

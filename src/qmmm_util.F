@@ -45,7 +45,6 @@ MODULE qmmm_util
   PUBLIC :: apply_qmmm_walls_reflective,&
             apply_qmmm_walls,&
             apply_qmmm_translate,&
-            apply_qmmm_translate_low,&
             apply_qmmm_wrap,&
             apply_qmmm_unwrap,&
             spherical_cutoff_factor,&

@@ -94,9 +94,9 @@ MODULE qs_wf_history_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_methods'
   INTEGER, SAVE, PRIVATE :: last_wfs_id=0, last_wfi_id=0
 
-  PUBLIC :: wfs_create, wfi_create, wfi_update, &
-            wfi_extrapolate, wfi_get_method_label, &
-            wfs_duplicate_snapshot, &
+  PUBLIC :: wfi_create, wfi_update,&
+            wfi_extrapolate, wfi_get_method_label,&
+            wfs_duplicate_snapshot,&
             wfi_change_memory_depth
 
 CONTAINS

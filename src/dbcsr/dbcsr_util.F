@@ -61,8 +61,7 @@ MODULE dbcsr_util
   PUBLIC :: dbcsr_checksum, dbcsr_verify_matrix,&
             dbcsr_pack_meta, dbcsr_unpack_meta, meta_from_dist
   ! Block sizes and arrays
-  PUBLIC :: dbcsr_copy_block_sizes,&
-            convert_sizes_to_offsets, convert_offsets_to_sizes,&
+  PUBLIC :: convert_sizes_to_offsets, convert_offsets_to_sizes,&
             global_offsets_to_local,&
             nfull_elements,&
             dbcsr_calc_block_sizes,&

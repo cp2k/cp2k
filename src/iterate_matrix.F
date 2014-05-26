@@ -37,8 +37,8 @@ MODULE iterate_matrix
      MODULE PROCEDURE purify_mcweeny_orth, purify_mcweeny_nonorth
   END INTERFACE
 
-  PUBLIC ::  invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz,&
-             matrix_exponential, purify_mcweeny
+  PUBLIC :: invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz,&
+            purify_mcweeny
 
 CONTAINS
 

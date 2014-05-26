@@ -36,7 +36,6 @@ MODULE helium_interactions
   PUBLIC :: helium_calc_energy
   PUBLIC :: helium_solute_e_f
   PUBLIC :: helium_bead_solute_e
-  PUBLIC :: helium_solute_e
 
   CONTAINS
 

@@ -94,9 +94,8 @@ MODULE message_passing
   PUBLIC :: mp_abort
 
   ! performance gathering
-  PUBLIC :: mp_perf_env_type, mp_perf_env_p_type,mp_perf_type
-  PUBLIC :: mp_perf_env_create, mp_perf_env_retain, mp_perf_env_release,&
-       mp_perf_env_describe
+  PUBLIC :: mp_perf_env_type
+  PUBLIC :: mp_perf_env_retain, mp_perf_env_release
   PUBLIC :: add_mp_perf_env, rm_mp_perf_env, get_mp_perf_env, describe_mp_perf_env
 
   ! informational / generation of sub comms
@@ -111,7 +110,7 @@ MODULE message_passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_isend, mp_irecv
-  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
+  PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_send, mp_recv
 
@@ -126,12 +125,12 @@ MODULE message_passing
 
   ! I/O
   PUBLIC :: mp_file_open, mp_file_close
-  PUBLIC :: mp_file_write_at, mp_file_read_at
+  PUBLIC :: mp_file_write_at
   PUBLIC :: mp_file_write_at_all, mp_file_read_at_all
   PUBLIC :: mp_file_get_size
 
   ! some 'advanced types' currently only used for dbcsr
-  PUBLIC :: mp_indexing_meta_type, mp_type_descriptor_type
+  PUBLIC :: mp_type_descriptor_type
   PUBLIC :: mp_type_make, mp_type_free
   PUBLIC :: mp_type_size
 
@@ -143,8 +142,6 @@ MODULE message_passing
 #endif
 
   ! assumed to be private
-  PUBLIC :: mp_external_timeset, mp_external_timestop
-  PUBLIC :: timeset_interface, timestop_interface
 
 ! Interface declarations for non-data-oriented subroutines.
 

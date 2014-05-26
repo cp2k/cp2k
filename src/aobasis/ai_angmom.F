@@ -43,7 +43,7 @@ MODULE ai_angmom
 
 ! *** Public subroutines ***
 
-  PUBLIC :: angmom, angmom2
+  PUBLIC :: angmom
 
 CONTAINS
 

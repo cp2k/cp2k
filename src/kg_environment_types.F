@@ -30,7 +30,7 @@ MODULE kg_environment_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
 
-  PUBLIC :: kg_environment_type, kg_env_release, subset_type
+  PUBLIC :: kg_environment_type, kg_env_release
 
   TYPE subset_type
     TYPE (neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb 

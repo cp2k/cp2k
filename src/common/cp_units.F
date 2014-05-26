@@ -115,11 +115,11 @@ MODULE cp_units
   INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds=8, cp_unit_basic_desc_length=15,&
        cp_unit_desc_length=cp_unit_max_kinds*cp_unit_basic_desc_length
 
-  PUBLIC :: cp_unit_type, cp_unit_p_type, cp_unit_set_type
-  PUBLIC :: cp_unit_create, cp_unit_retain, cp_unit_release, &
-       cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc,&
-       cp_unit_set_create, cp_unit_set_retain, cp_unit_set_release,&
-       cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible, print_all_units
+  PUBLIC :: cp_unit_type, cp_unit_set_type
+  PUBLIC :: cp_unit_create, cp_unit_retain, cp_unit_release,&
+            cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc,&
+            cp_unit_set_create, cp_unit_set_release,&
+            cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible, print_all_units
 
 ! *****************************************************************************
 !> \brief stores a unit

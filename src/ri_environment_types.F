@@ -55,12 +55,12 @@ MODULE ri_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ri_environment_types'
   INTEGER, SAVE, PRIVATE :: last_ri_env_id=0
 
-  PUBLIC :: ri_environment_type, ri_environment_p_type, &
-            ri_vector_type, ri_kind_vector_type,&
+  PUBLIC :: ri_environment_type,&
+            ri_vector_type,&
             set_ri_env, ri_env_create,&
-            get_ri_env, ri_env_release, ri_env_retain,&
-            ri_vector_create, ri_vector_release, &
-            ri_vector_add, ri_vector_copy, ri_vector_set, &
+            get_ri_env, ri_env_release,&
+            ri_vector_create, ri_vector_release,&
+            ri_vector_add, ri_vector_copy, ri_vector_set,&
             ri_vector_dot, ri_vector_norm, ri_vector_scale,&
             ri_vector_sync
 

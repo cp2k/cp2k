@@ -30,9 +30,9 @@ MODULE mc_environment_types
   END TYPE mc_environment_p_type
 
 ! *** Public subroutines and data types ***
-  PUBLIC :: mc_environment_type, mc_environment_p_type, &
+  PUBLIC :: mc_environment_type, mc_environment_p_type,&
             set_mc_env, mc_env_create,&
-            get_mc_env, mc_env_release, mc_env_retain
+            get_mc_env, mc_env_release
 
 ! *** Global parameters ***
 

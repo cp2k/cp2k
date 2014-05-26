@@ -24,13 +24,13 @@ MODULE splines_types
   INTEGER, PRIVATE, SAVE :: last_spline_env_id_nr=0
   INTEGER, PRIVATE, SAVE :: last_spline_data_id_nr=0
 
-  PUBLIC :: spline_env_release, spline_env_retain, spline_environment_type
-  PUBLIC :: spline_env_create, spline_data_p_type, spline_data_pp_type
-  PUBLIC :: spline_data_create, spline_data_copy, spline_data_p_copy
+  PUBLIC :: spline_env_release, spline_environment_type
+  PUBLIC :: spline_env_create, spline_data_p_type
+  PUBLIC :: spline_data_create, spline_data_p_copy
   PUBLIC :: spline_data_retain, spline_data_p_retain
   PUBLIC :: spline_data_release, spline_data_p_release
   PUBLIC :: spline_factor_copy, spline_factor_create, spline_factor_release
-  PUBLIC :: spline_data_type    ! the data structure for spline table
+  PUBLIC :: spline_data_type  ! the data structure for spline table
   PUBLIC :: spline_factor_type  ! the multiplicative factors for splines
 
 ! *****************************************************************************

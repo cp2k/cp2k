@@ -13,7 +13,7 @@ MODULE farming_types
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: farming_env_type, deallocate_farming_env, init_farming_env, init_job_type, job_type
+  PUBLIC :: farming_env_type, deallocate_farming_env, init_farming_env, init_job_type
 
   INTEGER, PUBLIC, PARAMETER :: job_pending=1,job_running=2,job_finished=3
 

@@ -81,7 +81,7 @@ MODULE md_environment_types
 
   ! *** Public subroutines and data types ***
   PUBLIC :: md_environment_type, set_md_env, get_md_env, md_env_create,&
-            md_env_release, md_env_retain, need_per_atom_wiener_process
+            md_env_release, need_per_atom_wiener_process
 
   ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'

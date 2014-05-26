@@ -26,8 +26,8 @@ MODULE reftraj_types
   IMPLICIT NONE
 
     PRIVATE
-    PUBLIC :: reftraj_type, reftraj_info_type, reftraj_msd_type,&
-              create_reftraj, release_reftraj, retain_reftraj
+  PUBLIC :: reftraj_type, reftraj_msd_type,&
+            create_reftraj, release_reftraj, retain_reftraj
 
 ! *****************************************************************************
 !> \brief parameters related to the analysis of previously generated trajecorties

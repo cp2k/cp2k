@@ -29,8 +29,8 @@ MODULE dict
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dict'
   
-  PUBLIC :: dict_init, dict_isready, dict_update, dict_items, dict_haskey, & 
-    dict_set, dict_get, dict_del, dict_size, dict_destroy
+  PUBLIC :: dict_init, dict_items, dict_haskey,&
+            dict_set, dict_get, dict_size, dict_destroy
 
   INTERFACE dict_init
      MODULE PROCEDURE dict_str_i4_init, dict_i4tuple_callstat_init

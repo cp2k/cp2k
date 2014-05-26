@@ -46,12 +46,10 @@ MODULE dbcsr_mp_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mp_operations'
 
   ! MP routines
-  PUBLIC :: dbcsr_hybrid_alltoall
   PUBLIC :: hybrid_alltoall_s1, hybrid_alltoall_d1,&
             hybrid_alltoall_c1, hybrid_alltoall_z1,&
             hybrid_alltoall_i1, hybrid_alltoall_any
   PUBLIC :: dbcsr_allgatherv
-  PUBLIC :: dbcsr_send_any, dbcsr_recv_any
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype

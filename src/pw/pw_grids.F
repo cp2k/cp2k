@@ -63,7 +63,7 @@ MODULE pw_grids
 
   PRIVATE
   PUBLIC :: pw_grid_create, pw_grid_retain, pw_grid_release
-  PUBLIC :: get_pw_grid_info, set_pw_grid_info, pw_grid_compare
+  PUBLIC :: get_pw_grid_info, pw_grid_compare
   PUBLIC :: pw_grid_setup
   PUBLIC :: pw_grid_change
 

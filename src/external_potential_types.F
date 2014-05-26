@@ -194,9 +194,7 @@ MODULE external_potential_types
             fist_potential_type,&
             local_potential_type,&
             gth_potential_type
-  PUBLIC :: all_potential_p_type,&
-            local_potential_p_type,&
-            gth_potential_p_type
+  PUBLIC :: gth_potential_p_type
 
   INTERFACE allocate_potential
      MODULE PROCEDURE allocate_all_potential,&

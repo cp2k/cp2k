@@ -95,8 +95,8 @@ MODULE qs_p_env_methods
 
   PRIVATE
   PUBLIC :: p_env_create, p_env_psi0_changed, p_op_l2_fawzi
-  PUBLIC :: p_op_l1, p_op_l1_spin, p_op_l2, p_preortho, p_postortho,&
-       p_env_did_change
+  PUBLIC :: p_op_l1, p_op_l2, p_preortho, p_postortho,&
+            p_env_did_change
 
 CONTAINS
 

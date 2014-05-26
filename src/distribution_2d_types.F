@@ -33,11 +33,9 @@ MODULE distribution_2d_types
 
   PUBLIC :: distribution_2d_type
 
-  PUBLIC :: distribution_2d_create, &
-            distribution_2d_release, &
+  PUBLIC :: distribution_2d_create,&
+            distribution_2d_release,&
             distribution_2d_retain,&
-            distribution_2d_build_gdist,&
-            distribution_2d_destroy_gdist,&
             distribution_2d_write,&
             distribution_2d_get
 

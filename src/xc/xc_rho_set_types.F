@@ -52,8 +52,8 @@ MODULE xc_rho_set_types
   INTEGER, SAVE :: last_rho_set_id=0
 
   PUBLIC :: xc_rho_set_type
-  PUBLIC :: xc_rho_set_create, xc_rho_set_retain, xc_rho_set_release,&
-       xc_rho_set_update, xc_rho_set_get
+  PUBLIC :: xc_rho_set_create, xc_rho_set_release,&
+            xc_rho_set_update, xc_rho_set_get
 
 ! *****************************************************************************
 !> \brief represent a density, with all the representation and data needed

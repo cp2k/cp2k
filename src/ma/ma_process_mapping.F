@@ -38,12 +38,7 @@ IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_process_mapping'
 
- PUBLIC :: ma_mpi_reordering
- PUBLIC :: ma_find_min_square_grid,ma_find_max_square_grid
- PUBLIC :: ma_packed, ma_snake_curve
- PUBLIC :: ma_round_robin
- PUBLIC :: ma_peano_curve, ma_hilbert_curve, ma_hilbert_peano
- PUBLIC :: ma_switch, ma_cannon, ma_designed
+  PUBLIC :: ma_mpi_reordering
 
 CONTAINS
 

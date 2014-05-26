@@ -106,13 +106,10 @@ MODULE fist_environment_types
   END TYPE fist_environment_p_type
 
 ! *** Public data types ***
-  PUBLIC :: fist_environment_type,&
-            fist_environment_p_type,&
-            exclusion_type
+  PUBLIC :: fist_environment_type
 
 ! *** Public subroutines ***
   PUBLIC :: fist_env_get,&
-            init_fist_env,&
             fist_env_set,&
             fist_env_create,&
             fist_env_release,&

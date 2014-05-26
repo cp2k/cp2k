@@ -51,7 +51,7 @@ MODULE atom_utils
 
   PUBLIC :: atom_set_occupation, get_maxl_occ, get_maxn_occ
   PUBLIC :: atom_denmat, atom_density, atom_core_density
-  PUBLIC :: prune_grid, integrate_grid, atom_trace, atom_solve
+  PUBLIC :: integrate_grid, atom_trace, atom_solve
   PUBLIC :: coulomb_potential_numeric, coulomb_potential_analytic
   PUBLIC :: exchange_numeric, exchange_semi_analytic
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix

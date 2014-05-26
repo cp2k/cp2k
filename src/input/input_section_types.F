@@ -50,28 +50,26 @@ MODULE input_section_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_section_types'
 
-  PUBLIC :: section_p_type, section_type
-  PUBLIC :: section_create,section_retain, section_release, section_describe,&
-       section_get_subsection, section_get_keyword, section_get,&
-       section_add_keyword, section_add_subsection, section_describe_html,&
-       section_describe_index_html
+  PUBLIC :: section_type
+  PUBLIC :: section_create, section_release, section_describe,&
+            section_get_subsection, section_get_keyword,&
+            section_add_keyword, section_add_subsection, section_describe_html,&
+            section_describe_index_html
   PUBLIC :: section_get_subsection_index, section_get_keyword_index
   PUBLIC :: section_typo_match
 
-  PUBLIC :: section_vals_p_type,section_vals_type
+  PUBLIC :: section_vals_type
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&
-       section_vals_get, section_vals_get_subs_vals, section_vals_val_get, section_vals_list_get, &
-       section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
-       section_vals_val_set, section_vals_val_unset, section_vals_get_subs_vals3,&
-       section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values,&
-       section_vals_check_release
+            section_vals_get, section_vals_get_subs_vals, section_vals_val_get, section_vals_list_get,&
+            section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
+            section_vals_val_set, section_vals_val_unset, section_vals_get_subs_vals3,&
+            section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values,&
+            section_vals_check_release
   PUBLIC :: write_section_xml
 
   PUBLIC :: section_get_ival,&
             section_get_ivals,&
-            section_get_rvals,& 
             section_get_rval,&
-            section_get_cval,&
             section_get_lval
 
 ! *****************************************************************************

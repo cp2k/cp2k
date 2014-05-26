@@ -21,7 +21,6 @@ MODULE ma_errors
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_errors'
 
-  PUBLIC :: ma_error
   PUBLIC :: ma_error_stop
 
   INTEGER, PARAMETER, PUBLIC  :: ma_error_allocation = 1

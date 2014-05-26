@@ -73,7 +73,7 @@ MODULE qmmm_gpw_energy
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_energy'
 
   PUBLIC :: qmmm_el_coupling
-  PUBLIC :: qmmm_elec_with_gaussian, qmmm_elec_with_gaussian_low,&
+  PUBLIC :: qmmm_elec_with_gaussian,&
             qmmm_elec_with_gaussian_LR, qmmm_elec_with_gaussian_LG
 !***
 CONTAINS

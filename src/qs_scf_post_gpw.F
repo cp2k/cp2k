@@ -167,7 +167,6 @@ MODULE qs_scf_post_gpw
             qs_scf_post_occ_cubes,&
             qs_scf_post_unocc_cubes,&
             qs_scf_post_moments,&
-            qs_scf_post_efg,&
             write_available_results,&
             write_mo_free_results
 

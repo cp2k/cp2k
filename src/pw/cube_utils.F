@@ -30,10 +30,10 @@ MODULE cube_utils
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cube_utils'
 
-  PUBLIC :: cube_info_type,cube_ptr
+  PUBLIC :: cube_info_type
 
-  PUBLIC :: init_cube_info, destroy_cube_info, &
-            return_cube,return_cube_max_iradius, return_cube_nonortho,&
+  PUBLIC :: init_cube_info, destroy_cube_info,&
+            return_cube, return_cube_max_iradius, return_cube_nonortho,&
             compute_cube_center
 
   TYPE :: cube_ptr

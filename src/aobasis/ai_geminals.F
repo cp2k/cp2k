@@ -30,7 +30,6 @@ MODULE ai_geminals
   PRIVATE
 
   PUBLIC :: gemint2, g2gemint, g4int, gemint2_derivative
-  PUBLIC :: gemnorm
 
   CONTAINS
 

@@ -41,8 +41,7 @@ MODULE spherical_harmonics
 
   PUBLIC :: y_lm
   PUBLIC :: clebsch_gordon_deallocate, clebsch_gordon_init,&
-            clebsch_gordon, clebsch_gordon_getm
-  PUBLIC :: dPof1 , drvy_lm
+            clebsch_gordon
   PUBLIC :: legendre, dlegendre
 
   INTERFACE y_lm

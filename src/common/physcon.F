@@ -81,10 +81,10 @@ MODULE physcon
 
   REAL(KIND = dp), DIMENSION(maxmom) :: esu
 
-  PUBLIC :: a_bohr,a_fine,a_mass,angstrom,atm,bar,bohr,boltzmann,c_light,&
-            debye,e_charge,e_gfactor,e_mass,evolt,femtoseconds,h_bar,h_planck,&
-            hertz,joule,kcalmol,kelvin,kjmol,massunit,mu_perm,n_avogadro,newton,&
-            p_mass,pascal,permittivity,picoseconds,rydberg,seconds,vibfac,wavenumbers
+  PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann,&
+            debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar,&
+            hertz, joule, kcalmol, kelvin, kjmol, massunit, mu_perm, n_avogadro, newton,&
+            p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers
 
   PUBLIC :: init_physcon,&
             write_physcon

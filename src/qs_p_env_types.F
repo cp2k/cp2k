@@ -32,8 +32,8 @@ MODULE qs_p_env_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: qs_p_env_type, qs_p_env_p_type
-  PUBLIC :: p_env_retain, p_env_release, p_env_write
+  PUBLIC :: qs_p_env_type
+  PUBLIC :: p_env_release
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_p_env_types'

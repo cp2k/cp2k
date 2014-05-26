@@ -77,9 +77,7 @@ MODULE harris_force
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_force'
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_force_correction, &
-            harris_force_EVal, &
-            harris_calc_nsc_force
+  PUBLIC :: harris_force_correction
 
 !***
 

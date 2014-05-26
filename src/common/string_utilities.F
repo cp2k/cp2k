@@ -73,13 +73,9 @@ MODULE string_utilities
             compress,&
             integer_to_string,&
             is_whitespace,&
-            lowercase,&
-            make_tuple,&
-            pattern_match,&
             remove_word,&
-            s2a,a2s,&
+            s2a, a2s,&
             str_comp,&
-            str_search,&
             string_to_ascii,&
             substitute_special_xml_tokens,&
             typo_match,&
@@ -87,10 +83,7 @@ MODULE string_utilities
             write_html_tables,&
             xstring
 
-  PUBLIC :: backslash,&
-            html_entity_table,&
-            star,&
-            question,&
+  PUBLIC :: html_entity_table,&
             newline
 
   INTERFACE s2a

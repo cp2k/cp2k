@@ -42,33 +42,21 @@ IMPLICIT NONE
 
   !Maximum number of nodes in each direction
   PUBLIC :: ma_net_topology, ma_allocated_topology
-  PUBLIC :: ma_get_allocated_topology, ma_set_allocated_topology
-  PUBLIC :: ma_nodes_x, ma_nodes_y, ma_nodes_z
-  PUBLIC :: ma_num_nodes
-  PUBLIC :: ma_get_host_coordinates
-  PUBLIC :: ma_hops, ma_compute_contention
-  PUBLIC :: ma_hops_byte,ma_hop_bytes
-  PUBLIC :: ma_dist_bytes
-  PUBLIC :: ma_comm_graph, ma_comm_pattern_cannon
-  PUBLIC :: ma_comm_pattern_alltoall
+  PUBLIC :: ma_compute_contention
+  PUBLIC :: ma_comm_graph
   PUBLIC :: ma_2dgrid_dimensions
   PUBLIC :: ma_get_job_allocation
   PUBLIC :: ma_destroy_topology
   
 #if defined __parallel
 #if defined __GEMINI || __SEASTAR
- PUBLIC :: ma_extract_topology
- PUBLIC :: ma_remove_topology
- PUBLIC :: ma_get_job_alloc_strategy
 #endif 
 #endif
  
 ! These are for Machine architecture internal use.
 !
   PUBLIC :: net_topology
-  PUBLIC :: comm_graph
-  PUBLIC :: allocated_topology 
-  PUBLIC :: max_nodes, max_x, max_y, max_z
+  PUBLIC :: allocated_topology
 
   TYPE(net_topo),DIMENSION(:),POINTER      :: net_topology
   INTEGER                                  :: max_x

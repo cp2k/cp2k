@@ -26,7 +26,6 @@ MODULE pint_public
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_public'
 
   PUBLIC :: pint_com_pos
-  PUBLIC :: pint_free_part_bead_x
   PUBLIC :: pint_levy_walk
 
   CONTAINS

@@ -90,8 +90,7 @@ MODULE qs_resp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_resp'
 
-  PUBLIC :: resp_fit,&
-            resp_type
+  PUBLIC :: resp_fit
 
   TYPE resp_type
    LOGICAL                                :: equal_charges, itc,& 

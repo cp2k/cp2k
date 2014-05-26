@@ -33,8 +33,7 @@ MODULE mm_mapping_library
                                         charmm_map,&
                                         gromos_map
   PUBLIC :: create_ff_map,&
-            destroy_ff_map,&
-            ff_map_type
+            destroy_ff_map
 CONTAINS
 
 ! *****************************************************************************

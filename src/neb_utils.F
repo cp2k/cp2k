@@ -81,8 +81,6 @@ MODULE neb_utils
 
   PUBLIC :: build_replica_coords,&
             neb_calc_energy_forces,&
-            get_tangent,&
-            get_neb_force,&
             reorient_images,&
             reparametrize_images,&
             check_convergence

@@ -75,10 +75,9 @@ MODULE cp_dbcsr_operations
 
 
   PUBLIC :: cp_dbcsr_multiply_local, cp_dbcsr_multiply_vec, cp_dbcsr_pack_vec,&
-       packed_vec_scale, cp_dbcsr_unpack_vec,&
-       cp_dbcsr_mult_pack_vec_local, packed_vec_bif_tech, &
-       packed_vec_bif_tech2, cp_dbcsr_copy_vec, packed_vec_build_u, packed_vec_bcast, &
-       packed_vec_ini
+            packed_vec_scale, cp_dbcsr_unpack_vec,&
+            packed_vec_bif_tech2, cp_dbcsr_copy_vec, packed_vec_build_u, packed_vec_bcast,&
+            packed_vec_ini
 
   INTERFACE cp_dbcsr_multiply_local
      MODULE PROCEDURE cp_dbcsr_multiply_local_d,&
@@ -87,9 +86,9 @@ MODULE cp_dbcsr_operations
 
   ! CP2K API emulation
   PUBLIC :: cp_dbcsr_from_fm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
-            copy_dbcsr_to_cfm, copy_cfm_to_dbcsr, &
+            copy_dbcsr_to_cfm, copy_cfm_to_dbcsr,&
             cp_dbcsr_sm_fm_multiply, cp_dbcsr_plus_fm_fm_t,&
-            cp_dbcsr_get_id_nr,copy_dbcsr_to_fm_bc,copy_fm_to_dbcsr_bc
+            copy_dbcsr_to_fm_bc, copy_fm_to_dbcsr_bc
 
   ! distribution_2d_type compatibility
   PUBLIC :: cp_dbcsr_dist2d_to_dist

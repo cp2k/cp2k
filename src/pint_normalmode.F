@@ -30,7 +30,6 @@ MODULE pint_normalmode
 
   PUBLIC :: normalmode_env_create
   PUBLIC :: normalmode_release
-  PUBLIC :: normalmode_retain
   PUBLIC :: normalmode_init_masses
   PUBLIC :: normalmode_x2u
   PUBLIC :: normalmode_u2x

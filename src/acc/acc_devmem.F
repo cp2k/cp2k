@@ -32,7 +32,7 @@ MODULE acc_devmem
   PUBLIC :: acc_devmem_type
   PUBLIC :: acc_devmem_allocate_bytes, acc_devmem_deallocate
   PUBLIC :: acc_devmem_setzero_bytes
-  PUBLIC :: acc_devmem_allocated, acc_devmem_info
+  PUBLIC :: acc_devmem_allocated
   PUBLIC :: acc_devmem_dev2host, acc_devmem_host2dev
   PUBLIC :: acc_devmem_size_in_bytes
   PUBLIC :: acc_devmem_ensure_size_bytes

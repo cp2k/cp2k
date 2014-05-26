@@ -22,8 +22,7 @@ MODULE bessel_lib
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: bessi0, bessi1, bessj0, bessj1, bessk0, bessk1
-  PUBLIC :: bessel_transform
+  PUBLIC :: bessj0, bessj1, bessk0, bessk1
 
 CONTAINS
 

@@ -26,7 +26,7 @@ MODULE periodic_table
 
   PRIVATE
 
-  PUBLIC :: init_periodic_table, ptable, atom, nelem,&
+  PUBLIC :: init_periodic_table, ptable, nelem,&
             get_ptable_info
 
   TYPE atom

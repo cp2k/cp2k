@@ -60,7 +60,6 @@ MODULE orbital_pointers
             ncoset,&
             nso,&
             nsoset,&
-            so,&
             soset
 
 CONTAINS

@@ -214,7 +214,6 @@ MODULE molecule_kind_types
             get_molecule_kind_set,&
             num_ao_el_per_molecule,&
             set_molecule_kind,&
-            write_molecule_kind,&
             write_molecule_kind_set,&
             setup_colvar_counters
 
@@ -226,7 +225,6 @@ MODULE molecule_kind_types
             torsion_type,&
             impr_type,&
             opbend_type,&
-            restraint_type,&
             colvar_constraint_type,&
             g3x3_constraint_type,&
             g4x6_constraint_type,&

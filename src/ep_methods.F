@@ -176,13 +176,10 @@ MODULE ep_methods
 
   TYPE(ep_env_p_type), DIMENSION(:), POINTER, PRIVATE :: ep_envs
 
-  PUBLIC :: ep_env_init_low, ep_env_transfer_psi0, &
-       ep_env_localize_matrix, ep_env_calc_e_f_low, ep_env_create
+  PUBLIC :: ep_env_create
 
-  PUBLIC :: ep_env_retain, ep_env_release, ep_env_get
+  PUBLIC :: ep_env_retain, ep_env_release
   PUBLIC :: ep_envs_get_ep_env, ep_env_calc_e_f
-  PUBLIC :: ep_energy_zero, ep_force_create, ep_force_retain, &
-            ep_force_release, ep_force_zero
 CONTAINS
 
 ! *****************************************************************************

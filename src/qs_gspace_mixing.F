@@ -70,9 +70,9 @@ MODULE qs_gspace_mixing
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gspace_mixing'
 
-  PUBLIC :: gspace_mixing, broyden_mixing, broyden_mixing_new, gmix_potential_only, &
-            gspace_density_mixing, mixing_allocate, mixing_init,&
-            pulay_mixing, self_consistency_check
+  PUBLIC :: gspace_mixing,&
+            mixing_allocate, mixing_init,&
+            self_consistency_check
 
 CONTAINS
 

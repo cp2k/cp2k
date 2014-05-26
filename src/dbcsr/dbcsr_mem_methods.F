@@ -34,7 +34,7 @@ MODULE dbcsr_mem_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mem_methods'
 
   PUBLIC :: dbcsr_mempool_get, dbcsr_mempool_add, dbcsr_mempool_ensure_capacity
-  PUBLIC :: dbcsr_mempool_create, dbcsr_mempool_destruct, dbcsr_mempool_clear
+  PUBLIC :: dbcsr_mempool_destruct, dbcsr_mempool_clear
   PUBLIC :: dbcsr_memtype_setup, dbcsr_memtype_equal
 
   LOGICAL, PARAMETER :: debug = .FALSE.

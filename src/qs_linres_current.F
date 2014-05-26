@@ -134,7 +134,7 @@ MODULE qs_linres_current
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: current_build_current,calculate_jrho_resp,current_build_chi,current_set_gauge
+  PUBLIC :: current_build_current, current_build_chi
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 

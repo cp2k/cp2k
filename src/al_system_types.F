@@ -24,7 +24,6 @@ MODULE al_system_types
 
   PRIVATE
   PUBLIC :: al_system_type,&
-            al_thermo_type,&
             al_init,&
             al_dealloc,&
             al_thermo_create

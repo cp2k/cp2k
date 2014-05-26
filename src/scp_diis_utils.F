@@ -33,7 +33,6 @@ MODULE scp_diis_utils
     REAL (KIND=dp), DIMENSION(:), POINTER :: hess
   END TYPE diis_info_type
 
-  PUBLIC :: do_diis_step, diis_info_type, diis_info_create, diis_info_destroy
 
 CONTAINS
 

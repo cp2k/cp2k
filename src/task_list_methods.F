@@ -78,7 +78,6 @@ MODULE task_list_methods
   PUBLIC :: generate_qs_task_list,&
             task_list_inner_loop
   PUBLIC :: distribute_tasks,&
-            pair2int,&
             int2pair,&
             rs_distribute_matrix
 

@@ -21,7 +21,6 @@ MODULE ma_config
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_config'
 
 
-  PUBLIC :: ma_init_conf
   PUBLIC :: ma_set_conf_print_branch, ma_get_conf_print_branch
   PUBLIC :: ma_set_conf_print_resume, ma_get_conf_print_resume
   PUBLIC :: ma_set_conf_print_full, ma_get_conf_print_full
@@ -40,13 +39,13 @@ MODULE ma_config
   PUBLIC :: print_branch,&
             print_resume,&
             print_full
-  PUBLIC :: print_proc, &
-            print_thread, &
+  PUBLIC :: print_proc,&
+            print_thread,&
             print_thread_cur
-  PUBLIC :: use_sched, &
-            use_mempol, &
-            mpi_sched, &
-            comm_thread, &
+  PUBLIC :: use_sched,&
+            use_mempol,&
+            mpi_sched,&
+            comm_thread,&
             mpi_reorder
   PUBLIC :: isconfigured, isdefault, hasnet
 

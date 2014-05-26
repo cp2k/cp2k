@@ -131,7 +131,7 @@ MODULE qs_linres_methods
 
   ! *** Public subroutines ***
   PUBLIC :: linres_localize, linres_solver
-  PUBLIC :: linres_write_restart, linres_read_restart, linres_init_write_restart
+  PUBLIC :: linres_write_restart, linres_read_restart
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 

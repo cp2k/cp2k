@@ -26,8 +26,8 @@ MODULE qs_rho_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_types'
 
   PUBLIC :: qs_rho_p_type, qs_rho_type
-  PUBLIC :: qs_rho_retain, qs_rho_release, qs_rho_did_change,&
-       qs_rho_get
+  PUBLIC :: qs_rho_retain, qs_rho_release,&
+            qs_rho_get
 
 ! *****************************************************************************
 !> \brief keeps the density in various representations, keeping track of

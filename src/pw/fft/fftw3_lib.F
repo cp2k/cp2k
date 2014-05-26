@@ -22,9 +22,8 @@ MODULE fftw3_lib
 
   IMPLICIT NONE
 
-  PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm 
+  PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm
   PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
-  PUBLIC :: fftw_import_wisdom_from_file, fftw3_is_mkl_wrapper
 
 #if defined ( __FFTW3 )
     INTERFACE

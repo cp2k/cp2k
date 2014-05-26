@@ -73,10 +73,8 @@ MODULE dbcsr_io
   ! Low-level printing
 ! PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
   ! Utility printing
-  PUBLIC :: all_print
   PUBLIC :: dbcsr_binary_write
   PUBLIC :: dbcsr_binary_read
-  PUBLIC :: dbcsr_print_block_sum
 
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.

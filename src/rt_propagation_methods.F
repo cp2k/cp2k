@@ -81,13 +81,11 @@ MODULE rt_propagation_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_methods'
 
   PUBLIC :: propagation_step,&
-       s_matrices_create,&
-       calc_update_rho,&
-       calc_update_rho_sparse,&
-       aspc_extrapolate,&
-       calc_sinvH,&
-       put_data_to_history,&
-       purify_mcweeny_complex_nonorth
+            s_matrices_create,&
+            calc_update_rho,&
+            calc_update_rho_sparse,&
+            calc_sinvH,&
+            put_data_to_history
 
 
 CONTAINS

@@ -76,16 +76,15 @@ MODULE scptb_types
 
 ! *****************************************************************************
 
-  PUBLIC :: scptb_parameter_type, &
-            scptb_parameter_p_type, &
+  PUBLIC :: scptb_parameter_type,&
+            scptb_parameter_p_type,&
             allocate_scptb_parameter,&
             deallocate_scptb_parameter,&
             get_scptb_parameter,&
             set_scptb_parameter,&
             write_scptb_parameter
 
-  PUBLIC :: scp_kind_vector_type,&
-            scp_vector_type,&
+  PUBLIC :: scp_vector_type,&
             scp_vector_p_type,&
             scp_vector_create,&
             scp_vector_release,&
@@ -93,11 +92,7 @@ MODULE scptb_types
             scp_vector_add,&
             scp_vector_mult,&
             scp_vector_copy,&
-            scp_vector_scale,&
-            scp_vector_dot,&
-            scp_vector_norm,&
-            scp_vector_print,&
-            scp_vector_sync
+            scp_vector_dot
 
 ! *****************************************************************************
 

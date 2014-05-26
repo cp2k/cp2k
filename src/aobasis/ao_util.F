@@ -96,16 +96,11 @@ MODULE ao_util
 
   ! *** Public subroutines ***
 
-  PUBLIC :: cart2sph_mat,&
-       exp_radius,&
-       exp_radius_very_extended,&
-       gauss_exponent,&
-       gaussint_sph,&
-       trace_r_AxB, &
-       trace_r_AxB_new, &
-       transform_c2s,&
-       transform_c2s_new,&
-       transform_s2c
+  PUBLIC :: exp_radius,&
+            exp_radius_very_extended,&
+            gauss_exponent,&
+            gaussint_sph,&
+            trace_r_AxB
 
 CONTAINS
 

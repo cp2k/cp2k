@@ -17,7 +17,7 @@ MODULE pw_grid_types
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: pw_grid_type, map_pn, pw_para_type
+  PUBLIC :: pw_grid_type, map_pn
 
   ! (only for reciprocal grid:) fill in half or full space
   INTEGER, PARAMETER, PUBLIC :: HALFSPACE = 211, FULLSPACE = 212

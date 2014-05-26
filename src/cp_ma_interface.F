@@ -76,13 +76,10 @@ MODULE cp_ma_interface
   PUBLIC :: cp_ma_config, cp_ma_init_lib, cp_ma_finalize_lib
   PUBLIC :: cp_ma_run_on, cp_ma_thread_run_on
   PUBLIC :: cp_ma_current_thread_run
-  PUBLIC :: cp_ma_set_neighbors, cp_ma_get_neighbors
-  PUBLIC :: cp_ma_thread_sched, cp_ma_verify_place
+  PUBLIC :: cp_ma_thread_sched
   PUBLIC :: cp_ma_mpi_sched
   PUBLIC :: cp_ma_mempol
   PUBLIC :: cp_ma_print_machine
-  PUBLIC :: cp_ma_get_cuDev
-  PUBLIC :: cp_ma_net_affinity
   PUBLIC :: cp_ma_mpi_reorder_strategy
   PUBLIC :: cp_ma_mpi_reordering
   PUBLIC :: cp_ma_print_strategy

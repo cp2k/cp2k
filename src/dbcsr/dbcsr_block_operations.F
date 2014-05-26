@@ -45,14 +45,13 @@ MODULE dbcsr_block_operations
 
   PUBLIC :: dbcsr_block_transpose, dbcsr_data_set
   PUBLIC :: dbcsr_block_copy, dbcsr_block_partial_copy
-  PUBLIC :: set_block_diagonal, dbcsr_data_clear
+  PUBLIC :: dbcsr_data_clear
   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
   PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
 
   PUBLIC :: block_set, dbcsr_data_copy
   PUBLIC :: block_add_on_diag
   PUBLIC :: block_chol_inv
-  PUBLIC :: dbcsr_block_norm_frob
 
   PUBLIC :: block_add
 

@@ -36,8 +36,8 @@ MODULE dg_types
   INTEGER, SAVE, PRIVATE :: last_dg_id=0
 
   PRIVATE
-  PUBLIC :: dg_p_type, dg_type, dg_get,  &
-            dg_set, dg_retain, dg_release,  &
+  PUBLIC :: dg_type, dg_get,&
+            dg_set, dg_retain, dg_release,&
             dg_create
 
 CONTAINS

@@ -24,7 +24,7 @@ MODULE ep_qs_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_qs_types'
 
-  PUBLIC :: ep_qs_type, ep_qs_p_type
+  PUBLIC :: ep_qs_type
   PUBLIC :: ep_qs_retain, ep_qs_release
 
 ! *****************************************************************************

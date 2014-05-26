@@ -41,8 +41,8 @@ MODULE qs_matrix_pools
   INTEGER, SAVE, PRIVATE :: last_mpools_id=0
 
   PUBLIC :: qs_matrix_pools_type
-  PUBLIC :: mpools_retain, mpools_release, mpools_set, mpools_get,&
-       mpools_create, mpools_rebuild_fm_pools
+  PUBLIC :: mpools_retain, mpools_release, mpools_get,&
+            mpools_create, mpools_rebuild_fm_pools
 
 ! *****************************************************************************
 !> \brief container for the pools of matrixes used by qs

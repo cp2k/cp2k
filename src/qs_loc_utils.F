@@ -99,9 +99,9 @@ MODULE qs_loc_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
 
 ! *** Public ***
-  PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
-            loc_read_restart, rotate_state_to_ref, retain_history, qs_loc_init,&
-            read_loc_section,set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
+  PUBLIC :: jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
+            retain_history, qs_loc_init,&
+            read_loc_section, set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
 
 CONTAINS
 

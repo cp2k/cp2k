@@ -37,7 +37,6 @@ MODULE helium_common
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_common'
 
-  PUBLIC :: helium_bead_rij
   PUBLIC :: helium_pbc
   PUBLIC :: helium_boxmean_3d
   PUBLIC :: helium_calc_wnumber

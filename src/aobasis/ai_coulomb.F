@@ -51,7 +51,7 @@ MODULE ai_coulomb
 
  ! *** Public subroutines ***
 
-   PUBLIC :: coulomb2,coulomb3,coulomb2_new
+  PUBLIC :: coulomb2, coulomb2_new
 
  CONTAINS
 

@@ -76,7 +76,6 @@ MODULE helium_methods
   PUBLIC :: helium_create
   PUBLIC :: helium_init
   PUBLIC :: helium_release
-  PUBLIC :: helium_total_action
 
   CONTAINS
 

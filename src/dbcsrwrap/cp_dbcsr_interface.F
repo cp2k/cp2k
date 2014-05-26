@@ -98,11 +98,11 @@ MODULE cp_dbcsr_interface
 
   !
   ! Interface to libdbcsr (contains cp2k timing and error) 
-  PUBLIC :: dbcsr_error_set, dbcsr_error_stop,dbcsr_get_conf_comm_thread_load, &
-            dbcsr_get_conf_mm_stacksize,dbcsr_get_conf_nstacks, &
-            dbcsr_set_conf_combtypes,dbcsr_set_conf_external_timing,dbcsr_set_conf_mm_stacksize,dbcsr_set_conf_mpi_mem
-  PUBLIC :: dbcsr_set_conf_comm_thread_load,dbcsr_set_conf_max_ele_block,dbcsr_set_conf_mm_driver,dbcsr_set_conf_nstacks,&
-            dbcsr_set_conf_subcomm,dbcsr_set_conf_use_comm_thread,has_mpi,add_work_coordinate,block_set,&
+  PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_get_conf_comm_thread_load,&
+            dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
+            dbcsr_set_conf_combtypes, dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem
+  PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, dbcsr_set_conf_nstacks,&
+            dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_mpi, add_work_coordinate, block_set,&
             create_bl_distribution
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_distribution_local_rows,&
@@ -114,18 +114,18 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_type_complex_default, dbcsr_type_real_default, dbcsr_distribution_new
   PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
-  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, dbcsr_mp_mypcol,dbcsr_mp_myprow
+  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, dbcsr_mp_mypcol, dbcsr_mp_myprow
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
-  PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left,dbcsr_iterator_next_block,dbcsr_put_block
+  PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_put_block
   PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_repl_full
-  PUBLIC :: block_add_on_diag, block_chol_inv,dbcsr_scale_mat
+  PUBLIC :: block_add_on_diag, block_chol_inv, dbcsr_scale_mat
   PUBLIC :: cp_test_multiplies, dbcsr_norm_maxabsnorm, dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release, dbcsr_name
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
   PUBLIC :: dbcsr_distribution_mp
   PUBLIC :: convert_sizes_to_offsets
   PUBLIC :: cp_dbcsr_iterator
-  PUBLIC :: cp_dbcsr_type 
+  PUBLIC :: cp_dbcsr_type
   PUBLIC :: cp_dbcsr_p_type
   PUBLIC :: cp_dbcsr_init_lib, cp_dbcsr_finalize_lib
   PUBLIC :: cp_dbcsr_set
@@ -183,7 +183,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_num_blocks
   PUBLIC :: cp_dbcsr_get_data_size
   PUBLIC :: cp_dbcsr_nfullrows_total
-  PUBLIC :: cp_dbcsr_nfullcols_total
   !         1234567890123456789012345678901
   PUBLIC :: cp_dbcsr_get_stored_coordinates
   PUBLIC :: cp_dbcsr_valid_index
@@ -191,33 +190,31 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_reserve_block2d
   PUBLIC :: cp_dbcsr_reserve_blocks
   PUBLIC :: cp_dbcsr_reserve_all_blocks
-  PUBLIC :: cp_dbcsr_reserve_diag_blocks
   PUBLIC :: cp_dbcsr_complete_redistribute
   PUBLIC :: cp_dbcsr_gershgorin_norm
   PUBLIC :: cp_dbcsr_frobenius_norm
-  PUBLIC :: cp_dbcsr_maxabs
   PUBLIC :: cp_dbcsr_name
   PUBLIC :: cp_dbcsr_binary_write
   PUBLIC :: cp_dbcsr_binary_read
   PUBLIC :: cp_dbcsr_function_of_elements
   PUBLIC :: cp_dbcsr_btriu
   PUBLIC :: cp_dbcsr_clear_mempools
-  PUBLIC :: accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
-       accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
-       accdrv_posterior_buffers, accdrv_posterior_streams, &
-       accdrv_priority_buffers, accdrv_priority_streams, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_subcomm, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, &
-       mm_name_smm, multrec_limit
+  PUBLIC :: accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins,&
+            accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort,&
+            accdrv_posterior_buffers, accdrv_posterior_streams,&
+            accdrv_priority_buffers, accdrv_priority_streams,&
+            dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block,&
+            dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem,&
+            dbcsr_get_conf_subcomm, mm_driver_acc,&
+            mm_driver_blas, mm_driver_matmul, mm_driver_smm,&
+            mm_name_acc, mm_name_blas, mm_name_matmul,&
+            mm_name_smm, multrec_limit
   PUBLIC :: heap_fill,&
-                                             heap_get_first,&
-                                             heap_new,&
-                                             heap_release,&
-                                             heap_reset_first,&
-                                             heap_t
+            heap_get_first,&
+            heap_new,&
+            heap_release,&
+            heap_reset_first,&
+            heap_t
   PUBLIC :: cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_deallocate_matrix
   PUBLIC :: cp_dbcsr_add_block_node
 

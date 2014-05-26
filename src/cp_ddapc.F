@@ -62,8 +62,6 @@ MODULE cp_ddapc
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc'
 
   PUBLIC :: cp_ddapc_apply_CD,&  ! Apply Coupling/Decoupling to Periodic Images
-            cp_ddapc_apply_RS,&  ! Apply Restraints/Constraints
-            cp_ddapc_apply_RF,&  ! Apply an SCRF (Solvation Scheme)
             qs_ks_ddapc
 
 CONTAINS

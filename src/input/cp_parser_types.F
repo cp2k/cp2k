@@ -47,7 +47,7 @@ MODULE cp_parser_types
 
   PRIVATE
 
-  PUBLIC :: cp_parser_type, parser_release, parser_retain, parser_create,&
+  PUBLIC :: cp_parser_type, parser_release, parser_create,&
             parser_reset, empty_initial_variables
 
   ! this is a zero sized array by choice, and convenience

@@ -51,7 +51,7 @@ MODULE timings
   PUBLIC :: timeset, timestop, print_stack
 
   ! these routines are currently only used by environment.F and f77_interface.F
-  PUBLIC :: add_timer_env, timer_env_create, rm_timer_env, get_timer_env
+  PUBLIC :: add_timer_env, rm_timer_env, get_timer_env
   PUBLIC :: timer_env_retain, timer_env_release
   PUBLIC :: timings_setup_tracing
 

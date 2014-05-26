@@ -75,9 +75,9 @@ MODULE dbcsr_test_methods
   PRIVATE
 
   PUBLIC :: dbcsr_to_dense_local, dbcsr_impose_sparsity
-  PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix, dbcsr_make_null_mp, &
-       dbcsr_make_random_block_sizes, dbcsr_make_null_dist, dbcsr_test_read_args, &
-       atoi, atol, ator
+  PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix,&
+            dbcsr_make_random_block_sizes, dbcsr_test_read_args,&
+            atoi, atol, ator
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
 

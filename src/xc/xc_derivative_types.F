@@ -26,9 +26,9 @@ MODULE xc_derivative_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_types'
 
-   PUBLIC :: xc_derivative_type, xc_derivative_p_type
-   PUBLIC :: xc_derivative_create, xc_derivative_release, xc_derivative_retain,&
-        xc_derivative_get
+  PUBLIC :: xc_derivative_type, xc_derivative_p_type
+  PUBLIC :: xc_derivative_create, xc_derivative_release,&
+            xc_derivative_get
 
 ! *****************************************************************************
 !> \brief represent a derivative of a functional

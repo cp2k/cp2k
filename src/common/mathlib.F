@@ -36,8 +36,6 @@ MODULE mathlib
             diamat_all,&
             invmat,&
             invert_matrix,&
-            power_matrix,&
-            set_diag,&
             symmetrize_matrix,&
             unit_matrix, diag
 
@@ -50,7 +48,6 @@ MODULE mathlib
             gcd,&
             inv_3x3,&
             lcm,&
-            ei,&
             vector_product,&
             matmul_3x3,&
             matvec_3x3,&

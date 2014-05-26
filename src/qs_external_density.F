@@ -44,7 +44,7 @@ MODULE qs_external_density
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_external_density'
 
-  PUBLIC :: external_read_density, external_read_vxc
+  PUBLIC :: external_read_density
 
 CONTAINS
 

@@ -29,7 +29,6 @@ MODULE et_coupling_types
 
   PUBLIC :: et_coupling_create,&
             et_coupling_release,&
-            get_et_coupling_type,&
             set_et_coupling_type
 
 ! *****************************************************************************

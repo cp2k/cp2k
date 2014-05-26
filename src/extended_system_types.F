@@ -32,9 +32,7 @@ MODULE extended_system_types
             map_info_type,&
             create_map_info_type,&
             release_map_info_type,&
-            npt_info_type,&
-            nhc_info_type,&
-            point_info_type
+            npt_info_type
 
   LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
   LOGICAL, PARAMETER, PUBLIC :: debug_uniaxial_limit  = .FALSE.

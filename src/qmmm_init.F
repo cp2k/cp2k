@@ -77,11 +77,8 @@ MODULE qmmm_init
             qmmm_init_periodic_potential,&
             setup_qmmm_vars_qm,&
             setup_qmmm_vars_mm,&
-            read_qmmm_ff_section,&
-            setup_qm_atom_list,&
             setup_qmmm_links,&
             move_or_add_atoms,&
-            set_add_set_type,&
             setup_origin_mm_cell
 
 !***

@@ -60,8 +60,8 @@ MODULE pw_poisson_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_methods'
 
-  PUBLIC :: pw_poisson_cleanup, pw_poisson_rebuild, pw_poisson_check, &
-       pw_poisson_solve, pw_poisson_set
+  PUBLIC :: pw_poisson_rebuild,&
+            pw_poisson_solve, pw_poisson_set
 
   INTEGER, PARAMETER                       :: use_rs_grid=0,&
                                               use_gs_grid = 1

@@ -58,12 +58,11 @@ MODULE qs_tddfpt_utils
   PRIVATE
 
   ! METHODS
-  PUBLIC :: tddfpt_cleanup, &
-            tddfpt_init, &
-            tddfpt_env_init, &
-            co_initial_guess, &
+  PUBLIC :: tddfpt_cleanup,&
+            tddfpt_init,&
+            co_initial_guess,&
             find_contributions,&
-            normalize, &
+            normalize,&
             reorthogonalize
 
 CONTAINS

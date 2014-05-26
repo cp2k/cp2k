@@ -151,11 +151,11 @@ MODULE f77_interface
   PUBLIC :: init_f77_default
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
-            get_force, calc_energy_force, get_energy, &
+            get_force, calc_energy_force, get_energy,&
             calc_energy, calc_force, check_input, get_natom, get_nparticle,&
-            f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
+            f_env_add_defaults, f_env_rm_defaults, f_env_type,&
             f_env_get_from_id,&
-            set_vel, get_vel, do_shake, set_cell, get_cell, get_result_r1
+            set_vel, do_shake, set_cell, get_result_r1
 CONTAINS
 
 !- ****************************************************************************

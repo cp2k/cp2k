@@ -26,10 +26,10 @@ MODULE pint_staging
 
   INTEGER, SAVE, PRIVATE :: last_staging_id=0
 
-  PUBLIC :: staging_env_create, staging_release, staging_retain, &
-       staging_init_masses, &
-       staging_x2u, staging_u2x, staging_f2uf, &
-       staging_calc_uf_h
+  PUBLIC :: staging_env_create, staging_release,&
+            staging_init_masses,&
+            staging_x2u, staging_u2x, staging_f2uf,&
+            staging_calc_uf_h
 
 CONTAINS
 

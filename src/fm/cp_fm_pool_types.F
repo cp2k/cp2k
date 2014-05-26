@@ -36,13 +36,12 @@ MODULE cp_fm_pool_types
 
   PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type
   PUBLIC :: fm_pool_create, fm_pool_retain,&
-       fm_pool_release,&
-       fm_pool_create_fm, fm_pool_give_back_fm,&
-       fm_pool_get_el_struct, fm_pool_create_fm_vect,&
-       fm_pool_give_back_fm_vect
+            fm_pool_release,&
+            fm_pool_create_fm, fm_pool_give_back_fm,&
+            fm_pool_get_el_struct
   PUBLIC :: fm_pools_copy, fm_pools_dealloc,&
-       fm_pools_flush_cache, fm_pools_create_fm_vect,&
-       fm_pools_give_back_fm_vect
+            fm_pools_create_fm_vect,&
+            fm_pools_give_back_fm_vect
 !***
 
 ! *****************************************************************************

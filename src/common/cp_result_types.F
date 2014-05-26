@@ -33,9 +33,7 @@
 
 ! *** Public data types ***
   PUBLIC :: cp_result_type,&
-            cp_result_p_type,&
-            cp_result_value_type,&
-            cp_result_value_p_type
+            cp_result_p_type
 
 ! *** Public subroutines ***
   PUBLIC :: cp_result_create,&
@@ -44,7 +42,6 @@
             cp_result_clean,&
             cp_result_copy,&
             cp_result_value_create,&
-            cp_result_value_release,&
             cp_result_value_copy,&
             cp_result_value_p_reallocate,&
             cp_result_value_init

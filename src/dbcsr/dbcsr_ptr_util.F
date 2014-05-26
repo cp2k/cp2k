@@ -48,10 +48,9 @@ MODULE dbcsr_ptr_util
 
   PUBLIC :: ensure_array_size
   PUBLIC :: memory_allocate, memory_deallocate
-  PUBLIC :: memory_copy, memory_zero
+  PUBLIC :: memory_zero
   PUBLIC :: pointer_view
-  PUBLIC :: pointer_rank_remap2, &
-            pointer_s_rank_remap2, pointer_d_rank_remap2,&
+  PUBLIC :: pointer_s_rank_remap2, pointer_d_rank_remap2,&
             pointer_c_rank_remap2, pointer_z_rank_remap2
 
   INTERFACE ensure_array_size

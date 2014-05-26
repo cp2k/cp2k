@@ -29,9 +29,7 @@ MODULE free_energy_types
   PUBLIC :: free_energy_type,&
             fe_env_release,&
             fe_env_create,&
-            ui_var_type,&
-            ui_conv_type,&
-            statistical_type
+            ui_var_type
 
 
 ! *****************************************************************************

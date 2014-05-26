@@ -14,9 +14,9 @@ MODULE machine
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine_internal,                ONLY: &
-       m_abort, m_chdir, m_cputime, m_flush_internal=>m_flush, m_getarg, &
-       m_getcwd, m_getlog, m_getpid, m_getuid, m_hostnm, m_iargc, m_memory, &
-       m_memory_details, m_mov, m_procrun
+       m_abort, m_chdir, m_flush_internal=>m_flush, m_getarg, m_getcwd, &
+       m_getlog, m_getpid, m_hostnm, m_iargc, m_memory, m_memory_details, &
+       m_mov, m_procrun
 
  !$ USE OMP_LIB
 
@@ -36,9 +36,9 @@ MODULE machine
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, m_flush_internal, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_procrun,&
-       m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details, m_energy
+  PUBLIC :: m_walltime, m_datum, m_flush, m_flush_internal,&
+            m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, m_procrun,&
+            m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details, m_energy
 
   ! should only be set according to the state in &GLOBAL
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.

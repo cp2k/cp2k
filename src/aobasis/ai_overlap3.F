@@ -60,7 +60,7 @@ MODULE ai_overlap3
 
 ! *** Public subroutines ***
 
-  PUBLIC :: overlap3, overlap3_slow, overlap3_old
+  PUBLIC :: overlap3
 
 !!***
 ! *****************************************************************************

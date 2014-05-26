@@ -55,7 +55,7 @@ MODULE dbcsr_iterator_operations
   INTEGER, PRIVATE, POINTER, SAVE      :: common_int_pointer
 
 
-  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_seek
+  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop
 
   PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
 

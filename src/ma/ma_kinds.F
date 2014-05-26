@@ -13,11 +13,9 @@ MODULE ma_kinds
 
   PRIVATE
 
-  PUBLIC :: sp, dp
-  PUBLIC :: int_1, int_2, int_4, int_8
-  PUBLIC :: real_4, real_8
-  PUBLIC :: int_size, int_1_size, int_2_size, int_4_size, int_8_size
-  PUBLIC :: real_4_size, real_8_size
+  PUBLIC :: dp
+  PUBLIC :: int_4
+  PUBLIC :: int_size
   PUBLIC :: default_string_length
 
   INTEGER, PARAMETER :: real_4 = SELECTED_REAL_KIND ( 6, 30 )

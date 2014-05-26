@@ -23,17 +23,15 @@ MODULE dbcsr_error_handling
   PRIVATE
 
   ! procedures
-  PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_error_print_stack
+  PUBLIC :: dbcsr_error_set, dbcsr_error_stop
   PUBLIC :: dbcsr_assert
   ! types
-  PUBLIC :: dbcsr_error_stack_type
   PUBLIC :: dbcsr_error_type
   ! parameters
-  PUBLIC :: dbcsr_error_stack_size
-  PUBLIC :: dbcsr_note_level, dbcsr_warning_level, dbcsr_failure_level, dbcsr_fatal_level
-  PUBLIC :: dbcsr_no_error, dbcsr_caller_error, dbcsr_wrong_args_error,&
-            dbcsr_precondition_failed, dbcsr_internal_error, dbcsr_postcondition_failed,&
-            dbcsr_invariant_failed, dbcsr_assertion_failed, dbcsr_unimplemented_error_nr
+  PUBLIC :: dbcsr_warning_level, dbcsr_failure_level, dbcsr_fatal_level
+  PUBLIC :: dbcsr_caller_error, dbcsr_wrong_args_error,&
+            dbcsr_internal_error,&
+            dbcsr_unimplemented_error_nr
 
   ! external timing hooks
   PUBLIC :: external_timeset, external_timestop

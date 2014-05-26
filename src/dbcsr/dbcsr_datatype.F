@@ -13,12 +13,6 @@
 !> - Created 2009-05-12
 ! *****************************************************************************
 MODULE dbcsr_datatype
-  PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
-            dbcsr_type_complex_4, dbcsr_type_complex_8,&
-            dbcsr_type_real_default, dbcsr_type_complex_default,&
-            dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
-            dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d,&
-            dbcsr_type_int_4, dbcsr_type_int_8
 
 
 !> Type definitions:

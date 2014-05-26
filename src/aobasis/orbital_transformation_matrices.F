@@ -51,11 +51,10 @@ MODULE orbital_transformation_matrices
 
 ! *** Public variables ***
 
-  PUBLIC :: orbtramat, c2s_tramat, s2c_tramat
+  PUBLIC :: orbtramat, c2s_tramat
 
 ! *** Public data types ***
 
-  PUBLIC :: orbtramat_type
 
 ! *** Public subroutines ***
 

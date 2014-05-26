@@ -82,15 +82,14 @@ MODULE ewald_environment_types
   END TYPE ewald_environment_p_type
 
 ! *** Public data types ***
-  PUBLIC :: ewald_environment_type,        &
-            ewald_environment_p_type
+  PUBLIC :: ewald_environment_type
 
 ! *** Public subroutines ***
   PUBLIC :: ewald_env_get,&
             ewald_env_set,&
-            ewald_env_create, &
-            ewald_env_retain, &
-            ewald_env_release, &
+            ewald_env_create,&
+            ewald_env_retain,&
+            ewald_env_release,&
             read_ewald_section
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_environment_types'

@@ -65,7 +65,7 @@ MODULE lri_ks_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_ks_methods'
 
-  PUBLIC :: print_lri_density_cube, print_v_xc_cube, calculate_lri_ks_matrix
+  PUBLIC :: calculate_lri_ks_matrix
 
 CONTAINS
 

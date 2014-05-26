@@ -48,9 +48,8 @@ MODULE cp_dbcsr_diag
 
   ! Public subroutines
 
-  PUBLIC :: cp_dbcsr_syevd, &
-            cp_dbcsr_syevr, &
-            cp_dbcsr_syevx, &
+  PUBLIC :: cp_dbcsr_syevd,&
+            cp_dbcsr_syevx,&
             cp_dbcsr_heevd
 
 CONTAINS

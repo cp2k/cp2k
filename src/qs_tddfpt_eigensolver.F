@@ -56,7 +56,7 @@ MODULE qs_tddfpt_eigensolver
 
   PRIVATE
 
-  PUBLIC :: apply_op, eigensolver
+  PUBLIC :: eigensolver
 
 CONTAINS
 

@@ -31,7 +31,6 @@ MODULE linear_systems
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'linear_systems'
 
-  PUBLIC :: cholesky_inverse
   PUBLIC :: solve_system
 
   INTERFACE cholesky_inverse

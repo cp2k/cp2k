@@ -55,10 +55,9 @@ MODULE harris_functional
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_functional'
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_energy_correction, &
-            harris_eigenvalue_summation, &
-            harris_eigenvalue_calculation, &
-            harris_eigenvalue_trace_KS_Pmix, &
+  PUBLIC :: harris_energy_correction,&
+            harris_eigenvalue_calculation,&
+            harris_eigenvalue_trace_KS_Pmix,&
             harris_postprocessing
 
 !***

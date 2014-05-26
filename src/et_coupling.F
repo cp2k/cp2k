@@ -61,7 +61,7 @@ MODULE et_coupling
 
 ! *** Public subroutines ***
 
-  PUBLIC :: calc_et_coupling,becke_restraint,becke_force
+  PUBLIC :: calc_et_coupling, becke_restraint
 
 CONTAINS
 ! *****************************************************************************

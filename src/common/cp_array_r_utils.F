@@ -55,13 +55,9 @@ MODULE cp_array_r_utils
   PUBLIC :: cp_1d_r_p_type, cp_2d_r_p_type, cp_3d_r_p_type
 
   ! generic interfaces
-  PUBLIC :: cp_guarantee_size
 
   ! the underlying procedures
-  PUBLIC :: cp_1d_r_guarantee_size, &
-       cp_1d_r_write, cp_2d_r_write,&
-       cp_2d_r_guarantee_size,&
-       cp_1d_r_bsearch
+  PUBLIC :: cp_2d_r_write
 
   INTERFACE cp_guarantee_size
      MODULE PROCEDURE cp_1d_r_guarantee_size,&

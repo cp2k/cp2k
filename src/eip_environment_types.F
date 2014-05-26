@@ -51,15 +51,13 @@ MODULE eip_environment_types
   INTEGER, PRIVATE, SAVE :: last_eip_id=0
 
   ! *** Public data types ***
-  PUBLIC :: eip_environment_type, &
-            eip_environment_p_type
+  PUBLIC :: eip_environment_type
 
   ! *** Public subroutines ***
-  PUBLIC :: eip_env_retain, &
-            eip_env_release, &
+  PUBLIC :: eip_env_retain,&
+            eip_env_release,&
             eip_env_set,&
-            eip_env_get, &
-            eip_env_clear, &
+            eip_env_get,&
             eip_env_create
 
 ! *****************************************************************************

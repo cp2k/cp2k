@@ -147,7 +147,6 @@ MODULE basis_set_types
   PUBLIC :: allocate_sto_basis_set,&
             create_gto_from_sto_basis,&
             deallocate_sto_basis_set,&
-            get_sto_basis_set,&
             set_sto_basis_set,&
             srules
 
@@ -161,9 +160,7 @@ MODULE basis_set_types
   ! Public data types
   PUBLIC :: gto_basis_set_p_type,&
             gto_basis_set_type,&
-            sto_basis_set_p_type,&
             sto_basis_set_type,&
-            geminal_basis_set_p_type,&
             geminal_basis_set_type
 
 CONTAINS

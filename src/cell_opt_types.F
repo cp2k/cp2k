@@ -36,7 +36,6 @@ MODULE cell_opt_types
 
   PUBLIC :: cell_opt_env_type,&
             cell_opt_env_create,&
-            cell_opt_env_retain,&
             cell_opt_env_release
 
 ! *****************************************************************************

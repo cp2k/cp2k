@@ -41,7 +41,6 @@ MODULE ps_wavelet_methods
 ! *** Public data types ***
 
   PUBLIC :: ps_wavelet_create,&
-            RS_z_slice_distribution,&
             cp2k_distribution_to_z_slices,&
             z_slices_to_cp2k_distribution,&
             ps_wavelet_solve

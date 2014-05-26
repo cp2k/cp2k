@@ -395,12 +395,8 @@ MODULE cp_control_types
             gapw_control_type,&
             tddfpt_control_type,&
             efield_type,&
-            period_efield_type,&
-            efield_p_type,&
-            pw_grid_option,&
             mulliken_restraint_type,&
             ddapc_restraint_type,&
-            ddapc_restraint_p_type,&
             dftb_control_type,&
             scptb_control_type,&
             becke_restraint_type,&

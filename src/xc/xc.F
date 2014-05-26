@@ -78,9 +78,9 @@ MODULE xc
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, &
-       xc_rho_set_and_dset_create, xc_exc_calc,&
-       xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho
+  PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create,&
+            xc_exc_calc,&
+            xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'

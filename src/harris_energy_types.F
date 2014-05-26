@@ -23,15 +23,11 @@ MODULE harris_energy_types
   INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
-  PUBLIC :: harris_energy_type, &
-            harris_energy_p_type
+  PUBLIC :: harris_energy_type
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_energy_retain, &
-            harris_energy_release, &
-            harris_energy_set,&
-            harris_energy_get, &
-            harris_energy_clear, &
+  PUBLIC :: harris_energy_release,&
+            harris_energy_clear,&
             harris_energy_create
 
 ! *****************************************************************************

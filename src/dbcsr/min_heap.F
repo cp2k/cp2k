@@ -8,8 +8,8 @@ MODULE min_heap
   IMPLICIT NONE
 
   PUBLIC :: heap_t
-  PUBLIC :: heap_pop, heap_add, heap_get_first, heap_reset_first, heap_fill
-  PUBLIC :: heap_new, heap_release, heap_check
+  PUBLIC :: heap_get_first, heap_reset_first, heap_fill
+  PUBLIC :: heap_new, heap_release
 
   ! Sets the types to the default integer types.
   INTEGER, PARAMETER :: keyt = KIND(0)

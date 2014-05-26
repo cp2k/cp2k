@@ -35,7 +35,7 @@ MODULE dbcsr_blas_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_blas_operations'
 
   ! BLAS routines
-  PUBLIC :: dbcsr_blas_copy, dbcsr_blas_gemm, dbcsr_blas_scal
+  PUBLIC :: dbcsr_blas_copy, dbcsr_blas_gemm
 
   ! LAPACK routine
   PUBLIC :: dbcsr_lapack_larnv

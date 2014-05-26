@@ -99,8 +99,7 @@ MODULE mp2_ri_gpw
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_gpw'
 
   PUBLIC :: mp2_ri_gpw_compute_in,&
-            mp2_ri_gpw_compute_en,&
-            replicate_iaK_2intgroup
+            mp2_ri_gpw_compute_en
 
 
   CONTAINS

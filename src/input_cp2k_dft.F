@@ -125,10 +125,10 @@ MODULE input_cp2k_dft
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
 
-  PUBLIC :: create_dft_section,create_relativistic_section
+  PUBLIC :: create_dft_section
   PUBLIC :: create_bsse_section, create_qs_section
   PUBLIC :: create_scf_section, create_ep_section
-  PUBLIC :: create_interp_section, create_localize_section, print_wanniers
+  PUBLIC :: create_interp_section, create_localize_section
 
 CONTAINS
 

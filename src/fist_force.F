@@ -78,7 +78,7 @@ MODULE fist_force
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: fist_force_control, debug_variables_type
+  PUBLIC :: fist_force_control
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
 ! *****************************************************************************

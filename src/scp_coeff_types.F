@@ -71,16 +71,13 @@ MODULE scp_coeff_types
 
 ! *** Public structures ***
 
-  PUBLIC :: aux_coeff_set_type, aux_coeff_set_p_type,&
-            aux_coeff_type, aux_coeff_p_type
+  PUBLIC :: aux_coeff_set_type,&
+            aux_coeff_type
 
 ! *** Public Subroutines ***
 
-  PUBLIC :: aux_coeff_set_create, aux_coeff_set_initialize,&
-            aux_coeff_set_release, aux_coeff_set_retain,&
-            get_aux_coeff_set, aux_coeff_create, setup_aux_coeff, &
-            aux_coeff_release, get_aux_coeff, aux_coeff_zero_fc, create_replicated_coeff, &
-            deallocate_replicated_coeff
+  PUBLIC :: aux_coeff_set_release, aux_coeff_set_retain,&
+            get_aux_coeff
 
 CONTAINS
 

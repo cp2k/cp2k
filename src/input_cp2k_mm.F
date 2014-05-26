@@ -50,8 +50,8 @@ MODULE input_cp2k_mm
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mm'
 
   PUBLIC :: create_mm_section, create_dipoles_section
-  PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &
-            create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section,&
+  PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section,&
+            create_Goodwin_section,&
             create_GENPOT_section, create_neighbor_lists_section
   PUBLIC :: create_CHARGE_section
 !***

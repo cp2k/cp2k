@@ -44,7 +44,7 @@ MODULE list
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list'
 
   PUBLIC :: list_init, list_isready, list_push, list_pop, list_peek,&
-   list_insert, list_set, list_get, list_del, list_clear, list_size, list_destroy
+            list_get, list_size, list_destroy
 
 
   INTERFACE list_init

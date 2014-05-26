@@ -190,15 +190,12 @@ MODULE atomic_kind_types
             init_gapw_basis_set,&
             read_atomic_kind_set,&
             set_atomic_kind,&
-            write_atomic_kind,&
             write_atomic_kind_set,&
             write_gto_basis_sets,&
             is_hydrogen
 
   ! Public data types
-  PUBLIC :: atomic_kind_type,&
-            atomic_kind_p_type,&
-            dft_plus_u_type
+  PUBLIC :: atomic_kind_type
 
 CONTAINS
 

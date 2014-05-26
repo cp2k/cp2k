@@ -89,7 +89,7 @@ MODULE almo_scf_special
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_special'
 
   PUBLIC :: almo_level2_spec2_1, almo_levelX_spec6_0, almo_levelX_spec5_0,&
-            almo_levelX_spec4_1, almo_levelX_spec3_0, almo_levelX_spec1_0,&
+            almo_levelX_spec3_0,&
             almo_level2_spec1_0, almo_levelX_spec2_0
 
 CONTAINS

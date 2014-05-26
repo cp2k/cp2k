@@ -57,10 +57,9 @@ MODULE qs_interactions
 
 ! *** Public subroutines ***
 
-  PUBLIC :: init_interaction_radii, init_se_nlradius, &
-            init_interaction_radii_orb_basis
+  PUBLIC :: init_interaction_radii, init_se_nlradius
 
-  PUBLIC :: write_paw_radii, write_ppnl_radii, write_ppl_radii, write_core_charge_radii, &
+  PUBLIC :: write_paw_radii, write_ppnl_radii, write_ppl_radii, write_core_charge_radii,&
             write_pgf_orb_radii, write_geminal_radii
 
 CONTAINS

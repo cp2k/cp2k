@@ -205,13 +205,11 @@ MODULE qs_environment_types
 
 ! *** Public data types ***
 
-  PUBLIC :: qs_environment_p_type,&
-            qs_environment_type
+  PUBLIC :: qs_environment_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: get_qs_env,&
-            init_qs_env,&
             qs_env_create,&
             qs_env_release,&
             qs_env_reorthogonalize_vectors,&

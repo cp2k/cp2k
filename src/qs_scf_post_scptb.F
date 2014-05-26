@@ -43,8 +43,7 @@ MODULE qs_scf_post_scptb
   PRIVATE
   ! Global parameters
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_scptb'
-  PUBLIC :: scf_post_calculation_scptb ,&
-            write_scptb_mo_free_results
+  PUBLIC :: scf_post_calculation_scptb
 
 CONTAINS
 

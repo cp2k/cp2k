@@ -63,15 +63,15 @@ MODULE dbcsr_index_operations
 
 
   ! Index transformations
-  PUBLIC :: dbcsr_make_index_canonical, make_index_triangular,&
-            transpose_index_local, dbcsr_order_matrix_index
+  PUBLIC :: dbcsr_make_index_canonical,&
+            transpose_index_local
   PUBLIC :: dbcsr_make_index_local_row, dbcsr_has_local_row_index
   PUBLIC :: dbcsr_make_index_list
   ! Dense/Sparse
   PUBLIC :: make_dense_index, make_undense_index
   ! Working with DBCSR and linear indices
   PUBLIC :: dbcsr_make_dbcsr_index, dbcsr_sort_indices,&
-            dbcsr_sort_many_indices, merge_index_arrays,&
+            merge_index_arrays,&
             dbcsr_expand_row_index,&
             dbcsr_count_row_index, dbcsr_build_row_index,&
             dbcsr_index_prune_deleted,&

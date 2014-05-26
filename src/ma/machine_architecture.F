@@ -39,11 +39,10 @@ MODULE machine_architecture
 
   PUBLIC :: ma_get_id
 
-  PUBLIC :: ma_get_nnodes, ma_get_nsockets, ma_get_ncores, ma_get_ncaches
-  PUBLIC :: ma_get_nshared_caches, ma_get_nsiblings, ma_get_nnet_cards
+  PUBLIC :: ma_get_nnodes, ma_get_ncores
   PUBLIC :: ma_get_nmachines
 
-  PUBLIC :: ma_get_proc_core,ma_my_first_core
+  PUBLIC :: ma_get_proc_core, ma_my_first_core
   PUBLIC :: ma_get_mynode, ma_get_mycore
   PUBLIC :: ma_get_proc_node, ma_set_proc_node
 
@@ -51,32 +50,14 @@ MODULE machine_architecture
   PUBLIC :: ma_show_machine_full
 
 #if defined (__HWLOC)
-  PUBLIC :: ma_hw_set_mempol, ma_hw_get_mempol
-  PUBLIC :: ma_get_thread_id, ma_set_proc_core
-  PUBLIC :: ma_set_core, ma_get_core, ma_get_first_core
-  PUBLIC :: ma_set_proc_cores, ma_set_procnode
-  PUBLIC :: ma_set_thread_node, ma_set_thread_allnodes
-  PUBLIC :: ma_get_core_node, ma_set_thread_cores
-  PUBLIC :: ma_get_cuDev, ma_get_gpu_node
-  PUBLIC :: ma_get_netDev, ma_get_nnetDev
-  PUBLIC :: ma_set_first_core, ma_get_node_netDev
 #endif
 
 #if defined (__LIBNUMA)
-  PUBLIC :: ma_linux_set_mempol, ma_linux_get_mempol
-  PUBLIC :: ma_linux_get_core, ma_linux_set_core
-  PUBLIC :: ma_linux_set_proccore, ma_linux_get_proccore
-  PUBLIC :: ma_linux_get_thread_id
-  PUBLIC :: ma_linux_ncores, ma_linux_get_mynode
-  PUBLIC :: ma_set_proc_cores, ma_linux_set_procnode
-  PUBLIC :: ma_get_cuDev, ma_get_gpu_node
-  PUBLIC :: ma_linux_get_core_node, ma_linux_nnodes
 #endif
 
   ! These are for Machine architecture internal use.
   !
   PUBLIC :: topology
-  PUBLIC :: console_out
   PUBLIC :: ma_hwloc, ma_libnuma
   PUBLIC :: ma_interface, ma_int_hwloc, ma_int_libnuma, ma_int_none
 

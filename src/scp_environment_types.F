@@ -63,10 +63,9 @@ MODULE scp_environment_types
 ! *** Public subroutines ***
 
   PUBLIC :: get_scp_env,&
-            init_scp_env,&
-            set_scp_env, &
-            scp_env_create, &
-            scp_env_retain, &
+            set_scp_env,&
+            scp_env_create,&
+            scp_env_retain,&
             scp_env_release
 
 CONTAINS

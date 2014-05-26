@@ -74,12 +74,9 @@ MODULE pair_potential_types
   INTEGER, PARAMETER, DIMENSION(2), PUBLIC :: no_potential_single_allocation=(/-HUGE(0),-HUGE(0)/)
   INTEGER, DIMENSION(2), PUBLIC            :: potential_single_allocation
 
-  PUBLIC :: pair_potential_type,&
-            pair_potential_reallocate
+  PUBLIC :: pair_potential_reallocate
 
-  PUBLIC :: pair_potential_single_release,&
-            pair_potential_single_create,&
-            pair_potential_single_copy,&
+  PUBLIC :: pair_potential_single_copy,&
             pair_potential_single_add,&
             pair_potential_single_clean,&
             pair_potential_single_type
@@ -91,19 +88,12 @@ MODULE pair_potential_types
   PUBLIC :: pair_potential_p_type,&
             pair_potential_p_release
 
-  PUBLIC :: lj_pot_type,&
-            ft_pot_type,&
-            williams_pot_type,&
-            goodwin_pot_type,&
+  PUBLIC :: ft_pot_type,&
             ipbv_pot_type,&
             eam_pot_type,&
-            buck4ran_pot_type,&
-            buckmorse_pot_type,&
-            gp_pot_type,&
             tersoff_pot_type,&
             siepmann_pot_type,&
-            ftd_pot_type,&
-            pot_set_type
+            ftd_pot_type
 
   PUBLIC :: pair_potential_lj_create
   PUBLIC :: compare_pot

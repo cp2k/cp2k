@@ -32,9 +32,9 @@ MODULE cp_cfm_types
   INTEGER,SAVE,PRIVATE :: last_cfm_id_nr=0
 
   PUBLIC :: cp_cfm_type, cp_cfm_p_type
-  PUBLIC :: cp_cfm_create, cp_cfm_retain, cp_cfm_release,&
-       cp_cfm_init_random, cp_cfm_set_element, cp_cfm_set_all,&
-       cp_cfm_get_info, cp_cfm_get_element, cp_cfm_to_cfm
+  PUBLIC :: cp_cfm_create, cp_cfm_release,&
+            cp_cfm_set_all,&
+            cp_cfm_get_info, cp_cfm_get_element, cp_cfm_to_cfm
 !***
 
 ! *****************************************************************************

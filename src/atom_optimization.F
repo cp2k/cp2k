@@ -34,7 +34,7 @@ MODULE atom_optimization
     TYPE(hmat_type),DIMENSION(:),POINTER  :: hmat
   END TYPE atom_history_type
 
-  PUBLIC :: atom_opt, hmat_type, &
+  PUBLIC :: atom_opt,&
             atom_history_type, atom_history_init, atom_history_update, atom_history_release
 
 ! *****************************************************************************

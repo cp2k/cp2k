@@ -66,7 +66,6 @@ MODULE cp_fm_diag
             cp_fm_syevd,&
             cp_fm_syevr,&
             cp_fm_syevx,&
-            cp_fm_elpa,&
             diag_init
 
 CONTAINS

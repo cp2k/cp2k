@@ -146,8 +146,7 @@ MODULE parallel_rng_types
 
   ! Public subroutines
 
-  PUBLIC :: advance_rng_state,&
-            check_rng,&
+  PUBLIC :: check_rng,&
             create_rng_stream,&
             delete_rng_stream,&
             dump_rng_stream,&
@@ -157,8 +156,6 @@ MODULE parallel_rng_types
             next_rng_seed,&
             random_numbers,&
             read_rng_stream,&
-            reset_rng_stream,&
-            reset_rng_substream,&
             reset_to_next_rng_substream,&
             set_rng_stream,&
             write_rng_matrices,&

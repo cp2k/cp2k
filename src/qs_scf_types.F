@@ -54,7 +54,7 @@ MODULE qs_scf_types
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
-  PUBLIC :: qs_scf_env_type,qs_outer_scf_type
+  PUBLIC :: qs_scf_env_type
   PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
   PUBLIC :: krylov_space_type, krylov_space_create, subspace_env_type
   PUBLIC :: diag_subspace_env_create

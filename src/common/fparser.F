@@ -28,12 +28,11 @@ MODULE fparser
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fparser'
 
   !------- -------- --------- --------- --------- --------- --------- --------- -------
-  PUBLIC                     :: initf,    & ! Initialize function parser for n functions
-                                parsef,   & ! Parse single function string
-                                evalf,    & ! Evaluate single function
-                                EvalErrMsg,&! Error message (Use only when EvalErrType>0)
-                                finalizef,& ! Finalize the function parser
-                                evalfd
+  PUBLIC :: initf,&  ! Initialize function parser for n functions
+            parsef,&  ! Parse single function string
+            evalf,&  ! Evaluate single function
+            finalizef,&  ! Finalize the function parser
+            evalfd
   INTEGER, PUBLIC            :: EvalErrType ! =0: no error occured, >0: evaluation error
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   PRIVATE

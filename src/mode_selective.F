@@ -77,8 +77,7 @@ MODULE mode_selective
      INTEGER                                  :: initial_guess
   END TYPE ms_vib_type
 
-  PUBLIC :: ms_vb_anal,&
-            ms_vib_type
+  PUBLIC :: ms_vb_anal
 
 CONTAINS
   ! *****************************************************************************

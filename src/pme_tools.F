@@ -25,7 +25,7 @@ MODULE pme_tools
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: get_center, in_slice, set_list
+  PUBLIC :: get_center, set_list
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme_tools'
 

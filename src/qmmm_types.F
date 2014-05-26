@@ -49,13 +49,12 @@ MODULE qmmm_types
                                 force_mixing_label_buffer           = 5,&
                                 force_mixing_label_termination      = 4
 
-  PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
+  PUBLIC :: qmmm_env_qm_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
-  PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type
-  PUBLIC :: qmmm_pseudo_link_type, qmmm_pseudo_link_p_type
-  PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
-  PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type, image_charge_type
+  PUBLIC :: qmmm_imomm_link_type, qmmm_links_type
+  PUBLIC :: add_set_type, add_set_release, create_add_set_type
+  PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
 !***
 
 ! *****************************************************************************

@@ -47,36 +47,12 @@ MODULE colvar_types
             colvar_setup,&
             colvar_release,&
             colvar_counters,&
-            dist_colvar_type,&
-            coord_colvar_type,&
-            torsion_colvar_type,&
-            angle_colvar_type,&
-            plane_distance_colvar_type,&
-            plane_def_type,&
-            plane_plane_angle_colvar_type,&
-            rotation_colvar_type,&
-            dfunct_colvar_type,&
-            qparm_colvar_type,&
-            hydronium_colvar_type,&
-            reaction_path_colvar_type,&
-            combine_colvar_type,&
-            population_colvar_type,&
-            point_type,&
             colvar_check_points,&
             eval_point_der,&
             eval_point_pos,&
             eval_point_mass,&
             post_process_colvar,&
-            diff_colvar,&
-            gyration_colvar_type,&
-            rmsd_colvar_type,&
-            xyz_diag_colvar_type,&
-            xyz_outerdiag_colvar_type,&
-            Wc_colvar_type,&
-            HBP_colvar_type,&
-            ring_puckering_colvar_type,&
-            u_colvar_type,&
-            mindist_colvar_type
+            diff_colvar
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                  = -2,&
                                 dist_colvar_id                =  1,&

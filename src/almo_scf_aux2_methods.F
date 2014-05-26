@@ -43,9 +43,8 @@ MODULE almo_scf_aux2_methods
             release_object01_gen, op1_object01_gen, op2_object01_gen,&
             construct_object01, init_object01_gen,&
             construct_original_form_object01,&
-            op4_object01,&
             set_object01_gen,&
-            op5_object01, ij_exists, op3_object01
+            ij_exists, op3_object01
 
   INTERFACE init_object01_gen
      MODULE PROCEDURE init_object01_0d 

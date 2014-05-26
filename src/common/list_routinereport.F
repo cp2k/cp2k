@@ -56,7 +56,6 @@ MODULE list_routinereport
   PUBLIC :: list_routinereport_push
   PUBLIC :: list_routinereport_pop
   PUBLIC :: list_routinereport_peek
-  PUBLIC :: list_routinereport_insert
   PUBLIC :: list_routinereport_set
   PUBLIC :: list_routinereport_get
   PUBLIC :: list_routinereport_del

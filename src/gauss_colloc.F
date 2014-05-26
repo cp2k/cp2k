@@ -24,9 +24,8 @@ MODULE gauss_colloc
 IMPLICIT NONE
 PRIVATE
 
-PUBLIC :: collocGauss, collocGauss_safe,sphRad2,calc_max_r2,&
-    calcBox , integrateGauss, calcRadius2, integrateGaussFull,&
-    collocGaussFlat,integrateGaussFullFlat
+  PUBLIC :: collocGauss,&
+            integrateGaussFull
 
 #ifdef FD_DEBUG
 #define IF_CHECK(x,y) x

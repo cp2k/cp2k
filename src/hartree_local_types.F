@@ -34,9 +34,9 @@ MODULE hartree_local_types
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_ecoul_1center, get_ecoul_1c,  &
+  PUBLIC :: allocate_ecoul_1center,&
             get_hartree_local, hartree_local_create,&
-            hartree_local_release, set_ecoul_1c, &
+            hartree_local_release, set_ecoul_1c,&
             set_hartree_local
 
 ! *** Public data types ***

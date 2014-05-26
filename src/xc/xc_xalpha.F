@@ -44,7 +44,6 @@ MODULE xc_xalpha
                           f43 = 4.0_dp*f13
 
   PUBLIC :: xalpha_info, xalpha_lda_eval, xalpha_lsd_eval
-  PUBLIC :: xalpha_init, xalpha_lda_0 ! use of theese should be avoided
 
   REAL(KIND=dp) :: xparam, flda, flsd
   REAL(KIND=dp) :: eps_rho

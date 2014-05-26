@@ -40,12 +40,10 @@ MODULE ai_onecenter
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot, &
-            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc, &
+  PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot,&
+            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc,&
             sg_erfc
   PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_conf
-  PUBLIC :: num_overlap, num_kinetic, num_nuclear, num_erf, num_gpot, &
-            num_proj_ol, num_conf, num_kinnuc
 
 CONTAINS
 

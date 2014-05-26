@@ -194,14 +194,14 @@ MODULE lri_environment_types
   INTEGER, SAVE, PRIVATE :: last_lri_env_id=0
   INTEGER, SAVE, PRIVATE :: last_lri_density_id=0
 
-  PUBLIC :: lri_environment_type, lri_bas_int_type,&
-            lri_bas_overlap_type, lri_force_type, lri_list_type, lri_atom_type,&
-            lri_node_type, lri_int_type, lri_density_type, lri_list_p_type,&
-            lri_spin_type, lri_kind_type, lri_rhoab_type 
-  PUBLIC :: lri_env_create, lri_env_release, allocate_lri_coefs, &
+  PUBLIC :: lri_environment_type,&
+            lri_force_type, lri_list_type,&
+            lri_int_type, lri_density_type,&
+            lri_kind_type, lri_rhoab_type
+  PUBLIC :: lri_env_create, lri_env_release, allocate_lri_coefs,&
             allocate_lri_ints, lri_density_create, lri_density_release,&
             allocate_lri_rhos, allocate_lri_force_components,&
-            lri_basis_init, deallocate_lri_ints, deallocate_lri_force_components       
+            lri_basis_init, deallocate_lri_ints, deallocate_lri_force_components
 
 ! *****************************************************************************
 

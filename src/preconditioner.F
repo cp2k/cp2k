@@ -96,8 +96,8 @@ MODULE preconditioner
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
 
-  PUBLIC  :: make_preconditioner, restart_preconditioner
-  PUBLIC  :: apply_preconditioner, prepare_preconditioner, apply_full_all
+  PUBLIC :: make_preconditioner, restart_preconditioner
+  PUBLIC :: apply_preconditioner, prepare_preconditioner
 
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
 

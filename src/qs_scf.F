@@ -139,8 +139,7 @@ MODULE qs_scf
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf'
 
-  PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf,&
-            init_scf_loop
+  PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf
 
 CONTAINS
 

@@ -35,8 +35,7 @@ MODULE fist_energy_types
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_fist_energy,&
-            deallocate_fist_energy,&
-            init_fist_energy
+            deallocate_fist_energy
 
 CONTAINS
 

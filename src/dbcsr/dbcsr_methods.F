@@ -74,18 +74,18 @@ MODULE dbcsr_methods
 
   INTEGER, PUBLIC, SAVE :: dbcsr_matrix_counter = 111111
 
-  PUBLIC :: dbcsr_init, dbcsr_init_p
-  PUBLIC :: dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy
+  PUBLIC :: dbcsr_init
+  PUBLIC :: dbcsr_release
   PUBLIC :: dbcsr_valid_index, dbcsr_is_initialized
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
   PUBLIC :: dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
-            dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_pgrid_equal,&
+            dbcsr_mp_myprow, dbcsr_mp_mypcol,&
             dbcsr_mp_get_coordinates,&
             dbcsr_mp_my_row_group, dbcsr_mp_my_col_group,&
             dbcsr_mp_has_subgroups, dbcsr_mp_get_process,&
             dbcsr_mp_grid_setup, dbcsr_mp_grid_remove,&
-            dbcsr_mp_init, dbcsr_mp_exists, dbcsr_mp_active
+            dbcsr_mp_init, dbcsr_mp_active
   PUBLIC :: dbcsr_distribution_new, dbcsr_distribution_hold,&
             dbcsr_distribution_release, dbcsr_distribution_init
   PUBLIC :: dbcsr_distribution_mp, dbcsr_distribution_processor,&
@@ -96,9 +96,7 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
             dbcsr_distribution_make_threads, dbcsr_distribution_no_threads,&
             dbcsr_distribution_num_threads
-  PUBLIC :: dbcsr_distribution_add_row_map, dbcsr_distribution_add_col_map,&
-            dbcsr_distribution_del_row_map, dbcsr_distribution_del_col_map
-  PUBLIC :: dbcsr_release_locals, dbcsr_dist_release_locals
+  PUBLIC :: dbcsr_release_locals
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
             dbcsr_get_matrix_type, dbcsr_get_data_type, dbcsr_get_replication_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
@@ -107,28 +105,24 @@ MODULE dbcsr_methods
             dbcsr_nfullrows_local, dbcsr_nfullcols_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
             dbcsr_get_occupation,&
-            dbcsr_get_index_memory_type, dbcsr_get_data_memory_type, &
-            dbcsr_is_real, dbcsr_is_complex,&
+            dbcsr_get_index_memory_type, dbcsr_get_data_memory_type,&
             dbcsr_name, dbcsr_may_be_dense,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
             dbcsr_get_data_size
   PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_data_area, dbcsr_switch_data_area
-  PUBLIC :: dbcsr_get_num_blocks, dbcsr_get_nze
+  PUBLIC :: dbcsr_get_num_blocks
 
 
   PUBLIC :: dbcsr_blk_row_size, dbcsr_blk_column_size,&
             dbcsr_blk_row_offset, dbcsr_blk_col_offset
 
-  PUBLIC :: dbcsr_allocate_matrix_array, dbcsr_array_new, dbcsr_array_put,&
-            dbcsr_array_get, dbcsr_array_destroy, dbcsr_array_hold,&
-            dbcsr_array_release
   PUBLIC :: dbcsr_destroy_array
   PUBLIC :: dbcsr_image_dist_init, dbcsr_image_dist_hold, dbcsr_image_dist_release
 
   PUBLIC :: dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_destroy,&
-            dbcsr_mutable_release, dbcsr_mutable_hold,&
+            dbcsr_mutable_release,&
             dbcsr_mutable_instantiated
 
   INTERFACE dbcsr_init

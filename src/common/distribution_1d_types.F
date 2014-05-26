@@ -42,10 +42,8 @@ MODULE distribution_1d_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_1d_types'
   INTEGER, SAVE, PRIVATE :: distribution_1d_last_id_nr=0
 
-  PUBLIC :: distribution_1d_type, distribution_1d_p_type
-  PUBLIC :: distribution_1d_create, distribution_1d_retain, distribution_1d_release, &
-       distribution_1d_build_gdist, distribution_1d_destroy_gdist,&
-       distribution_1d_search_el, distribution_1d_sort_list, distribution_1d_write
+  PUBLIC :: distribution_1d_type
+  PUBLIC :: distribution_1d_create, distribution_1d_retain, distribution_1d_release
 
 ! *****************************************************************************
   TYPE local_particle_type

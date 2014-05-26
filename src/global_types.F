@@ -46,11 +46,6 @@ MODULE global_types
 
   ! Public parameters
 
-  PUBLIC :: SILENT,&
-            LOW,&
-            MEDIUM,&
-            HIGH,&
-            DEBUG
 
   ! Public data types
   PUBLIC :: global_environment_type

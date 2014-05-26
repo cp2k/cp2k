@@ -107,8 +107,7 @@ MODULE qs_neighbor_list_types
 
   PUBLIC :: neighbor_list_p_type,&
             neighbor_list_set_type,&
-            neighbor_list_set_p_type,&
-            neighbor_list_type
+            neighbor_list_set_p_type
 
 ! *** Public subroutines ***
 
@@ -121,7 +120,6 @@ MODULE qs_neighbor_list_types
 ! *** Iterator functions and types ***
 
   PUBLIC :: neighbor_list_iterator_p_type,&
-            neighbor_list_iterator_type,&
             neighbor_list_iterator_create,&
             neighbor_list_iterator_release,&
             neighbor_list_iterate,&

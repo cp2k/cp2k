@@ -130,8 +130,7 @@ MODULE cp2k_runs
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC  :: cp2k_run, write_cp2k_html_manual, write_xml_file, run_input, &
-             farming_run
+  PUBLIC :: write_cp2k_html_manual, write_xml_file, run_input
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
 CONTAINS
 

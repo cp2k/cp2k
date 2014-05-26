@@ -61,8 +61,8 @@ MODULE cell_methods
   ! Public subroutines
   PUBLIC :: get_cell, get_cell_param, init_cell, read_cell,&
             write_cell, cell_create, cell_retain, cell_release,&
-            cell_clone, cell_copy, compare_cells, parse_cell_line, set_cell_param, &
-            pbc_cp2k_plumed, pbc_cp2k_plumed_getset_cell !for plumed
+            cell_clone, cell_copy, compare_cells, parse_cell_line, set_cell_param,&
+            pbc_cp2k_plumed_getset_cell  !for plumed
 
   ! Public functions
   PUBLIC :: plane_distance, pbc, real_to_scaled, scaled_to_real

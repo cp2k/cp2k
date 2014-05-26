@@ -125,11 +125,9 @@ MODULE qs_mo_types
             init_mo_set,&
             wfn_restart_file_name,&
             read_mo_set,&
-            read_mos_restart_low,&
             set_mo_occupation,&
-            set_mo_set, &
-            write_mo_set, &
-            write_mo_set_low,&
+            set_mo_set,&
+            write_mo_set,&
             mo_set_restrict,&
             write_rt_mos_to_restart,&
             read_rt_mos_from_restart,&

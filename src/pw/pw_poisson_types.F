@@ -53,10 +53,9 @@ MODULE pw_poisson_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_types'
 
   PUBLIC :: pw_poisson_type
-  PUBLIC :: pw_poisson_create, pw_poisson_retain, &
-       pw_poisson_release
-  PUBLIC :: greens_fn_type,pw_green_create,&
-            pw_green_retain,&
+  PUBLIC :: pw_poisson_create, pw_poisson_retain,&
+            pw_poisson_release
+  PUBLIC :: greens_fn_type, pw_green_create,&
             pw_green_release
   PUBLIC :: pw_poisson_parameter_type
 

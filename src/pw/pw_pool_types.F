@@ -65,11 +65,10 @@ MODULE pw_pool_types
 
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
-       pw_pool_create_pw, pw_pool_give_back_pw,&
-       pw_pool_flush_cache, pw_pool_write,&
-       pw_pool_create_cr3d, pw_pool_give_back_cr3d
+            pw_pool_create_pw, pw_pool_give_back_pw,&
+            pw_pool_create_cr3d, pw_pool_give_back_cr3d
   PUBLIC :: pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache,&
-       pw_pools_create_pws, pw_pools_give_back_pws
+            pw_pools_create_pws, pw_pools_give_back_pws
 
 ! *****************************************************************************
 !> \brief Manages a pool of grids (to be used for example as tmp objects),

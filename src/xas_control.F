@@ -66,8 +66,8 @@ MODULE xas_control
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_xas_control, write_xas_control, xas_control_create, &
-            xas_control_release, xas_control_retain
+  PUBLIC :: read_xas_control, write_xas_control, xas_control_create,&
+            xas_control_release
 
 CONTAINS
 

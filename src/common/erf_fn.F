@@ -15,7 +15,7 @@ MODULE erf_fn
 
       IMPLICIT NONE
       PRIVATE
-      PUBLIC :: erf,erfc,erfcx
+  PUBLIC :: erf, erfc
 
     CONTAINS
 

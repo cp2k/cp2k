@@ -58,7 +58,6 @@ MODULE helium_io
   PUBLIC :: helium_write_plength
   PUBLIC :: helium_write_coordinates
   PUBLIC :: helium_write_force
-  PUBLIC :: helium_write_force_inst
   PUBLIC :: helium_write_accepts
   PUBLIC :: helium_write_perm
 

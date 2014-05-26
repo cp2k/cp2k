@@ -40,10 +40,10 @@ MODULE dgs
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dgs'
 
-  PUBLIC :: dg_get_patch, dg_get_delta
-  PUBLIC :: dg_pme_grid_setup, dg_find_max_cutoff,  &
-       dg_sum_patch, dg_sum_patch_force_3d, dg_sum_patch_force_1d,  &
-       dg_get_strucfac, dg_grid_change, dg_find_cutoff
+  PUBLIC :: dg_get_patch
+  PUBLIC :: dg_pme_grid_setup,&
+            dg_sum_patch, dg_sum_patch_force_3d, dg_sum_patch_force_1d,&
+            dg_get_strucfac, dg_grid_change
 
   INTERFACE dg_sum_patch
      MODULE PROCEDURE dg_sum_patch_coef, dg_sum_patch_arr

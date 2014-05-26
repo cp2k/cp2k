@@ -24,7 +24,7 @@
 
   PRIVATE
 
-  PUBLIC :: whittaker_c0a, whittaker_c0, whittaker_ci
+  PUBLIC :: whittaker_c0a, whittaker_ci
 
 CONTAINS
 

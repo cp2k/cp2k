@@ -43,7 +43,7 @@ MODULE qs_ks_qmmm_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_qmmm_nr=0
 
-  PUBLIC :: ks_qmmm_env_rebuild, qs_ks_qmmm_create,qmmm_calculate_energy,&
+  PUBLIC :: ks_qmmm_env_rebuild, qmmm_calculate_energy,&
             qmmm_modify_hartree_pot
 
 CONTAINS

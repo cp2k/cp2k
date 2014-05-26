@@ -30,8 +30,7 @@ MODULE qs_p_sparse_psi
   INTEGER, SAVE, PRIVATE :: last_proj_id_nr=0
 
   PUBLIC :: qs_p_projection_type, qs_p_projection_p_type
-  PUBLIC :: p_proj_create, p_proj_retain, p_proj_release, &
-       p_proj_transfer_blacs_to_f, p_proj_restrain_f
+  PUBLIC :: p_proj_create, p_proj_release
 !***
 
 ! *****************************************************************************

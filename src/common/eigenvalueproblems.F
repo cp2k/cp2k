@@ -27,7 +27,7 @@ MODULE eigenvalueproblems
 
   PRIVATE
 
-  PUBLIC :: diagonalise, singular_values
+  PUBLIC :: diagonalise
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eigenvalueproblems'
 

@@ -77,9 +77,7 @@ MODULE rt_propagation
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation'
 
   PUBLIC :: rt_prop_setup,&
-       init_ehrenfest_md,&
-       run_propagation, &
-       rt_write_input_restart
+            rt_write_input_restart
 
 
 CONTAINS

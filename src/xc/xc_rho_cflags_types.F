@@ -19,8 +19,8 @@ MODULE xc_rho_cflags_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_cflags_types'
 
   PUBLIC :: xc_rho_cflags_type
-  PUBLIC :: xc_rho_cflags_setall, xc_rho_cflags_or, xc_rho_cflags_and,&
-       xc_rho_cflags_equal, xc_rho_cflags_contain, xc_rho_cflags_write
+  PUBLIC :: xc_rho_cflags_setall,&
+            xc_rho_cflags_equal
 
 ! *****************************************************************************
 !> \brief contains a flag for each component of xc_rho_set, so that you can

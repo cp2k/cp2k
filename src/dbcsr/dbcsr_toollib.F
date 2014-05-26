@@ -33,10 +33,9 @@ MODULE dbcsr_toollib
   ! string routines
   PUBLIC :: uppercase
   ! math routines
-  PUBLIC :: gcd, lcm, ceil_log2
+  PUBLIC :: gcd, lcm
   ! utility routines
   PUBLIC :: sort, joaat_hash
-  PUBLIC :: partitions
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap

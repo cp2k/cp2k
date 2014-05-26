@@ -45,30 +45,24 @@ MODULE ma_affinity
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_affinity'
 
- PUBLIC :: ma_init_affinity, ma_finalize_affinity
+  PUBLIC :: ma_init_affinity, ma_finalize_affinity
 
- PUBLIC :: ma_sched_threads, ma_sched_mpi
- PUBLIC :: ma_no_place, ma_linear_place
- PUBLIC :: ma_scatter_place,ma_group_place
- PUBLIC :: ma_manual_place
+  PUBLIC :: ma_sched_threads, ma_sched_mpi
 
- PUBLIC :: ma_verify_place
- PUBLIC :: ma_thread_running_on, ma_current_thread_run
- PUBLIC :: ma_current_mpi_run
+  PUBLIC :: ma_verify_place
+  PUBLIC :: ma_thread_running_on, ma_current_thread_run
 
- PUBLIC :: ma_string_mempol, ma_set_mempol, ma_get_mempol
+  PUBLIC :: ma_set_mempol
 
- PUBLIC :: ma_set_gpu_affinity, ma_get_gpu_affinity
- PUBLIC :: ma_set_net_affinity, ma_get_net_affinity
+  PUBLIC :: ma_set_gpu_affinity
+  PUBLIC :: ma_set_net_affinity
 
- PUBLIC :: ma_set_neighbors, ma_get_neighbors, ma_MPI_nGpus
+  PUBLIC :: ma_set_neighbors, ma_get_neighbors, ma_MPI_nGpus
 
- PUBLIC :: ma_print_proc_affinity, ma_set_default_affinity
+  PUBLIC :: ma_print_proc_affinity, ma_set_default_affinity
 
 ! These are for Affinity module internal use.
 !
-  PUBLIC :: my_info
-  PUBLIC :: thread_mapping
 
   TYPE(ma_process)                               :: my_info
 ! The global view of the thread mapping on the machine

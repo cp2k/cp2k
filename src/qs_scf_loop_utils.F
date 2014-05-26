@@ -78,10 +78,10 @@ MODULE qs_scf_loop_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_loop_utils'
 
-  PUBLIC:: qs_scf_set_loop_flags,&
-           qs_scf_new_mos, qs_scf_harris_e_correct, qs_scf_density_mixing,&
-           qs_scf_check_inner_exit, qs_scf_undo_mixing, qs_scf_ks_updates,&
-           qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
+  PUBLIC :: qs_scf_set_loop_flags,&
+            qs_scf_new_mos, qs_scf_harris_e_correct, qs_scf_density_mixing,&
+            qs_scf_check_inner_exit, qs_scf_ks_updates,&
+            qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
 CONTAINS
 

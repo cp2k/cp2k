@@ -86,7 +86,7 @@ MODULE dbcsr_block_access
   PUBLIC :: dbcsr_get_block, dbcsr_get_block_p,&
             dbcsr_put_block, dbcsr_remove_block
 
-  PUBLIC :: dbcsr_reserve_block2d, dbcsr_get_tmp_block2d, &
+  PUBLIC :: dbcsr_reserve_block2d,&
             dbcsr_reserve_blocks, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks
 
 

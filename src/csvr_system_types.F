@@ -30,7 +30,6 @@ MODULE csvr_system_types
 
   PRIVATE
   PUBLIC :: csvr_system_type,&
-            csvr_thermo_type,&
             csvr_init,&
             csvr_dealloc,&
             csvr_thermo_create

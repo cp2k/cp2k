@@ -56,7 +56,7 @@ MODULE qs_rho_atom_types
             deallocate_rho_atom_set,&
             get_rho_atom
 
-  PUBLIC :: rho_atom_coeff,rho_atom_p_type,rho_atom_type
+  PUBLIC :: rho_atom_coeff, rho_atom_type
 
  CONTAINS
 

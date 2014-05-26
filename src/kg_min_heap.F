@@ -11,7 +11,7 @@ MODULE kg_min_heap
 
   PUBLIC :: heap_t
   PUBLIC :: heap_pop, heap_reset_node, heap_fill
-  PUBLIC :: heap_new, heap_release, heap_check
+  PUBLIC :: heap_new, heap_release
 
   ! Sets the types
   INTEGER, PARAMETER         :: keyt = int_4

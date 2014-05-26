@@ -31,15 +31,12 @@ MODULE harris_env_types
   INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
-  PUBLIC :: harris_env_type, &
-            harris_env_p_type
+  PUBLIC :: harris_env_type
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_env_retain, &
-            harris_env_release, &
+  PUBLIC :: harris_env_release,&
             harris_env_set,&
-            harris_env_get, &
-            harris_env_clear, &
+            harris_env_get,&
             harris_env_create
 
 ! *****************************************************************************

@@ -40,11 +40,11 @@ MODULE cp_fm_struct
   INTEGER, PRIVATE :: optimal_blacs_row_block_size=32
   LOGICAL, PRIVATE :: force_block_size=.FALSE.
 
-  PUBLIC :: cp_fm_struct_type,cp_fm_struct_p_type
-  PUBLIC :: cp_fm_struct_create,cp_fm_struct_retain, cp_fm_struct_release,&
-       cp_fm_struct_equivalent, cp_fm_struct_compatible, cp_fm_struct_write,&
-       cp_fm_struct_get,cp_fm_struct_double, cp_fm_struct_config,&
-       cp_fm_struct_get_nrow_block, cp_fm_struct_get_ncol_block
+  PUBLIC :: cp_fm_struct_type, cp_fm_struct_p_type
+  PUBLIC :: cp_fm_struct_create, cp_fm_struct_retain, cp_fm_struct_release,&
+            cp_fm_struct_equivalent, cp_fm_struct_write,&
+            cp_fm_struct_get, cp_fm_struct_double, cp_fm_struct_config,&
+            cp_fm_struct_get_nrow_block, cp_fm_struct_get_ncol_block
 !***
 
 ! *****************************************************************************

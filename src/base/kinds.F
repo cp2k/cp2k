@@ -24,7 +24,7 @@ MODULE kinds
 
   PRIVATE
   PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
-  PUBLIC :: int_1, int_2, int_4, int_8, int_1_size, int_2_size, int_4_size, int_8_size
+  PUBLIC :: int_1, int_4, int_8, int_1_size, int_2_size, int_4_size, int_8_size
   PUBLIC :: real_4, real_8, real_4_size, real_8_size
   PUBLIC :: default_string_length, default_path_length, max_line_length
 

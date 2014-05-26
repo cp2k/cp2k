@@ -114,7 +114,7 @@ MODULE dbcsr_work_operations
 
 
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize, dbcsr_special_finalize
-  PUBLIC :: dbcsr_work_destroy, dbcsr_add_wm_from_matrix,&
+  PUBLIC :: dbcsr_add_wm_from_matrix,&
             add_work_coordinate
 
   INTERFACE dbcsr_create

@@ -33,8 +33,8 @@ MODULE qs_kpp1_env_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: qs_kpp1_env_type, qs_kpp1_env_p_type
-  PUBLIC :: kpp1_release, kpp1_retain, kpp1_write
+  PUBLIC :: qs_kpp1_env_type
+  PUBLIC :: kpp1_release
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_types'

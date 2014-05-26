@@ -41,7 +41,7 @@ MODULE xc_derivative_set_types
   INTEGER, SAVE :: derivative_set_last_id_nr  = 0
 
   PUBLIC :: xc_derivative_set_type
-  PUBLIC :: xc_dset_create, xc_dset_release, xc_dset_retain, &
+  PUBLIC :: xc_dset_create, xc_dset_release,&
             xc_dset_get_derivative, xc_dset_zero_all
 
 ! *****************************************************************************

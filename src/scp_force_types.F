@@ -28,9 +28,7 @@ MODULE scp_force_types
 
   PUBLIC :: scp_force_type
 
-  PUBLIC :: allocate_scp_force,&
-            deallocate_scp_force,&
-            init_scp_force
+  PUBLIC :: deallocate_scp_force
 
 CONTAINS
 

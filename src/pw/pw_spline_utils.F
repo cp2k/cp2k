@@ -90,13 +90,13 @@ MODULE pw_spline_utils
 
     INTEGER, SAVE, PRIVATE :: last_precond_id=0
 
-  PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
-       pw_spline3_deriv_g
-  PUBLIC :: pw_spline_scale_deriv, pw_nn_smear_g
-  PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
-       pw_spline2_deriv_g
-  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, &
-            spl3_nopbc, spl3_pbc, pw_nn_compose_r_no_pbc, spl3_nopbct
+  PUBLIC :: pw_spline3_interpolate_values_g,&
+            pw_spline3_deriv_g
+  PUBLIC :: pw_spline_scale_deriv
+  PUBLIC :: pw_spline2_interpolate_values_g,&
+            pw_spline2_deriv_g
+  PUBLIC :: pw_nn_smear_r, pw_nn_deriv_r,&
+            spl3_nopbc, spl3_pbc, spl3_nopbct
   PUBLIC :: add_fine2coarse, add_coarse2fine
   PUBLIC :: pw_spline_precond_create,&
             pw_spline_do_precond,&

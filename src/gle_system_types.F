@@ -32,7 +32,7 @@ MODULE gle_system_types
 
   PUBLIC :: gle_dealloc,&
             gle_init, gle_thermo_create,&
-            gle_type, gle_thermo_type
+            gle_type
 
 !
   TYPE gle_thermo_type

@@ -46,18 +46,13 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_external_timing
   PUBLIC :: dbcsr_get_conf_max_ele_block, dbcsr_set_conf_max_ele_block
   
-  PUBLIC :: driver_is_async
 
   ! These are for DBCSR internal use.
   !
   PUBLIC :: has_MPI
-  PUBLIC :: has_blas,&
-            has_smm_gemm,&
-            has_acc
-  PUBLIC :: has_omp_2_5
+  PUBLIC :: has_acc
   PUBLIC :: use_subcommunicators
   PUBLIC :: use_combined_types
-  PUBLIC :: use_MPI_memory
   PUBLIC :: mm_stack_size
   PUBLIC :: mm_driver, mm_host_driver,&
             mm_driver_blas,&
@@ -69,15 +64,14 @@ MODULE dbcsr_config
             mm_name_matmul,&
             mm_name_smm,&
             mm_name_acc
-  PUBLIC :: nm_stacks, nn_stacks, nk_stacks
   PUBLIC :: use_comm_thread, comm_thread_load
   PUBLIC :: max_elements_per_block
   !
   PUBLIC :: is_initialized
 
   PUBLIC :: accdrv_avoid_after_busy, accdrv_min_flop_process,&
-            accdrv_min_flop_sort, accdrv_do_inhomogenous, &
-            accdrv_binning_nbins, accdrv_binning_binsize, &
+            accdrv_min_flop_sort, accdrv_do_inhomogenous,&
+            accdrv_binning_nbins, accdrv_binning_binsize,&
             accdrv_posterior_streams, accdrv_posterior_buffers,&
             accdrv_priority_streams, accdrv_priority_buffers
 

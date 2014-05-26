@@ -29,9 +29,6 @@ MODULE dimer_types
   INTEGER, PRIVATE, SAVE :: last_dimer_id=0
 
   PUBLIC :: dimer_env_type,&
-            dimer_rotational_type,&
-            dimer_translational_type ,&
-            dimer_cg_rot_type,&
             dimer_env_create,&
             dimer_env_retain,&
             dimer_env_release

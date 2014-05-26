@@ -28,8 +28,7 @@ MODULE statistical_methods
   INTEGER, PARAMETER, PUBLIC           :: min_sample_size = 20
   PUBLIC :: sw_test,&
             k_test,&
-            vn_test,&
-            tests
+            vn_test
 
 CONTAINS
 

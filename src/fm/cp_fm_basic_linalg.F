@@ -32,25 +32,23 @@ MODULE cp_fm_basic_linalg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_basic_linalg'
 
-  PUBLIC :: cp_fm_scale, &                 ! scale a matrix
-            cp_fm_scale_and_add, &         ! scale and add two matrices
-            cp_fm_column_scale, &          ! scale colummns of a matrix
-            cp_fm_trace, &                 ! trace of the transpose(A)*B
-            cp_fm_schur_product, &         ! schur product
-            cp_fm_transpose, &             ! transpose a matrix
-            cp_fm_upper_to_full, &         ! symmetrise an upper symmetric matrix
-            cp_fm_syrk, &                  ! rank k update
-            cp_fm_triangular_multiply, &   ! triangular matrix multiply / solve
-            cp_fm_symm, &                  ! multiply a symmetric with a non-symmetric matrix
-            cp_fm_gemm, &                  ! multiply two matrices
-            cp_complex_fm_gemm, &          ! multiply two complex matrices, represented by non_complex fm matrices
-            cp_fm_lu_decompose,&           ! computes determinant (and lu decomp)
-            cp_fm_invert,&                 ! computes the inverse and determinant
-            cp_fm_frobenius_norm,&         ! frobenius norm
-            cp_fm_ger, &                   ! rank 1 operation
-            cp_fm_triangular_invert,&      ! compute the reciprocal of a tirangular matrix
-            cp_fm_qr_factorization,&       ! compute the QR factorization of a rectangular matrix
-            cp_fm_solve                    ! solves the equation  A*B=C A and C are input
+  PUBLIC :: cp_fm_scale,&  ! scale a matrix
+            cp_fm_scale_and_add,&  ! scale and add two matrices
+            cp_fm_column_scale,&  ! scale colummns of a matrix
+            cp_fm_trace,&  ! trace of the transpose(A)*B
+            cp_fm_schur_product,&  ! schur product
+            cp_fm_transpose,&  ! transpose a matrix
+            cp_fm_upper_to_full,&  ! symmetrise an upper symmetric matrix
+            cp_fm_syrk,&  ! rank k update
+            cp_fm_triangular_multiply,&  ! triangular matrix multiply / solve
+            cp_fm_symm,&  ! multiply a symmetric with a non-symmetric matrix
+            cp_fm_gemm,&  ! multiply two matrices
+            cp_complex_fm_gemm,&  ! multiply two complex matrices, represented by non_complex fm matrices
+            cp_fm_invert,&  ! computes the inverse and determinant
+            cp_fm_frobenius_norm,&  ! frobenius norm
+            cp_fm_triangular_invert,&  ! compute the reciprocal of a tirangular matrix
+            cp_fm_qr_factorization,&  ! compute the QR factorization of a rectangular matrix
+            cp_fm_solve  ! solves the equation  A*B=C A and C are input
 
 CONTAINS
 

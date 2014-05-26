@@ -58,8 +58,8 @@ MODULE qs_rho_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_methods'
   INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
-  PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, duplicate_rho_type, &
-            diff_rho_type, copy_rho_type
+  PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, duplicate_rho_type,&
+            diff_rho_type
 
 !***
 CONTAINS

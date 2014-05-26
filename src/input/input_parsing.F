@@ -70,7 +70,7 @@ MODULE input_parsing
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_parsing'
 
-  PUBLIC :: section_vals_parse, val_create_parsing
+  PUBLIC :: section_vals_parse
 !***
 CONTAINS
 

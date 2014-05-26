@@ -30,7 +30,6 @@ MODULE rt_matrix_exp_dbcsr
 
   PUBLIC :: taylor_only_imaginary_dbcsr,&
             taylor_full_complex_dbcsr,&
-            cp_complex_dbcsr_gemm,&
             cp_complex_dbcsr_gemm_3,&
             bch_expansion_imaginary_propagator,&
             bch_expansion_complex_propagator

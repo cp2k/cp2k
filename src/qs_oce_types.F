@@ -38,11 +38,11 @@ MODULE qs_oce_types
 
 ! *** Public data types ***
 
-  PUBLIC :: oce_matrix_type, qlist_type
+  PUBLIC :: oce_matrix_type
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_oce_set, &
+  PUBLIC :: allocate_oce_set,&
             create_oce_set,&
             deallocate_oce_set
 

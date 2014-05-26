@@ -51,11 +51,11 @@ MODULE qs_local_rho_types
   END TYPE local_rho_type
 
 ! Public Types
-  PUBLIC ::  local_rho_type, rhoz_type
+  PUBLIC :: local_rho_type, rhoz_type
 
 ! Public Subroutine
-  PUBLIC :: allocate_rhoz, calculate_rhoz, deallocate_rhoz,&
-            get_local_rho, local_rho_set_create, &
+  PUBLIC :: allocate_rhoz, calculate_rhoz,&
+            get_local_rho, local_rho_set_create,&
             local_rho_set_release, set_local_rho
 
   CONTAINS

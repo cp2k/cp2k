@@ -97,9 +97,8 @@ MODULE topology
   PRIVATE
 
 ! *** Public parameters ***
-  PUBLIC :: topology_control, &
-            connectivity_control, &
-            coordinate_control
+  PUBLIC :: topology_control,&
+            connectivity_control
 
 CONTAINS
 

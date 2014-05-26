@@ -52,9 +52,8 @@ MODULE pw_methods
 
   PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
   PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
-  PUBLIC :: pw_derive, pw_dr2, pw_fft_wrap, pw_write
-  PUBLIC :: pw_compare_debug
-  PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b
+  PUBLIC :: pw_derive, pw_dr2, pw_write
+  PUBLIC :: pw_integral_ab, pw_integral_a2b
   PUBLIC :: pw_integral_aa_fast, pw_integral_ab_fast
   PUBLIC :: pw_dr2_gg, pw_integrate_function
 

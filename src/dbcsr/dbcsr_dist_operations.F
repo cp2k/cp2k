@@ -72,38 +72,21 @@ MODULE dbcsr_dist_operations
             dbcsr_reblocking_targets,&
             create_bl_distribution,&
             dbcsr_create_dist_r_unrot,&
-            dbcsr_create_dist_r_rot,&
-            dbcsr_create_dist_l_unrot,&
-            dbcsr_create_dist_l_rot,&
-            dbcsr_create_dist_elemental,&
-            dbcsr_create_dist_fullest,&
             dbcsr_create_dist_block_cyclic
 
-  PUBLIC :: dbcsr_create_image_dist,&
-            make_image_distribution_dense
+  PUBLIC :: dbcsr_create_image_dist
 
   ! Helper routines
-  PUBLIC ::  evenly_bin,&
-             dbcsr_dist_bin,&
-             rebin_distribution,&
-             reimage_distribution,&
-             rebin_imaged_distribution,&
-             test_create_bl_distribution,&
-             match_sizes_to_dist, make_sizes_dense,&
-             mostly_non_transposed,&
-             dbcsr_print_dist,&
-             image_calculator
+  PUBLIC :: dbcsr_dist_bin,&
+            make_sizes_dense,&
+            image_calculator
 
-  PUBLIC ::  find_local_virtual_elements,&
-             map_local_virtual_elements,&
-             dbcsr_get_local_rows, dbcsr_get_local_cols,&
-             dbcsr_get_global_row_map, dbcsr_get_global_col_map,&
-             dbcsr_get_local_vrows, dbcsr_get_local_vcols,&
-             dbcsr_get_global_vrow_map, dbcsr_get_global_vcol_map,&
-             dbcsr_reset_locals, dbcsr_reset_vlocals
+  PUBLIC :: dbcsr_get_local_rows, dbcsr_get_local_cols,&
+            dbcsr_get_local_vrows, dbcsr_get_local_vcols,&
+            dbcsr_reset_locals, dbcsr_reset_vlocals
 
   ! For dense distributions
-  PUBLIC ::  dbcsr_make_1dist_dense, dbcsr_make_dists_dense
+  PUBLIC :: dbcsr_make_dists_dense
 
 
   INTERFACE dbcsr_get_stored_block_info

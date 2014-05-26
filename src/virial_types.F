@@ -18,8 +18,8 @@ MODULE virial_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
   INTEGER, PRIVATE, SAVE :: last_virial_id_nr=0
 
-  PUBLIC:: virial_type, virial_p_type, virial_set, virial_get, cp_virial,&
-       virial_create, virial_retain, virial_release, zero_virial, sym_virial
+  PUBLIC :: virial_type, virial_p_type, virial_set, cp_virial,&
+            virial_create, virial_retain, virial_release, zero_virial, sym_virial
 
 ! *****************************************************************************
   TYPE virial_type

@@ -27,11 +27,11 @@ MODULE machine_architecture_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'machine_architecture_utils'
 
- PUBLIC :: ma_pack_threads, ma_unpack_threads
- PUBLIC :: ma_create_process, ma_set_threads
+  PUBLIC :: ma_pack_threads, ma_unpack_threads
+  PUBLIC :: ma_create_process
 
- PUBLIC :: ascii_to_string, string_to_ascii
- PUBLIC :: integer_to_string
+  PUBLIC :: ascii_to_string, string_to_ascii
+  PUBLIC :: integer_to_string
 
  CONTAINS
 

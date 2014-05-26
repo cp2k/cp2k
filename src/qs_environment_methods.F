@@ -85,7 +85,6 @@ MODULE qs_environment_methods
 
   PUBLIC :: qs_env_update_s_mstruct,&
             qs_env_rebuild_pw_env,&
-            qs_env_rebuild_rho,&
             qs_env_setup
 !***
 CONTAINS

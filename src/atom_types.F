@@ -249,10 +249,10 @@ MODULE atom_types
   END TYPE atom_p_type
 
   PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
-  PUBLIC :: atom_orbitals, atom_energy_type, eri, atom_potential_type, atom_gthpot_type
+  PUBLIC :: atom_orbitals, eri, atom_potential_type, atom_gthpot_type
   PUBLIC :: atom_optimization_type
   PUBLIC :: create_atom_type, release_atom_type, set_atom
-  PUBLIC :: create_atom_orbs, release_atom_orbs
+  PUBLIC :: create_atom_orbs
   PUBLIC :: init_atom_basis, release_atom_basis
   PUBLIC :: init_atom_potential, release_atom_potential
   PUBLIC :: read_atom_opt_section

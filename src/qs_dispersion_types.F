@@ -105,7 +105,7 @@ MODULE qs_dispersion_types
 
 ! *****************************************************************************
 
-  PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type, cn_atom_list, cn_kind_list
+  PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type
   PUBLIC :: dftd2_pp, dftd3_pp
   PUBLIC :: qs_dispersion_release
 

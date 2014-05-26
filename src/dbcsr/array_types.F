@@ -19,14 +19,7 @@ MODULE array_types
 
   INTEGER, PARAMETER :: dp = KIND(0.0d0)
 
-  PUBLIC :: array_i1d_obj,&
-            array_i2d_obj,&
-            array_d1d_obj,&
-            array_d2d_obj
-  PUBLIC :: array_i1d_type,&
-            array_i2d_type,&
-            array_d1d_type,&
-            array_d2d_type
+  PUBLIC :: array_i1d_obj
   PUBLIC :: array_new,&
             array_hold,&
             array_release,&

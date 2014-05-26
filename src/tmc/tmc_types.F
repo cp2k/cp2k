@@ -52,9 +52,9 @@ MODULE tmc_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_types'
 
-  PUBLIC :: tmc_env_type, tmc_comp_set_type, tmc_param_type, master_env_type
-  PUBLIC :: tmc_env_create, tmc_env_release, &
-            tmc_master_env_create, tmc_master_env_release, &
+  PUBLIC :: tmc_env_type, tmc_comp_set_type, tmc_param_type
+  PUBLIC :: tmc_env_create, tmc_env_release,&
+            tmc_master_env_create, tmc_master_env_release,&
             tmc_worker_env_create, tmc_worker_env_release
   PUBLIC :: tmc_atom_type
   PUBLIC :: allocate_tmc_atom_type

@@ -15,8 +15,8 @@ MODULE optimize_basis_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_types'
 
-  PUBLIC :: basis_optimization_type, exp_constraint_type, subset_type, flex_basis_type,&
-            use_contr_type, derived_basis_info, kind_basis_type, comp_group_type, deallocate_basis_optimization_type
+  PUBLIC :: basis_optimization_type, subset_type, flex_basis_type,&
+            derived_basis_info, deallocate_basis_optimization_type
 
   ! constraint information for a single constraing. boundary is translateed into a fermi function
   ! like setting as for variational limited case

@@ -23,8 +23,8 @@ MODULE qs_period_efield_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_period_efield_types'
 
-  PUBLIC:: efield_berry_type, efield_berry_release, init_efield_matrices, &
-           set_efield_matrices,deriv_p_type
+  PUBLIC :: efield_berry_type, efield_berry_release, init_efield_matrices,&
+            set_efield_matrices
 
   TYPE deriv_p_type
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: deriv

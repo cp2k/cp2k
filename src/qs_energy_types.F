@@ -73,9 +73,7 @@ MODULE qs_energy_types
 
   PUBLIC :: allocate_qs_energy,&
             deallocate_qs_energy,&
-            init_qs_energy,&
-            duplicate_qs_energy,&
-            copy_qs_energy
+            init_qs_energy
 
 CONTAINS
 

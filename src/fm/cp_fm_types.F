@@ -58,35 +58,34 @@ MODULE cp_fm_types
   INTEGER, SAVE :: last_fm_id_nr = 0
   INTEGER, PRIVATE :: mm_type=1
 
-  PUBLIC :: cp_fm_type, &
+  PUBLIC :: cp_fm_type,&
             cp_fm_p_type
 
   PUBLIC :: cp_fm_add_to_element,&
             cp_fm_create,&
             cp_fm_retain,&
             cp_fm_release,&
-            cp_fm_get_info, &
-            cp_fm_set_element, &
-            cp_fm_get_element, &
-            cp_fm_get_diag, &          ! get diagonal
-            cp_fm_set_diag, &          ! set diagonal
-            cp_fm_set_all, &           ! set all elements and diagonal
-            cp_fm_set_submatrix, &     ! set a submatrix to given values
-            cp_fm_get_submatrix, &     ! get a submatrix of given values
-            cp_fm_init_random, &
-            cp_fm_maxabsval, &         ! find the maximum absolute value
-            cp_fm_maxabsrownorm, &     ! find the maximum of the sum of the abs of the elements of a row
-            cp_fm_write, &             ! writes lots of information and data (might need further development)
-            cp_fm_to_fm,&              ! copy (parts of) a fm to a fm
-            cp_fm_vectorsnorm,&          ! compute the norm of the column-vectors
-            cp_fm_to_fm_submat,&          ! copy (parts of) a fm to a fm
-            cp_fm_write_unformatted,&   ! writes a full matrix to an open unit
-            cp_fm_read_unformatted,&     ! reads a full matrix from an open unit
-            cp_fm_setup,&               ! allows to set flags for fms
+            cp_fm_get_info,&
+            cp_fm_set_element,&
+            cp_fm_get_element,&
+            cp_fm_get_diag,&  ! get diagonal
+            cp_fm_set_all,&  ! set all elements and diagonal
+            cp_fm_set_submatrix,&  ! set a submatrix to given values
+            cp_fm_get_submatrix,&  ! get a submatrix of given values
+            cp_fm_init_random,&
+            cp_fm_maxabsval,&  ! find the maximum absolute value
+            cp_fm_maxabsrownorm,&  ! find the maximum of the sum of the abs of the elements of a row
+            cp_fm_write,&  ! writes lots of information and data (might need further development)
+            cp_fm_to_fm,&  ! copy (parts of) a fm to a fm
+            cp_fm_vectorsnorm,&  ! compute the norm of the column-vectors
+            cp_fm_to_fm_submat,&  ! copy (parts of) a fm to a fm
+            cp_fm_write_unformatted,&  ! writes a full matrix to an open unit
+            cp_fm_read_unformatted,&  ! reads a full matrix from an open unit
+            cp_fm_setup,&  ! allows to set flags for fms
             cp_fm_get_mm_type
 
-  PUBLIC :: cp_fm_indxg2p, &
-            cp_fm_indxg2l, &
+  PUBLIC :: cp_fm_indxg2p,&
+            cp_fm_indxg2l,&
             cp_fm_indxl2g
 
   INTERFACE cp_fm_to_fm

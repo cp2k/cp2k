@@ -126,13 +126,11 @@ MODULE rt_propagation_types
 
 ! *** Public subroutines ***
 
-   PUBLIC ::  rt_prop_create,&
-              get_rtp,&
-              rt_prop_release,&
-              rtp_history_create,&
-              rtp_hfx_type,&
-              get_rtp_hfx,&
-              set_rtp_hfx
+  PUBLIC :: rt_prop_create,&
+            get_rtp,&
+            rt_prop_release,&
+            rtp_history_create,&
+            get_rtp_hfx
 CONTAINS
 
 

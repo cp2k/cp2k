@@ -28,8 +28,7 @@ MODULE scp_energy_types
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_scp_energy,&
-            deallocate_scp_energy,&
-            init_scp_energy
+            deallocate_scp_energy
 
 CONTAINS
 

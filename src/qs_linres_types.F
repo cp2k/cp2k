@@ -213,23 +213,23 @@ MODULE qs_linres_types
 
 ! *** Public data types ***
 
-  PUBLIC ::  linres_control_type,  &
-             nmr_env_type, issc_env_type, jrho_atom_type, &
-             epr_env_type, &
-             nablavks_atom_type, current_env_type, &
-             realspaces_grid_p_type, polar_env_type 
+  PUBLIC :: linres_control_type,&
+            nmr_env_type, issc_env_type, jrho_atom_type,&
+            epr_env_type,&
+            nablavks_atom_type, current_env_type,&
+            realspaces_grid_p_type, polar_env_type
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
-             get_current_env, allocate_jrho_coeff, deallocate_jrho_coeff, &
-             init_jrho_atom_set, init_nablavks_atom_set, linres_control_create, &
-             linres_control_retain, linres_control_release,&
-             set_nmr_env,set_epr_env,  deallocate_nablavks_atom_set, &
-             set2zero_jrho_atom_rad, get_epr_env, &
-             nmr_env_create, epr_env_create, current_env_create, get_issc_env, set_issc_env, &
-             set_current_env, issc_env_create, get_polar_env, set_polar_env, &
-             polar_env_create
+  PUBLIC :: allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env,&
+            get_current_env, allocate_jrho_coeff,&
+            init_jrho_atom_set, init_nablavks_atom_set, linres_control_create,&
+            linres_control_retain, linres_control_release,&
+            set_epr_env, deallocate_nablavks_atom_set,&
+            set2zero_jrho_atom_rad, get_epr_env,&
+            nmr_env_create, epr_env_create, current_env_create, get_issc_env,&
+            set_current_env, issc_env_create, get_polar_env,&
+            polar_env_create
 
 CONTAINS
 

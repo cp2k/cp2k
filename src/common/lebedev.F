@@ -93,9 +93,9 @@ MODULE lebedev
   REAL(KIND = dp), DIMENSION(max_np/3) :: w
   REAL(KIND = dp), DIMENSION(max_np)   :: r
 
-  PUBLIC :: lebedev_grid,nlg,oh_grid
+  PUBLIC :: lebedev_grid
 
-  PUBLIC :: deallocate_lebedev_grids,get_number_of_lebedev_grid,init_lebedev_grids
+  PUBLIC :: deallocate_lebedev_grids, get_number_of_lebedev_grid, init_lebedev_grids
 
 CONTAINS
 
