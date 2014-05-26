@@ -48,10 +48,6 @@ IMPLICIT NONE
   PUBLIC :: ma_get_job_allocation
   PUBLIC :: ma_destroy_topology
   
-#if defined __parallel
-#if defined __GEMINI || __SEASTAR
-#endif 
-#endif
  
 ! These are for Machine architecture internal use.
 !
@@ -59,9 +55,13 @@ IMPLICIT NONE
   PUBLIC :: allocated_topology
 
   TYPE(net_topo),DIMENSION(:),POINTER      :: net_topology
+#if defined __parallel
+#if defined __GEMINI || __SEASTAR
   INTEGER                                  :: max_x
   INTEGER                                  :: max_y
   INTEGER                                  :: max_z
+#endif 
+#endif
 
   INTEGER, DIMENSION(:), POINTER           :: allocated_topology
   INTEGER, DIMENSION(:,:), POINTER         :: comm_graph
