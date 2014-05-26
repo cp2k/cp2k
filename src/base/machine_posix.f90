@@ -16,32 +16,10 @@
 
   PUBLIC :: m_cputime, m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c, m_mov, &
+            m_iargc, m_abort, m_chdir, m_mov, &
             m_memory_details, m_procrun
 
 CONTAINS
-
-! *****************************************************************************
-! only used for debugging
-! *****************************************************************************
-FUNCTION m_loc_r(a) RESULT(res)
-    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
-    INTEGER                                  :: res
-
-    res = -1
-END FUNCTION m_loc_r
-
-
-! *****************************************************************************
-! only used for debugging
-! *****************************************************************************
-  FUNCTION m_loc_c(a) RESULT(res)
-    COMPLEX(KIND=dp), DIMENSION(*), &
-      INTENT(in)                             :: a
-    INTEGER                                  :: res
-
-    res = -1
-  END FUNCTION m_loc_c
 
 ! *****************************************************************************
 ! can be used to get a nice core

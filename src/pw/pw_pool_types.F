@@ -20,6 +20,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_pool_types
+  USE ISO_C_BINDING,                   ONLY: C_LOC
   USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
                                              cp_sll_3d_r_get_first_el,&
                                              cp_sll_3d_r_get_length,&
@@ -37,7 +38,6 @@ MODULE pw_pool_types
                                              cp_sll_pw_type
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_loc_r
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_compare,&
                                              pw_grid_release,&
@@ -659,13 +659,13 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
         IF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' created cr3d at 0x',z16.16)")&
-                pw_pool%id_nr, m_loc_r(cr3d)
+                pw_pool%id_nr, C_LOC(cr3d)
            CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
      ELSEIF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' created cr3d reusing the one at 0x',z16.16)")&
-                pw_pool%id_nr, m_loc_r(cr3d)
+                pw_pool%id_nr, C_LOC(cr3d)
           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
      END IF
   END IF
@@ -711,7 +711,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
         IF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' received back a cr3d at 0x',z16.16)")&
-                pw_pool%id_nr, m_loc_r(cr3d)
+                pw_pool%id_nr, C_LOC(cr3d)
            CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
         compatible=ALL( MERGE( pw_pool%pw_grid%bounds_local(1,:)==LBOUND(cr3d).AND. &
