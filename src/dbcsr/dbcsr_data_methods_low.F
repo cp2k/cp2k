@@ -54,22 +54,18 @@ MODULE dbcsr_data_methods_low
 
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
-  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_i, dbcsr_scalar_zero,&
+  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative,&
-            dbcsr_scalar_add, dbcsr_scalar_multiply,&
             dbcsr_scalar_get_type, dbcsr_scalar_set_type,&
             dbcsr_scalar_fill_all, dbcsr_scalar_get_value
   PUBLIC :: dbcsr_data_init, dbcsr_data_hold,&
-            dbcsr_data_get_size, dbcsr_data_get_type,&
-            dbcsr_data_reset_type, dbcsr_data_query_type,&
-            dbcsr_data_get_type_size
-  PUBLIC :: dbcsr_data_resize
-  PUBLIC :: dbcsr_get_data, &
+            dbcsr_data_get_size, dbcsr_data_get_type
+  PUBLIC :: dbcsr_get_data,&
             dbcsr_data_set_pointer,&
             dbcsr_data_clear_pointer, dbcsr_data_set_2d_pointer,&
-            dbcsr_data_clear_2d_pointer, &
+            dbcsr_data_clear_2d_pointer,&
             dbcsr_data_get_sizes, dbcsr_data_verify_bounds,&
-            dbcsr_data_exists, dbcsr_data_valid, dbcsr_data_get_memory_type
+            dbcsr_data_exists, dbcsr_data_get_memory_type
   PUBLIC :: dbcsr_data_zero
   PUBLIC :: dbcsr_data_set_size_referenced, dbcsr_data_get_size_referenced
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&

@@ -102,7 +102,6 @@ MODULE dbcsr_methods
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
             dbcsr_nblkrows_total, dbcsr_nblkcols_total, dbcsr_nfullrows_total,&
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
-            dbcsr_nfullrows_local, dbcsr_nfullcols_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
             dbcsr_get_occupation,&
             dbcsr_get_index_memory_type, dbcsr_get_data_memory_type,&

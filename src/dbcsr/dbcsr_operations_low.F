@@ -109,16 +109,15 @@ MODULE dbcsr_operations_low
 
   PUBLIC :: dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_scale_mat, dbcsr_add, dbcsr_copy,&
-            dbcsr_copy_submatrix, dbcsr_copy_into_existing,&
-            dbcsr_get_diag, dbcsr_set_diag, &
-            dbcsr_get_block_diag, dbcsr_hadamard_product, &
+            dbcsr_copy_into_existing,&
+            dbcsr_get_diag, dbcsr_set_diag,&
+            dbcsr_get_block_diag, dbcsr_hadamard_product,&
             dbcsr_filter, dbcsr_scale_by_vector,&
-            dbcsr_function_of_elements, &
-            dbcsr_btriu, dbcsr_triu, dbcsr_tril,&
-            dbcsr_symmetrize_block_diag, dbcsr_copy_columns,&
-            dbcsr_init_random, dbcsr_block_in_limits
+            dbcsr_function_of_elements,&
+            dbcsr_btriu,&
+            dbcsr_init_random
   PUBLIC :: dbcsr_sum_replicated
-  PUBLIC :: dbcsr_norm, dbcsr_conjg, &
+  PUBLIC :: dbcsr_norm, dbcsr_conjg,&
             dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm
 
   PUBLIC :: dbcsr_crop_matrix

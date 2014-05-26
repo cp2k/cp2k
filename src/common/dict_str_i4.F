@@ -63,6 +63,7 @@ MODULE dict_str_i4
   END TYPE dict_str_i4_item_type
   
   PUBLIC :: dict_str_i4_type
+  PUBLIC :: dict_str_i4_item_type
   PUBLIC :: dict_str_i4_init
   PUBLIC :: dict_str_i4_isready
   PUBLIC :: dict_str_i4_set
