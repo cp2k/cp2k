@@ -38,17 +38,15 @@ MODULE hfx_libint_wrapper
                             0:build_deriv1_eri_size,0:build_deriv1_eri_size), BIND(C) :: build_deriv1_eri
 
   INTERFACE
-    FUNCTION build(lib, np) BIND(C)
-      USE hfx_libint_wrapper_types
-      USE, INTRINSIC                 :: ISO_C_BINDING
+    FUNCTION build(lib, np) BIND(C) 
+      IMPORT
       TYPE(C_PTR)                    :: build
       TYPE(lib_int)                  :: lib
       INTEGER(KIND=C_INT), VALUE     :: np
     END FUNCTION build
 
     FUNCTION init_lib(lib, max_am, np) BIND(C, name="init_libint")
-      USE hfx_libint_wrapper_types
-      USE, INTRINSIC                 :: ISO_C_BINDING
+      IMPORT
       INTEGER(KIND=C_INT)            :: init_lib
       TYPE(lib_int)                  :: lib
       INTEGER(KIND=C_INT), VALUE     :: max_am
@@ -59,8 +57,7 @@ MODULE hfx_libint_wrapper
     END SUBROUTINE init_base
 
     SUBROUTINE free_lib_int(lib) BIND(C, name="free_libint")
-      USE hfx_libint_wrapper_types
-      USE, INTRINSIC                 :: ISO_C_BINDING
+      IMPORT
       TYPE(lib_int)                  :: lib
     END SUBROUTINE free_lib_int
 
@@ -68,8 +65,7 @@ MODULE hfx_libint_wrapper
     END SUBROUTINE init_deriv_base
 
     FUNCTION init_deriv1(deriv, max_am, np, ccs) BIND(C, name="init_libderiv1")
-      USE hfx_libint_wrapper_types
-      USE, INTRINSIC                 :: ISO_C_BINDING
+      IMPORT
       INTEGER(KIND=C_INT)            :: init_deriv1
       TYPE(lib_deriv)                :: deriv
       INTEGER(KIND=C_INT), VALUE     :: max_am
@@ -78,15 +74,13 @@ MODULE hfx_libint_wrapper
     END FUNCTION init_deriv1
 
     SUBROUTINE build_deriv1(deriv, np) BIND(C)
-      USE hfx_libint_wrapper_types
-      USE, INTRINSIC                 :: ISO_C_BINDING
+      IMPORT
       TYPE(lib_deriv)                :: deriv
       INTEGER(KIND=C_INT),VALUE      :: np
     END SUBROUTINE build_deriv1
 
     SUBROUTINE free_lib_deriv(deriv) BIND(C, name="free_libderiv")
-      USE hfx_libint_wrapper_types
-      USE, INTRINSIC                 :: ISO_C_BINDING
+      IMPORT
       TYPE(lib_deriv)                  :: deriv
     END SUBROUTINE free_lib_deriv
   END INTERFACE
