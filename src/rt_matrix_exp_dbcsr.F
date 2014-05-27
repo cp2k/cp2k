@@ -158,82 +158,6 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
 END SUBROUTINE
 
 ! *****************************************************************************
-!> \brief Convenience function. Computes the matrix multiplications needed
-!>        for the multiplication of complex sparse matrices.
-!>        C = beta * C + alpha * ( A  ** transa ) * ( B ** transb )
-!> \param A : m x k matrix ( ! for transa = 'N'), A_re is the real part, A_im the imaginary part
-!> \param B : k x n matrix ( ! for transb = 'N')
-!> \param C : m x n matrix
-!> \param transa : 'N' -> normal   'T' -> transpose
-!>      alpha,beta :: can be 0.0_dp and 1.0_dp
-!> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
-!> \note
-!>      C should have no overlap with A, B
-!> \author Samuel Andermatt
-! *****************************************************************************
-
-SUBROUTINE cp_complex_dbcsr_gemm(transa, transb, alpha, A_re, A_im,&
-           B_re, B_im, beta, C_re, C_im,&
-           first_row, last_row, first_column, last_column, first_k, last_k,&
-           retain_sparsity, filter_eps, error)
-    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    REAL(KIND=dp), INTENT(IN)                :: alpha
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: A_re, A_im, B_re, B_im
-    REAL(KIND=dp), INTENT(IN)                :: beta
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: C_re, C_im
-    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
-                                                first_column, last_column, &
-                                                first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: filter_eps
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_dbcsr_gemm', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    CHARACTER(LEN=1)                         :: transa2, transb2
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha2, alpha3, alpha4
-
-    CALL timeset(routineN,handle)
-    !A complex matrix matrix multiplication can be done with only three multiplications
-    !(a+ib)*(c+id)=ac-bd+i((a+b)*(c+d) - ac - bd)
-    !A_re=a, A_im=b, B_re=c, B_im=d
-
-    failure=.FALSE.
-
-    alpha2=-alpha
-    alpha3=alpha
-    alpha4=alpha
-
-    IF(transa=="C") THEN
-       alpha2=-alpha2
-       alpha3=-alpha3
-       transa2="T"
-    ELSE
-       transa2=transa
-    END IF
-    IF(transb=="C") THEN
-       alpha2=-alpha2
-       alpha4=-alpha4
-       transb2="T"
-    ELSE
-       transb2=transb
-    END IF
-    
-    CALL cp_dbcsr_multiply(transa2,transb2,alpha,A_re,B_re,beta,C_re, filter_eps=filter_eps,error=error)
-    CALL cp_dbcsr_multiply(transa2,transb2,alpha2,A_im,B_im,one,C_re, filter_eps=filter_eps,error=error)
-    CALL cp_dbcsr_multiply(transa2,transb2,alpha3,A_im,B_re,beta,C_im,filter_eps=filter_eps,error=error)
-    CALL cp_dbcsr_multiply(transa2,transb2,alpha4,A_re,B_im,one,C_im,filter_eps=filter_eps,error=error)
-
-
-    CALL timestop(handle)
-
-END SUBROUTINE
-
-! *****************************************************************************
 !> \brief specialized subroutine for purely imaginary matrix exponentials
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
@@ -314,7 +238,7 @@ END SUBROUTINE
     !Square the matrices, due to the scaling and squaring procedure
     IF(nsquare.GT.0)THEN
        DO i=1,nsquare
-          CALL cp_complex_dbcsr_gemm("N","N",one,Tres_re,Tres_im,&
+          CALL cp_complex_dbcsr_gemm_3("N","N",one,Tres_re,Tres_im,&
                Tres_re,Tres_im,zero,exp_H(1)%matrix,exp_H(2)%matrix,&
                filter_eps=filter_eps,error=error)
           CALL cp_dbcsr_copy(Tres_re,exp_H(1)%matrix,error=error)
