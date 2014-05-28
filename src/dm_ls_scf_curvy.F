@@ -66,10 +66,7 @@ CONTAINS
 
     CALL cite_reference(Shao2003)
 
-! Check that the transformation matrices into orthonormal basis are present
     failure=.FALSE.
-    CPPrecondition(ls_scf_env%matrix_s_sqrt_inv%ref_count/=0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ls_scf_env%matrix_s_sqrt%ref_count/=0,cp_failure_level,routineP,error,failure)
 
 ! Upon first call initialize all matrices needed curing optimization
 ! In addtion transform P into orthonormal basis. Will be scaled by 0.5 in closed shell case

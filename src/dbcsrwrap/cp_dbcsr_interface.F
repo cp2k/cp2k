@@ -223,7 +223,7 @@ MODULE cp_dbcsr_interface
   END TYPE cp_dbcsr_p_type
 
   TYPE cp_dbcsr_type
-     INTEGER                              :: ref_count
+     INTEGER, PRIVATE                     :: ref_count
      TYPE(dbcsr_obj)                      :: matrix
   END TYPE cp_dbcsr_type
 
