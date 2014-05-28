@@ -38,7 +38,7 @@ MODULE hfx_screening_methods
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC update_pmax_mat, &
+  PUBLIC :: update_pmax_mat, &
          calc_screening_functions,&
          calc_pair_dist_radii
 

@@ -73,7 +73,7 @@ MODULE mp2_ri_libint
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC  libint_ri_mp2, read_RI_basis_set, release_RI_basis_set
+  PUBLIC ::  libint_ri_mp2, read_RI_basis_set, release_RI_basis_set
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_libint'
 

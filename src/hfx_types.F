@@ -68,22 +68,21 @@ MODULE hfx_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  hfx_type, hfx_create, hfx_release,&
-          hfx_set_distr_energy, &
-          hfx_set_distr_forces, &
-          hfx_cell_type, hfx_distribution, &
-          hfx_potential_type, hfx_screening_type, hfx_periodic_type,&
-          hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
-          hfx_compression_type,&
-          hfx_container_type, hfx_container_node, hfx_cache_type, &
-          hfx_basis_type, parse_memory_section, &
-          hfx_init_container,&
-          hfx_basis_info_type, hfx_screen_coeff_type,&
-          hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
-          pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
-          hfx_pgf_image, hfx_pgf_product_list, hfx_block_range_type, &
-          alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
-          hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types
+  PUBLIC :: hfx_type, hfx_create, hfx_release,&
+            hfx_set_distr_energy,&
+            hfx_set_distr_forces,&
+            hfx_cell_type, hfx_distribution,&
+            hfx_potential_type, hfx_screening_type,&
+            hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
+            hfx_container_type, hfx_cache_type,&
+            hfx_basis_type, parse_memory_section,&
+            hfx_init_container,&
+            hfx_basis_info_type, hfx_screen_coeff_type,&
+            hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type,&
+            pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list,&
+            hfx_pgf_product_list, hfx_block_range_type,&
+            alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax,&
+            hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6

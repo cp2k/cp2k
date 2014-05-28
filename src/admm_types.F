@@ -34,8 +34,8 @@ MODULE admm_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  admm_env_create, admm_env_release, admm_type, eigvals_p_type, eigvals_type,&
-          admm_create_block_list, admm_block
+  PUBLIC :: admm_env_create, admm_env_release, admm_type,&
+            admm_create_block_list
 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'

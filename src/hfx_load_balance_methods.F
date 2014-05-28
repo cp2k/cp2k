@@ -45,7 +45,7 @@ MODULE hfx_load_balance_methods
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC hfx_load_balance, &
+  PUBLIC :: hfx_load_balance, &
          hfx_update_load_balance,&
          collect_load_balance_info, cost_model, p1_energy,p2_energy,p3_energy
 

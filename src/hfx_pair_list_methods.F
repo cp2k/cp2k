@@ -35,7 +35,7 @@ MODULE hfx_pair_list_methods
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC build_pair_list, &
+  PUBLIC :: build_pair_list, &
          build_pair_list_mp2, &
          build_pair_list_pgf, &
          build_pgf_product_list, &

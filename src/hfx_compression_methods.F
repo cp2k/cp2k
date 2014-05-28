@@ -23,7 +23,7 @@ MODULE hfx_compression_methods
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  hfx_add_single_cache_element, hfx_get_single_cache_element,&
+  PUBLIC ::  hfx_add_single_cache_element, hfx_get_single_cache_element,&
           hfx_reset_cache_and_container, hfx_decompress_first_cache, &
           hfx_flush_last_cache, hfx_add_mult_cache_elements,&
           hfx_get_mult_cache_elements

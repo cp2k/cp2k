@@ -26,8 +26,8 @@ MODULE hfx_helpers
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC FNV64, count_cells, next_image_cell, count_cells_perd, &
-                next_image_cell_perd, get_occupation
+  PUBLIC :: count_cells_perd,&
+            next_image_cell_perd
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_helpers'
 

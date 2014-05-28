@@ -77,7 +77,7 @@ MODULE hfx_derivatives
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC  derivatives_four_center, forces4
+  PUBLIC :: derivatives_four_center
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_derivatives'
 

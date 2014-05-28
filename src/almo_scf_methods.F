@@ -47,7 +47,7 @@ MODULE almo_scf_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_methods'
 
-  PUBLIC almo_scf_loc_hp_blk, almo_scf_get_t_blk,&
+  PUBLIC :: almo_scf_loc_hp_blk, almo_scf_get_t_blk,&
          almo_scf_p_get_t_blk, almo_scf_ortho_blk,&
          almo_scf_p_get_t, almo_scf_get_hp_blk_and_tv_blk,&
          almo_scf_get_hp_xx_and_tv_xx,&

@@ -26,7 +26,7 @@ MODULE hfx_libint_wrapper
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC initialize_libint, terminate_libint,&
+  PUBLIC :: initialize_libint, terminate_libint,&
          initialize_libderiv, get_eris, get_derivs, terminate_libderiv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'

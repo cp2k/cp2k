@@ -59,7 +59,7 @@ MODULE mp2_direct_method
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC  mp2_canonical_direct_single_batch
+  PUBLIC ::  mp2_canonical_direct_single_batch
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_direct_method'
 

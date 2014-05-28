@@ -24,7 +24,7 @@ MODULE xc_adiabatic_methods
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC     rescale_MCY3_pade
+  PUBLIC :: rescale_MCY3_pade
 
   CONTAINS
 

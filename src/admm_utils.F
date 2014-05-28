@@ -33,7 +33,7 @@ MODULE admm_utils
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC admm_correct_for_eigenvalues,&
+  PUBLIC :: admm_correct_for_eigenvalues,&
          admm_uncorrect_for_eigenvalues
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_utils'

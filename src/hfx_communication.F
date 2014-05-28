@@ -42,7 +42,7 @@ MODULE hfx_communication
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC get_full_density,&
+  PUBLIC :: get_full_density,&
          distribute_ks_matrix,&
          scale_and_add_fock_to_ks_matrix,&
          get_atomic_block_maps

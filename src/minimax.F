@@ -22,7 +22,7 @@
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax'
 
-   PUBLIC get_minimax_coeff, check_range
+   PUBLIC :: get_minimax_coeff, check_range
 
    CONTAINS
 

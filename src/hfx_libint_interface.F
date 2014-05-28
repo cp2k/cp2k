@@ -41,7 +41,7 @@ MODULE hfx_libint_interface
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC evaluate_eri,&
+  PUBLIC :: evaluate_eri,&
          evaluate_deriv_eri,&
          evaluate_eri_screen
 

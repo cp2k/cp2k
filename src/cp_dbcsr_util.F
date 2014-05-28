@@ -38,7 +38,7 @@ MODULE cp_dbcsr_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_util'
 
-  PUBLIC lanczos_alg_serial
+  PUBLIC :: lanczos_alg_serial
 
 CONTAINS
 

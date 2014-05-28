@@ -26,7 +26,7 @@ MODULE pint_gle
 
   PRIVATE
 
-  PUBLIC pint_gle_step, pint_gle_init, pint_calc_gle_energy
+  PUBLIC :: pint_gle_step, pint_gle_init, pint_calc_gle_energy
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_gle'
 

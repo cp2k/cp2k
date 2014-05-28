@@ -16,7 +16,7 @@ MODULE hfx_libint_wrapper_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC lib_int,&
+  PUBLIC :: lib_int,&
          lib_deriv,&
          prim_data,&
          prim_data_f_size,&

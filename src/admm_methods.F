@@ -82,16 +82,14 @@ MODULE admm_methods
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC admm_fit_mo_coeffs, &
-         admm_merge_ks_matrix, &
-         admm_merge_mo_derivs, &
-         remove_ks_matrix, &
-         calc_aux_mo_derivs_none, &
-         calc_mixed_overlap_force, &
-         create_admm_xc_section,&
-         print_matlab_matrix,&
-         admm_calculate_density_matrix,&
-         fit_mo_coeffs_diag
+  PUBLIC :: admm_fit_mo_coeffs,&
+            admm_merge_ks_matrix,&
+            admm_merge_mo_derivs,&
+            calc_aux_mo_derivs_none,&
+            calc_mixed_overlap_force,&
+            create_admm_xc_section,&
+            admm_calculate_density_matrix,&
+            fit_mo_coeffs_diag
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
 
