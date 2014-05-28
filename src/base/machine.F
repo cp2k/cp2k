@@ -11,6 +11,8 @@
 !> \author APSI & JGH
 ! *****************************************************************************
 MODULE machine
+  USE ISO_FORTRAN_ENV,                 ONLY: input_unit,&
+                                             output_unit
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine_internal,                ONLY: &
@@ -22,17 +24,14 @@ MODULE machine
 
   IMPLICIT NONE
 
-  ! this is the unit that is normally preconnected to stdout.
-  ! this is unit 6 for all compilers we know, but in principle could be
-  ! compiler dependent.
-  ! however, except for some error handling code, all code should
+  ! Except for some error handling code, all code should
   ! get a unit number from the print keys or from the logger, in order
   ! to guarantee correct output behavior,
   ! for example in farming or path integral runs
   ! default_input_unit should never be used
   ! but we need to know what it is, as we should not try to open it for output
-  INTEGER, PUBLIC, PARAMETER                   :: default_output_unit = 6, &
-                                                  default_input_unit  = 5
+  INTEGER, PUBLIC, PARAMETER                   :: default_output_unit = output_unit, &
+                                                  default_input_unit  = input_unit
 
   PRIVATE
 
