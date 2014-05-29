@@ -103,32 +103,23 @@ CONTAINS
         DEALLOCATE(tmp_cell)
       END IF
 
-      ! check for minimal distances
-      
-
-!TODO      IF(atom_min_dist.GT.0.0_dp) THEN
-flag = .TRUE.
-!        flag = .FALSE.
-! get the atom min dist from cp2k some where
-!TODO maybe do dist check only for approximate potential? maybe also im master after move
-! print warning...
-!TODO        CALL check_distances(conf%pos, REAL(atom_min_dist,KIND=dp), flag, conf%box, rnd)
-        IF(flag.EQV. .TRUE.) THEN
-          IF(tmc_env%params%print_forces.OR.&
-             conf%move_type.EQ.mv_type_MD) THEN
-            e_pot=0.0_dp
-            conf%frc(:) = 0.0_dp
-            CALL calc_force(env_id=env_id, pos=conf%pos,n_el_pos=SIZE(conf%pos),&
-                               e_pot=e_pot, force=conf%frc, &
-                               n_el_force=SIZE(conf%frc),ierr=ierr)
-          ELSE
-            e_pot=0.0_dp
-            CALL calc_energy(env_id=env_id, pos=conf%pos, n_el=SIZE(conf%pos), e_pot=e_pot, ierr=ierr)
-          END IF
+      ! TODO check for minimal distances
+      flag = .TRUE.
+      IF(flag.EQV. .TRUE.) THEN
+        IF(tmc_env%params%print_forces.OR.&
+           conf%move_type.EQ.mv_type_MD) THEN
+          e_pot=0.0_dp
+          conf%frc(:) = 0.0_dp
+          CALL calc_force(env_id=env_id, pos=conf%pos,n_el_pos=SIZE(conf%pos),&
+                             e_pot=e_pot, force=conf%frc, &
+                             n_el_force=SIZE(conf%frc),ierr=ierr)
         ELSE
-            e_pot=HUGE(e_pot)
+          e_pot=0.0_dp
+          CALL calc_energy(env_id=env_id, pos=conf%pos, n_el=SIZE(conf%pos), e_pot=e_pot, ierr=ierr)
         END IF
-!      END IF ! min_dist
+      ELSE
+          e_pot=HUGE(e_pot)
+      END IF
     CASE(task_type_ideal_gas)
       e_pot = 0.0_dp
     CASE DEFAULT
@@ -155,53 +146,6 @@ flag = .TRUE.
       conf%e_pot_approx = e_pot
     END IF
   END SUBROUTINE calc_potential_energy
-
-! *****************************************************************************
-!> \brief calculate the minimal distance between two atoms and check 
-!>        if there are too small for building the neighbor list
-!> \param 
-!> \param 
-!> \param 
-!> \param 
-!> \param
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Mandes 11.2012
-! *****************************************************************************
-  FUNCTION check_distances(env_id, pos, cell, box_scale, error)RESULT(dist_ok)
-    INTEGER                                  :: env_id
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
-    TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: box_scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    LOGICAL                                  :: dist_ok
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_distances', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-
-
-    dist_ok = .TRUE.
-
-!    DO ind1=0, SIZE(pos)/dim_per_elem-2
-!      DO l=ind1+1, SIZE(pos)/dim_per_elem-1
-!        rab = nearest_distance(x1=pos(i1*dim_per_elem+1:(i1+1)*dim_per_elem),&
-!                              x2=pos(i2*dim_per_elem+1:(i2+1)*dim_per_elem),&
-!                              cell=cell, box_scale=box_scale, error)
-!
-!        ! ask for the mimimal distance of the 2 atom types
-!TODO get the minimal distances from force env... for minimal distance check 
-!       
-!      END DO
-!    END DO
-  END FUNCTION check_distances
-
 
 ! *****************************************************************************
 !> \brief handles properties and calculations of a scaled cell

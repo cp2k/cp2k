@@ -1794,49 +1794,6 @@ CONTAINS
   ! message for cancelation or stopping
   !============================================================================
 ! *****************************************************************************
-!> \brief routine cancel the other group participants
-!> \param para_env the communicator environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Mandes 12.2012
-! *****************************************************************************
-  SUBROUTINE cancel_group_participants(para_env, tmc_params, error)
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(tmc_param_type), POINTER            :: tmc_params
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'cancel_group_participants', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: cancel_stat, comm_size, &
-                                                participant
-    LOGICAL                                  :: failure, flag
-
-    failure = .FALSE.
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(para_env%group.EQ.0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
-
-    comm_size = para_env%num_pe-1
-    !-- send canceling message to all participants
-    paritcipant_loop: DO participant=1, comm_size
-       cancel_stat = TMC_CANCELING_MESSAGE
-       CALL tmc_message(msg_type=cancel_stat, send_recv=send_msg, &
-                        dest=participant, para_env=para_env, &
-                        tmc_params=tmc_params, error=error)
-    END DO paritcipant_loop
-
-    !-- receive canceling receipt from all
-    receipt_loop: DO participant=1, comm_size
-       CALL tmc_message(msg_type=cancel_stat, send_recv=recv_msg, &
-                        dest=participant, para_env=para_env, &
-                        tmc_params=tmc_params, &
-                        success=flag, wait_for_message=.TRUE., error=error)
-       CPPostconditionNoFail(cancel_stat.NE.TMC_CANCELING_RECEIPT,cp_failure_level,routineP,error)
-    END DO receipt_loop
-  END SUBROUTINE cancel_group_participants
-
-! *****************************************************************************
 !> \brief send stop command to all group participants
 !> \param 
 !> \param 
