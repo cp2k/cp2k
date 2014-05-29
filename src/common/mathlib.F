@@ -66,8 +66,7 @@ MODULE mathlib
   END INTERFACE
 
   INTERFACE set_diag
-    MODULE PROCEDURE set_diag_scalar_d,set_diag_scalar_z,&
-                     set_diag_vector_d,set_diag_vector_z
+    MODULE PROCEDURE set_diag_scalar_d,set_diag_scalar_z
   END INTERFACE
 
   INTERFACE swap
@@ -336,34 +335,6 @@ CONTAINS
     dihedral_angle_abcd = SIGN(1.0_dp,det_abcd)*angle(abc,bcd)
 
   END FUNCTION dihedral_angle
-
-! *****************************************************************************
-!> \brief   The exponent of a primitive Gaussian function for a given radius
-!>          and threshold is calculated.
-!> \author  MK
-!> \date    07.03.1999
-!> \par Variables
-!>      - exponent : Exponent of the primitive Gaussian function.
-!>      - l        : Angular momentum quantum number l.
-!>      - prefactor: Prefactor of the Gaussian function (e.g. a contraction
-!>      -            coefficient).
-!>      - radius   : Calculated radius of the Gaussian function.
-!>      - threshold: Threshold for radius.
-!> \version 1.0
-! *****************************************************************************
-  FUNCTION gauss_exponent(l,radius,threshold,prefactor) RESULT(exponent)
-    INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
-    REAL(KIND=dp)                            :: exponent
-
-    exponent = 0.0_dp
-
-    IF (radius    < 1.0E-06_dp) RETURN
-    IF (threshold < 1.0E-12_dp) RETURN
-
-    exponent = LOG(ABS(prefactor)*radius**l/threshold)/radius**2
-
-  END FUNCTION gauss_exponent
 
 ! *****************************************************************************
 !> \brief   Return the diagonal elements of matrix a as a vector.
@@ -826,113 +797,6 @@ CONTAINS
   END SUBROUTINE invert_matrix_z
 
 ! *****************************************************************************
-!> \brief  Raise the real symmetric n by n matrix a to the power given by
-!>         exponent. All eigenvectors with a corresponding eigenvalue lower
-!>         than threshold are quenched. Only the upper triangle of matrix a
-!>         is used.
-!> \author  MK
-!> \date    29.03.1999
-!> \par Variables
-!>       - a          : Symmetric matrix to be powered (input; upper triangle) ->
-!>       -              Destroyed on exit.
-!>       - a_power    : Power of matrix a => a**exponent (output).
-!>       - dac        : Use the divide-and-conquer algorithm for the diagonalization.
-!>       - exponent   : Matrix exponent (input).
-!>       - n_dependent: Number of the eigenvectors which are linear dependent due to
-!>       -              the defined eigval_eps (output).
-!>       - threshold  : Threshold value for eigenvector quenching (input).
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE power_matrix(a,a_power,exponent,threshold,n_dependent,dac,error)
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: a
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: a_power
-    REAL(KIND=dp), INTENT(IN)                :: exponent
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: threshold
-    INTEGER, INTENT(OUT), OPTIONAL           :: n_dependent
-    LOGICAL, INTENT(IN), OPTIONAL            :: dac
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'power_matrix', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, n, n_dep, stat
-    LOGICAL                                  :: divide_and_conquer, failure
-    REAL(KIND=dp)                            :: eps_eigval, expa
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigval
-
-    EXTERNAL dsyrk
-
-    failure = .FALSE.
-    !  Define the threshold for the eigenvalue quenching
-    IF (PRESENT(threshold)) THEN
-       eps_eigval = threshold
-    ELSE
-       eps_eigval = EPSILON(0.0_dp)
-    END IF
-
-    ! Get the dimension of matrix a
-    n = SIZE(a,1)
-
-    !  Check array dimensions
-    IF (n /= SIZE(a,2)) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Check the array bounds of parameter #1")
-    END IF
-
-    IF ((n /= SIZE(a_power,1)).OR.&
-         (n /= SIZE(a_power,2))) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Check the array bounds of parameter #2")
-    END IF
-
-    ! Allocate work storage
-    ALLOCATE (eigval(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    !  Check, if the divide-and-conquer algorithm is requested
-    IF (PRESENT(dac)) THEN
-       divide_and_conquer = dac
-    ELSE
-       divide_and_conquer = .FALSE.
-    END IF
-
-    ! Compute the eigenvectors and eigenvalues of the matrix a
-    CALL diamat_all(a,eigval,divide_and_conquer,error=error)
-
-    !  Build a**exponent with eigenvector quenching
-    expa = 0.5_dp*exponent
-
-    n_dep = 0
-
-    DO i=1,n
-       IF (eigval(i) < eps_eigval) THEN
-          a(1:n,i) = 0.0_dp
-          n_dep = n_dep + 1
-       ELSE
-          eigval(i) = eigval(i)**expa
-          a(1:n,i) = eigval(i)*a(1:n,i)
-       END IF
-    END DO
-
-    IF (PRESENT(n_dependent)) THEN
-       n_dependent = n_dep
-    END IF
-
-    ! a_power <- a*Transpose(a)
-    CALL dsyrk("U","N",n,n,1.0_dp,a(1,1),n,0.0_dp,a_power(1,1),n)
-
-    !  Copy upper triangle of matrix a_power to lower triangle
-    CALL symmetrize_matrix(a_power,"upper_to_lower")
-
-    ! Release work storage
-    DEALLOCATE (eigval,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-  END SUBROUTINE power_matrix
-
-! *****************************************************************************
 !> \brief  Reflection of the vector a through a mirror plane defined by the
 !>         normal vector b. The reflected vector a is stored in a_mirror.
 !> \author  MK
@@ -1033,57 +897,6 @@ CONTAINS
     END DO
 
   END SUBROUTINE set_diag_scalar_z
-
-! *****************************************************************************
-!> \brief   Set the diagonal elements of matrix a to the values of vector b.
-!> \author  MK
-!> \date    20.11.1998
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE set_diag_vector_d(a,b)
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: a
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_diag_vector_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, n
-
-    n = MIN(SIZE(a,1),SIZE(a,2))
-    IF (SIZE(b) == n) THEN
-      DO i=1,n
-        a(i,i) = b(i)
-      END DO
-    ELSE
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Check the array bounds of the parameters")
-    END IF
-
-  END SUBROUTINE set_diag_vector_d
-
-  SUBROUTINE set_diag_vector_z(a,b)
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: a
-    COMPLEX(KIND=dp), DIMENSION(:), &
-      INTENT(IN)                             :: b
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_diag_vector_z', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, n
-
-    n = MIN(SIZE(a,1),SIZE(a,2))
-    IF (SIZE(b) == n) THEN
-      DO i=1,n
-        a(i,i) = b(i)
-      END DO
-    ELSE
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Check the array bounds of the parameters")
-    END IF
-
-  END SUBROUTINE set_diag_vector_z
 
 ! *****************************************************************************
 !> \brief   Symmetrize the matrix a.
