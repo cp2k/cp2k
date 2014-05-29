@@ -39,11 +39,11 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_obj, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_pgrid, &
-       dbcsr_norm_frobenius, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+       dbcsr_error_type, dbcsr_get_data_p, dbcsr_mp_get_coordinates, &
+       dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_obj, dbcsr_mp_pgrid, dbcsr_norm_frobenius, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -1010,108 +1010,6 @@ CONTAINS
 
   END SUBROUTINE packed_vec_scale
 
-! *****************************************************************************
-!> \brief Does the operations:
-!>      v(k,:) = v(k,:) - uAk(i,k)' * inv(d(i,i)) * v(i,:) / s
-!>      u(k,:) = u(k,:) -   v(i,k)' * inv(d(i,i)) * u(i,:) / s
-!>
-! *****************************************************************************
-  SUBROUTINE packed_vec_bif_tech(mat_v, mat_u, pkd_v_fac, pkd_u_fac, ivec, pkd_v, pkd_u, error)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: mat_v, mat_u
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v_fac, pkd_u_fac
-    INTEGER, INTENT(IN)                      :: ivec
-    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v, pkd_u
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'packed_vec_bif_tech', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: blk, col, col_size, k_row, k_row_size, offset, row, row_size, &
-      timing_handle, u_offset, u_offset_last, ufac_offset, v_offset, &
-      v_offset_last, vfac_offset
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_u, data_v
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
-
-    row_blk_size => array_data (cp_dbcsr_row_block_sizes (mat_u))
-    col_blk_size => array_data (cp_dbcsr_col_block_sizes (mat_u))
-
-    IF (pkd_u(cp_dbcsr_nblkrows_total(mat_u)+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                                        "1pkd_u(n+1).LE.0")
-    IF (pkd_v(cp_dbcsr_nblkrows_total(mat_v)+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                                        "1pkd_v(n+1).LE.0")
-    CALL dbcsr_get_data (mat_v%matrix, data_v)
-    CALL dbcsr_get_data (mat_u%matrix, data_u)
-    !
-    !v(k,:) (pkd) = v(k,:) (pkd) - (inv(d(i,i)) * uAk(i,k))' / s (pkd) * v(i,:) (bcsr) i = 1,ivec-1
-    k_row = ivec
-    k_row_size = row_blk_size(k_row)
-    v_offset_last = INT(pkd_v(cp_dbcsr_nblkrows_total(mat_v)+1))
-    DO row = 1, cp_dbcsr_nblkrows_total(mat_v)
-       IF(row.GE.k_row) EXIT !i = 1,ivec-1
-       row_size = row_blk_size(row)
-       ufac_offset = INT(pkd_v_fac(row))
-       IF(ufac_offset.LE.0) CYCLE
-       DO blk = mat_v%matrix%m%row_p(row)+1,mat_v%matrix%m%row_p(row+1)
-          col = mat_v%matrix%m%col_i(blk)
-          col_size = col_blk_size(col)
-          offset = ABS(mat_v%matrix%m%blk_p(blk))
-          v_offset = INT(pkd_v(col))
-          IF(v_offset.LE.0) THEN
-             v_offset = v_offset_last
-             v_offset_last = v_offset_last + k_row_size * col_size
-             pkd_v(v_offset:v_offset+k_row_size * col_size-1) = 0.0_dp
-             pkd_v(mat_v%matrix%m%nblkrows_total+1) = REAL(v_offset_last,dp)
-          ENDIF
-          !
-          ! let's multiply and add
-          CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
-               &    -1.0_dp, pkd_v_fac(ufac_offset), row_size,&
-               &             data_v(offset), row_size,&
-                  &     1.0_dp, pkd_v(v_offset), k_row_size)
-       ENDDO
-    ENDDO ! row
-    !
-    !u(k,:) (pkd) = u(k,:) (pkd) - (inv(d(i,i)) * v(i,k))' / s (pkd) * u(i,:) (bcsr) i = 1,ivec-1
-    u_offset_last = INT(pkd_u(cp_dbcsr_nblkrows_total(mat_u)+1))
-    DO row = 1, cp_dbcsr_nblkrows_total(mat_u)
-       IF(row.GE.k_row) EXIT !i = 1,ivec-1
-       row_size = row_blk_size(row)
-       vfac_offset = INT(pkd_u_fac(row))
-       IF(vfac_offset.LE.0) CYCLE
-       DO blk = mat_u%matrix%m%row_p(row)+1,mat_u%matrix%m%row_p(row+1)
-          col = mat_u%matrix%m%col_i(blk)
-          col_size = col_blk_size(col)
-          offset = ABS(mat_u%matrix%m%blk_p(blk))
-          u_offset = INT(pkd_u(col))
-          IF(u_offset.LE.0) THEN
-             u_offset = u_offset_last
-             u_offset_last = u_offset_last + k_row_size * col_size
-             pkd_u(u_offset:u_offset+k_row_size * col_size-1) = 0.0_dp
-             pkd_u(mat_u%matrix%m%nblkrows_total+1) = REAL(u_offset_last,dp)
-          ENDIF
-          !
-          ! let's multiply and add
-          CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
-               &    -1.0_dp, pkd_u_fac(vfac_offset), row_size,&
-               &             data_u(offset), row_size,&
-               &     1.0_dp, pkd_u(u_offset), k_row_size)
-       ENDDO
-    ENDDO ! row
-
-    IF (pkd_u(mat_u%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                                       "2pkd_u(n+1).LE.0")
-    IF (pkd_v(mat_v%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                                       "2pkd_v(n+1).LE.0")
-
-    CALL timestop(timing_handle)
-
-  END SUBROUTINE packed_vec_bif_tech
-
-
   SUBROUTINE packed_vec_build_u(pkd_u, pkd_v, k, n, s, vec_blk_size, error)
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: pkd_u
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v
@@ -1521,34 +1419,6 @@ CONTAINS
     CALL timestop(timing_handle)
 
   END SUBROUTINE cp_dbcsr_copy_vec
-
-
-
-! *****************************************************************************
-!> \brief returns the id of the given matrix (from cp_sm_get_id_nr)
-!> \param matrix the matrix you want info about
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-! *****************************************************************************
-FUNCTION cp_dbcsr_get_id_nr(matrix,error) RESULT(res)
-    TYPE(cp_dbcsr_type), POINTER             :: matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER                                  :: res
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_get_id_nr', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-!  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
-  CPPrecondition(matrix%matrix%m%refcount>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     res=matrix%matrix%m%id_nr
-  ELSE
-     res=0
-  END IF
-END FUNCTION cp_dbcsr_get_id_nr
 
 ! *****************************************************************************
 !> \brief Converts a cp2k full matrix into a DBCSR matrix.
