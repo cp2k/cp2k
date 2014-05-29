@@ -959,68 +959,6 @@ CONTAINS
   END SUBROUTINE xstring
 
   ! *****************************************************************************
-  SUBROUTINE make_tuple(int,nt,na,tuple)
-
-    INTEGER, INTENT(IN)                      :: INT( :, : ), nt, na
-    CHARACTER(LEN=*), INTENT(OUT)            :: tuple( : )
-
-    INTEGER                                  :: i, nm
-
-    nm = MAXVAL(INT(1:nt,1:na))
-    SELECT CASE (nt)
-    CASE DEFAULT
-       STOP 'make_tuple: case not programmed'
-    CASE (1)
-       IF (nm<100) THEN
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I2,A )' ) '[', INT(1,i), ']'
-          END DO
-       ELSE
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I4,A )' ) '[', INT(1,i), ']'
-          END DO
-       END IF
-    CASE (2)
-       IF (nm<100) THEN
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I2,A,I2,A )' ) '[', INT(1,i), '-', INT(2,i), &
-                  ']'
-          END DO
-       ELSE
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I4,A,I4,A )' ) '[', INT(1,i), '-', INT(2,i), &
-                  ']'
-          END DO
-       END IF
-    CASE (3)
-       IF (nm<100) THEN
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I2,A,I2,A,I2,A )' ) '[', INT(1,i), '-', &
-                  INT(2,i), '-', INT(3,i), ']'
-          END DO
-       ELSE
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I4,A,I4,A,I4,A )' ) '[', INT(1,i), '-', &
-                  INT(2,i), '-', INT(3,i), ']'
-          END DO
-       END IF
-    CASE (4)
-       IF (nm<100) THEN
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I2,A,I2,A,I2,A,I2,A )' ) '[', INT(1,i), '-', &
-                  INT(2,i), '-', INT(3,i), '-', INT(4,i), ']'
-          END DO
-       ELSE
-          DO i = 1, na
-             WRITE (tuple(i),'(A,I4,A,I4,A,I4,A,I4,A )' ) '[', INT(1,i), '-', &
-                  INT(2,i), '-', INT(3,i), '-', INT(4,i), ']'
-          END DO
-       END IF
-    END SELECT
-
-  END SUBROUTINE make_tuple
-
-  ! *****************************************************************************
   FUNCTION str_comp(str1,str2) RESULT (equal)
 
     CHARACTER(LEN=*), INTENT(IN)             :: str1, str2
@@ -1036,24 +974,6 @@ CONTAINS
     CALL xstring(str2,j1,j2)
     equal = (str1(i1:i2)==str2(j1:j2))
   END FUNCTION str_comp
-
-  ! *****************************************************************************
-  FUNCTION str_search(str1,n,str2) RESULT (pos)
-    CHARACTER(LEN=*), INTENT(IN)             :: str1( : )
-    INTEGER, INTENT(IN)                      :: n
-    CHARACTER(LEN=*), INTENT(IN)             :: str2
-    INTEGER                                  :: pos
-
-    INTEGER                                  :: i
-
-    pos = 0
-    DO i = 1, n
-       IF (str_comp(str1(i),str2)) THEN
-          pos = i
-          EXIT
-       END IF
-    END DO
-  END FUNCTION str_search
 
 ! *****************************************************************************
 !> \brief returns .true. if the character passed is a whitespace char.
