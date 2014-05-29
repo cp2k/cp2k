@@ -3,7 +3,7 @@ CPP      =
 FC       = mpif90
 LD       = mpif90
 AR       = ar -r
-DFLAGS   = -D__NAG -D__FFTSG -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK -D__LIBINT -D__PTR_RANK_REMAP
+DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__LIBINT
 CPPFLAGS = 
 FCFLAGS  = -O0 -g -C=all -mismatch_all -nan -gline -free -fpp $(DFLAGS) -I$(NAG_INC)
 LDFLAGS  = $(FCFLAGS)

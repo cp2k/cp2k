@@ -10,7 +10,7 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW3 -D__HAS_smm_dnn
+DFLAGS   = D__FFTW3 -D__HAS_smm_dnn
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O2 -openmp -openmp-threadprivate=compat \
 	   -pad -opt-prefetch -mavx -funroll-loops -fpp -free \

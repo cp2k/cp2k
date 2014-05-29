@@ -6,7 +6,7 @@ FC       = ftn
 LD       = ftn 
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__GFORTRAN -D__GEMINI -D__FFTSG -D__parallel -D__SCALAPACK -D__BLACS -D__FFTW3 -D__MAX_CONTR=3 -D__HAS_NO_GETLOG -D__ACC -D__DBCSR_ACC 
+DFLAGS   = -D__GEMINI -D__parallel -D__SCALAPACK -D__FFTW3 -D__MAX_CONTR=3 -D__HAS_NO_GETLOG -D__ACC -D__DBCSR_ACC 
 FCFLAGS  = -O2 -march=bdver1 -ffree-form -ftree-vectorize $(DFLAGS) -ffree-line-length-512
 CFLAGS   = $(FCFLAGS) 
 LDFLAGS  = $(FCFLAGS) -mkl=sequential

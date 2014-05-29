@@ -10,7 +10,7 @@ LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
 LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
 LIBXC_INC  = $(GCC_DIR)/libxc/2.0.1-gnu-regtest/include
 LIBXC_LIB  = $(GCC_DIR)/libxc/2.0.1-gnu-regtest/lib64
-DFLAGS     = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2
+DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC2
 CPPFLAGS   =
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow\
              -Wintrinsics-std -Wline-truncation -Wno-tabs -Wunderflow\

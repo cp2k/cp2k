@@ -10,7 +10,7 @@ LD       = ftn
 AR       = ar -r
 HWTOPO   = yes
 CPPFLAGS =
-DFLAGS   = -D__GEMINI -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC -D__ELPA -D__HAS_NO_GETLOG
+DFLAGS   = -D__GEMINI -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC -D__ELPA -D__HAS_NO_GETLOG
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -fopenmp -march=bdver1 -funroll-loops -ffast-math -ftree-vectorize \
 	   -ffree-form -ffree-line-length-512

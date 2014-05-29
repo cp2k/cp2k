@@ -14,7 +14,7 @@ AR       = ar -r
 FC_SAVELOG = TRUE
 
 CPPFLAGS =
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__LIBXC2 
+DFLAGS   = -D__LIBINT -D__FFTW3 -D__LIBXC2 
 FCFLAGS  = -O1 -fstrict-aliasing -fbacktrace -g -fbounds-check -ffree-form -fdump-fortran-original $(DFLAGS) 
 LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/install/lib/ -L/data/vjoost/libxc-2.0.1/install/lib
 LIBS     = -lderiv -lint -lstdc++ -lfftw3 -llapack -lblas -lxc

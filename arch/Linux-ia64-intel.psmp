@@ -11,7 +11,7 @@ FC_fixed = mpif90 -FI
 LD       = mpif90
 AR       = /usr/bin/ar -r
 #Better with mkl (intel lapack/blas) only
-DFLAGS   = -D__INTEL -D__FFTSG -D__parallel 
+DFLAGS   = -D__parallel 
 #If you want to use BLACS and SCALAPACK use the flags below
 #DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -C $(DFLAGS) -P -traditional

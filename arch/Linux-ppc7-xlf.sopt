@@ -3,7 +3,7 @@ CPP      =
 FC       = xlf95_r -qstacktemp=1 -qsuffix=f=F
 LD       = xlf95_r -qstacktemp=1 
 AR       = ar -r 
-DFLAGS   = -WF,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL
+DFLAGS   = 
 CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -O2 -qstrict -q64  -qtune=pwr7 -qarch=pwr7 -qcache=auto -qmaxmem=-1  $(DFLAGS)
 FCFLAGS2 = -O0 -qstrict -q64  -qtune=pwr7 -qarch=pwr7 -qcache=auto -qmaxmem=-1  $(DFLAGS)

@@ -4,7 +4,7 @@ CPP      = cpp -traditional -E
 FC       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf95_r -qstacktemp=1 -qsuffix=f=f90 
 LD       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf95_r -qstacktemp=1
 AR       = ar -r
-DFLAGS   = -D__AIX -D__ESSL -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK -I/sp/LIB/BGP/fftw-3.1.2/include
+DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -I/sp/LIB/BGP/fftw-3.1.2/include
 CPPFLAGS = -C $(DFLAGS) -P
 FCFLAGS  = -O2 -qarch=450d  -qtune=450  -I/sp/LIB/BGP/fftw-3.1.2/include
 #-qmaxmem=-1  

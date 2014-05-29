@@ -11,7 +11,7 @@ LD       = gfortran46
 AR       = ar -r
 
 CPPFLAGS =
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__NO_STATM_ACCESS
+DFLAGS   = -D__FFTW3 -D__NO_STATM_ACCESS
 FCFLAGS  = -O2 -ffast-math -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas -lfftw3

@@ -8,7 +8,7 @@ LD       = gfortran -flto=jobserver -fuse-linker-plugin
 AR       = gcc-ar -r
 
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 
+DFLAGS   = -D__FFTW3 
 FCFLAGS  = -fno-prefetch-loop-arrays -O3 -march=native -funroll-loops -ffast-math -ffree-form $(DFLAGS) 
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -llapack -lblas

@@ -12,8 +12,8 @@ CPP      =
 FC       = ftn -f free -h noomp
 LD       = ftn -h noomp
 AR       = ar -r
-DFLAGS   = -D__CCE -D__FFTW3 -D__FFTSG \
-           -D__parallel -D__BLACS -D__SCALAPACK -D__LIBINT \
+DFLAGS   = -D__FFTW3 \
+           -D__parallel -D__SCALAPACK -D__LIBINT \
            -D__NO_STATM_ACCESS
 CPPFLAGS = -traditional -C $(DFLAGS) -P
 FCFLAGS  = $(DFLAGS) -e m -O 2 -O ipa1 -h cpu=istanbul

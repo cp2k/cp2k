@@ -9,7 +9,7 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__GEMINI -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__HAS_NO_GETLOG -D__parallel -D__SCALAPACK -D__BLACS  
+DFLAGS   = -D__GEMINI -D__FFTW3 -D__HAS_NO_GETLOG -D__parallel -D__SCALAPACK
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = -O3 -march=bdver1 -ffree-form -ftree-vectorize $(DFLAGS) -ffree-line-length-512
 LDFLAGS  = $(FCFLAGS)

@@ -3,7 +3,7 @@ CPP      =
 FC       = mpfort -compiler xlf95_r -qstacktemp=1 -qsuffix=f=F
 LD       = mpfort -compiler xlf95_r -qstacktemp=1 
 AR       = ar -r
-DFLAGS   = -WF,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel,-D__BLACS,-D__SCALAPACK,-D__LIBINT
+DFLAGS   = -WF,-D__parallel,-D__SCALAPACK,-D__LIBINT
 CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5 \
            -qextname=wrapper_build_deriv1_eri:wrapper_build_eri:wrapper_free_libderiv:wrapper_free_libint:wrapper_init_deriv:wrapper_init_lib $(DFLAGS)

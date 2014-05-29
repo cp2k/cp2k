@@ -11,7 +11,7 @@ LD       = gfortran
 AR       = ar -r
 
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT 
+DFLAGS   = -D__LIBINT 
 FCFLAGS  = -gdwarf-3 -fPIE -pie -fsanitize=thread -fno-omit-frame-pointer  -fopenmp -O0 -march=native -ffast-math -ffree-form $(DFLAGS) 
 LDFLAGS  = $(FCFLAGS)  -L/data/vjoost/libint/sanitize/install/lib/ 
 LIBS     = -llapack -lblas -lderiv -lint -lstdc++

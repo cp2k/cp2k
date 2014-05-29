@@ -3,7 +3,7 @@ CPP      =
 FC       = mpfort -qsuffix=f=F
 LD       = mpfort 
 AR       = ar -r
-DFLAGS   = -WF,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel,-D__BLACS,-D__SCALAPACK
+DFLAGS   = -WF,-D__parallel,-D__SCALAPACK
 CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr7 -qcache=auto -qmaxmem=-1 -qtune=pwr7 $(DFLAGS)
 FCFLAGS2 = -O0 -qstrict -q64 -qarch=pwr7 -qcache=auto -qmaxmem=-1 -qtune=pwr7 $(DFLAGS)

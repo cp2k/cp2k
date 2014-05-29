@@ -11,7 +11,7 @@ LD       = gfortran -flto=jobserver -use-linker-plugin
 AR       = gcc-ar -r
 
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG
+DFLAGS   = 
 FCFLAGS  = -O1 -g -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas

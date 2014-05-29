@@ -9,7 +9,7 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__parallel -D__SCALAPACK -D__BLACS -D__LIBINT -D__LIBXC2 -D__FFTW3  -D__ELPA
+DFLAGS   = -D__parallel -D__SCALAPACK -D__LIBINT -D__LIBXC2 -D__FFTW3  -D__ELPA
 FCFLAGS  = -O3 -ffast-math -funroll-loops -ftree-vectorize -march=native -ffree-form  $(DFLAGS)  -g -I${FFTW3_PATH}/include -I${ELPA_INC}
 LDFLAGS  = $(FCFLAGS) -L$(LIBINT_PATH)  -L${FFTW3_PATH}/lib64  -L$(INTEL_MKL_LIB) -L$(LIBXC_PATH)/lib64
 LIBS     =  \
