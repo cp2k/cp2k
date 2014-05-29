@@ -653,7 +653,9 @@ CONTAINS
       !WRITE(*,'(A48,5X,I10,4X,A2,1X,I10)') " KG| Total number of overlapping molecular pairs",npairs/2,"of",nmol*(nmol-1)/2
 
       ! write to file, nnodes = number of molecules
-      !CALL write_to_file(pairs, SIZE(kg_env%molecule_set), error)
+      IF (.FALSE.) THEN
+         CALL write_to_file(pairs, SIZE(kg_env%molecule_set), error)
+      ENDIF
 
       ! vertex coloring algorithm
       CALL kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node, error)

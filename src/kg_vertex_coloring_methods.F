@@ -728,9 +728,11 @@ CONTAINS
     IF (unit_nr>0) THEN
 
       WRITE(unit_nr,'(T2,A,A,A)') REPEAT("-",30)," KG coloring result ",REPEAT("-",29)
-      !WRITE(unit_nr,'()')
-      !CALL print_subsets(graph, ncolors, unit_nr, error)
-      !WRITE(unit_nr,'()')
+      IF (.FALSE.) THEN ! more output for VMD
+         WRITE(unit_nr,'()')
+         CALL print_subsets(graph, ncolors, unit_nr, error)
+         WRITE(unit_nr,'()')
+      ENDIF
       WRITE(unit_nr,'(T2, A16,50X,I6,1X,A6)') 'Number of colors', ncolors, 'colors'
       IF (valid) WRITE(unit_nr,'(T2, A17,59X,A3)') 'Coloring verified', 'yes'
       WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
