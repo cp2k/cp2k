@@ -68,10 +68,6 @@ MODULE pw_methods
      MODULE PROCEDURE pw_scatter_s, pw_scatter_p
   END INTERFACE
 
-  INTERFACE pw_fft_wrap
-     MODULE PROCEDURE fft_wrap_pw1, fft_wrap_pw1pw2
-  END INTERFACE
-
 CONTAINS
 
 ! *****************************************************************************
@@ -658,8 +654,8 @@ CONTAINS
 
     ELSE
 
-       ! FFT needed, all further tests done in pw_fft_wrap
-       CALL pw_fft_wrap ( pw1, pw2, debug, error=error)
+       ! FFT needed, all further tests done in fft_wrap_pw1pw2
+       CALL fft_wrap_pw1pw2 ( pw1, pw2, debug, error=error)
 
     END IF
 
@@ -1260,66 +1256,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Generic function for 3d FFT of a coefficient_type or pw_type
 !> \note
-!>      The following functions are covered
-!>       fft_wrap_pw1, fft_wrap_pw1pw2
+!>       fft_wrap_pw1pw2
 !> \par History
 !>      JGH (30-12-2000): New setup of functions and adaptation to parallelism
 !>      JGH (04-01-2001): Moved routine from pws to this module, only covers
 !>                        pw_types, no more coefficient types
 !> \author apsi
-! *****************************************************************************
-  SUBROUTINE fft_wrap_pw1 ( pw1, debug, error)
-
-    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw1
-    LOGICAL, INTENT(IN), OPTIONAL            :: debug
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fft_wrap_pw1', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: dir, handle, out_space
-    LOGICAL                                  :: failure, test
-    REAL(KIND=dp)                            :: norm
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
-
-    IF ( PRESENT ( debug ) ) THEN
-       test = debug
-    ELSE
-       test = .FALSE.
-    END IF
-
-    IF ( pw1%in_use == COMPLEXDATA3D .AND. &
-         pw1%pw_grid%para%mode == PW_MODE_LOCAL ) THEN
-       !..what direction will the transform be?
-       IF ( pw1%in_space == REALSPACE ) THEN
-          dir = FWFFT
-          norm = pw1%pw_grid%dvol
-          out_space = RECIPROCALSPACE
-       ELSEIF ( pw1%in_space == RECIPROCALSPACE ) THEN
-          dir = BWFFT
-          norm = 1.0_dp
-          out_space = REALSPACE
-       ELSE
-          CALL stop_program(routineN,moduleN,__LINE__, "PW structure is missing a "//&
-               "proper tag to identidy its space" )
-       END IF
-
-       CALL fft3d ( dir, pw1%pw_grid%npts, pw1%cc3d, &
-            scale = norm, debug=test )
-
-       !..tag new data with correct space
-       pw1%in_space = out_space
-    ELSE
-       CALL stop_program(routineN,moduleN,__LINE__, "In place FFT only possible for "//&
-            "replicated data with COMPLEXDATA3D structure" )
-    END IF
-    CALL timestop(handle)
-
-  END SUBROUTINE fft_wrap_pw1
-
 ! *****************************************************************************
   SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug, error)
 
@@ -1801,81 +1743,6 @@ CONTAINS
   END FUNCTION pw_compatible
 
 ! *****************************************************************************
-!> \brief compares two pw, only for debugging purposes
-!> \param pw 1,pw2: the two pw to compare
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      11.2003 created [fawzi]
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
-    TYPE(pw_type), POINTER                   :: pw1, pw2
-    REAL(KIND=dp), INTENT(out), OPTIONAL     :: maxdiff
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_compare_debug', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, j, k, unit_nr
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: diff, mdiff
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(pw1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(pw2),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(pw1%in_space==pw2%in_space,cp_warning_level,routineP,error,failure)
-    CPPrecondition(pw1%in_use==pw2%in_use,cp_warning_level,routineP,error,failure)
-    CALL cp_assert(ALL(pw1%pw_grid%bounds_local==pw2%pw_grid%bounds_local),&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "wrong pw distribution",error,failure)
-    IF (.NOT. failure) THEN
-       logger => cp_error_get_logger(error)
-       unit_nr=-1
-       mdiff=0.0_dp
-       SELECT CASE(pw1%in_use)
-       CASE(REALDATA3D)
-          DO k=pw1%pw_grid%bounds_local(1,3),pw1%pw_grid%bounds_local(2,3)
-             DO j=pw1%pw_grid%bounds_local(1,2),pw1%pw_grid%bounds_local(2,2)
-                DO i=pw1%pw_grid%bounds_local(1,1),pw1%pw_grid%bounds_local(2,1)
-                   diff=ABS(pw1%cr3d(i,j,k)-pw2%cr3d(i,j,k))
-                   IF (mdiff<diff) THEN
-                      WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                           fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e10.4,'vs',e10.4)")&
-                           diff,i,j,k,pw1%cr3d(i,j,k),pw2%cr3d(i,j,k)
-                      mdiff=diff
-                   END IF
-                END DO
-             END DO
-          END DO
-       CASE(COMPLEXDATA1D)
-          DO i=1,pw1%pw_grid%ngpts_local
-             diff=ABS(pw1%cc(i)-pw2%cc(i))
-             IF (mdiff<diff) THEN
-                WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                     fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e9.3,e9.3,'vs',e9.3,e9.3)")&
-                     diff,i,pw1%cc(i),pw2%cc(i)
-                mdiff=diff
-             END IF
-          END DO
-       CASE default
-          CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
-       END SELECT
-       WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-            fmt="(' maxdiff=',e10.4)") mdiff
-       IF (PRESENT(maxdiff)) maxdiff=mdiff
-    ELSE
-       WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-            fmt="(' incompatible pws')")
-       IF (PRESENT(maxdiff)) maxdiff=HUGE(0.0_dp)
-    END IF
-  END SUBROUTINE pw_compare_debug
-
-! *****************************************************************************
 !> \brief Calculate integral over unit cell for functions in plane wave basis
 !>      only returns the real part of it ......
 !> \par History
@@ -2022,70 +1889,6 @@ CONTAINS
          CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
 
   END FUNCTION pw_integral_ab_fast
-
-! *****************************************************************************
-  FUNCTION pw_integral_aa ( pw1, flag, error) RESULT ( integral_value )
-
-    TYPE(pw_type), INTENT(IN)                :: pw1
-    INTEGER, INTENT(IN), OPTIONAL            :: flag
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: integral_value
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_aa', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF ( PRESENT ( flag ) ) THEN
-       IF ( flag == SQUARE ) THEN
-          IF ( pw1%in_use == REALDATA3D ) THEN
-             integral_value = accurate_sum ( pw1%cr3d ( :, :, : )** 2 )
-          ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
-             integral_value = accurate_sum ( CONJG ( pw1%cc3d ( :, :, : ) ) &
-                  * pw1%cc3d ( :, :, : )  )
-          ELSE IF ( pw1%in_use == REALDATA1D ) THEN
-             integral_value = accurate_sum ( pw1%cr (:) ** 2 )
-          ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-             integral_value = accurate_sum ( CONJG ( pw1%cc (:) ) &
-                  * pw1%cc (:) )
-             IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
-                integral_value = 2.0_dp * integral_value
-                IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
-                     CONJG ( pw1%cc ( 1 ) ) * pw1%cc ( 1 )
-             END IF
-          ELSE
-             CALL stop_program(routineN,moduleN,__LINE__,"No possible SQUARE DATA")
-          END IF
-
-       ELSE IF ( flag == SQUAREROOT ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"No SQUAREROOT defined")
-       END IF
-
-    ELSE
-       IF ( pw1%in_use == REALDATA3D ) THEN
-          integral_value = accurate_sum ( pw1%cr3d ( :, :, : ) )
-       ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
-          integral_value = accurate_sum ( pw1%cc3d ( :, :, : ) )
-       ELSE IF ( pw1%in_use == REALDATA1D ) THEN
-          integral_value = accurate_sum ( pw1%cr (:) )
-       ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-          integral_value = accurate_sum ( pw1%cc (:) )
-       ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
-       END IF
-    END IF
-
-    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
-       integral_value = integral_value * pw1%pw_grid%dvol
-    ELSE
-       integral_value = integral_value * pw1%pw_grid%vol
-    END IF
-
-    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
-         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
-
-  END FUNCTION pw_integral_aa
 
 ! *****************************************************************************
   FUNCTION pw_integral_aa_fast ( pw1, flag, error) RESULT ( integral_value )
