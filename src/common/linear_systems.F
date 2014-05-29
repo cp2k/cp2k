@@ -17,11 +17,7 @@ MODULE linear_systems
 
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE lapack,                          ONLY: lapack_cpotrf,&
-                                             lapack_ctrtri,&
-                                             lapack_sgesv,&
-                                             lapack_spotrf,&
-                                             lapack_strtri
+  USE lapack,                          ONLY: lapack_sgesv
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.f90"
 
@@ -33,93 +29,8 @@ MODULE linear_systems
 
   PUBLIC :: solve_system
 
-  INTERFACE cholesky_inverse
-     MODULE PROCEDURE ch_inv_pdsym
-     MODULE PROCEDURE ch_inv_pdher
-  END INTERFACE
-
 CONTAINS
 
-! *****************************************************************************
-SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
-
-    REAL(KIND=dp), INTENT(INOUT)             :: matrix( :, : )
-    INTEGER, INTENT(IN)                      :: mysize
-    CHARACTER(LEN=*), INTENT(IN)             :: storageform
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ch_inv_pdsym', &
-      routineP = moduleN//':'//routineN
-    CHARACTER, PARAMETER                     :: diag = "N"
-
-    CHARACTER                                :: uplo
-    INTEGER                                  :: info, lda
-
-  IF ( storageform ( 1:5 ) == "Lower" .OR. &
-       storageform ( 1:5 ) == "LOWER" .OR. &
-       storageform ( 1:5 ) == "lower" ) THEN
-     uplo = "L"
-  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
-       storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) THEN
-     uplo = "U"
-  ELSE
-     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
-  END IF
-
-  lda = SIZE ( matrix, 1 )
-
-  CALL lapack_spotrf ( uplo, mysize, matrix, lda, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,"Error in Cholesky factorisation")
-  END IF
-  CALL lapack_strtri ( uplo, diag, mysize, matrix, lda, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,"Error in inversion")
-  END IF
-
-END SUBROUTINE ch_inv_pdsym
-
-! *****************************************************************************
-SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
-
-    COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( :, : )
-    INTEGER, INTENT(IN)                      :: mysize
-    CHARACTER(LEN=*), INTENT(IN)             :: storageform
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ch_inv_pdher', &
-      routineP = moduleN//':'//routineN
-    CHARACTER, PARAMETER                     :: diag = "N"
-
-    CHARACTER                                :: uplo
-    INTEGER                                  :: info, lda
-
-  IF ( storageform ( 1:5 ) == "Lower" .OR. &
-       storageform ( 1:5 ) == "LOWER" .OR. &
-       storageform ( 1:5 ) == "lower" ) THEN
-     uplo = "L"
-  ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
-       storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) THEN
-     uplo = "U"
-  ELSE
-     CALL stop_program(routineN,moduleN,__LINE__,"Unknown form of storage")
-  END IF
-
-  lda = SIZE ( matrix, 1 )
-
-  CALL lapack_cpotrf ( uplo, mysize, matrix, lda, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,&
-                       "Error in Cholesky factorisation" )
-  END IF
-  CALL lapack_ctrtri ( uplo, diag, mysize, matrix, lda, info )
-  IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,"Error in inversion")
-  END IF
-
-END SUBROUTINE ch_inv_pdher
-
-! *****************************************************************************
 SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
 
     REAL(KIND=dp), INTENT(INOUT)             :: matrix( :, : )
