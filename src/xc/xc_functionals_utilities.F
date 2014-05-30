@@ -42,7 +42,7 @@ MODULE xc_functionals_utilities
      MODULE PROCEDURE calc_rs_array, calc_rs_single
   END INTERFACE
 
-  REAL(KIND=dp) :: eps_rho
+  REAL(KIND=dp), SAVE :: eps_rho
 
 CONTAINS
 
@@ -228,55 +228,6 @@ CONTAINS
     END DO
 
   END SUBROUTINE calc_srs_pw
-
-! *****************************************************************************
-    SUBROUTINE calc_srs ( rho, x )
-
-!   rs parameter : f*rho**(-1/3)
-!   x = sqrt(rs)
-
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: x
-
-    INTEGER                                  :: ip, n
-
-    CALL calc_rs ( rho, x )
-    n = SIZE ( rho )
-
-!$omp parallel do private(ip)
-    DO ip = 1, n
-      x(ip) = SQRT(x(ip))
-    END DO
-
-  END SUBROUTINE calc_srs
-
-! *****************************************************************************
-    SUBROUTINE calc_rho13 ( rho, r13 )
-
-
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: r13
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_rho13', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ip, n
-
-    n = SIZE ( rho )
-    IF ( n > SIZE(r13) ) &
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Incompatible array sizes.")
-
-!$omp parallel do private(ip)
-    DO ip = 1, n
-      IF ( rho(ip) < eps_rho ) THEN
-         r13(ip) = 0.0_dp
-      ELSE
-         r13(ip) = rho(ip)**f13
-      END IF
-    END DO
-
-  END SUBROUTINE calc_rho13
 
 ! *****************************************************************************
   SUBROUTINE calc_wave_vector ( tag, rho, grho, s )
