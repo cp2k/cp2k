@@ -1,13 +1,17 @@
 #!/bin/sh
 echo Update CP2K manual:
 if [[ -z $1 ]]; then
-   arch=Linux-x86-64-${FORT_C_NAME}
+   if [[ -z ${regtest} ]]; then
+      arch=Linux-x86-64-${FORT_C_NAME}
+   else
+      arch=Linux-x86-64-${FORT_C_NAME}-regtest
+   fi
 else
    arch=$1
    shift
 fi
 if [[ -z $1 ]]; then
-   version=popt
+   version=pdbg
 else
    version=$1
    shift

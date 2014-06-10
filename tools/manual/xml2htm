@@ -2,6 +2,6 @@
 # Provide path to saxon
 # Java version from http://sourceforge.net/projects/saxon
 export SAXON=~/bin/saxon9he.jar
-java -jar $SAXON -o:index.html cp2k_input.xml cp2k_input.xsl add_edit_links=no
+java -Xmx256m -jar $SAXON -o:index.html cp2k_input.xml cp2k_input.xsl add_edit_links=no
 # Update the CP2K syntax file for the (g)vim editor
-java -jar $SAXON -o:cp2k.vim cp2k_input.xml ../input_editing/vim/vim.xsl
+java -Xmx256m -jar $SAXON -o:cp2k.vim cp2k_input.xml ../input_editing/vim/vim.xsl
