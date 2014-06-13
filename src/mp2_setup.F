@@ -92,6 +92,8 @@ CONTAINS
                               i_val=mp2_env%ri_rpa%rpa_integ_group_size, error=error)
     CALL section_vals_val_get(mp2_section,"RI_RPA%MM_STYLE",&
                               i_val=mp2_env%ri_rpa%mm_style, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%MINIMAX_QUADRATURE",&
+                              l_val=mp2_env%ri_rpa%minimax_quad, error=error)
 
     CALL section_vals_val_get(mp2_section,"RI_LAPLACE%QUADRATURE_POINTS",&
                               i_val=mp2_env%ri_laplace%n_quadrature, error=error)

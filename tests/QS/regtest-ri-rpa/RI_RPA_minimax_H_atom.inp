@@ -1,10 +1,7 @@
 &GLOBAL                                                                                           
-  PROJECT  RI_RPA_H2O
+  PROJECT     H_atom
   PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY
-  &TIMINGS
-     THRESHOLD 0.01
-  &END
+  RUN_TYPE    ENERGY
 &END GLOBAL
 &FORCE_EVAL
   METHOD Quickstep
@@ -12,21 +9,17 @@
     BASIS_SET_FILE_NAME  ../HFX_BASIS
     POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
     &MGRID
-      CUTOFF  100
-      REL_CUTOFF  20
+      CUTOFF      300
+      REL_CUTOFF   50
     &END MGRID
-    &POISSON
-      PERIODIC NONE
-      POISSON_SOLVER WAVELET
-    &END POISSON
     &QS
       METHOD GPW
       EPS_DEFAULT 1.0E-15
       EPS_PGF_ORB 1.0E-30
     &END QS
     &SCF
-      SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      SCF_GUESS RESTART
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &PRINT
         &RESTART OFF
@@ -39,44 +32,37 @@
       &WF_CORRELATION
         METHOD  RI_RPA_GPW
         &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
+          CUTOFF    200
+          REL_CUTOFF 30
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 40
-          &HF
-            FRACTION 1.0000000
-            &SCREENING
-              EPS_SCHWARZ 1.0E-8
-              SCREEN_ON_INITIAL_P FALSE
-            &END SCREENING
-          &END HF
-        &END RI_RPA
-        MEMORY  200.
+          RPA_NUM_QUAD_POINTS  4
+          MINIMAX
+        &END
+        MEMORY  1000.0
         NUMBER_PROC  1
+        CALC_COND_NUM
       &END
     &END XC
+    UKS
+    MULTIPLICITY  2
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
-      PERIODIC NONE
+      ABC [angstrom]  5.0000000   5.0000000   5.0000000
     &END CELL
     &KIND H
-      BASIS_SET  DZVP-GTH
+      BASIS_SET         DZVP-GTH
       RI_AUX_BASIS_SET  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q1
+      POTENTIAL         GTH-PBE-q1
     &END KIND
-    &KIND O
-      BASIS_SET  DZVP-GTH
-      RI_AUX_BASIS_SET  RI_DZVP-GTH
-      POTENTIAL  GTH-PBE-q6
-    &END KIND
+    &COORD
+      H    0.0000000   0.0000000   0.0000000
+    &END COORD
     &TOPOLOGY
-      COORD_FILE_NAME  H2O_gas.xyz
-      COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
+

@@ -96,6 +96,7 @@ MODULE mp2_types
        INTEGER                  :: mm_style
        TYPE(hfx_type),DIMENSION(:,:), POINTER     &
                                 :: x_data
+       LOGICAL                  :: minimax_quad
   END TYPE
 
   TYPE ri_basis_opt

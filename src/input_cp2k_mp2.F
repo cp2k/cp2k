@@ -486,6 +486,19 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="MINIMAX_QUADRATURE",&
+            variants=(/"MINIMAX"/),&
+            description="Use the Minimax quadrature scheme for performing the numerical integration. "//&
+                        "Maximum number of quadrature point limited to 20.",&
+            usage="MINIMAX_QUADRATURE",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
        CALL create_hfx_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)

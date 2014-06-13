@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  RI_RPA_H2O
+  PROJECT  RI_RPA_H2O_minimax
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -43,7 +43,8 @@
           REL_CUTOFF 20
         &END
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 40
+          RPA_NUM_QUAD_POINTS  6
+          MINIMAX
           &HF
             FRACTION 1.0000000
             &SCREENING
