@@ -7,7 +7,7 @@
 # Higher level optimisation (in particular loop nest optimization) should not be used.
 # Note: -fp-model fast=1 is default for the Intel compiler
 #
-target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -fno-inline-functions -nogen-interfaces -openmp"
+target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -finline-functions -nogen-interfaces -openmp"
 
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)

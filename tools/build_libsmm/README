@@ -19,7 +19,7 @@ Below you can find the detailed instructions for some examples.
 ====================================================================================================================
 a) How to generate the library running several jobs in a cluster, where each
    computer allows for both execution and compilation. 
-   For this example we will use a CRAY system with GNU compiler and PBS.
+   For this example we will use a CRAY system with GNU compiler and SLURM.
    Run "./generate -h" to see the meaning of the options.
 
    1) Run: ./generate -c config/cray.gnu -j 100 -t 16 -w slurm tiny1
@@ -52,7 +52,7 @@ a) How to generate the library running several jobs in a cluster, where each
 
 ====================================================================================================================
 b) How to generate the library for the Intel Xeon Phi in batch mode
-   For this example we will use a cluster with PBS, where each node has a MIC card.
+   For this example we will use a cluster with SLURM, where each node has a MIC card.
    Run "./generate -h" to see the meaning of the options.
    We use the config file mic.intel (inside the directory config).
    Check if all options are OK for your case, in particular:

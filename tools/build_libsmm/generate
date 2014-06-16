@@ -21,7 +21,7 @@ source generate.bash
 def_config_dir="config"
 def_config_file="${def_config_dir}/cray.gnu"
 def_SIMD="avx"
-def_ntasks="16"
+def_ntasks="1"
 def_base_out_dir="output"
 def_target="all"
 def_njobs="1"
@@ -43,8 +43,14 @@ show_help() {
     echo "                      Default value is ${def_ntasks}."
     echo "   -w <wlm type>    : workload manager for batch submission. The value must correspond to one of the files ${def_config_dir}/*.wlm."
     echo "                      Default value is \"${def_wlm}\"."
-    echo "   -m               : time limit for batch execution."
+    echo "   -m <time>        : time limit for batch execution."
     echo "                      Default value is \"${def_wtime}\"."
+    echo "   -a <target>      : Target for make compilation. Values are: "
+    echo "                           all: generate, compile and run the kernels."
+    echo "                        source: only generate the source file kernels."
+    echo "                       compile: generate and compile the kernels."
+    echo "                         bench: same as all."
+    echo "                      Default value is \"${def_target}\"." 
     echo
     echo "COMMAND is one of the followings:"
     echo "   tiny1  : it runs the tiny phase. Batch execution if requested."
@@ -87,7 +93,7 @@ check_number()
 
 }
 
-while getopts "c:hj:s:t:w:m:" OPTION; do
+while getopts "c:hj:s:t:w:m:a:" OPTION; do
     case $OPTION in
 	c)
 	    config_file=$OPTARG
@@ -112,6 +118,17 @@ while getopts "c:hj:s:t:w:m:" OPTION; do
 	m)
 	    wtime=$OPTARG
 	    ;;
+	a)
+	    case $OPTARG in
+		all|source|compile|bench)
+		    target=$OPTARG
+	    	    ;;
+		*)
+		    echo "Warning: target \"$OPTARG\" unknown. Run ./generate -h for help."
+		    exit
+		    ;; 
+	    esac
+	    ;;
         ?) 
             exit
             ;;
@@ -123,15 +140,15 @@ shift $(( OPTIND - 1))
 # Use default OPTIONS values if they were not declared
 #
 if [ -z "${config_file}" ]; then
-    config_file=$def_config_file
+    config_file=${def_config_file}
 fi
 
 if [ -z "${SIMD}" ]; then
-    SIMD=$def_SIMD
+    SIMD=${def_SIMD}
 fi
 
 if [ -z "${ntasks}" ]; then
-    ntasks=$def_ntasks
+    ntasks=${def_ntasks}
 fi
 
 if [ -z "${jobs}" ]; then
@@ -146,8 +163,11 @@ if [ -z "${wtime}" ]; then
     wtime=${def_wtime}
 fi
 
+if [ -z "${target}" ]; then
+    target=${def_target}
+fi
+
 base_out_dir=$def_base_out_dir
-target=$def_target
 
 #
 # Check COMMAND value
@@ -167,6 +187,7 @@ case $cmd in
 	rm -fR run_tiny_*/
 	rm -fR run_small_*/
 	rm -fR run_lib_*/
+	rm -fR run_check_*/
 	rm -f *.mod Makefile.* *.x *.o
 	rm -f *~
 	if [ "$cmd" == "cleanall" ]; then
@@ -243,6 +264,7 @@ echo "WLM                           : ${wlm}"
 echo "SIMD register type            : ${SIMD}"
 echo "Limit time batch              : ${wtime}"
 echo "COMMAND                       : \"${cmd}\""
+echo "Make target                   : \"${target}\""
 echo
 
 #
@@ -250,7 +272,6 @@ echo
 #
 config_file_name=`basename ${config_file}`
 out_dir="${base_out_dir}_${config_file_name}"
-OMP_NUM_THREADS=1
 
 if [ ${jobs} -gt 0 ]; then
     source ${def_config_dir}/${wlm}.wlm
@@ -266,6 +287,12 @@ if [ ${jobs} -gt 0 ]; then
 else
     # Require 1 job
     jobs=1
+
+    case $cmd in
+	tiny2|small2|check2)
+            run_cmd=true
+            ;;
+    esac
 fi
 
 type_label="_"
@@ -333,9 +360,13 @@ case $cmd in
 	run_dir+="_small"
 	make_file+="small"
 	;;
-    lib|check1|check2)
+    lib)
 	run_dir+="_lib"
 	make_file+="lib"
+	;;
+    check1|check2)
+	run_dir+="_check"
+	
 	;;
 esac
 run_dir+="${type_label}"
@@ -343,7 +374,7 @@ make_file+="${type_label}_${config_file_name}"
 
 tiny_file="tiny_gen_optimal${type_label}_${config_file_name}.out"
 small_file="small_gen_optimal${type_label}_${config_file_name}.out"
-test_file="test_smm${type_label}_${config_file_name}"
+test_file="test_smm${type_label}"
 
 library="smm${type_label}_${config_file_name}"
 archive="../lib/lib${library}.a"

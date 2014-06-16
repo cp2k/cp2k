@@ -2,5 +2,5 @@
 
 batch_cmd() {
     echo "${aprun_cmd} $@" | \
-	qsub -N ${test_name} -j oe -V -d ${PWD} -lmppwidth=1 -lmppnppn=1 -lwalltime=${wtime};
+	qsub -N ${test_name} -j oe -V -d ${PWD} -lnodes=1 -lwalltime=${wtime};
 }

@@ -9,7 +9,7 @@
 # and allow some flexibility in reordering floating point expressions (-ffast-math).
 # Higher level optimisation (in particular loop nest optimization) should not be used.
 #
-target_compile="ftn -O2 -funroll-loops -ffast-math -ftree-vectorize -fno-inline-functions -march=native"
+target_compile="ftn -O2 -funroll-loops -ffast-math -ftree-vectorize -finline-functions -fopenmp -march=native"
 
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)
@@ -29,4 +29,4 @@ host_compile="gfortran -O2"
 #
 # Set the aprun command and its options for batch submission
 #
-aprun_cmd="aprun -B -cc none"
+aprun_cmd="aprun -n 1 -N 1 -d ${ntasks} -r 1"

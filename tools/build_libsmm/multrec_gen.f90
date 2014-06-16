@@ -76,24 +76,28 @@ CONTAINS
     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
     INTEGER, OPTIONAL :: Cbuffer_row, Cbuffer_col
 
-    IF (PRESENT(stack_size_label).AND.stack_size_label/="") THEN
-       write(6,'(A,I0,A,I0,A,I0,A)') "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
-            M,"_",N,"_",K,"_stack"//TRIM(label)//"("//TRIM(trparam(stack_size_label))//")"
-       CALL write_stack_params(data_type,stack_size_label)
-       write(6,'(A)')                    "      INTEGER            :: sp"
-       IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
-          write(6,'(A,I0,A,I0,A)')   "       "//trdat(data_type)//":: Cbuffer(",Cbuffer_row,",",Cbuffer_col,")"
+    IF (PRESENT(stack_size_label)) THEN
+       IF (stack_size_label/="") THEN
+          write(6,'(A,I0,A,I0,A,I0,A)') "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+               M,"_",N,"_",K,"_stack"//TRIM(label)//"("//TRIM(trparam(stack_size_label))//")"
+          CALL write_stack_params(data_type,stack_size_label)
+          write(6,'(A)')                    "      INTEGER            :: sp"
+          IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
+             write(6,'(A,I0,A,I0,A)')   "       "//trdat(data_type)//":: Cbuffer(",Cbuffer_row,",",Cbuffer_col,")"
+          ENDIF
+          write(6,'(A)')                    "      DO sp = 1, "//TRIM(stack_size_label)
+          IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
+             write(6,'(A,I0,A,I0,A,I0,A)') "         CALL smm_"//trstr(transpose_flavor,data_type)//"_",&
+                  M,"_",N,"_",K,&
+                  TRIM(label)//"_buffer(A(params(p_a_first,sp)),B(params(p_b_first,sp)),C(params(p_c_first,sp)),Cbuffer)"
+          ELSE
+             write(6,'(A,I0,A,I0,A,I0,A)') "         CALL smm_"//trstr(transpose_flavor,data_type)//"_",&
+                  M,"_",N,"_",K,&
+                  TRIM(label)//"(A(params(p_a_first,sp)),B(params(p_b_first,sp)),C(params(p_c_first,sp)))"
+          ENDIF
+          write(6,'(A)')                  "      ENDDO"
+          write(6,'(A)') "   END SUBROUTINE"
        ENDIF
-       write(6,'(A)')                    "      DO sp = 1, "//TRIM(stack_size_label)
-       IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
-          write(6,'(A,I0,A,I0,A,I0,A)') "         CALL smm_"//trstr(transpose_flavor,data_type)//"_",&
-               M,"_",N,"_",K,TRIM(label)//"_buffer(A(params(p_a_first,sp)),B(params(p_b_first,sp)),C(params(p_c_first,sp)),Cbuffer)"
-       ELSE
-       write(6,'(A,I0,A,I0,A,I0,A)') "         CALL smm_"//trstr(transpose_flavor,data_type)//"_",&
-            M,"_",N,"_",K,TRIM(label)//"(A(params(p_a_first,sp)),B(params(p_b_first,sp)),C(params(p_c_first,sp)))"
-       ENDIF
-       write(6,'(A)')                  "      ENDDO"
-       write(6,'(A)') "   END SUBROUTINE"
     ENDIF
   END SUBROUTINE write_subroutine_stack
 
@@ -103,12 +107,17 @@ CONTAINS
     INTEGER :: multElements,modElements
     CHARACTER(LEN=*) :: label
     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
+    LOGICAL :: do_stack
 
     multElements=(M/nSIMD)*nSIMD
     modElements=MOD(M,nSIMD)
 
     IF (modElements>0) THEN
-       if (PRESENT(stack_size_label).AND.stack_size_label/="") THEN
+       do_stack=.FALSE.
+       IF (PRESENT(stack_size_label)) THEN
+          IF (stack_size_label/="") do_stack=.TRUE.
+       ENDIF
+       IF (do_stack) THEN
           write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                M,"_",N,"_",K,TRIM(label)//"_buffer(A,B,C,Cbuffer)"
           write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type,"INOUT")//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
@@ -322,8 +331,10 @@ CONTAINS
         ! generation of the vector version
         IF (nSIMD>0) THEN
            CALL MULTVECTOR(label,M,N,K,transpose_flavor,data_type,nSIMD,stride,stack_size_label)
-           IF (PRESENT(write_buffer_interface).AND.write_buffer_interface) THEN
-              CALL MULTVECTOR(label,M,N,K,transpose_flavor,data_type,nSIMD,stride)
+           IF (PRESENT(write_buffer_interface)) THEN
+              IF (write_buffer_interface) THEN
+                 CALL MULTVECTOR(label,M,N,K,transpose_flavor,data_type,nSIMD,stride)
+              ENDIF
            ENDIF
 
         ENDIF

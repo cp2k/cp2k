@@ -36,12 +36,39 @@ write_makefile_header() {
     #
     # list of executables
     #
-    printf "EXEFILES=\$(patsubst %%,\$(OUTDIR)/${prefix_file}_find_%%.x,\$(INDICES)) \n"
+    printf "OBJFILES=\$(patsubst %%,\$(OUTDIR)/${prefix_file}_find_%%.o,\$(INDICES)) \n"
     
     #
     # list of output files
     #
-    printf "OUTFILES=\$(patsubst %%,\$(OUTDIR)/${prefix_file}_find_%%.out,\$(INDICES)) \n\n"
+    printf "OUTFILES=\$(OBJFILES:.o=.out) \n\n"
+
+    #
+    # name of the executable
+    #
+    printf "EXE=${prefix_file}_find_\$(firstword \$(INDICES))__\$(lastword \$(INDICES)).x \n\n"
+
+    #
+    # main target
+    #
+    printf ".PHONY: bench \$(EXE:.x=.f90) \n"
+    printf "all: bench \n\n"
+
+    #
+    # include makefile for source master code generation
+    #
+    printf "DATATYPE=${strdat}\n"
+    printf "include ../make.gen\n\n"
+
+    #
+    # write general targets
+    #
+    printf "bench: \$(OUTDIR)/\$(EXE) \n"
+    printf "\t rm -f \$(OUTFILES) \n"
+    printf "\t export OMP_NUM_THREADS=${ntasks} ; ./\$< \n\n"
+
+    printf "\$(OUTDIR)/\$(EXE): \$(OBJFILES) \$(EXE:.x=.f90) \n"
+    printf "\t ${target_compile} \$^ -o \$@ ${blas_linking} \n\n"
 }
 
 
@@ -98,7 +125,7 @@ collect_results() {
     suffix=$1 ; shift
 
     #
-    # analyse results finding optimal tiny mults
+    # analyse results finding optimal tiny or small mults
     #
     (
 	for m in $@  ; do
@@ -134,26 +161,16 @@ do_generate_tiny() {
 	    write_makefile_header tiny "${dims_tiny}"
 
 	    #
-	    # Write targets
+	    # Write specific targets
 	    #
-	    printf "all: bench \n\n"
+	    printf "compile: \$(OBJFILES) \n"
+	    printf "\$(OUTDIR)/%%.o: %%.f90 \n"
+	    printf "\t ${target_compile} -c \$< -o \$@ \n\n"
 
-	    printf "source: \$(SRCFILES) \n\n"
+	    printf "source: \$(SRCFILES) \n"
 	    printf "%%.f90: \n"
 	    printf '\t .././tiny_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
-	    printf " ${transpose_flavor} ${data_type} > \$@\n\n"
-
-	    printf "compile: \$(EXEFILES) \n\n"
-	    printf "\$(OUTDIR)/%%.x: %%.f90 \n"
-	    printf "\t ${target_compile} \$< -o \$@  \n\n"
-
-	    printf "bench: \$(OUTFILES) \n\n"
-	    printf "\$(OUTDIR)/%%.out: \$(OUTDIR)/%%.x \n"
-	    printf "\t ${mic_cmd} ./\$<" 
-	    if [[ ( -n "${mic_cmd}" ) && ( -n "${OMP_NUM_THREADS}" ) ]]; then
-		printf " -e \"OMP_NUM_THREADS=${OMP_NUM_THREADS}\""
-	    fi
-	    printf " > \$@ \n\n"
+	    printf " ${transpose_flavor} ${data_type} > \$@ \n\n"
 	    ) > ${make_file}
 
 	run_make ${dims_tiny}
@@ -187,51 +204,23 @@ do_generate_small() {
 	${host_compile} mults.o multrec_gen.o small_gen.f90 -o small_gen.x
 
 	#
-	# Make directory for MIC execution
-	#
-	if [[ ( -n "${MICFS}" ) && ( -n "${ssh_mic_cmd}" ) ]]; then
-	    mkdir -p ${MICFS}
-	fi
-
-	#
 	# for easy parallelism go via a Makefile
 	#
 	rm -f ${make_file}
 	(
 	    write_makefile_header small "${dims_small}"
 
-	    if [[ ( -n "${MICFS}" ) && ( -n "${ssh_mic_cmd}" ) ]]; then
-		printf "MICFS=${MICFS}\n\n"
-	    fi
-
     	    #
-	    # Write targets
+	    # Write specific targets
 	    #
-	    printf "all: bench \n\n"
+	    printf "compile: \$(OBJFILES) \n"
+	    printf "\$(OUTDIR)/%%.o: \$(OUTDIR)/%%.f90 \n"
+	    printf "\t ${target_compile} -c \$< -o \$@ \n\n"
 
-	    printf "source: \$(SRCFILES) \n\n"
-	    printf "%%.f90: \n"
+	    printf "source: \$(addprefix \$(OUTDIR)/,\$(SRCFILES)) \n"
+	    printf "\$(OUTDIR)/%%.f90: ../${tiny_file} \n"
 	    printf '\t .././small_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
 	    printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${tiny_file} > \$@\n\n"
-
-	    printf "compile: \$(EXEFILES) \n\n"
-	    printf "\$(OUTDIR)/%%.x: %%.f90 \n"
-	    printf "\t ${target_compile} \$< -o \$@ ${blas_linking} \n\n"
-
-	    printf "bench: \$(OUTFILES) \n\n"
-	    printf "\$(OUTDIR)/%%.out: \$(OUTDIR)/%%.x \n"
-	    if [[ ( -n "${MICFS}" ) && ( -n "${ssh_mic_cmd}" ) ]]; then
-		printf "\t cp \$< \$(MICFS) \n"
-		printf "\t ${ssh_mic_cmd} \"ulimit -s 256000; export OMP_NUM_THREADS=1; "
-		if [ -n "${MIC_LD_LIBRARY_PATH}" ]; then
-		    printf "export LD_LIBRARY_PATH=${MIC_LD_LIBRARY_PATH}; "
-		fi
-		printf "\$(MICFS)/./\$(<F)\" > \$@ \n"
-		printf "\t rm \$(MICFS)/\$(<F)"
-	    else
-		printf "\t ./\$< > \$@"
-	    fi
-	    printf "\n\n"
 	    ) > ${make_file}
 
 	run_make ${dims_small}
@@ -408,30 +397,30 @@ do_generate_lib() {
 	#
 	# list of source files
 	#
-	printf "SRCFILES=\$(patsubst %%,smm${type_label}_%%.f90,\$(INDICES)) \n"
+	printf "SRCFILES=\$(patsubst %%,\$(OUTDIR)/smm${type_label}_%%.f90,\$(INDICES)) \n"
 
 	#
 	# list of obj files
 	#
 	printf "OBJFILES=\$(patsubst %%,\$(OUTDIR)/smm${type_label}_%%.o,\$(INDICES)) \n\n"
 
-	printf ".PHONY: \$(OUTDIR)/\$(DRIVER) \n\n"
+	printf ".PHONY: \$(OUTDIR)/\$(DRIVER) archive \n\n"
 	
 	printf "all: archive \n\n"
 
 	#
 	# generation source rule
 	#
-	printf "source: \$(SRCFILES) \n\n"
-	printf "%%.f90: \n"
+	printf "source: \$(SRCFILES) \n"
+	printf "\$(OUTDIR)/%%.f90: ../${small_file} ../${tiny_file} \n"
 	printf '\t .././lib_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
 	printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${small_file} ../${tiny_file} > \$@\n\n"
 
 	#
 	# compile rule
 	#
-	printf "compile: \$(OBJFILES) \n\n"
-	printf "\$(OUTDIR)/%%.o: %%.f90 \n"
+	printf "compile: \$(OBJFILES) \n"
+	printf "\$(OUTDIR)/%%.o: \$(OUTDIR)/%%.f90 \n"
 	printf "\t ${target_compile} -c \$< -o \$@ \n\n"
 
 	printf "\$(OUTDIR)/\$(DRIVER): \n"
@@ -456,7 +445,7 @@ do_generate_lib() {
     # execute makefile compiling all variants and executing them
     #
     test_name="${run_dir}_job${jobs}"
-    ${run_cmd} make -B -j ${ntasks} -f ../${make_file} ${target}
+    ${run_cmd} make -j ${ntasks} -f ../${make_file} ${target}
 
 }
 
@@ -487,6 +476,11 @@ do_check() {
 	element_end=0
 	ijob=0
 
+        #
+        # make the output dir
+        #
+        mkdir -p ${out_dir}
+
 	#
 	# Make directory for MIC execution
 	#
@@ -509,7 +503,7 @@ do_check() {
 			echo "Preparing test program for job #$ijob..."
 			filename=${test_file}_job$ijob
 
-cat << EOF > ${filename}.f90
+cat << EOF > ${out_dir}/${filename}.f90
 MODULE WTF_job$ijob
   INTERFACE MYRAND
     MODULE PROCEDURE SMYRAND, DMYRAND, CMYRAND, ZMYRAND
@@ -573,6 +567,7 @@ SUBROUTINE testit(M,N,K)
 
      IF (MAXVAL(ABS(C2-C1))>100*EPSILON(REAL(1.0,KIND=KIND(A(1,1))))) THEN
         write(6,*) "Matrix size",M,N,K
+        write(6,*) "Max diff=",MAXVAL(ABS(C2-C1))
         write(6,*) "A=",A
         write(6,*) "B=",B
         write(6,*) "C1=",C1
@@ -605,33 +600,35 @@ END SUBROUTINE
 PROGRAM tester
   IMPLICIT NONE
 
+  !\$omp parallel
 EOF
 
 		    fi
 
-		    echo "   CALL testit(${m},${n},${k})" >> ${filename}.f90
+		    echo "   CALL testit(${m},${n},${k})" >> ${out_dir}/${filename}.f90
 
 		    # last entry for a job
 		    if [ $element -eq $element_end ]; then
 
 			# last job
 			if [ $ijob -eq $jobs ]; then
-cat << EOF >> ${filename}.f90
+cat << EOF >> ${out_dir}/${filename}.f90
   ! checking 'peak' performance (and a size likely outside of the library)
   CALL testit(1000,1000,1000)
 EOF
 			fi
 
-cat << EOF >> ${filename}.f90
+cat << EOF >> ${out_dir}/${filename}.f90
+  !\$omp end parallel
 END PROGRAM
 EOF
 
 			echo "Launching job #$ijob"
-			test_name="${run_dir}_check_job${ijob}"
+			test_name="${run_dir}_job${ijob}"
 
 			exe=${filename}.x
 
-			rm -f ${filename}.sh
+			rm -f ${out_dir}/${filename}.sh
 			#
 			# Prepare the script for compile the benchmarking 
 			# and testing program for the smm library
@@ -639,21 +636,13 @@ EOF
 			(
 			    printf "#!/bin/bash -e \n\n"
 			    printf "set -o pipefail\n\n"
-			    printf "${target_compile} ${filename}.f90 -o ${exe} -L../lib -l${library} ${blas_linking}\n"
-			    if [[ ( -n "${MICFS}" ) && ( -n "${ssh_mic_cmd}" ) ]]; then
-				printf "cp ${exe} ${MICFS}\n"
-				printf "${ssh_mic_cmd} \"ulimit -s 256000; export OMP_NUM_THREADS=1; "
-				if [ -n "${MIC_LD_LIBRARY_PATH}" ]; then
-				    printf "export LD_LIBRARY_PATH=${MIC_LD_LIBRARY_PATH}; "
-				fi
-				printf "${MICFS}/./${exe}\" | tee ${filename}.out\n"
-			    else
-				printf "./${exe} | tee ${filename}.out"
-			    fi
-			) > ${filename}.sh
-			chmod +x ${filename}.sh
+			    printf "cd ${out_dir}\n"
+			    printf "${target_compile} ${filename}.f90 -o ${exe} -L../../lib -l${library} ${blas_linking}\n"
+			    printf "export OMP_NUM_THREADS=1 ; ./${exe} | tee ${filename}.out"
+			) > ${out_dir}/${filename}.sh
+			chmod +x ${out_dir}/${filename}.sh
 
-			${run_cmd} ./${filename}.sh
+			${run_cmd} ./${out_dir}/${filename}.sh
 		    fi
 
 		    element=$(( element + 1 ))  
@@ -674,28 +663,30 @@ EOF
     #
     # Merge the output files in the case of $run_cmd" = "true"
     #
-    rm -f ${test_file}.out
+    rm -f ${test_file}_${config_file_name}.out
 
     for (( ijob=1 ; ijob<=jobs; ijob++ )); do
-	if [ ! -s ${run_dir}/${test_file}"_job$ijob".out ]; then
-	    echo "ERROR: Empty check file \"${run_dir}/${test_file}_job$ijob.out\""
+	if [ ! -s ${run_dir}/${out_dir}/${test_file}"_job$ijob".out ]; then
+	    echo "ERROR: Empty check file \"${run_dir}/${out_dir}/${test_file}_job$ijob.out\""
 	    exit
 	fi
-	cat ${run_dir}/${test_file}"_job$ijob".out >> ${test_file}.out
+	cat ${run_dir}/${out_dir}/${test_file}"_job$ijob".out >> ${test_file}_${config_file_name}.out
     done
 
     #
     # We're done... protect the user from bad compilers
     #
     set +e
-    grep "BLAS and smm yield different results" ${test_file}.out >& /dev/null
+    grep "BLAS and smm yield different results" ${test_file}_${config_file_name}.out >& /dev/null
     if [ "$?" == "0" ]; then
 	echo "Library is miscompiled... removing lib/lib${library}.a"
+	echo
 	rm -f ${archive}
     else
 	pathhere=`pwd -P`
-	echo "Done... check performance looking at ${test_file}.out"
+	echo "Done... check performance looking at ${test_file}_${config_file_name}.out"
 	echo "Final library can be linked as -L${pathhere}/lib -l${library}"
+	echo
     fi
     
 }

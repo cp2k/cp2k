@@ -1,7 +1,7 @@
 # Author: Alfio Lazzaro, alazzaro@cray.com (2013)
 
 batch_cmd() {
-    sbatch -J ${test_name} -o "${test_name}-%j.out" -D ${PWD} --ntasks=1 --ntasks-per-node=1 -t ${wtime} <<EOF
+    sbatch -J ${test_name} -o "${test_name}-%j.out" -D ${PWD} --ntasks=1 --ntasks-per-node=1 --cpus-per-task=${ntasks} -t ${wtime} <<EOF
 #!/bin/bash -e
 ${aprun_cmd} $@
 EOF

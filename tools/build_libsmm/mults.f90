@@ -8,11 +8,12 @@ CONTAINS
     CHARACTER(LEN=*), OPTIONAL :: in_intent_label
     CHARACTER(LEN=50) :: intent_label
     CHARACTER(LEN=50) :: trdat
-    
-    IF (PRESENT(in_intent_label).AND.(in_intent_label.ne."")) THEN
-       intent_label=", INTENT("//TRIM(in_intent_label)//")"
-    ELSE
-       intent_label=""
+
+    intent_label=""    
+    IF (PRESENT(in_intent_label)) THEN
+       IF (in_intent_label/="") THEN
+          intent_label=", INTENT("//TRIM(in_intent_label)//")"
+       ENDIF
     ENDIF
     SELECT CASE(data_type)
     CASE(1)
@@ -25,6 +26,7 @@ CONTAINS
       trdat="COMPLEX(KIND=KIND(0.0))"//TRIM(intent_label)
     END SELECT
   END FUNCTION
+
   FUNCTION trgemm(data_type)
     INTEGER :: data_type
     CHARACTER(LEN=5) :: trgemm
@@ -39,6 +41,7 @@ CONTAINS
       trgemm="CGEMM"
     END SELECT
   END FUNCTION
+
   FUNCTION trstr(transpose_flavor,data_type)
     INTEGER :: transpose_flavor, data_type
     CHARACTER(LEN=3) :: trstr
@@ -64,6 +67,7 @@ CONTAINS
      trstr=dstr//"tt"
     END SELECT
   END FUNCTION trstr
+
   FUNCTION trparam(stack_size_label)
     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
     CHARACTER(LEN=128) :: trparam
@@ -73,6 +77,7 @@ CONTAINS
        trparam = "A,B,C"
     ENDIF
   END FUNCTION trparam
+
   SUBROUTINE write_stack_params(data_type,stack_size_label)
     INTEGER          :: data_type
     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
@@ -83,6 +88,7 @@ CONTAINS
        write(6,'(A)')                    "        INTEGER, INTENT(IN) :: p_a_first, p_b_first, p_c_first"
     ENDIF
   END SUBROUTINE write_stack_params
+
   SUBROUTINE write_matrix_defs(M,N,K,transpose_flavor,data_type,write_intent,stack_size_label,padding)
    INTEGER, OPTIONAL          :: M,N,K,transpose_flavor
    INTEGER                    :: data_type
@@ -90,6 +96,7 @@ CONTAINS
    CHARACTER(LEN=*), OPTIONAL :: stack_size_label
    LOGICAL, OPTIONAL          :: padding
    CHARACTER(LEN=50)          :: intent_label   
+   LOGICAL                    :: do_padding
 
    IF (PRESENT(M).AND.PRESENT(N).AND.PRESENT(K).AND.PRESENT(transpose_flavor)) THEN
       IF (PRESENT(stack_size_label)) THEN
@@ -105,7 +112,11 @@ CONTAINS
                  "      "//trdat(data_type,"INOUT")//" :: C(",M,",",N,")"
             intent_label="IN"
          ELSE
-            IF (PRESENT(padding).AND.padding) THEN
+            do_padding=.FALSE.
+            IF (PRESENT(padding)) THEN
+               IF (padding) do_padding=.TRUE.
+            ENDIF
+            IF (do_padding) THEN
                write(6,'(A)') &
                     "      "//trdat(data_type)//" :: C(M*N+8)"
             ELSE
@@ -130,42 +141,15 @@ CONTAINS
          END SELECT
       ENDIF
    ELSE
-      write(6,'(A)') "      "//trdat(data_type,"INOUT")//" :: C(*)"
-      write(6,'(A)') "      "//trdat(data_type,"IN")//" :: B(*), A(*)"
+      IF (write_intent) THEN
+         write(6,'(A)') "      "//trdat(data_type,"INOUT")//" :: C(*)"
+         write(6,'(A)') "      "//trdat(data_type,"IN")//" :: B(*), A(*)"
+      ELSE
+         write(6,'(A)') "      "//trdat(data_type)//" :: C(*)"
+         write(6,'(A)') "      "//trdat(data_type)//" :: B(*), A(*)"
+      ENDIF
    ENDIF
   END SUBROUTINE write_matrix_defs
-
-  SUBROUTINE write_test_fun(M,N,K,transpose_flavor,data_type,stack_size_label)
-   INTEGER :: M,N,K,transpose_flavor,data_type
-   CHARACTER(LEN=*), OPTIONAL :: stack_size_label
-   
-   write(6,'(A)')                    "FUNCTION TEST(X,"//TRIM(trparam(stack_size_label))//",Niter) RESULT(res)"
-   IF (PRESENT(stack_size_label)) THEN
-      CALL write_stack_params(data_type,stack_size_label)
-   ELSE
-      CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.)
-   ENDIF
-   write(6,'(A)')                    "   INTEGER :: Niter"
-   write(6,'(A)')                    "   REAL :: t2,t1,res"
-   write(6,'(A)')                    "   INTERFACE"
-   write(6,'(A)')                    "     SUBROUTINE X("//TRIM(trparam(stack_size_label))//")"
-   IF (PRESENT(stack_size_label)) THEN
-      CALL write_stack_params(data_type,stack_size_label)
-   ELSE
-      CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.)
-   ENDIF
-   write(6,'(A)')                    "     END SUBROUTINE"
-   write(6,'(A)')                    "   END INTERFACE"
-   write(6,'(A)')                    "   INTEGER :: i"
-
-   write(6,'(A)')                    "   CALL CPU_TIME(t1)"
-   write(6,'(A)')                    "   DO i=1,Niter"
-   write(6,'(A)')                    "      CALL X("//TRIM(trparam(stack_size_label))//")"
-   write(6,'(A)')                    "   ENDDO"
-   write(6,'(A)')                    "   CALL CPU_TIME(t2)"
-   write(6,'(A)')                    "   res=REAL(t2-t1,KIND=KIND(res))"
-   write(6,'(A)')                    "END FUNCTION"
-  END SUBROUTINE
 
   SUBROUTINE smm_inner(mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor,data_type)
      INTEGER :: mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor,data_type
