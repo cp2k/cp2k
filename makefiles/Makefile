@@ -21,6 +21,7 @@ MAINEXEDIR   := $(CP2KHOME)/exe
 MAINLIBDIR   := $(CP2KHOME)/lib
 MAINOBJDIR   := $(CP2KHOME)/obj
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
+DOXYIFYOBJDIR := $(CP2KHOME)/obj/doxyified
 INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
@@ -49,6 +50,7 @@ endif
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
+         doxyifydir doxyify doxyifyclean \
          prettydir pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates instantiationdir templatesclean
 
@@ -221,6 +223,25 @@ $(PRETTYOBJDIR)/%.pretty: %.c
 #   TODO: call indent here?
 	@touch $@
 
+# Doxyifier stuff ===========================================================
+vpath %.doxyified $(DOXYIFYOBJDIR)
+
+doxyifydir:
+	@mkdir -p $(DOXYIFYOBJDIR)
+
+doxyify: doxyifydir $(addprefix $(DOXYIFYOBJDIR)/, $(ALL_OBJECTS:.o=.doxyified))
+TOOL_HELP += "doxyify : Autogenerate doxygen headers for subroutines"
+
+doxyifyclean:
+	-rm -rf $(DOXYIFYOBJDIR)
+TOOL_HELP += "doxyifyclean : Remove doxyify marker files"
+
+$(DOXYIFYOBJDIR)/%.doxyified: %.F
+	$(TOOLSRC)/doxyify/doxyify.sh $<
+	@touch $@
+
+$(DOXYIFYOBJDIR)/%.doxyified: %.c
+	@touch $@
 
 # doxygen stuff =============================================================
 doxygen/clean:
