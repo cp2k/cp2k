@@ -83,7 +83,7 @@ MODULE ipi_driver
       USE ISO_C_BINDING
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: psockfd      
-      REAL*8, INTENT(IN)  :: fdata
+      REAL(8), INTENT(IN)  :: fdata
       REAL(KIND=C_DOUBLE), TARGET :: cdata
       
       cdata = fdata
@@ -120,7 +120,7 @@ MODULE ipi_driver
       USE ISO_C_BINDING  
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: psockfd, plen
-      REAL*8, TARGET, INTENT(IN)  :: fdata(plen)
+      REAL(8), TARGET, INTENT(IN)  :: fdata(plen)
       
       CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
   END SUBROUTINE
@@ -129,7 +129,7 @@ MODULE ipi_driver
       USE ISO_C_BINDING
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: psockfd      
-      REAL*8, INTENT(OUT)  :: fdata
+      REAL(8), INTENT(OUT)  :: fdata
       REAL(KIND=C_DOUBLE), TARGET :: cdata
       
       CALL readbuffer_csocket(psockfd, c_loc(cdata), 8)
@@ -168,7 +168,7 @@ MODULE ipi_driver
       USE ISO_C_BINDING  
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: psockfd, plen
-      REAL*8, TARGET, INTENT(OUT)  :: fdata(plen)
+      REAL(8), TARGET, INTENT(OUT)  :: fdata(plen)
       
       CALL readbuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
   END SUBROUTINE
