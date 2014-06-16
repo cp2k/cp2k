@@ -353,7 +353,7 @@ CONTAINS
                 END DO
               END DO
          END SELECT
-         CALL basis_fit (atom_info,basis,pptype,ostate%f,iw,error)
+         CALL basis_fit (atom_info,basis,pptype,ostate%f,0,error)
          fopt = MIN(fopt,ostate%f)
       END IF
 
