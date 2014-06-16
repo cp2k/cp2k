@@ -38,60 +38,141 @@ MODULE ipi_driver
 
   PUBLIC :: run_driver
 
+  INTERFACE writebuffer
+      MODULE PROCEDURE writebuffer_s, &
+                       writebuffer_d, writebuffer_dv, &
+                       writebuffer_i
+                       
+  END INTERFACE 
+
+  INTERFACE readbuffer
+      MODULE PROCEDURE readbuffer_s, &
+                       readbuffer_dv, readbuffer_d, &
+                       readbuffer_i
+                       
+  END INTERFACE 
 
   INTERFACE
     SUBROUTINE open_socket(psockfd, inet, port, host) BIND(C)
       USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: psockfd, inet, port
-    CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
-
+      INTEGER(KIND=C_INT)                      :: psockfd, inet, port
+      CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
     END SUBROUTINE open_socket
 
-    SUBROUTINE writebuffer(psockfd, pdata, plen) BIND(C)
+    
+    SUBROUTINE writebuffer_csocket(psockfd, pdata, plen) BIND(C, name="writebuffer")
       USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: psockfd
-    CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: pdata
-    INTEGER(KIND=C_INT)                      :: plen
+      INTEGER(KIND=C_INT)                      :: psockfd
+      TYPE(C_PTR), VALUE                       :: pdata
+      INTEGER(KIND=C_INT)                      :: plen
 
-    END SUBROUTINE writebuffer       
+    END SUBROUTINE writebuffer_csocket       
 
-    SUBROUTINE writebuffer_i(psockfd, pdata, plen) BIND(C)
+    SUBROUTINE readbuffer_csocket(psockfd, pdata, plen) BIND(C, name="readbuffer")
       USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: psockfd, pdata, plen
+      INTEGER(KIND=C_INT)                      :: psockfd
+      TYPE(C_PTR), VALUE                       :: pdata
+      INTEGER(KIND=C_INT)                      :: plen
 
-    END SUBROUTINE writebuffer_i
-
-    SUBROUTINE writebuffer_d(psockfd, pdata, plen) BIND(C)
-      USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: psockfd
-    REAL(KIND=C_DOUBLE)                      :: pdata
-    INTEGER(KIND=C_INT)                      :: plen
-
-    END SUBROUTINE writebuffer_d       
-
-    INTEGER (KIND=C_INT) FUNCTION readbuffer(psockfd, pdata, plen) BIND(C)
-      USE ISO_C_BINDING
-      INTEGER (KIND=C_INT) :: psockfd
-      CHARACTER (KIND=C_CHAR), DIMENSION(*) :: pdata
-      INTEGER (KIND=C_INT) :: plen
-    END FUNCTION readbuffer 
-
-    INTEGER (KIND=C_INT) FUNCTION readbuffer_i(psockfd, pdata, plen) BIND(C)
-      USE ISO_C_BINDING
-      INTEGER (KIND=C_INT) :: psockfd
-      INTEGER (KIND=C_INT) :: pdata
-      INTEGER (KIND=C_INT) :: plen
-    END FUNCTION readbuffer_i
-
-    INTEGER (KIND=C_INT) FUNCTION readbuffer_d(psockfd, pdata, plen) BIND(C)
-      USE ISO_C_BINDING
-      INTEGER (KIND=C_INT) :: psockfd
-      REAL (KIND=C_DOUBLE) :: pdata
-      INTEGER (KIND=C_INT) :: plen
-    END FUNCTION readbuffer_d
+    END SUBROUTINE readbuffer_csocket   
   END INTERFACE
 
   CONTAINS
+
+  SUBROUTINE writebuffer_d (psockfd, fdata)
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd      
+      REAL*8, INTENT(IN)  :: fdata
+      REAL(KIND=C_DOUBLE), TARGET :: cdata
+      
+      cdata = fdata
+      CALL writebuffer_csocket(psockfd, c_loc(cdata), 8)
+  END SUBROUTINE
+
+  SUBROUTINE writebuffer_i (psockfd, fdata)
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd      
+      INTEGER, INTENT(IN)  :: fdata
+      INTEGER(KIND=C_INT), TARGET :: cdata
+      
+      cdata = fdata
+      CALL writebuffer_csocket(psockfd, c_loc(cdata), 4)
+  END SUBROUTINE
+
+  SUBROUTINE writebuffer_s (psockfd, fstring, plen)
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd
+      INTEGER, INTENT(IN) ::  plen
+      CHARACTER(LEN=*), INTENT(IN)  :: fstring
+      CHARACTER(LEN=1,KIND=C_CHAR), TARGET :: cstring(plen)
+      INTEGER i
+      
+      DO i = 1,plen
+         cstring(i) = fstring(i:i)
+      ENDDO
+      CALL writebuffer_csocket(psockfd, c_loc(cstring(1)), plen)
+  END SUBROUTINE
+
+  SUBROUTINE writebuffer_dv(psockfd, fdata, plen)
+      USE ISO_C_BINDING  
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd, plen
+      REAL*8, TARGET, INTENT(IN)  :: fdata(plen)
+      
+      CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
+  END SUBROUTINE
+
+  SUBROUTINE readbuffer_d (psockfd, fdata)
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd      
+      REAL*8, INTENT(OUT)  :: fdata
+      REAL(KIND=C_DOUBLE), TARGET :: cdata
+      
+      CALL readbuffer_csocket(psockfd, c_loc(cdata), 8)
+      fdata=cdata
+  END SUBROUTINE
+
+  SUBROUTINE readbuffer_i (psockfd, fdata)
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd      
+      INTEGER, INTENT(OUT)  :: fdata
+      INTEGER(KIND=C_INT), TARGET :: cdata
+      
+      CALL readbuffer_csocket(psockfd, c_loc(cdata), 4)
+      fdata = cdata
+  END SUBROUTINE
+
+  SUBROUTINE readbuffer_s (psockfd, fstring, plen)
+      USE ISO_C_BINDING
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd
+      INTEGER, INTENT(IN) ::  plen
+      CHARACTER(LEN=*), INTENT(OUT)  :: fstring
+      CHARACTER(LEN=1,KIND=C_CHAR), TARGET :: cstring(plen)
+      INTEGER i
+
+      CALL readbuffer_csocket(psockfd, c_loc(cstring(1)), plen)
+      fstring=""   
+      write(*,*) "READS", plen, cstring
+      DO i = 1,plen
+         fstring(i:i) = cstring(i)
+      ENDDO
+  END SUBROUTINE
+
+  SUBROUTINE readbuffer_dv(psockfd, fdata, plen)
+      USE ISO_C_BINDING  
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: psockfd, plen
+      REAL*8, TARGET, INTENT(OUT)  :: fdata(plen)
+      
+      CALL readbuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
+  END SUBROUTINE
+
 ! *****************************************************************************
 !> \brief
 !> \par History
@@ -111,12 +192,11 @@ MODULE ipi_driver
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, i_drv_unix, idir, &
-                                                ii, inet, ip, nat, nread, &
-                                                socket
+                                                ii, inet, ip, nat, socket
     LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
                                                 ionode = .FALSE., should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), pot, &
-                                                vir(3,3)
+                                                vir(3,3), mxmat(9)
     REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
     TYPE(cell_type), POINTER                 :: cpcell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -162,15 +242,9 @@ MODULE ipi_driver
 
       CALL mp_sync(default_para_env%group)
 
-      IF (ionode) nread=readbuffer(socket, header, MSGLEN)
+      IF (ionode) CALL readbuffer(socket, header, MSGLEN)
       
       CALL mp_sync(default_para_env%group)
-
-      CALL mp_bcast(nread,default_para_env%source, default_para_env%group)
-      IF (nread .EQ. 0) THEN
-        IF (ionode) WRITE(*,*) " @ DRIVER MODE: Could not read from socket, exiting now."
-        EXIT
-      ENDIF
 
       CALL mp_bcast(header,default_para_env%source, default_para_env%group)
       
@@ -188,9 +262,11 @@ MODULE ipi_driver
          CALL mp_sync(default_para_env%group)
       ELSE IF (TRIM(header) == "POSDATA") THEN              
          IF (ionode) THEN        
-            nread=readbuffer_d(socket, cellh(1,1), 9)
-            nread=readbuffer_d(socket, cellih(1,1), 9)
-            nread=readbuffer_i(socket, nat, 1)
+            CALL readbuffer(socket, mxmat, 9)
+            cellh = RESHAPE(mxmat, (/3,3/) )
+            CALL readbuffer(socket, mxmat, 9)
+            cellih = RESHAPE(mxmat, (/3,3/) )
+            CALL readbuffer(socket, nat)
             cellh=TRANSPOSE(cellh)
             cellih=TRANSPOSE(cellih)
          ENDIF
@@ -198,7 +274,7 @@ MODULE ipi_driver
          CALL mp_bcast(cellih,default_para_env%source, default_para_env%group)
          CALL mp_bcast(nat,default_para_env%source, default_para_env%group)
          IF (.not.ALLOCATED(combuf)) ALLOCATE(combuf(3*nat))
-         IF (ionode) nread=readbuffer_d(socket, combuf(1), nat*3)
+         IF (ionode) CALL readbuffer(socket, combuf, nat*3)
          CALL mp_bcast(combuf,default_para_env%source, default_para_env%group)
          
          CALL force_env_get(force_env,subsys=subsys,error=error)
@@ -238,17 +314,17 @@ MODULE ipi_driver
          IF (ionode) WRITE(*,*) " @ DRIVER MODE: Returning v,forces,stress "
          IF (ionode) THEN     
             CALL writebuffer(socket,"FORCEREADY  ",MSGLEN)            
-            CALL writebuffer_d(socket,pot,1)
-            CALL writebuffer_i(socket,nat,1)            
-            CALL writebuffer_d(socket,combuf(1),3*nat)
-            CALL writebuffer_d(socket,vir(1,1),9)
+            CALL writebuffer(socket,pot)
+            CALL writebuffer(socket,nat)
+            CALL writebuffer(socket,combuf,3*nat)
+            CALL writebuffer(socket,RESHAPE(vir, (/9/) ),9)
 
             ! i-pi can also receive an arbitrary string, that will be printed out to the "extra" 
             ! trajectory file. this is useful if you want to return additional information, e.g.
             ! atomic charges, wannier centres, etc. one must return the number of characters, then
             ! the string. here we just send back zero characters.            
             nat=0
-            CALL writebuffer_i(socket,nat,1)  ! writes out zero for the length of the "extra" field (not implemented yet!)
+            CALL writebuffer(socket,nat)  ! writes out zero for the length of the "extra" field (not implemented yet!)
          ENDIF
          hasdata=.FALSE.
       ELSE 
