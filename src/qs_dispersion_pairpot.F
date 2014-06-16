@@ -2464,12 +2464,13 @@ CONTAINS
     INTEGER                                  :: i, j
     REAL(KIND=dp)                            :: c6mem, cn1, cn2, csum, dtmpa, &
                                                 dtmpb, dwa, dwb, dza, dzb, r, &
-                                                rsum, tmp1
+                                                rsum, tmp1, rsave
 
 ! the exponential is sensitive to numerics
 ! when nci or ncj is much larger than cn1/cn2
 
-    c6mem=-1.e+99_dp
+    c6mem=-1.0e+99_dp
+    rsave=1.0e+99_dp
     rsum=0.0_dp
     csum=0.0_dp
     dza=0.0_dp
@@ -2480,15 +2481,18 @@ CONTAINS
     DO i=1,mxc(iat)
       DO j=1,mxc(jat)
          c6=c6ab(iat,jat,i,j,1)
-         IF(c6 > 0._dp)THEN
-            c6mem=c6
+         IF(c6 > 0.0_dp)THEN
             cn1=c6ab(iat,jat,i,j,2)
             cn2=c6ab(iat,jat,i,j,3)
             ! distance
             r=(cn1-nci)**2+(cn2-ncj)**2
+            if (r < rsave) then
+               rsave=r
+               c6mem=c6
+            endif
             tmp1=EXP(k3*r)
-            dtmpa=-2._dp*k3*(cn1-nci)*tmp1
-            dtmpb=-2._dp*k3*(cn2-ncj)*tmp1
+            dtmpa=-2.0_dp*k3*(cn1-nci)*tmp1
+            dtmpb=-2.0_dp*k3*(cn2-ncj)*tmp1
             rsum=rsum+tmp1
             csum=csum+tmp1*c6
             dza=dza+dtmpa*c6
@@ -2499,7 +2503,9 @@ CONTAINS
       ENDDO
     ENDDO
 
-    IF(rsum > 0.0_dp)THEN
+    IF(c6 == 0.0_dp) c6mem=0.0_dp
+
+    IF(rsum > 1.0e-66_dp)THEN
        c6=csum/rsum
        dc6a=(dza-c6*dwa)/rsum
        dc6b=(dzb-c6*dwb)/rsum
