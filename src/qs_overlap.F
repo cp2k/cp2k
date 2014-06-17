@@ -629,7 +629,7 @@ CONTAINS
     LOGICAL                                  :: do_symmetric, failure, found, &
                                                 new_atom_b, &
                                                 return_s_derivatives
-    REAL(KIND=dp)                            :: dab, f, f0, rab2
+    REAL(KIND=dp)                            :: dab, f, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sab, work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -805,15 +805,9 @@ CONTAINS
               irow = jatom
               icol = iatom
             END IF
-            IF (iatom==jatom) THEN
-               f0 = 1.0_dp
-            ELSE
-               f0 = 2.0_dp
-            END IF
           ELSE
             irow = iatom
             icol = jatom
-            f0 = 1.0_dp
           END IF
           DO i=1,SIZE(matrix_s)
             NULLIFY (sint(i)%block)
