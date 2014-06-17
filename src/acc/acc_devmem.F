@@ -256,8 +256,8 @@ CONTAINS
 ! *****************************************************************************
 #if ! defined (__ACC)
   FUNCTION acc_devmem_cptr(this) RESULT(res)
-    INTEGER, INTENT(IN)        :: this
-    LOGICAL                    :: res
+    INTEGER, INTENT(IN)                      :: this
+    LOGICAL                                  :: res
 
      res = .FALSE.
   END FUNCTION acc_devmem_cptr

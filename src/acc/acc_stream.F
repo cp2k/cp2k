@@ -86,8 +86,8 @@ CONTAINS
 ! *****************************************************************************
 #if ! defined (__ACC)
 FUNCTION acc_stream_cptr(this) RESULT(res)
-    INTEGER, INTENT(in)        :: this
-    LOGICAL                             :: res
+    INTEGER, INTENT(in)                      :: this
+    LOGICAL                                  :: res
 
     res = .FALSE.
 END FUNCTION acc_stream_cptr
