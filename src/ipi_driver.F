@@ -55,24 +55,25 @@ MODULE ipi_driver
   INTERFACE
     SUBROUTINE open_socket(psockfd, inet, port, host) BIND(C)
       USE ISO_C_BINDING
-      INTEGER(KIND=C_INT)                      :: psockfd, inet, port
-      CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
+    INTEGER(KIND=C_INT)                      :: psockfd, inet, port
+    CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
+
     END SUBROUTINE open_socket
 
     
     SUBROUTINE writebuffer_csocket(psockfd, pdata, plen) BIND(C, name="writebuffer")
       USE ISO_C_BINDING
-      INTEGER(KIND=C_INT)                      :: psockfd
-      TYPE(C_PTR), VALUE                       :: pdata
-      INTEGER(KIND=C_INT)                      :: plen
+    INTEGER(KIND=C_INT)                      :: psockfd
+    TYPE(C_PTR), VALUE                       :: pdata
+    INTEGER(KIND=C_INT)                      :: plen
 
     END SUBROUTINE writebuffer_csocket       
 
     SUBROUTINE readbuffer_csocket(psockfd, pdata, plen) BIND(C, name="readbuffer")
       USE ISO_C_BINDING
-      INTEGER(KIND=C_INT)                      :: psockfd
-      TYPE(C_PTR), VALUE                       :: pdata
-      INTEGER(KIND=C_INT)                      :: plen
+    INTEGER(KIND=C_INT)                      :: psockfd
+    TYPE(C_PTR), VALUE                       :: pdata
+    INTEGER(KIND=C_INT)                      :: plen
 
     END SUBROUTINE readbuffer_csocket   
   END INTERFACE
@@ -81,35 +82,34 @@ MODULE ipi_driver
 
   SUBROUTINE writebuffer_d (psockfd, fdata)
       USE ISO_C_BINDING
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd      
-      REAL(KIND=dp), INTENT(IN)  :: fdata
-      REAL(KIND=C_DOUBLE), TARGET :: cdata
-      
+    INTEGER, INTENT(IN)                      :: psockfd
+    REAL(KIND=dp), INTENT(IN)                :: fdata
+
+    REAL(KIND=C_DOUBLE), TARGET              :: cdata
+
       cdata = fdata
       CALL writebuffer_csocket(psockfd, c_loc(cdata), 8)
   END SUBROUTINE
 
   SUBROUTINE writebuffer_i (psockfd, fdata)
       USE ISO_C_BINDING
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd      
-      INTEGER, INTENT(IN)  :: fdata
-      INTEGER(KIND=C_INT), TARGET :: cdata
-      
+    INTEGER, INTENT(IN)                      :: psockfd, fdata
+
+    INTEGER(KIND=C_INT), TARGET              :: cdata
+
       cdata = fdata
       CALL writebuffer_csocket(psockfd, c_loc(cdata), 4)
   END SUBROUTINE
 
   SUBROUTINE writebuffer_s (psockfd, fstring, plen)
       USE ISO_C_BINDING
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd
-      INTEGER, INTENT(IN) ::  plen
-      CHARACTER(LEN=*), INTENT(IN)  :: fstring
-      CHARACTER(LEN=1,KIND=C_CHAR), TARGET :: cstring(plen)
-      INTEGER i
-      
+    INTEGER, INTENT(IN)                      :: psockfd
+    CHARACTER(LEN=*), INTENT(IN)             :: fstring
+    INTEGER, INTENT(IN)                      :: plen
+
+    INTEGER                                  :: i
+    CHARACTER(LEN=1, KIND=C_CHAR), TARGET    :: cstring(plen)
+
       DO i = 1,plen
          cstring(i) = fstring(i:i)
       ENDDO
@@ -118,47 +118,46 @@ MODULE ipi_driver
 
   SUBROUTINE writebuffer_dv(psockfd, fdata, plen)
       USE ISO_C_BINDING  
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd, plen
-      REAL(KIND=dp), TARGET, INTENT(IN)  :: fdata(plen)
-      
+    INTEGER, INTENT(IN)                      :: psockfd, plen
+    REAL(KIND=dp), INTENT(IN), TARGET        :: fdata(plen)
+
       CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
   END SUBROUTINE
 
   SUBROUTINE readbuffer_d (psockfd, fdata)
       USE ISO_C_BINDING
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd      
-      REAL(KIND=dp), INTENT(OUT)  :: fdata
-      REAL(KIND=C_DOUBLE), TARGET :: cdata
-      
+    INTEGER, INTENT(IN)                      :: psockfd
+    REAL(KIND=dp), INTENT(OUT)               :: fdata
+
+    REAL(KIND=C_DOUBLE), TARGET              :: cdata
+
       CALL readbuffer_csocket(psockfd, c_loc(cdata), 8)
       fdata=cdata
   END SUBROUTINE
 
   SUBROUTINE readbuffer_i (psockfd, fdata)
       USE ISO_C_BINDING
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd      
-      INTEGER, INTENT(OUT)  :: fdata
-      INTEGER(KIND=C_INT), TARGET :: cdata
-      
+    INTEGER, INTENT(IN)                      :: psockfd
+    INTEGER, INTENT(OUT)                     :: fdata
+
+    INTEGER(KIND=C_INT), TARGET              :: cdata
+
       CALL readbuffer_csocket(psockfd, c_loc(cdata), 4)
       fdata = cdata
   END SUBROUTINE
 
   SUBROUTINE readbuffer_s (psockfd, fstring, plen)
       USE ISO_C_BINDING
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd
-      INTEGER, INTENT(IN) ::  plen
-      CHARACTER(LEN=*), INTENT(OUT)  :: fstring
-      CHARACTER(LEN=1,KIND=C_CHAR), TARGET :: cstring(plen)
-      INTEGER i
+    INTEGER, INTENT(IN)                      :: psockfd
+    CHARACTER(LEN=*), INTENT(OUT)            :: fstring
+    INTEGER, INTENT(IN)                      :: plen
+
+    INTEGER                                  :: i
+    CHARACTER(LEN=1, KIND=C_CHAR), TARGET    :: cstring(plen)
 
       CALL readbuffer_csocket(psockfd, c_loc(cstring(1)), plen)
       fstring=""   
-      write(*,*) "READS", plen, cstring
+      WRITE(*,*) "READS", plen, cstring
       DO i = 1,plen
          fstring(i:i) = cstring(i)
       ENDDO
@@ -166,10 +165,9 @@ MODULE ipi_driver
 
   SUBROUTINE readbuffer_dv(psockfd, fdata, plen)
       USE ISO_C_BINDING  
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: psockfd, plen
-      REAL(KIND=dp), TARGET, INTENT(OUT)  :: fdata(plen)
-      
+    INTEGER, INTENT(IN)                      :: psockfd, plen
+    REAL(KIND=dp), INTENT(OUT), TARGET       :: fdata(plen)
+
       CALL readbuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
   END SUBROUTINE
 
@@ -195,8 +193,8 @@ MODULE ipi_driver
                                                 ii, inet, ip, nat, socket
     LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
                                                 ionode = .FALSE., should_stop
-    REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), pot, &
-                                                vir(3,3), mxmat(9)
+    REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), &
+                                                mxmat(9), pot, vir(3,3)
     REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
     TYPE(cell_type), POINTER                 :: cpcell
     TYPE(cp_subsys_type), POINTER            :: subsys

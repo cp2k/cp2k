@@ -2464,7 +2464,7 @@ CONTAINS
     INTEGER                                  :: i, j
     REAL(KIND=dp)                            :: c6mem, cn1, cn2, csum, dtmpa, &
                                                 dtmpb, dwa, dwb, dza, dzb, r, &
-                                                rsum, tmp1, rsave
+                                                rsave, rsum, tmp1
 
 ! the exponential is sensitive to numerics
 ! when nci or ncj is much larger than cn1/cn2
@@ -2486,10 +2486,10 @@ CONTAINS
             cn2=c6ab(iat,jat,i,j,3)
             ! distance
             r=(cn1-nci)**2+(cn2-ncj)**2
-            if (r < rsave) then
+            IF (r < rsave) THEN
                rsave=r
                c6mem=c6
-            endif
+            ENDIF
             tmp1=EXP(k3*r)
             dtmpa=-2.0_dp*k3*(cn1-nci)*tmp1
             dtmpb=-2.0_dp*k3*(cn2-ncj)*tmp1
