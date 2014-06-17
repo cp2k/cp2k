@@ -9,7 +9,9 @@
 !> \date    2013-04
 ! *****************************************************************************
 MODULE acc_stream
+#if defined (__ACC)
   USE ISO_C_BINDING
+#endif
 
   IMPLICIT NONE
 
@@ -26,7 +28,11 @@ MODULE acc_stream
 
   TYPE acc_stream_type
     PRIVATE
+#if defined (__ACC)
     TYPE(C_PTR) :: cptr = C_NULL_PTR
+#else
+    INTEGER :: dummy = 1
+#endif
   END TYPE acc_stream_type
 
 #if defined (__ACC)
@@ -78,12 +84,22 @@ CONTAINS
 !> \brief Returns C-pointer of given stream.
 !> \author  Ole Schuett
 ! *****************************************************************************
+#if ! defined (__ACC)
+FUNCTION acc_stream_cptr(this) RESULT(res)
+    INTEGER, INTENT(in)        :: this
+    LOGICAL                             :: res
+
+    res = .FALSE.
+END FUNCTION acc_stream_cptr
+
+#else
 FUNCTION acc_stream_cptr(this) RESULT(res)
     TYPE(acc_stream_type), INTENT(in)        :: this
     TYPE(C_PTR)                              :: res
 
     res = this%cptr
 END FUNCTION acc_stream_cptr
+#endif
 
 
 ! *****************************************************************************

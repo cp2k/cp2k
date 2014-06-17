@@ -4,7 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 MODULE acc_device
+#if defined (__ACC)
   USE ISO_C_BINDING
+#endif
 
   IMPLICIT NONE
 

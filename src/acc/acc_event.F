@@ -9,7 +9,9 @@
 !> \date    2013-04
 ! *****************************************************************************
 MODULE acc_event
+#if defined (__ACC)
   USE ISO_C_BINDING
+#endif
   USE acc_stream,                      ONLY: acc_stream_cptr,&
                                              acc_stream_type
 
@@ -27,7 +29,11 @@ MODULE acc_event
 
   TYPE acc_event_type
     PRIVATE
+#if defined (__ACC)
     TYPE(C_PTR) :: cptr = C_NULL_PTR
+#else
+    INTEGER :: dummy = 1
+#endif
   END TYPE acc_event_type
 
 #if defined (__ACC)

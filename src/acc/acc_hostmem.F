@@ -9,7 +9,9 @@
 !> \date    2013-04
 ! *****************************************************************************
 MODULE acc_hostmem
+#if defined (__ACC)
   USE ISO_C_BINDING
+#endif
   USE acc_kinds,                       ONLY: int_4,&
                                              int_4_size,&
                                              int_8,&
@@ -101,24 +103,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Helper-routine performing allocation of host-pinned cuda memory.
 ! *****************************************************************************
+#if defined (__ACC)
  SUBROUTINE acc_hostmem_alloc_raw (host_mem_c_ptr, n_bytes)
     TYPE(C_PTR), INTENT(OUT)                 :: host_mem_c_ptr
     INTEGER, INTENT(IN)                      :: n_bytes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_alloc_raw', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
     INTEGER                                  :: istat
-#endif
 
-#if defined (__ACC)
     istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, &
                INT(n_bytes, KIND=C_SIZE_T))
     IF (istat /= 0) STOP "acc_hostmem_alloc_raw: Could not allocate host pinned memory"
-#else
-    STOP "acc_hostmem_alloc_raw: ACC not compiled in."
-#endif
   END SUBROUTINE acc_hostmem_alloc_raw
+#endif
 
 
 END MODULE acc_hostmem

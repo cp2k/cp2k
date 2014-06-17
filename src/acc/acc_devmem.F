@@ -8,7 +8,9 @@
 !> \author  Ole Schuett
 ! *****************************************************************************
 MODULE acc_devmem
+#if  defined (__ACC)
   USE ISO_C_BINDING
+#endif
   USE acc_kinds,                       ONLY: int_4,&
                                              int_4_size,&
                                              int_8,&
@@ -65,7 +67,9 @@ MODULE acc_devmem
  TYPE acc_devmem_type
    PRIVATE
    INTEGER                      :: size_in_bytes = -1
+#if  defined (__ACC)
    TYPE(C_PTR)                  :: cptr = C_NULL_PTR
+#endif
  END TYPE acc_devmem_type
 
 #if  defined (__ACC)
@@ -250,6 +254,14 @@ CONTAINS
 !> \brief Returns C-pointer to data of give devmem.
 !> \author  Ole Schuett
 ! *****************************************************************************
+#if ! defined (__ACC)
+  FUNCTION acc_devmem_cptr(this) RESULT(res)
+    INTEGER, INTENT(IN)        :: this
+    LOGICAL                    :: res
+
+     res = .FALSE.
+  END FUNCTION acc_devmem_cptr
+#else
   FUNCTION acc_devmem_cptr(this) RESULT(res)
     TYPE(acc_devmem_type), INTENT(IN)        :: this
     TYPE(C_PTR)                              :: res
@@ -257,6 +269,7 @@ CONTAINS
      IF(this%size_in_bytes < 0) STOP "acc_devmem_cptr: not allocated"
      res = this%cptr
   END FUNCTION acc_devmem_cptr
+#endif
 
 
 ! *****************************************************************************

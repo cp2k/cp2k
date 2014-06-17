@@ -12,10 +12,10 @@
   SUBROUTINE acc_hostmem_alloc_r (host_mem, n)
     REAL(kind=real_4), DIMENSION(:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n
+#if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*real_4_size)
-#if defined (__ACC)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
 #else
     STOP "acc_hostmem_alloc_r_4D: ACC not compiled in."
@@ -32,11 +32,11 @@
 SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
     REAL(kind=real_4), DIMENSION(:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2
+#if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*real_4_size
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
-#if defined (__ACC)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
 #else
     STOP "acc_hostmem_alloc_r_4D: ACC not compiled in."
@@ -52,11 +52,11 @@ SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
   SUBROUTINE acc_hostmem_alloc_r_3D (host_mem, n1, n2, n3)
     REAL(kind=real_4), DIMENSION(:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3
+#if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*real_4_size
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
-#if defined (__ACC)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3) /))
 #else
@@ -73,11 +73,11 @@ SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
 SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
     REAL(kind=real_4), DIMENSION(:,:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3, n4
+#if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*MAX(1,n4)*real_4_size
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
-#if defined (__ACC)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3),MAX(1,n4) /))
 #else
