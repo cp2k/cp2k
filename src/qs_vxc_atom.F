@@ -1540,6 +1540,7 @@ CONTAINS
                        matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_CG(iso1,iso2,iso)*&
                             DOT_PRODUCT(vts(1:nr,ispin),fgr(1:nr,l1,l2))
                        ! d azimuthal
+! Add a warning here
 !deb
 !IF(mm1*mm2 /= 0) THEN
 !  IF(ABS(indso(2,iso)) .LE. 1) THEN
