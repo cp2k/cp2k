@@ -1541,11 +1541,11 @@ CONTAINS
                             DOT_PRODUCT(vts(1:nr,ispin),fgr(1:nr,l1,l2))
                        ! d azimuthal
 !deb
-IF(mm1*mm2 /= 0) THEN
-  IF(ABS(indso(2,iso)) .LE. 1) THEN
-     WRITE(*,*) " PROBLEM ::::: ",l1,mm1,l2,mm2,indso(1,iso),indso(2,iso)
-  ENDIF
-ENDIF
+!IF(mm1*mm2 /= 0) THEN
+!  IF(ABS(indso(2,iso)) .LE. 1) THEN
+!     WRITE(*,*) " PROBLEM ::::: ",l1,mm1,l2,mm2,indso(1,iso),indso(2,iso)
+!  ENDIF
+!ENDIF
 !deb
                        matso_h(iso1,iso2) = matso_h(iso1,iso2) + REAL(mm1*mm2,dp)*my_CG(iso1,iso2,iso)*&
                             DOT_PRODUCT(dvth(1:nr,ispin),dgr(1:nr,l1+l2))
