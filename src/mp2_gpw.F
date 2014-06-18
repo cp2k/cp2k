@@ -796,11 +796,10 @@ MODULE mp2_gpw
       mepos_in_EX_group, my_A_batch_size, my_A_virtual_end, &
       my_A_virtual_start, my_B_size, my_B_virtual_end, my_B_virtual_start, &
       my_I_batch_size, my_I_occupied_end, my_I_occupied_start, my_q_position, &
-      ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, one, &
-      p, p_best, proc_receive
-    INTEGER :: proc_send, q, q_best, row, row_offset, row_size, size_EX, &
-      size_EX_send, size_of_exchange_group, stat, sub_sub_color, virtual, &
-      virtual_beta, wfn_calc, wfn_calc_best
+      ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, one, p
+    INTEGER :: p_best, proc_receive, proc_send, q, q_best, row, row_offset, &
+      row_size, size_EX, size_EX_send, size_of_exchange_group, stat, &
+      sub_sub_color, virtual, virtual_beta, wfn_calc, wfn_calc_best
     INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, sub_proc_map, &
       vector_B_sizes, vector_batch_A_size_group, vector_batch_I_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &

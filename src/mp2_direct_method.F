@@ -125,15 +125,15 @@ MODULE mp2_direct_method
       iiB, ij_elem_max, ikind, index_ij_rec, index_ij_send, index_kl, &
       index_proc_ij, index_proc_shift, irep, iset, jatom, jatom_end, &
       jatom_start, jjB, jkind, jset, katom, katom_end, katom_start, kkB, &
-      kkind, kset, l_max, latom, latom_end, latom_start, lkind, llB, lset, &
-      max_am, max_num_call_sec_transf
-    INTEGER :: max_pgf, max_set, multiple, my_num_call_sec_transf, n_threads, &
-      natom, ncob, ncos_max, nints, nkind, nneighbors, nseta, nsetb, &
-      nsgf_max, nspins, primitive_counter, proc_num, proc_receive, proc_send, &
-      R_offset_rec, Rsize_rec, S_offset_rec, same_size_kl_index, sgfb, &
-      sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, &
-      sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, &
-      Ssize_rec, stat, step_size, total_num_RS_task, unit_id
+      kkind, kset, l_max, latom, latom_end, latom_start, lkind, llB, lset
+    INTEGER :: max_am, max_num_call_sec_transf, max_pgf, max_set, multiple, &
+      my_num_call_sec_transf, n_threads, natom, ncob, ncos_max, nints, nkind, &
+      nneighbors, nseta, nsetb, nsgf_max, nspins, primitive_counter, &
+      proc_num, proc_receive, proc_send, R_offset_rec, Rsize_rec, &
+      S_offset_rec, same_size_kl_index, sgfb, sphi_a_u1, sphi_a_u2, &
+      sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
+      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, Ssize_rec, stat, step_size, &
+      total_num_RS_task, unit_id
     INTEGER(int_8) :: estimate_to_store_int, max_val_memory, mem_eris, &
       mem_eris_disk, mem_max_val, n_processes, ncpu, neris_disk, &
       neris_incore, neris_onthefly, neris_tmp, neris_total, nprim_ints, &

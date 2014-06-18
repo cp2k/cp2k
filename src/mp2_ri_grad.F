@@ -870,10 +870,10 @@ MODULE mp2_ri_grad
       nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, &
       nrow_local, nrow_local_1i, nrow_local_2a, number_of_rec, &
       number_of_send, proc_receive, proc_receive_static, proc_send, &
-      proc_send_ex, proc_send_static, proc_send_sub
-    INTEGER :: proc_shift, rec_col_size, rec_counter, rec_row_size, &
-      send_col_size, send_counter, send_pcol, send_prow, send_row_size, &
-      size_rec_buffer, size_send_buffer, stat
+      proc_send_ex
+    INTEGER :: proc_send_static, proc_send_sub, proc_shift, rec_col_size, &
+      rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, &
+      send_prow, send_row_size, size_rec_buffer, size_send_buffer, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: iii_vet, map_rec_size, &
       map_send_size, pos_info, pos_info_ex, proc_2_send_pos, proc_map_ex, &
       req_send, sub_proc_map

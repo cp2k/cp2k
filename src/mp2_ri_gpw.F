@@ -1321,19 +1321,18 @@ MODULE mp2_ri_gpw
       irep, jjB, kkB, kkk, last_I_block, last_J_block, Lend_pos, lll, &
       Lstart_pos, max_ij_pairs, max_ijk, min_integ_group_size, my_B_size, &
       my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_block_size, &
-      my_group_L_end, my_group_L_size
-    INTEGER :: my_group_L_size_orig, my_group_L_start, my_homo_beta, my_i, &
-      my_ij_pairs, my_ijk, my_j, my_k, my_new_group_L_size, &
-      my_num_dgemm_call, ngroup, num_block_per_group, num_IJ_blocks, &
-      num_integ_group, num_sing_ij, pos_integ_group, proc_receive, proc_send, &
-      proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, &
-      rec_block_size, rec_i, rec_ij_index, rec_j, rec_L_size, send_B_size, &
-      send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, &
-      send_ij_index, send_ijk_index, send_j, send_k, send_L_size, &
-      start_point, stat, sub_P_color, sub_sub_color, total_ij_block, &
-      total_ij_pairs, total_ij_pairs_blocks
-    INTEGER :: total_ijk, virtual, virtual_beta
+      my_B_virtual_start, my_B_virtual_start_beta, my_block_size
+    INTEGER :: my_group_L_end, my_group_L_size, my_group_L_size_orig, &
+      my_group_L_start, my_homo_beta, my_i, my_ij_pairs, my_ijk, my_j, my_k, &
+      my_new_group_L_size, my_num_dgemm_call, ngroup, num_block_per_group, &
+      num_IJ_blocks, num_integ_group, num_sing_ij, pos_integ_group, &
+      proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
+      rec_B_virtual_start, rec_block_size, rec_i, rec_ij_index, rec_j, &
+      rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
+      send_block_size, send_i, send_ij_index, send_ijk_index, send_j, send_k, &
+      send_L_size, start_point, stat, sub_P_color, sub_sub_color
+    INTEGER :: total_ij_block, total_ij_pairs, total_ij_pairs_blocks, &
+      total_ijk, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
       new_sizes_array, num_ij_pairs, num_ijk, proc_map, proc_map_rep, &
       sizes_array_orig, sub_proc_map

@@ -461,11 +461,10 @@ MODULE mp2_ri_libint
       L_B_i_start, L_B_k_end, L_B_k_start, l_max, latom, latom_end, &
       latom_start, lkind, llB, lset, max_am, max_pgf, max_set, n_threads, &
       natom, ncob, ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsetc, &
-      nsetd, nsgf_max, nspins, orb_k_end, orb_k_start, orb_l_end, &
-      orb_l_start, primitive_counter
-    INTEGER :: sgfb, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, &
-      sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-      sphi_d_u3, stat, unit_id, virtual
+      nsetd, nsgf_max, nspins, orb_k_end, orb_k_start, orb_l_end
+    INTEGER :: orb_l_start, primitive_counter, sgfb, sphi_a_u1, sphi_a_u2, &
+      sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
+      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, unit_id, virtual
     INTEGER(int_8) :: estimate_to_store_int, max_val_memory, mem_eris, &
       mem_eris_disk, mem_max_val, n_processes, ncpu, neris_disk, &
       neris_incore, neris_onthefly, neris_tmp, neris_total, nprim_ints, &

@@ -151,10 +151,10 @@ MODULE hfx_energy_potential
       i_set_list_kl_start, i_set_list_kl_stop, i_thread, iatom, iatom_block, &
       ikind, iset, iw, j, jatom, jatom_block, jkind, jset, katom, &
       katom_block, kind_kind_idx, kkind, kset, l_max, latom, latom_block, &
-      lkind, lset, ma, max_am, max_pgf
-    INTEGER :: max_set, mb, my_bin_size, n_threads, natom, nbits, ncob, &
-      ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, pa, &
-      sgfb, stat, swap_id, unit_id
+      lkind, lset, ma
+    INTEGER :: max_am, max_pgf, max_set, mb, my_bin_size, n_threads, natom, &
+      nbits, ncob, ncos_max, nints, nkind, nneighbors, nseta, nsetb, &
+      nsgf_max, nspins, pa, sgfb, stat, swap_id, unit_id
     INTEGER(int_8) :: estimate_to_store_int, mem_compression_counter, &
       mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_max_val, &
       my_current_counter, my_istart, n_processes, ncpu, neris_disk, &

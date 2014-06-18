@@ -378,31 +378,26 @@ def writeCompactDeclaration(declaration,file):
     else:
         dLine=[]
         if len(d['vars'])>0:
-            dLine.append("    "+d['type'])
+            decl = "    "+d['type']
             if d['parameters']: # do not drop empty parameter lists?
-                dLine.append(d['parameters'])
+                decl += d['parameters']
             if d['attributes']:
                 for a in d['attributes']:
-                    dLine[-1:]=[dLine[-1]+", "]
-                    dLine.append(a)
-            dLine[-1:]=[dLine[-1]+" :: "]
-            decl=[]
-            decl.extend(dLine)
-            lVars=0
-            for var in d['vars'][:-1]:
-                if lVars>600:
-                    dLine[-1]=dLine[-1][:-2]
+                    decl += ", " + a
+            decl += " :: "
+
+            dLine = [decl]
+            for var in d['vars']:
+                cur_len = sum([len(l) for l in dLine])
+                if(len(dLine) > 1 and cur_len + len(var) > 600):
                     writeInCols(dLine,6,79,0,file)
                     file.write("\n")
-                    lVars=0
-                    dLine=[]
-                    dLine.extend(decl)
-                dLine.append(var+", ")
-                lVars+=len(var)+2
-            dLine.append(d['vars'][-1])
-
-        writeInCols(dLine,6,79,0,file)
-        file.write("\n")
+                    dLine = [decl]
+                if(len(dLine) > 1):
+                    dLine[-1] += ", "
+                dLine.append(var)
+            writeInCols(dLine,6,79,0,file)
+            file.write("\n")
 
 def writeExtendedDeclaration(declaration,file):
     """Writes a declaration in a nicer way (using more space)"""

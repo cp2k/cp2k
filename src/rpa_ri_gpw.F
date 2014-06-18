@@ -104,10 +104,9 @@ MODULE rpa_ri_gpw
       my_group_L_end, my_group_L_size, my_group_L_start, my_homo_beta, &
       my_ia_end, my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
       my_ia_start_beta, ngroup, num_integ_group, num_integ_points, occ_high, &
-      occ_low, pos_integ_group, proc_receive, proc_send, proc_shift, &
-      rec_B_size
-    INTEGER :: rec_B_virtual_end, rec_B_virtual_start, stat, virtual, &
-      virtual_beta
+      occ_low, pos_integ_group, proc_receive, proc_send
+    INTEGER :: proc_shift, rec_B_size, rec_B_virtual_end, &
+      rec_B_virtual_start, stat, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_ia, ends_ia_beta, &
                                                 sizes_ia, sizes_ia_beta, &
                                                 starts_ia, starts_ia_beta, &
@@ -614,10 +613,11 @@ MODULE rpa_ri_gpw
       num_rec_cols, number_of_rec, number_of_send, proc_receive, &
       proc_receive_static, proc_send, proc_send_static, proc_shift, &
       rec_counter, rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, &
-      rec_L_size, rec_L_start, rec_pcol, rec_prow
-    INTEGER :: ref_send_pcol, ref_send_prow, row_col_proc_ratio, &
-      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer, &
-      start_col_block, start_row_block, stat, sub_sub_color
+      rec_L_size
+    INTEGER :: rec_L_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
+      row_col_proc_ratio, send_counter, send_pcol, send_prow, &
+      size_rec_buffer, size_send_buffer, start_col_block, start_row_block, &
+      stat, sub_sub_color
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_col_rec, &
                                                 map_rec_size, map_send_size, &
                                                 req_send, RPA_proc_map

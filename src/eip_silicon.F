@@ -1369,7 +1369,8 @@ CONTAINS
       par_a, par_alp, par_b, par_bet, par_bg, par_c, par_cap_A, par_cap_B, &
       par_delta, par_eta, par_gam, par_lam, par_mu, par_palp, par_Qo, par_rh, &
       par_sig, pZ, Qort, r, rinv, rmainv, rmbinv, tau, temp0, temp1, u1, u2, &
-      u3, u4, u5, winv, x, xarg, xinv, xinv3, Z
+      u3, u4, u5, winv, x, xarg, xinv
+    REAL(KIND=dp) :: xinv3, Z
 
 !   size of s2[]
 !   atom ID numbers for s2[]

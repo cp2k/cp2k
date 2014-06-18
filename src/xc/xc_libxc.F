@@ -601,17 +601,16 @@ CONTAINS
       e_ndrho_rhoa, e_ndrho_rhob, e_ndrho_tau_a, e_ndrho_tau_b, e_ndrhoa, &
       e_ndrhoa_laplace_rhoa, e_ndrhoa_laplace_rhob, e_ndrhoa_ndrhoa, &
       e_ndrhoa_ndrhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, e_ndrhoa_tau_a, &
-      e_ndrhoa_tau_b, e_ndrhob, e_ndrhob_laplace_rhoa, e_ndrhob_laplace_rhob, &
-      e_ndrhob_ndrhob
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_ndrhob_rhoa, &
-      e_ndrhob_rhob, e_ndrhob_tau_a, e_ndrhob_tau_b, e_rhoa, &
-      e_rhoa_laplace_rhoa, e_rhoa_laplace_rhob, e_rhoa_rhoa, &
-      e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, e_rhoa_rhob, e_rhoa_rhob_rhob, &
-      e_rhoa_tau_a, e_rhoa_tau_b, e_rhob, e_rhob_laplace_rhoa, &
-      e_rhob_laplace_rhob, e_rhob_rhob, e_rhob_rhob_rhob, e_rhob_tau_a, &
-      e_rhob_tau_b, e_tau_a, e_tau_a_tau_a, e_tau_a_tau_b, e_tau_b, &
-      e_tau_b_tau_b, laplace_rhoa, laplace_rhob, norm_drho, norm_drhoa, &
-      norm_drhob, rhoa, rhob, tau_a, tau_b
+      e_ndrhoa_tau_b, e_ndrhob
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_ndrhob_laplace_rhoa, &
+      e_ndrhob_laplace_rhob, e_ndrhob_ndrhob, e_ndrhob_rhoa, e_ndrhob_rhob, &
+      e_ndrhob_tau_a, e_ndrhob_tau_b, e_rhoa, e_rhoa_laplace_rhoa, &
+      e_rhoa_laplace_rhob, e_rhoa_rhoa, e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, &
+      e_rhoa_rhob, e_rhoa_rhob_rhob, e_rhoa_tau_a, e_rhoa_tau_b, e_rhob, &
+      e_rhob_laplace_rhoa, e_rhob_laplace_rhob, e_rhob_rhob, &
+      e_rhob_rhob_rhob, e_rhob_tau_a, e_rhob_tau_b, e_tau_a, e_tau_a_tau_a, &
+      e_tau_a_tau_b, e_tau_b, e_tau_b_tau_b, laplace_rhoa, laplace_rhob, &
+      norm_drho, norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
 
@@ -1554,9 +1553,9 @@ CONTAINS
       e_ndrhoa_ndrhoa, e_ndrhoa_ndrhob, e_ndrhob_ndrhob, e_rhoa_laplace_rhoa, &
       e_rhoa_laplace_rhob, e_rhob_laplace_rhoa, e_rhob_laplace_rhob, &
       e_rhoa_tau_a, e_rhoa_tau_b, e_rhob_tau_a, e_rhob_tau_b, &
-      e_ndrho_laplace_rhoa, e_ndrho_laplace_rhob, e_ndrhoa_laplace_rhoa, &
-      e_ndrhoa_laplace_rhob, e_ndrhob_laplace_rhoa, e_ndrhob_laplace_rhob
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_ndrho_tau_a, &
+      e_ndrho_laplace_rhoa, e_ndrho_laplace_rhob, e_ndrhoa_laplace_rhoa
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_ndrhoa_laplace_rhob, &
+      e_ndrhob_laplace_rhoa, e_ndrhob_laplace_rhob, e_ndrho_tau_a, &
       e_ndrho_tau_b, e_ndrhoa_tau_a, e_ndrhoa_tau_b, e_ndrhob_tau_a, &
       e_ndrhob_tau_b, e_laplace_rhoa_laplace_rhoa, &
       e_laplace_rhoa_laplace_rhob, e_laplace_rhob_laplace_rhob, &

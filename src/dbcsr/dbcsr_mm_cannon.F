@@ -1815,26 +1815,26 @@ MODULE dbcsr_mm_cannon
       left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
       left_recv_icol, left_recv_irow, left_recv_p, left_recv_pcol, &
       left_recv_prow, left_recv_vcol, left_recv_vrow, left_row_image, &
-      left_row_mult, left_row_nimages
-    INTEGER :: left_send_icol, left_send_irow, left_send_p, left_send_pcol, &
-      left_send_prow, left_send_vcol, left_send_vrow, left_src_icol, &
-      left_src_irow, left_src_p, left_src_pcol, left_src_prow, left_src_vcol, &
-      left_src_vrow, metronome, min_nimages, mp_group, mynode, &
+      left_row_mult
+    INTEGER :: left_row_nimages, left_send_icol, left_send_irow, left_send_p, &
+      left_send_pcol, left_send_prow, left_send_vcol, left_send_vrow, &
+      left_src_icol, left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
+      left_src_vcol, left_src_vrow, metronome, min_nimages, mp_group, mynode, &
       nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
       output_unit, right_col_image, right_col_mult, right_col_nimages, &
       right_data_recv_size, right_data_send_size, right_dst_icol, &
       right_dst_irow, right_dst_p, right_dst_pcol, right_dst_prow, &
-      right_dst_vcol, right_dst_vrow, right_index_recv_size, &
-      right_index_send_size, right_max_nblks
-    INTEGER :: right_max_nze, right_myfirstvcol, right_myfirstvrow, &
-      right_mypcol, right_myprow, right_npcols, right_nprows, &
-      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
-      right_recv_prow, right_recv_vcol, right_recv_vrow, right_row_image, &
-      right_row_mult, right_row_nimages, right_send_icol, right_send_irow, &
-      right_send_p, right_send_pcol, right_send_prow, right_send_vcol, &
-      right_send_vrow, right_src_icol, right_src_irow, right_src_p, &
-      right_src_pcol, right_src_prow, right_src_vcol, right_src_vrow, row, &
-      size_guess, stat, threads_finished, threads_finished_read, v_k, v_ki
+      right_dst_vcol, right_dst_vrow, right_index_recv_size
+    INTEGER :: right_index_send_size, right_max_nblks, right_max_nze, &
+      right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, &
+      right_npcols, right_nprows, right_recv_icol, right_recv_irow, &
+      right_recv_p, right_recv_pcol, right_recv_prow, right_recv_vcol, &
+      right_recv_vrow, right_row_image, right_row_mult, right_row_nimages, &
+      right_send_icol, right_send_irow, right_send_p, right_send_pcol, &
+      right_send_prow, right_send_vcol, right_send_vrow, right_src_icol, &
+      right_src_irow, right_src_p, right_src_pcol, right_src_prow, &
+      right_src_vcol, right_src_vrow, row, size_guess, stat, threads_finished
+    INTEGER :: threads_finished_read, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_metronome, flop_single, &
                                                 flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts

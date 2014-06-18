@@ -56,9 +56,9 @@ CONTAINS
       c5(4) = (/ -1.5861_dp, -0.31082_dp, -0.083751_dp, 0.0038915_dp /), &
       c6(3) = (/ -0.4803_dp, -0.082676_dp, 0.0030302_dp /), &
       c7(2) = (/ 0.164_dp, 0.533_dp /), c8(2) = (/ 0.1736_dp, 0.315_dp /), &
-      c9(2) = (/ 0.256_dp, -0.00635_dp /), g(2) = (/ -2.273_dp, 0.459_dp /), &
-      one = 1.0_dp
-    REAL(KIND=dp), PARAMETER :: pi6 = 1.909859_dp, qtr = 0.25_dp, &
+      c9(2) = (/ 0.256_dp, -0.00635_dp /)
+    REAL(KIND=dp), PARAMETER :: g(2) = (/ -2.273_dp, 0.459_dp /), &
+      one = 1.0_dp, pi6 = 1.909859_dp, qtr = 0.25_dp, &
       small = EPSILON(0.0_dp), sqrth = 0.70711_dp, stqr = 1.047198_dp, &
       th = 0.375_dp, three = 3.0_dp, two = 2.0_dp, xx90 = 0.556_dp, &
       xx95 = 0.622_dp, z90 = 1.2816_dp, z95 = 1.6449_dp, z99 = 2.3263_dp, &
@@ -238,8 +238,9 @@ CONTAINS
       d2 = 1.2021132975E-01_dp, e0 = 6.6579051150E+00_dp, &
       e1 = 3.0812263860E+00_dp, e2 = 4.2868294337E-01_dp, &
       e3 = 1.7337203997E-02_dp, f1 = 2.4197894225E-01_dp, &
-      f2 = 1.2258202635E-02_dp, half = 0.5_dp, one = 1.0_dp, &
-      split1 = 0.425_dp, split2 = 5.0_dp, zero = 0.0_dp
+      f2 = 1.2258202635E-02_dp, half = 0.5_dp, one = 1.0_dp
+    REAL(KIND=dp), PARAMETER :: split1 = 0.425_dp, split2 = 5.0_dp, &
+      zero = 0.0_dp
 
     REAL(KIND=dp)                            :: q, r
 

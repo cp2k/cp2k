@@ -594,7 +594,8 @@ MODULE mp2_ri_grad_util
       rec_col_end, rec_col_size, rec_col_start, rec_counter, rec_pcol, &
       rec_prow, rec_row_end, rec_row_size, rec_row_start, ref_send_pcol, &
       ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
-      size_send_buffer, start_col_block, start_row_block, stat
+      size_send_buffer, start_col_block, start_row_block
+    INTEGER :: stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_col_rec, &
                                                 map_rec_size, map_send_size, &
                                                 req_send

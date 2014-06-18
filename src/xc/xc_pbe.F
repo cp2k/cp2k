@@ -472,54 +472,55 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
       ex_unif, ex_unif1rho, ex_unif1rhorho, ex_unif2rho, ex_unifrho, &
       ex_unifrho1rho, ex_unifrhorho, Fx, Fx1rho, Fx1rhorho, Fx2rho, &
       Fxnorm_drho, Fxnorm_drho1rho, Fxnorm_drhonorm_drho, Fxnorm_drhorho, &
-      Fxrho, Fxrho1rho, Fxrhorho, gamma_var, Hnorm_drho, Hnorm_drhonorm_drho, &
-      Hnorm_drhorho, k_f, k_f2rho, k_frho
-    REAL(kind=dp) :: k_frhorho, k_frhorhorho, k_s, k_s1rho, k_s1rhorho, &
-      k_s2rho, k_srho, k_srho1rho, k_srhorho, kappa, kf, kf2rho, kfrho, &
-      kfrhorho, kfrhorhorho, mu, my_norm_drho, my_rho, p_1, p_2, rs, rs2rho, &
-      rsrho, rsrhorho, rsrhorhorho, s, s1rho, s1rhorho, s2norm_drho, s2rho, &
-      snorm_drho, snorm_drho1rho, snorm_drhorho, srho, srho1rho, srhorho, t, &
-      t1, t1001, t1004, t1005, t1006, t1008, t101, t1011, t1012, t1013, &
-      t1014, t1016, t1017, t1018, t1019, t1022, t1024, t1026, t1028, t103, &
-      t1030, t1031, t1035, t1042, t1046, t1048, t105, t1050, t1052, t1054, &
-      t1055, t1060, t1061, t1062, t1067, t108, t1093, t1097, t11, t1103, t1104
-    REAL(kind=dp) :: t1106, t1109, t111, t1115, t1118, t1121, t1122, t1126, &
+      Fxrho, Fxrho1rho, Fxrhorho, gamma_var, Hnorm_drho, Hnorm_drhonorm_drho
+    REAL(kind=dp) :: Hnorm_drhorho, k_f, k_f2rho, k_frho, k_frhorho, &
+      k_frhorhorho, k_s, k_s1rho, k_s1rhorho, k_s2rho, k_srho, k_srho1rho, &
+      k_srhorho, kappa, kf, kf2rho, kfrho, kfrhorho, kfrhorhorho, mu, &
+      my_norm_drho, my_rho, p_1, p_2, rs, rs2rho, rsrho, rsrhorho, &
+      rsrhorhorho, s, s1rho, s1rhorho, s2norm_drho, s2rho, snorm_drho, &
+      snorm_drho1rho, snorm_drhorho, srho, srho1rho, srhorho, t, t1, t1001, &
+      t1004, t1005, t1006, t1008, t101, t1011, t1012, t1013, t1014, t1016, &
+      t1017, t1018, t1019, t1022, t1024, t1026, t1028, t103, t1030, t1031, &
+      t1035, t1042, t1046, t1048, t105, t1050, t1052, t1054, t1055
+    REAL(kind=dp) :: t1060, t1061, t1062, t1067, t108, t1093, t1097, t11, &
+      t1103, t1104, t1106, t1109, t111, t1115, t1118, t1121, t1122, t1126, &
       t1129, t113, t114, t1148, t115, t1152, t1157, t1167, t1187, t119, &
       t1196, t1203, t1218, t1226, t123, t124, t1249, t125, t126, t1262, &
       t1263, t127, t1291, t1292, t1295, t13, t131, t1329, t1342, t135, t138, &
       t1380, t1385, t1386, t1387, t1389, t139, t1393, t14, t140, t142, t146, &
       t1468, t148, t1482, t149, t1492, t1493, t150, t1504, t1505, t151, &
       t1511, t1515, t1521, t1525, t1528, t153, t1532, t1545, t155, t1565, &
-      t157, t1573, t158, t1584, t159, t1608, t1612, t162, t1628, t1629, t163, &
-      t1633, t164, t1646, t1652, t1660, t167, t1672, t1676, t168, t17, t170
-    REAL(kind=dp) :: t171, t1715, t1722, t175, t1758, t1759, t176, t1761, &
-      t177, t178, t179, t1797, t182, t183, t1838, t1851, t186, t187, t1878, &
-      t1889, t189, t19, t190, t1907, t191, t1922, t1927, t1933, t1937, t195, &
-      t1952, t196, t1964, t1965, t1968, t1969, t197, t1972, t198, t1990, &
-      t1rho, t1rhorho, t2, t20, t200, t202, t2020, t2024, t2028, t2031, t204, &
-      t2041, t208, t21, t214, t217, t218, t22, t226, t229, t230, t238, t239, &
-      t240, t241, t246, t252, t253, t255, t259, t26, t260, t261, t262, t265, &
-      t266, t267, t27, t271, t272, t273, t277, t278, t280, t281, t286, t290, &
-      t291, t293, t294, t295, t296, t297, t299, t2norm_drho
-    REAL(kind=dp) :: t2rho, t3, t305, t309, t310, t315, t317, t318, t321, &
-      t323, t324, t327, t329, t330, t331, t336, t338, t339, t340, t341, t348, &
-      t349, t354, t357, t359, t360, t361, t362, t369, t370, t371, t374, t377, &
-      t378, t381, t382, t384, t385, t387, t388, t390, t392, t393, t397, t4, &
-      t400, t401, t404, t408, t409, t410, t414, t417, t418, t423, t426, t427, &
-      t432, t435, t436, t438, t439, t440, t448, t449, t451, t456, t457, t458, &
-      t459, t461, t462, t463, t465, t466, t469, t470, t471, t472, t476, t487, &
-      t491, t496, t498, t5, t500, t503, t506, t507, t510, t513, t517, t521, &
-      t525, t529, t530, t535, t541, t548, t553, t556
-    REAL(kind=dp) :: t557, t559, t562, t566, t581, t586, t590, t591, t594, &
-      t598, t6, t605, t609, t611, t612, t614, t627, t645, t65, t654, t656, &
-      t661, t664, t669, t670, t671, t673, t675, t685, t69, t693, t7, t70, &
-      t701, t702, t71, t714, t717, t72, t720, t73, t74, t740, t743, t748, &
-      t75, t758, t77, t776, t78, t8, t80, t801, t809, t81, t812, t821, t825, &
-      t83, t831, t84, t85, t86, t868, t87, t877, t879, t88, t880, t885, t90, &
-      t91, t94, t940, t942, t943, t945, t946, t948, t95, t950, t951, t954, &
-      t967, t976, t98, t980, t982, t984, t989, t99, t990, t994, t995, t998, &
-      t999, tnorm_drho, tnorm_drho1rho, tnorm_drhorho, tnorm_drhorhorho
-    REAL(kind=dp) :: trho, trho1rho, trhorho, trhorhorho
+      t157, t1573, t158, t1584, t159, t1608, t1612, t162
+    REAL(kind=dp) :: t1628, t1629, t163, t1633, t164, t1646, t1652, t1660, &
+      t167, t1672, t1676, t168, t17, t170, t171, t1715, t1722, t175, t1758, &
+      t1759, t176, t1761, t177, t178, t179, t1797, t182, t183, t1838, t1851, &
+      t186, t187, t1878, t1889, t189, t19, t190, t1907, t191, t1922, t1927, &
+      t1933, t1937, t195, t1952, t196, t1964, t1965, t1968, t1969, t197, &
+      t1972, t198, t1990, t1rho, t1rhorho, t2, t20, t200, t202, t2020, t2024, &
+      t2028, t2031, t204, t2041, t208, t21, t214, t217, t218, t22, t226, &
+      t229, t230, t238, t239, t240, t241, t246, t252, t253, t255, t259, t26, &
+      t260, t261, t262, t265, t266, t267, t27
+    REAL(kind=dp) :: t271, t272, t273, t277, t278, t280, t281, t286, t290, &
+      t291, t293, t294, t295, t296, t297, t299, t2norm_drho, t2rho, t3, t305, &
+      t309, t310, t315, t317, t318, t321, t323, t324, t327, t329, t330, t331, &
+      t336, t338, t339, t340, t341, t348, t349, t354, t357, t359, t360, t361, &
+      t362, t369, t370, t371, t374, t377, t378, t381, t382, t384, t385, t387, &
+      t388, t390, t392, t393, t397, t4, t400, t401, t404, t408, t409, t410, &
+      t414, t417, t418, t423, t426, t427, t432, t435, t436, t438, t439, t440, &
+      t448, t449, t451, t456, t457, t458, t459, t461, t462, t463, t465, t466, &
+      t469, t470, t471, t472
+    REAL(kind=dp) :: t476, t487, t491, t496, t498, t5, t500, t503, t506, &
+      t507, t510, t513, t517, t521, t525, t529, t530, t535, t541, t548, t553, &
+      t556, t557, t559, t562, t566, t581, t586, t590, t591, t594, t598, t6, &
+      t605, t609, t611, t612, t614, t627, t645, t65, t654, t656, t661, t664, &
+      t669, t670, t671, t673, t675, t685, t69, t693, t7, t70, t701, t702, &
+      t71, t714, t717, t72, t720, t73, t74, t740, t743, t748, t75, t758, t77, &
+      t776, t78, t8, t80, t801, t809, t81, t812, t821, t825, t83, t831, t84, &
+      t85, t86, t868, t87, t877, t879, t88, t880, t885, t90, t91, t94, t940, &
+      t942, t943, t945, t946, t948, t95
+    REAL(kind=dp) :: t950, t951, t954, t967, t976, t98, t980, t982, t984, &
+      t989, t99, t990, t994, t995, t998, t999, tnorm_drho, tnorm_drho1rho, &
+      tnorm_drhorho, tnorm_drhorhorho, trho, trho1rho, trhorho, trhorhorho
 
 !TYPE(section_vals_type), POINTER         :: pbe_params
 !, param
@@ -1579,60 +1580,60 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       chirhoarhoa, chirhoarhob, chirhob, chirhobrhob, e_c_u_0, e_c_u_01rhoa, &
       e_c_u_01rhob, e_c_u_0rhoa, e_c_u_0rhoarhoa, e_c_u_0rhoarhob, &
       e_c_u_0rhob, e_c_u_0rhobrhob, e_c_u_1rhoa, e_c_u_1rhob, epsilon_c_unif, &
-      epsilon_c_unif1rhoa, epsilon_c_unif1rhob, epsilon_c_unifrhoa, &
-      epsilon_c_unifrhoarhoa
-    REAL(kind=dp) :: epsilon_c_unifrhoarhob, epsilon_c_unifrhob, &
-      epsilon_c_unifrhobrhob, epsilon_cGGA, epsilon_cGGArhoa, &
-      epsilon_cGGArhob, ex_unif_a, ex_unif_a1rhoa, ex_unif_arhoa, ex_unif_b, &
-      ex_unif_b1rhob, ex_unif_brhob, f, f1rhoa, f1rhob, frhoa, frhoarhoa, &
-      frhoarhob, frhob, frhobrhob, Fx_a, Fx_a1rhoa, Fx_anorm_drhoa, Fx_arhoa, &
-      Fx_b, Fx_b1rhob, Fx_bnorm_drhob, Fx_brhob, gamma_var, Hnorm_drho, &
-      k_frhoa, k_frhoarhoa, k_frhoarhob, k_frhob, k_s, k_s1rhoa, k_s1rhob, &
-      k_srhoa, k_srhob, kappa, kf_a, kf_arhoa, kf_arhoarhoa, kf_b, kf_brhob, &
-      kf_brhobrhob, mu, my_norm_drho, my_norm_drhoa, my_norm_drhob, my_rho, &
-      my_rhoa, my_rhob
-    REAL(kind=dp) :: p_1, p_2, p_3, phi, phi1rhoa, phi1rhob, phirhoa, &
-      phirhoarhoa, phirhoarhob, phirhob, phirhobrhob, rs, rsrhoa, rsrhoarhoa, &
-      rsrhoarhob, rsrhob, rsrhobrhob, s_a, s_a1rhoa, s_anorm_drhoa, s_arhoa, &
-      s_b, s_b1rhob, s_bnorm_drhob, s_brhob, t, t1, t100, t1000, t1001, t101, &
+      epsilon_c_unif1rhoa, epsilon_c_unif1rhob, epsilon_c_unifrhoa
+    REAL(kind=dp) :: epsilon_c_unifrhoarhoa, epsilon_c_unifrhoarhob, &
+      epsilon_c_unifrhob, epsilon_c_unifrhobrhob, epsilon_cGGA, &
+      epsilon_cGGArhoa, epsilon_cGGArhob, ex_unif_a, ex_unif_a1rhoa, &
+      ex_unif_arhoa, ex_unif_b, ex_unif_b1rhob, ex_unif_brhob, f, f1rhoa, &
+      f1rhob, frhoa, frhoarhoa, frhoarhob, frhob, frhobrhob, Fx_a, Fx_a1rhoa, &
+      Fx_anorm_drhoa, Fx_arhoa, Fx_b, Fx_b1rhob, Fx_bnorm_drhob, Fx_brhob, &
+      gamma_var, Hnorm_drho, k_frhoa, k_frhoarhoa, k_frhoarhob, k_frhob, k_s, &
+      k_s1rhoa, k_s1rhob, k_srhoa, k_srhob, kappa, kf_a, kf_arhoa, &
+      kf_arhoarhoa, kf_b, kf_brhob, kf_brhobrhob, mu, my_norm_drho
+    REAL(kind=dp) :: my_norm_drhoa, my_norm_drhob, my_rho, my_rhoa, my_rhob, &
+      p_1, p_2, p_3, phi, phi1rhoa, phi1rhob, phirhoa, phirhoarhoa, &
+      phirhoarhob, phirhob, phirhobrhob, rs, rsrhoa, rsrhoarhoa, rsrhoarhob, &
+      rsrhob, rsrhobrhob, s_a, s_a1rhoa, s_anorm_drhoa, s_arhoa, s_b, &
+      s_b1rhob, s_bnorm_drhob, s_brhob, t, t1, t100, t1000, t1001, t101, &
       t102, t103, t1031, t1033, t1038, t104, t105, t1050, t1069, t107, t1071, &
       t108, t110, t1104, t1106, t111, t112, t113, t115, t116, t1164, t118, &
       t119, t1193, t12, t122, t1228, t123, t1231, t124, t125, t126, t1269, &
-      t1283, t1285, t1286, t1288, t129, t1291, t1293, t130, t1304, t131, &
-      t1327, t133, t1330, t1342, t1346, t135, t137, t1377, t14, t140
-    REAL(kind=dp) :: t1411, t142, t143, t1440, t146, t1462, t1465, t147, &
-      t148, t1482, t1489, t1492, t15, t150, t1501, t1514, t1520, t1529, t153, &
-      t1550, t1552, t1555, t156, t1588, t1590, t1591, t1599, t1602, t1603, &
-      t162, t163, t1630, t1632, t1635, t1638, t164, t1640, t165, t167, t1674, &
-      t1677, t1680, t1698, t171, t1711, t1712, t1713, t1739, t1741, t1743, &
-      t1748, t175, t176, t1765, t1766, t1767, t177, t178, t179, t18, t1801, &
-      t1829, t183, t1830, t1831, t1865, t187, t1871, t1876, t1888, t190, &
-      t1901, t191, t192, t1922, t194, t1949, t198, t199, t1rhoa, t1rhob, t2, &
-      t20, t200, t201, t205, t21, t211, t212, t213, t215, t219, t22
-    REAL(kind=dp) :: t220, t221, t222, t226, t23, t232, t233, t234, t240, &
-      t242, t244, t245, t246, t248, t249, t250, t252, t254, t256, t257, t259, &
-      t262, t266, t268, t269, t27, t272, t273, t274, t277, t278, t28, t280, &
-      t281, t282, t284, t285, t286, t289, t293, t294, t297, t298, t299, t3, &
-      t302, t303, t305, t306, t310, t311, t312, t313, t314, t317, t318, t32, &
-      t321, t324, t325, t326, t329, t335, t336, t337, t34, t340, t341, t344, &
-      t346, t350, t368, t38, t382, t39, t396, t4, t40, t403, t405, t407, &
-      t409, t41, t410, t411, t413, t415, t417, t427, t429, t432, t436, t439, &
-      t442, t444, t445, t45, t453, t456, t457, t46, t460, t466
-    REAL(kind=dp) :: t467, t468, t471, t472, t475, t477, t481, t488, t493, &
-      t494, t5, t50, t502, t505, t506, t518, t519, t52, t523, t525, t536, &
-      t538, t543, t544, t548, t549, t550, t556, t56, t561, t563, t564, t57, &
-      t576, t578, t579, t58, t580, t588, t59, t590, t595, t596, t6, t600, &
-      t606, t611, t624, t626, t627, t628, t63, t636, t638, t64, t643, t644, &
-      t648, t654, t659, t66, t672, t674, t675, t676, t681, t682, t687, t69, &
-      t7, t70, t705, t708, t71, t711, t72, t726, t73, t733, t736, t74, t745, &
-      t75, t750, t755, t763, t767, t768, t77, t775, t776, t779, t78, t785, &
-      t789, t79, t795, t798, t8, t80, t801, t812, t82, t820, t821
-    REAL(kind=dp) :: t822, t823, t825, t828, t839, t84, t840, t85, t851, &
-      t858, t865, t867, t868, t87, t876, t879, t88, t880, t9, t90, t904, &
-      t908, t909, t91, t911, t914, t917, t919, t92, t924, t93, t936, t94, &
-      t944, t95, t953, t959, t96, t962, t965, t966, t967, t97, t98, t985, &
-      t998, t999, tnorm_drho, trhoa, trhoanorm_drho, trhoarhoa, trhoarhob, &
-      trhob, trhobnorm_drho, trhobrhob
+      t1283, t1285, t1286, t1288, t129, t1291, t1293
+    REAL(kind=dp) :: t130, t1304, t131, t1327, t133, t1330, t1342, t1346, &
+      t135, t137, t1377, t14, t140, t1411, t142, t143, t1440, t146, t1462, &
+      t1465, t147, t148, t1482, t1489, t1492, t15, t150, t1501, t1514, t1520, &
+      t1529, t153, t1550, t1552, t1555, t156, t1588, t1590, t1591, t1599, &
+      t1602, t1603, t162, t163, t1630, t1632, t1635, t1638, t164, t1640, &
+      t165, t167, t1674, t1677, t1680, t1698, t171, t1711, t1712, t1713, &
+      t1739, t1741, t1743, t1748, t175, t176, t1765, t1766, t1767, t177, &
+      t178, t179, t18, t1801, t1829, t183, t1830, t1831, t1865, t187, t1871, &
+      t1876, t1888, t190, t1901, t191, t192, t1922
+    REAL(kind=dp) :: t194, t1949, t198, t199, t1rhoa, t1rhob, t2, t20, t200, &
+      t201, t205, t21, t211, t212, t213, t215, t219, t22, t220, t221, t222, &
+      t226, t23, t232, t233, t234, t240, t242, t244, t245, t246, t248, t249, &
+      t250, t252, t254, t256, t257, t259, t262, t266, t268, t269, t27, t272, &
+      t273, t274, t277, t278, t28, t280, t281, t282, t284, t285, t286, t289, &
+      t293, t294, t297, t298, t299, t3, t302, t303, t305, t306, t310, t311, &
+      t312, t313, t314, t317, t318, t32, t321, t324, t325, t326, t329, t335, &
+      t336, t337, t34, t340, t341, t344, t346, t350, t368, t38, t382, t39, &
+      t396, t4, t40, t403, t405, t407
+    REAL(kind=dp) :: t409, t41, t410, t411, t413, t415, t417, t427, t429, &
+      t432, t436, t439, t442, t444, t445, t45, t453, t456, t457, t46, t460, &
+      t466, t467, t468, t471, t472, t475, t477, t481, t488, t493, t494, t5, &
+      t50, t502, t505, t506, t518, t519, t52, t523, t525, t536, t538, t543, &
+      t544, t548, t549, t550, t556, t56, t561, t563, t564, t57, t576, t578, &
+      t579, t58, t580, t588, t59, t590, t595, t596, t6, t600, t606, t611, &
+      t624, t626, t627, t628, t63, t636, t638, t64, t643, t644, t648, t654, &
+      t659, t66, t672, t674, t675, t676, t681, t682, t687, t69, t7, t70, &
+      t705, t708, t71, t711, t72, t726, t73, t733
+    REAL(kind=dp) :: t736, t74, t745, t75, t750, t755, t763, t767, t768, t77, &
+      t775, t776, t779, t78, t785, t789, t79, t795, t798, t8, t80, t801, &
+      t812, t82, t820, t821, t822, t823, t825, t828, t839, t84, t840, t85, &
+      t851, t858, t865, t867, t868, t87, t876, t879, t88, t880, t9, t90, &
+      t904, t908, t909, t91, t911, t914, t917, t919, t92, t924, t93, t936, &
+      t94, t944, t95, t953, t959, t96, t962, t965, t966, t967, t97, t98, &
+      t985, t998, t999, tnorm_drho, trhoa, trhoanorm_drho, trhoarhoa, &
+      trhoarhob, trhob, trhobnorm_drho, trhobrhob
 
   failure=.FALSE.
 
