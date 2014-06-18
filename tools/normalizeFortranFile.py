@@ -376,7 +376,6 @@ def writeCompactDeclaration(declaration,file):
         writeRoutine(d['iroutine'],file)
         file.writelines(d['iend'])
     else:
-        dLine=[]
         if len(d['vars'])>0:
             decl = "    "+d['type']
             if d['parameters']: # do not drop empty parameter lists?
