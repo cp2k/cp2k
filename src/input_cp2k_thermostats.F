@@ -553,7 +553,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="GLE",&
             description="paramameters of the gle thermostat. This section can be generated "//&
-                        " from http://gle4md.berlios.de/compose.php?page=matrix ",&
+                        " from https://epfl-cosmo.github.io/gle4md/index.html?page=matrix ",&
             citations=(/Ceriotti2009,Ceriotti2009b/),required=.FALSE.,error=error)
 
        NULLIFY(keyword, subsection)
