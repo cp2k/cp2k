@@ -1,0 +1,100 @@
+
+$(EXE:.x=.f90):
+	@echo "Generate master file $@"
+	@rm -f $@
+
+	@printf "SUBROUTINE run_kernels(filename,unit,M,N,K,A,B,C,Nmin,Nk,Nloop,kernels,mnk) \n" >> $@
+	@printf "  USE omp_lib \n" >> $@
+	@printf "  IMPLICIT NONE \n" >> $@
+	@printf "  CHARACTER(len=*) :: filename \n" >> $@
+	@printf "  INTEGER :: unit ! Output unit \n" >> $@
+	@printf "  INTEGER :: M,N,K \n" >> $@
+	@printf "  $(DATATYPE) :: C(*) \n" >> $@
+	@printf "  $(DATATYPE) :: B(*), A(*) \n" >> $@
+	@printf "  INTEGER :: Nmin \n" >> $@
+	@printf "  INTEGER :: Nk, Nloop \n" >> $@
+	@printf "  INTERFACE \n" >> $@
+	@printf "     SUBROUTINE X(A,B,C) \n" >> $@
+	@printf "       $(DATATYPE) :: C(*) \n" >> $@
+	@printf "       $(DATATYPE) :: B(*), A(*) \n" >> $@
+	@printf "     END SUBROUTINE X \n" >> $@
+	@printf "  END INTERFACE \n" >> $@
+	@printf "  TYPE t_kernels \n" >> $@
+	@printf "     PROCEDURE(X), POINTER, NOPASS :: ptr \n" >> $@
+	@printf "  END TYPE t_kernels \n" >> $@
+	@printf "  TYPE(t_kernels) :: kernels(Nk,Nloop) \n" >> $@
+	@printf "  PROCEDURE(X), POINTER :: kern \n" >> $@
+	@printf "  INTEGER :: mnk(3,Nk) ! mu, nu, ku \n" >> $@
+	@printf "  REAL(KIND=KIND(0.D0)), PARAMETER :: gflop=1000.0D0*1000.0D0*1000.0D0 \n" >> $@
+	@printf "  REAL(KIND=KIND(0.D0)) :: flops \n" >> $@
+	@printf "  REAL(KIND=KIND(0.D0)) :: t1,t2,timing,best_time \n" >> $@
+	@printf "  INTEGER :: iter,Niter,imin,ik,iloop,best_loop,best_mnk(3) \n" >> 	$@
+	@printf "  if (unit.ne.6) THEN \n" >> $@
+	@printf "     open(unit=unit,file=\"$(OUTDIR)/\"//trim(filename)) \n" >> $@
+	@printf "  END if \n" >> $@
+	@printf "  flops=2*REAL(M,KIND=KIND(0.D0))*N*K \n" >> $@
+	@printf "  ! assume we would like to do 1 Gflop for testing a subroutine \n" >> $@
+	@printf "  Niter=MAX(1,CEILING(MIN(100000000.0D0,1*gflop/flops))) \n" >> $@
+	@printf "  best_time=HUGE(best_time) \n" >> $@
+	@printf "  best_loop=0 \n" >> $@
+	@printf "  best_mnk=0 \n" >> $@
+	@printf "  DO imin=1,Nmin \n" >> $@
+	@printf "    DO iloop=1,Nloop \n" >> $@
+	@printf "      DO ik=1,Nk \n" >> $@
+	@printf "        kern => kernels(ik,iloop)%%ptr \n" >> $@
+	@printf "        t1=OMP_GET_WTIME() \n" >> $@
+	@printf "        DO iter=1,Niter \n" >> $@
+	@printf "          CALL kern(A,B,C) \n" >> $@
+	@printf "        ENDDO \n" >> $@
+	@printf "        t2=OMP_GET_WTIME() \n" >> $@
+	@printf "        timing=t2-t1 \n" >> $@
+	@printf "        IF (mnk(1,ik).ne.0) THEN \n" >> $@
+	@printf "          write(unit,'(4I4,F12.6,F12.3)') &  \n" >> $@
+	@printf "                iloop, &  \n" >> $@
+	@printf "                mnk(1,ik),mnk(2,ik),mnk(3,ik), & \n" >> $@
+	@printf "                timing, & \n" >> $@
+	@printf "                flops*Niter/gflop/timing \n" >> $@
+	@printf "        ELSE \n" >> $@
+	@printf "          write(unit,'(1I4,F12.6,F12.3)') &  \n" >> $@
+	@printf "                iloop, &  \n" >> $@
+	@printf "                timing, & \n" >> $@
+	@printf "                flops*Niter/gflop/timing \n" >> $@
+	@printf "        END IF \n" >> $@
+	@printf "        IF (timing<best_time) THEN \n" >> $@
+	@printf "          best_time=timing \n" >> $@
+	@printf "          best_loop=iloop \n" >> $@
+	@printf "          IF (mnk(1,ik).ne.0) best_mnk=mnk(:,ik) \n" >> $@
+	@printf "        END IF \n" >> $@
+	@printf "      END DO \n" >> $@
+	@printf "    END DO \n" >> $@
+	@printf "  END DO \n" >> $@
+	@printf "  IF (best_mnk(1).ne.0) THEN \n" >> $@
+	@printf "    write(unit,'(4I4,F12.6,F12.3)') best_loop,best_mnk,best_time,(flops*Niter/best_time)/gflop \n" >> $@
+	@printf "  ELSE \n" >> $@
+	@printf "    write(unit,'(1I4,F12.6,F12.3)') best_loop,best_time,(flops*Niter/best_time)/gflop \n" >> $@
+	@printf "  END IF \n" >> $@
+	@printf "  if (unit.ne.6) close(unit) \n" >> $@
+	@printf "END SUBROUTINE run_kernels \n\n" >> $@
+	@printf "PROGRAM $(basename $@) \n" >> $@ 
+	@printf "  USE omp_lib \n" >> $@
+	@printf "  IMPLICIT NONE \n" >> $@
+	@printf "  INTEGER :: i \n" >> $@
+	@printf "  INTERFACE \n" >> $@
+	@printf "    SUBROUTINE kernel_find_X(unit) \n" >> $@
+	@printf "      INTEGER :: unit \n" >> $@
+	@printf "    END SUBROUTINE kernel_find_X \n" >> $@
+	@printf "  END INTERFACE \n" >> $@
+	@for kernel_find in $(basename $(SRCFILES)); do printf "  PROCEDURE(kernel_find_X) :: $${kernel_find} \n" >> $@ ; done
+	@printf "  TYPE t_kernels_vector \n" >> $@
+	@printf "    PROCEDURE(kernel_find_X), POINTER, NOPASS :: ptr \n" >> $@
+	@printf "  END TYPE t_kernels_vector \n" >> $@
+	@printf "  TYPE(t_kernels_vector) :: kernels_vector($(words $(SRCFILES))) \n" >> $@
+	@ii=1; for kernel_find in $(basename $(SRCFILES)); do printf "  kernels_vector($${ii})%%ptr => $${kernel_find} \n" >> $@ ; ii=$$((ii+1)) ; done
+	@printf '  !$$omp parallel do schedule(dynamic,2) \n' >> $@
+	@printf "  DO i=1,SIZE(kernels_vector,1) \n" >> $@
+	@printf "    call kernels_vector(i)%%ptr(unit=omp_get_thread_num()+7) \n" >> $@
+	@printf "  END DO \n" >> $@
+	@printf '  !$$omp end parallel do \n' >> $@
+	@printf "END PROGRAM $(basename $@) \n" >> $@
+
+	@echo "Master file generation completed."
