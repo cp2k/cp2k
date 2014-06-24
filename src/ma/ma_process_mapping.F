@@ -766,14 +766,15 @@ FUNCTION distance(grid_dim,countx,county) RESULT(dist)
 END FUNCTION distance
 
 SUBROUTINE ma_hilbert_order(tmp_order,grid_dim)
+
   INTEGER, DIMENSION(:)                  :: tmp_order
   INTEGER                                :: grid_dim
 
+#if defined(__parallel)
   INTEGER                                :: pos, countx, county
 
-#if defined(__parallel)
   tmp_order(:) = 0  
- ! Create hilbert curve - encoding from (x,y) to a hilbert point
+  ! Create hilbert curve - encoding from (x,y) to a hilbert point
 
   pos = 1
   countx = 0
@@ -804,20 +805,18 @@ RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,&
                                           current_ncol, start_grid,&
                                           working_col,mp_comm)
  INTEGER, DIMENSION(:)                 :: ranks_order
- INTEGER                               :: grid_dim,count_itens, index_order, &
-                                          row_counter, col_counter, current_ncol, &
-                                          ncol,nrow,numtask, current_numtask,&
-                                          start_grid, current_nrow, &
-                                          col_childs,col_rest,i, &
-                                          last_grid, row_child, row_rest,ntasks, &
-                                          taskid, mp_comm, stat
- LOGICAL                               :: working_col                                           
-
- INTEGER                               :: local_start_grid, local_current_numtask,&
-                                          local_numtask,local_current_ncol
-
+ INTEGER                               :: ncol,nrow,numtask,current_numtask,&
+                                          current_nrow,current_ncol,start_grid,&
+                                          mp_comm
+ LOGICAL                               :: working_col
 
 #if defined(__parallel)
+ INTEGER                               :: grid_dim,count_itens,index_order, &
+                                          row_counter,col_counter,col_childs,&
+                                          col_rest,i,last_grid,row_child,&
+                                          row_rest,ntasks,taskid,stat,&
+                                          local_start_grid, local_current_numtask,&
+                                          local_numtask,local_current_ncol
  INTEGER, DIMENSION(:), POINTER        :: tmp_order, real_grid
 
  IF( (current_numtask .GE. 4) .AND. (numtask .GT. 0))THEN 
@@ -1010,8 +1009,8 @@ RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,&
     i = i + 1
    ENDDO
 ENDIF
- 
 #endif
+
 END SUBROUTINE ma_hilbert_recursive
 
 FUNCTION is_square (grid_dim) RESULT (square)
@@ -1043,12 +1042,16 @@ END FUNCTION is_square
 !>      7.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
 FUNCTION has_more_2dgrid(ncol,nrow,numtask) RESULT(has_2d)
+
     INTEGER, INTENT(IN)                      :: ncol, nrow, numtask
     INTEGER                                  :: has_2d
 
+#if defined(__parallel)
     INTEGER                                  :: grid_dim, rest, rest_col
+#endif
 
  has_2d = 0 
+
 #if defined(__parallel)
  grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
  rest =  nrow - grid_dim
@@ -1058,8 +1061,8 @@ FUNCTION has_more_2dgrid(ncol,nrow,numtask) RESULT(has_2d)
    grid_dim = SQRT(REAL(ma_find_max_square_grid(rest*rest),KIND=dp))
    IF (is_square(grid_dim)) has_2d = 1
  ENDIF
-
 #endif
+
 END FUNCTION has_more_2dgrid
 
 ! *****************************************************************************

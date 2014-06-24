@@ -133,13 +133,17 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: gcd_max, ipcol, ipe, iprow, &
-                                                jpe, my_blacs_grid_layout, &
-                                                npcol, npe, nprow, stat
-    LOGICAL                                  :: failure, my_blacs_repeatable, &
+    INTEGER                                  :: ipcol, iprow, stat
+    LOGICAL                                  :: failure
+#if defined(__parallel)
+    INTEGER                                  :: gcd_max, ipe, jpe,&
+                                                my_blacs_grid_layout, &
+                                                npcol, npe, nprow
+    LOGICAL                                  :: my_blacs_repeatable, &
                                                 my_row_major
+#endif
 
-  failure=.FALSE.
+  failure = .FALSE.
 
 #ifdef __parallel
 #ifndef __SCALAPACK
@@ -150,6 +154,7 @@ CPSourceFileRef,&
        error=error)
 #endif
 #endif
+
   CPPrecondition(.NOT.ASSOCIATED(blacs_env),cp_failure_level,routineP,error,failure)
 
   ALLOCATE(blacs_env,stat=stat)

@@ -214,15 +214,15 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: determinant
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: counter, handle, i, info, &
                                                 n, nrow_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
-    INTEGER, DIMENSION(9)                    :: desca
     INTEGER, DIMENSION(:), POINTER           :: row_indices
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
 #else
     INTEGER                                  :: lda
 #endif
@@ -293,8 +293,8 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, b, c
     INTEGER                                  :: handle, j
-    INTEGER, DIMENSION(9)                    :: desca, descb, descc
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb, descc
 #else
     INTEGER                                  :: lda, ldb, ldc
 #endif
@@ -343,11 +343,11 @@ CPSourceFileRef,&
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    INTEGER                                  :: icol_global, icol_local, &
-                                                ipcol, iprow, irow_local, k, &
-                                                mypcol, myprow, n, npcol, &
+    INTEGER                                  :: k, mypcol, myprow, n, npcol, &
                                                 nprow
 #if defined(__SCALAPACK)
+    INTEGER                                  :: icol_global, icol_local, &
+                                                ipcol, iprow, irow_local
 #else
     INTEGER                                  :: i
 #endif
@@ -393,15 +393,15 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, a_general
     INTEGER                                  :: counter, handle, i, info, &
                                                 n, nrow_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
-    INTEGER, DIMENSION(9)                    :: desca, descb
     INTEGER, DIMENSION(:), POINTER           :: row_indices
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
 #else
     INTEGER                                  :: lda, ldb
 #endif
@@ -484,8 +484,10 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: handle, info, my_n
-    INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
     CALL timeset(routineN,handle)
 

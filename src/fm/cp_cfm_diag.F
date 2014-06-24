@@ -47,16 +47,22 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
     COMPLEX(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: m, v
+      POINTER                                :: m
     INTEGER                                  :: handle, info, istat, liwork, &
                                                 lrwork, lwork, n
-    INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: descm, descv
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: v
+#endif
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
+    
+    failure = .FALSE.
+
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(eigenvectors),cp_failure_level,routineP,error,failure)
 

@@ -122,7 +122,8 @@ CONTAINS
 SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
      local_leading_dimension, template_fmstruct, square_blocks, force_block, error)
-  TYPE(cp_fm_struct_type), POINTER       :: fmstruct
+
+  TYPE(cp_fm_struct_type), POINTER             :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
   INTEGER, INTENT(in), OPTIONAL                :: nrow_global,ncol_global
   INTEGER, INTENT(in), OPTIONAL                :: nrow_block,ncol_block
@@ -133,19 +134,19 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
   LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
   LOGICAL, OPTIONAL, INTENT(in)                :: force_block
-  TYPE(cp_error_type), INTENT(inout) :: error
+  TYPE(cp_error_type), INTENT(inout)           :: error
 
-  INTEGER ::  dumblock
+  CHARACTER(LEN=*), PARAMETER :: routineN='cp_fm_struct_create',&
+        routineP=moduleN//':'//routineN
 
-  INTEGER :: iunit
-  TYPE(cp_logger_type), POINTER :: logger
+  INTEGER                                      :: dumblock
 #if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: numroc
+  INTEGER                                      :: iunit
+  INTEGER, EXTERNAL                            :: numroc
+  TYPE(cp_logger_type), POINTER                :: logger
 #endif
 
   LOGICAL :: failure, my_square_blocks, my_force_block
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_create',&
-        routineP=moduleN//':'//routineN
   INTEGER :: stat
   failure=.FALSE.
 
@@ -234,7 +235,7 @@ CPSourceFileRef,&
 
      fmstruct%nrow_locals=0
      fmstruct%ncol_locals=0
-#ifdef __SCALAPACK
+#if defined(__SCALAPACK)
      fmstruct%nrow_locals(fmstruct%context%mepos(1))= &
           numroc(fmstruct%nrow_global,fmstruct%nrow_block,&
           fmstruct%context%mepos(1),fmstruct%first_p_pos(1),&

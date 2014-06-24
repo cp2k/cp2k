@@ -642,21 +642,23 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_element', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icol_local, ipcol, iprow, &
-                                                irow_local, mypcol, myprow, &
-                                                npcol, nprow
-    INTEGER, DIMENSION(9)                    :: desca
+    INTEGER                                  :: mypcol, myprow, npcol, nprow
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_blacs_env_type), POINTER         :: context
+#if defined(__SCALAPACK)
+    INTEGER                                  :: icol_local, ipcol, iprow, &
+                                                irow_local
+    INTEGER, DIMENSION(9)                    :: desca
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+#endif
 
     failure = .FALSE.
 
     context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
+    myprow = context%mepos(1)
+    mypcol = context%mepos(2)
+    nprow = context%num_pe(1)
+    npcol = context%num_pe(2)
 
     CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
 
@@ -1456,11 +1458,12 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_columns', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, n, ss, ts
-    INTEGER, DIMENSION(9)                    :: desca, descb
+    INTEGER                                  :: handle, n, ss, ts
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
-
-! -------------------------------------------------------------------------
+#if defined(__SCALAPACK)
+    INTEGER                                  :: i
+    INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -1501,12 +1504,12 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, na, nb, ss, ts
-    INTEGER, DIMENSION(9)                    :: desca, descb
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_blacs_env_type), POINTER         :: context
-
-! -------------------------------------------------------------------------
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -1581,15 +1584,15 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_add_to_element', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icol_local, ipcol, iprow, &
-                                                irow_local, mypcol, myprow, &
-                                                npcol, nprow
-    INTEGER, DIMENSION(9)                    :: desca
+    INTEGER                                  :: mypcol, myprow,npcol, nprow
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_blacs_env_type), POINTER         :: context
-
-! -------------------------------------------------------------------------
+#if defined(__SCALAPACK)
+    INTEGER                                  :: icol_local, ipcol, iprow, &
+                                                irow_local
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
     failure = .FALSE.
 
@@ -1632,20 +1635,23 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write_unformatted', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, i_block, icol_local, ictxt_loc, in, info, ipcol, &
-      iprow, irow_local, istat, j, max_block, mepos, mypcol, myprow, &
-      ncol_global, npcol, nprow, nrow_global, num_pe, rb,tag
-    INTEGER, DIMENSION(9)                    :: desc
+    INTEGER                                  :: handle, j, max_block,&
+                                                ncol_global, nrow_global
     LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
+#if defined(__SCALAPACK)
+    INTEGER                                  :: i, i_block, icol_local,&
+                                                ictxt_loc, in, info, ipcol, &
+                                                iprow, irow_local, istat, &
+                                                mepos, mypcol, myprow, &
+                                                npcol, nprow, num_pe, rb, tag
+    INTEGER, DIMENSION(9)                    :: desc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-#if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: numroc
+    INTEGER, EXTERNAL                        :: numroc
 #endif
 
-   failure=.FALSE.
+   failure = .FALSE.
    CALL timeset(routineN,handle)
    CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
         para_env=para_env,error=error)
@@ -1718,8 +1724,8 @@ CPSourceFileRef,&
    END IF
 
 #endif
-
    CALL timestop(handle)
+
  END SUBROUTINE cp_fm_write_unformatted
 
  SUBROUTINE cp_fm_read_unformatted(fm,unit,error)
@@ -1730,19 +1736,20 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_read_unformatted', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, j, k, max_block, &
-                                                n_cols, ncol_global, &
-                                                nrow_global, stat
+    INTEGER                                  :: handle, j, max_block, &
+                                                ncol_global, nrow_global
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuf
     TYPE(cp_para_env_type), POINTER          :: para_env
+#if defined(__SCALAPACK)
+    INTEGER                                  :: k, n_cols, stat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuf
+#endif
 
    CALL timeset(routineN,handle)
    failure=.FALSE.
 
    CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
         para_env=para_env,error=error)
-
 
 #if defined(__SCALAPACK)
 

@@ -53,14 +53,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, my_n
-    INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
+    failure = .FALSE.
+
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
@@ -121,11 +124,14 @@ CONTAINS
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n
-    INTEGER, DIMENSION(9)                     :: desca
     LOGICAL                                   :: failure
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                     :: desca
+#endif
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
+
+    failure = .FALSE.
 
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
@@ -187,9 +193,11 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a, b
     INTEGER                                   :: info, handle
     INTEGER                                   :: n, my_itype
-    INTEGER, DIMENSION(9)                     :: desca, descb
-    REAL(KIND = dp)                           :: scale
     LOGICAL                                   :: failure
+#if defined(__SCALAPACK)
+    REAL(KIND=dp)                             :: scale
+    INTEGER, DIMENSION(9)                     :: desca, descb
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -252,17 +260,20 @@ CPSourceFileRef,&
     INTEGER                                   :: n
     LOGICAL                                   :: failure
     REAL(KIND = dp)                           :: alpha
-    INTEGER                                   :: myprow, mypcol, i
-    INTEGER, DIMENSION(9)                     :: desca,descb,descout
+    INTEGER                                   :: myprow, mypcol
     TYPE(cp_blacs_env_type), POINTER          :: context
     CHARACTER                                 :: chol_pos,chol_transa
+#if defined(__SCALAPACK)
+    INTEGER                                   :: i
+    INTEGER, DIMENSION(9)                     :: desca, descb, descout
+#endif
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
+    myprow = context%mepos(1)
+    mypcol = context%mepos(2)
     n = matrix%matrix_struct%nrow_global
     itype = 1
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&

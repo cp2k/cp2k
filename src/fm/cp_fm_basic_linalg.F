@@ -183,11 +183,11 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
-    INTEGER, DIMENSION(9)                    :: desca
     REAL(KIND=dp)                            :: determinant
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
 #else
     INTEGER                                  :: lda
 #endif
@@ -196,14 +196,13 @@ CPSourceFileRef,&
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
-    ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
+    ALLOCATE (ipivot(n+matrix_a%matrix_struct%nrow_block))
 
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
 
-
-    ALLOCATE(diag(n))
+    ALLOCATE (diag(n))
     diag(:)=0.0_dp
     DO i=1,n
        CALL cp_fm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
@@ -212,7 +211,7 @@ CPSourceFileRef,&
     DO i=1,n
        determinant=determinant*diag(i)
     ENDDO
-    DEALLOCATE(diag)
+    DEALLOCATE (diag)
 #else
     lda=SIZE(a,1)
     CALL dgetrf(n,n,a(1,1),lda,ipivot,info)
@@ -269,10 +268,10 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i_a, i_b, i_c, j_b, &
                                                 j_c
-    INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp, c_sp
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb, descc
 #else
     INTEGER                                  :: lda, ldb, ldc
 #endif
@@ -392,9 +391,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb, descc
 #else
     INTEGER                                  :: lda, ldb, ldc
 #endif
@@ -439,11 +438,15 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_frobenius_norm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, size_a
+    INTEGER                                  :: handle, size_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=dp), EXTERNAL                  :: DDOT
+#if defined(__SCALAPACK)
+    INTEGER                                  :: group
+#endif
 
     CALL timeset(routineN,handle)
+
     norm = 0.0_dp
     a => matrix_a%local_data
     size_a = SIZE(a,1)*SIZE(a,2)
@@ -453,8 +456,10 @@ CPSourceFileRef,&
     CALL mp_sum(norm,group)
 #endif
     norm = SQRT(norm)
+ 
     CALL timestop(handle)
-  END SUBROUTINE cp_fm_frobenius_norm
+
+ END SUBROUTINE cp_fm_frobenius_norm
 
 ! *****************************************************************************
 !> \brief   performs a rank 1 operation: A = alpha*X*Y' + A
@@ -478,9 +483,9 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, ia, incx, incy, ja, &
                                                 m, n
-    INTEGER, DIMENSION(9)                    :: desca, descx, descy
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, x, y
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descx, descy
 #else
     INTEGER                                  :: lda
 #endif
@@ -545,9 +550,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n
-    INTEGER, DIMENSION(9)                    :: desca, descc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descc
 #else
     INTEGER                                  :: lda, ldc
 #endif
@@ -865,10 +870,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     INTEGER                                  :: handle, ncol_global, &
                                                 nrow_global
-    INTEGER, DIMENSION(9)                    :: desca, descc
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descc
 #else
     INTEGER                                  :: i, j
 #endif
@@ -912,24 +917,28 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 ! *****************************************************************************
   SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
 
-    TYPE(cp_fm_type), POINTER          :: matrix,work
-    TYPE(cp_error_type), INTENT(inout)  :: error
+    TYPE(cp_fm_type), POINTER                :: matrix,work
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER :: handle,icol_global,icol_local,irow_global,&
-               irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
-               npcol,nprow,nrow_block,nrow_global,nrow_local
-
-    INTEGER, DIMENSION(9) :: desca,descc
-
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,c
-    REAL(KIND = sp), DIMENSION(:,:), POINTER :: a_sp,c_sp
-    TYPE(cp_blacs_env_type), POINTER :: context
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_upper_to_full',&
          routineP=moduleN//':'//routineN
-    LOGICAL :: failure
+
+    INTEGER                                  :: handle,icol_global,irow_global,&
+                                                mypcol,myprow,ncol_global,&
+                                                npcol,nprow,nrow_global
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: a
+    REAL(KIND=sp), DIMENSION(:,:), POINTER   :: a_sp
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    LOGICAL                                  :: failure
 
 #if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: indxl2g
+    INTEGER                                  :: icol_local,irow_local,&
+                                                ncol_block,ncol_local,&
+                                                nrow_block,nrow_local
+    INTEGER, DIMENSION(9)                    :: desca,descc
+    INTEGER, EXTERNAL                        :: indxl2g
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: c
+    REAL(KIND=sp), DIMENSION(:,:), POINTER   :: c_sp
 #endif
 
     failure = .FALSE.
@@ -1038,11 +1047,13 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     TYPE(cp_fm_type), POINTER                :: matrixa
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
 
-    INTEGER :: icol_global, icol_local, ipcol, iprow, irow_local, k, &
-      mypcol, myprow, n, ncol_global, npcol, nprow
+    INTEGER                                  :: k,mypcol,myprow,n,ncol_global,&
+                                                npcol,nprow
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 #if defined(__SCALAPACK)
+    INTEGER                                  :: icol_global,icol_local,&
+                                                ipcol,iprow,irow_local
 #else
     INTEGER                                  :: i
 #endif
@@ -1106,16 +1117,19 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_invert', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, info, liwork, lwork, n
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot, iwork
-    INTEGER, DIMENSION(9)                    :: desca
+    INTEGER                                  :: n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, beta, determinant
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
+    REAL(KIND=dp)                            :: determinant
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_fm_type), POINTER                :: matrix_B, matrix_lu
 #if defined(__SCALAPACK)
+    INTEGER                                  :: i, info, liwork, lwork
+    INTEGER, DIMENSION(9)                    :: desca
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    REAL(KIND=dp)                            :: alpha, beta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
 #else
     LOGICAL                                  :: sign
     REAL(KIND=dp)                            :: eps1
@@ -1208,11 +1222,13 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CHARACTER                                :: unit_diag, uplo
     INTEGER                                  :: handle, info, ncol_global
-    INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
-    failure=.FALSE.
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1259,13 +1275,15 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER                                  :: handle, i, icol, info, irow, &
                                                 istat, j, lda, lwork, ncol, &
                                                 ndim, nrow
-    INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: tau, work
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: r_mat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
-    failure=.FALSE.
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1342,9 +1360,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     INTEGER                                  :: handle, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
-    INTEGER, DIMENSION(9)                    :: desca, descb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, a_general
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb
 #else
     INTEGER                                  :: lda, ldb
 #endif

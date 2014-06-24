@@ -205,13 +205,16 @@ CPSourceFileRef,&
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    INTEGER                                  :: handle, i, icol_local, ipcol, &
-                                                iprow, irow_local, mypcol, &
-                                                myprow, n, npcol, nprow
+    INTEGER                                  :: handle, mypcol, myprow, n, &
+                                                npcol, nprow
     INTEGER, DIMENSION(4), SAVE              :: ISEED
-    INTEGER, DIMENSION(9)                    :: desca
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     TYPE(cp_blacs_env_type), POINTER         :: context
+#if defined(__SCALAPACK)
+    INTEGER                                  :: i, icol_local, ipcol, &
+                                                iprow, irow_local
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -289,22 +292,23 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
     COMPLEX(KIND=dp), INTENT(OUT)            :: alpha
 
+    INTEGER                                  :: mypcol, myprow, npcol, nprow
+    TYPE(cp_blacs_env_type), POINTER         :: context
+#if defined(__SCALAPACK)
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: icol_local, ipcol, iprow, &
-                                                irow_local, mypcol, myprow, &
-                                                npcol, nprow
+                                                irow_local
     INTEGER, DIMENSION(9)                    :: desca
-    TYPE(cp_blacs_env_type), POINTER         :: context
+#endif
 
     context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
+    myprow = context%mepos(1)
+    mypcol = context%mepos(2)
+    nprow = context%num_pe(1)
+    npcol = context%num_pe(2)
 
 #if defined(__SCALAPACK)
-
     a => matrix%local_data
     desca(:) = matrix%matrix_struct%descriptor(:)
 
@@ -317,7 +321,6 @@ CPSourceFileRef,&
     ELSE
       CALL cp_blacs_ZGEBR2D(context%group, 'All', ' ', 1, 1, alpha , 1 , iprow, ipcol )
     END IF
-
 #else
     alpha = matrix%local_data(irow_global,icol_global)
 #endif
@@ -331,24 +334,27 @@ CPSourceFileRef,&
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE cp_cfm_set_element(matrix,irow_global,icol_global,alpha,error)
+
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    INTEGER                                  :: mypcol, myprow, npcol, nprow
+    TYPE(cp_blacs_env_type), POINTER         :: context
+#if defined(__SCALAPACK)
+    INTEGER                                  :: icol_local, ipcol, iprow, &
+                                                irow_local
+    INTEGER, DIMENSION(9)                    :: desca
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    INTEGER                                  :: icol_local, ipcol, iprow, &
-                                                irow_local, mypcol, myprow, &
-                                                npcol, nprow
-    INTEGER, DIMENSION(9)                    :: desca
-    TYPE(cp_blacs_env_type), POINTER         :: context
+#endif
 
     context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
+    myprow = context%mepos(1)
+    mypcol = context%mepos(2)
+    nprow = context%num_pe(1)
+    npcol = context%num_pe(2)
 
 #if defined(__SCALAPACK)
 

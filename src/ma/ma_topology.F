@@ -147,24 +147,26 @@ CONTAINS
   CHARACTER(LEN=*), PARAMETER :: routineN = 'ma_net_topology', &
       routineP = moduleN//':'//routineN
 
+#if defined(__parallel)
   INTEGER                                  :: istat
   INTEGER                                  :: source, numtask
-#if defined __SEASTAR && __parallel
+#if defined(__SEASTAR)
   CHARACTER(LEN=default_string_length)     :: name_file, myid_str
   INTEGER                                  :: endoffile, fnid, fx, fy, fz, &
                                               myid, nfields, rst_unit
-#elif __GEMINI  && __parallel
+#elif defined(__GEMINI)
   CHARACTER(LEN=default_string_length)     :: name_file, myid_str
   INTEGER                                  :: endoffile, fnid, fx, fy, fz, &
                                               myid, nfields, rst_unit
   INTEGER, DIMENSION(:), POINTER           :: nid,x,y,z
-#elif defined __NET && __parallel
+#elif defined(__NET)
   INTEGER                                  :: i, j
   REAL(KIND=dp)                            :: startTime, endTime
   INTEGER, DIMENSION(2)                    :: req
   REAL, DIMENSION(:), POINTER              :: msgin, msgout
-#elif defined __parallel 
+#else
   CHARACTER(LEN=default_string_length)     :: host_name
+#endif
 #endif
 
 !if it is the seastar connection
@@ -462,7 +464,7 @@ CONTAINS
     INTEGER                                  :: istat
 
 #if defined __NET
-   IF(ASSOCIATED(dist_nodes))DEALLOCATE(dist_nodes,STAT=istat)
+  IF (ASSOCIATED(dist_nodes)) DEALLOCATE(dist_nodes,STAT=istat)
   IF (istat /= 0) THEN
         CALL ma_error_stop(ma_error_allocation)
   END IF
@@ -497,6 +499,7 @@ CONTAINS
 #else
   maxx = 0
 #endif
+
  END FUNCTION ma_nodes_x 
 
 ! *****************************************************************************
@@ -586,6 +589,7 @@ CONTAINS
  FUNCTION ma_hop_bytes (mp_group) RESULT (hopsbyte)
   REAL                         :: hopsbyte
   INTEGER, INTENT(IN)          :: mp_group
+
 #if defined __GEMINI || __SEASTAR     
   INTEGER                                  :: numtask,source, &
                                               ipe,jpe,x,y,z, src_x, src_y,&
@@ -630,6 +634,7 @@ CONTAINS
 #else
   hopsbyte = 0  
 #endif 
+
  END FUNCTION ma_hop_bytes 
 
 ! *****************************************************************************
@@ -639,14 +644,15 @@ CONTAINS
  FUNCTION ma_hops_byte (mp_group) RESULT (hopsbyte)
   REAL                         :: hopsbyte
   INTEGER,INTENT(IN)           :: mp_group
+
 #if defined __GEMINI || __SEASTAR     
   INTEGER                                  :: numtask,source, &
                                               ipe,jpe,x,y,z, src_x, src_y,&
                                               src_z,dest_x, dest_y, dest_z, &
                                               src,dest,sum_hb,sum_comm
   REAL                                     :: tmp
-  CALL mp_environ(numtask,source,mp_group)
 
+  CALL mp_environ(numtask,source,mp_group)
 
   sum_hb = 1 
   sum_comm = 1
@@ -743,9 +749,9 @@ END SUBROUTINE ma_2dgrid_dimensions
 SUBROUTINE ma_comm_pattern_alltoall (mp_group)
     INTEGER                                  :: mp_group
 
+#if defined(__parallel)
     INTEGER                                  :: istat, numtask, source, &
                                                 ipe, jpe
-#if defined(__parallel)
  CALL mp_environ(numtask,source,mp_group)
  ALLOCATE (comm_graph(0:numtask-1,0:numtask-1),STAT=istat)
   IF (istat /= 0) THEN
@@ -769,13 +775,12 @@ END SUBROUTINE ma_comm_pattern_alltoall
  SUBROUTINE ma_comm_pattern_cannon (mp_group)
     INTEGER                                  :: mp_group
 
+#if defined(__parallel)
     INTEGER                                  :: down, gcd_max, i, ipe, istat, &
                                                 jpe, left, mycol, myrow, &
                                                 npcol, nprow, numtask, right, &
                                                 source, up
-#if defined(__parallel)
  CALL mp_environ(numtask,source,mp_group)
-
 
  IF (.NOT. ASSOCIATED(comm_graph))THEN
 
@@ -818,8 +823,8 @@ END SUBROUTINE ma_comm_pattern_alltoall
  ENDDO
 
 ENDIF
-
 #endif
+
  END SUBROUTINE ma_comm_pattern_cannon
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
