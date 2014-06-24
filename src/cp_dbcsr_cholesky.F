@@ -69,12 +69,14 @@ CONTAINS
     INTEGER                                  :: handle, info, my_n, &
                                                 nfullcols_total, &
                                                 nfullrows_total
-    INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_matrix
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -154,10 +156,12 @@ CONTAINS
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n, nfullrows_total, nfullcols_total
-    INTEGER, DIMENSION(9)                     :: desca
     LOGICAL                                   :: failure
     TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrix_tmp
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                     :: desca
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -245,11 +249,13 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,b
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n, nfullrows_total, nfullcols_total
-    INTEGER, DIMENSION(9)                     :: desca,descb
-    REAL(KIND = dp)                           :: scale
     LOGICAL                                   :: failure
     TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrixb
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct
+#if defined(__SCALAPACK)
+    REAL(KIND=dp)                             :: scale
+    INTEGER, DIMENSION(9)                     :: desca, descb
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -333,13 +339,16 @@ CPSourceFileRef,&
     INTEGER                                   :: n
     LOGICAL                                   :: failure
     REAL(KIND = dp)                           :: alpha
-    INTEGER                                   :: myprow, mypcol, i, nfullrows_total, &
+    INTEGER                                   :: myprow, mypcol, nfullrows_total, &
          nfullcols_total
-    INTEGER, DIMENSION(9)                     :: desca,descb,descout
     TYPE(cp_blacs_env_type), POINTER          :: context
     CHARACTER                                 :: chol_pos,chol_transa
     TYPE(cp_fm_type), POINTER                 :: fm_matrix,fm_matrixb,fm_matrixout
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_fm_struct_type), POINTER          :: fm_struct
+#if defined(__SCALAPACK)
+    INTEGER                                   :: i
+    INTEGER, DIMENSION(9)                     :: desca, descb, descout
+#endif
 
     CALL timeset(routineN,handle)
 

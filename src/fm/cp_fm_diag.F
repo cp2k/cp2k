@@ -181,25 +181,26 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: fake_descriptor(9), handle, istat, mepos_old, &
-      myinfo, n, ngroups, nmo, num_pe_new, num_pe_old, subgroup
-    INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
-                                                group_partition
+    INTEGER                                  :: handle, istat, myinfo, n, nmo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: fake_local_data(1,1)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
+#if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
     TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+    REAL(KIND=dp)                            :: fake_local_data(1,1)
+    INTEGER                                  :: fake_descriptor(9), mepos_old, &
+                                                ngroups, num_pe_new, &
+                                                num_pe_old, subgroup
+    INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
+                                                group_partition
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_new
-#if ! defined(__SCALAPACK)
+#else
     INTEGER                                  :: liwork, lwork
     INTEGER, DIMENSION(:), POINTER           :: iwork
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 #endif
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -380,22 +381,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd_base', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, liwork, lwork, &
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+#if defined(__SCALAPACK)
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    INTEGER                                  :: istat, liwork, lwork, &
                                                 mypcol, myprow, n
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
-    TYPE(cp_blacs_env_type), POINTER         :: context
-
-! -------------------------------------------------------------------------
+#endif
 
     CALL timeset(routineN,handle)
 
-#if defined(__SCALAPACK)
-
     failure = .FALSE.
+
+#if defined(__SCALAPACK)
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
@@ -446,7 +448,6 @@ CONTAINS
 
 #endif
 
-
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_syevd_base
@@ -473,32 +474,36 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx",&
                                    routineP = moduleN//":"//routineN
-    REAL(KIND = dp), PARAMETER  :: orfac = -1.0_dp,&
-                                   vl = 0.0_dp,&
-                                   vu = 0.0_dp
 
-    REAL(KIND = dp) :: abstol, work_syevx_local
-    INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,&
-                nn,np0,npcol,npe,nprow,nq0,nz,output_unit,neig_local
-    LOGICAL  :: failure, ionode, needs_evecs
+    REAL(KIND=dp), PARAMETER                     :: orfac = -1.0_dp,&
+                                                    vl = 0.0_dp,&
+                                                    vu = 0.0_dp
 
-    INTEGER, DIMENSION(9) :: desca,descz
+    TYPE(cp_blacs_env_type), POINTER             :: context
+    TYPE(cp_logger_type), POINTER                :: logger
+    CHARACTER(LEN=1)                             :: job_type
+    REAL(KIND=dp)                                :: abstol, work_syevx_local
+    INTEGER                                      :: handle, info, istat, &
+                                                    liwork, lwork, m, mypcol, &
+                                                    myprow, n, nb, npcol, &
+                                                    nprow, output_unit, &
+                                                    neig_local
+    LOGICAL                                      :: failure, ionode, needs_evecs
+    INTEGER, DIMENSION(:), ALLOCATABLE           :: ifail, iwork
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: w, work
+    REAL(KIND=dp), DIMENSION(:,:), POINTER       :: a, z
 
-    TYPE(cp_blacs_env_type), POINTER           :: context
-    TYPE(cp_logger_type), POINTER              :: logger
-    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: gap,w,work
-    INTEGER, DIMENSION(:), ALLOCATABLE         :: iclustr,ifail,iwork
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: a,z
-    CHARACTER(LEN=1)                           :: job_type
-
-    REAL(KIND = dp), EXTERNAL :: dlamch
+    REAL(KIND=dp), EXTERNAL                      :: dlamch
 
 #if defined(__SCALAPACK)
-    INTEGER, EXTERNAL  :: iceil,numroc
+    INTEGER                                      :: nn, np0, npe, nq0, nz
+    INTEGER, DIMENSION(9)                        :: desca, descz
+    INTEGER, DIMENSION(:), ALLOCATABLE           :: iclustr
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: gap
+    INTEGER, EXTERNAL                            :: iceil, numroc
 #else
-    INTEGER, EXTERNAL  :: ilaenv
+    INTEGER, EXTERNAL                            :: ilaenv
 #endif
-    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
     ! by default all
@@ -714,12 +719,14 @@ CONTAINS
                                    vu = 0.0_dp
 
     CHARACTER(LEN=1)                           :: job_type
-    INTEGER :: handle, ilow_local, info, istat, iup_local, lwork, liwork, mypcol,myprow, n, neig
-    INTEGER, DIMENSION(9) :: desca, descz
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: iwork
-    LOGICAL :: failure, ionode, needs_evecs
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: w, work
-    REAL(dp), DIMENSION(:,:), POINTER :: a, z
+    INTEGER                                    :: handle, ilow_local,&
+                                                  info, istat, iup_local,&
+                                                  lwork, liwork, mypcol,&
+                                                  myprow, n, neig
+    INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
+    LOGICAL                                    :: failure, ionode, needs_evecs
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: w, work
+    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: a, z
 
     TYPE(cp_blacs_env_type), POINTER           :: context
     TYPE(cp_logger_type), POINTER              :: logger
@@ -727,18 +734,16 @@ CONTAINS
     REAL(KIND = dp), EXTERNAL :: dlamch
 
 #if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)               :: desca, descz
+#if defined(__SCALAPACK2)
+    INTEGER                             :: m, nz
+#endif
 #else
-    REAL(dp)                            :: abstol
     INTEGER                             :: m, nb
+    REAL(dp)                            :: abstol
     INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail
     INTEGER, EXTERNAL                   :: ilaenv
-#if defined(__SCALAPACK2)
-    INTEGER                             :: nz
 #endif
-#endif
-
-    ! -------------------------------------------------------------------------
-
 
     ! by default all
     n = matrix%matrix_struct%nrow_global
@@ -898,16 +903,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_elpa', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+#if defined(__SCALAPACK)
     INTEGER                                  :: comm_col, comm_row, group, &
-                                                handle, istat, mypcol, &
+                                                istat, mypcol, &
                                                 myprow, n, n_rows, nblk, neig
     INTEGER, DIMENSION(9)                    :: descm, descv
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, m1, v
     TYPE(cp_blacs_env_type), POINTER         :: context
-
-! -------------------------------------------------------------------------
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -989,19 +995,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &
       routineP = moduleN//':'//routineN
 
-   INTEGER         :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
-                      irow_local,istat,mypcol,myprow,ncol_block,ncol_global,npcol,&
-                      nprow,nrow_block,nrow_global
-   LOGICAL :: failure, my_verbose
-   REAL(KIND = dp) :: condition_number,f,p
-   REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: eigenvalues
-   REAL(KIND = dp), DIMENSION(:,:), POINTER   :: eigenvectors
+   INTEGER                                    :: handle,icol_global,istat,&
+                                                 mypcol,myprow,&
+                                                 ncol_global,npcol,nprow,&
+                                                 nrow_global
+   LOGICAL                                    :: failure,my_verbose
+   REAL(KIND=dp)                              :: condition_number,f,p
+   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: eigenvalues
+   REAL(KIND=dp), DIMENSION(:,:), POINTER     :: eigenvectors
    TYPE(cp_blacs_env_type), POINTER           :: context
 
 #if defined(__SCALAPACK)
+   INTEGER           :: icol_local,ipcol,iprow,irow_global,&
+                        irow_local,ncol_block,nrow_block
    INTEGER, EXTERNAL :: indxg2l,indxg2p
 #endif
-    ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -1167,14 +1175,15 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,ev
 
     REAL(KIND = dp) :: tan_theta,tau,c,s
-    INTEGER  :: q,p,N,q_loc
+    INTEGER  :: q,p,N
     REAL(KIND = dp), DIMENSION (:),ALLOCATABLE :: c_ip
 
 #if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER :: context
 
     INTEGER :: myprow,mypcol,nprow,npcol,ictxt_loc,block_dim_row,block_dim_col,&
-               info,ev_row_block_size,iam,source,allgrp,mynumrows,ictxt,mype,npe
+               info,ev_row_block_size,iam,source,allgrp,mynumrows,ictxt,mype,npe,&
+               q_loc
     REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: a_loc, ev_loc
     INTEGER, DIMENSION(9)                        :: desca,descz,desc_a_block,&
                                                     desc_ev_loc
