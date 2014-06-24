@@ -27,7 +27,7 @@ water_3_dist_inter.inp    2
 water_3_dist_inter2.inp   2             1e-11
 water_3_dist_mix.inp      2
 # Intermolecular restraints
-H2O-constr_1_ext.inp      2
+H2O-constr_1_ext.inp      2             1e-11
 H2O-restraint_1_ext.inp   2
 nh3_4x6_ext.inp           2
 nh3_r4x6_ext.inp          2
