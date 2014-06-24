@@ -71,14 +71,14 @@
 #  -nobuild : do not build cp2k, but use one built by the user (turns on quick option automatically)
 #
 # Possible exit statuses:
+# -  end_test 0   : clean exit with testing
 # -  end_test 1   : problem with svn update
-# -  end_test 100 : no svn changes since last run - clean exit without testing
 # -  end_test 3   : problem with realclean
 # -  end_test 4   : build errors
 # -  end_test 5   : problem with retest option - no TEST directory with latest test results found
 # -  end_test 6   : problem with retest option - no error summary exists in the last TEST directory
 # -  end_test 7   : reference directory is locked
-# -  end_test 0   : clean exit with testing
+# -  end_test 100 : no svn changes since last run - clean exit without testing
 #
 # Script configuration. The value of the follow variables can be redefined, see below
 #   dir_base, FORT_C_NAME, cp2k_version, dir_triplet, cp2k_dir, cp2k_prefix, cp2k_postfix,
@@ -831,11 +831,14 @@ done
 echo "--------------------------------------------------------------------------"
 cat "${error_description_file}"
 echo "--------------------------------- Summary --------------------------------"
-printf "Number of FAILED  tests %d\n" ${n_runtime_error} | tee -a ${summary}
-printf "Number of WRONG   tests %d\n" ${n_wrong_results} | tee -a ${summary}
-printf "Number of CORRECT tests %d\n" ${n_correct}       | tee -a ${summary}
-printf "Number of NEW     tests %d\n" ${n_new}           | tee -a ${summary}
-printf "Total number of   tests %d\n" ${n_tests}         | tee -a ${summary}
+if [[ ${quick} != "quick" ]]; then
+   printf "Number of COMPILE warns %d\n" ${compile_warnings} | tee -a ${summary}
+fi
+printf "Number of FAILED  tests %d\n" ${n_runtime_error}  | tee -a ${summary}
+printf "Number of WRONG   tests %d\n" ${n_wrong_results}  | tee -a ${summary}
+printf "Number of CORRECT tests %d\n" ${n_correct}        | tee -a ${summary}
+printf "Number of NEW     tests %d\n" ${n_new}            | tee -a ${summary}
+printf "Total number of   tests %d\n" ${n_tests}          | tee -a ${summary}
 
 if [[ ${leakcheck} == "YES" ]]; then
    echo "--------------------------------------------------------------------------" | tee -a ${summary}
