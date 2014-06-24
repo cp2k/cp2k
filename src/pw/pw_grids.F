@@ -1340,6 +1340,44 @@ CONTAINS
 #endif
 
   END SUBROUTINE order_mask
+! *****************************************************************************
+!> \brief compute the length of g vectors
+! *****************************************************************************
+  SUBROUTINE pw_vec_length(h_inv,length_x,length_y,length_z,length,l,m,n)
+
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: h_inv
+    REAL(KIND=dp), INTENT(OUT)               :: length_x, length_y, length_z, &
+                                                length
+    INTEGER, INTENT(IN)                      :: l, m, n
+
+    length_x &
+         = REAL(l,dp) * h_inv(1,1) &
+         + REAL(m,dp) * h_inv(2,1) &
+         + REAL(n,dp) * h_inv(3,1)
+    length_y &
+         = REAL(l,dp) * h_inv(1,2) &
+         + REAL(m,dp) * h_inv(2,2) &
+         + REAL(n,dp) * h_inv(3,2)
+    length_z &
+         = REAL(l,dp) * h_inv(1,3) &
+         + REAL(m,dp) * h_inv(2,3) &
+         + REAL(n,dp) * h_inv(3,3)
+
+    ! enforce strict zero-ness in this case (compiler optimization)
+    IF (l==0 .AND. m==0 .AND. n==0) THEN
+       length_x=0
+       length_y=0
+       length_z=0
+    ENDIF
+
+    length_x = length_x * twopi
+    length_y = length_y * twopi
+    length_z = length_z * twopi
+
+    length = length_x ** 2 + length_y ** 2 + length_z ** 2
+
+  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief Count total number of g vectors
@@ -1400,21 +1438,7 @@ CONTAINS
                 IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
              END IF
 
-             length_x &
-                  = REAL(l,dp) * h_inv(1,1) &
-                  + REAL(m,dp) * h_inv(2,1) &
-                  + REAL(n,dp) * h_inv(3,1)
-             length_y &
-                  = REAL(l,dp) * h_inv(1,2) &
-                  + REAL(m,dp) * h_inv(2,2) &
-                  + REAL(n,dp) * h_inv(3,2)
-             length_z &
-                  = REAL(l,dp) * h_inv(1,3) &
-                  + REAL(m,dp) * h_inv(2,3) &
-                  + REAL(n,dp) * h_inv(3,3)
-
-             length = length_x ** 2 + length_y ** 2 + length_z ** 2
-             length = twopi * twopi * length
+             CALL pw_vec_length(h_inv,length_x,length_y,length_z,length,l,m,n)
 
              IF ( 0.5_dp * length <= cutoff ) THEN
                 gpt = gpt + 1
@@ -1487,27 +1511,13 @@ CONTAINS
                    IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
                 END IF
 
-                length_x &
-                     = REAL(l,dp) * h_inv(1,1) &
-                     + REAL(m,dp) * h_inv(2,1) &
-                     + REAL(n,dp) * h_inv(3,1)
-                length_y &
-                     = REAL(l,dp) * h_inv(1,2) &
-                     + REAL(m,dp) * h_inv(2,2) &
-                     + REAL(n,dp) * h_inv(3,2)
-                length_z &
-                     = REAL(l,dp) * h_inv(1,3) &
-                     + REAL(m,dp) * h_inv(2,3) &
-                     + REAL(n,dp) * h_inv(3,3)
-
-                length = length_x ** 2 + length_y ** 2 + length_z ** 2
-                length = twopi * twopi * length
+                CALL pw_vec_length(h_inv,length_x,length_y,length_z,length,l,m,n)
 
                 IF ( 0.5_dp * length <= cutoff ) THEN
                    gpt = gpt + 1
-                   pw_grid % g ( 1, gpt ) = twopi * length_x
-                   pw_grid % g ( 2, gpt ) = twopi * length_y
-                   pw_grid % g ( 3, gpt ) = twopi * length_z
+                   pw_grid % g ( 1, gpt ) = length_x
+                   pw_grid % g ( 2, gpt ) = length_y
+                   pw_grid % g ( 3, gpt ) = length_z
                    pw_grid % gsq ( gpt ) = length
                    pw_grid % g_hat ( 1, gpt ) = l
                    pw_grid % g_hat ( 2, gpt ) = m
@@ -1533,27 +1543,13 @@ CONTAINS
                    IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
                 END IF
 
-                length_x &
-                     = REAL(l,dp) * h_inv(1,1) &
-                     + REAL(m,dp) * h_inv(2,1) &
-                     + REAL(n,dp) * h_inv(3,1)
-                length_y &
-                     = REAL(l,dp) * h_inv(1,2) &
-                     + REAL(m,dp) * h_inv(2,2) &
-                     + REAL(n,dp) * h_inv(3,2)
-                length_z &
-                     = REAL(l,dp) * h_inv(1,3) &
-                     + REAL(m,dp) * h_inv(2,3) &
-                     + REAL(n,dp) * h_inv(3,3)
-
-                length = length_x ** 2 + length_y ** 2 + length_z ** 2
-                length = twopi * twopi * length
+                CALL pw_vec_length(h_inv,length_x,length_y,length_z,length,l,m,n)
 
                 IF ( 0.5_dp * length <= cutoff ) THEN
                    gpt = gpt + 1
-                   pw_grid % g ( 1, gpt ) = twopi * length_x
-                   pw_grid % g ( 2, gpt ) = twopi * length_y
-                   pw_grid % g ( 3, gpt ) = twopi * length_z
+                   pw_grid % g ( 1, gpt ) = length_x
+                   pw_grid % g ( 2, gpt ) = length_y
+                   pw_grid % g ( 3, gpt ) = length_z
                    pw_grid % gsq ( gpt ) = length
                    pw_grid % g_hat ( 1, gpt ) = l
                    pw_grid % g_hat ( 2, gpt ) = m
@@ -1589,26 +1585,12 @@ CONTAINS
                    END IF
                    IF ( ll < bol ( 1, 1 ) .OR. ll > bol ( 2, 1 ) ) CYCLE
 
-                   length_x &
-                        = REAL(l,dp) * h_inv(1,1) &
-                        + REAL(m,dp) * h_inv(2,1) &
-                        + REAL(n,dp) * h_inv(3,1)
-                   length_y &
-                        = REAL(l,dp) * h_inv(1,2) &
-                        + REAL(m,dp) * h_inv(2,2) &
-                        + REAL(n,dp) * h_inv(3,2)
-                   length_z &
-                        = REAL(l,dp) * h_inv(1,3) &
-                        + REAL(m,dp) * h_inv(2,3) &
-                        + REAL(n,dp) * h_inv(3,3)
-
-                   length = length_x ** 2 + length_y ** 2 + length_z ** 2
-                   length = twopi * twopi * length
+                   CALL pw_vec_length(h_inv,length_x,length_y,length_z,length,l,m,n)
 
                    gpt = gpt + 1
-                   pw_grid % g ( 1, gpt ) = twopi * length_x
-                   pw_grid % g ( 2, gpt ) = twopi * length_y
-                   pw_grid % g ( 3, gpt ) = twopi * length_z
+                   pw_grid % g ( 1, gpt ) = length_x
+                   pw_grid % g ( 2, gpt ) = length_y
+                   pw_grid % g ( 3, gpt ) = length_z
                    pw_grid % gsq ( gpt ) = length
                    pw_grid % g_hat ( 1, gpt ) = l
                    pw_grid % g_hat ( 2, gpt ) = m

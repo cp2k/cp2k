@@ -990,3 +990,5 @@ H2O-UKS-GPW-relax_multip.inp
 H2O-ata.inp
 #  
 dynamics.inp
+# numerics
+He2H-.inp
