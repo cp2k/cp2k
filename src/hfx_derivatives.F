@@ -1683,7 +1683,10 @@ MODULE hfx_derivatives
       DEALLOCATE(full_density_beta,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
+    IF (do_dynamic_load_balancing) THEN
+      DEALLOCATE(actual_x_data%task_list, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 !$OMP END MASTER
     DEALLOCATE(primitive_forces, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
