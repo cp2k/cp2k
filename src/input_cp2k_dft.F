@@ -24,39 +24,39 @@ MODULE input_cp2k_dft
   USE f77_blas
   USE input_constants,                 ONLY: &
        add_last_numeric, almo_scf_guess, atomic_guess, broy_mix, &
-       broy_mix_new, cholesky_dbcsr,  cholesky_inverse, cholesky_off, cholesky_reduce, &
-       cholesky_restore, constant_env, core_guess, debug_print_level, &
-       densities_guess, diag_block_davidson, diag_block_krylov, diag_ot, &
-       diag_standard, direct_p_mix, do_admm_basis_set_projection, &
-       do_admm_block_aux_basis_off, do_admm_block_aux_basis_on, &
-       do_admm_block_density_matrix, do_admm_block_purify_blocked, &
-       do_admm_block_purify_full, do_admm_block_purify_off, &
-       do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
-       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
-       do_admm_purify_none, do_arnoldi, do_bch, do_cn, do_ddapc_constraint, &
-       do_ddapc_restraint, do_em, do_etrs, do_full_density, do_gapw_gcs, &
-       do_gapw_gct, do_gapw_log, do_loc_both, do_loc_crazy, do_loc_direct, &
-       do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, &
-       do_loc_max, do_loc_min, do_loc_none, do_method_am1, do_method_dftb, &
-       do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
-       do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
-       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
-       do_method_scptb, do_pade, do_ppl_analytic, do_ppl_grid, &
-       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
-       do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
-       do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
-       do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
-       ehrenfest, gaussian, gaussian_env, general_roks, high_print_level, &
-       high_spin_roks, history_guess, kerker_mix, kg_color_dsatur, &
-       kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, low_print_level, &
-       ls_2pnt, ls_3pnt, ls_gold, ls_none, medium_print_level, mopac_guess, &
-       multisec_mix, no_excitations, no_guess, no_mix, numerical, oe_gllb, &
-       oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, &
-       op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, &
-       orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
-       ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, &
-       ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_single, &
+       broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
+       cholesky_reduce, cholesky_restore, constant_env, core_guess, &
+       debug_print_level, densities_guess, diag_block_davidson, &
+       diag_block_krylov, diag_ot, diag_standard, direct_p_mix, &
+       do_admm_basis_set_projection, do_admm_block_aux_basis_off, &
+       do_admm_block_aux_basis_on, do_admm_block_density_matrix, &
+       do_admm_block_purify_blocked, do_admm_block_purify_full, &
+       do_admm_block_purify_off, do_admm_purify_cauchy, &
+       do_admm_purify_cauchy_subspace, do_admm_purify_mo_diag, &
+       do_admm_purify_mo_no_diag, do_admm_purify_none, do_arnoldi, do_bch, &
+       do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
+       do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
+       do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
+       do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
+       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
+       do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
+       do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
+       do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, &
+       do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
+       do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
+       do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
+       do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
+       do_spin_density, do_taylor, ehrenfest, gaussian, gaussian_env, &
+       general_roks, high_print_level, high_spin_roks, history_guess, &
+       kerker_mix, kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, &
+       kg_tnadd_embed, low_print_level, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
+       medium_print_level, mopac_guess, multisec_mix, no_excitations, &
+       no_guess, no_mix, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
+       op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, &
+       orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, &
+       ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
+       ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
+       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_solver_sainv, &

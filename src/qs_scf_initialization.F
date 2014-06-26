@@ -15,11 +15,11 @@ MODULE qs_scf_initialization
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_release, cp_create_bl_distribution, &
        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release,  cp_dbcsr_init_p, cp_dbcsr_p_type, &
+       cp_dbcsr_distribution_release, cp_dbcsr_init_p, cp_dbcsr_p_type, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_default, dbcsr_type_symmetric
+       dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -47,10 +47,11 @@ MODULE qs_scf_initialization
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
-       densities_guess, diag_block_davidson, diag_block_krylov, diag_ot, &
-       diag_standard, direct_p_mix, kerker_mix, multisec_mix, no_mix, &
-       plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, wfi_use_guess_method_nr
+       broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, &
+       cholesky_off, densities_guess, diag_block_davidson, diag_block_krylov, &
+       diag_ot, diag_standard, direct_p_mix, kerker_mix, multisec_mix, &
+       no_mix, plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, &
+       wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

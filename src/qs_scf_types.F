@@ -12,7 +12,8 @@
 MODULE qs_scf_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_p_type, cp_dbcsr_type
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type

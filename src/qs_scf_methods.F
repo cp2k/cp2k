@@ -15,9 +15,10 @@
 MODULE qs_scf_methods
 
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_desymmetrize, cp_dbcsr_get_block_p, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_add, cp_dbcsr_desymmetrize, cp_dbcsr_get_block_p, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
        cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
@@ -38,8 +39,7 @@ MODULE qs_scf_methods
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: cholesky_dbcsr,&
-                                             cholesky_inverse,&
+  USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
                                              cholesky_reduce,&
                                              cholesky_restore
@@ -49,7 +49,6 @@ MODULE qs_scf_methods
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              mo_set_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -157,8 +156,7 @@ CONTAINS
                          error)
     TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: ortho
-    TYPE(cp_fm_type), POINTER                :: work
+    TYPE(cp_fm_type), POINTER                :: ortho, work
     INTEGER, INTENT(INout)                   :: cholesky_method
     LOGICAL, INTENT(IN)                      :: use_jacobi
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -166,8 +164,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, nao, &
-                                                nmo
+    INTEGER                                  :: handle, homo, nao, nmo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
@@ -228,15 +225,14 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: matrix_ks
     TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr,ksbuf1,ksbuf2
+    TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr, ksbuf1, ksbuf2
     TYPE(cp_fm_type), POINTER                :: work
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nao, &
-                                                nmo
+    INTEGER                                  :: handle, nao, nmo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
@@ -276,8 +272,7 @@ CONTAINS
                          jacobi_threshold,error)
     TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: ortho
-    TYPE(cp_fm_type), POINTER                :: work
+    TYPE(cp_fm_type), POINTER                :: ortho, work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
     LOGICAL, INTENT(IN)                      :: use_jacobi

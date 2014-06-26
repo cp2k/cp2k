@@ -1500,16 +1500,18 @@ CPSourceFileRef,&
   SUBROUTINE cp_fm_to_fm_triangular (msource, mtarget, uplo, error)
 
     TYPE(cp_fm_type), POINTER                :: msource, mtarget
-    CHARACTER ( LEN = * ), INTENT ( IN )     :: uplo
+    CHARACTER(LEN=*), INTENT(IN)             :: uplo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_triangular', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol, nrow
-    INTEGER, DIMENSION(9)                    :: desca, descb
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
 
     CALL timeset(routineN,handle)
 

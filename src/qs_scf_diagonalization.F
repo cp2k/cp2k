@@ -38,14 +38,10 @@ MODULE qs_scf_diagonalization
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: cholesky_dbcsr, cholesky_inverse,&
-                                             cholesky_off,&
-                                             cholesky_reduce,&
-                                             cholesky_restore,&
-                                             core_guess,&
-                                             general_roks,&
-                                             high_spin_roks,&
-                                             restart_guess
+  USE input_constants,                 ONLY: &
+       cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, &
+       cholesky_restore, core_guess, general_roks, high_spin_roks, &
+       restart_guess
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
@@ -133,11 +129,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr
+
     INTEGER                                  :: ispin, nspin
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_diis
-
+    TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr
     TYPE(cp_fm_type), POINTER                :: ortho
 
     nspin = SIZE(matrix_ks)
