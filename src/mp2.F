@@ -324,15 +324,12 @@ MODULE mp2
 
       ! diagonalize KS matrix
       cholesky_method=cholesky_inverse
-      CALL eigensolver(matrix_ks=fm_matrix_ks,&
+      CALL eigensolver(matrix_ks_fm=fm_matrix_ks,&
                        mo_set=mos_mp2(ispin)%mo_set,&
                        ortho=fm_matrix_s,&
                        work=fm_matrix_work,&
-                       do_level_shift=.FALSE.,&
-                       level_shift=0.0_dp,&
                        cholesky_method=cholesky_method,&
                        use_jacobi=.FALSE.,&
-                       jacobi_threshold=qs_env%scf_control%diagonalization%jacobi_threshold,&
                        error=error)
     END DO
       

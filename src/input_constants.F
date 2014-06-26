@@ -182,7 +182,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: cholesky_off=0,&
                                               cholesky_reduce=1,&
                                               cholesky_restore=2,&
-                                              cholesky_inverse=3
+                                              cholesky_inverse=3,&
+                                              cholesky_dbcsr=4
 
   INTEGER, PARAMETER, PUBLIC               :: atomic_guess=1,&
                                               restart_guess=2,&

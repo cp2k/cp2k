@@ -24,7 +24,7 @@ MODULE input_cp2k_dft
   USE f77_blas
   USE input_constants,                 ONLY: &
        add_last_numeric, almo_scf_guess, atomic_guess, broy_mix, &
-       broy_mix_new, cholesky_inverse, cholesky_off, cholesky_reduce, &
+       broy_mix_new, cholesky_dbcsr,  cholesky_inverse, cholesky_off, cholesky_reduce, &
        cholesky_restore, constant_env, core_guess, debug_print_level, &
        densities_guess, diag_block_davidson, diag_block_krylov, diag_ot, &
        diag_standard, direct_p_mix, do_admm_basis_set_projection, &
@@ -4347,11 +4347,12 @@ CONTAINS
             description="If the cholesky method should be used for computing "//&
             "the inverse of S, and in this case calling which Lapack routines",&
             usage="CHOLESKY REDUCE", default_i_val=cholesky_restore,&
-            enum_c_vals=s2a("OFF","REDUCE","RESTORE","INVERSE"),&
+            enum_c_vals=s2a("OFF","REDUCE","RESTORE","INVERSE","INVERSE_DBCSR"),&
             enum_desc=s2a("The cholesky algorithm is not used","Reduce is called",&
             "Reduce is replaced by two restore",&
-            "Restore uses operator multiply by inverse of the triangular matrix"),&
-            enum_i_vals=(/cholesky_off,cholesky_reduce,cholesky_restore,cholesky_inverse/),&
+            "Restore uses operator multiply by inverse of the triangular matrix",&
+            "Like inverse, but matrix stored as dbcsr, sparce matrix algebra used when possible"),&
+            enum_i_vals=(/cholesky_off,cholesky_reduce,cholesky_restore,cholesky_inverse,cholesky_dbcsr/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -10,8 +10,9 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_scf_types
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type, cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
@@ -116,6 +117,7 @@ TYPE qs_scf_env_type
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
    TYPE(krylov_space_type), POINTER :: krylov_space
    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
+   TYPE(cp_dbcsr_type),  POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
@@ -177,9 +179,9 @@ CONTAINS
        NULLIFY(scf_env%outer_scf%variables, &
             scf_env%outer_scf%gradient,scf_env%outer_scf%energy,scf_env%outer_scf%count)
 
-       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho, scf_env%ortho_m1,&
+       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho, scf_env%ortho_dbcsr, scf_env%ortho_m1,&
             scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
-            scf_env%scf_diis_buffer)
+            scf_env%scf_diis_buffer, scf_env%buf1_dbcsr, scf_env%buf2_dbcsr)
        NULLIFY (scf_env%s_half, scf_env%p_delta,  scf_env%s_minus_one)
        NULLIFY(scf_env%cc_buffer)
        NULLIFY(scf_env%mixing_store)
@@ -287,6 +289,20 @@ CONTAINS
         CALL cp_fm_release(scf_env%scf_work2,error=error)
         CALL cp_fm_release(scf_env%ortho,error=error)
         CALL cp_fm_release(scf_env%ortho_m1,error=error)
+        IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
+           CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+           CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr,error=error)
+        ENDIF
+
+        IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
+           CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+           CALL cp_dbcsr_deallocate_matrix(scf_env%buf1_dbcsr,error=error)
+        ENDIF
+        IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
+           CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+           CALL cp_dbcsr_deallocate_matrix(scf_env%buf2_dbcsr,error=error)
+        ENDIF
+
         CALL cp_fm_release(scf_env%s_half,error=error)
         CALL cp_fm_release(scf_env%s_minus_one,error=error)
         IF (ASSOCIATED(scf_env%p_mix_new)) THEN

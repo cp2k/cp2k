@@ -15,11 +15,14 @@
 MODULE qs_scf_methods
 
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_get_block_p, cp_dbcsr_iterator, &
+       cp_dbcsr_add, cp_dbcsr_desymmetrize, cp_dbcsr_get_block_p, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
        cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
+                                             cp_fm_triangular_multiply,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
@@ -35,7 +38,8 @@ MODULE qs_scf_methods
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: cholesky_inverse,&
+  USE input_constants,                 ONLY: cholesky_dbcsr,&
+                                             cholesky_inverse,&
                                              cholesky_off,&
                                              cholesky_reduce,&
                                              cholesky_restore
@@ -60,6 +64,8 @@ MODULE qs_scf_methods
   PUBLIC :: combine_ks_matrices,&
             cp_sm_mix,&
             eigensolver,&
+            eigensolver_dbcsr,&
+            eigensolver_symm,&
             scf_env_density_mixing,&
             simple_eigensolver
 
@@ -146,20 +152,139 @@ CONTAINS
 !> \date    01.05.2001
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
-                         level_shift,cholesky_method,use_jacobi,&
-                         jacobi_threshold,error)
-    TYPE(cp_fm_type), POINTER                :: matrix_ks
+  SUBROUTINE eigensolver(matrix_ks_fm,mo_set,ortho,work,&
+                         cholesky_method,use_jacobi,&
+                         error)
+    TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: ortho, work
+    TYPE(cp_fm_type), POINTER                :: ortho
+    TYPE(cp_fm_type), POINTER                :: work
+    INTEGER, INTENT(INout)                   :: cholesky_method
+    LOGICAL, INTENT(IN)                      :: use_jacobi
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, homo, nao, &
+                                                nmo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY (mo_coeff)
+    NULLIFY (mo_eigenvalues)
+
+
+    ! Diagonalise the Kohn-Sham matrix
+
+    CALL get_mo_set(mo_set=mo_set,&
+                    nao=nao,&
+                    nmo=nmo,&
+                    homo=homo, &
+                    eigenvalues=mo_eigenvalues,&
+                    mo_coeff=mo_coeff)
+
+       SELECT CASE(cholesky_method)
+       CASE(cholesky_reduce)
+         CALL cp_fm_cholesky_reduce(matrix_ks_fm,ortho,error=error)
+         CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+         CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+       CASE(cholesky_restore)
+         CALL cp_fm_upper_to_full(matrix_ks_fm,work,error=error)
+         CALL cp_fm_cholesky_restore(matrix_ks_fm,nao,ortho,work,&
+                "SOLVE",pos="RIGHT",error=error)
+         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks_fm,&
+               "SOLVE",pos="LEFT",transa="T",error=error)
+         CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+         CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+       CASE(cholesky_inverse)
+         CALL cp_fm_upper_to_full(matrix_ks_fm,work,error=error)
+
+         CALL cp_fm_triangular_multiply(ortho,matrix_ks_fm ,side="R",transpose_tr=.FALSE.,&
+               invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nao,alpha=1.0_dp,error=error)
+         CALL cp_fm_triangular_multiply(ortho, matrix_ks_fm,side="L",transpose_tr=.TRUE.,&
+               invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nao,alpha=1.0_dp,error=error)
+         CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+         CALL cp_fm_triangular_multiply(ortho,work,side="L",transpose_tr=.FALSE.,&
+              invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nmo,alpha=1.0_dp,error=error)
+         CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
+
+       END SELECT
+
+       IF (use_jacobi) THEN
+          CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+          cholesky_method = cholesky_off
+       END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE eigensolver
+
+! *****************************************************************************
+  SUBROUTINE eigensolver_dbcsr(matrix_ks,matrix_ks_fm,mo_set,ortho_dbcsr,ksbuf1,ksbuf2,work,&
+                         error)
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_ks
+    TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr,ksbuf1,ksbuf2
+    TYPE(cp_fm_type), POINTER                :: work
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, nao, &
+                                                nmo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY (mo_coeff)
+    NULLIFY (mo_eigenvalues)
+
+    CALL get_mo_set(mo_set=mo_set,&
+                    nao=nao,&
+                    nmo=nmo,&
+                    eigenvalues=mo_eigenvalues,&
+                    mo_coeff=mo_coeff)
+
+!    Reduce KS matrix
+      CALL cp_dbcsr_desymmetrize(matrix_ks,ksbuf2,error=error)
+      CALL cp_dbcsr_multiply('N','N',1.0_dp,ksbuf2,ortho_dbcsr,0.0_dp,ksbuf1,error=error)
+      CALL cp_dbcsr_multiply('T','N',1.0_dp,ortho_dbcsr,ksbuf1,0.0_dp,ksbuf2,error=error)
+
+!    Solve the eigenvalue problem
+      CALL copy_dbcsr_to_fm(ksbuf2, matrix_ks_fm, error=error)
+      CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+
+!    Restore the eigenvector of the general eig. problem
+      CALL cp_dbcsr_sm_fm_multiply(ortho_dbcsr,work,mo_coeff,nmo, error=error)
+
+
+
+    CALL timestop(handle)
+
+  END SUBROUTINE eigensolver_dbcsr
+
+
+! *****************************************************************************
+  SUBROUTINE eigensolver_symm(matrix_ks_fm,mo_set,ortho,work,do_level_shift,&
+                         level_shift,use_jacobi,&
+                         jacobi_threshold,error)
+    TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: ortho
+    TYPE(cp_fm_type), POINTER                :: work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
-    INTEGER, INTENT(INout)                   :: cholesky_method
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_symm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, imo, nao, &
@@ -184,68 +309,31 @@ CONTAINS
                     eigenvalues=mo_eigenvalues,&
                     mo_coeff=mo_coeff)
 
-    IF (do_level_shift) THEN
-       IF (cholesky_method>cholesky_off) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"Level shift not implemented")
-       ENDIF
-    ENDIF
+    IF (use_jacobi) THEN
 
-    IF (cholesky_method>cholesky_off) THEN
-       SELECT CASE(cholesky_method)
-       CASE(cholesky_reduce)
-         CALL cp_fm_cholesky_reduce(matrix_ks,ortho,error=error)
-       CASE(cholesky_restore)
-         CALL cp_fm_upper_to_full(matrix_ks,work,error=error)
-         CALL cp_fm_cholesky_restore(matrix_ks,nao,ortho,work,&
-                "SOLVE",pos="RIGHT",error=error)
-         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks,&
-               "SOLVE",pos="LEFT",transa="T",error=error)
-       CASE(cholesky_inverse)
-         CALL cp_fm_upper_to_full(matrix_ks,work,error=error)
-         CALL cp_fm_cholesky_restore(matrix_ks,nao,ortho,work,&
-                "MULTIPLY",pos="RIGHT",error=error)
-         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks,&
-               "MULTIPLY",pos="LEFT",transa="T",error=error)
-       END SELECT
-
-       CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
-
-       IF(cholesky_method==cholesky_inverse) THEN
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
-       ELSE
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
-       END IF
-       IF (use_jacobi) THEN
-          CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-          cholesky_method = cholesky_off
-       END IF
-
-    ELSE IF (use_jacobi) THEN
-
-       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work,error=error)
+       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks_fm,mo_coeff,0.0_dp,work,error=error)
        CALL cp_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
-                       0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1,error=error)
+                       0.0_dp,matrix_ks_fm,b_first_col=homo+1,c_first_col=homo+1,error=error)
 
        ! Block Jacobi (pseudo-diagonalization, only one sweep)
-
-       CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,&
+       CALL cp_fm_block_jacobi(matrix_ks_fm,mo_coeff,mo_eigenvalues,&
                                jacobi_threshold,homo+1)
 
     ELSE ! full S^(-1/2) has been computed
 
-       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks,ortho,0.0_dp,work,error=error)
-       CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks,error=error)
+       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks_fm,ortho,0.0_dp,work,error=error)
+       CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks_fm,error=error)
 
        IF (do_level_shift) THEN
           DO imo=homo+1,nmo
              ! now unnecessary broadcast of element
-             CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
+             CALL cp_fm_get_element(matrix_ks_fm,imo,imo,alpha)
              alpha=alpha+level_shift
-             CALL cp_fm_set_element(matrix_ks,imo,imo,alpha,error=error)
+             CALL cp_fm_set_element(matrix_ks_fm,imo,imo,alpha,error=error)
           END DO
        END IF
 
-       CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
+       CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
 
        CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff,error=error)
@@ -256,9 +344,13 @@ CONTAINS
 
     END IF
 
+
     CALL timestop(handle)
 
-  END SUBROUTINE eigensolver
+  END SUBROUTINE eigensolver_symm
+
+
+! *****************************************************************************
 
 
 ! *****************************************************************************

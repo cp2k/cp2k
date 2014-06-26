@@ -18,7 +18,7 @@ MODULE qs_scf_diagonalization
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       dbcsr_type_symmetric
+       cp_dbcsr_type, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -38,7 +38,7 @@ MODULE qs_scf_diagonalization
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: cholesky_inverse,&
+  USE input_constants,                 ONLY: cholesky_dbcsr, cholesky_inverse,&
                                              cholesky_off,&
                                              cholesky_reduce,&
                                              cholesky_restore,&
@@ -81,6 +81,8 @@ MODULE qs_scf_diagonalization
                                              lanczos_refinement_2v
   USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
                                              eigensolver,&
+                                             eigensolver_dbcsr,&
+                                             eigensolver_symm,&
                                              scf_env_density_mixing,&
                                              simple_eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
@@ -131,14 +133,15 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag', &
       routineP = moduleN//':'//routineN
-
+    TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr
     INTEGER                                  :: ispin, nspin
     LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_diis
+
     TYPE(cp_fm_type), POINTER                :: ortho
 
     nspin = SIZE(matrix_ks)
-    NULLIFY(ortho)
+    NULLIFY(ortho,ortho_dbcsr)
 
     DO ispin=1,nspin
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
@@ -200,23 +203,46 @@ CONTAINS
       END IF
     END IF
 
-    DO ispin=1,nspin
-      IF(scf_env%cholesky_method==cholesky_inverse) THEN
-        ortho => scf_env%ortho_m1
-      ELSE
-        ortho => scf_env%ortho
-      END IF
-      CALL eigensolver(matrix_ks=scf_env%scf_work1(ispin)%matrix,&
+
+    IF(scf_env%cholesky_method==cholesky_dbcsr) THEN
+       ortho_dbcsr => scf_env%ortho_dbcsr
+       DO ispin=1,nspin
+         CALL eigensolver_dbcsr(matrix_ks=matrix_ks(ispin)%matrix,matrix_ks_fm=scf_env%scf_work1(ispin)%matrix,&
+              mo_set=mos(ispin)%mo_set,&
+              ortho_dbcsr=ortho_dbcsr,&
+              ksbuf1=scf_env%buf1_dbcsr,ksbuf2=scf_env%buf2_dbcsr,&
+              work=scf_env%scf_work2, error=error)
+       END DO
+
+    ELSE IF (scf_env%cholesky_method>cholesky_off) THEN
+      DO ispin=1,nspin
+        IF(scf_env%cholesky_method==cholesky_inverse) THEN
+          ortho => scf_env%ortho_m1
+        ELSE
+          ortho => scf_env%ortho
+        END IF
+        CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix,&
+                       mo_set=mos(ispin)%mo_set,&
+                       ortho=ortho,&
+                       work=scf_env%scf_work2,&
+                       cholesky_method=scf_env%cholesky_method,&
+                       use_jacobi=use_jacobi,&
+                       error=error)
+      END DO
+    ELSE
+      ortho => scf_env%ortho
+      DO ispin=1,nspin
+        CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix,&
                        mo_set=mos(ispin)%mo_set,&
                        ortho=ortho,&
                        work=scf_env%scf_work2,&
                        do_level_shift=do_level_shift,&
                        level_shift=scf_control%level_shift,&
-                       cholesky_method=scf_env%cholesky_method,&
                        use_jacobi=use_jacobi,&
                        jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                        error=error)
-    END DO
+      END DO
+    END IF
 
     IF (PRESENT(xas_env)) THEN
       CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)

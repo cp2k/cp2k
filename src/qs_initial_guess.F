@@ -439,15 +439,12 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                   use_jacobi=.FALSE.,jacobi_threshold=0._dp,&
                                   error=error)
        ELSE
-          CALL eigensolver(matrix_ks=work1(ispin)%matrix,&
+          CALL eigensolver(matrix_ks_fm=work1(ispin)%matrix,&
                            mo_set=mo_array(ispin)%mo_set,&
                            ortho=ortho,&
                            work=work2,&
-                           do_level_shift=.FALSE.,&
-                           level_shift=0.0_dp,&
                            cholesky_method=scf_env%cholesky_method,&
                            use_jacobi=.FALSE.,&
-                           jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                            error=error)
        END IF
 
@@ -934,15 +931,12 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        qs_env%scf_env%iter_delta = 0.0_dp
 
        DO ispin = 1,qs_env%dft_control%nspins
-         CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
+         CALL eigensolver(matrix_ks_fm=qs_env%scf_env%scf_work1(ispin)%matrix, &
                           mo_set=mo_array(ispin)%mo_set,&
                           ortho=qs_env%scf_env%ortho, &
                           work=qs_env%scf_env%scf_work2,&
-                          do_level_shift=.FALSE., &
-                          level_shift=scf_control%level_shift, &
                           cholesky_method=scf_env%cholesky_method,&
                           use_jacobi=.FALSE.,&
-                          jacobi_threshold=scf_control%diagonalization%jacobi_threshold, &
                           error=error)
          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                 smear=scf_control%smear,&
