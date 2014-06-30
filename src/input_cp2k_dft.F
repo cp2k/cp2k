@@ -2466,14 +2466,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="EPS_3C_REDUCE",&
-            description="GAPW: Factor to reduce the precision in the construction"//&
-            " of the 3 center lists for the calculation of the OCE coefficients.",&
-            usage="EPS_3C_REDUCE real", default_r_val=1.0_dp,&
-            type_of_var=real_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="EPS_PPL",&
             description="Adjusts the precision for the local part of the pseudo potential. ",&
             usage="EPS_PPL real", type_of_var=real_t, default_r_val=1.0E-2_dp,&
