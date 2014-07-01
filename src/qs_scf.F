@@ -43,6 +43,7 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_name,&
                                              cp_dbcsr_p_type,&
@@ -784,6 +785,16 @@ CPSourceFileRef)
        IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2,error)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho,error=error)
        IF (ASSOCIATED(scf_env%ortho_m1)) CALL cp_fm_release(scf_env%ortho_m1,error=error)
+
+       IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
+           CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr,error=error)
+       END IF
+       IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
+           CALL cp_dbcsr_deallocate_matrix(scf_env%buf1_dbcsr,error=error)
+       END IF
+       IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
+           CALL cp_dbcsr_deallocate_matrix(scf_env%buf2_dbcsr,error=error)
+       END IF
 
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
           CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
