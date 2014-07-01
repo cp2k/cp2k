@@ -276,6 +276,7 @@ CONTAINS
 !> \brief performs allocation of the SCF work matrices
 ! *****************************************************************************
   SUBROUTINE qs_scf_ensure_work_matrices(qs_env,scf_env,do_xas_tp,error)
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     LOGICAL, INTENT(IN)                      :: do_xas_tp
@@ -284,7 +285,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_ensure_work_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, nao, nrow_block, stat
+    INTEGER                                  :: handle, ispin, nao, &
+                                                nrow_block, stat
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
@@ -295,76 +297,82 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
+    CALL timeset(routineN,handle)
+
     NULLIFY(ao_mo_fm_pools, ao_mo_fmstruct, ao_ao_fmstruct, dft_control, matrix_ks,  mos )
 
     CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control, matrix_ks=matrix_ks,&
-         mos=mos, error=error)
-    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
-         error=error)
+                    dft_control=dft_control,&
+                    matrix_ks=matrix_ks,&
+                    mos=mos,&
+                    error=error)
+    CALL mpools_get(qs_env%mpools,ao_mo_fm_pools=ao_mo_fm_pools,error=error)
 
     ! create an ao_ao parallel matrix structure
-    ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool,&
-         error=error)
-    CALL cp_fm_struct_get(ao_mo_fmstruct, nrow_block=nrow_block,&
-         error=error)
+    ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool,error=error)
+    CALL cp_fm_struct_get(ao_mo_fmstruct, nrow_block=nrow_block,error=error)
     CALL get_mo_set(mos(1)%mo_set,nao=nao)
     CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct,&
-         nrow_block=nrow_block,ncol_block=nrow_block,&
-         nrow_global=nao, ncol_global=nao,&
-         template_fmstruct=ao_mo_fmstruct, error=error)
+                             nrow_block=nrow_block,&
+                             ncol_block=nrow_block,&
+                             nrow_global=nao,&
+                             ncol_global=nao,&
+                             template_fmstruct=ao_mo_fmstruct,&
+                             error=error)
 
-    IF((scf_env%method /= ot_method_nr) .AND. &
-       (scf_env%method /= block_davidson_diag_method_nr) ) THEN
-      IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
-        ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DO ispin=1,SIZE(scf_env%scf_work1)
-           NULLIFY(scf_env%scf_work1(ispin)%matrix)
-           CALL cp_fm_create(scf_env%scf_work1(ispin)%matrix,&
-                matrix_struct=ao_ao_fmstruct,&
-                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                error=error)
-        ENDDO
-      END IF
-      IF ((.NOT.ASSOCIATED(scf_env%ortho) .OR. .NOT.ASSOCIATED(scf_env%ortho_dbcsr)).AND.&
-         (scf_env%method /= ot_diag_method_nr).AND.&
-         (scf_env%method /= special_diag_method_nr)) THEN
-
-! initialize dbcsr matrix to store the cholesky decomposition
-        IF(scf_env%cholesky_method==cholesky_dbcsr) THEN
-          CALL cp_dbcsr_init_p(scf_env%ortho_dbcsr,error=error)
-          CALL cp_dbcsr_create(scf_env%ortho_dbcsr,template=matrix_ks(1)%matrix,&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
-          CALL cp_dbcsr_init_p(scf_env%buf1_dbcsr,error=error)
-          CALL cp_dbcsr_create(scf_env%buf1_dbcsr,template=matrix_ks(1)%matrix,&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
-          CALL cp_dbcsr_init_p(scf_env%buf2_dbcsr,error=error)
-          CALL cp_dbcsr_create(scf_env%buf2_dbcsr,template=matrix_ks(1)%matrix,&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
-        END IF
-
-! initialize fm matrix to store the cholesky decomposition
-        CALL cp_fm_create(scf_env%ortho,&
-              matrix_struct=ao_ao_fmstruct,&
-              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-              "ORTHO_MATRIX",&
-              error=error)
-        IF(scf_env%cholesky_method==cholesky_inverse) THEN
-             CALL cp_fm_create(scf_env%ortho_m1, matrix_struct=ao_ao_fmstruct,&
-                   name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                   "ORTHO_MATRIX-1",&
-                    error=error)
-        END IF
-      END IF
-      IF ((.NOT.ASSOCIATED(scf_env%scf_work2))) THEN
-        CALL cp_fm_create(scf_env%scf_work2,&
-            matrix_struct=ao_ao_fmstruct,&
-            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "WORK_MATRIX-2",&
-            error=error)
-      END IF
+    IF ((scf_env%method /= ot_method_nr) .AND. &
+        (scf_env%method /= block_davidson_diag_method_nr) ) THEN
+       IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
+          ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,SIZE(scf_env%scf_work1)
+             NULLIFY(scf_env%scf_work1(ispin)%matrix)
+             CALL cp_fm_create(scf_env%scf_work1(ispin)%matrix,&
+                               matrix_struct=ao_ao_fmstruct,&
+                               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                               "WORK_MATRIX-1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                               error=error)
+          END DO
+       END IF
+       IF (((.NOT.ASSOCIATED(scf_env%ortho)).OR.(.NOT.ASSOCIATED(scf_env%ortho_dbcsr))).AND.&
+           (scf_env%method /= ot_diag_method_nr).AND.&
+           (scf_env%method /= special_diag_method_nr)) THEN
+          ! Initialize dbcsr matrix to store the Cholesky decomposition
+          IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
+             CALL cp_dbcsr_init_p(scf_env%ortho_dbcsr,error=error)
+             CALL cp_dbcsr_create(scf_env%ortho_dbcsr,template=matrix_ks(1)%matrix,&
+                                  matrix_type=dbcsr_type_no_symmetry,error=error)
+             CALL cp_dbcsr_init_p(scf_env%buf1_dbcsr,error=error)
+             CALL cp_dbcsr_create(scf_env%buf1_dbcsr,template=matrix_ks(1)%matrix,&
+                                  matrix_type=dbcsr_type_no_symmetry,error=error)
+             CALL cp_dbcsr_init_p(scf_env%buf2_dbcsr,error=error)
+             CALL cp_dbcsr_create(scf_env%buf2_dbcsr,template=matrix_ks(1)%matrix,&
+                                  matrix_type=dbcsr_type_no_symmetry,error=error)
+          ELSE
+             ! Initialize fm matrix to store the Cholesky decomposition
+             IF (.NOT.ASSOCIATED(scf_env%ortho)) THEN
+                CALL cp_fm_create(scf_env%ortho,&
+                                  matrix_struct=ao_ao_fmstruct,&
+                                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                                  "ORTHO_MATRIX",&
+                                  error=error)
+             END IF
+             IF (scf_env%cholesky_method == cholesky_inverse) THEN
+                CALL cp_fm_create(scf_env%ortho_m1,&
+                                  matrix_struct=ao_ao_fmstruct,&
+                                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                                  "ORTHO_MATRIX-1",&
+                                  error=error)
+             END IF
+          END IF
+       END IF
+       IF (.NOT.ASSOCIATED(scf_env%scf_work2)) THEN
+          CALL cp_fm_create(scf_env%scf_work2,&
+                            matrix_struct=ao_ao_fmstruct,&
+                            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                            "WORK_MATRIX-2",&
+                            error=error)
+       END IF
     END IF
 
     IF (dft_control%dft_plus_u) THEN
@@ -384,7 +392,10 @@ CONTAINS
         END IF
       END IF
     END IF
+
     CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_scf_ensure_work_matrices
 
