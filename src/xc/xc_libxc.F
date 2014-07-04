@@ -1591,9 +1591,9 @@ CONTAINS
                                                 v2rhotau, v3rho3
     REAL(KIND=dp), DIMENSION(6, 1)           :: v2rhosigma, v2sigma2, &
                                                 v2sigmalapl, v2sigmatau
-    ! these are just dummy variables, you need to use the correct size if working
-    REAL(KIND=dp), DIMENSION(6, 1)           :: v3rho2sigma, v3rhosigma2, v3sigma3
     TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
+
+! these are just dummy variables, you need to use the correct size if working
 
     func_id = get_func_id(func_name)
 !$OMP CRITICAL(libxc_init)
