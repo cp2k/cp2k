@@ -116,4 +116,5 @@ argon11.inp
 #
 argon11.inp
 argon12.inp
-
+# new version libxc 2.1
+argon04.inp

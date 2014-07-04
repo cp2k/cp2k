@@ -129,10 +129,11 @@ How to compile CP2K code
      * Consult machine/README for more information.
 
  2k) Library of exchange-correlation functionals libxc (optional, v2.0.1):
-     * The version 2.0.1 (ONLY this one) of libxc needs to be downloaded
+     * The version 2.0.1 (or later) of libxc needs to be downloaded
        (http://www.tddft.org/programs/octopus/wiki/index.php/Libxc) and installed.
        During the installation, the directory $(LIBXC_DIR)/lib is created.
      * Add -D__LIBXC2 to DFLAGS and -L$(LIBXC_DIR)/lib -lxc to LIBS.
+     * Add -D__LIBXC2 to DFLAGS and -L$(LIBXC_DIR)/lib -lxcf90 -lxc to LIBS for version 2.2.0.
 
  2l) Library ELPA for the solution of the eigenvalue problem
      * One version of ELPA need to be downloaded (http://elpa.rzg.mpg.de/software or directly

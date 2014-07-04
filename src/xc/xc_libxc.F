@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief calculates a functional from libxc and its derivatives
 !> \note
-!>      Only for version v2.0.1 (2013-01-21) of libxc
+!>      Only for version v2 of libxc
 !>      (Marques, Oliveira, Burnus, CPC 183, 2272 (2012)).
 !>
 !>      For subsequent versions of libxc, the following should be updated if
@@ -16,15 +16,19 @@
 !>      3) The list of functionals using the laplacian of the density
 !>         (in libxc_lda_info, libxc_lsd_info, libxc_lda_eval and
 !>         libxc_lsd_eval).
+!>         only checked for functionals up to 2.0.1
 !>      4) The list of functionals for which it is possible to provide input
 !>         parameters (in libxc_lda_calc and libxc_lsd_calc). For more
 !>         information on the parameters, see subroutines xc_f90_xxx_set_par
 !>         in libxc.f90 of the libxc package or xc_f90_lib_m.F.
+!>         only checked for functionals up to 2.0.1
 !>      5) The list of functionals for which exc is not calculated by the
 !>         libxc subroutines (exc=0 is arbitrarily chosen) (in libxc_lda_calc
 !>         and libxc_lsd_calc).
+!>         only checked for functionals up to 2.0.1
 !>      6) Reactivate the functionals which are working correctly
 !>         (in libxc_lda_info and libxc_lsd_info).
+!>         only checked for functionals up to 2.0.1
 !>
 !>      WARNING: In the subroutine libxc_lsd_calc, it could be that the
 !>      ordering for the 1st index of v2lapltau, v2rholapl, v2rhotau,
@@ -34,11 +38,12 @@
 !>
 !> \par History
 !>      01.2013 created [F. Tran]
+!>      07.2014 updates to versions 2.1 [JGH]
 !> \author F. Tran
 ! *****************************************************************************
 MODULE xc_libxc
 #if defined (__LIBXC)
-This version of CP2K ONLY works with libxc version 2.0.1
+This version of CP2K ONLY works with libxc version 2
 #endif
 #if defined (__LIBXC2)
   USE bibliography,                    ONLY: Marques2012,&
@@ -123,7 +128,7 @@ CONTAINS
     END IF
     IF ((func_id == 207) .OR. (func_id == 208) .OR. (func_id == 209)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name(ifunc_name))//": desactivated since (probably) buggy in v2.0.1 of libxc")
+          TRIM(func_name(ifunc_name))//": deactivated since (probably) buggy in v2 of libxc")
     END IF
 !$OMP CRITICAL(libxc_init)
     CALL xc_f90_func_init(xc_func,xc_info,func_id,XC_UNPOLARIZED)
@@ -170,7 +175,6 @@ CONTAINS
           max_deriv=2
        CASE (XC_FAMILY_MGGA)
           max_deriv=1
-!          max_deriv=2
        END SELECT
     END IF
 
@@ -279,7 +283,6 @@ CONTAINS
           max_deriv=2
        CASE (XC_FAMILY_MGGA)
           max_deriv=1
-!          max_deriv=2
        END SELECT
     END IF
 
@@ -1332,8 +1335,10 @@ CONTAINS
                   CALL xc_f90_gga_fxc(xc_func,1,rho(ii),norm_drho(ii)**2,&
                      v2rho2,v2rhosigma,v2sigma2)
                 ELSE
-                  CALL xc_f90_gga(xc_func,1,rho(ii),norm_drho(ii)**2,&
-                     exc,vrho,vsigma,v2rho2,v2rhosigma,v2sigma2)
+                  CALL xc_f90_gga_exc_vxc(xc_func,1,rho(ii),norm_drho(ii)**2,&
+                     exc,vrho,vsigma)
+                  CALL xc_f90_gga_fxc(xc_func,1,rho(ii),norm_drho(ii)**2,&
+                     v2rho2,v2rhosigma,v2sigma2)
                 END IF
                 e_rho_rho(ii) = e_rho_rho(ii) + sc*v2rho2
                 e_ndrho_rho(ii) = e_ndrho_rho(ii) + sc*2.0_dp*v2rhosigma*norm_drho(ii)
@@ -1352,8 +1357,10 @@ CONTAINS
                      v2rho2,v2rhosigma,v2sigma2)
                   exc = 0.0_dp
                 ELSE
-                  CALL xc_f90_gga(xc_func,1,rho(ii),norm_drho(ii)**2,&
-                     exc,vrho,vsigma,v2rho2,v2rhosigma,v2sigma2)
+                  CALL xc_f90_gga_exc_vxc(xc_func,1,rho(ii),norm_drho(ii)**2,&
+                     exc,vrho,vsigma)
+                  CALL xc_f90_gga_fxc(xc_func,1,rho(ii),norm_drho(ii)**2,&
+                     v2rho2,v2rhosigma,v2sigma2)
                 END IF
                 e_0(ii) = e_0(ii) + sc*exc*rho(ii)
                 e_rho(ii) = e_rho(ii) + sc*vrho
@@ -1584,6 +1591,8 @@ CONTAINS
                                                 v2rhotau, v3rho3
     REAL(KIND=dp), DIMENSION(6, 1)           :: v2rhosigma, v2sigma2, &
                                                 v2sigmalapl, v2sigmatau
+    ! these are just dummy variables, you need to use the correct size if working
+    REAL(KIND=dp), DIMENSION(6, 1)           :: v3rho2sigma, v3rhosigma2, v3sigma3
     TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
 
     func_id = get_func_id(func_name)
@@ -1834,8 +1843,9 @@ CONTAINS
                   CALL xc_f90_gga_fxc(xc_func,1,rhov(1,1),sigmav(1,1),&
                      v2rho2(1,1),v2rhosigma(1,1),v2sigma2(1,1))
                 ELSE
-                  CALL xc_f90_gga(xc_func,1,rhov(1,1),sigmav(1,1),&
-                     exc,vrho(1,1),vsigma(1,1),v2rho2(1,1),v2rhosigma(1,1),v2sigma2(1,1))
+                  CALL xc_f90_gga_exc_vxc(xc_func,1,rhov(1,1),sigmav(1,1),exc,vrho(1,1),vsigma(1,1))
+                  CALL xc_f90_gga_fxc(xc_func,1,rhov(1,1),sigmav(1,1),&
+                     v2rho2(1,1),v2rhosigma(1,1),v2sigma2(1,1))
                 END IF
                 e_rhoa_rhoa(ii) = e_rhoa_rhoa(ii) + sc*v2rho2(1,1)
                 e_rhoa_rhob(ii) = e_rhoa_rhob(ii) + sc*v2rho2(2,1)
@@ -1888,8 +1898,9 @@ CONTAINS
                      v2rho2(1,1),v2rhosigma(1,1),v2sigma2(1,1))
                   exc = 0.0_dp
                 ELSE
-                  CALL xc_f90_gga(xc_func,1,rhov(1,1),sigmav(1,1),&
-                     exc,vrho(1,1),vsigma(1,1),v2rho2(1,1),v2rhosigma(1,1),v2sigma2(1,1))
+                  CALL xc_f90_gga_exc_vxc(xc_func,1,rhov(1,1),sigmav(1,1),exc,vrho(1,1),vsigma(1,1))
+                  CALL xc_f90_gga_fxc(xc_func,1,rhov(1,1),sigmav(1,1),&
+                     v2rho2(1,1),v2rhosigma(1,1),v2sigma2(1,1))
                 END IF
                 e_0(ii) = e_0(ii) + sc*exc*(rhov(1,1) + rhov(2,1))
                 e_rhoa(ii) = e_rhoa(ii) + sc*vrho(1,1)
@@ -2311,12 +2322,12 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_LDA_C_2D_AMGB')              get_func_id =  15  !  Attacalite et al             
     IF (TRIM(func_name) == 'XC_LDA_C_2D_PRM')               get_func_id =  16  !  Pittalis, Rasanen & Marques correlation in 2D 
     IF (TRIM(func_name) == 'XC_LDA_C_vBH')                  get_func_id =  17  !  von Barth & Hedin            
-    IF (TRIM(func_name) == 'XC_LDA_C_1D_CSC')               get_func_id =  18  !  Casula, Sorella, and Senatore 1D correlation     
+    IF (TRIM(func_name) == 'XC_LDA_C_1D_CSC')               get_func_id =  18  !  Casula, Sorella, and Senatore 1D correlation
     IF (TRIM(func_name) == 'XC_LDA_X_2D')                   get_func_id =  19  !  Exchange in 2D 
     IF (TRIM(func_name) == 'XC_LDA_XC_TETER93')             get_func_id =  20  !  Teter 93 parametrization                
     IF (TRIM(func_name) == 'XC_LDA_X_1D')                   get_func_id =  21  !  Exchange in 1D     
-    IF (TRIM(func_name) == 'XC_LDA_C_ML1')                  get_func_id =  22  !  Modified LSD (version 1) of Proynov and Salahub 
-    IF (TRIM(func_name) == 'XC_LDA_C_ML2')                  get_func_id =  23  !  Modified LSD (version 2) of Proynov and Salahub 
+    IF (TRIM(func_name) == 'XC_LDA_C_ML1')                  get_func_id =  22  !  Modified LSD (version 1) of Proynov and Salahub
+    IF (TRIM(func_name) == 'XC_LDA_C_ML2')                  get_func_id =  23  !  Modified LSD (version 2) of Proynov and Salahub
     IF (TRIM(func_name) == 'XC_LDA_C_GOMBAS')               get_func_id =  24  !  Gombas parametrization       
     IF (TRIM(func_name) == 'XC_LDA_C_PW_RPA')               get_func_id =  25  !  Perdew & Wang fit of the RPA 
     IF (TRIM(func_name) == 'XC_LDA_C_1D_LOOS')              get_func_id =  26  !  P-F Loos correlation LDA     
@@ -2327,6 +2338,32 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_LDA_C_VWN_4')                get_func_id =  31  !  Vosko, Wilk, & Nussair (4)   
     IF (TRIM(func_name) == 'XC_LDA_K_TF')                   get_func_id =  50  !  Thomas-Fermi kinetic energy functional 
     IF (TRIM(func_name) == 'XC_LDA_K_LP')                   get_func_id =  51  !  Lee and Parr Gaussian ansatz           
+    IF (TRIM(func_name) == 'XC_GGA_C_Q2D')                  get_func_id =  47  !  Chiodo et al  
+    IF (TRIM(func_name) == 'XC_GGA_X_Q2D')                  get_func_id =  48  !  Chiodo et al  
+    IF (TRIM(func_name) == 'XC_GGA_X_PBE_MOL')              get_func_id =  49  !  Del Campo, Gazquez, Trickey and Vela (PBE-like)
+    IF (TRIM(func_name) == 'XC_GGA_K_TFVW')                 get_func_id =  52  !  Thomas-Fermi plus von Weiszaecker correction 
+    IF (TRIM(func_name) == 'XC_GGA_K_REVAPBEINT')           get_func_id =  53  !  interpolated version of REVAPBE 
+    IF (TRIM(func_name) == 'XC_GGA_K_APBEINT')              get_func_id =  54  !  interpolated version of APBE
+    IF (TRIM(func_name) == 'XC_GGA_K_REVAPBE')              get_func_id =  55  !  revised APBE
+    IF (TRIM(func_name) == 'XC_GGA_X_AK13')                 get_func_id =  56  !  Armiento & Kuemmel 2013
+    IF (TRIM(func_name) == 'XC_GGA_K_MEYER')                get_func_id =  57  !  Meyer,  Wang, and Young 
+    IF (TRIM(func_name) == 'XC_GGA_X_LV_RPW86')             get_func_id =  58  !  Berland and Hyldgaard 
+    IF (TRIM(func_name) == 'XC_GGA_X_PBE_TCA')              get_func_id =  59  !  PBE revised by Tognetti et al
+    IF (TRIM(func_name) == 'XC_GGA_X_PBEINT')               get_func_id =  60  !  PBE for hybrid interfaces
+    IF (TRIM(func_name) == 'XC_GGA_C_ZPBEINT')              get_func_id =  61  !  spin-dependent gradient correction to PBEint
+    IF (TRIM(func_name) == 'XC_GGA_C_PBEINT')               get_func_id =  62  !  PBE for hybrid interfaces 
+    IF (TRIM(func_name) == 'XC_GGA_C_ZPBESOL')              get_func_id =  63  !  spin-dependent gradient correction to PBEsol
+    IF (TRIM(func_name) == 'XC_GGA_XC_OPBE_D')              get_func_id =  65  !  oPBE_D functional of Goerigk and Grimme
+    IF (TRIM(func_name) == 'XC_GGA_XC_OPWLYP_D')            get_func_id =  66  !  oPWLYP-D functional of Goerigk and Grimme
+    IF (TRIM(func_name) == 'XC_GGA_XC_OBLYP_D')             get_func_id =  67  !  oBLYP-D functional of Goerigk and Grimme 
+    IF (TRIM(func_name) == 'XC_GGA_X_VMT84_GE')             get_func_id =  68  !  VMT{8,4} with constraint satisfaction with mu = mu_GE
+    IF (TRIM(func_name) == 'XC_GGA_X_VMT84_PBE')            get_func_id =  69  !  VMT{8,4} with constraint satisfaction with mu = mu_PBE
+    IF (TRIM(func_name) == 'XC_GGA_X_VMT_GE')               get_func_id =  70  !  Vela, Medel, and Trickey with mu = mu_GE
+    IF (TRIM(func_name) == 'XC_GGA_X_VMT_PBE')              get_func_id =  71  !  Vela, Medel, and Trickey with mu = mu_PBE 
+    IF (TRIM(func_name) == 'XC_GGA_C_N12_SX')               get_func_id =  79  !  N12-SX functional from Minnesota
+    IF (TRIM(func_name) == 'XC_GGA_C_N12')                  get_func_id =  80  !  N12 functional from Minnesota
+    IF (TRIM(func_name) == 'XC_GGA_X_N12')                  get_func_id =  82  !  N12 functional from Minnesota
+    IF (TRIM(func_name) == 'XC_GGA_C_VPBE')                 get_func_id =  83  !  variant PBE
     IF (TRIM(func_name) == 'XC_GGA_C_OP_XALPHA')            get_func_id =  84  !  one-parameter progressive functional (G96 version)  
     IF (TRIM(func_name) == 'XC_GGA_C_OP_G96')               get_func_id =  85  !  one-parameter progressive functional (G96 version)  
     IF (TRIM(func_name) == 'XC_GGA_C_OP_PBE')               get_func_id =  86  !  one-parameter progressive functional (PBE version)  
@@ -2450,8 +2487,8 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_GGA_K_YT65')                 get_func_id = 503  !  TF-lambda-vW form by Yonei and Tomishima (l = 1/5) 
     IF (TRIM(func_name) == 'XC_GGA_K_BALTIN')               get_func_id = 504  !  TF-lambda-vW form by Baltin (l = 5/9) 
     IF (TRIM(func_name) == 'XC_GGA_K_LIEB')                 get_func_id = 505  !  TF-lambda-vW form by Lieb (l = 0.185909191) 
-    IF (TRIM(func_name) == 'XC_GGA_K_ABSR1')                get_func_id = 506  !  gamma-TFvW form by Acharya et al [g = 1 - 1.412/N^(1/3)] 
-    IF (TRIM(func_name) == 'XC_GGA_K_ABSR2')                get_func_id = 507  !  gamma-TFvW form by Acharya et al [g = 1 - 1.332/N^(1/3)] 
+    IF (TRIM(func_name) == 'XC_GGA_K_ABSP1')                get_func_id = 506  !  gamma-TFvW form by Acharya et al [g = 1 - 1.412/N^(1/3)] 
+    IF (TRIM(func_name) == 'XC_GGA_K_ABSP2')                get_func_id = 507  !  gamma-TFvW form by Acharya et al [g = 1 - 1.332/N^(1/3)] 
     IF (TRIM(func_name) == 'XC_GGA_K_GR')                   get_func_id = 508  !  gamma-TFvW form by Gázquez and Robles 
     IF (TRIM(func_name) == 'XC_GGA_K_LUDENA')               get_func_id = 509  !  gamma-TFvW form by Ludeña 
     IF (TRIM(func_name) == 'XC_GGA_K_GP85')                 get_func_id = 510  !  gamma-TFvW form by Ghosh and Parr 
@@ -2473,7 +2510,9 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_GGA_X_HJS_PBE_SOL')          get_func_id = 526  !  HJS screened exchange PBE_SOL version 
     IF (TRIM(func_name) == 'XC_GGA_X_HJS_B88')              get_func_id = 527  !  HJS screened exchange B88 version 
     IF (TRIM(func_name) == 'XC_GGA_X_HJS_B97X')             get_func_id = 528  !  HJS screened exchange B97x version 
-    IF (TRIM(func_name) == 'XC_GGA_X_ITYH')                 get_func_id = 529  !  short-range recipe for exchange GGA functionals 
+    IF (TRIM(func_name) == 'XC_GGA_X_ITYH')                 get_func_id = 529  !  short-range recipe for exchange GGA functionals
+    IF (TRIM(func_name) == 'XC_GGA_X_SFAT')                 get_func_id = 530  !  short-range recipe for exchange GGA functionals
+    IF (TRIM(func_name) == 'XC_HYB_GGA_X_N12_SX')           get_func_id =  81  !  N12-SX functional from Minnesota
     IF (TRIM(func_name) == 'XC_HYB_GGA_XC_B3PW91')          get_func_id = 401  !  The original (ACM) hybrid of Becke    
     IF (TRIM(func_name) == 'XC_HYB_GGA_XC_B3LYP')           get_func_id = 402  !  The (in)famous B3LYP                  
     IF (TRIM(func_name) == 'XC_HYB_GGA_XC_B3P86')           get_func_id = 403  !  Perdew 86 hybrid similar to B3PW91    
@@ -2510,14 +2549,26 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_HYB_GGA_XC_BHANDH')          get_func_id = 435  !  Becke half-and-half 
     IF (TRIM(func_name) == 'XC_HYB_GGA_XC_BHANDHLYP')       get_func_id = 436  !  Becke half-and-half with B88 exchange
     IF (TRIM(func_name) == 'XC_HYB_GGA_XC_MB3LYP_RC04')     get_func_id = 437  !  B3LYP with RC04 LDA                   
+    IF (TRIM(func_name) == 'XC_HYB_GGA_XC_MPWLYP1M')        get_func_id = 453  !  MPW with 1 par. for metals/LYP
+    IF (TRIM(func_name) == 'XC_HYB_GGA_XC_REVB3LYP')        get_func_id = 454  !  Revised B3LYP 
+    IF (TRIM(func_name) == 'XC_HYB_GGA_XC_CAMY_BLYP')       get_func_id = 455  !  BLYP with yukawa screening
+    IF (TRIM(func_name) == 'XC_HYB_GGA_XC_PBE0_13')         get_func_id = 456  !  PBE0-1/3
+    IF (TRIM(func_name) == 'XC_MGGA_XC_OTPSS_D')            get_func_id =  64  !  oTPSS_D functional of Goerigk and Grimme
+    IF (TRIM(func_name) == 'XC_MGGA_C_CS')                  get_func_id =  72  !  Colle and Salvetti
+    IF (TRIM(func_name) == 'XC_MGGA_C_MN12_SX')             get_func_id =  73  !  MN12-SX functional of Minnesota
+    IF (TRIM(func_name) == 'XC_MGGA_C_MN12_L')              get_func_id =  74  !  MN12-L functional of Minnesota
+    IF (TRIM(func_name) == 'XC_MGGA_C_M11_L')               get_func_id =  75  !  M11-L functional of Minnesota
+    IF (TRIM(func_name) == 'XC_MGGA_C_M11')                 get_func_id =  76  !  M11 functional of Minnesota
+    IF (TRIM(func_name) == 'XC_MGGA_C_M08_SO')              get_func_id =  77  !  M08-SO functional of Minnesota
+    IF (TRIM(func_name) == 'XC_MGGA_C_M08_HX')              get_func_id =  78  !  M08-HX functional of Minnesota
     IF (TRIM(func_name) == 'XC_MGGA_X_LTA')                 get_func_id = 201  !  Local tau approximation of Ernzerhof & Scuseria 
     IF (TRIM(func_name) == 'XC_MGGA_X_TPSS')                get_func_id = 202  !  Perdew, Tao, Staroverov & Scuseria exchange 
     IF (TRIM(func_name) == 'XC_MGGA_X_M06_L')               get_func_id = 203  !  M06-Local functional of Minnesota 
     IF (TRIM(func_name) == 'XC_MGGA_X_GVT4')                get_func_id = 204  !  GVT4 from Van Voorhis and Scuseria 
     IF (TRIM(func_name) == 'XC_MGGA_X_TAU_HCTH')            get_func_id = 205  !  tau-HCTH from Boese and Handy 
     IF (TRIM(func_name) == 'XC_MGGA_X_BR89')                get_func_id = 206  !  Becke-Roussel 89  
-    IF (TRIM(func_name) == 'XC_MGGA_X_BJ06')                get_func_id = 207  !  Becke & Johnson correction to Becke-Roussel 89  
-    IF (TRIM(func_name) == 'XC_MGGA_X_TB09')                get_func_id = 208  !  Tran & Blaha correction to Becke & Johnson  
+    IF (TRIM(func_name) == 'XC_MGGA_X_BJ06')                get_func_id = 207  !  Becke & Johnson correction to Becke-Roussel 89
+    IF (TRIM(func_name) == 'XC_MGGA_X_TB09')                get_func_id = 208  !  Tran & Blaha correction to Becke & Johnson
     IF (TRIM(func_name) == 'XC_MGGA_X_RPP09')               get_func_id = 209  !  Rasanen, Pittalis, and Proetto correction to Becke & Johnson  
     IF (TRIM(func_name) == 'XC_MGGA_X_2D_PRHG07')           get_func_id = 210  !  Pittalis, Rasanen, Helbig, Gross Exchange Functional 
     IF (TRIM(func_name) == 'XC_MGGA_X_2D_PRHG07_PRP10')     get_func_id = 211  !  PRGH07 with PRP10 correction 
@@ -2530,6 +2581,15 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_MGGA_X_M06_2X')              get_func_id = 218  !  M06-2X functional of Minnesota 
     IF (TRIM(func_name) == 'XC_MGGA_X_M08_HX')              get_func_id = 219  !  M08-HX functional of Minnesota 
     IF (TRIM(func_name) == 'XC_MGGA_X_M08_SO')              get_func_id = 220  !  M08-SO functional of Minnesota 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MS0')                 get_func_id = 221  !  MS exchange of Sun, Xiao, and Ruzsinszky 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MS1')                 get_func_id = 222  !  MS1 exchange of Sun, et al 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MS2')                 get_func_id = 223  !  MS2 exchange of Sun, et al 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MS2H')                get_func_id = 224  !  MS2 hybrid exchange of Sun, et al 
+    IF (TRIM(func_name) == 'XC_MGGA_X_M11_L')               get_func_id = 226  !  M11-L functional of Minnesota 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MN12_L')              get_func_id = 227  !  MN12-L functional from Minnesota  
+    IF (TRIM(func_name) == 'XC_MGGA_X_MN12_SX')             get_func_id = 228  !  MN12-SX functional from Minnesota 
+    IF (TRIM(func_name) == 'XC_MGGA_C_CC06')                get_func_id = 229  !  Cancio and Chou 2006 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MK00')                get_func_id = 230  !  Exchange for accurate virtual orbital energies 
     IF (TRIM(func_name) == 'XC_MGGA_C_TPSS')                get_func_id = 231  !  Perdew, Tao, Staroverov & Scuseria correlation 
     IF (TRIM(func_name) == 'XC_MGGA_C_VSXC')                get_func_id = 232  !  VSxc from Van Voorhis and Scuseria (correlation part) 
     IF (TRIM(func_name) == 'XC_MGGA_C_M06_L')               get_func_id = 233  !  M06-Local functional of Minnesota 
@@ -2540,19 +2600,29 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_MGGA_C_M05_2X')              get_func_id = 238  !  M05-2X functional of Minnesota 
     IF (TRIM(func_name) == 'XC_MGGA_C_PKZB')                get_func_id = 239  !  Perdew, Kurth, Zupan, and Blaha 
     IF (TRIM(func_name) == 'XC_MGGA_C_BC95')                get_func_id = 240  !  Becke correlation 95 
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M05')            get_func_id = 438  !  M05 functional of Minnesota                      
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M05_2X')         get_func_id = 439  !  M05-2X functional of Minnesota                   
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_B88B95')         get_func_id = 440  !  Mixture of B88 with BC95 (B1B95)                 
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_B86B95')         get_func_id = 441  !  Mixture of B86 with BC95                         
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_PW86B95')        get_func_id = 442  !  Mixture of PW86 with BC95                        
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_BB1K')           get_func_id = 443  !  Mixture of B88 with BC95 from Zhao and Truhlar   
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M06_HF')         get_func_id = 444  !  M06-HF functional of Minnesota                   
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_MPW1B95')        get_func_id = 445  !  Mixture of mPW91 with BC95 from Zhao and Truhlar 
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_MPWB1K')         get_func_id = 446  !  Mixture of mPW91 with BC95 for kinetics          
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_X1B95')          get_func_id = 447  !  Mixture of X with BC95                           
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_XB1K')           get_func_id = 448  !  Mixture of X with BC95 for kinetics              
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M06')            get_func_id = 449  !  M06 functional of Minnesota                      
-    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M06_2X')         get_func_id = 450  !  M06-2X functional of Minnesota                   
+    IF (TRIM(func_name) == 'XC_MGGA_C_REVTPSS')             get_func_id = 241  !  revised TPSS correlation 
+    IF (TRIM(func_name) == 'XC_MGGA_XC_TPSSLYP1W')          get_func_id = 242  !  Functionals fitted for water 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MK00B')               get_func_id = 243  !  Exchange for accurate virtual orbital energies (v. B) 
+    IF (TRIM(func_name) == 'XC_MGGA_X_BLOC')                get_func_id = 244  !  functional with balanced localization 
+    IF (TRIM(func_name) == 'XC_MGGA_X_MODTPSS')             get_func_id = 245  !  Modified Perdew, Tao, Staroverov & Scuseria exchange 
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_X_M11')             get_func_id = 225  !  M11 functional of Minnesota 
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M05')            get_func_id = 438  !  M05 functional of Minnesota
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M05_2X')         get_func_id = 439  !  M05-2X functional of Minnesota
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_B88B95')         get_func_id = 440  !  Mixture of B88 with BC95 (B1B95)
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_B86B95')         get_func_id = 441  !  Mixture of B86 with BC95
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_PW86B95')        get_func_id = 442  !  Mixture of PW86 with BC95
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_BB1K')           get_func_id = 443  !  Mixture of B88 with BC95 from Zhao and Truhlar
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M06_HF')         get_func_id = 444  !  M06-HF functional of Minnesota
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_MPW1B95')        get_func_id = 445  !  Mixture of mPW91 with BC95 from Zhao and Truhlar
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_MPWB1K')         get_func_id = 446  !  Mixture of mPW91 with BC95 for kinetics
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_X1B95')          get_func_id = 447  !  Mixture of X with BC95
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_XB1K')           get_func_id = 448  !  Mixture of X with BC95 for kinetics
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M06')            get_func_id = 449  !  M06 functional of Minnesota  
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M06_2X')         get_func_id = 450  !  M06-2X functional of Minnesota
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_PW6B95')         get_func_id = 451  !  Mixture of PW91 with BC95 from Zhao and Truhlar  
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_PWB6K')          get_func_id = 452  !  Mixture of PW91 with BC95 from Zhao and Truhlar for kinetics 
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_TPSSH')          get_func_id = 457  !     TPSS hybrid 
+    IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_REVTPSSH')       get_func_id = 458  !  revTPSS hybrid 
 
   END FUNCTION get_func_id
 #endif
