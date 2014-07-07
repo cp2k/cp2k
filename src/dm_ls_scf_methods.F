@@ -45,7 +45,7 @@ MODULE dm_ls_scf_methods
 
   PUBLIC :: density_matrix_sign, density_matrix_sign_fixed_mu
   PUBLIC :: compute_matrix_preconditioner, apply_matrix_preconditioner
-  PUBLIC :: density_matrix_trs4, compute_homo_lumo
+  PUBLIC :: density_matrix_trs4, density_matrix_tc2, compute_homo_lumo
 
 CONTAINS
 
@@ -606,6 +606,259 @@ CONTAINS
 
   END SUBROUTINE density_matrix_trs4
 
+! *****************************************************************************
+!> \brief compute the density matrix using a non monotonic trace conserving 
+!>  algorithm based on SIAM DOI. 10.1137/130911585.
+!>       2014.04 created [Jonathan Mullin]
+!> \author Jonathan Mullin 
+! *****************************************************************************
+  SUBROUTINE density_matrix_tc2(matrix_p, matrix_ks, matrix_s_sqrt_inv, &
+                                nelectron, threshold, e_homo, e_lumo, &
+                                non_monotonic, eps_lanczos, max_iter_lanczos, &
+                                error)
+
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks, matrix_s_sqrt_inv
+    INTEGER, INTENT(IN)                      :: nelectron
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    REAL(KIND=dp), INTENT(INOUT)             :: e_homo, e_lumo
+    LOGICAL, INTENT(IN), OPTIONAL            :: non_monotonic
+    REAL(KIND=dp), INTENT(IN)                :: eps_lanczos
+    INTEGER, INTENT(IN)                      :: max_iter_lanczos
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_tc2', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_iter = 100
+
+    INTEGER                                  :: handle, i, j, k, unit_nr
+    INTEGER(kind=int_8)                      :: flop1, flop2
+    LOGICAL                                  :: converged, do_non_monotonic
+    REAL(KIND=dp) :: beta, betaB, eps_max, eps_min, gama, &
+      max_eig, min_eig, occ_matrix, t1, t2, trace_fx, trace_gx
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, lambda, nu, poly, wu, &
+                                                X, Y
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp, matrix_x, &
+                                                matrix_xsq
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    do_non_monotonic = .FALSE.
+    IF(PRESENT(non_monotonic)) do_non_monotonic = non_monotonic
+
+    ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
+    CALL cp_dbcsr_init(matrix_x,error=error)
+    CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry, error=error)
+
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks,&
+                           0.0_dp, matrix_x, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_x, filter_eps=threshold,error=error)
+
+    IF (unit_nr>0) THEN
+       WRITE(unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo 
+       WRITE(unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo
+       WRITE(unit_nr, '(T6,A,1X,L12)')   "Predicts a gap ?        ", ((e_lumo)-(e_homo))>0
+    ENDIF
+
+    ! get largest/smallest eigenvalues for scaling
+    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
+                            converged=converged, error=error)
+    IF (unit_nr>0) WRITE(unit_nr,'(T6,A,1X,2F12.5,1X,A,1X,L1)') "Est. extremal eigenvalues", &
+                                                         min_eig, max_eig," converged: ",converged
+
+    eps_max = max_eig
+    eps_min = min_eig
+
+    ! scale KS matrix
+    CALL cp_dbcsr_scale(matrix_x, -1.0_dp, error=error)
+    CALL cp_dbcsr_add_on_diag(matrix_x, eps_max, error=error)
+    CALL cp_dbcsr_scale(matrix_x, 1/(eps_max-eps_min), error=error)
+    
+    CALL cp_dbcsr_init(matrix_xsq,error=error)
+    CALL cp_dbcsr_create(matrix_xsq,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_copy(matrix_xsq, matrix_x,error=error)
+
+    CALL cp_dbcsr_init(matrix_tmp,error=error)
+    CALL cp_dbcsr_create(matrix_tmp,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+
+    ALLOCATE(poly(max_iter))
+    ALLOCATE(nu(max_iter))
+    ALLOCATE(wu(max_iter))
+    ALLOCATE(alpha(max_iter))
+    ALLOCATE(X(4))
+    ALLOCATE(Y(4))
+    ALLOCATE(lambda(4))
+
+! Controls over the non_monotonic bounds, First if low gap, bias slightly
+    beta=(eps_max-ABS(e_lumo))/(eps_max-eps_min)
+    betaB=(eps_max+ABS(e_homo))/(eps_max-eps_min)
+
+    IF ( (beta-betaB) < 0.005_dp ) THEN
+       beta=beta - 0.002_dp
+       betaB=betaB + 0.002_dp
+    ENDIF
+! Check if input specifies to use monotonic bounds.
+    IF ( .NOT. do_non_monotonic ) THEN
+       beta=0.0_dp
+       betaB=1.0_dp
+    ENDIF
+! inital SCF cycle has no reliable estimate of homo/lumo, force monotinic bounds.
+    IF (e_homo == 0.0_dp) THEN
+       beta=0.0_dp
+       BetaB=1.0_dp
+    ENDIF
+
+    ! init to take true branch first
+    trace_fx=nelectron
+    trace_gx=0
+
+    DO i=1,max_iter
+       t1 = m_walltime()
+       flop1 = 0; flop2 = 0
+
+       IF ( ABS(trace_fx -nelectron) <= ABS(trace_gx -nelectron)  ) THEN
+! Xn+1 = (aX+ (1-a)I)^2
+          poly(i)=1.0_dp
+          alpha(i)=2.0_dp/(2.0_dp-beta)
+          
+          CALL cp_dbcsr_scale(matrix_x, alpha(i), error=error)
+          CALL cp_dbcsr_add_on_diag(matrix_x,1.0_dp-alpha(i), error=error)
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x,&
+                              0.0_dp, matrix_xsq, &
+                              filter_eps=threshold,flop=flop1,error=error)
+
+!save X for control variables
+          CALL cp_dbcsr_copy(matrix_tmp, matrix_x,error=error)
+
+          CALL cp_dbcsr_copy(matrix_x, matrix_xsq, error=error)
+
+          beta=(1.0_dp-alpha(i)) + alpha(i)*beta
+          beta = beta*beta
+          betaB=(1.0_dp-alpha(i))+ alpha(i)*betaB
+          betaB= betaB*betaB
+       ELSE
+! Xn+1 = 2aX-a^2*X^2
+          poly(i)=0.0_dp
+          alpha(i)=2.0_dp/(1.0_dp+betaB)
+
+          CALL cp_dbcsr_scale(matrix_x, alpha(i), error=error)
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x,&
+                               0.0_dp, matrix_xsq, &
+                               filter_eps=threshold,flop=flop1,error=error)
+
+!save X for control variables
+          CALL cp_dbcsr_copy(matrix_tmp, matrix_x,error=error)
+!
+          CALL cp_dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp, error=error)
+
+          beta=alpha(i)*beta
+          beta=2.0_dp*beta-beta*beta
+          betaB=alpha(i)*betaB
+          betaB=2.0_dp*betaB-betaB*betaB
+
+       ENDIF
+       occ_matrix = cp_dbcsr_get_occupation(matrix_x)
+       t2 = m_walltime()
+       IF (unit_nr>0) THEN
+          WRITE(unit_nr,&
+                       '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,E12.3)') "TC2 it ", &
+                       i, occ_matrix,  t2-t1,&
+                       (flop1+flop2)/(1.0E6_dp*(t2-t1)), threshold
+          CALL m_flush(unit_nr)
+       ENDIF
+
+! calculate control terms  
+       CALL cp_dbcsr_trace(matrix_xsq, trace_fx, error=error)
+
+! intermediate use matrix_xsq compute X- X*X , temorarily use trace_gx
+       CALL cp_dbcsr_add(matrix_xsq, matrix_tmp, -1.0_dp, 1.0_dp, error=error)
+       CALL cp_dbcsr_trace(matrix_xsq, trace_gx, error=error)
+       nu(i) = cp_dbcsr_frobenius_norm(matrix_xsq)
+       wu(i)=trace_gx
+
+! intermediate use matrix_xsq to compute = 2X - X*X
+       CALL cp_dbcsr_add(matrix_xsq, matrix_tmp, 1.0_dp, 1.0_dp, error=error)
+       CALL cp_dbcsr_trace(matrix_xsq, trace_gx, error=error)
+! TC2 has quadratic convergence, using the frobeniums norm as an idempotency deviation test.
+       IF (ABS(nu(i)) < (threshold) ) EXIT
+    END DO
+
+    occ_matrix = cp_dbcsr_get_occupation(matrix_x)
+    IF (unit_nr>0) WRITE(unit_nr, '(T6,A,I3,1X,1F10.8,1X,1F10.8)') 'Final TC2 iteration  ', i, occ_matrix,ABS(nu(i))
+
+    CALL cp_dbcsr_release(matrix_xsq, error=error)
+    CALL cp_dbcsr_release(matrix_tmp, error=error)
+
+    ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv,&
+                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p,&
+                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
+
+    ! ALGO 3 from. SIAM DOI. 10.1137/130911585
+    X(1)=1.0_dp
+    X(2)=1.0_dp
+    X(3)=0.0_dp
+    X(4)=0.0_dp
+    gama=6.0_dp-4.0_dp*(SQRT(2.0_dp))
+    gama=gama-gama*gama
+    DO WHILE (nu(i) < gama ) 
+       Y(1)=0.5_dp*(1.0_dp-SQRT(1.0_dp-4.0_dp*nu(i)*nu(i)/wu(i)))
+       Y(2)=0.5_dp*(1.0_dp-SQRT(1.0_dp-4.0_dp*nu(i)))
+       Y(3)=0.5_dp*(1.0_dp+SQRT(1.0_dp-4.0_dp*nu(i)))
+       Y(4)=0.5_dp*(1.0_dp+SQRT(1.0_dp-4.0_dp*nu(i)*nu(i)/wu(i)))
+       Y(:)=MIN(1.0_dp,MAX(0.0_dp,Y(:)))
+       DO j=i,1,-1
+          IF (poly(j) == 1.0_dp ) THEN
+             DO k=1,4
+                Y(k)=SQRT(Y(k))
+                Y(k)= (Y(k) -1.0_dp + alpha(j))/alpha(j)
+             ENDDO ! end K
+          ELSE
+             DO k=1,4
+                Y(k)=1.0_dp-SQRT(1.0_dp -Y(k))
+                Y(k)= Y(k)/alpha(j)
+             ENDDO ! end K
+         ENDIF  ! end poly
+       ENDDO ! end j
+       X(1)=MIN(X(1),Y(1))
+       X(2)=MIN(X(2),Y(2))
+       X(3)=MAX(X(3),Y(3))
+       X(4)=MAX(X(4),Y(4))
+       i=i-1
+    ENDDO ! end i
+!   lambda 1,2,3,4 are:: out lumo, in lumo, in homo, out homo
+    DO k=1,4
+       lambda(k)=eps_max-(eps_max-eps_min)*X(k)
+    ENDDO ! end k
+! END  ALGO 3 from. SIAM DOI. 10.1137/130911585
+    e_homo =lambda(4)
+    e_lumo=lambda(1)
+    IF (unit_nr>0) WRITE(unit_nr,'(T6,A,3E12.4)') "outer homo/lumo/gap",e_homo,e_lumo,(e_lumo-e_homo)
+    IF (unit_nr>0) WRITE(unit_nr,'(T6,A,3E12.4)') "inner homo/lumo/gap",lambda(3),lambda(2),(lambda(2)-lambda(3))
+
+    DEALLOCATE(poly)
+    DEALLOCATE(nu)
+    DEALLOCATE(wu)
+    DEALLOCATE(alpha)
+    DEALLOCATE(X)
+    DEALLOCATE(Y)
+    DEALLOCATE(lambda)
+
+    CALL cp_dbcsr_release(matrix_x, error=error)
+    CALL timestop(handle)
+
+  END SUBROUTINE density_matrix_tc2
+  
 ! *****************************************************************************
 !> \brief compute the homo and lumo given a KS matrix and a density matrix in the orthonormalized basis
 !>        and the eps_min and eps_max, min and max eigenvalue of the ks matrix

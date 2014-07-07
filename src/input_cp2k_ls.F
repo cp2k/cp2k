@@ -18,7 +18,8 @@ MODULE input_cp2k_ls
        ls_s_inversion_hotelling, ls_s_inversion_sign_sqrt, &
        ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
        ls_s_preconditioner_none, ls_scf_line_search_3point, &
-       ls_scf_line_search_3point_2d, ls_scf_ns, ls_scf_trs4
+       ls_scf_line_search_3point_2d, ls_scf_ns, &
+       ls_scf_tc2, ls_scf_trs4
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -144,10 +145,11 @@ CONTAINS
             usage="PURIFICATION_METHOD TRS4",&
             default_i_val=ls_scf_ns,&
             citations=(/VandeVondele2012,Niklasson2003/),&
-            enum_c_vals=s2a( "SIGN_MATRIX", "TRS4"),&
+            enum_c_vals=s2a( "SIGN_MATRIX", "TRS4", "TC2" ),&
             enum_desc=s2a("Newton-Schulz sign matrix iteration.",&
-                          "Trace resetting 4th order scheme"),&
-            enum_i_vals=(/ls_scf_ns, ls_scf_trs4 /),&
+                          "Trace resetting 4th order scheme",&
+                          "Trace conserving 2nd order scheme"),&
+            enum_i_vals=(/ls_scf_ns, ls_scf_trs4, ls_scf_tc2/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -155,6 +157,12 @@ CONTAINS
        CALL keyword_create(keyword, name="DYNAMIC_THRESHOLD",&
             description="Should the threshold for the purification be chosen dynamically",&
             usage="DYNAMIC_THRESHOLD .TRUE.", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,  error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NON_MONOTONIC",&
+            description="Should the purification be performed non-monotonically. Relevant for TC2 only.",&
+            usage="NON_MONOTONIC .TRUE.", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

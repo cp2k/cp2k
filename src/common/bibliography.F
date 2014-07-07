@@ -69,7 +69,7 @@ MODULE bibliography
        Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013,    &
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
-       Kantorovich2008a, Wellendorff2012
+       Kantorovich2008a, Wellendorff2012, Niklasson2014
 
 CONTAINS
 
@@ -2620,6 +2620,23 @@ CONTAINS
          "DI 10.1103/PhysRevB.78.094305",&
          "ER"),&
          DOI="10.1103/PhysRevB.78.094305")
+
+    CALL add_reference(key=Niklasson2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Rubensson, E.",&
+         "AU Niklasson, A.",&
+         "TI Interior Eigenvalues from Density Matrix Expansions in Quantum",&
+         "    Mechanical Molecular Dynamics",&
+         "SO SIAM Journal on Scientific Computing",&
+         "PD MAR",&
+         "PY 2014",&
+         "VL 36",&
+         "IS 2",&
+         "BP B147",&
+         "EP B170",&
+         "DI 10.1137/130911585",&
+         "ER" ),&
+         DOI="10.1137/130911585")
 
   END SUBROUTINE add_all_references
 
