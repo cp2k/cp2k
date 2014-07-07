@@ -872,7 +872,7 @@ CONTAINS
                           "Functional Form (CHARMM|AMBER): K*(R-R0)^2",&
                           "Functional Form (CHARMM|AMBER): K*(R-R0)^2",&
                           "Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
-                          "Functional Form (G96): 1/4*K*(R-R0)^2",&
+                          "Functional Form (G96): 1/4*K*(R^2-R0^2)^2",&
                           "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2",&
                           "Functional Form (MORSE): K1*[(1-exp(-K2*(R-R0)))^2-1])",&
                           "Functional Form (CUBIC): K*(R-R0)^2*(1+cs*(R-R0)+7/12*(cs^2*(R-R0)^2))",&
