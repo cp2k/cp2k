@@ -20,9 +20,9 @@
        PRECONDITIONER FULL_ALL
        MINIMIZER DIIS
       &END OT
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-8
       SCF_GUESS ATOMIC 
-      MAX_SCF 10
+      MAX_SCF 20
     &END SCF
     &XC
       &XC_FUNCTIONAL
