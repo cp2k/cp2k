@@ -30,7 +30,8 @@ MODULE input_cp2k_mp2
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: real_t
+  USE input_val_types,                 ONLY: integer_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
@@ -332,7 +333,7 @@ CONTAINS
             description="Parameters influencing the optimization of the RI MP2 basis. "//&
                         "Only exponents of non-contracted auxiliary basis can be optimized. "//&
                         "An initial RI auxiliary basis has to be specified.",&
-            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/DelBen2013/),&
             error=error)
 
@@ -365,7 +366,7 @@ CONTAINS
                         "The change in the exponent a_i employed for the numerical evaluation "//&
                         "is defined as h_i=EPS_DERIV*a_i.",&
             usage="EPS_DERIV  1.0E-3_dp",&
-            default_r_val=1.0E-2_dp,&
+            default_r_val=1.0E-3_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -376,6 +377,26 @@ CONTAINS
             usage="MAX_ITER 100",&
             default_i_val=50,&
             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUM_FUNC",&
+            description="Specifies the number of function, for each angular momentum (s, p, d ...), "//&
+                        "employed in the automatically generated initial guess. "//&
+                        "This will be effective only if RI_AUX_BASIS_SET in the KIND section is not specified.",&
+            usage="NUM_FUNC {number of s func.} {number of p func.} ...", &
+            n_var=-1, default_i_vals=(/-1/), type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,name="BASIS_SIZE",&
+            description="Specifies the size of the auxiliary basis set automatically "//&
+                        "generated as initial guess. This will be effective only if RI_AUX_BASIS_SET "//&
+                        "in the KIND section and NUM_FUNC are not specified.",&
+            usage="BASIS_SIZE  MEDIUM",&
+            enum_c_vals=s2a("MEDIUM","LARGE","VERY_LARGE"),&
+            enum_i_vals=(/0,1,2/),&
+            default_i_val=0, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -104,6 +104,8 @@ MODULE mp2_types
        REAL(KIND=dp)            :: DRI
        REAL(KIND=dp)            :: eps_step
        INTEGER                  :: max_num_iter
+       INTEGER                  :: basis_quality
+       INTEGER, DIMENSION(:), ALLOCATABLE :: RI_nset_per_l
   END TYPE
 
   TYPE grad_util

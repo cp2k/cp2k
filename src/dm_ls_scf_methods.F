@@ -634,8 +634,10 @@ CONTAINS
     INTEGER                                  :: handle, i, j, k, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
     LOGICAL                                  :: converged, do_non_monotonic
-    REAL(KIND=dp) :: beta, betaB, eps_max, eps_min, gama, &
-      max_eig, min_eig, occ_matrix, t1, t2, trace_fx, trace_gx
+    REAL(KIND=dp)                            :: beta, betaB, eps_max, &
+                                                eps_min, gama, max_eig, &
+                                                min_eig, occ_matrix, t1, t2, &
+                                                trace_fx, trace_gx
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, lambda, nu, poly, wu, &
                                                 X, Y
     TYPE(cp_dbcsr_type)                      :: matrix_tmp, matrix_x, &

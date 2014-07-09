@@ -1,0 +1,83 @@
+&GLOBAL                                                                                           
+  PROJECT     opt_basis_O_num_func
+  PRINT_LEVEL LOW
+  RUN_TYPE    ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  ../HFX_BASIS
+    POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF     200
+      REL_CUTOFF  50
+    &END MGRID
+    &POISSON
+      PERIODIC        NONE
+      POISSON_SOLVER  WAVELET
+    &END POISSON
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-30
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF   1.0E-6
+      MAX_SCF   20
+      &OT
+        MINIMIZER       CG
+        PRECONDITIONER  FULL_SINGLE_INVERSE
+      &END
+      &OUTER_SCF
+        EPS_SCF  1.0E-6
+        MAX_SCF  20
+      &END
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          EPS_SCHWARZ         1.0E-8
+          SCREEN_ON_INITIAL_P FALSE 
+        &END SCREENING
+      &END HF
+      &WF_CORRELATION
+        METHOD  OPTIMIZE_RI_BASIS
+        &OPT_RI_BASIS
+          DELTA_I_REL  2.0E-6
+          DELTA_RI     5.0E-5
+          EPS_DERIV    1.0E-3
+          MAX_ITER     100
+          NUM_FUNC     5  5  4  1
+        &END
+        NUMBER_PROC  1
+      &END
+    &END XC
+    UKS
+    MULTIPLICITY  3
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  8.000   8.000  8.000
+      PERIODIC NONE
+    &END CELL
+    &KIND O
+      BASIS_SET         DZVP-GTH
+      POTENTIAL         GTH-HF-q6
+    &END KIND
+    &COORD
+      O  0.0000   0.0000   0.0000
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

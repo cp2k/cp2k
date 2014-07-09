@@ -13,9 +13,9 @@
 MODULE dm_ls_scf
   USE bibliography,                    ONLY: Kolafa2004,&
                                              Niklasson2003,&
+                                             Niklasson2014,&
                                              Shao2003,&
                                              VandeVondele2012,&
-                                             Niklasson2014,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &

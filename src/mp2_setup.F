@@ -45,7 +45,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mp2_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, unit_nr
+    INTEGER                                  :: handle, ival, unit_nr
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mp2_section
@@ -120,6 +121,18 @@ CONTAINS
                               r_val=mp2_env%ri_opt_param%eps_step, error=error)
     CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%MAX_ITER",&
                               i_val=mp2_env%ri_opt_param%max_num_iter, error=error)
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%BASIS_SIZE",&
+                              i_val=mp2_env%ri_opt_param%basis_quality, error=error)
+    NULLIFY(tmplist)
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%NUM_FUNC",&
+                              i_vals=tmplist, error=error)
+    IF(tmplist(1)>0) THEN
+      ALLOCATE(mp2_env%ri_opt_param%RI_nset_per_l(0:SIZE(tmplist)-1))
+      mp2_env%ri_opt_param%RI_nset_per_l=0
+      DO ival=1, SIZE(tmplist)
+        mp2_env%ri_opt_param%RI_nset_per_l(ival-1)=tmplist(ival)
+      END DO
+    END IF
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&

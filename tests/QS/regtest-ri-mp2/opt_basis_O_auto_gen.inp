@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT     H2O_opt_basis_RI
+  PROJECT     opt_basis_O_auto_gen
   PRINT_LEVEL LOW
   RUN_TYPE    ENERGY
 &END GLOBAL
@@ -9,12 +9,12 @@
     BASIS_SET_FILE_NAME  ../HFX_BASIS
     POTENTIAL_FILE_NAME  ../GTH_POTENTIALS
     &MGRID
-      CUTOFF     150
-      REL_CUTOFF  30
+      CUTOFF     200
+      REL_CUTOFF  50
     &END MGRID
     &POISSON
-      PERIODIC NONE
-      POISSON_SOLVER MT
+      PERIODIC        NONE
+      POISSON_SOLVER  WAVELET
     &END POISSON
     &QS
       METHOD GPW
@@ -24,7 +24,19 @@
     &SCF
       SCF_GUESS ATOMIC
       EPS_SCF   1.0E-6
-      MAX_SCF   100
+      MAX_SCF   20
+      &OT
+        MINIMIZER       CG
+        PRECONDITIONER  FULL_SINGLE_INVERSE
+      &END
+      &OUTER_SCF
+        EPS_SCF  1.0E-6
+        MAX_SCF  20
+      &END
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL NONE
@@ -39,10 +51,11 @@
       &WF_CORRELATION
         METHOD  OPTIMIZE_RI_BASIS
         &OPT_RI_BASIS
-          DELTA_I_REL  1.0E-6
+          DELTA_I_REL  5.0E-6
           DELTA_RI     5.0E-5
-          EPS_DERIV    1.0E-2
+          EPS_DERIV    1.0E-3
           MAX_ITER     100
+          BASIS_SIZE   LARGE
         &END
         NUMBER_PROC  1
       &END
@@ -52,12 +65,11 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  10.000   10.000  10.000
+      ABC [angstrom]  8.000   8.000  8.000
       PERIODIC NONE
     &END CELL
     &KIND O
       BASIS_SET         DZVP-GTH
-      RI_AUX_BASIS_SET  RI_DZ_init
       POTENTIAL         GTH-HF-q6
     &END KIND
     &COORD
