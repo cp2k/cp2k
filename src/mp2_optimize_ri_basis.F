@@ -388,7 +388,7 @@ MODULE mp2_optimize_ri_basis
         IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'RESET BASIS: one of the exponent hits the boundary'
         CALL reset_basis(nkind,ndof,basis_set_RI,RI_basis_parameter,reset_edge,&
                          pnew,lower_B,max_dev,max_rel_dev,exp_limits,error)
-        p=pnew
+        p(:)=pnew
         xi=0.0_dp
         g=0.0_dp
         dg=0.0_dp
@@ -1514,13 +1514,13 @@ MODULE mp2_optimize_ri_basis
       IF(.NOT.ALLOCATED(max_rel_dev_output)) THEN
         ALLOCATE(max_rel_dev_output(RI_nset),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        max_rel_dev_output=max_rel_dev
+        max_rel_dev_output(:)=max_rel_dev
       ELSE
         ! make a copy
         RI_prev_size=SIZE(max_rel_dev_output)
         ALLOCATE(max_rel_dev_prev(RI_prev_size),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        max_rel_dev_prev=max_rel_dev_output
+        max_rel_dev_prev(:)=max_rel_dev_output
         DEALLOCATE(max_rel_dev_output)
         ! reallocate and copy
         ALLOCATE(max_rel_dev_output(RI_prev_size+RI_nset),STAT=stat)
