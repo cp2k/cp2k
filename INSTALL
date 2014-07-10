@@ -216,6 +216,9 @@ How to compile CP2K code
                           unreadable (reverts to f77 style mpif.h includes)
      -D__NO_IPI_DRIVER disables the socket interface in case of troubles compiling 
                        on systems that do not support POSIX sockets
+     -D__HAS_NO_SHARED_GLIBC should be defined on systems where a shared glibc is
+                       not available at runtime for some reason e.g. on HPC systems
+                       where some filesystems are not available on the compute nodes
 
  3c) CP2K currently assumes Fortran2003 compliance, even though few features are used.
      Explicitly required, are full ISO_C_BINDING support, rank remapping, procedure pointers.

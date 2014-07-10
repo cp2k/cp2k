@@ -335,6 +335,10 @@ CONTAINS
   SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
+    ! this is needed to load a statically linked binary on some architectures.
+#if defined(__HAS_NO_SHARED_GLIBC)
+    user="root ;-)"
+#else
     TYPE, BIND(C) :: passwd_struct
       TYPE(C_PTR)             :: name
       !... more fields, which we don't need and where Linux deviates from POSIX
@@ -374,6 +378,7 @@ CONTAINS
     IF(i > LEN(name_long)) RETURN
 
     user = TRIM(name_long)
+#endif
   END SUBROUTINE m_getlog
 
 
