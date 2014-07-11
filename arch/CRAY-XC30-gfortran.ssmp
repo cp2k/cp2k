@@ -8,7 +8,7 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__FFTW3 -D__HAS_smm_dnn -D__ELPA
+DFLAGS   = -D__FFTW3 -D__HAS_smm_dnn -D__ELPA -D__HAS_NO_SHARED_GLIBC
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
 	   -ffree-form -ffree-line-length-512 
