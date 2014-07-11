@@ -7,11 +7,14 @@
 !> \brief driver for the xas calculation and xas_scf for the tp method
 !> \par History
 !>      created 05.2005
+!>      replace overlap integral routine [07.2014,JGH]
 !> \author MI (05.2005)
 ! *****************************************************************************
 MODULE xas_methods
 
-  USE ai_overlap_new,                  ONLY: overlap
+  USE ai_contraction,                  ONLY: block_add,&
+                                             contraction
+  USE ai_overlap,                      ONLY: overlap_ab
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: &
@@ -1524,8 +1527,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iset, istat, jset, ldai, ldsab, maxcoa, maxcob, maxl, maxla, &
-      maxlb, ncoa, ncob, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
+    INTEGER :: iset, istat, jset, ldsab, maxcoa, maxcob, maxl, maxla, maxlb, &
+      na, nb, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, &
                                                 nsgfa_set, nsgfb_set
@@ -1533,10 +1536,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rab(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: sab, work
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: ai_work
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, scon_a, scon_b, &
+                                                sphi_a, sphi_b, zeta, zetb
 
     failure = .FALSE.
 
@@ -1547,52 +1548,41 @@ CONTAINS
 
     CALL get_gto_basis_set(gto_basis_set=base_a,nsgf=nsgfa,nsgf_set=nsgfa_set,lmax=la_max,&
                           lmin=la_min,npgf=npgfa,pgf_radius=rpgfa, &
-                          sphi=sphi_a,zet=zeta,first_sgf=first_sgfa, &
+                          sphi=sphi_a,scon=scon_a,zet=zeta,first_sgf=first_sgfa, &
                           maxco=maxcoa,nset=nseta, maxl=maxla)
 
     CALL get_gto_basis_set(gto_basis_set=base_b,nsgf=nsgfb,nsgf_set=nsgfb_set, lmax=lb_max,&
                           lmin=lb_min,npgf=npgfb,pgf_radius=rpgfb, &
-                          sphi=sphi_b,zet=zetb,first_sgf=first_sgfb, &
+                          sphi=sphi_b,scon=scon_b,zet=zetb,first_sgf=first_sgfb, &
                           maxco=maxcob,nset=nsetb,maxl=maxlb)
-    rab = 0.0_dp
     ! Initialize and allocate
+    rab = 0.0_dp
     matrix = 0.0_dp
 
     ldsab = MAX(maxcoa,maxcob,nsgfa,nsgfb)
     maxl = MAX(maxla,maxlb)
-    ldai = ncoset(maxl)
 
     ALLOCATE(sab(ldsab,ldsab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(work(ldsab,ldsab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(ai_work(ldai,ldai,1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO iset=1,nseta
 
-       ncoa = npgfa(iset)*ncoset(la_max(iset))
+       na = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
        sgfa = first_sgfa(1,iset)
 
        DO jset=1,nsetb
 
-          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          nb = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(iset)-1))
           sgfb = first_sgfb(1,jset)
 
-          ai_work = 0.0_dp
-
-          CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
-               rpgfa(:,iset),zeta(:,iset),&
-               lb_max(jset),lb_min(jset),npgfb(jset),&
-               rpgfb(:,jset),zetb(:,jset),rab,0.0_dp,sab,0,.FALSE.,ai_work,ldai)
-          CALL dgemm("N","N",ncoa,nsgfb_set(jset),ncob,&
-               1.0_dp,sab(1,1),SIZE(sab,1),&
-               sphi_b(1,sgfb),SIZE(sphi_b,1),&
-               0.0_dp,work(1,1),SIZE(work,1))
-          CALL dgemm("T","N",nsgfa_set(iset),nsgfb_set(jset),ncoa,&
-               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-               work(1,1),SIZE(work,1),&
-               1.0_dp,matrix(sgfa,sgfb), SIZE(matrix,1))
+          CALL overlap_ab(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
+                          lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
+                          rab,sab,error=error)
+          CALL contraction(sab,work,ca=scon_a(:,sgfa:),na=na,ma=nsgfa_set(iset),&
+                                    cb=scon_b(:,sgfb:),nb=nb,mb=nsgfb_set(jset),error=error)
+          CALL block_add("IN",work,nsgfa_set(iset),nsgfb_set(jset),matrix,sgfa,sgfb,error=error)
 
        END DO  ! jset
     END DO  ! iset

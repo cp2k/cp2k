@@ -13,6 +13,7 @@ MODULE admm_methods
   USE admm_types,                      ONLY: admm_create_block_list,&
                                              admm_env_create,&
                                              admm_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: admm_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
@@ -70,11 +71,13 @@ MODULE admm_methods
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_force_types,                  ONLY: add_qs_force,&
+                                             qs_force_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
-  USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE qs_overlap,                      ONLY: build_overlap_force
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -1136,10 +1139,17 @@ MODULE admm_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mixed_overlap_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
+    INTEGER                                  :: handle, istat, nao_aux_fit, &
+                                                nao_orb, natom, &
                                                 neighbor_list_id, nmo
     LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: admm_force
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_type), POINTER             :: matrix_w_q, matrix_w_s
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -1162,7 +1172,8 @@ MODULE admm_methods
                     neighbor_list_id=neighbor_list_id,&
                     error=error)
 
-    ALLOCATE(matrix_w_s)
+    ALLOCATE(matrix_w_s,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init (matrix_w_s, error)
     CALL cp_dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
          cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
@@ -1174,7 +1185,8 @@ MODULE admm_methods
          error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
 
-    ALLOCATE(matrix_w_q)
+    ALLOCATE(matrix_w_q,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(matrix_w_q, error=error)
     CALL cp_dbcsr_copy(matrix_w_q,matrix_s_aux_fit_vs_orb(1)%matrix,&
                     "W MATRIX AUX Q",error=error)
@@ -1254,17 +1266,23 @@ MODULE admm_methods
     CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s,keep_sparsity=.TRUE.,&
          error=error)
 
-
-    ! *** This can be done in one call w_total = w_alpha + w_beta
-    CALL build_overlap_matrix(qs_env, nderivative=-1, &
+    ! allocate force vector
+    CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
+    ALLOCATE(admm_force(3,natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    admm_force = 0.0_dp
+    CALL build_overlap_force(qs_env, admm_force,&
          basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
-         sab_nl=qs_env%sab_aux_fit_asymm, calculate_forces=.TRUE., admm=.TRUE., &
-         matrix_p=matrix_w_s, error=error)
-    CALL build_overlap_matrix(qs_env, nderivative=-1, &
+         sab_nl=qs_env%sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
+    CALL build_overlap_force(qs_env, admm_force,&
          basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
-         sab_nl=qs_env%sab_aux_fit_vs_orb, calculate_forces=.TRUE., admm=.TRUE., &
-         matrix_p=matrix_w_q, error=error)
-
+         sab_nl=qs_env%sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
+    ! add forces
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+                    force=force,error=error)
+    CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set, error)
+    DEALLOCATE(admm_force,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN

@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE qs_oce_methods
 
-  USE ai_overlap_new,                  ONLY: overlap
+  USE ai_overlap,                      ONLY: overlap
   USE ao_util,                         ONLY: exp_radius
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&

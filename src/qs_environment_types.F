@@ -1698,7 +1698,7 @@ CONTAINS
           IF (ASSOCIATED(qs_env%energy)) &
                CALL deallocate_qs_energy(qs_env%energy)
           IF (ASSOCIATED(qs_env%force))&
-               CALL deallocate_qs_force(qs_env%force)
+               CALL deallocate_qs_force(qs_env%force,error)
           IF (ASSOCIATED(qs_env%harris_env)) THEN
              CALL harris_env_release(qs_env%harris_env, error=error)
           END IF

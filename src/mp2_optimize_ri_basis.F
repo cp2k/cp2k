@@ -1595,6 +1595,7 @@ MODULE mp2_optimize_ri_basis
     CALL reallocate(gto_basis_set%nsgf_set,1,nset)
     CALL reallocate(gto_basis_set%cphi,1,maxco,1,ncgf)
     CALL reallocate(gto_basis_set%sphi,1,maxco,1,nsgf)
+    CALL reallocate(gto_basis_set%scon,1,maxco,1,nsgf)
     CALL reallocate(gto_basis_set%lx,1,ncgf)
     CALL reallocate(gto_basis_set%ly,1,ncgf)
     CALL reallocate(gto_basis_set%lz,1,ncgf)
@@ -1721,6 +1722,7 @@ MODULE mp2_optimize_ri_basis
 
     CALL reallocate(gto_basis_set%cphi,1,maxco,1,ncgf)
     CALL reallocate(gto_basis_set%sphi,1,maxco,1,nsgf)
+    CALL reallocate(gto_basis_set%scon,1,maxco,1,nsgf)
     CALL reallocate(gto_basis_set%lx,1,ncgf)
     CALL reallocate(gto_basis_set%ly,1,ncgf)
     CALL reallocate(gto_basis_set%lz,1,ncgf)

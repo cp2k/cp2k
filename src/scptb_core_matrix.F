@@ -5,7 +5,9 @@
 
 ! *****************************************************************************
 !> \brief Calculation of the Hamiltonian integral and Overlap matrices
-!> <a|b> and <a|T+V|b> for SCP-TB methods
+!>        <a|b> and <a|T+V|b> for SCP-TB methods
+!> \par History  Some refactoring related to new overlap and 
+!>               kinetic energy integrals [07.2014, JGH]
 !> \author JGH
 ! *****************************************************************************
 MODULE scptb_core_matrix
@@ -59,6 +61,11 @@ MODULE scptb_core_matrix
 CONTAINS
 
 ! *****************************************************************************
+!> \brief Builds the SCPTB core Hamiltonian matrix and its derivatives
+!> \param qs_env           The QS environment
+!> \param calculate_forces Flag to toggle force calculation
+!> \param error            CP2K error reporting
+! *****************************************************************************
   SUBROUTINE build_scptb_core_matrix(qs_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -74,7 +81,7 @@ CONTAINS
     LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
     LOGICAL, DIMENSION(:), POINTER           :: scptb_defined
-    REAL(KIND=dp)                            :: dr, f0, kh, kij
+    REAL(KIND=dp)                            :: dr, eps_filter, f0, kh, kij
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: hmt, kk, umt
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -152,6 +159,9 @@ CONTAINS
        END IF
     END IF
 
+    ! filter for new matrices
+    eps_filter = qs_env%dft_control%qs_control%eps_filter_matrix
+
     maxder = ncoset(nder)
 
     IF (calculate_forces) THEN
@@ -164,11 +174,12 @@ CONTAINS
                                  matrix_p=matrix_w(1)%matrix,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(qs_env,nderivative=nder,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                  matrix_p=matrix_p(1)%matrix,&
+                                 eps_filter=eps_filter,&
                                  error=error)
     ELSE
        ! S matrix
@@ -179,10 +190,11 @@ CONTAINS
                                  sab_nl=sab_orb,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(qs_env,nderivative=nder,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,&
+                                 eps_filter=eps_filter,&
                                  error=error)
     END IF
 

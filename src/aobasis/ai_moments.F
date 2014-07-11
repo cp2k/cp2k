@@ -29,7 +29,7 @@ MODULE ai_moments
 
   USE ai_derivatives,                  ONLY: adbdr,&
                                              dabdr
-  USE ai_overlap_new,                  ONLY: overlap
+  USE ai_overlap,                      ONLY: overlap
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&

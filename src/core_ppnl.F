@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE core_ppnl
 
-  USE ai_overlap_new,                  ONLY: overlap
+  USE ai_overlap,                      ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set

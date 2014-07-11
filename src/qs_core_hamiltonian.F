@@ -68,6 +68,7 @@
 !>      - Binary search loop for VPPNL operators (09.01.2004,JGH,MK)
 !>      - Refactoring of pseudopotential and nuclear attraction integrals (25.02.2009,JGH)
 !>      - General refactoring (01.10.2010,JGH)
+!>      - Refactoring related to the new kinetic energy and overlap routines (07.2014,JGH)
 !> \author Matthias Krack (14.09.2000,21.03.02)
 ! *****************************************************************************
 MODULE qs_core_hamiltonian
@@ -155,7 +156,7 @@ CONTAINS
                                                 nkind, stat
     LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
       kgpot, lrigpw, ofdft, ppl_present, use_virial
-    REAL(KIND=dp)                            :: eps_fit, eps_ppnl
+    REAL(KIND=dp)                            :: eps_filter, eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_p, &
@@ -310,6 +311,9 @@ CONTAINS
        ENDIF
     ENDIF
 
+    ! filter for new matrices
+    eps_filter = qs_env%dft_control%qs_control%eps_filter_matrix
+
     maxder = ncoset(nder)
 
     IF (calculate_forces) THEN
@@ -323,11 +327,12 @@ CONTAINS
                                  error=error)
        ! T matrix
        IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+          CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                  matrix_p=matrix_p(1)%matrix,&
+                                 eps_filter=eps_filter,&
                                  error=error)
     ELSE
        ! S matrix
@@ -339,10 +344,11 @@ CONTAINS
                                  error=error)
        ! T matrix
        IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+          CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,&
+                                 eps_filter=eps_filter,&
                                  error=error)
        IF( qs_env%dft_control%do_admm) THEN
          NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
@@ -389,11 +395,9 @@ CONTAINS
        qs_env%dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF
 
-   ! The transition potential method may need the kinetic matrix
-   CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                            gth_potential_present=gth_potential_present,&
-                            all_potential_present=all_potential_present)
-
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             gth_potential_present=gth_potential_present,&
+                             all_potential_present=all_potential_present)
     ppl_present = ASSOCIATED(sac_ppl)
 
     IF (calculate_forces) THEN
@@ -562,14 +566,14 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-      CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-         DO i=2,SIZE(matrix_s)
-            CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-         END DO
-      END IF
-      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+          DO i=2,SIZE(matrix_s)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+          END DO
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
@@ -579,13 +583,7 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-          DO i=2,SIZE(matrix_t)
-             CALL cp_dbcsr_write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-          END DO
-       END IF
-      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", error=error)
     END IF
 
@@ -594,16 +592,16 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
             extension=".Log",error=error)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
-      ALLOCATE(matrix_v(1)%matrix)
-      CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
-      CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
-           name="POTENTIAL ENERGY MATRIX",error=error)
-      CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
-           alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
-      CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
-      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+       CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
+       ALLOCATE(matrix_v(1)%matrix)
+       CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
+       CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
+            name="POTENTIAL ENERGY MATRIX",error=error)
+       CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
+            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
     END IF
 

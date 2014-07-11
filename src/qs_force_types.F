@@ -5,18 +5,16 @@
 
 ! *****************************************************************************
 !> \par History
-!>      none
+!>      Add CP2K error reporting, new add_force routine [07.2014,JGH]
 !> \author MK (03.06.2002)
 ! *****************************************************************************
 MODULE qs_force_types
 
   !USE cp_control_types,                ONLY: qs_control_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE f77_blas
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -54,8 +52,9 @@ MODULE qs_force_types
   PUBLIC :: qs_force_type
 
   PUBLIC :: allocate_qs_force,&
+            add_qs_force,&
             deallocate_qs_force,&
-            zero_qs_force, &
+            zero_qs_force,&
             duplicate_qs_force
 
 CONTAINS
@@ -66,156 +65,81 @@ CONTAINS
 !> \date    05.06.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_qs_force(qs_force,natom_of_kind)
+  SUBROUTINE allocate_qs_force(qs_force,natom_of_kind,error)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
     INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_qs_force', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, n, nkind
+    LOGICAL                                  :: failure
 
-    IF (ASSOCIATED(qs_force)) THEN
-      CALL deallocate_qs_force(qs_force)
-    END IF
+    failure = .FALSE.
+    IF (ASSOCIATED(qs_force)) CALL deallocate_qs_force(qs_force,error)
 
     nkind = SIZE(natom_of_kind)
 
     ALLOCATE (qs_force(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "qs_force",nkind*int_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO ikind=1,nkind
       n = natom_of_kind(ikind)
       ALLOCATE (qs_force(ikind)%all_potential(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%all_potential",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%core_overlap(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%core_overlap",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%gth_ppl(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%gth_ppl",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%gth_nlcc(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%gth_nlcc",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%gth_ppnl(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%gth_ppnl",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%kinetic(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%kinetic",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%overlap(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%overlap",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%overlap_admm(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%overlap_admm",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%rho_core(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%rho_core",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%rho_elec(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%rho_elec",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%rho_lri_elec(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%rho_lri_elec",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%vhxc_atom(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%vhxc_atom",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%g0s_Vh_elec(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%g0s_Vh_elec",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%repulsive(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%repulsive",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%dispersion(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%dispersion",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%other(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%other",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%ch_pulay(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%other",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%ehrenfest(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%ehrenfest",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%efield(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%efield",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%eev(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%eev",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ! Always initialize ch_pulay to zero..
       qs_force(ikind)%ch_pulay  = 0.0_dp
       ALLOCATE (qs_force(ikind)%fock_4c(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%fock_4c",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%hfx_ri(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%hfx_ri",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%mp2_sep(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%mp2_sep",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%mp2_non_sep(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%mp2_non_sep",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "qs_force(ikind)%total",3*n*dp_size)
-      END IF
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
 
   END SUBROUTINE allocate_qs_force
@@ -226,21 +150,20 @@ CONTAINS
 !> \date    05.06.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_qs_force(qs_force)
+  SUBROUTINE deallocate_qs_force(qs_force,error)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_force', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
+    LOGICAL                                  :: failure
 
-    IF (.NOT.ASSOCIATED(qs_force)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The qs_force pointer is not associated "//&
-                        "and cannot be deallocated")
-    END IF
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(qs_force),cp_failure_level,routineP,error,failure)
 
     nkind = SIZE(qs_force)
 
@@ -248,181 +171,131 @@ CONTAINS
 
       IF (ASSOCIATED(qs_force(ikind)%all_potential)) THEN
         DEALLOCATE (qs_force(ikind)%all_potential,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%all_potential")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%core_overlap)) THEN
         DEALLOCATE (qs_force(ikind)%core_overlap,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%core_overlap")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%gth_ppl)) THEN
         DEALLOCATE (qs_force(ikind)%gth_ppl,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%gth_ppl")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%gth_nlcc)) THEN
         DEALLOCATE (qs_force(ikind)%gth_nlcc,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%gth_nlcc")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%gth_ppnl)) THEN
         DEALLOCATE (qs_force(ikind)%gth_ppnl,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%gth_ppnl")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%kinetic)) THEN
         DEALLOCATE (qs_force(ikind)%kinetic,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%kinetic")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%overlap)) THEN
         DEALLOCATE (qs_force(ikind)%overlap,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%overlap")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%overlap_admm)) THEN
         DEALLOCATE (qs_force(ikind)%overlap_admm,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%overlap_admm")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%rho_core)) THEN
         DEALLOCATE (qs_force(ikind)%rho_core,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%rho_core")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%rho_elec)) THEN
         DEALLOCATE (qs_force(ikind)%rho_elec,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%rho_elec")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
       IF (ASSOCIATED(qs_force(ikind)%rho_lri_elec)) THEN
         DEALLOCATE (qs_force(ikind)%rho_lri_elec,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%rho_lri_elec")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%vhxc_atom)) THEN
         DEALLOCATE (qs_force(ikind)%vhxc_atom,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%vhxc_atom")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%g0s_Vh_elec)) THEN
         DEALLOCATE (qs_force(ikind)%g0s_Vh_elec,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%g0s_Vh_elec")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%repulsive)) THEN
         DEALLOCATE (qs_force(ikind)%repulsive,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%repulsive")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%dispersion)) THEN
         DEALLOCATE (qs_force(ikind)%dispersion,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%dispersion")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%other)) THEN
         DEALLOCATE (qs_force(ikind)%other,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%other")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%total)) THEN
         DEALLOCATE (qs_force(ikind)%total,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%total")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%ch_pulay)) THEN
-         DEALLOCATE (qs_force(ikind)%ch_pulay,STAT=istat)
-         IF (istat /= 0) THEN
-            CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%total")
-         END IF
+        DEALLOCATE (qs_force(ikind)%ch_pulay,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%fock_4c)) THEN
         DEALLOCATE (qs_force(ikind)%fock_4c,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%fock_4c")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%mp2_sep)) THEN
         DEALLOCATE (qs_force(ikind)%mp2_sep,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%mp2_sep")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%mp2_non_sep)) THEN
         DEALLOCATE (qs_force(ikind)%mp2_non_sep,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%mp2_non_sep")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%hfx_ri)) THEN
         DEALLOCATE (qs_force(ikind)%hfx_ri,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%hfx_ri")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%ehrenfest)) THEN
         DEALLOCATE (qs_force(ikind)%ehrenfest,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%ehrenfest")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%efield)) THEN
         DEALLOCATE (qs_force(ikind)%efield,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%efield")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%eev)) THEN
         DEALLOCATE (qs_force(ikind)%eev,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"qs_force%eev")
-        END IF
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
     END DO
 
     DEALLOCATE (qs_force,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qs_force")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE deallocate_qs_force
 
@@ -432,21 +305,20 @@ CONTAINS
 !> \date    15.07.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE zero_qs_force(qs_force)
+  SUBROUTINE zero_qs_force(qs_force,error)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'zero_qs_force', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
+    LOGICAL                                  :: failure
 
-    IF (.NOT.ASSOCIATED(qs_force)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The qs_force pointer is not associated "//&
-                        "and cannot be initialized")
-    END IF
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(qs_force),cp_failure_level,routineP,error,failure)
 
     DO ikind=1,SIZE(qs_force)
       qs_force(ikind)%all_potential(:,:) = 0.0_dp
@@ -490,12 +362,13 @@ CONTAINS
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
   SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, &
-                                natom_of_kind)
+                                natom_of_kind,error)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force_input, &
                                                 qs_force_output
     INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_qs_force', &
       routineP = moduleN//':'//routineN
@@ -506,18 +379,13 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-
-    IF (.NOT.ASSOCIATED(qs_force_input)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The qs_force_input pointer is not associated "//&
-                        "and cannot be initialized")
-    END IF
+    CPPrecondition(ASSOCIATED(qs_force_input),cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
       IF (.NOT. ASSOCIATED(qs_force_output)) THEN
-        CALL allocate_qs_force(qs_force_output, natom_of_kind)
+        CALL allocate_qs_force(qs_force_output, natom_of_kind, error)
       ELSE
-        CALL zero_qs_force(qs_force_output)
+        CALL zero_qs_force(qs_force_output, error)
       END IF
 
       DO ikind=1,SIZE(natom_of_kind)
@@ -554,5 +422,53 @@ CONTAINS
     END IF
 
   END SUBROUTINE duplicate_qs_force
+
+! *****************************************************************************
+!> \brief Add force to a force_type  variable.
+!> \param force Input force, dimension (3,natom)
+!> \param qs_force The force type variable to be used
+!> \param natom_of_kind
+!> \par History
+!>      07.2014 JGH
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE add_qs_force(force, qs_force, forcetype, atomic_kind_set, error)
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: force
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: qs_force
+    CHARACTER(LEN=*), INTENT(IN)             :: forcetype
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_qs_force', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ia, iatom, ikind, natom_kind
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+!   ------------------------------------------------------------------------
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(qs_force),cp_failure_level,routineP,error,failure)
+
+    SELECT CASE (forcetype)
+       CASE ("overlap_admm")
+         DO ikind=1,SIZE(atomic_kind_set,1)
+            atomic_kind => atomic_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind)
+            DO ia=1,natom_kind
+              iatom = atomic_kind%atom_list(ia)
+              qs_force(ikind)%overlap_admm(:,ia) = qs_force(ikind)%overlap_admm(:,ia) + force(:,iatom)
+            END DO
+         END DO
+       CASE DEFAULT
+         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+
+  END SUBROUTINE add_qs_force
 
 END MODULE qs_force_types

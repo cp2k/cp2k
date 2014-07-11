@@ -8,13 +8,14 @@
 !> \brief Utilities for rtp in combination with admm methods
 !>        adapted routines from admm_method (author Manuel Guidon)
 !>
-!> \par History
+!> \par History    Use new "force only" overlap routine [07.2014,JGH]
 !> \author Florian Schiffmann
 ! *****************************************************************************
 MODULE rtp_admm_methods
   USE admm_methods,                    ONLY: create_admm_xc_section
   USE admm_types,                      ONLY: admm_env_create,&
                                              admm_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: admm_control_type,&
                                              dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -55,11 +56,13 @@ MODULE rtp_admm_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_force_types,                  ONLY: add_qs_force,&
+                                             qs_force_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
-  USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE qs_overlap,                      ONLY: build_overlap_force
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -602,13 +605,22 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_forces_none', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: im, ispin, nao, naux, nmo, re
+    INTEGER                                  :: im, ispin, istat, nao, natom, &
+                                                naux, nmo, re
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: admm_force
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_type), POINTER             :: matrix_w_q, matrix_w_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: tmp_aux_aux, tmp_aux_mo, &
                                                 tmp_aux_mo1, tmp_aux_nao
     TYPE(cp_fm_struct_type), POINTER         :: mstruct
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
 
+    failure = .FALSE.
 !   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix",error=error)
 
     ALLOCATE(matrix_w_s)
@@ -668,25 +680,33 @@ CONTAINS
        CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(re)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(re)%matrix,error)     
        CALL cp_gemm('N','T',naux,naux,nao,-1.0_dp,tmp_aux_nao(im)%matrix,admm_env%A,0.0_dp,tmp_aux_aux(im)%matrix,error)     
 
-    ! *** copy to sparse matrix
-    CALL copy_fm_to_dbcsr(tmp_aux_nao(re)%matrix, matrix_w_q,keep_sparsity=.TRUE.,&
-         error=error)
+       ! *** copy to sparse matrix
+       CALL copy_fm_to_dbcsr(tmp_aux_nao(re)%matrix, matrix_w_q,keep_sparsity=.TRUE.,&
+            error=error)
 
 
-    ! *** copy to sparse matrix
-    CALL copy_fm_to_dbcsr(tmp_aux_aux(re)%matrix, matrix_w_s,keep_sparsity=.TRUE.,&
-         error=error)
+       ! *** copy to sparse matrix
+       CALL copy_fm_to_dbcsr(tmp_aux_aux(re)%matrix, matrix_w_s,keep_sparsity=.TRUE.,&
+            error=error)
 
 ! *** This can be done in one call w_total = w_alpha + w_beta
-       CALL build_overlap_matrix(qs_env, nderivative=-1, &
+       ! allocate force vector
+       CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
+       ALLOCATE(admm_force(3,natom),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       admm_force = 0.0_dp
+       CALL build_overlap_force(qs_env, admm_force,&
             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
-            sab_nl=qs_env%sab_aux_fit_asymm, calculate_forces=.TRUE., admm=.TRUE., &
-            matrix_p=matrix_w_s, error=error)
-       CALL build_overlap_matrix(qs_env, nderivative=-1, &
+            sab_nl=qs_env%sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
+       CALL build_overlap_force(qs_env, admm_force,&
             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
-            sab_nl=qs_env%sab_aux_fit_vs_orb, calculate_forces=.TRUE., admm=.TRUE., &
-            matrix_p=matrix_w_q, error=error)
-
+            sab_nl=qs_env%sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
+       ! add forces
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+                       force=force,error=error)
+       CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set, error)
+       DEALLOCATE(admm_force,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        
        ! *** Deallocated weighted density matrices
        CALL cp_dbcsr_deallocate_matrix(matrix_w_s,error)

@@ -188,8 +188,8 @@ CONTAINS
                                natom_of_kind=natom_of_kind)
 
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
@@ -218,7 +218,7 @@ CONTAINS
         harris_force%f_self(iatom, 1:3) = 0.0_dp
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       ks_env=ks_env, matrix_ks=matrix_ks, error=error)
@@ -274,7 +274,7 @@ CONTAINS
         harris_force%f_hartree(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** Calculation of the forces of the xc-integral *** !
       CALL qs_rho_get(rho_struct=rho, rho_r=rho_r, error=error)
@@ -384,7 +384,7 @@ CONTAINS
         harris_force%f_hartree(iatom, 1:3) = 0.0_dp
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** The forces due to n_core *** !
       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw,error=error)
@@ -417,7 +417,7 @@ CONTAINS
         harris_force%f_rho_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
 
-      CALL deallocate_qs_force(force)
+      CALL deallocate_qs_force(force,error)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
 
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -570,8 +570,8 @@ CONTAINS
                                natom_of_kind=natom_of_kind)
 
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
@@ -593,7 +593,7 @@ CONTAINS
                                            + force(ikind)%gth_ppnl(1:3,i) + force(ikind)%gth_nlcc(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       ks_env=ks_env, matrix_ks=matrix_ks, &
@@ -652,7 +652,7 @@ CONTAINS
         harris_force%f_hartree(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! ** Force computation of f_V  ** !
       DO ispin = 1,nspins
@@ -675,7 +675,7 @@ CONTAINS
         harris_force%f_V(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** Calculation of the forces of the xc-integral *** !
       CALL qs_rho_get(rho_struct=rho, rho_r=rho_r, error=error)
@@ -779,7 +779,7 @@ CONTAINS
         harris_force%f_integral_vxc(iatom, 1:3) = 0.0_dp
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
       ! *** End of force calculation due to the sum_of_eigenvalues *** !
 
       CALL harris_env_get(harris_env=harris_env, rho=rho, error=error)
@@ -803,7 +803,7 @@ CONTAINS
         harris_force%f_rho_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** The forces due to exchange and correlation *** !
       CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
@@ -899,7 +899,7 @@ CONTAINS
         harris_force%f_integral_vxc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL calculate_ecore_overlap(qs_env=qs_env, para_env=para_env, &
                                    calculate_forces=.TRUE., E_overlap_core=E_overlap_core,&
@@ -911,7 +911,7 @@ CONTAINS
         harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
       END DO
 
-      CALL deallocate_qs_force(force)
+      CALL deallocate_qs_force(force,error)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
 
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -1059,8 +1059,8 @@ CONTAINS
                          rho_output=harris_env%rho_diff, qs_env=qs_env, error=error)
 
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -1098,7 +1098,7 @@ CONTAINS
         harris_force%f_nsc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, harris_env%rho_diff%rho_g(ispin)%pw, &
@@ -1132,7 +1132,7 @@ CONTAINS
                                        + force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** Calculation of the forces of the xc-integral *** !
 
@@ -1161,7 +1161,7 @@ CONTAINS
         !harris_force%f_nsc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL qs_rho_get(rho_struct=harris_env%rho_diff, rho_r=rho_r, error=error)
       !CALL qs_rho_get(rho_struct=harris_env%rho_diff, rho_r=rho_r, error=error)
@@ -1531,8 +1531,8 @@ CONTAINS
 
       ! *** Debug Code: Calculate the forces of the sum of eigenvalues *** !
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       matrix_ks=matrix_ks, error=error)
@@ -1606,7 +1606,7 @@ CONTAINS
         WRITE (unit_nr,*) force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL deallocate_qs_force(force)
+      CALL deallocate_qs_force(force,error)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp,error=error)
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
 

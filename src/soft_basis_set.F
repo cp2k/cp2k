@@ -253,6 +253,7 @@ CONTAINS
 
           CALL reallocate(soft_basis%cphi,1,maxco,1,ncgf)
           CALL reallocate(soft_basis%sphi,1,maxco,1,nsgf)
+          CALL reallocate(soft_basis%scon,1,maxco,1,nsgf)
           CALL reallocate(soft_basis%lx,1,ncgf)
           CALL reallocate(soft_basis%ly,1,ncgf)
           CALL reallocate(soft_basis%lz,1,ncgf)

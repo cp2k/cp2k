@@ -9,6 +9,7 @@
 !>      - core_ppnl refactored from qs_core_hamiltonian [Joost VandeVondele, 2008-11-01]
 !>      - adapted for PPL [jhu, 2009-02-23]
 !>      - OpenMP added [Iain Bethune, Fiona Reid, 2013-11-13]
+!>      - Bug fix: correct orbital pointer range [07.2014,JGH]
 ! *****************************************************************************
 MODULE core_ppl
 
@@ -146,7 +147,7 @@ CONTAINS
             maxco=maxco,maxlgto=maxlgto,maxlppl=maxlppl,maxsgf=maxsgf,maxnset=maxnset)
 
     maxl = MAX(maxlgto,maxlppl)
-    CALL init_orbital_pointers(maxl+nder+1)
+    CALL init_orbital_pointers(2*maxl+2*nder+1)
 
     ldsab = MAX(maxco,ncoset(maxlppl),maxsgf,maxlppl)
     ldai = ncoset(maxl+nder+1)

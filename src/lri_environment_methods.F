@@ -15,12 +15,12 @@
 ! *****************************************************************************
 MODULE lri_environment_methods
 
+  USE ai_overlap,                      ONLY: overlap
   USE ai_overlap3,                     ONLY: overlap3
   USE ai_overlap3_debug,               ONLY: init_os_overlap3,&
                                              os_overlap3
   USE ai_overlap_debug,                ONLY: init_os_overlap2,&
                                              os_overlap2
-  USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set

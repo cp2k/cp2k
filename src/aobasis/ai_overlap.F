@@ -10,22 +10,11 @@
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 !> \par History
 !>      - Derivatives added (02.05.2002,MK)
-!> \par Parameters
-!>      - ax,ay,az  : Angular momentum index numbers of orbital a.
-!>      - bx,by,bz  : Angular momentum index numbers of orbital b.
-!>      - coset     : Cartesian orbital set pointer.
-!>      - dab       : Distance between the atomic centers a and b.
-!>      - l{a,b}    : Angular momentum quantum number of shell a or b.
-!>      - l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
-!>      - l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
-!>      - rab       : Distance vector between the atomic centers a and b.
-!>      - rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
-!>      - sab       : Shell set of overlap integrals.
-!>      - zet{a,b}  : Exponents of the Gaussian-type functions a or b.
-!>      - zetp      : Reciprocal of the sum of the exponents of orbital a and b.
+!>      - New OS routine with simpler logic (11.07.2014, JGH)
 !> \author Matthias Krack (08.10.1999)
 ! *****************************************************************************
-MODULE ai_overlap_new
+MODULE ai_overlap
+  USE ai_os_rr,                        ONLY: os_rr_ovlp
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -37,18 +26,38 @@ MODULE ai_overlap_new
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap'
 
 ! *** Public subroutines ***
-  PUBLIC :: overlap
+  PUBLIC :: overlap, overlap_ab
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief   Purpose: Calculation of the two-center overlap integrals [a|b] over
 !>          Cartesian Gaussian-type functions.
-!> \author  MK
+!> \param la_max_set Max L on center A
+!> \param la_min_set Min L on center A
+!> \param npgfa      Number of primitives on center A
+!> \param rpgfa      Range of functions on A, used for screening
+!> \param zeta       Exponents on center A
+!> \param lb_max_set Max L on center B
+!> \param lb_min_set Min L on center B
+!> \param npgfb      Number of primitives on center B
+!> \param rpgfb      Range of functions on B, used for screening
+!> \param zetb       Exponents on center B
+!> \param rab        Distance vector A-B
+!> \param dab        Distance A-B
+!> \param sab        Final Integrals, basic and derivatives
+!> \param da_max_set Some additional derivative information
+!> \param return_derivatives   Return integral derivatives
+!> \param s          Work space
+!> \param lds        Leading dimension of s
+!> \param sdab       Return additional derivative integrals
+!> \param pab        Density matrix block, used to calculate forces
+!> \param force_a    Force vector [da/dR|b]
 !> \date    19.09.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE overlap(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
@@ -645,4 +654,295 @@ CONTAINS
 
   END SUBROUTINE overlap
 
-END MODULE ai_overlap_new
+! *****************************************************************************
+!> \brief   Calculation of the two-center overlap integrals [a|b] over
+!>          Cartesian Gaussian-type functions. First and second derivatives
+!> \param la_max_set Max L on center A
+!> \param la_min_set Min L on center A
+!> \param npgfa      Number of primitives on center A
+!> \param rpgfa      Range of functions on A, used for screening
+!> \param zeta       Exponents on center A
+!> \param lb_max_set Max L on center B
+!> \param lb_min_set Min L on center B
+!> \param npgfb      Number of primitives on center B
+!> \param rpgfb      Range of functions on B, used for screening
+!> \param zetb       Exponents on center B
+!> \param rab        Distance vector A-B
+!> \param sab        Final overlap integrals
+!> \param dab        First derivative overlap integrals
+!> \param ddab       Second derivative overlap integrals
+!> \param error      CP2K error reporting
+!> \date    01.07.2014
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_ab(la_max,la_min,npgfa,rpgfa,zeta,&
+                        lb_max,lb_min,npgfb,rpgfb,zetb,&
+                        rab,sab,dab,ddab,error)
+    INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb_max, lb_min, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: sab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL                :: dab, ddab
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
+                                                cob, ia, ib, ipgf, istat, &
+                                                jpgf, la, lb, ldrr, lma, lmb, &
+                                                ma, mb, na, nb, ofa, ofb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, ambm, ambp, apbm, apbp, b, &
+                                                dumx, dumy, dumz, f0, rab2, &
+                                                tab, xhi, zet
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rr
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
+
+! Distance of the centers a and b
+
+    rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+    tab = SQRT(rab2)
+
+    ! Maximum l for auxiliary integrals
+    IF (PRESENT(sab)) THEN
+       lma = la_max
+       lmb = lb_max
+    END IF
+    IF (PRESENT(dab)) THEN
+       lma = la_max + 1
+       lmb = lb_max
+    END IF
+    IF (PRESENT(ddab)) THEN
+       lma = la_max + 1
+       lmb = lb_max + 1
+    END IF
+    ldrr = MAX(lma,lmb) + 1
+
+    ! Allocate space for auxiliary integrals
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Number of integrals, check size of arrays
+    ofa = ncoset(la_min-1)
+    ofb = ncoset(lb_min-1)
+    na = ncoset(la_max) - ofa
+    nb = ncoset(lb_max) - ofb
+    IF (PRESENT(sab)) THEN
+       CPPrecondition((SIZE(sab,1) >= na*npgfa),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(sab,2) >= nb*npgfb),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(dab)) THEN
+       CPPrecondition((SIZE(dab,1) >= na*npgfa),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dab,2) >= nb*npgfb),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dab,3) >= 3),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(ddab)) THEN
+       CPPrecondition((SIZE(ddab,1) >= na*npgfa),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(ddab,2) >= nb*npgfb),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(ddab,3) >= 6),cp_failure_level,routineP,error,failure)
+    END IF
+
+    ! Loops over all pairs of primitive Gaussian-type functions
+    ma = 0
+    DO ipgf=1,npgfa
+       mb = 0
+       DO jpgf=1,npgfb
+          ! Distance Screening
+          IF(rpgfa(ipgf) + rpgfb(jpgf) < tab) THEN
+             IF (PRESENT(sab)) sab(ma+1:ma+na,mb+1:mb+nb) = 0.0_dp
+             IF (PRESENT(dab)) dab(ma+1:ma+na,mb+1:mb+nb,1:3) = 0.0_dp
+             IF (PRESENT(ddab)) ddab(ma+1:ma+na,mb+1:mb+nb,1:6) = 0.0_dp
+             mb = mb + nb
+             CYCLE
+          ENDIF
+
+          ! Calculate some prefactors
+          a = zeta(ipgf)
+          b = zetb(jpgf)
+          zet =  a+b
+          xhi =  a*b/zet
+          rap =  b*rab/zet
+          rbp = -a*rab/zet
+
+          ! [s|s] integral
+          f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+
+          ! Calculate the reccurence relation
+          CALL os_rr_ovlp(rap,lma,rbp,lmb,zet,ldrr,rr)
+
+          DO lb = lb_min,lb_max
+          DO bx = 0,lb
+          DO by = 0,lb-bx
+             bz = lb - bx - by
+             cob = coset(bx,by,bz) - ofb
+             ib = mb + cob
+             DO la = la_min,la_max
+             DO ax = 0,la
+             DO ay = 0,la-ax
+                az = la - ax - ay
+                coa = coset(ax,ay,az) - ofa
+                ia = ma + coa
+                ! integrals
+                IF (PRESENT(sab)) THEN
+                   sab(ia,ib) = f0 * rr(ax,bx,1) * rr(ay,by,2) * rr(az,bz,3)
+                END IF
+                ! first derivatives
+                IF (PRESENT(dab)) THEN
+                   ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
+                   ! dx
+                   dumx = 2.0_dp * a * rr(ax+1,bx,1)
+                   IF(ax > 0) dumx = dumx - REAL(ax,dp) * rr(ax-1,bx,1)
+                   dab(ia,ib,1) = f0 * dumx * rr(ay,by,2) * rr(az,bz,3)
+                   ! dy
+                   dumy = 2.0_dp * a * rr(ay+1,by,2)
+                   IF(ay > 0) dumy = dumy - REAL(ay,dp) * rr(ay-1,by,2)
+                   dab(ia,ib,2) = f0 * rr(ax,bx,1) * dumy * rr(az,bz,3)
+                   ! dz
+                   dumz = 2.0_dp * a * rr(az+1,bz,3)
+                   IF(az > 0) dumz = dumz - REAL(az,dp) * rr(az-1,bz,3)
+                   dab(ia,ib,3) = f0 * rr(ax,bx,1) * rr(ay,by,2) * dumz
+                END IF
+                ! 2nd derivatives
+                IF (PRESENT(ddab)) THEN
+                   ! (dda|b) = -4*a*b*(a+1|b+1) + 2*a*N(b)*(a+1|b-1)
+                   !           + 2*b*N(a)*(a-1|b+1) - N(a)*N(b)*(a-1|b-1)
+                   ! dx dx
+                   apbp = f0 * rr(ax+1,bx+1,1) * rr(ay,by,2) * rr(az,bz,3)
+                   IF(bx > 0) THEN
+                       apbm = f0 * rr(ax+1,bx-1,1) * rr(ay,by,2) * rr(az,bz,3)
+                   ELSE
+                       apbm = 0.0_dp
+                   END IF
+                   IF(ax > 0) THEN
+                       ambp = f0 * rr(ax-1,bx+1,1) * rr(ay,by,2) * rr(az,bz,3)
+                   ELSE
+                       ambp = 0.0_dp
+                   END IF
+                   IF(ax > 0 .AND. bx > 0) THEN
+                       ambm = f0 * rr(ax-1,bx-1,1) * rr(ay,by,2) * rr(az,bz,3)
+                   ELSE
+                       ambm = 0.0_dp
+                   END IF
+                   ddab(ia,ib,1) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bx,dp)*apbm &
+                      + 2.0_dp*b*REAL(ax,dp)*ambp - REAL(ax,dp)*REAL(bx,dp)*ambm
+                   ! dx dy
+                   apbp = f0 * rr(ax+1,bx,1) * rr(ay,by+1,2) * rr(az,bz,3)
+                   IF(by > 0) THEN
+                       apbm = f0 * rr(ax+1,bx,1) * rr(ay,by-1,2) * rr(az,bz,3)
+                   ELSE
+                       apbm = 0.0_dp
+                   END IF
+                   IF(ax > 0) THEN
+                       ambp = f0 * rr(ax-1,bx,1) * rr(ay,by+1,2) * rr(az,bz,3)
+                   ELSE
+                       ambp = 0.0_dp
+                   END IF
+                   IF(ax > 0 .AND. by > 0) THEN
+                       ambm = f0 * rr(ax-1,bx,1) * rr(ay,by-1,2) * rr(az,bz,3)
+                   ELSE
+                       ambm = 0.0_dp
+                   END IF
+                   ddab(ia,ib,2) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(by,dp)*apbm &
+                      + 2.0_dp*b*REAL(ax,dp)*ambp - REAL(ax,dp)*REAL(by,dp)*ambm
+                   ! dx dz
+                   apbp = f0 * rr(ax+1,bx,1) * rr(ay,by,2) * rr(az,bz+1,3)
+                   IF(bz > 0) THEN
+                       apbm = f0 * rr(ax+1,bx,1) * rr(ay,by,2) * rr(az,bz-1,3)
+                   ELSE
+                       apbm = 0.0_dp
+                   END IF
+                   IF(ax > 0) THEN
+                       ambp = f0 * rr(ax-1,bx,1) * rr(ay,by,2) * rr(az,bz-1,3)
+                   ELSE
+                       ambp = 0.0_dp
+                   END IF
+                   IF(ax > 0 .AND. bz > 0) THEN
+                       ambm = f0 * rr(ax-1,bx,1) * rr(ay,by,2) * rr(az,bz-1,3)
+                   ELSE
+                       ambm = 0.0_dp
+                   END IF
+                   ddab(ia,ib,3) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz,dp)*apbm &
+                      + 2.0_dp*b*REAL(ax,dp)*ambp - REAL(ax,dp)*REAL(bz,dp)*ambm
+                   ! dy dy
+                   apbp = f0 * rr(ax,bx,1) * rr(ay+1,by+1,2) * rr(az,bz,3)
+                   IF(by > 0) THEN
+                       apbm = f0 * rr(ax,bx,1) * rr(ay+1,by-1,2) * rr(az,bz,3)
+                   ELSE
+                       apbm = 0.0_dp
+                   END IF
+                   IF(ay > 0) THEN
+                       ambp = f0 * rr(ax,bx,1) * rr(ay-1,by+1,2) * rr(az,bz,3)
+                   ELSE
+                       ambp = 0.0_dp
+                   END IF
+                   IF(ay > 0 .AND. by > 0) THEN
+                       ambm = f0 * rr(ax,bx,1) * rr(ay-1,by-1,2) * rr(az,bz,3)
+                   ELSE
+                       ambm = 0.0_dp
+                   END IF
+                   ddab(ia,ib,4) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(by,dp)*apbm &
+                      + 2.0_dp*b*REAL(ay,dp)*ambp - REAL(ay,dp)*REAL(by,dp)*ambm
+                   ! dy dz
+                   apbp = f0 * rr(ax,bx,1) * rr(ay+1,by,2) * rr(az,bz+1,3)
+                   IF(bz > 0) THEN
+                       apbm = f0 * rr(ax,bx,1) * rr(ay+1,by,2) * rr(az,bz-1,3)
+                   ELSE
+                       apbm = 0.0_dp
+                   END IF
+                   IF(ay > 0) THEN
+                       ambp = f0 * rr(ax,bx,1) * rr(ay-1,by,2) * rr(az,bz+1,3)
+                   ELSE
+                       ambp = 0.0_dp
+                   END IF
+                   IF(ay > 0 .AND. bz > 0) THEN
+                       ambm = f0 * rr(ax,bx,1) * rr(ay-1,by,2) * rr(az,bz-1,3)
+                   ELSE
+                       ambm = 0.0_dp
+                   END IF
+                   ddab(ia,ib,5) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz,dp)*apbm &
+                      + 2.0_dp*b*REAL(ay,dp)*ambp - REAL(ay,dp)*REAL(bz,dp)*ambm
+                   ! dz dz
+                   apbp = f0 * rr(ax,bx,1) * rr(ay,by,2) * rr(az+1,bz+1,3)
+                   IF(bz > 0) THEN
+                       apbm = f0 * rr(ax,bx,1) * rr(ay,by,2) * rr(az+1,bz-1,3)
+                   ELSE
+                       apbm = 0.0_dp
+                   END IF
+                   IF(az > 0) THEN
+                       ambp = f0 * rr(ax,bx,1) * rr(ay,by,2) * rr(az-1,bz+1,3)
+                   ELSE
+                       ambp = 0.0_dp
+                   END IF
+                   IF(az > 0 .AND. bz > 0) THEN
+                       ambm = f0 * rr(ax,bx,1) * rr(ay,by,2) * rr(az-1,bz-1,3)
+                   ELSE
+                       ambm = 0.0_dp
+                   END IF
+                   ddab(ia,ib,6) = -4.0_dp*a*b*apbm + 2.0_dp*a*REAL(bz,dp)*apbm &
+                      + 2.0_dp*b*REAL(az,dp)*ambp - REAL(az,dp)*REAL(bz,dp)*ambm
+                END IF
+                !
+             ENDDO
+             ENDDO
+             ENDDO !la
+          ENDDO
+          ENDDO
+          ENDDO !lb
+
+          mb = mb + nb
+       END DO
+       ma = ma + na
+    END DO
+
+    DEALLOCATE(rr,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE overlap_ab
+
+END MODULE ai_overlap

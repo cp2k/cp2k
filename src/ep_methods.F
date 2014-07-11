@@ -1652,12 +1652,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
-       CALL allocate_qs_force(force,natom_of_kind)
+       CALL allocate_qs_force(force,natom_of_kind,error)
        DEALLOCATE (natom_of_kind,STAT=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        CALL set_qs_env(qs_env,force=force,error=error)
     END IF
-    CALL zero_qs_force(force)
+    CALL zero_qs_force(force,error)
     CALL ep_force_zero(ep_env%force,error=error)
 
     ! !!!!! qs energy
