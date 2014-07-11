@@ -858,7 +858,7 @@ CONTAINS
                        apbm = 0.0_dp
                    END IF
                    IF(ax > 0) THEN
-                       ambp = f0 * rr(ax-1,bx,1) * rr(ay,by,2) * rr(az,bz-1,3)
+                       ambp = f0 * rr(ax-1,bx,1) * rr(ay,by,2) * rr(az,bz+1,3)
                    ELSE
                        ambp = 0.0_dp
                    END IF
