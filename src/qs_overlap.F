@@ -134,7 +134,7 @@ CONTAINS
                                                 trans, use_virial
     REAL(KIND=dp)                            :: dab, f, f0, ff, rab2
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: owork, pmat, sab
+      DIMENSION(:, :)                        :: owork, pmat
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: oint
     REAL(KIND=dp), DIMENSION(3)              :: force_a, rab
