@@ -29,7 +29,8 @@ MODULE ai_overlap
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap'
 
 ! *** Public subroutines ***
-  PUBLIC :: overlap, overlap_ab
+  PUBLIC :: overlap, overlap_ab, overlap_aab, overlap_abb, &
+            overlap_aaab, overlap_aabb, overlap_abbb
 
 CONTAINS
 
@@ -657,13 +658,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the two-center overlap integrals [a|b] over
 !>          Cartesian Gaussian-type functions. First and second derivatives
-!> \param la_max_set Max L on center A
-!> \param la_min_set Min L on center A
+!> \param la_max     Max L on center A
+!> \param la_min     Min L on center A
 !> \param npgfa      Number of primitives on center A
 !> \param rpgfa      Range of functions on A, used for screening
 !> \param zeta       Exponents on center A
-!> \param lb_max_set Max L on center B
-!> \param lb_min_set Min L on center B
+!> \param lb_max     Max L on center B
+!> \param lb_min     Min L on center B
 !> \param npgfb      Number of primitives on center B
 !> \param rpgfb      Range of functions on B, used for screening
 !> \param zetb       Exponents on center B
@@ -944,5 +945,1033 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE overlap_ab
+
+! *****************************************************************************
+!> \brief   Calculation of the two-center overlap integrals [aa|b] over
+!>          Cartesian Gaussian-type functions.
+!> \param la1_max    Max L on center A (basis 1)
+!> \param la1_min    Min L on center A (basis 1)
+!> \param npgfa1     Number of primitives on center A (basis 1)
+!> \param rpgfa1     Range of functions on A, used for screening (basis 1)
+!> \param zeta1      Exponents on center A (basis 1)
+!> \param la2_max    Max L on center A (basis 2)
+!> \param la2_min    Min L on center A (basis 2)
+!> \param npgfa2     Number of primitives on center A (basis 2)
+!> \param rpgfa2     Range of functions on A, used for screening (basis 2)
+!> \param zeta2      Exponents on center A (basis 2)
+!> \param lb_max     Max L on center B
+!> \param lb_min     Min L on center B
+!> \param npgfb      Number of primitives on center B
+!> \param rpgfb      Range of functions on B, used for screening
+!> \param zetb       Exponents on center B
+!> \param rab        Distance vector A-B
+!> \param saab       Final overlap integrals
+!> \param daab       First derivative overlap integrals
+!> \param error      CP2K error reporting
+!> \date    01.07.2014
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_aab(la1_max,la1_min,npgfa1,rpgfa1,zeta1,&
+                         la2_max,la2_min,npgfa2,rpgfa2,zeta2,&
+                         lb_max,lb_min,npgfb,rpgfb,zetb,&
+                         rab,saab,daab,error)
+    INTEGER, INTENT(IN)                      :: la1_max, la1_min, npgfa1
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa1, zeta1
+    INTEGER, INTENT(IN)                      :: la2_max, la2_min, npgfa2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa2, zeta2
+    INTEGER, INTENT(IN)                      :: lb_max, lb_min, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL                :: saab
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: daab
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aab', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, &
+      coa2, cob, i1pgf, i2pgf, ia1, ia2, ib, istat, jpgf, la1, la2, lb, ldrr, &
+      lma, lmb, ma1, ma2, mb, na1, na2, nb, ofa1, ofa2, ofb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
+                                                rab2, rpgfa, tab, xhi, zet
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rr
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
+
+! Distance of the centers a and b
+
+    rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+    tab = SQRT(rab2)
+
+    ! Maximum l for auxiliary integrals
+    IF (PRESENT(saab)) THEN
+       lma = la1_max + la2_max
+       lmb = lb_max
+    END IF
+    IF (PRESENT(daab)) THEN
+       lma = la1_max + la2_max + 1
+       lmb = lb_max
+    END IF
+    ldrr = MAX(lma,lmb) + 1
+
+    ! Allocate space for auxiliary integrals
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Number of integrals, check size of arrays
+    ofa1 = ncoset(la1_min-1)
+    ofa2 = ncoset(la2_min-1)
+    ofb = ncoset(lb_min-1)
+    na1 = ncoset(la1_max) - ofa1
+    na2 = ncoset(la2_max) - ofa2
+    nb = ncoset(lb_max) - ofb
+    IF (PRESENT(saab)) THEN
+       CPPrecondition((SIZE(saab,1) >= na1*npgfa1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saab,2) >= na2*npgfa2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saab,3) >= nb*npgfb),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(daab)) THEN
+       CPPrecondition((SIZE(daab,1) >= na1*npgfa1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daab,2) >= na2*npgfa2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daab,3) >= nb*npgfb),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daab,4) >= 3),cp_failure_level,routineP,error,failure)
+    END IF
+
+    ! Loops over all primitive Gaussian-type functions
+    ma1 = 0
+    DO i1pgf=1,npgfa1
+       ma2 = 0
+       DO i2pgf=1,npgfa2
+          rpgfa = MIN(rpgfa1(i1pgf),rpgfa2(i2pgf))
+          mb = 0
+          DO jpgf=1,npgfb
+             ! Distance Screening
+             IF(rpgfa + rpgfb(jpgf) < tab) THEN
+                IF (PRESENT(saab)) saab(ma1+1:ma1+na1,ma2+1:ma2+na2,mb+1:mb+nb) = 0.0_dp
+                IF (PRESENT(daab)) daab(ma1+1:ma1+na1,ma2+1:ma2+na2,mb+1:mb+nb,1:3) = 0.0_dp
+                mb = mb + nb
+                CYCLE
+             ENDIF
+
+             ! Calculate some prefactors
+             a = zeta1(i1pgf) + zeta2(i2pgf)
+             b = zetb(jpgf)
+             zet =  a+b
+             xhi =  a*b/zet
+             rap =  b*rab/zet
+             rbp = -a*rab/zet
+
+             ! [ss|s] integral
+             f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+
+             ! Calculate the reccurence relation
+             CALL os_rr_ovlp(rap,lma,rbp,lmb,zet,ldrr,rr)
+
+             DO lb = lb_min,lb_max
+             DO bx = 0,lb
+             DO by = 0,lb-bx
+                bz = lb - bx - by
+                cob = coset(bx,by,bz) - ofb
+                ib = mb + cob
+                DO la2 = la2_min,la2_max
+                DO ax2 = 0,la2
+                DO ay2 = 0,la2-ax2
+                   az2 = la2 - ax2 - ay2
+                   coa2 = coset(ax2,ay2,az2) - ofa2
+                   ia2 = ma2 + coa2
+                   DO la1 = la1_min,la1_max
+                   DO ax1 = 0,la1
+                   DO ay1 = 0,la1-ax1
+                      az1 = la1 - ax1 - ay1
+                      coa1 = coset(ax1,ay1,az1) - ofa1
+                      ia1 = ma1 + coa1
+                      ! integrals
+                      IF (PRESENT(saab)) THEN
+                         saab(ia1,ia2,ib) = f0 * rr(ax1+ax2,bx,1) * rr(ay1+ay2,by,2) * rr(az1+az2,bz,3)
+                      END IF
+                      ! first derivatives
+                      IF (PRESENT(daab)) THEN
+                         ax = ax1 + ax2
+                         ay = ay1 + ay2
+                         az = az1 + az2
+                         ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
+                         ! dx
+                         dumx = 2.0_dp * a * rr(ax+1,bx,1)
+                         IF(ax > 0) dumx = dumx - REAL(ax,dp) * rr(ax-1,bx,1)
+                         daab(ia1,ia2,ib,1) = f0 * dumx * rr(ay,by,2) * rr(az,bz,3)
+                         ! dy
+                         dumy = 2.0_dp * a * rr(ay+1,by,2)
+                         IF(ay > 0) dumy = dumy - REAL(ay,dp) * rr(ay-1,by,2)
+                         daab(ia1,ia2,ib,2) = f0 * rr(ax,bx,1) * dumy * rr(az,bz,3)
+                         ! dz
+                         dumz = 2.0_dp * a * rr(az+1,bz,3)
+                         IF(az > 0) dumz = dumz - REAL(az,dp) * rr(az-1,bz,3)
+                         daab(ia1,ia2,ib,3) = f0 * rr(ax,bx,1) * rr(ay,by,2) * dumz
+                      END IF
+                      !
+                   ENDDO
+                   ENDDO
+                   ENDDO !la1
+                ENDDO
+                ENDDO
+                ENDDO !la2
+             ENDDO
+             ENDDO
+             ENDDO !lb
+
+             mb = mb + nb
+          END DO
+          ma2 = ma2 + na2
+       END DO
+       ma1 = ma1 + na1
+    END DO
+
+    DEALLOCATE(rr,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE overlap_aab
+
+! *****************************************************************************
+!> \brief   Calculation of the two-center overlap integrals [a|bb] over
+!>          Cartesian Gaussian-type functions. 
+!> \param la_max     Max L on center A
+!> \param la_min     Min L on center A
+!> \param npgfa      Number of primitives on center A
+!> \param rpgfa      Range of functions on A, used for screening
+!> \param zeta       Exponents on center A
+!> \param lb1_max    Max L on center B (basis 1)
+!> \param lb1_min    Min L on center B (basis 1)
+!> \param npgfb1     Number of primitives on center B (basis 1)
+!> \param rpgfb1     Range of functions on B, used for screening (basis 1)
+!> \param zetb1      Exponents on center B (basis 1)
+!> \param lb2_max    Max L on center B (basis 2)
+!> \param lb2_min    Min L on center B (basis 2)
+!> \param npgfb2     Number of primitives on center B (basis 2)
+!> \param rpgfb2     Range of functions on B, used for screening (basis 2)
+!> \param zetb2      Exponents on center B (basis 2)
+!> \param rab        Distance vector A-B
+!> \param sabb       Final overlap integrals
+!> \param dabb       First derivative overlap integrals
+!> \param error      CP2K error reporting
+!> \date    01.07.2014
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_abb(la_max,la_min,npgfa,rpgfa,zeta,&
+                         lb1_max,lb1_min,npgfb1,rpgfb1,zetb1,&
+                         lb2_max,lb2_min,npgfb2,rpgfb2,zetb2,&
+                         rab,sabb,dabb,error)
+    INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb1_max, lb1_min, npgfb1
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb1, zetb1
+    INTEGER, INTENT(IN)                      :: lb2_max, lb2_min, npgfb2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb2, zetb2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT), OPTIONAL                :: sabb
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: dabb
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_abb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, &
+      cob1, cob2, ia, ib1, ib2, ipgf, istat, j1pgf, j2pgf, la, lb1, lb2, &
+      ldrr, lma, lmb, ma, mb1, mb2, na, nb1, nb2, ofa, ofb1, ofb2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
+                                                rab2, rpgfb, tab, xhi, zet
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rr
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
+
+! Distance of the centers a and b
+
+    rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+    tab = SQRT(rab2)
+
+    ! Maximum l for auxiliary integrals
+    IF (PRESENT(sabb)) THEN
+       lma = la_max
+       lmb = lb1_max + lb2_max
+    END IF
+    IF (PRESENT(dabb)) THEN
+       lma = la_max + 1
+       lmb = lb1_max + lb2_max
+    END IF
+    ldrr = MAX(lma,lmb) + 1
+
+    ! Allocate space for auxiliary integrals
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Number of integrals, check size of arrays
+    ofa = ncoset(la_min-1)
+    ofb1 = ncoset(lb1_min-1)
+    ofb2 = ncoset(lb2_min-1)
+    na = ncoset(la_max) - ofa
+    nb1 = ncoset(lb1_max) - ofb1
+    nb2 = ncoset(lb2_max) - ofb2
+    IF (PRESENT(sabb)) THEN
+       CPPrecondition((SIZE(sabb,1) >= na*npgfa),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(sabb,2) >= nb1*npgfb1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(sabb,3) >= nb2*npgfb2),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(dabb)) THEN
+       CPPrecondition((SIZE(dabb,1) >= na*npgfa),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dabb,2) >= nb1*npgfb1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dabb,3) >= nb2*npgfb2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dabb,4) >= 3),cp_failure_level,routineP,error,failure)
+    END IF
+
+    ! Loops over all pairs of primitive Gaussian-type functions
+    ma = 0
+    DO ipgf=1,npgfa
+       mb1 = 0
+       DO j1pgf=1,npgfb1
+          mb2 = 0
+          DO j2pgf=1,npgfb2
+             ! Distance Screening
+             rpgfb = MIN(rpgfb1(j1pgf),rpgfb2(j2pgf))
+             IF(rpgfa(ipgf) + rpgfb < tab) THEN
+                IF (PRESENT(sabb)) sabb(ma+1:ma+na,mb1+1:mb1+nb1,mb2+1:mb2+nb2) = 0.0_dp
+                IF (PRESENT(dabb)) dabb(ma+1:ma+na,mb1+1:mb1+nb1,mb2+1:mb2+nb2,1:3) = 0.0_dp
+                mb2 = mb2 + nb2
+                CYCLE
+             ENDIF
+
+             ! Calculate some prefactors
+             a = zeta(ipgf)
+             b = zetb1(j1pgf) + zetb2(j2pgf)
+             zet =  a+b
+             xhi =  a*b/zet
+             rap =  b*rab/zet
+             rbp = -a*rab/zet
+
+             ! [s|s] integral
+             f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+
+             ! Calculate the reccurence relation
+             CALL os_rr_ovlp(rap,lma,rbp,lmb,zet,ldrr,rr)
+
+          DO lb2 = lb2_min,lb2_max
+          DO bx2 = 0,lb2
+          DO by2 = 0,lb2-bx2
+             bz2 = lb2 - bx2 - by2
+             cob2 = coset(bx2,by2,bz2) - ofb2
+             ib2 = mb2 + cob2
+             DO lb1 = lb1_min,lb1_max
+             DO bx1 = 0,lb1
+             DO by1 = 0,lb1-bx1
+                bz1 = lb1 - bx1 - by1
+                cob1 = coset(bx1,by1,bz1) - ofb1
+                ib1 = mb1 + cob1
+                DO la = la_min,la_max
+                DO ax = 0,la
+                DO ay = 0,la-ax
+                   az = la - ax - ay
+                   coa = coset(ax,ay,az) - ofa
+                   ia = ma + coa
+                   ! integrals
+                   IF (PRESENT(sabb)) THEN
+                      sabb(ia,ib1,ib2) = f0 * rr(ax,bx1+bx2,1) * rr(ay,by1+by2,2) * rr(az,bz1+bz2,3)
+                   END IF
+                   ! first derivatives
+                   IF (PRESENT(dabb)) THEN
+                      bx = bx1 + bx2
+                      by = by1 + by2
+                      bz = bz1 + bz2
+                      ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
+                      ! dx
+                      dumx = 2.0_dp * a * rr(ax+1,bx,1)
+                      IF(ax > 0) dumx = dumx - REAL(ax,dp) * rr(ax-1,bx,1)
+                      dabb(ia,ib1,ib2,1) = f0 * dumx * rr(ay,by,2) * rr(az,bz,3)
+                      ! dy
+                      dumy = 2.0_dp * a * rr(ay+1,by,2)
+                      IF(ay > 0) dumy = dumy - REAL(ay,dp) * rr(ay-1,by,2)
+                      dabb(ia,ib1,ib2,2) = f0 * rr(ax,bx,1) * dumy * rr(az,bz,3)
+                      ! dz
+                      dumz = 2.0_dp * a * rr(az+1,bz,3)
+                      IF(az > 0) dumz = dumz - REAL(az,dp) * rr(az-1,bz,3)
+                      dabb(ia,ib1,ib2,3) = f0 * rr(ax,bx,1) * rr(ay,by,2) * dumz
+                   END IF
+                   !
+                   ENDDO
+                   ENDDO
+                   ENDDO !la
+                ENDDO
+                ENDDO
+                ENDDO !lb1
+             ENDDO
+             ENDDO
+             ENDDO !lb2
+
+             mb2 = mb2 + nb2
+          END DO
+          mb1 = mb1 + nb1
+       END DO
+       ma = ma + na
+    END DO
+
+    DEALLOCATE(rr,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE overlap_abb
+
+! *****************************************************************************
+!> \brief   Calculation of the two-center overlap integrals [aaa|b] over
+!>          Cartesian Gaussian-type functions.
+!> \param la1_max    Max L on center A (basis 1)
+!> \param la1_min    Min L on center A (basis 1)
+!> \param npgfa1     Number of primitives on center A (basis 1)
+!> \param rpgfa1     Range of functions on A, used for screening (basis 1)
+!> \param zeta1      Exponents on center A (basis 1)
+!> \param la2_max    Max L on center A (basis 2)
+!> \param la2_min    Min L on center A (basis 2)
+!> \param npgfa2     Number of primitives on center A (basis 2)
+!> \param rpgfa2     Range of functions on A, used for screening (basis 2)
+!> \param zeta2      Exponents on center A (basis 2)
+!> \param la3_max    Max L on center A (basis 3)
+!> \param la3_min    Min L on center A (basis 3)
+!> \param npgfa3     Number of primitives on center A (basis 3)
+!> \param rpgfa3     Range of functions on A, used for screening (basis 3)
+!> \param zeta3      Exponents on center A (basis 3)
+!> \param lb_max     Max L on center B
+!> \param lb_min     Min L on center B
+!> \param npgfb      Number of primitives on center B
+!> \param rpgfb      Range of functions on B, used for screening
+!> \param zetb       Exponents on center B
+!> \param rab        Distance vector A-B
+!> \param saaab      Final overlap integrals
+!> \param daaab      First derivative overlap integrals
+!> \param error      CP2K error reporting
+!> \date    01.07.2014
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_aaab(la1_max,la1_min,npgfa1,rpgfa1,zeta1,&
+                          la2_max,la2_min,npgfa2,rpgfa2,zeta2,&
+                          la3_max,la3_min,npgfa3,rpgfa3,zeta3,&
+                          lb_max,lb_min,npgfb,rpgfb,zetb,&
+                          rab,saaab,daaab,error)
+    INTEGER, INTENT(IN)                      :: la1_max, la1_min, npgfa1
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa1, zeta1
+    INTEGER, INTENT(IN)                      :: la2_max, la2_min, npgfa2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa2, zeta2
+    INTEGER, INTENT(IN)                      :: la3_max, la3_min, npgfa3
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa3, zeta3
+    INTEGER, INTENT(IN)                      :: lb_max, lb_min, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: saaab
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: daaab
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aaab', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ax, ax1, ax2, ax3, ay, ay1, ay2, ay3, az, az1, az2, az3, bx, &
+      by, bz, coa1, coa2, coa3, cob, i1pgf, i2pgf, i3pgf, ia1, ia2, ia3, ib, &
+      istat, jpgf, la1, la2, la3, lb, ldrr, lma, lmb, ma1, ma2, ma3, mb, na1, &
+      na2, na3, nb, ofa1, ofa2, ofa3, ofb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
+                                                rab2, rpgfa, tab, xhi, zet
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rr
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
+
+! Distance of the centers a and b
+
+    rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+    tab = SQRT(rab2)
+
+    ! Maximum l for auxiliary integrals
+    IF (PRESENT(saaab)) THEN
+       lma = la1_max + la2_max + la3_max
+       lmb = lb_max
+    END IF
+    IF (PRESENT(daaab)) THEN
+       lma = la1_max + la2_max + la3_max + 1
+       lmb = lb_max
+    END IF
+    ldrr = MAX(lma,lmb) + 1
+
+    ! Allocate space for auxiliary integrals
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Number of integrals, check size of arrays
+    ofa1 = ncoset(la1_min-1)
+    ofa2 = ncoset(la2_min-1)
+    ofa3 = ncoset(la3_min-1)
+    ofb = ncoset(lb_min-1)
+    na1 = ncoset(la1_max) - ofa1
+    na2 = ncoset(la2_max) - ofa2
+    na3 = ncoset(la3_max) - ofa3
+    nb = ncoset(lb_max) - ofb
+    IF (PRESENT(saaab)) THEN
+       CPPrecondition((SIZE(saaab,1) >= na1*npgfa1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saaab,2) >= na2*npgfa2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saaab,3) >= na3*npgfa3),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saaab,4) >= nb*npgfb),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(daaab)) THEN
+       CPPrecondition((SIZE(daaab,1) >= na1*npgfa1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daaab,2) >= na2*npgfa2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daaab,3) >= na3*npgfa3),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daaab,4) >= nb*npgfb),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daaab,5) >= 3),cp_failure_level,routineP,error,failure)
+    END IF
+
+    ! Loops over all primitive Gaussian-type functions
+    ma1 = 0
+    DO i1pgf=1,npgfa1
+       ma2 = 0
+       DO i2pgf=1,npgfa2
+          ma3 = 0
+          DO i3pgf=1,npgfa3
+             rpgfa = MIN(rpgfa1(i1pgf),rpgfa2(i2pgf),rpgfa3(i3pgf))
+             mb = 0
+             DO jpgf=1,npgfb
+                ! Distance Screening
+                IF(rpgfa + rpgfb(jpgf) < tab) THEN
+                   IF (PRESENT(saaab)) saaab(ma1+1:ma1+na1,ma2+1:ma2+na2,ma3+1:ma3+na3,mb+1:mb+nb) = 0.0_dp
+                   IF (PRESENT(daaab)) daaab(ma1+1:ma1+na1,ma2+1:ma2+na2,ma3+1:ma3+na3,mb+1:mb+nb,1:3) = 0.0_dp
+                   mb = mb + nb
+                   CYCLE
+                ENDIF
+
+                ! Calculate some prefactors
+                a = zeta1(i1pgf) + zeta2(i2pgf) + zeta3(i3pgf)
+                b = zetb(jpgf)
+                zet =  a+b
+                xhi =  a*b/zet
+                rap =  b*rab/zet
+                rbp = -a*rab/zet
+
+                ! [sss|s] integral
+                f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+
+                ! Calculate the reccurence relation
+                CALL os_rr_ovlp(rap,lma,rbp,lmb,zet,ldrr,rr)
+
+                DO lb = lb_min,lb_max
+                DO bx = 0,lb
+                DO by = 0,lb-bx
+                   bz = lb - bx - by
+                   cob = coset(bx,by,bz) - ofb
+                   ib = mb + cob
+                   DO la3 = la3_min,la3_max
+                   DO ax3 = 0,la3
+                   DO ay3 = 0,la3-ax3
+                      az3 = la3 - ax3 - ay3
+                      coa3 = coset(ax3,ay3,az3) - ofa3
+                      ia3 = ma3 + coa3
+                      DO la2 = la2_min,la2_max
+                      DO ax2 = 0,la2
+                      DO ay2 = 0,la2-ax2
+                         az2 = la2 - ax2 - ay2
+                         coa2 = coset(ax2,ay2,az2) - ofa2
+                         ia2 = ma2 + coa2
+                         DO la1 = la1_min,la1_max
+                         DO ax1 = 0,la1
+                         DO ay1 = 0,la1-ax1
+                            az1 = la1 - ax1 - ay1
+                            coa1 = coset(ax1,ay1,az1) - ofa1
+                            ia1 = ma1 + coa1
+                            ! integrals
+                            IF (PRESENT(saaab)) THEN
+                               saaab(ia1,ia2,ia3,ib) = f0 * rr(ax1+ax2+ax3,bx,1) * &
+                                                            rr(ay1+ay2+ay3,by,2) * rr(az1+az2+az3,bz,3)
+                            END IF
+                            ! first derivatives
+                            IF (PRESENT(daaab)) THEN
+                               ax = ax1 + ax2 + ax3
+                               ay = ay1 + ay2 + ay3
+                               az = az1 + az2 + az3
+                               ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
+                               ! dx
+                               dumx = 2.0_dp * a * rr(ax+1,bx,1)
+                               IF(ax > 0) dumx = dumx - REAL(ax,dp) * rr(ax-1,bx,1)
+                               daaab(ia1,ia2,ia3,ib,1) = f0 * dumx * rr(ay,by,2) * rr(az,bz,3)
+                               ! dy
+                               dumy = 2.0_dp * a * rr(ay+1,by,2)
+                               IF(ay > 0) dumy = dumy - REAL(ay,dp) * rr(ay-1,by,2)
+                               daaab(ia1,ia2,ia3,ib,2) = f0 * rr(ax,bx,1) * dumy * rr(az,bz,3)
+                               ! dz
+                               dumz = 2.0_dp * a * rr(az+1,bz,3)
+                               IF(az > 0) dumz = dumz - REAL(az,dp) * rr(az-1,bz,3)
+                               daaab(ia1,ia2,ia3,ib,3) = f0 * rr(ax,bx,1) * rr(ay,by,2) * dumz
+                            END IF
+                            !
+                         ENDDO
+                         ENDDO
+                         ENDDO !la1
+                      ENDDO
+                      ENDDO
+                      ENDDO !la2
+                   ENDDO
+                   ENDDO
+                   ENDDO !la3
+                ENDDO
+                ENDDO
+                ENDDO !lb
+
+                mb = mb + nb
+             END DO
+             ma3 = ma3 + na3
+          END DO
+          ma2 = ma2 + na2
+       END DO
+       ma1 = ma1 + na1
+    END DO
+
+    DEALLOCATE(rr,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE overlap_aaab
+! *****************************************************************************
+!> \brief   Calculation of the two-center overlap integrals [aa|bb] over
+!>          Cartesian Gaussian-type functions.
+!> \param la1_max    Max L on center A (basis 1)
+!> \param la1_min    Min L on center A (basis 1)
+!> \param npgfa1     Number of primitives on center A (basis 1)
+!> \param rpgfa1     Range of functions on A, used for screening (basis 1)
+!> \param zeta1      Exponents on center A (basis 1)
+!> \param la2_max    Max L on center A (basis 2)
+!> \param la2_min    Min L on center A (basis 2)
+!> \param npgfa2     Number of primitives on center A (basis 2)
+!> \param rpgfa2     Range of functions on A, used for screening (basis 2)
+!> \param zeta2      Exponents on center A (basis 2)
+!> \param lb1_max    Max L on center B (basis 3)
+!> \param lb1_min    Min L on center B (basis 3)
+!> \param npgfb1     Number of primitives on center B (basis 3)
+!> \param rpgfb1     Range of functions on B, used for screening (basis 3)
+!> \param zetb1      Exponents on center B (basis 3)
+!> \param lb2_max    Max L on center B (basis 4)
+!> \param lb2_min    Min L on center B (basis 4)
+!> \param npgfb2     Number of primitives on center B (basis 4)
+!> \param rpgfb2     Range of functions on B, used for screening (basis 4)
+!> \param zetb2      Exponents on center B (basis 4)
+!> \param rab        Distance vector A-B
+!> \param sab        Final overlap integrals
+!> \param dab        First derivative overlap integrals
+!> \param ddab       Second derivative overlap integrals
+!> \param error      CP2K error reporting
+!> \date    01.07.2014
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_aabb(la1_max,la1_min,npgfa1,rpgfa1,zeta1,&
+                          la2_max,la2_min,npgfa2,rpgfa2,zeta2,&
+                          lb1_max,lb1_min,npgfb1,rpgfb1,zetb1,&
+                          lb2_max,lb2_min,npgfb2,rpgfb2,zetb2,&
+                          rab,saabb,daabb,error)
+    INTEGER, INTENT(IN)                      :: la1_max, la1_min, npgfa1
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa1, zeta1
+    INTEGER, INTENT(IN)                      :: la2_max, la2_min, npgfa2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa2, zeta2
+    INTEGER, INTENT(IN)                      :: lb1_max, lb1_min, npgfb1
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb1, zetb1
+    INTEGER, INTENT(IN)                      :: lb2_max, lb2_min, npgfb2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb2, zetb2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: saabb
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: daabb
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aabb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, bx1, bx2, by, &
+      by1, by2, bz, bz1, bz2, coa1, coa2, cob1, cob2, i1pgf, i2pgf, ia1, ia2, &
+      ib1, ib2, istat, j1pgf, j2pgf, la1, la2, lb1, lb2, ldrr, lma, lmb, ma1, &
+      ma2, mb1, mb2, na1, na2, nb1, nb2, ofa1, ofa2, ofb1, ofb2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
+                                                rab2, rpgfa, rpgfb, tab, xhi, &
+                                                zet
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rr
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
+
+! Distance of the centers a and b
+
+    rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+    tab = SQRT(rab2)
+
+    ! Maximum l for auxiliary integrals
+    IF (PRESENT(saabb)) THEN
+       lma = la1_max + la2_max
+       lmb = lb1_max + lb2_max
+    END IF
+    IF (PRESENT(daabb)) THEN
+       lma = la1_max + la2_max + 1
+       lmb = lb1_max + lb2_max
+    END IF
+    ldrr = MAX(lma,lmb) + 1
+
+    ! Allocate space for auxiliary integrals
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Number of integrals, check size of arrays
+    ofa1 = ncoset(la1_min-1)
+    ofa2 = ncoset(la2_min-1)
+    ofb1 = ncoset(lb1_min-1)
+    ofb2 = ncoset(lb2_min-1)
+    na1 = ncoset(la1_max) - ofa1
+    na2 = ncoset(la2_max) - ofa2
+    nb1 = ncoset(lb1_max) - ofb1
+    nb2 = ncoset(lb2_max) - ofb2
+    IF (PRESENT(saabb)) THEN
+       CPPrecondition((SIZE(saabb,1) >= na1*npgfa1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saabb,2) >= na2*npgfa2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saabb,3) >= nb1*npgfb1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(saabb,4) >= nb2*npgfb2),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(daabb)) THEN
+       CPPrecondition((SIZE(daabb,1) >= na1*npgfa1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daabb,2) >= na2*npgfa2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daabb,3) >= nb1*npgfb1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daabb,4) >= nb2*npgfb2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(daabb,5) >= 3),cp_failure_level,routineP,error,failure)
+    END IF
+
+    ! Loops over all primitive Gaussian-type functions
+    ma1 = 0
+    DO i1pgf=1,npgfa1
+       ma2 = 0
+       DO i2pgf=1,npgfa2
+          mb1 = 0
+          rpgfa = MIN(rpgfa1(i1pgf),rpgfa2(i2pgf))
+          DO j1pgf=1,npgfb1
+             mb2 = 0
+             DO j2pgf=1,npgfb2
+                rpgfb = MIN(rpgfb1(j1pgf),rpgfb2(j2pgf))
+                ! Distance Screening
+                IF(rpgfa + rpgfb < tab) THEN
+                   IF (PRESENT(saabb)) saabb(ma1+1:ma1+na1,ma2+1:ma2+na2,mb1+1:mb1+nb1,mb2+1:mb2+nb2) = 0.0_dp
+                   IF (PRESENT(daabb)) daabb(ma1+1:ma1+na1,ma2+1:ma2+na2,mb1+1:mb1+nb1,mb2+1:mb2+nb2,1:3) = 0.0_dp
+                   mb2 = mb2 + nb2
+                   CYCLE
+                ENDIF
+
+                ! Calculate some prefactors
+                a = zeta1(i1pgf) + zeta2(i2pgf)
+                b = zetb1(j1pgf) + zetb2(j2pgf)
+                zet =  a+b
+                xhi =  a*b/zet
+                rap =  b*rab/zet
+                rbp = -a*rab/zet
+
+                ! [ss|ss] integral
+                f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+
+                ! Calculate the reccurence relation
+                CALL os_rr_ovlp(rap,lma,rbp,lmb,zet,ldrr,rr)
+
+                DO lb2 = lb2_min,lb2_max
+                DO bx2 = 0,lb2
+                DO by2 = 0,lb2-bx2
+                   bz2 = lb2 - bx2 - by2
+                   cob2 = coset(bx2,by2,bz2) - ofb2
+                   ib2 = mb2 + cob2
+                   DO lb1 = lb1_min,lb1_max
+                   DO bx1 = 0,lb1
+                   DO by1 = 0,lb1-bx1
+                      bz1 = lb1 - bx1 - by1
+                      cob1 = coset(bx1,by1,bz1) - ofb1
+                      ib1 = mb1 + cob1
+                      DO la2 = la2_min,la2_max
+                      DO ax2 = 0,la2
+                      DO ay2 = 0,la2-ax2
+                         az2 = la2 - ax2 - ay2
+                         coa2 = coset(ax2,ay2,az2) - ofa2
+                         ia2 = ma2 + coa2
+                         DO la1 = la1_min,la1_max
+                         DO ax1 = 0,la1
+                         DO ay1 = 0,la1-ax1
+                            az1 = la1 - ax1 - ay1
+                            coa1 = coset(ax1,ay1,az1) - ofa1
+                            ia1 = ma1 + coa1
+                            ! integrals
+                            IF (PRESENT(saabb)) THEN
+                               saabb(ia1,ia2,ib1,ib2) = f0 * rr(ax1+ax2,bx1+bx2,1) * &
+                                                       rr(ay1+ay2,by1+by2,2) * rr(az1+az2,bz1+bz2,3)
+                            END IF
+                            ! first derivatives
+                            IF (PRESENT(daabb)) THEN
+                               ax = ax1 + ax2
+                               ay = ay1 + ay2
+                               az = az1 + az2
+                               bx = bx1 + bx2
+                               by = by1 + by2
+                               bz = bz1 + bz2
+                               ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
+                               ! dx
+                               dumx = 2.0_dp * a * rr(ax+1,bx,1)
+                               IF(ax > 0) dumx = dumx - REAL(ax,dp) * rr(ax-1,bx,1)
+                               daabb(ia1,ia2,ib1,ib2,1) = f0 * dumx * rr(ay,by,2) * rr(az,bz,3)
+                               ! dy
+                               dumy = 2.0_dp * a * rr(ay+1,by,2)
+                               IF(ay > 0) dumy = dumy - REAL(ay,dp) * rr(ay-1,by,2)
+                               daabb(ia1,ia2,ib1,ib2,2) = f0 * rr(ax,bx,1) * dumy * rr(az,bz,3)
+                               ! dz
+                               dumz = 2.0_dp * a * rr(az+1,bz,3)
+                               IF(az > 0) dumz = dumz - REAL(az,dp) * rr(az-1,bz,3)
+                               daabb(ia1,ia2,ib1,ib2,3) = f0 * rr(ax,bx,1) * rr(ay,by,2) * dumz
+                            END IF
+                            !
+                         ENDDO
+                         ENDDO
+                         ENDDO !la1
+                      ENDDO
+                      ENDDO
+                      ENDDO !la2
+                   ENDDO
+                   ENDDO
+                   ENDDO !lb1
+                ENDDO
+                ENDDO
+                ENDDO !lb2
+
+                mb2 = mb2 + nb2
+             END DO
+             mb1 = mb1 + nb1
+          END DO
+          ma2 = ma2 + na2
+       END DO
+       ma1 = ma1 + na1
+    END DO
+
+    DEALLOCATE(rr,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE overlap_aabb
+! *****************************************************************************
+!> \brief   Calculation of the two-center overlap integrals [a|bbb] over
+!>          Cartesian Gaussian-type functions. 
+!> \param la_max     Max L on center A
+!> \param la_min     Min L on center A
+!> \param npgfa      Number of primitives on center A
+!> \param rpgfa      Range of functions on A, used for screening
+!> \param zeta       Exponents on center A
+!> \param lb1_max    Max L on center B (basis 1)
+!> \param lb1_min    Min L on center B (basis 1)
+!> \param npgfb1     Number of primitives on center B (basis 1)
+!> \param rpgfb1     Range of functions on B, used for screening (basis 1)
+!> \param zetb1      Exponents on center B (basis 1)
+!> \param lb2_max    Max L on center B (basis 2)
+!> \param lb2_min    Min L on center B (basis 2)
+!> \param npgfb2     Number of primitives on center B (basis 2)
+!> \param rpgfb2     Range of functions on B, used for screening (basis 2)
+!> \param zetb2      Exponents on center B (basis 2)
+!> \param lb3_max    Max L on center B (basis 3)
+!> \param lb3_min    Min L on center B (basis 3)
+!> \param npgfb3     Number of primitives on center B (basis 3)
+!> \param rpgfb3     Range of functions on B, used for screening (basis 3)
+!> \param zetb3      Exponents on center B (basis 3)
+!> \param rab        Distance vector A-B
+!> \param sabb       Final overlap integrals
+!> \param dabb       First derivative overlap integrals
+!> \param error      CP2K error reporting
+!> \date    01.07.2014
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_abbb(la_max,la_min,npgfa,rpgfa,zeta,&
+                          lb1_max,lb1_min,npgfb1,rpgfb1,zetb1,&
+                          lb2_max,lb2_min,npgfb2,rpgfb2,zetb2,&
+                          lb3_max,lb3_min,npgfb3,rpgfb3,zetb3,&
+                          rab,sabbb,dabbb,error)
+    INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb1_max, lb1_min, npgfb1
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb1, zetb1
+    INTEGER, INTENT(IN)                      :: lb2_max, lb2_min, npgfb2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb2, zetb2
+    INTEGER, INTENT(IN)                      :: lb3_max, lb3_min, npgfb3
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb3, zetb3
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: sabbb
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), &
+      INTENT(INOUT), OPTIONAL                :: dabbb
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_abbb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ax, ay, az, bx, bx1, bx2, bx3, by, by1, by2, by3, bz, bz1, &
+      bz2, bz3, coa, cob1, cob2, cob3, ia, ib1, ib2, ib3, ipgf, istat, j1pgf, &
+      j2pgf, j3pgf, la, lb1, lb2, lb3, ldrr, lma, lmb, ma, mb1, mb2, mb3, na, &
+      nb1, nb2, nb3, ofa, ofb1, ofb2, ofb3
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b, dumx, dumy, dumz, f0, &
+                                                rab2, rpgfb, tab, xhi, zet
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: rr
+    REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
+
+! Distance of the centers a and b
+
+    rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+    tab = SQRT(rab2)
+
+    ! Maximum l for auxiliary integrals
+    IF (PRESENT(sabbb)) THEN
+       lma = la_max
+       lmb = lb1_max + lb2_max + lb3_max
+    END IF
+    IF (PRESENT(dabbb)) THEN
+       lma = la_max + 1
+       lmb = lb1_max + lb2_max + lb3_max
+    END IF
+    ldrr = MAX(lma,lmb) + 1
+
+    ! Allocate space for auxiliary integrals
+    ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Number of integrals, check size of arrays
+    ofa = ncoset(la_min-1)
+    ofb1 = ncoset(lb1_min-1)
+    ofb2 = ncoset(lb2_min-1)
+    ofb3 = ncoset(lb3_min-1)
+    na = ncoset(la_max) - ofa
+    nb1 = ncoset(lb1_max) - ofb1
+    nb2 = ncoset(lb2_max) - ofb2
+    nb3 = ncoset(lb3_max) - ofb3
+    IF (PRESENT(sabbb)) THEN
+       CPPrecondition((SIZE(sabbb,1) >= na*npgfa),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(sabbb,2) >= nb1*npgfb1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(sabbb,3) >= nb2*npgfb2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(sabbb,4) >= nb3*npgfb3),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(dabbb)) THEN
+       CPPrecondition((SIZE(dabbb,1) >= na*npgfa),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dabbb,2) >= nb1*npgfb1),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dabbb,3) >= nb2*npgfb2),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dabbb,4) >= nb3*npgfb3),cp_failure_level,routineP,error,failure)
+       CPPrecondition((SIZE(dabbb,5) >= 3),cp_failure_level,routineP,error,failure)
+    END IF
+
+    ! Loops over all pairs of primitive Gaussian-type functions
+    ma = 0
+    DO ipgf=1,npgfa
+       mb1 = 0
+       DO j1pgf=1,npgfb1
+          mb2 = 0
+          DO j2pgf=1,npgfb2
+             mb3 = 0
+             DO j3pgf=1,npgfb3
+                ! Distance Screening
+                rpgfb = MIN(rpgfb1(j1pgf),rpgfb2(j2pgf),rpgfb3(j3pgf))
+                IF(rpgfa(ipgf) + rpgfb < tab) THEN
+                   IF (PRESENT(sabbb)) sabbb(ma+1:ma+na,mb1+1:mb1+nb1,mb2+1:mb2+nb2,mb3+1:mb3+nb3) = 0.0_dp
+                   IF (PRESENT(dabbb)) dabbb(ma+1:ma+na,mb1+1:mb1+nb1,mb2+1:mb2+nb2,mb3+1:mb3+nb3,1:3) = 0.0_dp
+                   mb3 = mb3 + nb3
+                   CYCLE
+                ENDIF
+
+                ! Calculate some prefactors
+                a = zeta(ipgf)
+                b = zetb1(j1pgf) + zetb2(j2pgf) + zetb3(j3pgf)
+                zet =  a+b
+                xhi =  a*b/zet
+                rap =  b*rab/zet
+                rbp = -a*rab/zet
+
+                ! [s|s] integral
+                f0 = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2)
+
+                ! Calculate the reccurence relation
+                CALL os_rr_ovlp(rap,lma,rbp,lmb,zet,ldrr,rr)
+
+                DO lb3 = lb3_min,lb3_max
+                DO bx3 = 0,lb3
+                DO by3 = 0,lb3-bx3
+                   bz3 = lb3 - bx3 - by3
+                   cob3 = coset(bx3,by3,bz3) - ofb3
+                   ib3 = mb3 + cob3
+                DO lb2 = lb2_min,lb2_max
+                DO bx2 = 0,lb2
+                DO by2 = 0,lb2-bx2
+                   bz2 = lb2 - bx2 - by2
+                   cob2 = coset(bx2,by2,bz2) - ofb2
+                   ib2 = mb2 + cob2
+                   DO lb1 = lb1_min,lb1_max
+                   DO bx1 = 0,lb1
+                   DO by1 = 0,lb1-bx1
+                      bz1 = lb1 - bx1 - by1
+                      cob1 = coset(bx1,by1,bz1) - ofb1
+                      ib1 = mb1 + cob1
+                      DO la = la_min,la_max
+                      DO ax = 0,la
+                      DO ay = 0,la-ax
+                         az = la - ax - ay
+                         coa = coset(ax,ay,az) - ofa
+                         ia = ma + coa
+                         ! integrals
+                         IF (PRESENT(sabbb)) THEN
+                            sabbb(ia,ib1,ib2,ib3) = f0 * rr(ax,bx1+bx2+bx3,1) * &
+                                                    rr(ay,by1+by2+by3,2) * rr(az,bz1+bz2+bz3,3)
+                         END IF
+                         ! first derivatives
+                         IF (PRESENT(dabbb)) THEN
+                            bx = bx1 + bx2 + bx3
+                            by = by1 + by2 + by3
+                            bz = bz1 + bz2 + bz3
+                            ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
+                            ! dx
+                            dumx = 2.0_dp * a * rr(ax+1,bx,1)
+                            IF(ax > 0) dumx = dumx - REAL(ax,dp) * rr(ax-1,bx,1)
+                            dabbb(ia,ib1,ib2,ib3,1) = f0 * dumx * rr(ay,by,2) * rr(az,bz,3)
+                            ! dy
+                            dumy = 2.0_dp * a * rr(ay+1,by,2)
+                            IF(ay > 0) dumy = dumy - REAL(ay,dp) * rr(ay-1,by,2)
+                            dabbb(ia,ib1,ib2,ib3,2) = f0 * rr(ax,bx,1) * dumy * rr(az,bz,3)
+                            ! dz
+                            dumz = 2.0_dp * a * rr(az+1,bz,3)
+                            IF(az > 0) dumz = dumz - REAL(az,dp) * rr(az-1,bz,3)
+                            dabbb(ia,ib1,ib2,ib3,3) = f0 * rr(ax,bx,1) * rr(ay,by,2) * dumz
+                         END IF
+                         !
+                         ENDDO
+                         ENDDO
+                         ENDDO !la
+                      ENDDO
+                      ENDDO
+                      ENDDO !lb1
+                   ENDDO
+                   ENDDO
+                   ENDDO !lb2
+                ENDDO
+                ENDDO
+                ENDDO !lb3
+
+                mb3 = mb3 + nb3
+             END DO
+             mb2 = mb2 + nb2
+          END DO
+          mb1 = mb1 + nb1
+       END DO
+       ma = ma + na
+    END DO
+
+    DEALLOCATE(rr,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE overlap_abbb
 
 END MODULE ai_overlap

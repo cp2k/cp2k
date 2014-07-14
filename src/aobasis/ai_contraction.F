@@ -27,7 +27,7 @@ MODULE ai_contraction
   PUBLIC :: contraction, decontraction, block_add, force_trace
 
   INTERFACE contraction
-     MODULE PROCEDURE contraction_ab
+     MODULE PROCEDURE contraction_ab, contraction_abc
   END INTERFACE
 
   INTERFACE decontraction
@@ -181,6 +181,142 @@ CONTAINS
     END IF
 
   END SUBROUTINE contraction_ab
+
+! *****************************************************************************
+!> \brief Applying the contraction coefficents to a tripple set integrals
+!>        QABC <- CA(T) * SABC * CB * CC
+!>        If only one or two of the transformation matrices are given, only a 
+!>        part transformation is done
+!> \param sabc    Input matrix, dimension(:,:)
+!> \param qabc    Output matrix, dimension(:,:)
+!> \param ca      Transformation matrix (index 1), optional
+!> \param na      First dimension of ca, optional
+!> \param ma      Second dimension of ca, optional
+!> \param cb      Transformation matrix (index 2), optional
+!> \param nb      First dimension of cb, optional
+!> \param mb      Second dimension of cb, optional
+!> \param cc      Transformation matrix (index 3), optional
+!> \param nc      First dimension of cc, optional
+!> \param mc      Second dimension of cc, optional
+!> \param error   CP2K error reporting
+! *****************************************************************************
+  SUBROUTINE contraction_abc(sabc,qabc,ca,na,ma,cb,nb,mb,cc,nc,mc,error)
+
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: sabc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: qabc
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: ca
+    INTEGER, INTENT(IN), OPTIONAL            :: na, ma
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: cb
+    INTEGER, INTENT(IN), OPTIONAL            :: nb, mb
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: cc
+    INTEGER, INTENT(IN), OPTIONAL            :: nc, mc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'contraction_abc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat, lda, ldb, ldc, mal, &
+                                                mbl, mcl, nal, nbl, ncl
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: work1, work2, work3, work4
+
+    failure = .FALSE.
+
+    ! Active matrix size
+    IF(PRESENT(ca)) THEN
+       IF(PRESENT(na)) THEN
+          nal = na
+       ELSE
+          nal = SIZE(ca,1)
+       END IF
+       IF(PRESENT(ma)) THEN
+          mal = ma
+       ELSE
+          mal = SIZE(ca,2)
+       END IF
+       lda = SIZE(ca,1)
+    END IF
+    IF(PRESENT(cb)) THEN
+       IF(PRESENT(nb)) THEN
+          nbl = nb
+       ELSE
+          nbl = SIZE(cb,1)
+       END IF
+       IF(PRESENT(mb)) THEN
+          mbl = mb
+       ELSE
+          mbl = SIZE(cb,2)
+       END IF
+       ldb = SIZE(cb,1)
+    END IF
+    IF(PRESENT(cc)) THEN
+       IF(PRESENT(nc)) THEN
+          ncl = nc
+       ELSE
+          ncl = SIZE(cc,1)
+       END IF
+       IF(PRESENT(mc)) THEN
+          mcl = mc
+       ELSE
+          mcl = SIZE(cc,2)
+       END IF
+       ldc = SIZE(cc,1)
+    END IF
+
+    IF(PRESENT(ca) .AND. PRESENT(cb) .AND. PRESENT(cc)) THEN
+       ! Full transform
+       ALLOCATE(work1(nal,nbl,ncl),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ! make sure that we have contigous memory, needed for transpose algorithm
+       work1(1:nal,1:nbl,1:ncl) = sabc(1:nal,1:nbl,1:ncl)
+       !
+       ALLOCATE(work2(nbl,ncl,mal),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL dgemm("T","N",nbl*ncl,mal,nal,1.0_dp,work1(1,1,1),nal,ca(1,1),lda,0.0_dp,work2(1,1,1),nbl*ncl)
+       !
+       ALLOCATE(work3(ncl,mal,mbl),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL dgemm("T","N",ncl*mal,mbl,nbl,1.0_dp,work2(1,1,1),nbl,cb(1,1),ldb,0.0_dp,work3(1,1,1),ncl*mal)
+       !
+       ALLOCATE(work4(mal,mbl,mcl),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL dgemm("T","N",mal*mbl,mcl,ncl,1.0_dp,work3(1,1,1),ncl,cc(1,1),ldc,0.0_dp,work4(1,1,1),mal*mbl)
+       !
+       work4(1:mal,1:mbl,1:mcl) = qabc(1:mal,1:mbl,1:mcl)
+       !
+       DEALLOCATE(work1,work2,work3,work4,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+    ELSE IF(PRESENT(ca) .AND. PRESENT(cb)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Not implemented", error=error, error_level=cp_failure_level)
+    ELSE IF(PRESENT(ca) .AND. PRESENT(cc)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Not implemented", error=error, error_level=cp_failure_level)
+    ELSE IF(PRESENT(cb) .AND. PRESENT(cc)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Not implemented", error=error, error_level=cp_failure_level)
+    ELSE IF(PRESENT(ca)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Not implemented", error=error, error_level=cp_failure_level)
+    ELSE IF(PRESENT(cb)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Not implemented", error=error, error_level=cp_failure_level)
+    ELSE IF(PRESENT(cc)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Not implemented", error=error, error_level=cp_failure_level)
+    ELSE
+       ! Copy of arrays is not covered here
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE contraction_abc
 
 ! *****************************************************************************
 !> \brief Applying the de-contraction coefficents to a matrix
