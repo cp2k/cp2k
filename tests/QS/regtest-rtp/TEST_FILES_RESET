@@ -299,3 +299,5 @@ H2O-ls-rtp-bch.inp
 H2O-ls-rtp-bch.inp
 # new force routine for MO EMD (numerics)
 wfn_mix_loc-1.inp
+# Numerics
+H2-emd-efield.inp
