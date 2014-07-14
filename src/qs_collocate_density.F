@@ -887,13 +887,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, handle, iatom, ierr, igrid_level, ikind, ipgf, iset, &
-      j, m1, maxco, na1, natom, ncoa, nkind, npme, nseta, sgfa
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, la_max, &
-                                                la_min, npgfa, nsgfa
+    INTEGER :: atom_a, dir, group_size, handle, iatom, ierr, igrid_level, &
+      ikind, ipgf, iset, m1, maxco, my_pos, na1, natom, ncoa, nkind, nseta, &
+      offset, sgfa
+    INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
+                                                npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: distributed_grids, failure, &
-                                                map_consistent, parallel
+    LOGICAL                                  :: failure, map_consistent, &
+                                                map_it_here
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: aci
@@ -919,11 +921,13 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
 
-    NULLIFY(aci, atomic_kind, atomic_kind_set, atom_list, cell, cores, cube_info,&
+    NULLIFY(aci, atomic_kind, atomic_kind_set, atom_list, cell, cube_info,&
             dft_control, first_sgfa, gridlevel_info, la_max, la_min, lri_basis_set,&
             logger, mgrid_gspace, mgrid_rspace, npgfa, nsgfa, pab, para_env,&
-            particle_set, pw_env, pw_pools, rs_descs, rs_rho, sphi_a, work, zeta)
+            particle_set, pw_env, pw_pools, rs_descs, rs_grid, rs_rho, sphi_a,&
+            work, zeta)
             
     CALL timeset(routineN,handle)
     
@@ -968,89 +972,99 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "pab",maxco*dp_size)
     nkind = SIZE(atomic_kind_set)
+    offset = 0
+    my_pos=mgrid_rspace(1)%pw%pw_grid%para%my_pos
+    group_size=mgrid_rspace(1)%pw%pw_grid%para%group_size
+
     DO ikind = 1,nkind
 
-      atomic_kind => atomic_kind_set(ikind)
+       atomic_kind => atomic_kind_set(ikind)
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind, lri_basis_set=lri_basis_set, natom=natom, &
-                           atom_list=atom_list)
-      
-      !Take the lri basis set here!
-      CALL get_gto_basis_set(gto_basis_set=lri_basis_set, lmax=la_max,&
-                             lmin=la_min, zet=zeta, nset=nseta, npgf=npgfa,&
-                             sphi=sphi_a, first_sgf=first_sgfa, nsgf_set=nsgfa)
+       CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom_list,&
+                           lri_basis_set=lri_basis_set, natom=natom)
+       
+       !Take the lri basis set here!
+       CALL get_gto_basis_set(gto_basis_set=lri_basis_set, lmax=la_max,&
+                              lmin=la_min, zet=zeta, nset=nseta, npgf=npgfa,&
+                              sphi=sphi_a, first_sgf=first_sgfa, nsgf_set=nsgfa)
 
-      CALL reallocate (cores, 1, natom)
-      npme = 0
-      cores = 0
-      
-      distributed_grids = .FALSE.
-      parallel = .FALSE.
-      DO igrid_level = 1, gridlevel_info%ngrid_levels
-         IF (rs_descs(igrid_level)%rs_desc%distributed) distributed_grids = .TRUE.
-         IF (rs_descs(igrid_level)%rs_desc%parallel) parallel = .TRUE.
-      ENDDO
+       DO iatom = 1,natom
+          atom_a=atom_list(iatom)
+          ra(:) = pbc(particle_set(atom_a)%r, cell)
+          aci => lri_coef(ikind)%acoef(iatom,:) 
 
-      DO iatom = 1, natom
-         IF(parallel .AND. .NOT. distributed_grids) THEN
-           ! replicated realspace grid, split the atoms up between procs
-            IF (MODULO(iatom,para_env%num_pe) == para_env%mepos ) THEN
-               npme = npme + 1
-               cores (npme) = iatom
-            ENDIF
-         ELSE
-              npme = npme + 1
-              cores (npme) = iatom
-         ENDIF
-      END DO
-
-      DO j = 1,npme
-         iatom = cores(j)
-         atom_a=atom_list(iatom)
-         ra(:) = pbc(particle_set(atom_a)%r, cell)
-         aci => lri_coef(ikind)%acoef(iatom,:) 
-
-         DO iset = 1,nseta
-           sgfa = first_sgfa(1,iset)
-           ncoa = npgfa(iset)*ncoset(la_max(iset))
-           m1=sgfa+nsgfa(iset)-1
-           CALL reallocate (work,1,nsgfa(iset),1,1)
-           work(1:nsgfa(iset),1)=aci(sgfa:m1)
-           pab = 0._dp
+          DO iset = 1,nseta
+             sgfa = first_sgfa(1,iset)
+             ncoa = npgfa(iset)*ncoset(la_max(iset))
+             m1=sgfa+nsgfa(iset)-1
+             CALL reallocate (work,1,nsgfa(iset),1,1)
+             work(1:nsgfa(iset),1)=aci(sgfa:m1)
+             pab = 0._dp
  
-           CALL dgemm("N","N",ncoa,1,nsgfa(iset),1.0_dp,lri_basis_set%sphi(1,sgfa),&
-                SIZE(lri_basis_set%sphi,1),work(1,1),SIZE(work,1),0.0_dp,pab(1,1),SIZE(pab,1))
-          
-           DO ipgf = 1,npgfa(iset)
-             na1 = (ipgf-1)*ncoset(la_max(iset))
-             igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
+             CALL dgemm("N","N",ncoa,1,nsgfa(iset),1.0_dp,lri_basis_set%sphi(1,sgfa),&
+                  SIZE(lri_basis_set%sphi,1),work(1,1),SIZE(work,1),0.0_dp,pab(1,1),&
+                  SIZE(pab,1))
+             
+             DO ipgf = 1,npgfa(iset)
+                na1 = (ipgf-1)*ncoset(la_max(iset))
+                igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
+                rs_grid => rs_rho(igrid_level)%rs_grid
+                 
+                map_it_here=.FALSE.
+                
+                IF (.NOT. ALL (rs_grid%desc%perd == 1)) THEN
+                   DO dir = 1,3
+                      ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                      tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%desc%npts(dir))
+                      tp(dir) = MODULO ( tp(dir), rs_grid%desc%npts(dir) )
+                      IF (rs_grid%desc%perd(dir) .NE. 1) THEN
+                         lb(dir) = rs_grid%lb_local ( dir ) + rs_grid%desc%border
+                         ub(dir) = rs_grid%ub_local ( dir ) - rs_grid%desc%border
+                      ELSE
+                         lb(dir) = rs_grid%lb_local ( dir )
+                         ub(dir) = rs_grid%ub_local ( dir )
+                      ENDIF
+                      ! distributed grid, only map if it is local to the grid
+                      location(dir)=tp(dir)+rs_grid%desc%lb(dir)
+                   ENDDO
+                   IF (lb(1)<=location(1) .AND. location(1)<=ub(1) .AND. &
+                       lb(2)<=location(2) .AND. location(2)<=ub(2) .AND. &
+                       lb(3)<=location(3) .AND. location(3)<=ub(3)) THEN
+                     map_it_here=.TRUE.
+                   ENDIF
+                ELSE
+                   ! not distributed, just a round-robin distribution over the full set of CPUs
+                   IF (MODULO(offset,group_size)==my_pos) map_it_here=.TRUE.
+                ENDIF
 
-             CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
-                                               la_min=la_min(iset),&
-                                               lb_max=0, zetb=0.0_dp, lb_min=0,&
-                                               ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
-                                               scale=1._dp, pab=pab, o1=na1, o2=0,&     
-                                               rsgrid=rs_rho(igrid_level)%rs_grid,cell=cell,&
-                                               cube_info=cube_info(igrid_level),&
-                                               eps_rho_rspace=eps_rho_rspace,&
-                                               ga_gb_function=FUNC_AB, &
-                                               map_consistent=map_consistent,&
-                                               error=error)
-           END DO
-         END DO
+                IF (map_it_here) THEN
+                   CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
+                                                    la_min=la_min(iset),&
+                                                    lb_max=0, zetb=0.0_dp, lb_min=0,&
+                                                    ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),&
+                                                    rab2=0.0_dp, scale=1._dp,&
+                                                    pab=pab, o1=na1, o2=0,&     
+                                                    rsgrid=rs_grid,cell=cell,&
+                                                    cube_info=cube_info(igrid_level),&
+                                                    eps_rho_rspace=eps_rho_rspace,&
+                                                    ga_gb_function=FUNC_AB, &
+                                                    map_consistent=map_consistent,&
+                                                    error=error) 
+                ENDIF 
+             END DO
 
-         DEALLOCATE (work,STAT=ierr)
-         IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+             offset=offset+nsgfa(iset)
 
-      END DO
+          END DO
+
+          DEALLOCATE (work,STAT=ierr)
+          IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+
+       END DO
     END DO
 
     DEALLOCATE (pab,STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
-
-    DEALLOCATE (cores,STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cores")
-    
 
     CALL pw_zero(lri_rho_g%pw,error=error)
     CALL pw_zero(lri_rho_r%pw,error=error)
