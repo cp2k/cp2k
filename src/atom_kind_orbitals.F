@@ -150,8 +150,8 @@ CONTAINS
          potential%confinement=.TRUE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
 
       CALL get_potential(gth_potential,&
                          zeff=zeff,&
@@ -252,8 +252,8 @@ CONTAINS
          potential%confinement=.FALSE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
       CALL set_atom(atom,zcore=z,potential=potential,error=error)
     END IF
 
@@ -649,8 +649,8 @@ CONTAINS
          potential%confinement=.TRUE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
 
       CALL get_potential(gth_potential,&
                          zeff=zeff,&
@@ -751,8 +751,8 @@ CONTAINS
          potential%confinement=.FALSE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
       CALL set_atom(atom,zcore=z,potential=potential,error=error)
     END IF
 

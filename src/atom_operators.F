@@ -72,9 +72,10 @@ CONTAINS
     INTEGER                                  :: handle, i, ierr, ii, info, &
                                                 ipiv(1000), l, l1, l2, ll, &
                                                 lwork, m, m1, m2, mm1, mm2, &
-                                                n, n1, n2, nn1, nn2, nu, nx
+                                                n, n1, n2, nn1, nn2, nu, nx, ncon
     LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
+    REAL(KIND=dp)                            :: rc, sc
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work, cpot
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: omat, vmat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: eri
@@ -123,6 +124,15 @@ CONTAINS
           ALLOCATE (integrals%conf(n,n,0:3),STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
           integrals%conf = 0._dp
+          m = basis%grid%nr
+          ALLOCATE (cpot(1:m),STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+          rc = potential%rcon
+          sc = potential%scon
+          cpot(1:m) = (basis%grid%rad(1:m)/rc)**sc
+          CALL numpot_matrix(integrals%conf,cpot,basis,0,error)
+          DEALLOCATE (cpot,STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
         END IF
       END IF
 
@@ -134,12 +144,6 @@ CONTAINS
             n = integrals%n(l)
             CALL  sg_overlap ( integrals%ovlp(1:n,1:n,l), l, basis%am(1:n,l), basis%am(1:n,l) )
             CALL  sg_kinetic ( integrals%kin(1:n,1:n,l), l, basis%am(1:n,l), basis%am(1:n,l) )
-            IF ( PRESENT(potential) ) THEN
-              IF ( potential%confinement ) THEN
-                CALL  sg_conf ( integrals%conf(1:n,1:n,l), potential%rcon, potential%ncon/2, &
-                                l, basis%am(1:n,l), basis%am(1:n,l) )
-              END IF
-            END IF
           END DO
           IF ( integrals%eri_coulomb ) THEN
             ll = 0
@@ -196,13 +200,6 @@ CONTAINS
               CALL contract2(integrals%ovlp(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
               CALL  sg_kinetic ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
               CALL contract2(integrals%kin(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
-              IF ( PRESENT(potential) ) THEN
-                IF ( potential%confinement ) THEN
-                  CALL  sg_conf ( omat(1:m,1:m), potential%rcon, potential%ncon/2, &
-                                  l, basis%am(1:m,l), basis%am(1:m,l) )
-                  CALL contract2(integrals%conf(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l), error)
-                END IF
-              END IF
               DEALLOCATE (omat,STAT=ierr)
               CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
             END IF
@@ -279,12 +276,6 @@ CONTAINS
                                basis%ns(1:n,l), basis%as(1:n,l) )
             CALL sto_kinetic ( integrals%kin(1:n,1:n,l), l, basis%ns(1:n,l), basis%as(1:n,l), &
                                basis%ns(1:n,l), basis%as(1:n,l) )
-            IF ( PRESENT(potential) ) THEN
-              IF ( potential%confinement ) THEN
-                CALL sto_conf ( integrals%conf(1:n,1:n,l), potential%rcon, potential%ncon/2, &
-                                basis%ns(1:n,l), basis%as(1:n,l), basis%ns(1:n,l), basis%as(1:n,l) )
-              END IF
-            END IF
           END DO
           CPAssert(.NOT.integrals%eri_coulomb,cp_failure_level,routineP,error,failure)
           CPAssert(.NOT.integrals%eri_exchange,cp_failure_level,routineP,error,failure)

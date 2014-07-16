@@ -118,7 +118,7 @@ MODULE atom_types
     LOGICAL                                       :: confinement
     REAL(dp)                                      :: acon
     REAL(dp)                                      :: rcon
-    INTEGER                                       :: ncon
+    REAL(dp)                                      :: scon
     TYPE(atom_gthpot_type)                        :: gth_pot
   END TYPE atom_potential_type
 
@@ -2088,18 +2088,18 @@ CONTAINS
     NULLIFY(convals)
     CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals,error=error)
     IF ( SIZE (convals) >= 1 ) THEN
-      IF ( convals(1) > 0._dp ) THEN
+      IF ( convals(1) > 0.0_dp ) THEN
         potential%confinement = .TRUE.
         potential%acon = convals(1)
         IF ( SIZE (convals) >= 2 ) THEN
           potential%rcon = convals(2)
         ELSE
-          potential%rcon = 4._dp
+          potential%rcon = 4.0_dp
         END IF
         IF ( SIZE (convals) >= 3 ) THEN
-          potential%ncon = NINT(convals(3))
+          potential%scon = convals(3)
         ELSE
-          potential%ncon = 2
+          potential%scon = 2.0_dp
         END IF
       ELSE
         potential%confinement = .FALSE.

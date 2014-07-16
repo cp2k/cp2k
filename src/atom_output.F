@@ -645,8 +645,8 @@ CONTAINS
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
     END SELECT
     IF (potential%confinement) THEN
-      WRITE(iw,'(/,T10,A,T51,F12.6," * (R /",F6.2,")**",I2)') &
-        " Confinement Potential ",potential%acon,potential%rcon,potential%ncon
+      WRITE(iw,'(/,T10,A,T51,F12.6," * (R /",F6.2,")**",F6.2)') &
+        " Confinement Potential ",potential%acon,potential%rcon,potential%scon
     END IF
     WRITE(iw,'(" ",79("*"))')
 
