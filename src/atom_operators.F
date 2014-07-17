@@ -12,9 +12,9 @@
 ! *****************************************************************************
 MODULE atom_operators
   USE ai_onecenter,                    ONLY: &
-       sg_conf, sg_coulomb, sg_erf, sg_erfc, sg_exchange, sg_gpot, &
-       sg_kinetic, sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol, sto_conf, &
-       sto_kinetic, sto_nuclear, sto_overlap
+       sg_coulomb, sg_erf, sg_erfc, sg_exchange, sg_gpot, sg_kinetic, &
+       sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol, sto_kinetic, &
+       sto_nuclear, sto_overlap
   USE atom_types,                      ONLY: &
        CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_integrals, atom_potential_type, atom_state
@@ -72,10 +72,10 @@ CONTAINS
     INTEGER                                  :: handle, i, ierr, ii, info, &
                                                 ipiv(1000), l, l1, l2, ll, &
                                                 lwork, m, m1, m2, mm1, mm2, &
-                                                n, n1, n2, nn1, nn2, nu, nx, ncon
+                                                n, n1, n2, nn1, nn2, nu, nx
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rc, sc
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work, cpot
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, w, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: omat, vmat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: eri
