@@ -10,3 +10,5 @@ H2_tz2p_lri_ot.inp
 H2He_tz2p_lri.inp 
 # new overlap integrals
 H2_tz2p_lri_ot.inp
+#
+H2_tz2p_lri_diag.inp
