@@ -1084,9 +1084,9 @@ CONTAINS
     CALL mpi_cart_create ( comm_old, ndims, dims, period, reorder, comm_cart, &
          ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_create @ mp_cart_create" )
-    debug_comm_count = debug_comm_count + 1
 
     IF (comm_cart /= MPI_COMM_NULL) THEN
+       debug_comm_count = debug_comm_count + 1
        CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
        IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
     END IF
