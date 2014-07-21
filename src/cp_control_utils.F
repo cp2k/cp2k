@@ -482,14 +482,15 @@ CPSourceFileRef,&
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER :: becke_restraint_section, &
-      ddapc_restraint_section, dftb_parameter, dftb_section, mull_section, &
-      s2_restraint_section, scptb_section, se_section
+      ddapc_restraint_section, dftb_parameter, dftb_section, &
+      lri_optbas_section, mull_section, s2_restraint_section, scptb_section, &
+      se_section
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(mull_section,se_section,dftb_section,scptb_section)
+    NULLIFY(mull_section,se_section,dftb_section,scptb_section,lri_optbas_section)
 
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
@@ -499,6 +500,7 @@ CPSourceFileRef,&
     dftb_section => section_vals_get_subs_vals(qs_section,"DFTB", error=error)
     dftb_parameter => section_vals_get_subs_vals(dftb_section,"PARAMETER", error=error)
     scptb_section => section_vals_get_subs_vals(qs_section,"SCPTB", error=error)
+    lri_optbas_section => section_vals_get_subs_vals(qs_section,"OPTIMIZE_LRI_BASIS",error=error)
 
     ! Setup all defaults values and overwrite input parameters
     ! EPS_DEFAULT should set the target accuracy in the total energy (~per electron) or a closely related value
@@ -923,6 +925,9 @@ CPSourceFileRef,&
        CALL section_vals_val_get(scptb_section,"DO_SCC",&
             l_val=qs_control%scptb_control%do_scc,error=error)
     END IF
+
+   ! Optimize LRI basis set
+    CALL section_vals_get(lri_optbas_section,explicit=qs_control%lri_optbas,error=error)
 
     CALL timestop(handle)
   END SUBROUTINE read_qs_section

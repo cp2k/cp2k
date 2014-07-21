@@ -2,8 +2,11 @@
 # the second field tells which test should be run in order to compare with the last available output
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
+#      46 compares final value of Powell optimization
 #      for details see cp2k/tools/do_regtest
 # LRIGPW
 H2He_tz2p_lri.inp                 1     6e-12
 H2_tz2p_lri_diag.inp              1     4e-12
 H2_tz2p_lri_ot.inp                1     4e-12
+O2_opt_lribas.inp                 46
+O2_debug_ints.inp                 0

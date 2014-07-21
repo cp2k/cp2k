@@ -339,8 +339,8 @@ CONTAINS
     INTEGER                                  :: handle, ikind, iw, maxatom, &
                                                 nkind, stat, zat
     LOGICAL :: all_potential_present, almo, dftb, failure, &
-      gth_potential_present, lrigpw, mic, molecule_only, nddo, paw_atom, &
-      paw_atom_present, scptb
+      gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, nddo, &
+      paw_atom, paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
       ppl_present, ppnl_present
@@ -447,6 +447,7 @@ CONTAINS
     scptb = qs_env%dft_control%qs_control%scptb
     almo = qs_env%dft_control%qs_control%do_almo_scf
     lrigpw = (qs_env%dft_control%qs_control%method_id == do_method_lrigpw)
+    lri_optbas = qs_env%dft_control%qs_control%lri_optbas
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
@@ -811,7 +812,7 @@ CONTAINS
           CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
        END IF
     END IF
-    IF(lrigpw) THEN
+    IF(lrigpw .OR. lri_optbas) THEN
        ! set neighborlists in lri_env environment
        CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
        soo_list => qs_env%lri_env%soo_list

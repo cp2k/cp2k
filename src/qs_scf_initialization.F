@@ -56,6 +56,7 @@ MODULE qs_scf_initialization
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
   USE qmmm_image_charge,               ONLY: calculate_image_matrix
   USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                              block_davidson_env_create
@@ -740,6 +741,8 @@ CONTAINS
        ! Do Nothing
     ELSEIF (dft_control%qs_control%ofgpw) THEN
        ! Do Nothing
+    ELSEIF (dft_control%qs_control%lri_optbas.AND.dft_control%qs_control%gpw) THEN
+        CALL optimize_lri_basis(qs_env,error)
     ELSE
        CALL scf_post_calculation_gpw (dft_section, scf_env, qs_env, error)
     END IF

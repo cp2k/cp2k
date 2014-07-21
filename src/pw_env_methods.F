@@ -789,6 +789,9 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
                CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                     ri_aux_basis_set=orb_basis_set)
              CASE (5)
+               ! for lri basis set optimization, do not take radius of lri basis
+               ! set since GPW, not LRIGPW density is distributed on the grid 
+               IF(dft_control%qs_control%lri_optbas) CYCLE
                CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                     lri_basis_set=orb_basis_set)
              END SELECT

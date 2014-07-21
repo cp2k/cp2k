@@ -409,7 +409,7 @@ CONTAINS
     IF (do_et) CALL et_coupling_create(qs_env%et_coupling,error=error)
 
     ! lri env
-    IF (method_id == do_method_lrigpw) THEN
+    IF (method_id == do_method_lrigpw.OR.qs_env%dft_control%qs_control%lri_optbas) THEN
        NULLIFY(lri_env)
        CALL lri_env_create(lri_env,error)
        ! initialize the basic basis sets (orb and ri)
@@ -431,6 +431,10 @@ CONTAINS
           END IF
        END DO
        CALL lri_basis_init(lri_env,atomic_kind_set,error)
+       !
+       ! check for debug
+       CALL section_vals_val_get(force_env_section,"DFT%QS%DEBUG_LRI_INTEGRALS",&
+                                 l_val=lri_env%debug,error=error)
        !
        CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
     END IF
@@ -693,7 +697,7 @@ CONTAINS
        lmax_sphere = 2*maxlgto
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
     END IF
-    IF(dft_control%qs_control%method == "LRIGPW") THEN
+    IF(dft_control%qs_control%method == "LRIGPW".OR.dft_control%qs_control%lri_optbas) THEN
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             maxlgto=maxlgto_lri,basis_set_id=use_lri_basis_set)
        !take maxlgto from lri basis if larger (usually) 

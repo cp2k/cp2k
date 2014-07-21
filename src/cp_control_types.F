@@ -260,6 +260,7 @@ MODULE cp_control_types
     LOGICAL                                       :: map_consistent
     LOGICAL                                       :: gapw,gapw_xc,gpw,pao
     LOGICAL                                       :: lrigpw
+    LOGICAL                                       :: lri_optbas
     LOGICAL                                       :: ofgpw
     LOGICAL                                       :: dftb
     LOGICAL                                       :: scptb

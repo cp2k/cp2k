@@ -65,13 +65,19 @@ CONTAINS
     CASE (1,2)
        CALL newuoa (n, x, optstate)
     CASE (3)
-       WRITE(optstate%unit,*) "POWELL| Exceeding maximum number of steps"
+       IF(optstate%unit > 0) THEN
+         WRITE(optstate%unit,*) "POWELL| Exceeding maximum number of steps"
+       ENDIF
        optstate%state = -1
     CASE (4)
-       WRITE(optstate%unit,*) "POWELL| Error in trust region"
+       IF(optstate%unit > 0) THEN
+         WRITE(optstate%unit,*) "POWELL| Error in trust region"
+       ENDIF
        optstate%state = -1
     CASE (5)
-       WRITE(optstate%unit,*) "POWELL| N out of range"
+       IF(optstate%unit > 0) THEN
+         WRITE(optstate%unit,*) "POWELL| N out of range"
+       ENDIF
        optstate%state = -1
     CASE (6,7)
        optstate%state = -1

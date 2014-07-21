@@ -1998,6 +1998,14 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key_section=print_key,&
+            name="OPTIMIZE_LRI_BASIS",&
+            description="Optimize the exponents of the LRI basis set",&
+            print_level=low_print_level,&
+            filename="OPTIMIZED_LRI_BASIS",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(&
             print_key_section=print_key,&
             name="PLUS_U",&
@@ -2630,6 +2638,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DEBUG_LRI_INTEGRALS",&
+            description="Debug the integrals needed for LRIGPW.",&
+            usage="DEBUG_LRI_INTEGRALS TRUE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! Integers
        CALL keyword_create(keyword, name="LMAXN1",&
             variants=(/"LMAXRHO1"/),&
@@ -2814,6 +2829,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_harris_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_optimize_lri_basis_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
     END IF
@@ -5063,6 +5082,60 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_harris_section
+
+! *****************************************************************************
+!> \brief input section for optimization of the auxililary basis for LRIGPW
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze [05.2014]
+! *****************************************************************************
+  SUBROUTINE create_optimize_lri_basis_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_optimize_lri_basis_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="OPTIMIZE_LRI_BASIS",&
+            description="This section specifies the parameters for optimizing "//&
+            "the lri auxiliary basis sets for LRIGPW. The Powell optimizer is used.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ACCURACY", &
+            description="Target accuracy for the objective function (RHOEND)",&
+            usage="ACCURACY 5.0E-4", default_r_val=1.0E-5_dp,&
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="MAX_FUN", &
+            description="Maximum number of function evaluations",&
+            usage="MAX_FUN 200", default_i_val=4000,&
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="STEP_SIZE", &
+            description="Initial step size for search algorithm (RHOBEG)",&
+            usage="STEP_SIZE 1.0E-1", default_r_val=5.0E-2_dp,&
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_optimize_lri_basis_section
 
 ! *****************************************************************************
 !> \brief creates the multigrid
