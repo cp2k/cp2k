@@ -24,10 +24,12 @@ open ($OUTPUT , ">" , $ARGV[1]) or die "Cant create $ARGV[1] $!";
 # date =    toggle  "       "          "           "        "      "     "  "   \date field (date)
 # author = toggle  "       "          "           "        "      "     "  "   \author field (author)
 # note = toggle  "       "          "           "        "      "     "  "   \note field (notes)
+# result = toggle  "       "          "           "        "      "     "  "   \result field (result of function of subroutine)
 # random = toggle  "       "          "           "        "      "     "  "   random field - text that has a preceeding \ but isn't in our standard header e.g. \version
 # remainder = toggle  "       "          "           "        "      "     "  "   remainder field - anything else in the comment block that doesn't have a preceeding \
 # ampersand = Variable used to specifiy if the SUBROUTINE/FUNCTION definition contains an & 
 # insideinterface - determines whether we are in an interface block or not
+# hasresultasarg - whether the procedure 
 $param=0;  
 $brief=0;
 $par=0;
@@ -35,10 +37,12 @@ $date=0;
 $version=0;
 $author=0;
 $note=0;
+$result=0;  
 $random=0;
 $remainder=0;
 $ampersand = 0;
 $insideinterface=0;
+$hasresultasarg=0;
 
 # Variables with s at the end contains the actual text read in from header
 %$params = ();
@@ -49,10 +53,12 @@ $versions="";
 $pars="";
 $authors="";
 $notes="";
+$results="";
 $randoms="";
 $remainders="";
 $buffer="";        # Used to buffer data
 $oldheader="";  # Variable to keep a copy of the old header e.g. for MODULE and TYPE where we just read it in and dump it back out again.  
+$leftoverlines="";
 
 while (<$INPUT>) # While there are still lines to read in our INPUT file
 {
@@ -68,6 +74,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	$version=0;
 	$author=0;
 	$note=0;
+	$result=0;
         $random=0;
 	$remainder=0;
 	undef %params;
@@ -78,6 +85,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	$pars="";
 	$authors="";
 	$notes="";
+	$results="";
 	$buffer="";
         $randoms="";
         $remainders="";
@@ -87,7 +95,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                                                                  # keep the complete headers for MODULE and TYPE intact such that we
                                                                  # can just dump them straight back out without making any changes. 
 	    # Pick up parameters - matches the word param separated by spaces
-	    if ($currline =~ m/\s*\\param\s+(\S+)\s*/) {
+	    if ( ($currline =~ m/\s*\\param\s+(\S+)\s*/) || ($currline =~ m/\s*\\param\[.*\]\s+(\S+)\s+/) ) {
 		$paramtype = $1; # Contains the param name
 		if (exists $params{$paramtype}){ # Covers the case where two arguments have the same name
 		    $paramtype=$paramtype . "new";
@@ -101,6 +109,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
+		$result=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -113,6 +122,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
+		$result=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -125,6 +135,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
+		$result=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -137,6 +148,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=1;
 		$author=0;
 		$note=0;
+		$result=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -148,6 +160,8 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$date=0;
 		$version=0;
 		$author=0;
+		$note=0;
+		$result=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -160,6 +174,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=1;
 		$note=0;
+		$result=0;
                 $random=0;
 		$remainder=0;
             }
@@ -172,6 +187,19 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=1;
+                $random=0;
+		$remainder=0;
+            }
+	    elsif ($currline =~ m/\s*\\result\s*/) {
+		$results=$results . $currline;
+		$param=0;
+		$brief=0;
+		$par=0;
+		$date=0;
+		$version=0;
+		$author=0;
+		$note=0;
+		$result=1;
                 $random=0;
 		$remainder=0;
             }
@@ -190,6 +218,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $version=0;
                 $author=0;
                 $note=0;
+                $result=0;
                 $random=1;
 		$remainder=0;
 	    }
@@ -212,6 +241,9 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		}
 		elsif ($note==1){
 		    $notes=$notes . $currline;
+		}
+		elsif ($result==1){
+		    $results=$results . $currline;
 		}
                 elsif ($random==1){
 		    if (($currline !~ m/UNKNOWN_DOXYGEN_COMMENT/) && ($currline !~ m/UNKNOWN_COMMENT/) ) { # Must check to see if line has already been commented
@@ -258,7 +290,6 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
         $insideinterface=0;
     }
 
-
     if ( ((($currline =~ m/(SUBROUTINE|FUNCTION)\s+\w+\s*\(/ && $currline !~ m/^\!/ && $currline !~ m/!\s*(SUBROUTINE|FUNCTION)/ ) || $ampersand eq 1) && ($insideinterface eq 0)  ) || ($currline =~ m/^\s*SUBROUTINE\s*\w+\s*.*/ && $currline !~ m/SUBROUTINE\s+\w+\s*\(/ ) ) { # We only work on lines that contain subroutines/functions. 
 # Assuming that lines contain SUBROUTINE or FUNCTION followed by space and then the name of the procedure which may have a space before the (
 # We don't add comments to code inside an interface block
@@ -275,6 +306,12 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $functionline = $tmp; # Again functionline is the line we'll work with to find out the procedure arguments etc. 
 	}
         chomp($functionline); # Strip the newline char from the end
+# Check to see if functionline contains RESULT( 
+	if ($functionline =~ m/RESULT\s*\(\w+\)/) {
+	    $hasresultasarg=1;
+	} else {
+	    $hasresultasarg = 0;
+	}
 
         $ampersand = 0;
         $lelement = "";
@@ -301,13 +338,36 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 			print $OUTPUT "!> \\brief ...\n";
 		    }
 		} else {
-		    if (exists $params{$p}){
+		    if ( (exists $params{$p}) && ($params{$p} !~ m/\\param\s*(\w+|\[.*\]\s+\w+)\s*\n/ ) ) { # Entry must exist and contain some text after the parameter
 			print $OUTPUT $params{$p};
 		    } else {
-			if (($p ne "RESULT")) {  # RESULT gets treated as a parameter but we don't want to print it out so protect against this happening
-			    print $OUTPUT "!> \\param $p ...\n";
+			if ( ($p ne "RESULT") && ($lelement ne "RESULT") && ($hasresultasarg eq 0) ) {  # Print out all regular procedure arguments, RESULT gets treated as a parameter but we don't want to print it out so protect against this happening. 
+                                                                                                        # We don't print the RESULT value under \param as we handle this separately. 
+			    # If the entry for this parameter is missing we use the standard text for a missing entry
+			    if ($params{$p} eq ""){
+				print $OUTPUT "!> \\param $p ...\n";
+			    } else { 
+                                # We need to guard against \param entries which have no text but have a blank line "!>" line appended on to them this block of code handles this 
+				if ( ($params{$p} =~ m/\\param\s*(\w+|\[.*\]\s+\w+)\s*\n/) && ( $params{$p} =~ m/!>\s*\n$/) ) {
+				    my @tmpstring = split /\n/, $params{$p};  # Need to split this parameter into it's individual lines
+				    $tmplen = scalar @tmpstring;  # Find out how many lines we have in this entry
+				    for ($i = 0; $i < $tmplen; $i++){  # Loop over lines
+					if ($i eq 0) { # Append on the ... to the first line but leave all the other lines alone
+					    $tmpstring[$i] = $tmpstring[$i] . " ..."; 
+					}
+					print $OUTPUT "$tmpstring[$i]\n";  # Remember to re-add the carriage return to each line
+				    }
+				} else {
+				    chomp($params{$p}); 
+				    print $OUTPUT $params{$p}," ...\n";
+				}
+			    }
+			}
+			if ( ($lelement eq "RESULT") && ($results eq "") && ($hasresultasarg eq 1) ) {    # If the previous element was RESULT then this element must be whatever gets returned by the procedure - if no result data is available print out the ... to header
+			    print $OUTPUT "!> \\result $p ...\n";			    
 			}
 		    }
+
 		} # End of if $lelement conditional
 	    } # End of if $p eq "&" conditional
 	    $lelement = $p; # Take a note of the array element for comparison
@@ -332,6 +392,9 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
         # If after looping through the elements there is no ampersand
         # we close off the comment and write out the procedure definition
         if ($ampersand ne 1) {
+            if ($results ne ""){   # Print RESULT value first so that it should come straight after the \param definitions
+                print $OUTPUT $results;
+            }           
             if (($dates eq "") || ($dates eq "!> \\date\n")){  # dates entry empty or exists and contains no text
 ###                print $OUTPUT "!> \\date MISSING_COMMENT: Unknown\n";  # Use this line if you want to add text to the entry
                 print $OUTPUT $dates;
@@ -364,7 +427,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		print $OUTPUT $remainders; # Dumps out whatever else remainded in the header (e.g. stuff begining !> without a \ or stuff beginning with just a !) for the SUBROUTINE/FUNCTION at the end
 	    }
             print $OUTPUT "! *****************************************************************************\n";
-            print $OUTPUT "$buffer$currline";
+            print $OUTPUT "$leftoverlines$buffer$currline";
 
 # Reset all the variables after writing out the header 
             $buffer = "";
@@ -375,6 +438,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $version=0;
 	    $author=0;
 	    $note=0;
+	    $result=0;
             $random=0;
 	    $remainder=0;
 	    undef %params;
@@ -385,14 +449,16 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $pars="";
 	    $authors="";
 	    $notes="";
+	    $results="";
             $oldheader="";
             $randoms="";
             $remainders="";
+            $leftoverlines="";
         }
-    } elsif ( ($oldheader ne "") && ($currline !~ m/^\s*$/) ){ # If it was a MODULE or TYPE header we still need to write it back out to file. We also guard against blank lines here. 
-
-        if ($currline !~ m/!\s*/){
+    } elsif ( ($oldheader ne "") && ($currline !~ m/^\s*$/) && ($currline !~ m/#if/) ){ # If it was a MODULE or TYPE header we still need to write it back out to file. We also guard against blank lines and #if lines here. 
+        if ($currline !~ m/^\s*!\s*/){   # Added ^\s* to prevent lines with inline comments from being moved around
 	    print $OUTPUT $oldheader;
+	    print $OUTPUT $leftoverlines;
 	    print $OUTPUT $currline;
 # Again reset variables after output 
 	    $param=0;
@@ -402,6 +468,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $version=0;
 	    $author=0;
 	    $note=0;
+	    $result=0;
             $random=0;
 	    $remainder=0;
 	    undef %params;
@@ -412,14 +479,20 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $pars="";
 	    $authors="";
 	    $notes="";
+	    $results="";
             $randoms="";
             $remainders="";
             $oldheader="";
+            $leftoverlines="";
          } else {
             $oldheader = $oldheader . $currline;
          }
     } else {
-        print $OUTPUT $currline;   # For all the other lines just write out whatever was read in from file
+        if ($oldheader ne ""){
+	    $leftoverlines = $leftoverlines . $currline;  # If we have a procedure header and there's anything else between it and the FUNCTION/SUBROUTINE block we need to store it for printing
+        } else {
+            print $OUTPUT $currline;   # For all the other lines just write out whatever was read in from file
+        }
     } # End of the if (($currline is SUBROUTINE or FUNCTION ) block
     $lastline=$currline; # Keep a copy of last line 
 } # End of main while loop

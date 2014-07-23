@@ -21,7 +21,7 @@ MAINEXEDIR   := $(CP2KHOME)/exe
 MAINLIBDIR   := $(CP2KHOME)/lib
 MAINOBJDIR   := $(CP2KHOME)/obj
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
-DOXYIFYOBJDIR := $(CP2KHOME)/obj/doxyified
+DOXIFYOBJDIR := $(CP2KHOME)/obj/doxified
 INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
@@ -50,7 +50,7 @@ endif
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
-         doxyifydir doxyify doxyifyclean \
+         doxifydir doxify doxifyclean \
          prettydir pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates instantiationdir templatesclean
 
@@ -224,23 +224,23 @@ $(PRETTYOBJDIR)/%.pretty: %.c
 	@touch $@
 
 # Doxyifier stuff ===========================================================
-vpath %.doxyified $(DOXYIFYOBJDIR)
+vpath %.doxified $(DOXIFYOBJDIR)
 
-doxyifydir:
-	@mkdir -p $(DOXYIFYOBJDIR)
+doxifydir:
+	@mkdir -p $(DOXIFYOBJDIR)
 
-doxyify: doxyifydir $(addprefix $(DOXYIFYOBJDIR)/, $(ALL_OBJECTS:.o=.doxyified))
-TOOL_HELP += "doxyify : Autogenerate doxygen headers for subroutines"
+doxify: doxifydir $(addprefix $(DOXIFYOBJDIR)/, $(ALL_OBJECTS:.o=.doxified))
+TOOL_HELP += "doxify : Autogenerate doxygen headers for subroutines"
 
-doxyifyclean:
-	-rm -rf $(DOXYIFYOBJDIR)
-TOOL_HELP += "doxyifyclean : Remove doxyify marker files"
+doxifyclean:
+	-rm -rf $(DOXIFYOBJDIR)
+TOOL_HELP += "doxifyclean : Remove doxify marker files"
 
-$(DOXYIFYOBJDIR)/%.doxyified: %.F
-	$(TOOLSRC)/doxyify/doxyify.sh $<
+$(DOXIFYOBJDIR)/%.doxified: %.F
+	$(TOOLSRC)/doxify/doxify.sh $<
 	@touch $@
 
-$(DOXYIFYOBJDIR)/%.doxyified: %.c
+$(DOXIFYOBJDIR)/%.doxified: %.c
 	@touch $@
 
 # doxygen stuff =============================================================

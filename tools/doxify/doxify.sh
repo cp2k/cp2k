@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export DEBUG=0 # Set to 0 for no debugging, 1 for debugging
-SCRIPTDIR=$(cd $(dirname "$0"); pwd) # Pick up full path to scripts from wherever doxyify.sh lives
+SCRIPTDIR=$(cd $(dirname "$0"); pwd) # Pick up full path to scripts from wherever doxify.sh lives
 
 for file in "$@"
 do 
