@@ -4,7 +4,6 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-! *****************************************************************************
 MODULE surface_dipole
 
   USE cell_types,                      ONLY: cell_type
@@ -53,6 +52,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compute the surface dipole and the correction to the hartree potential
 !> \param qs_env the qs environment
+!> \param ks_env ...
+!> \param energy ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

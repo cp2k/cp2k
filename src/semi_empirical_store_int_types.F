@@ -61,8 +61,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param se_section ...
+!> \param compression ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_create(store_int_env, se_section, compression, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -129,8 +133,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_release(store_int_env, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -179,8 +185,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param geometry_did_change ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_initialize(store_int_env, geometry_did_change, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -235,8 +244,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param geometry_did_change ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_finalize(store_int_env, geometry_did_change, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env

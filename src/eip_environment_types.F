@@ -215,11 +215,7 @@ CONTAINS
 !> \brief Returns various attributes of the eip environment
 !> \param eip_env The enquired eip environment
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param eip_model Specifies which EIP model is in use.
-!> \param eip_kinetic_energy The EIP kinetic energy
-!> \param eip_potential_energy The EIP potential energy
 !> \param eip_energy The total eip energy
 !> \param eip_energy_var Variance of the energy/atom
 !> \param eip_forces The final eip forces [eV/A]
@@ -240,10 +236,14 @@ CONTAINS
 !> \param cell_ref The reference simulation cell
 !> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
+!> \param eip_kinetic_energy The EIP kinetic energy
+!> \param eip_potential_energy The EIP potential energy
 !> \param virial Dummy virial pointer
 !>
 !>      For possible missing arguments see the attributes of
 !>      eip_environment_type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -345,11 +345,7 @@ CONTAINS
 !> \brief Sets various attributes of the eip environment
 !> \param eip_env The enquired eip environment
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param eip_model Specifies which EIP model is in use
-!> \param eip_kinetic_energy The EIP kinetic energy
-!> \param eip_potential_energy The EIP potential energy
 !> \param eip_energy The total eip energy
 !> \param eip_energy_var Variance of the energy/atom
 !> \param eip_forces The final eip forces [eV/A]
@@ -370,10 +366,14 @@ CONTAINS
 !> \param cell_ref The reference simulation cell
 !> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
+!> \param eip_kinetic_energy The EIP kinetic energy
+!> \param eip_potential_energy The EIP potential energy
 !> \param virial Dummy virial pointer
 !>
 !>      For possible missing arguments see the attributes of
 !>      eip_environment_type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

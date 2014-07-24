@@ -79,8 +79,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate and/or initialise a Quickstep energy data structure.
-!> \author  MK
+!> \param qs_energy ...
 !> \date    13.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_qs_energy(qs_energy)
@@ -107,8 +108,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a Quickstep energy data structure.
-!> \author  MK
+!> \param qs_energy ...
 !> \date    13.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_qs_energy(qs_energy)
@@ -137,8 +139,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Initialise a Quickstep energy data structure.
-!> \author  MK
+!> \param qs_energy ...
 !> \date    13.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_qs_energy(qs_energy)

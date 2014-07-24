@@ -371,6 +371,7 @@ CONTAINS
   END SUBROUTINE create_mc_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the AVBMC parameters for MC
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -432,6 +433,7 @@ CONTAINS
   END SUBROUTINE create_avbmc_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the probabilities for attempting each move
 !>        type in Monte Carlo
 !> \param error variable to control error logging, stopping,...
@@ -515,6 +517,7 @@ CONTAINS
   END SUBROUTINE create_move_prob_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the probabilities for attempting various moves
 !>        on the various molecule types present in the system
 !> \param error variable to control error logging, stopping,...
@@ -583,6 +586,7 @@ CONTAINS
   END SUBROUTINE create_mol_prob_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the probabilities for attempting various moves
 !>        on the box where the variable is present
 !> \param error variable to control error logging, stopping,...
@@ -631,6 +635,7 @@ CONTAINS
   END SUBROUTINE create_box_prob_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the frequency for updating maximum
 !>        displacements for various moves
 !> \param error variable to control error logging, stopping,...
@@ -679,6 +684,7 @@ CONTAINS
   END SUBROUTINE create_update_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the maximum displacements for various moves
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -718,6 +724,7 @@ CONTAINS
   END SUBROUTINE create_max_disp_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the maximum displacements for all moves which
 !>        require a value for each molecule type
 !> \param error variable to control error logging, stopping,...
@@ -786,6 +793,7 @@ CONTAINS
   END SUBROUTINE create_mol_disp_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the maximum displacements for any move that
 !>        is done on each simulation box
 !> \param error variable to control error logging, stopping,...
@@ -829,6 +837,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the geometry optimization section
 !> \param section the section to be created
+!> \param label ...
+!> \param description ...
+!> \param just_optimizers ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -1622,6 +1633,7 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the driver section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1977,6 +1989,11 @@ CONTAINS
   !> \brief  Create the input section for superfluid helium solvent.
   !> \author Lukasz Walewski
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_helium_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

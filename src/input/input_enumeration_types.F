@@ -54,6 +54,7 @@ CONTAINS
 !> \param enum the enumeration to be created
 !> \param c_vals string values
 !> \param i_vals integer values
+!> \param desc ...
 !> \param strict if integer values not in the list should be accepted,
 !>        defaults defaults to true
 !> \param error variable to control error logging, stopping,...
@@ -187,6 +188,7 @@ SUBROUTINE enum_release(enum,error)
 !> \param i the value to map
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
 FUNCTION enum_i2c(enum,i,error) RESULT(res)
@@ -237,6 +239,7 @@ END FUNCTION enum_i2c
 !> \param c the value to map
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
 FUNCTION enum_c2i(enum,c,error) RESULT(res)

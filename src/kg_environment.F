@@ -71,6 +71,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Allocates and intitializes kg_env
 !> \param kg_env the object to create
+!> \param input ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -100,6 +101,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes kg_env
+!> \param kg_env ...
+!> \param input ...
+!> \param error ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
@@ -236,10 +240,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief builds either the full neighborlist or neighborlists of molecular
 !> \brief subsets, depending on parameter values
-!> \param sab_orb: the return type, a neighborlist
-!> \param molecular: if false, the full neighborlist is build
-!> \param subset: the molecular subsets
-!> \param current_subset: the subset of which the neighborlist is to be build
+!> \param kg_env ...
+!> \param qs_env ...
+!> \param sab_orb ...
+!> \param sac_kin ...
+!> \param molecular ...
+!> \param subset_of_mol ...
+!> \param current_subset ...
+!> \param error ...
+!> \param current_subset: the subset of which the neighborlist is to be build UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param molecular: if false, the full neighborlist is build UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param sab_orb: the return type, a neighborlist UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param subset: the molecular subsets UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
@@ -388,8 +400,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Removes all replicated pairs from a 2d integer buffer array
-!> \param pairs_buffer: the array, assumed to have the shape (2,:)
-!> \param n: number of pairs (in), number of disjunct pairs (out)
+!> \param pairs_buffer ...
+!> \param n ...
+!> \param n: number of pairs (in), number of disjunct pairs (out) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param pairs_buffer: the array, assumed to have the shape (2,:) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
@@ -460,6 +474,12 @@ CONTAINS
   ! ...
   ! there is one edge descriptor line for each edge in the graph
   ! for an edge (w,v) the fields W and V specify its endpoints
+! *****************************************************************************
+!> \brief ...
+!> \param pairs ...
+!> \param nnodes ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE write_to_file(pairs, nnodes, error)
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :), INTENT(IN)            :: pairs
@@ -522,6 +542,12 @@ CONTAINS
 
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param kg_env ...
+!> \param para_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE kg_build_subsets(kg_env, para_env, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env

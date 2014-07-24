@@ -181,6 +181,11 @@ MODULE dbcsr_config
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param driver ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_mm_driver (driver, error)
     INTEGER, INTENT(IN)                      :: driver
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -235,6 +240,10 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_mm_driver
 
+! *****************************************************************************
+!> \brief ...
+!> \retval driver ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_mm_driver () RESULT (driver)
     INTEGER                                  :: driver
 
@@ -245,6 +254,11 @@ CONTAINS
   END FUNCTION dbcsr_get_conf_mm_driver
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param use_subcomms ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_subcomm (use_subcomms, error)
     LOGICAL, INTENT(IN)                      :: use_subcomms
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -259,6 +273,10 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_subcomm
 
+! *****************************************************************************
+!> \brief ...
+!> \retval use_subcomms ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_subcomm () RESULT (use_subcomms)
     LOGICAL                                  :: use_subcomms
 
@@ -269,6 +287,11 @@ CONTAINS
   END FUNCTION dbcsr_get_conf_subcomm
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param use_combtypes ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_combtypes (use_combtypes, error)
     LOGICAL, INTENT(IN)                      :: use_combtypes
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -283,6 +306,10 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_combtypes
 
+! *****************************************************************************
+!> \brief ...
+!> \retval use_combtypes ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_combtypes () RESULT (use_combtypes)
     LOGICAL                                  :: use_combtypes
 
@@ -293,6 +320,11 @@ CONTAINS
   END FUNCTION dbcsr_get_conf_combtypes
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param use_mpi_mem ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_mpi_mem (use_mpi_mem, error)
     LOGICAL, INTENT(IN)                      :: use_mpi_mem
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -307,6 +339,10 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_mpi_mem
 
+! *****************************************************************************
+!> \brief ...
+!> \retval use_mpi_mem ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_mpi_mem () RESULT (use_mpi_mem)
     LOGICAL                                  :: use_mpi_mem
 
@@ -316,6 +352,11 @@ CONTAINS
     use_mpi_mem = use_MPI_memory
   END FUNCTION dbcsr_get_conf_mpi_mem
 
+! *****************************************************************************
+!> \brief ...
+!> \param use_mm_stacksize ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_mm_stacksize (use_mm_stacksize, error)
     INTEGER, INTENT(IN)                      :: use_mm_stacksize
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -330,6 +371,10 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_mm_stacksize
 
+! *****************************************************************************
+!> \brief ...
+!> \retval use_mm_stacksize ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_mm_stacksize () RESULT (use_mm_stacksize)
     INTEGER                                  :: use_mm_stacksize
 
@@ -339,6 +384,11 @@ CONTAINS
     use_mm_stacksize = mm_stack_size
   END FUNCTION dbcsr_get_conf_mm_stacksize
 
+! *****************************************************************************
+!> \brief ...
+!> \param max_ele_block ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_max_ele_block (max_ele_block, error)
     INTEGER, INTENT(IN)                      :: max_ele_block
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -353,6 +403,10 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_max_ele_block
 
+! *****************************************************************************
+!> \brief ...
+!> \retval max_ele_block ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_max_ele_block () RESULT (max_ele_block)
     INTEGER                                  :: max_ele_block
 
@@ -362,6 +416,11 @@ CONTAINS
     max_ele_block = max_elements_per_block
   END FUNCTION dbcsr_get_conf_max_ele_block
 
+! *****************************************************************************
+!> \brief ...
+!> \param nstacks ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_nstacks (nstacks, error)
     INTEGER, INTENT(IN)                      :: nstacks(:)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -381,6 +440,11 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_nstacks
 
+! *****************************************************************************
+!> \brief ...
+!> \param nstacks ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_get_conf_nstacks (nstacks, error)
     INTEGER, INTENT(OUT)                     :: nstacks(:)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -400,6 +464,11 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks
 
+! *****************************************************************************
+!> \brief ...
+!> \param comm_thread ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_use_comm_thread (comm_thread, error)
     LOGICAL, INTENT(IN)                      :: comm_thread
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -416,6 +485,10 @@ CONTAINS
   END SUBROUTINE dbcsr_set_conf_use_comm_thread
 
 
+! *****************************************************************************
+!> \brief ...
+!> \retval comm_thread ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_use_comm_thread () RESULT (comm_thread)
     LOGICAL                                  :: comm_thread
 
@@ -426,6 +499,11 @@ CONTAINS
     comm_thread = use_comm_thread
   END FUNCTION dbcsr_get_conf_use_comm_thread
 
+! *****************************************************************************
+!> \brief ...
+!> \param load ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_comm_thread_load (load, error)
     INTEGER, INTENT(IN)                      :: load
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -446,6 +524,10 @@ CONTAINS
   END SUBROUTINE dbcsr_set_conf_comm_thread_load
 
 
+! *****************************************************************************
+!> \brief ...
+!> \retval load ...
+! *****************************************************************************
   FUNCTION dbcsr_get_conf_comm_thread_load () RESULT (load)
     INTEGER                                  :: load
 
@@ -457,6 +539,10 @@ CONTAINS
   END FUNCTION dbcsr_get_conf_comm_thread_load
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param driver ...
+! *****************************************************************************
   PURE FUNCTION driver_is_async (driver)
     INTEGER, INTENT(IN)                      :: driver
     LOGICAL                                  :: driver_is_async
@@ -470,11 +556,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Set the callback routines for the external timing hooks.
-!> \author  Ole Schuett
+!> \param timeset ...
+!> \param timestop ...
+!> \param error ...
 !> \date    2012-12-20
+!> \author  Ole Schuett
 !>
-!> <b>Modification history:</b>
-!> - Created 2012-12-20
+!> \note <b>Modification history:</b>
+!> \note - Created 2012-12-20
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_conf_external_timing(timeset, timestop, error)
     PROCEDURE (timeset_interface)            :: timeset

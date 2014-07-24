@@ -105,6 +105,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief hack for dbcsr_copy_columns
+!> \param matrix_b ...
+!> \param matrix_a ...
+!> \param ncol ...
+!> \param source_start ...
+!> \param target_start ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
 !> \author vw
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_copy_columns_hack(matrix_b, matrix_a,&
@@ -157,6 +165,7 @@ CONTAINS
 !> \param[in] dist2d          distribution_2d
 !> \param[out] dist           DBCSR distribution
 !> \param[in,out] error       cp2k error
+!> \param mp_obj ...
 !> \par History
 !>    move form dbcsr_operation 01.2010
 ! *****************************************************************************
@@ -212,9 +221,12 @@ CONTAINS
 !>        c (packed column) = A (dbscr) * B_b (dbcsr)
 !> \param[in]  matrix_a  DBCSR matrix
 !> \param[in]  matrix_b  DBCSR matrix
+!> \param a_row_beg ...
+!> \param a_row_end ...
 !> \param[in]  b_col     the column of the matrix B
 !> \param[out] pkd       the result in a packed format
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_vec(matrix_a, matrix_b, a_row_beg, a_row_end, b_col, pkd, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -273,11 +285,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a packed vector as
 !>        c (packed column) = A (dbscr) * b (packed column)
-!> \param[in]  matrix      DBCSR matrix
+!> \param matrix_a ...
 !> \param[in]  pkd_b       packed vector b
+!> \param a_row_beg ...
+!> \param a_row_end ...
 !> \param[in]  b_col       the column of the packed b (this should be changed in b_col_size)
 !> \param[out] pkd_c       packed vector c
 !>
+!> \param error ...
+!> \param[in]  matrix      DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
@@ -326,9 +342,9 @@ CONTAINS
           pkd_c(nblkrows_total+1) = REAL(c_offset,dp)
        ENDIF
        CALL dgemm('N','N',row_size,b_col_size,col_size,&
-            &     1.0_dp,data_p(1),row_size,&
-            &            pkd_b(INT(pkd_b(col))),col_size,&
-            &     1.0_dp,pkd_c(INT(pkd_c(row))),row_size)
+                  1.0_dp,data_p(1),row_size,&
+                         pkd_b(INT(pkd_b(col))),col_size,&
+                  1.0_dp,pkd_c(INT(pkd_c(row))),row_size)
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
 
@@ -344,12 +360,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a replicated array
 !>        c = alpha_scalar * A (dbscr) * b + c
-!> \param[in]  matrix       DBCSR matrix
+!> \param matrix_a ...
 !> \param[in]  vec_b        vectors b
 !> \param[inout] vec_c      vectors c
 !> \param[in]  ncol         nbr of columns
 !> \param[in]  alpha        alpha
 !>
+!> \param error ...
+!> \param[in]  matrix       DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_local_d(matrix_a, vec_b, vec_c, ncol, alpha, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
@@ -433,6 +451,15 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_local_d
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param vec_b ...
+!> \param vec_c ...
+!> \param ncol ...
+!> \param alpha ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_local_s(matrix_a, vec_b, vec_c, ncol, alpha, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
     REAL(KIND=real_4), DIMENSION(:, :), &
@@ -499,11 +526,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a fm matrix
 !> \param[in]  matrix         DBCSR matrix
-!> \param[]    fm_in, fm_out  fm matrices
+!> \param fm_in ...
+!> \param fm_out ...
 !> \param[in]  ncol           nbr of columns
 !> \param[in]  alpha          alpha
 !> \param[in]  beta           beta
 !>
+!> \param error ...
+!> \param[]    fm_in, fm_out  fm matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_sm_fm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -594,6 +624,12 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_sm_fm_multiply
 
+! *****************************************************************************
+!> \brief ...
+!> \param sizes1 ...
+!> \param sizes2 ...
+!> \param full_num ...
+! *****************************************************************************
   SUBROUTINE match_col_sizes (sizes1, sizes2, full_num)
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: sizes1
     INTEGER, DIMENSION(:), INTENT(IN)        :: sizes2
@@ -628,6 +664,13 @@ CONTAINS
 !>        if matrix_g is not explicitly given, matrix_v^T will be used
 !>        this can be important to save the necessary redistribute for a 
 !>        different matrix_g and increase performance.
+!> \param sparse_matrix ...
+!> \param matrix_v ...
+!> \param matrix_g ...
+!> \param ncol ...
+!> \param alpha ...
+!> \param keep_sparsity ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_plus_fm_fm_t_native(sparse_matrix,matrix_v,matrix_g,ncol,&
        alpha,keep_sparsity,error)
@@ -784,6 +827,7 @@ CONTAINS
 !> \param[out] pkd_vec     packed vector
 !> \param[in]  what        what to pack (row or column)
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_pack_vec(matrix, ivec, pkd_vec, what, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -872,6 +916,8 @@ CONTAINS
 !> \param[in]     pkd_vec     packed vector
 !> \param[in]     what        what to unpack (row or column)
 !>
+!> \param do_sum ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_unpack_vec(matrix, ivec, pkd_vec, what, do_sum, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -956,6 +1002,14 @@ CONTAINS
 !>      left)  pkd_ji = alpha * block_jj (block) * pkd_ji for j = 1,..., nvec
 !>      right) pkd_ij = alpha * pkd_ij * block_jj (block) for j = 1,..., nvec
 !>
+!> \param alpha ...
+!> \param block ...
+!> \param pkd ...
+!> \param nvec ...
+!> \param ivec ...
+!> \param vec_blk_size ...
+!> \param side ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE packed_vec_scale(alpha, block, pkd, nvec, ivec, vec_blk_size, side, error)
     REAL(dp), INTENT(IN)                     :: alpha
@@ -1010,6 +1064,16 @@ CONTAINS
 
   END SUBROUTINE packed_vec_scale
 
+! *****************************************************************************
+!> \brief ...
+!> \param pkd_u ...
+!> \param pkd_v ...
+!> \param k ...
+!> \param n ...
+!> \param s ...
+!> \param vec_blk_size ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE packed_vec_build_u(pkd_u, pkd_v, k, n, s, vec_blk_size, error)
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: pkd_u
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v
@@ -1040,7 +1104,7 @@ CONTAINS
     ENDDO
     !
     CALL block_set(k_blk_size, k_blk_size, pkd_u(u_offset:u_offset+ k_blk_size**2-1), &
-         &         1.0_dp, 0.0_dp)
+                   1.0_dp, 0.0_dp)
     pkd_u(k) = u_offset
     u_offset = u_offset + k_blk_size**2
     pkd_u(n+1) = u_offset
@@ -1051,6 +1115,11 @@ CONTAINS
 !> \brief Does the operations:
 !>      v(k,:) = v(k,:) - uAk(i,k)' * inv(d(i,i)) * v(i,:) / s
 !>
+!> \param mat_v ...
+!> \param pkd_v_fac ...
+!> \param ivec ...
+!> \param pkd_v ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE packed_vec_bif_tech2(mat_v, pkd_v_fac, ivec, pkd_v, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: mat_v
@@ -1104,8 +1173,8 @@ CONTAINS
        ! let's multiply and add
        CALL dgemm('T', 'N', k_row_size, col_size, row_size,&
             &    -1.0_dp, pkd_v_fac(INT(pkd_v_fac(row))), row_size,&
-            &             data_v(1), row_size,&
-            &     1.0_dp, pkd_v(INT(pkd_v(col))), k_row_size)
+                          data_v(1), row_size,&
+                  1.0_dp, pkd_v(INT(pkd_v(col))), k_row_size)
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
     !
@@ -1117,6 +1186,12 @@ CONTAINS
 
   END SUBROUTINE packed_vec_bif_tech2
 
+! *****************************************************************************
+!> \brief ...
+!> \param pkd_vec ...
+!> \param n ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE packed_vec_ini(pkd_vec, n, error)
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: pkd_vec
     INTEGER, INTENT(IN)                      :: n
@@ -1126,6 +1201,16 @@ CONTAINS
     pkd_vec(n+1) = n + 2
   END SUBROUTINE packed_vec_ini
 
+! *****************************************************************************
+!> \brief ...
+!> \param pkd_vec ...
+!> \param source ...
+!> \param scope ...
+!> \param n ...
+!> \param vec_blk_size ...
+!> \param mp_obj ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE packed_vec_alltoall(pkd_vec, source, scope, n, vec_blk_size, mp_obj, error)
     REAL(dp), DIMENSION(:), POINTER          :: pkd_vec
     INTEGER, INTENT(IN)                      :: source
@@ -1214,6 +1299,17 @@ CONTAINS
 
   END SUBROUTINE packed_vec_alltoall
 
+! *****************************************************************************
+!> \brief ...
+!> \param pkd_vec ...
+!> \param source ...
+!> \param scope ...
+!> \param do_summation ...
+!> \param n ...
+!> \param vec_blk_size ...
+!> \param mp_obj ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE packed_vec_bcast(pkd_vec, source, scope, do_summation, n, vec_blk_size, mp_obj, error)
     REAL(dp), DIMENSION(:), POINTER          :: pkd_vec
     INTEGER, INTENT(IN)                      :: source
@@ -1308,6 +1404,15 @@ CONTAINS
 
   END SUBROUTINE packed_vec_bcast
 
+! *****************************************************************************
+!> \brief ...
+!> \param pkd_vec_a ...
+!> \param pkd_vec_b ...
+!> \param vec_blk_size ...
+!> \param n ...
+!> \param do_summation ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE packed_vec_add(pkd_vec_a,pkd_vec_b,vec_blk_size,n,do_summation,error)
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec_a
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_vec_b
@@ -1370,11 +1475,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief copy a vector (row or column) from a matrix to another matrix
-!> \param[inout] matrix_b  matrix
 !> \param[in]    matrix_a  matrix
+!> \param[inout] matrix_b  matrix
 !> \param[in]    what      row or column
 !> \param[in]    ivec      the column/row index
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
@@ -1425,10 +1531,12 @@ CONTAINS
 !> \param[out] matrix         the created BCSR matrix
 !> \param[in] fm              the cpk full matrix
 !> \param[in] threshold       the threshold for determining sparsity
-!> \param[in] row_blk_sizes   sizes of row blocks
-!> \param[in] col_blk_sizes   sizes of column blocks
 !> \param[in] distribution    the distribution to use for the new matrix
+!> \param row_blk_size ...
+!> \param col_blk_size ...
 !> \param[in,out] error       cp2k error
+!> \param[in] col_blk_sizes   sizes of column blocks UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] row_blk_sizes   sizes of row blocks UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_from_fm(matrix, fm, threshold, distribution, row_blk_size,&
        col_blk_size, error)
@@ -1462,17 +1570,18 @@ CONTAINS
 !>
 !>          real_matrix=beta*real_matrix+alpha*fm
 !>          beta defaults to 0, alpha to 1
-!> \author  Urban Borstnik
-!> \date    2009-10-13
-!> \par History
-!>          2009-10-13 rewritten based on copy_dbcsr_to_fm
-!> \version 2.0
 !> \param[in] fm              full matrix
 !> \param[out] matrix         DBCSR matrix
 !> \param[in] alpha           (optional) scaling of FM
 !> \param[in] beta            (optional) scaling of existing SM
 !> \param[in] keep_sparsity   (optional) retains the sparsity of the input
 !>                            matrix
+!> \param error ...
+!> \date    2009-10-13
+!> \par History
+!>          2009-10-13 rewritten based on copy_dbcsr_to_fm
+!> \author  Urban Borstnik
+!> \version 2.0
 ! *****************************************************************************
   SUBROUTINE copy_fm_to_dbcsr(fm,matrix,alpha,beta,keep_sparsity,error)
     TYPE(cp_fm_type), POINTER                :: fm
@@ -1651,6 +1760,15 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, dbcsr_error)
   END SUBROUTINE copy_fm_to_dbcsr
 
+! *****************************************************************************
+!> \brief ...
+!> \param fm ...
+!> \param bc_mat ...
+!> \param alpha ...
+!> \param beta ...
+!> \param keep_sparsity ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE copy_fm_to_dbcsr_bc(fm,bc_mat,alpha,beta,keep_sparsity,error)
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(cp_dbcsr_type)                      :: bc_mat
@@ -1843,17 +1961,18 @@ CONTAINS
 !>
 !>          real_matrix=beta*real_matrix+alpha*fm
 !>          beta defaults to 0, alpha to 1
-!> \author  VW
+!> \param[in] fm              full matrix
+!> \param[out] matrix         DBCSR matrix
+!> \param[in] keep_sparsity   (optional) retains the sparsity of the input
+!>                            matrix
+!> \param error ...
+!> \param[in] alpha           (optional) scaling of FM UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] beta            (optional) scaling of existing SM UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    2010
 !> \par History
 !>          2010  copied from copy_dbcsr_to_fm
+!> \author  VW
 !> \version 2.0
-!> \param[in] fm              full matrix
-!> \param[out] matrix         DBCSR matrix
-!> \param[in] alpha           (optional) scaling of FM
-!> \param[in] beta            (optional) scaling of existing SM
-!> \param[in] keep_sparsity   (optional) retains the sparsity of the input
-!>                            matrix
 ! *****************************************************************************
   SUBROUTINE copy_cfm_to_dbcsr(fm,matrix,keep_sparsity,error)
     TYPE(cp_cfm_type), POINTER               :: fm
@@ -2005,6 +2124,7 @@ CONTAINS
 !> \brief   Copy a DBCSR matrix to a BLACS matrix
 !> \param[in] matrix          DBCSR matrix
 !> \param[out] fm             full matrix
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE copy_dbcsr_to_fm(matrix, fm, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -2149,6 +2269,7 @@ CONTAINS
 !> \brief   Copy a DBCSR matrix to a BLACS matrix
 !> \param[in] matrix          DBCSR matrix
 !> \param[out] fm             full matrix
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE copy_dbcsr_to_cfm(matrix, fm, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -2281,8 +2402,10 @@ CONTAINS
   END SUBROUTINE copy_dbcsr_to_cfm
 ! *****************************************************************************
 !> \brief   Copy a DBCSR_BLACS matrix to a BLACS matrix 
-!> \param[in] matrix          DBCSR matrix
+!> \param bc_mat ...
 !> \param[out] fm             full matrix
+!> \param error ...
+!> \param[in] matrix          DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE copy_dbcsr_to_fm_bc(bc_mat, fm, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: bc_mat

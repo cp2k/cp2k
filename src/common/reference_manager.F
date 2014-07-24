@@ -77,7 +77,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief marks a given reference as cited.
-!> \param citation key as returned from add_reference
+!> \param key ...
+!> \param citation key as returned from add_reference UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      XX.2007 created [ ]
 ! *****************************************************************************
@@ -93,6 +94,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Checks for each reference if any mpi-rank has marked it for citation.
+!> \param para_env ...
 !> \par History
 !>      12.2013 created [Ole Schuett]
 ! *****************************************************************************
@@ -113,14 +115,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief add a reference to the bibliography
 !> \param key output, this handle is needed to cite this reference later
+!> \param ISI_record ...
+!> \param DOI ...
+!> \par History
+!>      08.2007 created [Joost VandeVondele]
 !> \note
 !>      - see bibliography.F for it use.
 !>      - the ISI record is space sensitive, in particular the first three characters need to be blank
 !>        or contain a key indicating the record type. See the header of this file for tools
 !>        that can convert e.g. bibtex or endnote files to the ISI format
 !>      - DOI: provide the DOI without a link. The link will be automatically created as needed.
-!> \par History
-!>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_reference(key,ISI_record,DOI)
     INTEGER, INTENT(OUT)                     :: key
@@ -208,8 +212,10 @@ CONTAINS
 !> \param cited_only print only those marked as cited
 !> \param sorted sort entries most recent first according to the date,
 !>              otherways sort with respect to key
-!> \param format see module parameters print_format_XXXXXXXXX
+!> \param FORMAT ...
+!> \param unit ...
 !> \param list optionally, output a sub-list only
+!> \param format see module parameters print_format_XXXXXXXXX UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2007 Joost VandeVondele [ ]
 ! *****************************************************************************
@@ -297,7 +303,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief printout of a specified reference to a given unit in a selectable format
 !> \param key as returned from add_reference
-!> \param format see module parameters print_format_XXXXXXXXX
+!> \param FORMAT ...
+!> \param unit ...
+!> \param format see module parameters print_format_XXXXXXXXX UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2007 Joost VandeVondele [ ]
 ! *****************************************************************************
@@ -325,6 +333,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief prints a reference in a journal style citation format,
 !>      adding also a DOI link, which is convenient
+!> \param key ...
+!> \param unit ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -402,6 +412,8 @@ CONTAINS
 !> \brief prints a reference in a journal style citation format,
 !>      adding 'beautifying' html tags, and a link to the journal
 !>      using the DOI
+!> \param key ...
+!> \param unit ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -465,6 +477,9 @@ CONTAINS
 !>       returns an empty string if the field can not be found
 !>       iline_start should be initialized to 1 to obtain the first matching entry
 !>       on return it is updated, so that succesive calls give succesive fields
+!> \param ISI_record ...
+!> \param iline_start ...
+!> \retval res ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -498,6 +513,11 @@ CONTAINS
   END FUNCTION get_next_author
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \param iline_start ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION get_next_title(ISI_record,iline_start) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -527,6 +547,10 @@ CONTAINS
   END FUNCTION get_next_title
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION get_source(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -552,6 +576,10 @@ CONTAINS
   END FUNCTION get_source
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION get_year(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -567,6 +595,10 @@ CONTAINS
   END FUNCTION get_year
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION get_month(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -581,6 +613,10 @@ CONTAINS
     ENDDO
   END FUNCTION get_month
 
+! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION get_day(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
@@ -605,6 +641,10 @@ CONTAINS
   END FUNCTION get_day
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION get_volume(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -620,6 +660,10 @@ CONTAINS
   END FUNCTION get_volume
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION get_issue(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -634,6 +678,10 @@ CONTAINS
     ENDDO
   END FUNCTION get_issue
 
+! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION get_pages(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
@@ -662,6 +710,10 @@ CONTAINS
   END FUNCTION get_pages
 
 ! *****************************************************************************
+!> \brief ...
+!> \param key ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION get_citation_key(key) RESULT(res)
     INTEGER                                  :: key
     CHARACTER(LEN=default_string_length)     :: res
@@ -673,6 +725,10 @@ CONTAINS
 ! This returns something epoch like, but can only be used to order the records
 ! missing years, months, days are implied zero(1900)
 !
+! *****************************************************************************
+!> \brief ...
+!> \param ISI_record ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION get_epoch(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &

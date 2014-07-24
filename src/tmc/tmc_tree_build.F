@@ -98,6 +98,8 @@ CONTAINS
   !********************************************************************************
 ! *****************************************************************************
 !> \brief allocates an elements of the global element structure 
+!> \param next_el ...
+!> \param nr_temp ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
@@ -138,6 +140,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocates an elements of the global element structure 
+!> \param gt_elem ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
@@ -169,9 +172,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates an elements of the subtree element structure 
-!> \param tmc_env_prarams structure for storing all (global) parameters
+!> \param tmc_params ...
+!> \param next_el ...
+!> \param nr_dim ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param tmc_env_prarams structure for storing all (global) parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE allocate_new_sub_tree_node(tmc_params, next_el, nr_dim, error)
@@ -235,9 +241,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocates an elements of the subtree element structure 
-!> \param tmc_env_prarams structure for storing all (global) parameters
+!> \param tmc_params ...
+!> \param tree_elem ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param tmc_env_prarams structure for storing all (global) parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE deallocate_sub_tree_node(tmc_params, tree_elem, error)
@@ -283,7 +291,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief routine initiate the global and subtrees with the first elements
+!> \param start_elem ...
 !> \param tmc_env structure for storing all (global) parameters
+!> \param job_counts ...
+!> \param worker_timings ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
@@ -446,11 +457,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief distributes the initial energy to all subtree (if no restart) and 
 !>        call analysis for this element (write trajectory...)
-!> \param gt_tree_ptr_orig global tree head (initial configuration)
-!> \param tmc_m_env master environment for restart 
-!>        (if restart the subtree heads are not equal), result counts and lists
+!> \param gt_tree_ptr ...
+!> \param tmc_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param gt_tree_ptr_orig global tree head (initial configuration) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param tmc_m_env master environment for restart 
+!>        (if restart the subtree heads are not equal), result counts and lists UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE finalize_init(gt_tree_ptr, tmc_env, error)
@@ -882,6 +895,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create new subtree element using pointer of global tree
 !> \param act_gt_el global tree element 
+!> \param tmc_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
@@ -1285,6 +1299,7 @@ CONTAINS
 !>        from begin_ptr to end_ptr
 !> \param begin_ptr start of the tree region to be cleaned
 !> \param end_ptr end of the tree region to be cleaned
+!> \param working_elem_list ...
 !> \param removed retun value if brance is clean
 !> \param tmc_env tmc environment
 !> \param error variable to control error logging, stopping,...
@@ -1409,8 +1424,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocates all result nodes (remaining Markov Chain) 
 !>        from the tree root to the end of clean tree of the global tree
-!> \param end_of_clean_tree
-!> \param actual_ptr
+!> \param end_of_clean_tree ...
+!> \param actual_ptr ...
 !> \param tmc_env TMC environment for deallocation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1457,8 +1472,8 @@ CONTAINS
 !> \brief deallocates all result nodes (remaining Markov Chain) 
 !>        from the tree root to the end of clean tree of one sub tree
 !>        top to buttom deallocation
-!> \param end_of_clean_tree
-!> \param actual_ptr
+!> \param end_of_clean_tree ...
+!> \param actual_ptr ...
 !> \param tmc_env TMC environment for deallocation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1613,6 +1628,7 @@ CONTAINS
 !> \brief deallocates the whole global tree, to clean up 
 !> \param begin_ptr pointer to global tree head
 !> \param removed flag, if the this element is removed
+!> \param tmc_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 01.2013
@@ -1662,6 +1678,7 @@ CONTAINS
 !> \brief deallocates the whole sub tree, to clean up 
 !> \param begin_ptr pointer to sub tree head
 !> \param removed flag, if the this element is removed
+!> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 01.2013
@@ -1710,10 +1727,10 @@ CONTAINS
   !============================================================================
 ! *****************************************************************************
 !> \brief deallocating every tree node of every trees (clean up)
-!> \param global_tree pointer to one global tree element
 !> \param tmc_env TMC environment structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param global_tree pointer to one global tree element UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 01.2013
 ! *****************************************************************************
   SUBROUTINE finalize_trees(tmc_env, error)

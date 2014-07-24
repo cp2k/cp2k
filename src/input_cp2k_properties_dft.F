@@ -356,7 +356,7 @@ CONTAINS
                           "Use the atoms as center.",&
                           "Boxing."),&
             enum_i_vals=(/current_orb_center_wannier,current_orb_center_common,&
-            &             current_orb_center_atom,current_orb_center_box/),&
+                          current_orb_center_atom,current_orb_center_box/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -985,6 +985,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the section for electron transfer coupling
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fschiff
@@ -1050,6 +1051,11 @@ CONTAINS
     END IF
   END SUBROUTINE create_et_coupling_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param section_name ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_restraint_A(section,section_name,error)
     TYPE(section_type), POINTER              :: section

@@ -43,6 +43,10 @@ END TYPE atprop_type
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param atprop_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_create(atprop_env,error)
     TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -65,6 +69,12 @@ CONTAINS
 
   END SUBROUTINE atprop_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param atprop_env ...
+!> \param natom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_init(atprop_env,natom,error)
     TYPE(atprop_type), POINTER               :: atprop_env
     INTEGER, INTENT(IN)                      :: natom
@@ -102,6 +112,12 @@ CONTAINS
 
   END SUBROUTINE atprop_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param atarray ...
+!> \param natom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_array_init(atarray,natom,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
     INTEGER, INTENT(IN)                      :: natom
@@ -125,6 +141,11 @@ CONTAINS
 
   END SUBROUTINE atprop_array_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param atarray ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_array_release(atarray,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -145,6 +166,12 @@ CONTAINS
 
   END SUBROUTINE atprop_array_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param array_a ...
+!> \param array_b ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_array_add(array_a,array_b,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array_a, array_b
     TYPE(cp_error_type), INTENT(inout)       :: error

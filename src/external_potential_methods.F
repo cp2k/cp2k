@@ -44,9 +44,11 @@ MODULE external_potential_methods
 CONTAINS
 
 ! *****************************************************************************
-!> \brief
-!> \author Teodoro Laino - University of Zurich [tlaino]
+!> \brief ...
+!> \param force_env ...
+!> \param error ...
 !> \date 03.2008
+!> \author Teodoro Laino - University of Zurich [tlaino]
 ! *****************************************************************************
   SUBROUTINE add_external_potential(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env

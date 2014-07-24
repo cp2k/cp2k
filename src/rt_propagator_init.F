@@ -75,6 +75,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief prepares the initial matrices for the propagators
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -184,6 +186,9 @@ CONTAINS
 !> \brief gets an estimate for the 2-norm of KS (diagnaliztion of KS) and
 !>        calculates the order and number of squaring steps for Taylor or
 !>        Pade matrix exponential
+!> \param rtp ...
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -316,6 +321,9 @@ CONTAINS
 !> \brief gets an estimate for the 2-norm of KS (diagnaliztion of KS) and
 !>        calculates the order and number of squaring steps for Taylor or
 !>        Pade matrix exponential. Based on the full matrix code.
+!> \param rtp ...
+!> \param qs_env ...
+!> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
@@ -392,6 +400,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computs all matrices needed to initialize emd (S_derivs, SinvH,
 !>        SinvB and forces)
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -423,6 +433,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the density matrix starting from the kohn-sham matrix
+!> \param qs_env ...
+!> \param rtp ...
+!> \param error ...
 !> \author Samuel Andermatt (03.14)
 ! *****************************************************************************
 

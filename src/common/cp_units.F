@@ -462,6 +462,7 @@ CONTAINS
 !> \param kind_id the kind of unit (length,energy,...), use the constants
 !>        cp_ukind_*
 !> \param unit_id the actual unit (use constants cp_units_*)
+!> \param power ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -569,9 +570,9 @@ CONTAINS
 !> \param unit the unit to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      at the moment not needed, there for completeness
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_unit_retain(unit,error)
     TYPE(cp_unit_type), POINTER              :: unit
@@ -596,9 +597,9 @@ CONTAINS
 !> \param unit the unit to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      at the moment not needed, there for completeness
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_unit_release(unit,error)
     TYPE(cp_unit_type), POINTER              :: unit
@@ -630,6 +631,7 @@ CONTAINS
 !>        Defaults to cp_failure_level
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
@@ -758,6 +760,7 @@ CONTAINS
 !> \param power the power of the unit (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)  RESULT(res)
@@ -954,8 +957,10 @@ CONTAINS
 !> \param basic_kind the kind of the unit of the value
 !> \param basic_unit the unit of the value
 !> \param power the power of the unit (defaults to 1)
+!> \param accept_undefined ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,accept_undefined,error)&
@@ -1215,6 +1220,7 @@ CONTAINS
 !>        whether undefined units should be accepted (defaults to false)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_desc(unit,defaults,accept_undefined,error)&
@@ -1278,6 +1284,7 @@ CONTAINS
 !> \param power the power of the unit (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
@@ -1333,6 +1340,7 @@ CONTAINS
 !> \param power the power of the unit (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_from_cp2k1(value,unit,defaults,power,error) RESULT(res)
@@ -1370,6 +1378,7 @@ CONTAINS
 !> \param power the power of the unit (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_to_cp2k(value,unit_str,defaults,power,error) RESULT(res)
@@ -1406,6 +1415,7 @@ CONTAINS
 !> \param power the power of the unit (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_unit_from_cp2k(value,unit_str,defaults,power,error) RESULT(res)
@@ -1435,8 +1445,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returs true if the two units are compatible
+!> \param ref_unit ...
+!> \param unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author Teodoro Laino [tlaino] - 11.2007 - University of Zurich
 ! *****************************************************************************
   FUNCTION cp_unit_compatible(ref_unit,unit,error) RESULT(res)
@@ -1609,6 +1622,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Prints info on all available units in CP2K
+!> \param unit_nr ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE print_all_units(unit_nr)
@@ -1673,6 +1687,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Prints info on all available units in CP2K - Low level
+!> \param unit_label ...
+!> \param description ...
+!> \param units_set ...
+!> \param unit_nr ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE print_section_unit(unit_label, description, units_set, unit_nr)

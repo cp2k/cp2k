@@ -396,9 +396,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the given lri_env
-!> \param lri_env the lri environment to release
+!> \param lri_density ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param lri_env the lri environment to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE lri_density_release(lri_density, error)
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -429,6 +430,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief initializes the lri basis: calculates the norm, self-overlap
 !>        and integral of the ri basis
+!> \param lri_env ...
+!> \param atomic_kind_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE lri_basis_init(lri_env,atomic_kind_set,error)
     TYPE(lri_environment_type), POINTER      :: lri_env
@@ -490,7 +494,10 @@ CONTAINS
 !*****************************************************************************
 !> \brief normalization for a contracted Gaussian s-function,
 !>        spherical = cartesian Gaussian for s-functions
-!*****************************************************************************
+!> \param basis ...
+!> \param norm ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE basis_norm_s_func(basis,norm,error)
 
     TYPE(gto_basis_set_type), POINTER        :: basis
@@ -538,7 +545,10 @@ CONTAINS
 !*****************************************************************************
 !> \brief normalization for radial part of contracted spherical Gaussian 
 !>        functions
-!*****************************************************************************
+!> \param basis ...
+!> \param norm ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE basis_norm_radial(basis,norm,error)
 
     TYPE(gto_basis_set_type), POINTER        :: basis
@@ -585,7 +595,11 @@ CONTAINS
 !*****************************************************************************
 !> \brief integral over a single (contracted) lri auxiliary basis function,
 !>        integral is zero for all but s-functions               
-!*****************************************************************************
+!> \param basis ...
+!> \param int_aux ...
+!> \param norm ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE basis_int(basis,int_aux,norm,error)
 
     TYPE(gto_basis_set_type), POINTER        :: basis
@@ -627,7 +641,11 @@ CONTAINS
 !>        Overlap of radial part. Norm contains only normalization of radial
 !>        part. Norm and overlap of spherical harmonics not explicitly 
 !>        calculated since this cancels for the self-overlap anyway. 
-!*****************************************************************************
+!> \param basis ...
+!> \param ovlp ...
+!> \param norm ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE basis_ovlp(basis,ovlp,norm,error)
 
     TYPE(gto_basis_set_type), POINTER        :: basis
@@ -691,6 +709,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocate lri_ints, matrices that store LRI integrals
+!> \param lri_env ...
 !  \param lri_ints structure storing the LRI integrals
 !> \param nkind number of atom kinds 
 !> \param error variable to control error logging, stopping,...
@@ -833,6 +852,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocate lri_ints_rho, storing integral for the exact density
+!> \param lri_env ...
 !  \param lri_ints_rho structure storing the integrals (aa,bb)
 !> \param nkind number of atom kinds 
 !> \param error variable to control error logging, stopping,...
@@ -916,7 +936,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates and initializes lri_rhos
+!> \param lri_env ...
 !  \param lri_rhos structure storing tvec and avec
+!> \param nspin ...
 !> \param nkind number of atom kinds 
 !> \param error variable to control error logging, stopping,...
 ! *****************************************************************************
@@ -1024,6 +1046,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates and initializes lri_coefs
+!> \param lri_env ...
+!> \param lri_density ...
+!> \param atomic_kind_set ...
 !> \param error variable to control error logging, stopping,...
 ! *****************************************************************************
   SUBROUTINE allocate_lri_coefs(lri_env, lri_density, atomic_kind_set, error)
@@ -1085,7 +1110,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates and initializes lri_force
+!> \param lri_force ...
 !> \param nfa and nfb number of fit functions on a/b
+!> \param nfb ...
 !> \param error variable to control error logging, stopping,...
 ! *****************************************************************************
   SUBROUTINE allocate_lri_force_components(lri_force,nfa,nfb,error)
@@ -1142,6 +1169,7 @@ CONTAINS
  
 ! *****************************************************************************
 !> \brief deallocates one-center overlap integrals and integral of ri basis
+!> \param lri_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -1178,6 +1206,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocates the given lri_ints
+!> \param lri_ints ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -1239,6 +1268,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocates the given lri_ints_rho
+!> \param lri_ints_rho ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -1289,6 +1319,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocates the given lri_rhos
+!> \param lri_rhos ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************

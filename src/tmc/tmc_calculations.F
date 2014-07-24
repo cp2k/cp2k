@@ -152,7 +152,9 @@ CONTAINS
 !> \param cell .. original cell
 !> \param box_scale scaling factors for each direction
 !> \param scaled_hmat returns the scaled h matrix (matrix of cell vectors)
+!> \param scaled_cell ...
 !> \param vol returns the cell volume
+!> \param abc ...
 !> \param vec a vector, which will be folded (pbc) in the cell
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -209,12 +211,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief handles properties and calculations of a scaled cell
 !> \param cell .. original cell
-!> \param box_scale scaling factors for each direction
 !> \param scaled_hmat returns the scaled h matrix (matrix of cell vectors)
-!> \param vol returns the cell volume
-!> \param vec a vector, which will be folded (pbc) in the cell
+!> \param box_scale scaling factors for each direction
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param vec a vector, which will be folded (pbc) in the cell UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param vol returns the cell volume UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE get_cell_scaling(cell, scaled_hmat, box_scale, error)
@@ -248,8 +250,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief neares distance of atoms within the periodic boundary condition
+!> \param x1 ...
+!> \param x2 ...
+!> \param cell ...
+!> \param box_scale ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION nearest_distance(x1, x2, cell, box_scale, error) RESULT(res)
@@ -326,10 +333,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculate the center of mass of an amount of atoms
 !>        array size should be multiple of dim_per_elem
-!> \param 
-!> \param 
+!> \param pos ...
+!> \param atoms ...
+!> \param center ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
+!> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE center_of_mass(pos, atoms, center, error)
@@ -379,6 +389,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief routine sets initial velocity, using the Box-Muller Method for Normal
 !>         (Gaussian) Deviates
+!> \param vel ...
+!> \param atoms ...
+!> \param temerature ...
+!> \param rng_stream ...
+!> \param rnd_seed ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
@@ -422,8 +437,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief routine calculates the kinetic energy, using the velocities 
 !>        and atom mass, both in atomic units
+!> \param vel ...
+!> \param atoms ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval ekin ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION calc_e_kin(vel, atoms, error) RESULT(ekin)
@@ -452,11 +470,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief assuming an (exponential) decreasing function, this function 
 !>        extrapolate the converged value
-!> \param v1,v2,v3 function values
+!> \param v1 ...
+!> \param v2 ...
+!> \param v3 ...
 !> \param extrapolate extrapolated final value (result)
 !> \param res_err error of the result
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param v1,v2,v3 function values UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE three_point_extrapolate(v1,v2,v3, extrapolate, res_err, error)
@@ -506,6 +527,11 @@ CONTAINS
     ENDIF
     CPPostcondition(extrapolate.NE.HUGE(extrapolate),cp_failure_level,routineP,error,failure)
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param x1 ...
+!> \param x2 ...
+! *****************************************************************************
      SUBROUTINE swap(x1,x2)
     REAL(KIND=dp)                            :: x1, x2
 
@@ -522,19 +548,26 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates the probability of acceptance for given intervals of the 
 !>        exact energy 
-!> \param E_n_mu,E_n_sigma ... energy distribution of new configuration 
-!>        (calculated from SCF energy)
-!> \param E_o_mu,E_o_sigma ... energy distribution of old configuration 
-!>        (calculated from SCF energy)
+!> \param E_n_mu ...
+!> \param E_n_sigma ...
+!> \param E_o_mu ...
+!> \param E_o_sigma ...
 !> \param E_classical_diff ... the difference in approximated energies for the 
 !>        old and new configuration (E_o-E_n)
-!> \param prior_mu,prior_sigma ... energy distribution of the already converged
-!>         energies
+!> \param prior_mu ...
+!> \param prior_sigma ...
 !> \param p ... the random number, the criteria has to be smaller than this
+!> \param beta ...
 !> \param N ... the numbers of steps of the integration
-!> \param prob ... return probability of acceptance
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param prob ... return probability of acceptance
+!> \param E_n_mu,E_n_sigma ... energy distribution of new configuration 
+!>        (calculated from SCF energy) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param E_o_mu,E_o_sigma ... energy distribution of old configuration 
+!>        (calculated from SCF energy) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param prior_mu,prior_sigma ... energy distribution of the already converged
+!>         energies UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_prob(E_n_mu,E_n_sigma,E_o_mu,E_o_sigma,E_classical_diff,&
@@ -569,9 +602,9 @@ CONTAINS
 !> \param beta 1/(kB*T) can differ for different acceptance checks
 !> \param N the numbers of steps of the integration
 !> \param tmc_params TMC environment parameters
-!> \param prob estimated acceptance probability
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param prob estimated acceptance probability
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_estimated_prob(elem_old, elem_new, E_classical_diff, &

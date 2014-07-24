@@ -1,13 +1,13 @@
 ! *****************************************************************************
 !> \brief Shift around the data in msg
+!> \param[in,out] msg         Rank-2 data to shift
+!> \param[in] group           message passing environment identifier
+!> \param[in] displ_in        displacements (?)
 !> \par Example
 !>      msg will be moved from rank to rank+displ_in (in a circular way)
 !> \par Limitations
 !>      * displ_in will be 1 by default (others not tested)
 !>      * the message array needs to be the same size on all processes
-!> \param[in,out] msg         Rank-2 data to shift
-!> \param[in] group           message passing environment identifier
-!> \param[in] displ_in        displacements (?)
 ! *****************************************************************************
   SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
@@ -58,14 +58,14 @@
 
 ! *****************************************************************************
 !> \brief Shift around the data in msg
+!> \param[in,out] msg         Data to shift
+!> \param[in] group           message passing environment identifier
+!> \param[in] displ_in        displacements (?)
 !> \par Example
 !>      msg will be moved from rank to rank+displ_in (in a circular way)
 !> \par Limitations
 !>      * displ_in will be 1 by default (others not tested)
 !>      * the message array needs to be the same size on all processes
-!> \param[in,out] msg         Data to shift
-!> \param[in] group           message passing environment identifier
-!> \param[in] displ_in        displacements (?)
 ! *****************************************************************************
   SUBROUTINE mp_shift_r( msg, group, displ_in)
 
@@ -116,13 +116,6 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank-1 data of different sizes
-!> \par MPI mapping
-!>      mpi_alltoallv
-!> \par Array sizes
-!>      The scount, rcount, and the sdispl and rdispl arrays have a
-!>      size equal to the number of processes.
-!> \par Offsets
-!>      Values in sdispl and rdispl start with 0.
 !> \param[in] sb              Data to send
 !> \param[in] scount          Data counts for data sent to other processes
 !> \param[in] sdispl          Respective data offsets for data sent to process
@@ -132,6 +125,13 @@
 !> \param[in] rdispl          Respective data offsets for data received from
 !>                            other processes
 !> \param[in] group           Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_alltoallv
+!> \par Array sizes
+!>      The scount, rcount, and the sdispl and rdispl arrays have a
+!>      size equal to the number of processes.
+!> \par Offsets
+!>      Values in sdispl and rdispl start with 0.
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
@@ -174,9 +174,16 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank-2 data of different sizes
+!> \param sb ...
+!> \param scount ...
+!> \param sdispl ...
+!> \param rb ...
+!> \param rcount ...
+!> \param rdispl ...
+!> \param group ...
 !> \par MPI mapping
 !>      mpi_alltoallv
-!> \sa mp_alltoall_r11v
+!> \note see mp_alltoall_r11v 
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
@@ -216,6 +223,11 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank 1 arrays, equal sizes
+!> \param[in] sb    array with data to send
+!> \param[out] rb   array into which data is received
+!> \param[in] count  number of elements to send/receive (product of the
+!>                   extents of the first two dimensions)
+!> \param[in] group           Message passing environment identifier
 !> \par Index meaning
 !> \par The first two indices specify the data while the last index counts
 !>      the processes
@@ -223,11 +235,6 @@
 !>      All processes have the same data size.
 !> \par MPI mapping
 !>      mpi_alltoall
-!> \param[in] sb    array with data to send
-!> \param[out] rb   array into which data is received
-!> \param[in] count  number of elements to send/receive (product of the
-!>                   extents of the first two dimensions)
-!> \param[in] group           Message passing environment identifier
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r ( sb, rb, count, group )
 
@@ -265,7 +272,11 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank-2 arrays, equal sizes
-!> \sa mp_alltoall_r
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param group ...
+!> \note see mp_alltoall_r 
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r22 ( sb, rb, count, group )
 
@@ -303,7 +314,11 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank-3 data with equal sizes
-!> \sa mp_alltoall_r
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param group ...
+!> \note see mp_alltoall_r 
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r33 ( sb, rb, count, group )
 
@@ -341,7 +356,11 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank 4 data, equal sizes
-!> \sa mp_alltoall_r
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param group ...
+!> \note see mp_alltoall_r 
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r44 ( sb, rb, count, group )
 
@@ -381,8 +400,12 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank-4 data to rank-5 data
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param group ...
+!> \note see mp_alltoall_r 
 !> \note User must ensure size consistency.
-!> \sa mp_alltoall_r
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r45 ( sb, rb, count, group )
 
@@ -420,8 +443,12 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank-3 data to rank-4 data
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param group ...
+!> \note see mp_alltoall_r 
 !> \note User must ensure size consistency.
-!> \sa mp_alltoall_r
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r34 ( sb, rb, count, group )
 
@@ -459,8 +486,12 @@
 
 ! *****************************************************************************
 !> \brief All-to-all data exchange, rank-5 data to rank-4 data
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param group ...
+!> \note see mp_alltoall_r 
 !> \note User must ensure size consistency.
-!> \sa mp_alltoall_r
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_r54 ( sb, rb, count, group )
 
@@ -498,12 +529,12 @@
 
 ! *****************************************************************************
 !> \brief Send one datum to another process
-!> \par MPI mapping
-!>      mpi_send
 !> \param[in] msg             Dum to send
 !> \param[in] dest            Destination process
 !> \param[in] tag             Transfer identifier
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_send
 ! *****************************************************************************
   SUBROUTINE mp_send_r(msg,dest,tag,gid)
     REAL(kind=real_4)                                  :: msg
@@ -531,7 +562,10 @@
 ! *****************************************************************************
 !> \brief Send rank-1 data to another process
 !> \param[in] msg             Rank-1 data to send
-!> \sa mp_send_r
+!> \param dest ...
+!> \param tag ...
+!> \param gid ...
+!> \note see mp_send_r 
 ! *****************************************************************************
   SUBROUTINE mp_send_rv(msg,dest,tag,gid)
     REAL(kind=real_4)                                  :: msg( : )
@@ -558,12 +592,12 @@
 
 ! *****************************************************************************
 !> \brief Receive one datum from another process
-!> \par MPI mapping
-!>      mpi_send
 !> \param[in,out] msg         Place received data into this variable
 !> \param[in,out] source      Process to receieve from
 !> \param[in,out] tag         Transfer identifier
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_send
 ! *****************************************************************************
   SUBROUTINE mp_recv_r(msg,source,tag,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg
@@ -599,7 +633,10 @@
 ! *****************************************************************************
 !> \brief Receive rank-1 data from another process
 !> \param[in,out] msg         Place receieved data into this rank-1 array
-!> \sa mp_recv_r
+!> \param source ...
+!> \param tag ...
+!> \param gid ...
+!> \note see mp_recv_r 
 ! *****************************************************************************
   SUBROUTINE mp_recv_rv(msg,source,tag,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( : )
@@ -634,11 +671,11 @@
 
 ! *****************************************************************************
 !> \brief Broadcasts a datum to all processes.
-!> \par MPI mapping
-!>      mpi_bcast
 !> \param[in] msg             Datum to broadcast
 !> \param[in] source          Processes which broadcasts
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_bcast
 ! *****************************************************************************
   SUBROUTINE mp_bcast_r(msg,source,gid)
     REAL(kind=real_4)                                  :: msg
@@ -666,7 +703,9 @@
 ! *****************************************************************************
 !> \brief Broadcasts rank-1 data to all processes
 !> \param[in] msg             Data to broadcast
-!> \sa mp_bcast_r1
+!> \param source ...
+!> \param gid ...
+!> \note see mp_bcast_r1 
 ! *****************************************************************************
   SUBROUTINE mp_bcast_rv(msg,source,gid)
     REAL(kind=real_4)                                  :: msg( : )
@@ -694,7 +733,9 @@
 ! *****************************************************************************
 !> \brief Broadcasts rank-2 data to all processes
 !> \param[in] msg             Data to broadcast
-!> \sa mp_bcast_r1
+!> \param source ...
+!> \param gid ...
+!> \note see mp_bcast_r1 
 ! *****************************************************************************
   SUBROUTINE mp_bcast_rm(msg,source,gid)
     REAL(kind=real_4)                                  :: msg( :, : )
@@ -722,7 +763,9 @@
 ! *****************************************************************************
 !> \brief Broadcasts rank-3 data to all processes
 !> \param[in] msg             Data to broadcast
-!> \sa mp_bcast_r1
+!> \param source ...
+!> \param gid ...
+!> \note see mp_bcast_r1 
 ! *****************************************************************************
   SUBROUTINE mp_bcast_r3(msg,source,gid)
     REAL(kind=real_4)                                  :: msg( :, :, : )
@@ -749,10 +792,10 @@
 
 ! *****************************************************************************
 !> \brief Sums a datum from all processes with result left on all processes.
-!> \par MPI mapping
-!>      mpi_allreduce
 !> \param[in,out] msg         Datum to sum (input) and result (output)
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_allreduce
 ! *****************************************************************************
   SUBROUTINE mp_sum_r(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg
@@ -779,8 +822,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-1 array on all processes.
-!> \sa mp_sum_r
 !> \param[in,out] msg         Vector to sum and result
+!> \param gid ...
+!> \note see mp_sum_r 
 ! *****************************************************************************
   SUBROUTINE mp_sum_rv(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( : )
@@ -812,8 +856,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-2 array on all processes.
-!> \sa mp_sum_r
 !> \param[in] msg             Matrix to sum and result
+!> \param gid ...
+!> \note see mp_sum_r 
 ! *****************************************************************************
   SUBROUTINE mp_sum_rm(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( :, : )
@@ -850,8 +895,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-3 array on all processes.
-!> \sa mp_sum_r
 !> \param[in] msg             Arary to sum and result
+!> \param gid ...
+!> \note see mp_sum_r 
 ! *****************************************************************************
   SUBROUTINE mp_sum_rm3(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( :, :, : )
@@ -880,8 +926,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-4 array on all processes.
-!> \sa mp_sum_r
 !> \param[in] msg             Arary to sum and result
+!> \param gid ...
+!> \note see mp_sum_r 
 ! *****************************************************************************
   SUBROUTINE mp_sum_rm4(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( :, :, :, : )
@@ -911,8 +958,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-5 array on all processes.
-!> \sa mp_sum_r
 !> \param[in] msg             Arary to sum and result
+!> \param gid ...
+!> \note see mp_sum_r 
 ! *****************************************************************************
   SUBROUTINE mp_sum_rm5(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( :, :, :, :, : )
@@ -942,8 +990,9 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-6 array on all processes.
-!> \sa mp_sum_r
 !> \param[in] msg             Arary to sum and result
+!> \param gid ...
+!> \note see mp_sum_r 
 ! *****************************************************************************
   SUBROUTINE mp_sum_rm6(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( :, :, :, :, :, : )
@@ -974,11 +1023,12 @@
 ! *****************************************************************************
 !> \brief Element-wise sum of data from all processes with result left only on
 !>        one.
-!> \par MPI mapping
-!>      mpi_reduce
 !> \param[in,out] msg         Vector to sum (input) and (only on process root)
 !>                            result (output)
+!> \param root ...
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_reduce
 ! *****************************************************************************
   SUBROUTINE mp_sum_root_rv(msg,root,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( : )
@@ -1024,7 +1074,9 @@
 !>        one.
 !> \param[in,out] msg         Matrix to sum (input) and (only on process root)
 !>                            result (output)
-!> \sa mp_sum_root_rv
+!> \param root ...
+!> \param gid ...
+!> \note see mp_sum_root_rv 
 ! *****************************************************************************
   SUBROUTINE mp_sum_root_rm(msg,root,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( :, : )
@@ -1067,11 +1119,11 @@
 
 ! *****************************************************************************
 !> \brief Finds the maximum of a datum with the result left on all processes.
-!> \par MPI mapping
-!>      mpi_allreduce
 !> \param[in,out] msg         Find maximum among these data (input) and
 !>                            maximum (output)
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_allreduce
 ! *****************************************************************************
   SUBROUTINE mp_max_r(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg
@@ -1101,7 +1153,8 @@
 !>        all processes.
 !> \param[in,out] msg         Find maximum among these data (input) and
 !>                            maximum (output)
-!> \sa mp_max_r
+!> \param gid ...
+!> \note see mp_max_r 
 ! *****************************************************************************
   SUBROUTINE mp_max_rv(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( : )
@@ -1128,11 +1181,11 @@
 
 ! *****************************************************************************
 !> \brief Finds the minimum of a datum with the result left on all processes.
-!> \par MPI mapping
-!>      mpi_allreduce
 !> \param[in,out] msg         Find minimum among these data (input) and
 !>                            maximum (output)
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_allreduce
 ! *****************************************************************************
   SUBROUTINE mp_min_r(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg
@@ -1160,11 +1213,12 @@
 ! *****************************************************************************
 !> \brief Finds the element-wise minimum of vector with the result left on
 !>        all processes.
-!> \par MPI mapping
-!>      mpi_allreduce
 !> \param[in,out] msg         Find minimum among these data (input) and
 !>                            maximum (output)
-!> \sa mp_min_r
+!> \param gid ...
+!> \par MPI mapping
+!>      mpi_allreduce
+!> \note see mp_min_r 
 ! *****************************************************************************
   SUBROUTINE mp_min_rv(msg,gid)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg( : )
@@ -1193,12 +1247,12 @@
 
 ! *****************************************************************************
 !> \brief Scatters data from one processes to all others
-!> \par MPI mapping
-!>      mpi_scatter
 !> \param[in] msg_scatter     Data to scatter (for root process)
 !> \param[out] msg            Received data
 !> \param[in] root            Process which scatters data
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_scatter
 ! *****************************************************************************
   SUBROUTINE mp_scatter_rv(msg_scatter,msg,root,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msg_scatter(:)
@@ -1229,12 +1283,12 @@
 
 ! *****************************************************************************
 !> \brief Gathers a datum from all processes to one
-!> \par MPI mapping
-!>      mpi_gather
 !> \param[in] msg             Datum to send to root
 !> \param[out] msg_gather     Received data (on root)
 !> \param[in] root            Process which gathers the data
 !> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_gather
 ! *****************************************************************************
   SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msg
@@ -1265,12 +1319,15 @@
 
 ! *****************************************************************************
 !> \brief Gathers data from all processes to one
+!> \param[in] msg             Datum to send to root
+!> \param msg_gather ...
+!> \param root ...
+!> \param gid ...
 !> \par Data length
 !>      All data (msg) is equal-sized
 !> \par MPI mapping
 !>      mpi_gather
-!> \param[in] msg             Datum to send to root
-!> \sa mp_gather_r
+!> \note see mp_gather_r 
 ! *****************************************************************************
   SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msg( : )
@@ -1301,12 +1358,15 @@
 
 ! *****************************************************************************
 !> \brief Gathers data from all processes to one
+!> \param[in] msg             Datum to send to root
+!> \param msg_gather ...
+!> \param root ...
+!> \param gid ...
 !> \par Data length
 !>      All data (msg) is equal-sized
 !> \par MPI mapping
 !>      mpi_gather
-!> \param[in] msg             Datum to send to root
-!> \sa mp_gather_r
+!> \note see mp_gather_r 
 ! *****************************************************************************
   SUBROUTINE mp_gather_rm(msg,msg_gather,root,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msg( :, : )
@@ -1337,18 +1397,18 @@
 
 ! *****************************************************************************
 !> \brief Gathers data from all processes to one.
-!> \par Data length
-!>      Data can have different lengths
-!> \par Offsets
-!>      Offsets start at 0
-!> \par MPI mapping
-!>      mpi_gather
 !> \param[in] sendbuf         Data to send to root
 !> \param[out] recvbuf        Received data (on root)
 !> \param[in] recvcounts      Sizes of data received from processes
 !> \param[in] displs          Offsets of data received from processes
 !> \param[in] root            Process which gathers the data
 !> \param[in] comm            Message passing environment identifier
+!> \par Data length
+!>      Data can have different lengths
+!> \par Offsets
+!>      Offsets start at 0
+!> \par MPI mapping
+!>      mpi_gather
 ! *****************************************************************************
   SUBROUTINE mp_gatherv_rv(sendbuf,recvbuf,recvcounts,displs,root,comm)
 
@@ -1390,13 +1450,13 @@
 ! *****************************************************************************
 !> \brief Gathers a datum from all processes and all processes receive the
 !>        same data
+!> \param[in] msgout          Datum to send
+!> \param[out] msgin          Received data
+!> \param[in] gid             Message passing environment identifier
 !> \par Data size
 !>      All processes send equal-sized data
 !> \par MPI mapping
 !>      mpi_allgather
-!> \param[in] msgout          Datum to send
-!> \param[out] msgin          Received data
-!> \param[in] gid             Message passing environment identifier
 ! *****************************************************************************
   SUBROUTINE mp_allgather_r(msgout,msgin,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msgout
@@ -1430,15 +1490,15 @@
 ! *****************************************************************************
 !> \brief Gathers vector data from all processes and all processes receive the
 !>        same data
+!> \param[in] msgout          Rank-1 data to send
+!> \param[out] msgin          Received data
+!> \param[in] gid             Message passing environment identifier
 !> \par Data size
 !>      All processes send equal-sized data
 !> \par Ranks
 !>      The last rank counts the processes
 !> \par MPI mapping
 !>      mpi_allgather
-!> \param[in] msgout          Rank-1 data to send
-!> \param[out] msgin          Received data
-!> \param[in] gid             Message passing environment identifier
 ! *****************************************************************************
   SUBROUTINE mp_allgather_r12(msgout, msgin,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msgout(:)
@@ -1473,7 +1533,9 @@
 !> \brief Gathers matrix data from all processes and all processes receive the
 !>        same data
 !> \param[in] msgout          Rank-2 data to send
-!> \sa mp_allgather_r12
+!> \param msgin ...
+!> \param gid ...
+!> \note see mp_allgather_r12 
 ! *****************************************************************************
   SUBROUTINE mp_allgather_r23(msgout, msgin,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msgout(:,:)
@@ -1508,7 +1570,9 @@
 !> \brief Gathers rank-3 data from all processes and all processes receive the
 !>        same data
 !> \param[in] msgout          Rank-3 data to send
-!> \sa mp_allgather_r12
+!> \param msgin ...
+!> \param gid ...
+!> \note see mp_allgather_r12 
 ! *****************************************************************************
   SUBROUTINE mp_allgather_r34(msgout, msgin,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msgout(:,:, :)
@@ -1542,6 +1606,11 @@
 ! *****************************************************************************
 !> \brief Gathers vector data from all processes and all processes receive the
 !>        same data
+!> \param[in] msgout          Rank-1 data to send
+!> \param[out] msgin          Received data
+!> \param[in] rcount          Size of sent data for every process
+!> \param[in] rdispl          Offset of sent data for every process
+!> \param[in] gid             Message passing environment identifier
 !> \par Data size
 !>      Processes can send different-sized data
 !> \par Ranks
@@ -1550,11 +1619,6 @@
 !>      Offsets are from 0
 !> \par MPI mapping
 !>      mpi_allgather
-!> \param[in] msgout          Rank-1 data to send
-!> \param[out] msgin          Received data
-!> \param[in] rcount          Size of sent data for every process
-!> \param[in] rdispl          Offset of sent data for every process
-!> \param[in] gid             Message passing environment identifier
 ! *****************************************************************************
   SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
     REAL(kind=real_4), INTENT(IN)                      :: msgout( : )
@@ -1669,7 +1733,12 @@
 
 ! *****************************************************************************
 !> \brief Sends and receives matrix data
-!> \sa mp_sendrecv_rv
+!> \param msgin ...
+!> \param dest ...
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \note see mp_sendrecv_rv 
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
     REAL(kind=real_4), INTENT(IN)                      :: msgin( :, : )
@@ -1713,7 +1782,12 @@
 
 ! *****************************************************************************
 !> \brief Sends and receives rank-3 data
-!> \sa mp_sendrecv_rv
+!> \param msgin ...
+!> \param dest ...
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \note see mp_sendrecv_rv 
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
     REAL(kind=real_4), INTENT(IN)                      :: msgin( :, :, : )
@@ -1757,13 +1831,6 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking send and receieve of a vector
-!> \par Implementation
-!>      Calls mpi_isend and mpi_irecv.
-!> \note
-!>      The arguments must be pointers to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
-!> \par History
-!>      11.2004 created [Joost VandeVondele]
 !> \param[in] msgin           Vector data to send
 !> \param[in] dest            Which process to send to
 !> \param[out] msgout         Receive data into this pointer
@@ -1772,6 +1839,13 @@
 !> \param[out] send_request   Request handle for the send
 !> \param[out] recv_request   Request handle for the receive
 !> \param[in] tag             (optional) tag to differentiate requests
+!> \par Implementation
+!>      Calls mpi_isend and mpi_irecv.
+!> \par History
+!>      11.2004 created [Joost VandeVondele]
+!> \note
+!>      The arguments must be pointers to be sure that we do not get
+!>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
   SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
        recv_request,tag)
@@ -1834,12 +1908,20 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking send and receieve of a matrix
+!> \param msgin ...
+!> \param dest ...
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \param send_request ...
+!> \param recv_request ...
+!> \param tag ...
+!> \par History
+!>      08.2003 created [f&j]
+!> \note see mp_isendrecv_rv 
 !> \note
 !>      The arguments must be pointers to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
-!> \par History
-!>      08.2003 created [f&j]
-!> \sa mp_isendrecv_rv
 ! *****************************************************************************
   SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
        recv_request,tag)
@@ -1904,12 +1986,17 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking send of vector data
+!> \param msgin ...
+!> \param dest ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
+!> \par History
+!>      08.2003 created [f&j]
+!> \note see mp_isendrecv_rv 
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
-!> \par History
-!>      08.2003 created [f&j]
-!> \sa mp_isendrecv_rv
 ! *****************************************************************************
   SUBROUTINE mp_isend_rv(msgin,dest,comm,request,tag)
     REAL(kind=real_4), DIMENSION(:), POINTER           :: msgin
@@ -1956,14 +2043,19 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking send of matrix data
+!> \param msgin ...
+!> \param dest ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
+!> \par History
+!>      2009-11-25 [UB] Made type-generic for templates
+!> \author fawzi
+!> \note see mp_isendrecv_rv 
+!> \note see mp_isend_rv 
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
-!> \author fawzi
-!> \par History
-!>      2009-11-25 [UB] Made type-generic for templates
-!> \sa mp_isendrecv_rv
-!> \sa mp_isend_rv
 ! *****************************************************************************
   SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
     REAL(kind=real_4), DIMENSION(:, :), POINTER  :: msgin
@@ -2011,16 +2103,21 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking send of rank-3 data
-!> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
-!> \author fawzi
+!> \param msgin ...
+!> \param dest ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
 !> \par History
 !>      9.2008 added _rm3 subroutine [Iain Bethune]
 !>     (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      2009-11-25 [UB] Made type-generic for templates
-!> \sa mp_isendrecv_rv
-!> \sa mp_isend_rv
+!> \author fawzi
+!> \note see mp_isendrecv_rv 
+!> \note see mp_isend_rv 
+!> \note
+!>      The argument must be a pointer to be sure that we do not get
+!>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
   SUBROUTINE mp_isend_rm3(msgin,dest,comm,request,tag)
     REAL(kind=real_4), DIMENSION(:, :, :), &
@@ -2071,13 +2168,18 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking receive of vector data
-!> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
 !> \par History
 !>      08.2003 created [f&j]
 !>      2009-11-25 [UB] Made type-generic for templates
-!> \sa mp_isendrecv_rv
+!> \note see mp_isendrecv_rv 
+!> \note
+!>      The argument must be a pointer to be sure that we do not get
+!>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
   SUBROUTINE mp_irecv_rv(msgout,source,comm,request,tag)
     REAL(kind=real_4), DIMENSION(:), POINTER           :: msgout
@@ -2123,14 +2225,19 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking receive of matrix data
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
+!> \par History
+!>      2009-11-25 [UB] Made type-generic for templates
+!> \author fawzi
+!> \note see mp_isendrecv_rv 
+!> \note see mp_irecv_rv 
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
-!> \author fawzi
-!> \par History
-!>      2009-11-25 [UB] Made type-generic for templates
-!> \sa mp_isendrecv_rv
-!> \sa mp_irecv_rv
 ! *****************************************************************************
   SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
     REAL(kind=real_4), DIMENSION(:, :), POINTER        :: msgout
@@ -2178,15 +2285,20 @@
 
 ! *****************************************************************************
 !> \brief Non-blocking send of rank-3 data
-!> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
-!> \author fawzi
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
 !> \par History
 !>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      2009-11-25 [UB] Made type-generic for templates
-!> \sa mp_isendrecv_rv
-!> \sa mp_irecv_rv
+!> \author fawzi
+!> \note see mp_isendrecv_rv 
+!> \note see mp_irecv_rv 
+!> \note
+!>      The argument must be a pointer to be sure that we do not get
+!>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
   SUBROUTINE mp_irecv_rm3(msgout,source,comm,request,tag)
     REAL(kind=real_4), DIMENSION(:, :, :), &
@@ -2236,10 +2348,11 @@
 
 ! *****************************************************************************
 !> \brief Allocates special parallel memory
-!> \author UB
-!> \param[in]  data      pointer to integer array to allocate
+!> \param DATA ...
 !> \param[in]  len       number of integers to allocate
 !> \param[out] stat      (optional) allocation status result
+!> \param[in]  data      pointer to integer array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author UB
 ! *****************************************************************************
   SUBROUTINE mp_allocate_r(DATA, len, stat)
     REAL(kind=real_4), DIMENSION(:), POINTER      :: DATA
@@ -2278,8 +2391,10 @@
 
 ! *****************************************************************************
 !> \brief Deallocates special parallel memory
+!> \param DATA ...
+!> \param stat ...
+!> \param[in] data         pointer to special memory to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author UB
-!> \param[in] data         pointer to special memory to deallocate
 ! *****************************************************************************
   SUBROUTINE mp_deallocate_r(DATA, stat)
     REAL(kind=real_4), DIMENSION(:), POINTER      :: DATA
@@ -2319,11 +2434,12 @@
 ! *****************************************************************************
 !> \brief (parallel) Blocking individual file write using explicit offsets
 !>        (serial) Unformatted stream write
-!> \par MPI-I/O mapping   mpi_file_write_at
-!> \par STREAM-I/O mapping   WRITE
 !> \param[in] fh     file handle (file storage unit)
 !> \param[in] offset file offset (position)
 !> \param[in] msg    data to be writen to the file
+!> \param msglen ...
+!> \par MPI-I/O mapping   mpi_file_write_at
+!> \par STREAM-I/O mapping   WRITE
 !> \param[in](optional) msglen number of the elements of data
 ! *****************************************************************************
   SUBROUTINE mp_file_write_at_rv(fh, offset, msg, msglen)
@@ -2353,6 +2469,12 @@
 #endif
   END SUBROUTINE mp_file_write_at_rv
 
+! *****************************************************************************
+!> \brief ...
+!> \param fh ...
+!> \param offset ...
+!> \param msg ...
+! *****************************************************************************
   SUBROUTINE mp_file_write_at_r(fh, offset, msg)
     REAL(kind=real_4), INTENT(IN)               :: msg
     INTEGER, INTENT(IN)                        :: fh
@@ -2380,6 +2502,10 @@
 ! *****************************************************************************
 !> \brief (parallel) Blocking collective file write using explicit offsets
 !>        (serial) Unformatted stream write
+!> \param fh ...
+!> \param offset ...
+!> \param msg ...
+!> \param msglen ...
 !> \par MPI-I/O mapping   mpi_file_write_at_all
 !> \par STREAM-I/O mapping   WRITE
 ! *****************************************************************************
@@ -2411,6 +2537,12 @@
 #endif
   END SUBROUTINE mp_file_write_at_all_rv
 
+! *****************************************************************************
+!> \brief ...
+!> \param fh ...
+!> \param offset ...
+!> \param msg ...
+! *****************************************************************************
   SUBROUTINE mp_file_write_at_all_r(fh, offset, msg)
     REAL(kind=real_4), INTENT(IN)               :: msg
     INTEGER, INTENT(IN)                        :: fh
@@ -2438,11 +2570,12 @@
 ! *****************************************************************************
 !> \brief (parallel) Blocking individual file read using explicit offsets
 !>        (serial) Unformatted stream read
-!> \par MPI-I/O mapping   mpi_file_read_at
-!> \par STREAM-I/O mapping   READ
 !> \param[in] fh     file handle (file storage unit)
 !> \param[in] offset file offset (position)
 !> \param[out] msg   data to be read from the file
+!> \param msglen ...
+!> \par MPI-I/O mapping   mpi_file_read_at
+!> \par STREAM-I/O mapping   READ
 !> \param[in](optional) msglen  number of elements of data
 ! *****************************************************************************
   SUBROUTINE mp_file_read_at_rv(fh, offset, msg, msglen)
@@ -2473,6 +2606,12 @@
 #endif
   END SUBROUTINE mp_file_read_at_rv
 
+! *****************************************************************************
+!> \brief ...
+!> \param fh ...
+!> \param offset ...
+!> \param msg ...
+! *****************************************************************************
   SUBROUTINE mp_file_read_at_r(fh, offset, msg)
     REAL(kind=real_4), INTENT(OUT)               :: msg
     INTEGER, INTENT(IN)                        :: fh
@@ -2501,6 +2640,10 @@
 ! *****************************************************************************
 !> \brief (parallel) Blocking collective file read using explicit offsets
 !>        (serial) Unformatted stream read
+!> \param fh ...
+!> \param offset ...
+!> \param msg ...
+!> \param msglen ...
 !> \par MPI-I/O mapping    mpi_file_read_at_all
 !> \par STREAM-I/O mapping   READ
 ! *****************************************************************************
@@ -2531,6 +2674,12 @@
 #endif
   END SUBROUTINE mp_file_read_at_all_rv
 
+! *****************************************************************************
+!> \brief ...
+!> \param fh ...
+!> \param offset ...
+!> \param msg ...
+! *****************************************************************************
   SUBROUTINE mp_file_read_at_all_r(fh, offset, msg)
     REAL(kind=real_4), INTENT(OUT)               :: msg
     INTEGER, INTENT(IN)                        :: fh
@@ -2555,6 +2704,13 @@
 #endif
   END SUBROUTINE mp_file_read_at_all_r
 
+! *****************************************************************************
+!> \brief ...
+!> \param ptr ...
+!> \param vector_descriptor ...
+!> \param index_descriptor ...
+!> \retval type_descriptor ...
+! *****************************************************************************
   FUNCTION mp_type_make_r (ptr,&
        vector_descriptor, index_descriptor) &
        RESULT (type_descriptor)
@@ -2589,9 +2745,10 @@
 ! *****************************************************************************
 !> \brief Allocates an array, using MPI_ALLOC_MEM ... this is hackish
 !>        as the Fortran version returns an integer, which we take to be a C_PTR
-!> \param data           data array to allocate
+!> \param DATA ...
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
+!> \param data           data array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_r(DATA, len, stat)
     REAL(kind=real_4), DIMENSION(:), POINTER           :: DATA
@@ -2625,8 +2782,9 @@
 ! *****************************************************************************
 !> \brief Deallocates am array, ... this is hackish 
 !>        as the Fortran version takes an integer, which we hope to get by reference
-!> \param data           data array to allocate
+!> \param DATA ...
 !> \param[out] stat      (optional) allocation status result
+!> \param data           data array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
    SUBROUTINE mp_free_mem_r(DATA, stat)
     REAL(kind=real_4), DIMENSION(:), &

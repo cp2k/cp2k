@@ -40,6 +40,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the optimize_basis section
+!> \param section ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
    SUBROUTINE create_optimize_basis_section(section,error)
@@ -156,6 +158,11 @@ CONTAINS
 
    END SUBROUTINE create_optimize_basis_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_fit_kinds_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -242,6 +249,11 @@ CONTAINS
     
    END SUBROUTINE create_fit_kinds_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_derived_sets_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -284,6 +296,11 @@ CONTAINS
 
    END SUBROUTINE create_derived_sets_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_constrain_exp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -325,6 +342,11 @@ CONTAINS
    END SUBROUTINE create_constrain_exp_section
     
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_training_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -360,6 +382,11 @@ CONTAINS
     
    END SUBROUTINE create_training_section
   
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_powell_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

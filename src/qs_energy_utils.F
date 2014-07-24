@@ -96,6 +96,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Driver routine for the initial 
 !>        setup and calculations for a qs energy calculation
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -154,6 +157,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Puts initialization of the Kim-Gordon
 !>        settings into separate subroutine
+!> \param qs_env ...
+!> \param molecule_only ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -223,6 +229,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Moves computation of the different
 !>        core hamiltonians into separate subroutine
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param molecule_only ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -303,6 +313,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Moves computation of matrix_w
 !>        into separate subroutine
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -381,6 +394,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Moves computation of properties
 !>        into separate subroutine
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -479,8 +494,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Use a simple Mulliken-like energy decomposition
-!> \author  JHU
+!> \param qs_env ...
+!> \param error ...
 !> \date    07.2011
+!> \author  JHU
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies_mulliken(qs_env,error)
@@ -516,12 +533,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute partial trace of product of two matrices
-!> \param amat, bmat
-!> \param charges previously allocated with the right size (natom,nspin)
-!> \note
-!>      charges are computed per spin in the LSD case
+!> \param amat ...
+!> \param bmat ...
+!> \param factor ...
+!> \param atrace ...
+!> \param error ...
+!> \param amat, bmat UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param charges previously allocated with the right size (natom,nspin) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2004 created [Joost VandeVondele]
+!> \note
+!>      charges are computed per spin in the LSD case
 ! *****************************************************************************
   SUBROUTINE atom_trace(amat,bmat,factor,atrace,error)
     TYPE(cp_dbcsr_type), POINTER             :: amat, bmat
@@ -567,6 +589,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Enters the mp2 part of cp2k
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param error ...
 ! *****************************************************************************
 
   SUBROUTINE qs_energies_mp2(qs_env,calc_forces,error)

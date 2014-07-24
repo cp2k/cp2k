@@ -39,14 +39,14 @@ MODULE helium_interactions
 
   CONTAINS
 
-  ! ***************************************************************************
-  !> \brief  Calculate the helium energy (including helium-solute interaction)
-  !> \param    pint_env - path integral environment
-  !> \param    helium   - helium environment
-  !> \author hforbert
-  !> \par History
-  !>         2009-06 moved I/O out from here [lwalewski]
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Calculate the helium energy (including helium-solute interaction)
+!> \param    helium   - helium environment
+!> \param    pint_env - path integral environment
+!> \par History
+!>         2009-06 moved I/O out from here [lwalewski]
+!> \author hforbert
+! *****************************************************************************
   SUBROUTINE helium_calc_energy(helium,pint_env)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -161,15 +161,22 @@ vkin = 0.0_dp
    RETURN
   END SUBROUTINE helium_calc_energy
 
-  ! ***************************************************************************
-  !> \descr  Calculate helium-solute interaction energy and forces contribution
-  !>         from one helium bead of one helium particle and the corresponding
-  !>         solute time slice.
-  !> \note   This is a stub, Lennard-Jones potential with no warranty. It should
-  !>         be replaced with realistic potential for real-world simulations.
-  !> \author Lukasz Walewski
-  !> \date   2009-12-11
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Calculate helium-solute interaction energy and forces contribution
+!>         from one helium bead of one helium particle and the corresponding
+!>         solute time slice.
+!> \param pint_env ...
+!> \param helium ...
+!> \param helium_part_index ...
+!> \param helium_slice_index ...
+!> \param helium_r_opt ...
+!> \param energy ...
+!> \param force ...
+!> \date   2009-12-11
+!> \author Lukasz Walewski
+!> \note   This is a stub, Lennard-Jones potential with no warranty. It should
+!>         be replaced with realistic potential for real-world simulations.
+! *****************************************************************************
   SUBROUTINE helium_bead_solute_e_f(pint_env, helium, helium_part_index, &
     helium_slice_index, helium_r_opt, energy, force)
 
@@ -288,13 +295,14 @@ vkin = 0.0_dp
     RETURN
   END SUBROUTINE helium_bead_solute_e_f
 
-  ! ***************************************************************************
-  !> \brief Calculate total helium-solute interaction energy and forces.
-  !> \param   pint_env - path integral environment
-  !> \param   energy   - calculated interaction energy
-  !> \param   force    - calculated forces (P,NDIM)
-  !> \author Lukasz Walewski
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief Calculate total helium-solute interaction energy and forces.
+!> \param   pint_env - path integral environment
+!> \param helium ...
+!> \param   energy   - calculated interaction energy
+!> \param   force    - calculated forces (P,NDIM) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author Lukasz Walewski
+! *****************************************************************************
   SUBROUTINE helium_solute_e_f(pint_env, helium, energy)
 
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -332,15 +340,21 @@ vkin = 0.0_dp
     RETURN
   END SUBROUTINE helium_solute_e_f
 
-  ! ***************************************************************************
-  !> \descr  Calculate helium-solute interaction energy contribution from one
-  !>         helium bead of one helium particle and the corresponding solute
-  !>         time slice.
-  !> \note   This is a stub, Lennard-Jones potential with no warranty. It should
-  !>         be replaced with realistic potential for real-world simulations.
-  !> \author Lukasz Walewski
-  !> \date   2009-12-11
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Calculate helium-solute interaction energy contribution from one
+!>         helium bead of one helium particle and the corresponding solute
+!>         time slice.
+!> \param pint_env ...
+!> \param helium ...
+!> \param helium_part_index ...
+!> \param helium_slice_index ...
+!> \param helium_r_opt ...
+!> \param energy ...
+!> \date   2009-12-11
+!> \author Lukasz Walewski
+!> \note   This is a stub, Lennard-Jones potential with no warranty. It should
+!>         be replaced with realistic potential for real-world simulations.
+! *****************************************************************************
   SUBROUTINE helium_bead_solute_e(pint_env, helium, helium_part_index, &
     helium_slice_index, helium_r_opt, energy)
 
@@ -434,12 +448,13 @@ vkin = 0.0_dp
     RETURN
   END SUBROUTINE helium_bead_solute_e
 
-  ! ***************************************************************************
-  !> \brief Calculate total helium-solute interaction energy.
-  !> \param   pint_env - path integral environment
-  !> \param   energy   - calculated interaction energy
-  !> \author Lukasz Walewski
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief Calculate total helium-solute interaction energy.
+!> \param   pint_env - path integral environment
+!> \param helium ...
+!> \param   energy   - calculated interaction energy
+!> \author Lukasz Walewski
+! *****************************************************************************
   SUBROUTINE helium_solute_e(pint_env, helium, energy)
 
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -462,9 +477,11 @@ vkin = 0.0_dp
     RETURN
   END SUBROUTINE helium_solute_e
 
-  ! ***************************************************************************
-  !> \brief Helium-helium pair interaction potential.
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief Helium-helium pair interaction potential.
+!> \param r ...
+!> \retval vij ...
+! *****************************************************************************
   FUNCTION helium_vij(r) RESULT(vij)
 
     REAL(kind=dp), INTENT(IN)                :: r
@@ -485,9 +502,11 @@ vkin = 0.0_dp
     RETURN
   END FUNCTION helium_vij
 
-  ! ***************************************************************************
-  !> \brief Helium-helium pair interaction potential's derivative.
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief Helium-helium pair interaction potential's derivative.
+!> \param r ...
+!> \retval dvij ...
+! *****************************************************************************
   FUNCTION helium_d_vij(r) RESULT(dvij)
 
     REAL(kind=dp), INTENT(IN)                :: r

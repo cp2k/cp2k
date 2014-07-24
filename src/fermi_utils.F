@@ -29,16 +29,17 @@ CONTAINS
 !> \brief   returns occupations according to Fermi-Dirac statistics
 !>          for a given set of energies and fermi level.
 !>          Note that singly occupied orbitals are assumed
-!> \author  Joost VandeVondele
-!> \date    09.2008
 !> \param   f occupations
 !> \param   N total number of electrons (output)
+!> \param kTS ...
 !> \param   e eigenvalues
 !> \param   mu Fermi level (input)
 !> \param   T  electronic temperature
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
+!> \date    09.2008
+!> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE Fermi(f,N,kTS,e,mu,T,maxocc,estate,festate)
 
@@ -105,16 +106,17 @@ CONTAINS
 !>          Note that singly occupied orbitals are assumed.
 !>          could fail if the fermi level lies out of the range of eigenvalues
 !>          (to be fixed)
-!> \author  Joost VandeVondele
-!> \date    09.2008
 !> \param   f occupations
-!> \param   N total number of electrons (input)
-!> \param   e eigenvalues
 !> \param   mu Fermi level (output)
+!> \param kTS ...
+!> \param   e eigenvalues
+!> \param   N total number of electrons (input)
 !> \param   T  electronic temperature
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
+!> \date    09.2008
+!> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
     REAL(KIND=dp), INTENT(OUT)               :: f(:), mu, kTS
@@ -185,16 +187,20 @@ CONTAINS
 !>          l ~ 10*T yields best accuracy
 !>          Note that singly occupied orbitals are assumed.
 !>          To be fixed: this could be parallellized for better efficiency
-!> \author  Joost VandeVondele
-!> \date    09.2008
 !> \param   dfde derivatives of the occupation numbers with respect to the eigenvalues
 !>               the ith column is the derivative of f wrt to e_i
 !> \param   f occupations
-!> \param   N total number of electrons (output)
-!> \param   e eigenvalues
 !> \param   mu Fermi level (input)
+!> \param kTS ...
+!> \param   e eigenvalues
+!> \param   N total number of electrons (output)
 !> \param   T  electronic temperature
+!> \param maxocc ...
+!> \param estate ...
+!> \param festate ...
 !> \param   l  typical lenght scale (~ 10 * T)
+!> \date    09.2008
+!> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,estate,festate,l)
     REAL(KIND=dp), INTENT(OUT)               :: dfde(:,:), f(:), mu, kTS

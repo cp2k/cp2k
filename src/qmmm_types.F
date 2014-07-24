@@ -223,6 +223,8 @@ MODULE qmmm_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -261,6 +263,8 @@ CONTAINS
   END SUBROUTINE qmmm_env_mm_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -340,6 +344,8 @@ CONTAINS
   END SUBROUTINE qmmm_env_mm_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Fawzi Mohamed
@@ -503,6 +509,7 @@ END SUBROUTINE qmmm_env_qm_release
 
 ! *****************************************************************************
 !> \brief deallocates the pgfs type
+!> \param pgfs ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -543,6 +550,7 @@ END SUBROUTINE pgfs_release
 
 ! *****************************************************************************
 !> \brief deallocates the qmmm_links structure
+!> \param qmmm_links ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -578,6 +586,7 @@ END SUBROUTINE qmmm_links_dealloc
 
 ! ****************************************************************************
 !> \brief deallocates the image_charge_pot structure
+!> \param image_charge_pot ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze
@@ -611,9 +620,10 @@ END SUBROUTINE qmmm_image_charge_dealloc
 
 ! *****************************************************************************
 !> \brief deallocates the qmmm_pot_type structure
-!> \param qmmm_env the object to release
+!> \param Potentials ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param qmmm_env the object to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino
 ! *****************************************************************************
 SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
@@ -646,9 +656,10 @@ END SUBROUTINE qmmm_pot_type_dealloc
 ! *****************************************************************************
 !> \brief deallocates the qmmm_per_pot_type structure
 !>      for QM/MM periodic boundary conditions
-!> \param qmmm_env the object to release
+!> \param Per_Potentials ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param qmmm_env the object to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino
 ! *****************************************************************************
 SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
@@ -703,6 +714,7 @@ END SUBROUTINE qmmm_per_pot_type_dealloc
 
 ! *****************************************************************************
 !> \brief deallocates the add_set_release
+!> \param added_charges ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -762,6 +774,8 @@ END SUBROUTINE add_set_release
 
 ! *****************************************************************************
 !> \brief creates the add_set_type structure
+!> \param added_charges ...
+!> \param ndim ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -815,6 +829,7 @@ END SUBROUTINE create_add_set_type
 
 ! *****************************************************************************
 !> \brief creates the image_charge_type structure
+!> \param image_charge_pot ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze

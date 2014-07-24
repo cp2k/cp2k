@@ -66,6 +66,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief reads the colvar section of the colvar
+!> \param subsys ...
+!> \param colvar_section ...
+!> \param error ...
 !> \par History
 !>      2006.01 Joost VandeVondele
 ! *****************************************************************************
@@ -96,17 +99,23 @@ CONTAINS
 !> \brief updates the molecule information of the given subsys
 !> \param small_subsys the subsys to create
 !> \param big_subsys the superset of small_subsys
+!> \param small_cell ...
 !> \param small_para_env the parallel environment for the new (small)
 !>        subsys
 !> \param sub_atom_index indexes of the atoms that should be in small_subsys
+!> \param sub_atom_kind_name ...
+!> \param para_env ...
+!> \param force_env_section ...
+!> \param subsys_section ...
+!> \param ignore_outside_box ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      not really ready to be used with different para_envs for the small
-!>      and big part
 !> \par History
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed, Teodoro Laino
+!> \note
+!>      not really ready to be used with different para_envs for the small
+!>      and big part
 ! *****************************************************************************
   SUBROUTINE create_small_subsys(small_subsys, big_subsys, small_cell,&
        small_para_env, sub_atom_index, sub_atom_kind_name, &

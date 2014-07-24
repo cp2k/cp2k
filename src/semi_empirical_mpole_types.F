@@ -68,6 +68,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical mpole type
+!> \param mpole ...
+!> \param ndim ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_p_create(mpole, ndim, error)
@@ -96,6 +99,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
+!> \param mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_p_release(mpole, error)
@@ -123,6 +128,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical mpole type
+!> \param mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_create(mpole, error)
@@ -153,6 +160,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
+!> \param mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_release(mpole, error)
@@ -175,6 +184,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate NDDO multipole type
+!> \param nddo_mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE nddo_mpole_create(nddo_mpole, error)
@@ -201,6 +212,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate NDDO multipole type
+!> \param nddo_mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE nddo_mpole_release(nddo_mpole, error)

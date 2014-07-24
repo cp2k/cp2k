@@ -101,13 +101,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Get the number of the Lebedev grid, which has the requested
-!          angular momentum quantnum number l or size n.
-!> \author Matthias Krack
+!>          angular momentum quantnum number l or size n.
+!> \param l ...
+!> \param n ...
+!> \retval number_of_lebedev_grid ...
 !> \date   05.05.99
 !> \par Variables
-!       - l : Minimal angular momentum quantum number of the requested Lebedev grid.
-!       - n : Minimal size of the requested Lebedev grid.
+!> \author Matthias Krack
 !> \version 1.0
+!> \note         - l : Minimal angular momentum quantum number of the requested Lebedev grid.
+!> \note         - n : Minimal size of the requested Lebedev grid.
 ! *****************************************************************************
   FUNCTION get_number_of_lebedev_grid(l,n) RESULT(number_of_lebedev_grid)
 
@@ -146,12 +149,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Load the Lebedev grid points of a subsystem.
-!> \author  Matthias Krack
+!> \param subsystem ...
+!> \param lgnum ...
+!> \param np ...
 !> \date    06.05.99
 !> \par Variables
 !>       - subsystem: String, which specifies the selected subsystem.
 !>       - lgnum    : Number of the current Lebedev grid.
 !>       - np       : Number of the nonredundant grid points.
+!> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE load_sub_grid(subsystem,lgnum,np)
@@ -320,6 +326,8 @@ CONTAINS
   END SUBROUTINE load_sub_grid
 
 ! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
   SUBROUTINE deallocate_lebedev_grids()
 
     INTEGER                                  :: ilg
@@ -332,9 +340,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Load the coordinates and weights of the nonredundant Lebedev grid
-!         points.
-!> \author  Matthias Krack
+!>         points.
 !> \date    04.05.99
+!> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_lebedev_grids()

@@ -58,6 +58,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Pass information about the kind given the element symbol
+!> \param symbol ...
+!> \param number ...
+!> \param amass ...
+!> \param ielement ...
+!> \param covalent_radius ...
+!> \param vdw_radius ...
+!> \param found ...
 !> \par History
 !>      none
 !> \author MI
@@ -1428,6 +1435,8 @@ CONTAINS
   END SUBROUTINE init_periodic_table
 
 ! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
   SUBROUTINE init_eheat
     ! All values in kcal/mol
     ! Dummy
@@ -1608,6 +1617,8 @@ CONTAINS
 
   END SUBROUTINE init_eheat
 
+! *****************************************************************************
+!> \brief ...
 ! *****************************************************************************
   SUBROUTINE init_gratio
     ! D. M. Granty and R. K. Harris, Encyclopedia of Nuclear

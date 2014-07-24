@@ -66,8 +66,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Initialize all the atomic kind radii for a given threshold value.
-!> \author  GT
+!> \param qs_control ...
+!> \param atomic_kind_set ...
+!> \param error ...
 !> \date    24.09.2002
+!> \author  GT
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_interaction_radii(qs_control,atomic_kind_set,error)
@@ -380,6 +383,12 @@ CONTAINS
   END SUBROUTINE init_interaction_radii
 
 ! *****************************************************************************
+!> \brief ...
+!> \param orb_basis_set ...
+!> \param eps_pgf_orb ...
+!> \param eps_pgf_short ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_interaction_radii_orb_basis(orb_basis_set,eps_pgf_orb,eps_pgf_short,error)
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -455,6 +464,12 @@ CONTAINS
   END SUBROUTINE init_interaction_radii_orb_basis
 
 ! *****************************************************************************
+!> \brief ...
+!> \param se_control ...
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_se_nlradius(se_control,atomic_kind_set,&
                    subsys_section,error)
 
@@ -502,6 +517,11 @@ CONTAINS
 
   END SUBROUTINE init_se_nlradius
 
+! *****************************************************************************
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_kind_radii(atomic_kind_set,subsys_section,error)
 
@@ -557,8 +577,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Write the radii of the core charge distributions to the output
 !>         unit.
-!> \author  MK
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    15.09.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_core_charge_radii(atomic_kind_set,subsys_section,error)
@@ -611,8 +634,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write the orbital basis function radii to the output unit.
-!> \author  MK
+!> \param basis ...
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    05.06.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_pgf_orb_radii(basis,atomic_kind_set,subsys_section,error)
@@ -824,8 +851,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write the geminal basis function radii to the output unit.
-!> \author  JGH
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    18.08.2009
+!> \author  JGH
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_geminal_radii(atomic_kind_set,subsys_section,error)
@@ -943,8 +973,11 @@ CONTAINS
 !> \brief   Write the radii of the exponential functions of the Goedecker
 !>           pseudopotential (GTH, local part) to the logical unit number
 !>          "output_unit".
-!> \author  MK
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    06.10.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_ppl_radii(atomic_kind_set,subsys_section,error)
@@ -993,8 +1026,11 @@ CONTAINS
 !> \brief  Write the radii of the projector functions of the Goedecker
 !>          pseudopotential (GTH, non-local part) to the logical unit number
 !>          "output_unit".
-!> \author  MK
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    06.10.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_ppnl_radii(atomic_kind_set,subsys_section,error)
@@ -1041,6 +1077,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write the radii of the one center projector
+!> \param atomic_kind_set ...
+!> \param subsys_section ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_paw_radii(atomic_kind_set,subsys_section,error)

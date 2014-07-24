@@ -43,6 +43,8 @@ MODULE input_cp2k_ls
 CONTAINS
 ! *****************************************************************************
 !> \brief creates the linear scaling scf section
+!> \param section ...
+!> \param error ...
 !> \author Joost VandeVondele [2010-10]
 ! *****************************************************************************
   SUBROUTINE create_ls_scf_section(section,error)
@@ -245,6 +247,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the DOS section
+!> \param section ...
+!> \param error ...
 !> \author Joost VandeVondele, Jinwoong Cha [2012-10]
 ! *****************************************************************************
   SUBROUTINE create_chebyshev_section(section,error)
@@ -330,6 +334,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the curvy_steps section in linear scaling scf 
+!> \param section ...
+!> \param error ...
 !> \author Florian Schiffmann [2012-10]
 ! *****************************************************************************
   SUBROUTINE create_ls_curvy_section(section,error)

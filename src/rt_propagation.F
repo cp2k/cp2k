@@ -85,6 +85,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates rtp_type, gets the initial state, either by reading MO's
 !>        from file or calling SCF run
+!> \param force_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -162,6 +164,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the matrices needed in the first step of RTP
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -226,6 +230,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the matrices needed in the first step of EMD
+!> \param force_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -288,6 +295,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief performes the real RTP run, gets information from MD section
 !>        uses MD as iteration level
+!> \param qs_env ...
+!> \param force_env ...
+!> \param globenv ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -376,6 +387,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief overwrites some values in the input file such that the .restart
 !>        file will contain the appropriate information
+!> \param md_env ...
+!> \param force_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -407,6 +421,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the initial electronic states and allocates the necessary 
 !>        matrices 
+!> \param qs_env ...
+!> \param force_env ...
+!> \param rtp_control ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 

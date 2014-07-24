@@ -57,6 +57,8 @@ CONTAINS
 !> \brief Create a Wiener process for Langevin dynamics and initialize an
 !>      independent random number generator for each atom in all force
 !>      environment and all the subsystems/fragments therein.
+!> \param md_env ...
+!> \param error ...
 !> \par History
 !>      Creation (06.07.2005,MK)
 ! *****************************************************************************
@@ -148,7 +150,7 @@ CONTAINS
              WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for particle",iparticle
              CALL compress(name)
              CALL create_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
-                  &rng(iparticle_local)%stream,name=name,distribution_type=GAUSSIAN,&
+                   rng(iparticle_local)%stream,name=name,distribution_type=GAUSSIAN,&
                   extended_precision=.TRUE., seed=seed(:,:,iparticle),error=error)
           END DO
        END DO
@@ -169,6 +171,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Helper routine for create_wiener_process.
+!> \param distribution_1d ...
+!> \param nparticle_kind ...
+!> \param work_section ...
+!> \param error ...
 !> \par History
 !>      01.2014 moved from distribution_1d_types (Ole Schuett)
 ! *****************************************************************************
@@ -209,8 +215,8 @@ CONTAINS
                                         c_val=rng_record,&
                                         error=error)
               CALL read_rng_stream(rng_stream=distribution_1d%&
-                                              &local_particle_set(iparticle_kind)%&
-                                              &rng(iparticle_local)%stream,&
+                                               local_particle_set(iparticle_kind)%&
+                                               rng(iparticle_local)%stream,&
                                    rng_record=rng_record,&
                                    error=error)
             END IF
@@ -225,8 +231,10 @@ CONTAINS
 !> \brief Create a Wiener process for Langevin dynamics used for
 !>        metadynamics and initialize an
 !>        independent random number generator for each COLVAR.
-!> \author Fabio Sterpone
+!> \param meta_env ...
+!> \param error ...
 !> \date   01.2009
+!> \author Fabio Sterpone
 !>
 ! *****************************************************************************
   SUBROUTINE create_wiener_process_cv(meta_env,error)
@@ -279,6 +287,14 @@ CONTAINS
 
   END SUBROUTINE create_wiener_process_cv
 
+! *****************************************************************************
+!> \brief ...
+!> \param from_local_particle_kinds ...
+!> \param from_local_particles ...
+!> \param to_local_particle_kinds ...
+!> \param to_local_particles ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE copy_wiener_process(from_local_particle_kinds, from_local_particles, to_local_particle_kinds, to_local_particles,error)
     TYPE(atomic_kind_list_type), POINTER     :: from_local_particle_kinds
     TYPE(distribution_1d_type), POINTER      :: from_local_particles

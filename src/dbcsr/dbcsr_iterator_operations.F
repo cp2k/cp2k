@@ -313,7 +313,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Stops up an iterator
 !> \param[out] iterator   the iterator
-!> \param[in] matrix      DBCSR matrix
+!> \param[in] matrix      DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_iterator_stop (iterator)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
@@ -437,6 +437,7 @@ CONTAINS
 !> \param[in] row_p          row pointers
 !> \param[in] tdist          (optional) thread distribution
 !> \param[in] tid            my thread number
+!> \param local2global ...
 ! *****************************************************************************
   PURE SUBROUTINE find_proper_position (pos, row, maxpos, maxrows,&
        blk_p, row_p, tdist, tid, local2global)
@@ -569,6 +570,11 @@ CONTAINS
   END SUBROUTINE iterator_advance
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param iterator ...
+!> \param use_ithread ...
+! *****************************************************************************
   SUBROUTINE find_proper_position_caller (iterator, use_ithread)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(in), OPTIONAL            :: use_ithread
@@ -619,8 +625,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Updates the row info stored in the iterator
-!> \note Added to handle the complexity introduced with the transpose
 !> \param[in,out] iterator     the iterator
+!> \note Added to handle the complexity introduced with the transpose
 ! *****************************************************************************
   PURE SUBROUTINE update_row_info (iterator)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
@@ -798,6 +804,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns whether there any blocks left in the iterator.
 !> \param[in] iterator       the iterator
+!> \retval blocks_left ...
 !> \param[in]
 ! *****************************************************************************
   PURE FUNCTION dbcsr_iterator_blocks_left (iterator) RESULT (blocks_left)

@@ -131,19 +131,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates a matrix, allocating the essentials.
-!> \par The matrix itself is allocated, as well as the essential parts of
-!>      the index. When passed the nze argument, the data is also allocated
-!>      to that size.
 !> \param[in,out] matrix      new matrix
+!> \param name ...
 !> \param[in] dist            distribution_2d distribution
 !> \param[in] matrix_type     'N' for normal, 'T' for transposed, 'S' for
 !>                            symmetric, and 'A' for antisymmetric
+!> \param row_blk_size ...
+!> \param col_blk_size ...
 !> \param[in] nblks           (optional) number of blocks
 !> \param[in] nze             (optional) number of elements
-!> \param[in] data_type       type of data from [rRcC] for single/double
-!>                            precision real/complex, default is 'R'
-!> \param[in] memory_type     (optional) allocate indices and data using
-!>                            special memory
+!> \param data_type ...
+!> \param data_memory_type ...
 !> \param[in] index_memory_type     (optional) allocate indices using
 !>                            special memory
 !> \param[in] reuse           (optional) reuses an existing matrix, default
@@ -152,8 +150,15 @@ CONTAINS
 !>                            append-only data; default is append-only
 !> \param[in] replication_type     replication to be used for this matrix;
 !>                                 default is dbcsr_repl_none
-!>                                 \see dbcsr_types.F
 !> \param[in,out] error       cp2k error
+!> \param[in] data_type       type of data from [rRcC] for single/double
+!>                            precision real/complex, default is 'R' UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] memory_type     (optional) allocate indices and data using
+!>                            special memory UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par The matrix itself is allocated, as well as the essential parts of
+!>      the index. When passed the nze argument, the data is also allocated
+!>      to that size.
+!>                                 see dbcsr_types.F
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
@@ -400,6 +405,23 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param template ...
+!> \param name ...
+!> \param dist ...
+!> \param matrix_type ...
+!> \param row_blk_size ...
+!> \param col_blk_size ...
+!> \param nblks ...
+!> \param nze ...
+!> \param data_type ...
+!> \param data_memory_type ...
+!> \param index_memory_type ...
+!> \param reuse ...
+!> \param mutable_work ...
+!> \param replication_type ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
@@ -512,8 +534,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes one work matrix
 !> \param[out] wm             initialized work matrix
+!> \param data_type ...
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
+!> \param memory_type ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, memory_type, error)
     TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
@@ -581,6 +606,7 @@ CONTAINS
 !>                            default is 1
 !> \param[in] work_mutable    (optional) use mutable work type, default is
 !>                            what was specified in create
+!> \param memory_type ...
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
@@ -890,6 +916,10 @@ CONTAINS
   END SUBROUTINE dbcsr_finalize
 
 ! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param reshuffle ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_special_finalize(matrix, reshuffle, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -985,7 +1015,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Checks whether the matrix can be finalized with minimal copying.
 !> \param[in] matrix          matrix to check
-!> \result quick              whether matrix can be quickly finalized
+!> \retval quick              whether matrix can be quickly finalized 
 ! *****************************************************************************
   FUNCTION can_quickly_finalize (matrix) RESULT (quick)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1128,6 +1158,7 @@ CONTAINS
 !>        previously-finalized one.
 !> \param[in,out] wm          the work matrix to fill
 !> \param[in,out] matrix      DBCSR matrix
+!> \param size_used ...
 !> \param[in] limits          (optional) only fills blocks within this range
 !> \param[in,out] error       error
 !> \par limits
@@ -1251,9 +1282,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Checks whether a point is within bounds
-!> \param[in] row, column    point to check
+!> \param row ...
+!> \param column ...
 !> \param[in] limits         limits (low_row, high_row, low_col, high_col)
-!> \result                   whether the point is within the bounds
+!> \param[in] row, column    point to check UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval within_limits     whether the point is within the bounds
 ! *****************************************************************************
 
   PURE FUNCTION within_limits (row, column, limits)
@@ -1305,12 +1338,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocates and destroys a work matrix.
-!> \param[in,out] wm          work matrix
-!> \param[in,out] error       cp2k error
-!> \param keepdata    do not deallocate data
-!> \param keepfinal   do not destroy the final, non-work matrix
+!> \param m ...
+!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param keepdata    do not deallocate data UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param keepfinal   do not destroy the final, non-work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \param keepfinaldata       do not destroy the data in the final,
-!>                            non-work matrix
+!>                            non-work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in,out] wm          work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_destroy_all(m)
     TYPE(dbcsr_type), INTENT(INOUT)          :: m
@@ -1344,12 +1378,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Adds a coordinate (or other data) into a work matrix's row_i and
 !>        col_i arrays and returns its position.
-!> \note  Uses the matrix%lastblk to keep track of the current position.
 !> \param[in,out] matrix      work matrix
-!> \param[in] row,col         row, col data to add
+!> \param row ...
+!> \param col ...
 !> \param[in] blk   (optional) block pointer to add
 !> \param[out] index          (optional) saved position
 !> \param error     cp2k error
+!> \param[in] row,col         row, col data to add UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \note  Uses the matrix%lastblk to keep track of the current position.
 ! *****************************************************************************
   SUBROUTINE add_work_coordinate(matrix, row, col, blk, index, error)
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: matrix
@@ -1386,6 +1422,9 @@ CONTAINS
 !> \brief Merge data from matrix and work matrices into the final matrix.
 !>
 !> \param[in,out] matrix      matrix to work on
+!> \param old_row_p ...
+!> \param old_col_i ...
+!> \param old_blk_p ...
 !> \param[in] data_starting_offset   Where to add data
 !> \param[in] sort_data       whether data will be fully sorted
 !> \param[in,out] error       error
@@ -1791,12 +1830,27 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Builds a new index from several work matrices.
 !>
-!> \param[in] wm          work matrix
-!> \param[in,out] additions_per_row     number of blocks and data to add for
-!>                                      every row
-!> \param[out] additions_total          total number of blocks and data to add
-!> \param[out] blk_p          block sizes of data to add
+!> \param new_row_p ...
+!> \param new_col_i ...
+!> \param new_blk_p ...
+!> \param blk_d ...
+!> \param old_row_p ...
+!> \param old_col_i ...
+!> \param old_blk_p ...
+!> \param all_row_p ...
+!> \param all_col_i ...
+!> \param all_blk_p ...
+!> \param all_data_offsets ...
+!> \param nwms ...
+!> \param nrows ...
+!> \param max_row_count ...
+!> \param sort_data ...
 !> \param[in,out] error       error
+!> \param[in,out] additions_per_row     number of blocks and data to add for
+!>                                      every row UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] additions_total          total number of blocks and data to add UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] blk_p          block sizes of data to add UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] wm          work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE merge_index (new_row_p, new_col_i, new_blk_p,&
        blk_d, old_row_p, old_col_i, old_blk_p,&

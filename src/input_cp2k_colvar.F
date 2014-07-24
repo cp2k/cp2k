@@ -48,6 +48,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the colvar section
 !> \param section the section to be created
+!> \param skip_recursive_colvar ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -141,7 +142,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the collective variables for the colvar section
+!> \param subsection ...
 !> \param section the section to be created
+!> \param skip_recursive_colvar ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -400,6 +403,11 @@ CONTAINS
 
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_colvar_cond_dist_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -513,8 +521,8 @@ CONTAINS
 !> \param section the section to be created
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author Fabio Sterpone
 !> \date  01.2009
+!> \author Fabio Sterpone
 ! *****************************************************************************
   SUBROUTINE create_colvar_pop_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -619,6 +627,11 @@ CONTAINS
   END SUBROUTINE create_colvar_pop_section
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_colvar_gyr_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1599,6 +1612,9 @@ CONTAINS
   END SUBROUTINE create_colvar_hydronium_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_colvar_rmsd_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -1929,6 +1945,15 @@ CONTAINS
 
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the function used to combine different COLVARs into one.",&
+! *****************************************************************************
+!> \brief ...
+!> \param CV1^2 ...
+!> \param CV2^2 ...
+!> \param " ...
+!> \param type_of_var=lchar_t ...
+!> \param n_var=1 ...
+!> \param error=error ...
+! *****************************************************************************
             usage="FUNCTION SQRT(CV1^2+CV2^2)", type_of_var=lchar_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1976,6 +2001,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the coord section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo

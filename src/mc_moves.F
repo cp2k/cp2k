@@ -125,8 +125,7 @@ CONTAINS
 !> \param move_updates the structure that keeps track of how many moves have
 !>               been accepted/rejected since the last time the displacements
 !>               were updated
-!> \param start_atoml the number of the molecule's first atom, assuming the rest of
-!>        the atoms follow sequentially
+!> \param start_atom ...
 !> \param molecule_type the type of the molecule we're moving
 !> \param box_number the box the molecule is in
 !> \param bias_energy the biased energy of the system before the move
@@ -136,6 +135,8 @@ CONTAINS
 !> \param error the cp_error type
 !>
 !>      This subroutine is designed to run in parallel.
+!> \param start_atoml the number of the molecule's first atom, assuming the rest of
+!>        the atoms follow sequentially UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_conformation_change ( mc_par,force_env,bias_env, moves,&
@@ -986,7 +987,6 @@ END SUBROUTINE mc_conformation_change
 !> \param move_updates the structure that keeps track of how many moves have
 !>               been accepted/rejected since the last time the displacements
 !>               were updated
-!> \param nnstep the total number of "outer moves" already performed
 !> \param old_energy the energy of the last accepted move involving an
 !>                    unbiased calculation
 !> \param box_number the box we're changing the volume of
@@ -1001,6 +1001,7 @@ END SUBROUTINE mc_conformation_change
 !> \param error the cp error type
 !>
 !>      Designed for parallel use.
+!> \param nnstep the total number of "outer moves" already performed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
@@ -1366,6 +1367,7 @@ END SUBROUTINE mc_conformation_change
 !> \param rng_stream the random number stream that we draw from
 !>
 !>    This subroutine is written to be parallel.
+!> \param error ...
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE change_bond_length ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
@@ -1559,6 +1561,7 @@ END SUBROUTINE mc_conformation_change
 !> \param particles the particle_list_type for all particles in the force_env...
 !>             used to grab the mass of each atom
 !> \param rng_stream the random number stream that we draw from
+!> \param error ...
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE change_bond_angle ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
@@ -1845,6 +1848,7 @@ END SUBROUTINE mc_conformation_change
 !> \param particles the particle_list_type for all particles in the force_env..
 !>             used to grab the mass of each atom
 !> \param rng_stream the random number stream that we draw from
+!> \param error ...
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE change_dihedral ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
@@ -2071,7 +2075,7 @@ END SUBROUTINE mc_conformation_change
 !>            be null if lbias=.false. in mc_par)
 !> \param moves the structure that keeps track of how many moves have been
 !>               accepted/rejected
-!> \param enegy_check the running energy difference between now and the inital energy
+!> \param energy_check ...
 !> \param r_old the coordinates of force_env before the move
 !> \param old_energy the energy of the force_env before the move
 !> \param start_atom_swap the number of the swap molecule's first atom, assuming the rest of
@@ -2086,6 +2090,7 @@ END SUBROUTINE mc_conformation_change
 !> \param error the cp_error type
 !>
 !>      Designed for parallel.
+!> \param enegy_check the running energy difference between now and the inital energy UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_avbmc_move ( mc_par,force_env,bias_env, moves,&
@@ -2484,12 +2489,12 @@ END SUBROUTINE mc_conformation_change
 !> \brief performs a hybrid Monte Carlo move that runs a short MD sequence
 !> \param mc_par the mc parameters for the force env
 !> \param force_env the force environment whose cell we're changing
+!> \param globenv ...
 !> \param moves the structure that keeps track of how many moves have been
 !>               accepted/rejected
 !> \param move_updates the structure that keeps track of how many moves have
 !>               been accepted/rejected since the last time the displacements
 !>               were updated
-!> \param nnstep the total number of "outer moves" already performed
 !> \param old_energy the energy of the last accepted move involving an
 !>                    unbiased calculation
 !> \param box_number the box we're changing the volume of
@@ -2502,6 +2507,7 @@ END SUBROUTINE mc_conformation_change
 !> \param error the cp error type
 !>
 !>      Designed for parallel use.
+!> \param nnstep the total number of "outer moves" already performed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_hmc_move ( mc_par,force_env, globenv, moves,move_updates,&

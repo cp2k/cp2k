@@ -49,12 +49,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Driver routine for QUICKSTEP single point wavefunction optimization.
-!> \author  MK
+!> \param qs_env ...
+!> \param consistent_energies ...
+!> \param calc_forces ...
+!> \param error ...
 !> \date    29.10.2002
 !> \par History
 !>          - consistent_energies option added (25.08.2005, TdK)
 !>          - introduced driver for energy in order to properly decide between
 !>            SCF or RTP (fschiff 02.09)
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies (qs_env, consistent_energies, calc_forces, &
@@ -82,10 +86,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   QUICKSTEP single point wavefunction optimization.
-!> \author  MK
+!> \param qs_env ...
+!> \param consistent_energies ...
+!> \param calc_forces ...
+!> \param error ...
 !> \date    29.10.2002
 !> \par History
 !>          - consistent_energies option added (25.08.2005, TdK)
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies_scf (qs_env, consistent_energies, calc_forces, &
@@ -145,8 +153,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   energy calculation for real time propagation (iterated through integrator)
-!> \author  Florian Schiffmann
+!> \param qs_env ...
+!> \param error ...
 !> \date    02.2009
+!> \author  Florian Schiffmann
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies_rtp(qs_env,error)

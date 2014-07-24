@@ -37,8 +37,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief creates the parser status type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param status ...
+!> \param error ...
 !> \date  08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE create_status_type(status, error)
     TYPE(status_type), POINTER               :: status
@@ -66,8 +68,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief releases the parser status type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param status ...
+!> \param error ...
 !> \date  08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE release_status_type(status, error)
     TYPE(status_type), POINTER               :: status

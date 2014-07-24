@@ -47,10 +47,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief flushes units if the &GLOBAL flag is set accordingly
-!> \note
-!>      flushing might degrade performance significantly (30% and more)
+!> \param lunit ...
 !> \par History
 !>      10.2008 created [Joost VandeVondele]
+!> \note
+!>      flushing might degrade performance significantly (30% and more)
 ! *****************************************************************************
 SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
@@ -60,11 +61,12 @@ END SUBROUTINE
 ! *****************************************************************************
 !> \brief returns time from a real-time clock, protected against rolling
 !>      early/easily
+!> \retval wt ...
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
 !> \note
 !>      same implementation for all machines.
 !>      might still roll, if not called multiple times per count_max/count_rate
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
 FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt
@@ -112,6 +114,7 @@ END FUNCTION m_walltime
 !> \brief returns the energy used since some time in the past.
 !>        The precise meaning depends on the infrastructure is available.
 !>        In the cray_pm_energy case, this is the energy used by the node in kJ.
+!> \retval wt ...
 !> \par History
 !>      09.2013 created [Joost VandeVondele, Ole Schuett]
 ! *****************************************************************************
@@ -133,6 +136,8 @@ END FUNCTION m_energy
 
 ! *****************************************************************************
 !> \brief reads energy values from the sys-filesystem
+!> \param filename ...
+!> \retval wt ...
 !> \par History
 !>      09.2013 created [Joost VandeVondele, Ole Schuett]
 ! *****************************************************************************
@@ -162,6 +167,7 @@ END FUNCTION read_energy
 
 ! *****************************************************************************
 !> \brief returns a datum in human readable format using a standard Fortran routine
+!> \param cal_date ...
 !> \par History
 !>      10.2009 created [Joost VandeVondele]
 ! *****************************************************************************

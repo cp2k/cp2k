@@ -37,9 +37,11 @@ MODULE machine_architecture_utils
 
 ! *****************************************************************************
 !> \brief   Create the information structure of a process
-!> \var     proc_info is the processor structure
-!> \var     mp_env is the comm information for MPI
-!> \var     nr_threads is the number of threads of a processor
+!> \param     proc_info is the processor structure 
+!> \param     mp_env is the comm information for MPI 
+!> \param     nr_threads is the number of threads of a processor 
+!> \param core ...
+!> \param node ...
 ! *****************************************************************************
  SUBROUTINE ma_create_process(proc_info, mp_env, nr_threads, core, node)
     TYPE(ma_process), INTENT(OUT)            :: proc_info
@@ -60,9 +62,9 @@ MODULE machine_architecture_utils
 
 ! *****************************************************************************
 !> \brief   Set the information of the group of threads of a process
-!> \var     proc_info is the processor structure
-!> \var     thread_info is the thread information
-!> \var     id is the OMP id of the thread
+!> \param     proc_info is the processor structure 
+!> \param     thread_info is the thread information 
+!> \param     id is the OMP id of the thread 
 ! *****************************************************************************
  SUBROUTINE ma_set_threads(proc_info, thread_info, id)
     TYPE(ma_process)                         :: proc_info
@@ -78,7 +80,9 @@ MODULE machine_architecture_utils
 
 ! *****************************************************************************
 !> \brief   Pack components of a machine architecture into a single vector
-!  thread is a vector that must be allocated first
+!>  thread is a vector that must be allocated first
+!> \param proc_info ...
+!> \param thread_send ...
 ! *****************************************************************************
  SUBROUTINE ma_pack_threads(proc_info, thread_send)
     TYPE(ma_process), INTENT(IN)             :: proc_info
@@ -102,6 +106,9 @@ MODULE machine_architecture_utils
 ! *****************************************************************************
 !> \brief   Unpack components of a machine architecture into the thread
 !>          structre
+!> \param proc_info ...
+!> \param thread_recv ...
+!> \param thread_map ...
 ! *****************************************************************************
  SUBROUTINE ma_unpack_threads(proc_info, thread_recv, thread_map)
     TYPE(ma_process), INTENT(IN)             :: proc_info
@@ -128,6 +135,11 @@ MODULE machine_architecture_utils
  ! COPY from string_utils - Convert a sequence of integer numbers (ASCII code)
  ! to a string.
  ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param nascii ...
+!> \param string ...
+! *****************************************************************************
    SUBROUTINE ascii_to_string(nascii,string)
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: nascii
@@ -150,6 +162,10 @@ END SUBROUTINE ascii_to_string
 ! *****************************************************************************
 ! COPY from string_utils - Convert a string to sequence of integer numbers.
 ! *****************************************************************************
+!> \brief ...
+!> \param string ...
+!> \param nascii ...
+! *****************************************************************************
   SUBROUTINE string_to_ascii(string,nascii)
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
@@ -167,6 +183,10 @@ END SUBROUTINE string_to_ascii
 
 ! *****************************************************************************
 ! COPY from string_utils - Convert a integer to a string.
+! *****************************************************************************
+!> \brief ...
+!> \param inumber ...
+!> \param string ...
 ! *****************************************************************************
 SUBROUTINE integer_to_string(inumber,string)
     INTEGER, INTENT(IN)                      :: inumber

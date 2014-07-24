@@ -114,6 +114,7 @@ CONTAINS
 !> \brief Determines whether a transpose must be applied
 !> \param[in] row   The absolute matrix row.
 !> \param[in] column          The absolute matrix column.
+!> \retval transpose ...
 ! *****************************************************************************
   ELEMENTAL FUNCTION checker_tr(row, column) RESULT(transpose)
     INTEGER, INTENT(IN)                      :: row, column
@@ -125,16 +126,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Determines the home process for a given logical matrix element.
-!> \note This routine is a more low-level version of
-!>       dbcsr_get_stored_coordinate without the setting the row and column
-!>       to the stored position.
-!> \note It assumes a square matrix.
 !> \param[in] row             logical row
 !> \param[in] col             logical column
 !> \param[in] pgrid           process grid
 !> \param[in] row_dist        row distribution
 !> \param[in] col_dist        column distribution
 !> \retval process            home process of the given element
+!> \note This routine is a more low-level version of
+!>       dbcsr_get_stored_coordinate without the setting the row and column
+!>       to the stored position.
+!> \note It assumes a square matrix.
 ! *****************************************************************************
   PURE FUNCTION checker_square_proc(row, col, pgrid,&
        row_dist, col_dist) RESULT(process)
@@ -186,6 +187,14 @@ CONTAINS
   END SUBROUTINE get_stored_coordinates_type
 
 ! \brief Canonical logic
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param column ...
+!> \param transpose ...
+!> \param processor ...
+! *****************************************************************************
   PURE SUBROUTINE get_stored_canonical(matrix, row, column,&
        transpose, processor)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
@@ -267,7 +276,7 @@ CONTAINS
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 !> \param[out] processor      (optional) returns the processor on which this
-!>                            block resides
+!>                            block resides UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   PURE SUBROUTINE get_block_index_type(matrix, row, column, stored_row,&
        stored_column, transpose, found, block_number, data_offset)
@@ -305,7 +314,7 @@ CONTAINS
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 !> \param[out] processor      (optional) returns the processor on which this
-!>                            block resides
+!>                            block resides UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   PURE SUBROUTINE get_block_index_obj(matrix, row, column, stored_row,&
        stored_column, transpose, found, block_number, data_offset)
@@ -471,7 +480,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Transposes a distribution
 !> \param[out] dist_tr        transposed distribution
-!> \param[in] dist2d          current distribution
+!> \param dist_normal ...
+!> \param[in] dist2d          current distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_transpose_distribution(dist_tr, dist_normal)
     TYPE(dbcsr_distribution_obj), &
@@ -496,7 +506,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Transposes a distribution but keeps the same mp_env
 !> \param[out] dist_tr        transposed distribution
-!> \param[in] dist2d          current distribution
+!> \param dist_normal ...
+!> \param[in] dist2d          current distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_transpose_dims(dist_tr, dist_normal)
     TYPE(dbcsr_distribution_obj), &
@@ -551,6 +562,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes new distribution with decimation and multiplicity
+!> \param[out] new_bins      new real distribution
+!> \param[out] images        new image distribution
+!> \param[in] source_bins    Basis for the new distribution and images
+!> \param[in] nbins          number of bins in the new real distribution
+!> \param[in] multiplicity   multiplicity
+!> \param[in] nimages        number of images in the new distribution
 !> \par Definition of multiplicity and nimages
 !>      Multiplicity and decimation (number of images) are used to
 !>      match process grid coordinates on non-square process
@@ -575,12 +592,6 @@ CONTAINS
 !>      Source bin elements are evenly mapped into one of multiplicity
 !>      virtual columns. Other (non-even, block-size aware) mappings
 !>      could be better.
-!> \param[out] new_bins      new real distribution
-!> \param[out] images        new image distribution
-!> \param[in] source_bins    Basis for the new distribution and images
-!> \param[in] nbins          number of bins in the new real distribution
-!> \param[in] multiplicity   multiplicity
-!> \param[in] nimages        number of images in the new distribution
 ! *****************************************************************************
   SUBROUTINE rebin_distribution (new_bins, images, source_bins,&
        nbins, multiplicity, nimages)
@@ -628,6 +639,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes new distribution with decimation and multiplicity
+!> \param[out] images        new image distribution
+!> \param[in] my_bins        Basis for the new images
+!> \param[in] nbins          number of bins in the new real distribution
+!> \param[in] multiplicity   multiplicity
+!> \param[in] nimages        number of images in the new distribution
 !> \par Definition of multiplicity and nimages
 !>      Multiplicity and decimation (number of images) are used to
 !>      match process grid coordinates on non-square process
@@ -652,11 +668,6 @@ CONTAINS
 !>      Source bin elements are evenly mapped into one of multiplicity
 !>      virtual columns. Other (non-even, block-size aware) mappings
 !>      could be better.
-!> \param[out] images        new image distribution
-!> \param[in] my_bins        Basis for the new images
-!> \param[in] nbins          number of bins in the new real distribution
-!> \param[in] multiplicity   multiplicity
-!> \param[in] nimages        number of images in the new distribution
 ! *****************************************************************************
   SUBROUTINE reimage_distribution (images, my_bins,&
        nbins, multiplicity, nimages)
@@ -717,6 +728,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes new distribution with multiplicity
+!> \param[out] new_bins      new real distribution
+!> \param[out] images        new image distribution
+!> \param[in] source_bins    Basis for the new distribution and images
+!> \param[in] source_images  Basis for the new distribution and images
+!> \param[in] nbins          number of bins in the new real distribution
+!> \param[in] multiplicity   multiplicity
+!> \param[in] nimages        number of images in the new distribution
 !> \par Definition of multiplicity and nimages
 !>      Multiplicity and number of images are used to match process
 !>      grid coordinates on non-square process grids. Given
@@ -739,13 +757,6 @@ CONTAINS
 !>      Source bin elements are evenly mapped into one of multiplicity
 !>      virtual columns. Other (non-even, block-size aware) mappings
 !>      could be better.
-!> \param[out] new_bins      new real distribution
-!> \param[out] images        new image distribution
-!> \param[in] source_bins    Basis for the new distribution and images
-!> \param[in] source_images  Basis for the new distribution and images
-!> \param[in] nbins          number of bins in the new real distribution
-!> \param[in] multiplicity   multiplicity
-!> \param[in] nimages        number of images in the new distribution
 ! *****************************************************************************
   SUBROUTINE rebin_imaged_distribution (new_bins, images,&
        source_bins, source_images, nbins, multiplicity, nimages)
@@ -787,6 +798,13 @@ CONTAINS
   END SUBROUTINE rebin_imaged_distribution
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param imgdist ...
+!> \param dist ...
+!> \param template ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_new_image_dist (imgdist, dist,&
        template, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -999,6 +1017,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the intersections of blocks
+!> \param[out] ints           intersections of blocks
+!> \param numints ...
+!> \param[out] n_src_dsts     offset and number intersections belonging
+!>                            to source blocks
+!> \param[in] src_sizes       sizes of source blocks
+!> \param[in] dst_sizes       sizes of target blocks
+!> \param[in,out] error       error
+!> \param[in] num_ints        maximum number of expected intersections UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par ints output format
 !>      The ints array should be up to twice as large as the number of
 !>      intersecting blocks. Each entry is comprised of the target
@@ -1018,20 +1044,13 @@ CONTAINS
 !>      elements they have in common. The third element specifies the
 !>      offset of the intesection in the old block while the fourth
 !>      specifies the offset of the intersection in the new block.
-!> \note This routine is used in the counting and sending loops in
-!>       dbcsr_complete_redistribute
-!> \param[out] ints           intersections of blocks
-!> \param[in] num_ints        maximum number of expected intersections
-!> \param[out] n_src_dsts     offset and number intersections belonging
-!>                            to source blocks
-!> \param[in] src_sizes       sizes of source blocks
-!> \param[in] dst_sizes       sizes of target blocks
-!> \param[in,out] error       error
 !> \par History
 !>      UB [2009] Created
 !>      UB [2010-03-22] Offsets of the intersections in the old/new blocks
 !>                      are calculated & saved. Zero-length blocks are
 !>                      skipped.
+!> \note This routine is used in the counting and sending loops in
+!>       dbcsr_complete_redistribute
 ! *****************************************************************************
   SUBROUTINE dbcsr_reblocking_targets (ints, numints, n_src_dsts,&
        src_sizes, dst_sizes, error)
@@ -1139,12 +1158,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Distributes elements into blocks and into bins
 !>
-!> \par Term clarification
-!>      An example: blocks are atom blocks and bins are process rows/colums.
 !> \param[out] block_distribution       block distribution to bins
 !> \param[out] block_size       sizes of blocks
-!> \param[in] elements          number of elements to bin
+!> \param nelements ...
 !> \param[in] nbins             number of bins
+!> \param[in] elements          number of elements to bin UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par Term clarification
+!>      An example: blocks are atom blocks and bins are process rows/colums.
 ! *****************************************************************************
   SUBROUTINE create_bl_distribution (block_distribution,&
        block_size, nelements, nbins)
@@ -1238,13 +1258,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a new distribution for the right matrix in a matrix
 !>        multiplication with unrotated grid.
-!> \par The new row distribution for the right matrix is the same as the row
-!>      distribution of the left matrix, while the column distribution is
-!>      created so that it is appropriate to the parallel environment.
 !> \param[out] dist_right     new distribution for the right matrix
 !> \param[in] dist_left       the distribution of the left matrix
 !> \param[in] ncolumns        number of columns in right matrix
 !> \param[out] right_col_blk_sizes      sizes of blocks in the created column
+!> \par The new row distribution for the right matrix is the same as the row
+!>      distribution of the left matrix, while the column distribution is
+!>      created so that it is appropriate to the parallel environment.
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_r_unrot(dist_right, dist_left, ncolumns,&
        right_col_blk_sizes)
@@ -1292,13 +1312,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a new distribution for the right matrix in a matrix
 !>        multiplication with rotated grid.
-!> \par The new row distribution for the right matrix is the same as the
-!>      column distribution of the left matrix, while the column distribution
-!>      is created so that it is appropriate to the parallel environment.
 !> \param[out] dist_right     new distribution for the right matrix
 !> \param[in] dist_left       the distribution of the left matrix
 !> \param[in] ncolumns        number of columns in right matrix
 !> \param[out] right_col_blk_sizes      sizes of blocks in the created column
+!> \par The new row distribution for the right matrix is the same as the
+!>      column distribution of the left matrix, while the column distribution
+!>      is created so that it is appropriate to the parallel environment.
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_r_rot(dist_right, dist_left, ncolumns,&
        right_col_blk_sizes)
@@ -1331,13 +1351,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a new distribution for the left matrix in a matrix
 !>        multiplication with unrotated grid.
-!> \par The new column distribution for the left matrix is the same as the
-!>      column distribution of the right matrix, while the row distribution is
-!>      created so that it is appropriate to the parallel environment.
 !> \param[out] dist_left      new distribution for the left matrix
 !> \param[in] dist_right      old distribution of the right matrix
 !> \param[in] nrows           number of rows in the left matrix
 !> \param[out] left_row_blk_sizes       sizes of blocks in the created rows
+!> \par The new column distribution for the left matrix is the same as the
+!>      column distribution of the right matrix, while the row distribution is
+!>      created so that it is appropriate to the parallel environment.
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_l_unrot(dist_left, dist_right, nrows,&
        left_row_blk_sizes)
@@ -1367,13 +1387,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a new distribution for the left matrix in a matrix
 !>        multiplication with rotated grid.
+!> \param[in] dist_right      the distribution of the right matrix
+!> \param[out] dist_left      new distribution for the left matrix
+!> \param[in] nrows           (optional) number of rows in left matrix
+!> \param[out] left_row_blk_sizes      sizes of blocks in the created rows
 !> \par The new column distribution for the left matrix is the same as the
 !>      row distribution of the right matrix, while the row distribution is
 !>      created so that it is appropriate to the parallel environment.
-!> \param[out] dist_left      new distribution for the left matrix
-!> \param[in] dist_right      the distribution of the right matrix
-!> \param[in] nrows           (optional) number of rows in left matrix
-!> \param[out] left_row_blk_sizes      sizes of blocks in the created rows
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_dist_l_rot(dist_right, dist_left, nrows,&
        left_row_blk_sizes)
@@ -1606,6 +1626,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Make the image distribution reflect the dense matrix blocks.
+!> \param image_dist ...
+!> \param join_rows ...
+!> \param join_cols ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_image_distribution_dense (image_dist, join_rows, join_cols)
@@ -1658,6 +1681,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Matches row/block sizes and offsets to a given distribution, inplace.
+!> \param new_distribution ...
+!> \param old_distribution ...
+!> \param row_blk_sizes ...
+!> \param col_blk_sizes ...
+!> \param row_blk_offsets ...
+!> \param col_blk_offsets ...
+!> \param old_image_dist ...
+!> \param old_col_idist ...
+!> \param old_col_nimages ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE match_sizes_to_dist (new_distribution, old_distribution,&
@@ -1740,6 +1772,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Matches row/block sizes and offsets to a given distribution
+!> \param old_sizes ...
+!> \param mapping ...
+!> \param nel_new ...
+!> \param new_sizes ...
+!> \param error ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_sizes_dense (old_sizes, mapping, nel_new, new_sizes, error)
@@ -1771,6 +1808,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines block sizes from old offsets and old and new
 !>        distributions.
+!> \param new_sizes ...
+!> \param old_offsets ...
+!> \param new_dist ...
+!> \param old_dist ...
+!> \param old_idist ...
+!> \param old_nimages ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   PURE SUBROUTINE match_sizes_to_el_dist(new_sizes, old_offsets,&
@@ -1803,12 +1846,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes a 1-D distribution dense.
-!> \param[in] bins             Number of bins in the main distribution
+!> \param nbins ...
 !> \param[in] old_dist         Current distribution
 !> \param[out] dense_dist      Dense distribution
 !> \param[out] dist_map        Map from current to dense distribution
 !> \param[in] nsubdist         Number of bins in the subdistribution
 !> \param[in] subdist          Subdistribution
+!> \param[in] bins             Number of bins in the main distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_1dist_dense (nbins, old_dist, dense_dist, dist_map, nsubdist, subdist)
     INTEGER, INTENT(IN)                      :: nbins
@@ -1852,6 +1896,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Prepares distributions for making dense matrices.
+!> \param product_dist ...
+!> \param left_rdist ...
+!> \param right_rdist ...
+!> \param dense_product_dist ...
+!> \param dense_left_rdist ...
+!> \param dense_right_rdist ...
+!> \param partial ...
+!> \param m_map ...
+!> \param k_vmap ...
+!> \param n_map ...
+!> \param old_m_sizes ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_dists_dense (product_dist, left_rdist, right_rdist,&
        dense_product_dist, dense_left_rdist, dense_right_rdist,&
@@ -1983,9 +2039,6 @@ CONTAINS
 !>        If the block having the queried column is found, the blk parameter
 !>        is set to this block number and the found parameter is true.
 !>        Otherwise found is false and the block number is invalid.
-!> \par Index validity
-!>      The blk_p array of block pointers is a required parameter to enable
-!>      the detection of deleted blocks.
 !> \param[in] find_col        column to find
 !> \param[in] frst_blk        first block number in row
 !> \param[in] last_blk        last block number in row
@@ -1994,6 +2047,9 @@ CONTAINS
 !> \param[out] blk            block number with searched-for column
 !> \param[out] found          flag specified whether a block that has the
 !>                            correct column was found
+!> \par Index validity
+!>      The blk_p array of block pointers is a required parameter to enable
+!>      the detection of deleted blocks.
 ! *****************************************************************************
   PURE SUBROUTINE dbcsr_find_column(find_col,frst_blk,last_blk,col_i,blk_p,&
        blk,found)
@@ -2027,12 +2083,13 @@ CONTAINS
 !> \brief Determines local virtual elements
 !>        Analogous to the local_rows
 !> \param[out] local_virtual_elements    enumerated local virtual elements
-!> \param[out] nvle                      number of local virtual elements
+!> \param nlve ...
 !> \param[in] grid_distribution          distribution of elements to bins
 !> \param[in] image_distribution         distribution into images of all
 !>                                       elements
 !> \param[in] local_grid                 local grid
 !> \param[in] local_image                local image
+!> \param[out] nvle                      number of local virtual elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note virtual_local_elements should be large enough to accomodate
 !>       all possible data
 !> \note Used for making matrices dense/undense
@@ -2070,19 +2127,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Points to local virtual elements.
-!> \note Inverse of find_local_virtual_elements.
 !> \param[out] global_virtual_elements   enumerated local virtual elements
-!> \param[out] nvle                      number of local virtual elements
+!> \param nlve ...
 !> \param[in] grid_distribution          distribution of elements to bins
 !> \param[in] image_distribution         distribution into images of all
 !>                                       elements
 !> \param[in] local_grid                 local grid
 !> \param[in] local_image                local image
+!> \param[out] nvle                      number of local virtual elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par The output global_virtual_elements is 0 when the element is
+!>      not local.  Otherwise, it is the (local) element's sequential order.
+!> \note Inverse of find_local_virtual_elements.
 !> \note virtual_local_elements should be large enough to accomodate
 !>       all possible data
 !> \note Used for making matrices dense/undense
-!> \par The output global_virtual_elements is 0 when the element is
-!>      not local.  Otherwise, it is the (local) element's sequential order.
 ! *****************************************************************************
   PURE SUBROUTINE map_local_virtual_elements (global_virtual_elements, nlve,&
        grid_distribution, image_distribution, local_grid, local_image)
@@ -2127,9 +2185,10 @@ CONTAINS
 !> resulting array can be used as a lookup index for any of the local
 !> element arrays.  The distribution itself tells into which array to
 !> look.
-!> \param[out] locall_virtual_elements   local virtual elements
+!> \param local_elements ...
 !> \param[in] bin_distribution           distribution of elements to bins
 !> \param[in] nbins                      number of bins
+!> \param[out] locall_virtual_elements   local virtual elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE find_all_local_elements (local_elements, &
        bin_distribution, nbins)
@@ -2156,9 +2215,10 @@ CONTAINS
 !> resulting array can be used as a lookup index for any of the local
 !> element arrays.  The distribution itself tells into which array to
 !> look.
-!> \param[out] global_virtual_elements   enumerated local elements
+!> \param global_elements ...
 !> \param[in] bin_distribution           distribution of elements to bins
 !> \param[in] nbins                      number of bins
+!> \param[out] global_virtual_elements   enumerated local elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   PURE SUBROUTINE map_all_local_elements (global_elements, &
        bin_distribution, nbins)
@@ -2182,8 +2242,9 @@ CONTAINS
 !> \brief Determines mapping from local to global rows
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_rows        local elements for specified row
-!> \param[in] local_bin         find local elemnts for this local row
+!> \param local_prow ...
 !> \param[in,out] error         error
+!> \param[in] local_bin         find local elemnts for this local row UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_prow, error)
     TYPE(dbcsr_distribution_obj), &
@@ -2237,8 +2298,9 @@ CONTAINS
 !> \brief Determines mapping from local to global columnss
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_cols        local elements for specified column
-!> \param[in] local_bin         find local elemnts for this local column
+!> \param local_pcol ...
 !> \param[in,out] error         error
+!> \param[in] local_bin         find local elemnts for this local column UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_pcol, error)
     TYPE(dbcsr_distribution_obj), &
@@ -2369,6 +2431,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Resets local rows, columns to the correct arrays and values.
+!> \param matrix ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_reset_locals (matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -2416,9 +2480,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from local to global virtual process rows
 !> \param[in] imgdist           image distribution
-!> \param[out] local_rows       local rows
+!> \param local_vrows ...
 !> \param[in] local_vprow       the local virtual process row
 !> \param[in,out] error         error
+!> \param[out] local_rows       local rows UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_vrows (imgdist, local_vrows, local_vprow, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2473,9 +2538,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from local to global virtual process columnss
 !> \param[in] imgdist           image distribution
-!> \param[out] local_cols       local columnss
+!> \param local_vcols ...
 !> \param[in] local_vpcol       the local virtual process column
 !> \param[in,out] error         error
+!> \param[out] local_cols       local columnss UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_vcols (imgdist, local_vcols, local_vpcol, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2530,8 +2596,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from global to virtual local rows
 !> \param[in] imgdist           mapping for this image distribution
-!> \param[in] row_map           mapping to local rows
+!> \param vrow_map ...
 !> \param[in,out] error         error
+!> \param[in] row_map           mapping to local rows UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_global_vrow_map (imgdist, vrow_map, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2569,8 +2636,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from global to virtual local columnss
 !> \param[in] imgdist           mapping for this image distribution
-!> \param[in] col_map           mapping to local columnss
+!> \param vcol_map ...
 !> \param[in,out] error         error
+!> \param[in] col_map           mapping to local columnss UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_global_vcol_map (imgdist, vcol_map, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2609,8 +2677,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Resets local rows, columns to the correct arrays and values
-!         for images.
-!*****************************************************************************
+!>         for images.
+!> \param matrix ...
+!> \param imgdist ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_reset_vlocals (matrix, imgdist, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2654,6 +2725,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Converts virtual 1-D distribution to process and image
+!> \param nel ...
+!> \param vdist ...
+!> \param nim ...
+!> \param pdist ...
+!> \param idist ...
+! *****************************************************************************
   pure SUBROUTINE v_to_p_i_dist (nel, vdist, nim, pdist, idist)
     INTEGER, INTENT(in)                      :: nel
     INTEGER, DIMENSION(1:nel), INTENT(in)    :: vdist
@@ -2667,6 +2744,13 @@ CONTAINS
        idist(i) = MOD (vdist(i), nim) + 1
     END FORALL
   END SUBROUTINE v_to_p_i_dist
+! *****************************************************************************
+!> \brief ...
+!> \param vdist ...
+!> \param nim ...
+!> \param pdist ...
+!> \param idist ...
+! *****************************************************************************
   SUBROUTINE v_to_p_i_dist_o (vdist, nim, pdist, idist)
     TYPE(array_i1d_obj), INTENT(in)          :: vdist
     INTEGER, INTENT(in)                      :: nim
@@ -2686,8 +2770,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Determines whether most blocks are stored transposed in normally.
-!> \note Tries to be quick and not necessarily accurate.
 !> \param[in] blk_p           Pointers to blocks
+!> \note Tries to be quick and not necessarily accurate.
 ! *****************************************************************************
   PURE FUNCTION mostly_non_transposed (blk_p)
     INTEGER, DIMENSION(:), INTENT(IN) :: blk_p
@@ -2718,6 +2802,14 @@ CONTAINS
     ENDIF
     RETURN
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param blk_p ...
+!> \param lb ...
+!> \param ub ...
+!> \param sntr ...
+!> \param str ...
+! *****************************************************************************
     PURE SUBROUTINE check_range (blk_p, lb, ub, sntr, str)
     INTEGER, DIMENSION(:), INTENT(IN)        :: blk_p
     INTEGER, INTENT(IN)                      :: lb, ub
@@ -2734,6 +2826,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Transform between virtual process rows/columns and actual process rows/columns and images therein.
+!> \param image_dist ...
+!> \param prow ...
+!> \param rowi ...
+!> \param pcol ...
+!> \param coli ...
+!> \param vprow ...
+!> \param vpcol ...
+!> \param myprow ...
+!> \param mypcol ...
+!> \param myrowi ...
+!> \param mycoli ...
+!> \param myvprow ...
+!> \param myvpcol ...
+!> \param vprow_shift ...
+!> \param vpcol_shift ...
+!> \param shifting ...
+!> \param error ...
 !> \par Shifting
 !>  (L)eft and (R)ight shifting are "shifts from", (l)eft and (r)ight
 !>  are "shifts to".  A caller (or the my* specifications) would use

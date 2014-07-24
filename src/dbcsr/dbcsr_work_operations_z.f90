@@ -7,6 +7,7 @@
 !> \brief Converts mutable data to linear (array) type.
 !>
 !> \param[in,out] wm      work matrix to convert
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tree_to_linear_z(wm, error)
     USE btree_I8_k_zp2d_v,&

@@ -56,6 +56,11 @@ CONTAINS
 !> \brief calc A <- alpha*A + beta*B
 !>      optimized for alpha == 1.0 (just add beta*B) and beta == 0.0 (just
 !>      scale A)
+!> \param alpha ...
+!> \param matrix_a ...
+!> \param beta ...
+!> \param matrix_b ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_fm_scale_and_add(alpha,matrix_a,beta,matrix_b,error)
 
@@ -163,15 +168,18 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Computes the LU-decomposition of the matrix, and the determinant of the matrix
 !>      IMPORTANT : the sign of the determinant is not defined correctly yet ....
+!> \param matrix_a ...
+!> \param almost_determinant ...
+!> \param correct_sign ...
+!> \par History
+!>      added correct_sign 02.07 (fschiff)
+!> \author Joost VandeVondele
 !> \note
 !>      - matrix_a is overwritten
 !>      - the sign of the determinant might be wrong
 !>      - SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
 !>      - one should be able to find out if ipivot is an even or an odd permutation...
 !>        if you need the correct sign, just add correct_sign==.TRUE. (fschiff)
-!> \par History
-!>      added correct_sign 02.07 (fschiff)
-!> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant,correct_sign)
     TYPE(cp_fm_type), POINTER                :: matrix_a
@@ -239,15 +247,26 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief computes matrix_c = beta * matrix_c + alpha * ( matrix_a  ** transa ) * ( matrix_b ** transb )
-!> \param matrix_a : m x k matrix ( ! for transa = 'N')
-!> \param matrix_b : k x n matrix ( ! for transb = 'N')
-!> \param matrix_c : m x n matrix
 !> \param transa : 'N' -> normal   'T' -> transpose
 !>      alpha,beta :: can be 0.0_dp and 1.0_dp
+!> \param transb ...
+!> \param m ...
+!> \param n ...
+!> \param k ...
+!> \param alpha ...
+!> \param matrix_a : m x k matrix ( ! for transa = 'N')
+!> \param matrix_b : k x n matrix ( ! for transb = 'N')
+!> \param beta ...
+!> \param matrix_c : m x n matrix
+!> \param error ...
 !> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
+!> \param a_first_row ...
+!> \param b_first_row ...
+!> \param c_first_col ...
+!> \param c_first_row ...
+!> \author Matthias Krack
 !> \note
 !>      matrix_c should have no overlap with matrix_a, matrix_b
-!> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
        matrix_c,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
@@ -341,7 +360,7 @@ CPSourceFileRef,&
        ldc = SIZE(c_sp,1)
 
        CALL sgemm(transa,transb,m,n,k,REAL(alpha,sp),a_sp(i_a,1),lda,b_sp(i_b,j_b),ldb,&
-            &     REAL(beta,sp),c_sp(i_c,j_c),ldc)
+                  REAL(beta,sp),c_sp(i_c,j_c),ldc)
 
     ELSEIF((.NOT.matrix_a%use_sp).AND.(.NOT.matrix_b%use_sp).AND.(.NOT.matrix_c%use_sp)) THEN
 
@@ -364,17 +383,23 @@ CPSourceFileRef,&
 !> \brief computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b
 !>      computes matrix_c = beta * matrix_c + alpha *  matrix_b  *  matrix_a
 !>      where matrix_a is symmetric
-!> \param matrix_a : m x m matrix
-!> \param matrix_b : m x n matrix
-!> \param matrix_c : m x n matrix
 !> \param side : 'L' -> matrix_a is on the left 'R' -> matrix_a is on the right
 !>      alpha,beta :: can be 0.0_dp and 1.0_dp
+!> \param uplo ...
+!> \param m ...
+!> \param n ...
+!> \param alpha ...
+!> \param matrix_a : m x m matrix
+!> \param matrix_b : m x n matrix
+!> \param beta ...
+!> \param matrix_c : m x n matrix
+!> \param error ...
+!> \author Matthias Krack
 !> \note
 !>      matrix_c should have no overlap with matrix_a, matrix_b
 !>      all matrices in QS are upper triangular, so uplo should be 'U' always
 !>      matrix_a is always an m x m matrix
 !>      it is typically slower to do cp_fm_symm than cp_fm_gemm (especially in parallel easily 50 percent !)
-!> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE cp_fm_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c,&
        error)
@@ -428,6 +453,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief computes the Frobenius norm of matrix_a
 !> \param matrix_a : m x n matrix
+!> \param norm ...
+!> \param error ...
 !> \author VW
 ! *****************************************************************************
   SUBROUTINE cp_fm_frobenius_norm(matrix_a,norm,error)
@@ -463,10 +490,19 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief   performs a rank 1 operation: A = alpha*X*Y' + A
-!> \details Wrapper routine: check the LAPACK and ScaLAPACK documentation for
-!>          details.
-!> \author  Matthias Krack
+!> \param alpha ...
+!> \param vector_x ...
+!> \param ix ...
+!> \param jx ...
+!> \param vector_y ...
+!> \param iy ...
+!> \param jy ...
+!> \param matrix_a ...
+!> \param error ...
 !> \date    07.03.2008
+!> \author  Matthias Krack
+!> \note Wrapper routine: check the LAPACK and ScaLAPACK documentation for
+!>          details.
 ! *****************************************************************************
   SUBROUTINE cp_fm_ger(alpha,vector_x,ix,jx,vector_y,iy,jy,matrix_a,error)
 
@@ -532,9 +568,16 @@ CPSourceFileRef,&
 !> \param trans : 'N'  ('T')
 !> \param k : number of cols to use in matrix_a
 !>      ia,ja ::  1,1 (could be used for selecting subblock of a)
+!> \param alpha ...
+!> \param matrix_a ...
+!> \param ia ...
+!> \param ja ...
+!> \param beta ...
+!> \param matrix_c ...
+!> \param error ...
+!> \author Matthias Krack
 !> \note
 !>      In QS uplo should 'U' (upper part updated)
-!> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,error)
     CHARACTER(LEN=1), INTENT(IN)             :: uplo, trans
@@ -586,6 +629,10 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief computes the schur product of two matrices
 !>       c_ij = a_ij * b_ij
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param matrix_c ...
+!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE cp_fm_schur_product(matrix_a,matrix_b,matrix_c,error)
@@ -633,14 +680,15 @@ CPSourceFileRef,&
 !>      sum_{i,j}(matrix_a(i,j)*matrix_b(i,j))
 !> \param matrix_a a matrix
 !> \param matrix_b another matrix
+!> \param trace ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      note the transposition of matrix_a!
 !> \par History
 !>      11.06.2001 Creation (Matthias Krack)
 !>      12.2002 added doc [fawzi]
 !> \author Matthias Krack
+!> \note
+!>      note the transposition of matrix_a!
 ! *****************************************************************************
   SUBROUTINE cp_fm_trace(matrix_a,matrix_b,trace,error)
 
@@ -680,13 +728,13 @@ CPSourceFileRef,&
     ! cries for an accurate_dot_product
     IF(matrix_a%use_sp.AND.matrix_b%use_sp) THEN
        trace = accurate_sum(REAL(a_sp(1:nrow_local,1:ncol_local) * &
-            &                    b_sp(1:nrow_local,1:ncol_local), dp) )
+                                 b_sp(1:nrow_local,1:ncol_local), dp) )
     ELSEIF(matrix_a%use_sp.AND..NOT.matrix_b%use_sp) THEN
        trace = accurate_sum(REAL(a_sp(1:nrow_local,1:ncol_local), dp) * &
-            &                       b(1:nrow_local,1:ncol_local) )
+                                    b(1:nrow_local,1:ncol_local) )
     ELSEIF(.NOT.matrix_a%use_sp.AND.matrix_b%use_sp) THEN
        trace = accurate_sum(        a(1:nrow_local,1:ncol_local) * &
-            &               REAL(b_sp(1:nrow_local,1:ncol_local), dp) )
+                            REAL(b_sp(1:nrow_local,1:ncol_local), dp) )
     ELSE
        trace = accurate_sum(a(1:nrow_local,1:ncol_local) * &
                             b(1:nrow_local,1:ncol_local) )
@@ -724,13 +772,14 @@ CPSourceFileRef,&
 !>        size(matrix_b,1))
 !> \param n_cols the number of columns of the result (defaults to
 !>        size(matrix_b,2))
+!> \param alpha ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      needs an mpi env
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      needs an mpi env
 ! *****************************************************************************
 SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
      transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
@@ -822,6 +871,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 ! *****************************************************************************
 !> \brief scales a matrix
 !>      matrix_a = alpha * matrix_b
+!> \param alpha ...
+!> \param matrix_a ...
+!> \param error ...
 !> \note
 !>      use cp_fm_set_all to zero (avoids problems with nan)
 ! *****************************************************************************
@@ -857,6 +909,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 ! *****************************************************************************
 !> \brief transposes a matrix
 !>      matrixt = matrix ^ T
+!> \param matrix ...
+!> \param matrixt ...
+!> \param error ...
 !> \note
 !>      all matrix elements are transpose (see cp_fm_upper_to_half to symmetrise a matrix)
 !>      all matrix elements are transpose (see cp_fm_upper_to_half to symmetrize a matrix)
@@ -911,9 +966,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !> \brief given an upper triangular matrix computes the corresponding full matrix
 !> \param matrix the upper triangular matrix as input, the full matrix as output
 !> \param work a matrix of the same size as matrix
+!> \param error ...
+!> \author Matthias Krack
 !> \note
 !>       the lower triangular part is irrelevant
-!> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
 
@@ -1036,12 +1092,13 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
 ! *****************************************************************************
 !> \brief scales column i of matrix a with scaling(i)
+!> \param matrixa ...
 !> \param scaling : an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!> \author Joost VandeVondele
 !> \note
 !>      this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
 !>      that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
 !>      this procedure can be up to 20 times faster than calling cp_fm_syrk n times
-!> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE cp_fm_column_scale(matrixa,scaling)
     TYPE(cp_fm_type), POINTER                :: matrixa
@@ -1101,12 +1158,16 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
 ! *****************************************************************************
 !> \brief scales column i of matrix a with scaling(i)
-!> \param scaling : an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!> \param matrix_a ...
+!> \param matrix_inverse ...
+!> \param det_a ...
+!> \param error ...
+!> \param scaling : an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author Florian Schiffmann(02.2007)
 !> \note
 !>      this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
 !>      that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
 !>      this procedure can be up to 20 times faster than calling cp_fm_syrk n times
-!> \author Florian Schiffmann(02.2007)
 ! *****************************************************************************
   SUBROUTINE cp_fm_invert(matrix_a,matrix_inverse,det_a,error)
 
@@ -1209,6 +1270,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
 ! *****************************************************************************
 !> \brief inverts a triangular matrix
+!> \param matrix_a ...
+!> \param uplo_tr ...
+!> \param error ...
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE cp_fm_triangular_invert(matrix_a,uplo_tr,error)
@@ -1256,10 +1320,16 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
 
 ! *****************************************************************************
-! *****************************************************************************
 !> \brief  perfoms a QR factorization of the input rectangular matrix A or of a submatrix of A
 !>         the computed upper triangular matrix R is in output in the submatrix sub(A) of size NxN
 !>         M and M give the dimention of the submatrix that has to be factorized (MxN) with M>N
+!> \param matrix_a ...
+!> \param matrix_r ...
+!> \param nrow_fact ...
+!> \param ncol_fact ...
+!> \param first_row ...
+!> \param first_col ...
+!> \param error ...
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE cp_fm_qr_factorization(matrix_a, matrix_r, nrow_fact, ncol_fact, first_row, first_col, error)
@@ -1348,6 +1418,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 ! *****************************************************************************
 !> \brief computs the the solution to A*b=A_general using lu decomposition
 !>        pay attention, both matrices are overwritten, a_general contais the result
+!> \param matrix_a ...
+!> \param general_a ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
   SUBROUTINE cp_fm_solve(matrix_a,general_a,error)
@@ -1398,15 +1471,32 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !> \brief Convenience function. Computes the matrix multiplications needed
 !>        for the multiplication of complex matrices.
 !>        C = beta * C + alpha * ( A  ** transa ) * ( B ** transb )
-!> \param A : m x k matrix ( ! for transa = 'N'), A_re is the real part, A_im the imaginary part
-!> \param B : k x n matrix ( ! for transb = 'N')
-!> \param C : m x n matrix
 !> \param transa : 'N' -> normal   'T' -> transpose
 !>      alpha,beta :: can be 0.0_dp and 1.0_dp
+!> \param transb ...
+!> \param m ...
+!> \param n ...
+!> \param k ...
+!> \param alpha ...
+!> \param A_re ...
+!> \param A_im ...
+!> \param B_re ...
+!> \param B_im ...
+!> \param beta ...
+!> \param C_re ...
+!> \param C_im ...
+!> \param error ...
 !> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
+!> \param a_first_row ...
+!> \param b_first_row ...
+!> \param c_first_col ...
+!> \param c_first_row ...
+!> \param A : m x k matrix ( ! for transa = 'N'), A_re is the real part, A_im the imaginary part UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param B : k x n matrix ( ! for transb = 'N') UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param C : m x n matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author Samuel Andermatt
 !> \note
 !>      C should have no overlap with A, B
-!> \author Samuel Andermatt
 ! *****************************************************************************
 SUBROUTINE cp_complex_fm_gemm(transa,transb,m,n,k,alpha,A_re,A_im,B_re,B_im,beta,&
        C_re,C_im,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)

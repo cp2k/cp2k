@@ -105,12 +105,14 @@ CONTAINS
 !> \brief directs the program in running one or two box MC simulations
 !> \param mc_env a pointer that contains all mc_env for all the simulation
 !>          boxes
+!> \param para_env ...
 !> \param globenv the global environment for the simulation
+!> \param input_declaration ...
 !> \param nboxes the number of simulation boxes
-!> \param error the error type
 !> \param rng_stream the stream we pull random numbers from
 !>
 !>    Suitable for parallel.
+!> \param error the error type
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_run_ensemble ( mc_env, para_env, globenv, input_declaration, nboxes, rng_stream, error)
@@ -1208,11 +1210,11 @@ CONTAINS
 !>      the final answer.
 !> \param mc_env a pointer that contains all mc_env for all the simulation
 !>          boxes
-!> \param globenv the global environment for the simulation
-!> \param error the error type
 !> \param rng_stream the stream we pull random numbers from
 !>
 !>    Suitable for parallel.
+!> \param error the error type
+!> \param globenv the global environment for the simulation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_compute_virial ( mc_env, rng_stream, error)

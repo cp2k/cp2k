@@ -58,6 +58,11 @@ CONTAINS
 !> \brief given partial densities on the realspace multigrids,
 !>      computes the full density on the plane wave grids, both in real and
 !>      gspace
+!> \param pw_env ...
+!> \param rs_rho ...
+!> \param rho ...
+!> \param rho_gspace ...
+!> \param error ...
 !> \note
 !>      should contain all communication in the collocation of the density
 !>      in the case of replicated grids
@@ -150,6 +155,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief given partial densities on the realspace multigrids,
 !>      computes the full density on the plane wave grids
+!> \param pw_env ...
+!> \param rs_rho ...
+!> \param rho ...
+!> \param rho_gspace ...
+!> \param error ...
 !> \note
 !>      should contain the all communication in the collocation of the density
 !>      in the case of replicated grids
@@ -241,14 +251,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief transfers a potential from a pw_grid to a vector of
 !>      realspace multigrids
-!> \param v_rspace INPUT : the potential on a planewave grid in Rspace
 !> \param rs_v OUTPUT: the potential on the realspace multigrids
+!> \param v_rspace INPUT : the potential on a planewave grid in Rspace
+!> \param pw_env ...
+!> \param error ...
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>      extracted from integrate_v_rspace
 !>      should contain all parallel communication of integrate_v_rspace in the
 !>      case of replicated grids.
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE potential_pw2rs(rs_v,v_rspace,pw_env,error)
 

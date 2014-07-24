@@ -109,11 +109,11 @@ CONTAINS
 !> \param el_format the format of a single element
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      maybe I will move to a comma separated paretized list
 !> \par History
 !>      4.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      maybe I will move to a comma separated paretized list
 ! *****************************************************************************
 SUBROUTINE cp_1d_r_write(array, unit_nr, el_format, error)
     REAL(kind=dp), DIMENSION(:), INTENT(in)  :: array
@@ -167,11 +167,11 @@ END SUBROUTINE cp_1d_r_write
 !> \param el_format the format of a single element
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      maybe I will move to a comma separated parentized list
 !> \par History
 !>      4.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      maybe I will move to a comma separated parentized list
 ! *****************************************************************************
 SUBROUTINE cp_2d_r_write(array, unit_nr, el_format, error)
     REAL(kind=dp), DIMENSION(:, :), &
@@ -219,13 +219,13 @@ END SUBROUTINE cp_2d_r_write
 !> \param init the initial value of the elements when resized
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      this is a different behaviour than the realloc in the module
-!>      memory_utilities. It is quite low level
 !> \par History
 !>      12.2001 first version [fawzi]
 !>      3.2002 templatized [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      this is a different behaviour than the realloc in the module
+!>      memory_utilities. It is quite low level
 ! *****************************************************************************
   SUBROUTINE cp_1d_r_guarantee_size(array, n, init, error)
     REAL(kind=dp), DIMENSION(:), POINTER     :: array
@@ -271,12 +271,12 @@ END SUBROUTINE cp_2d_r_write
 !> \param init the initial value of the elements when resized
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      this is a different behaviour than the realloc in the module
-!>      memory_utilities. It is quite low level
 !> \par History
 !>      5.2001 first version [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      this is a different behaviour than the realloc in the module
+!>      memory_utilities. It is quite low level
 ! *****************************************************************************
   SUBROUTINE cp_2d_r_guarantee_size(array, n_rows, n_cols ,&
        init, error)
@@ -323,11 +323,12 @@ END SUBROUTINE cp_2d_r_write
 !> \param u_index the upper index for binary search (defaults to size(array))
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      the array should be ordered in growing order
+!> \retval res ...
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      the array should be ordered in growing order
 ! *****************************************************************************
 FUNCTION cp_1d_r_bsearch(array, el, l_index, u_index, error)&
      RESULT(res)

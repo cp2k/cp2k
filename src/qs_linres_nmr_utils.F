@@ -65,6 +65,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the nmr environment
+!> \param nmr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      07.2006 created [MI]
 !> \author MI
@@ -118,7 +121,7 @@ CONTAINS
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         &                             extension=".linresLog",error=error)
+                                       extension=".linresLog",error=error)
 
     IF(nmr_env%ref_count /= 0) THEN
       CALL nmr_env_cleanup(nmr_env,error=error)
@@ -139,7 +142,7 @@ CONTAINS
     CALL section_vals_val_get(nmr_section,"NICS",l_val=nmr_env%do_nics,error=error)
     IF(nmr_env%do_nics) THEN
        CALL section_vals_val_get(nmr_section,"NICS_FILE_NAME",&
-            &                    c_val=nics_file_name,error=error)
+                                 c_val=nics_file_name,error=error)
        CALL parser_create(parser,nics_file_name,error=error)
        CALL parser_get_next_line(parser,1,error=error)
        CALL parser_get_object(parser,nmr_env%n_nics,error=error)
@@ -226,7 +229,7 @@ CONTAINS
        nat_print = 0
        CALL section_vals_val_get(nmr_section,&
             &                    "PRINT%SHIELDING_TENSOR%ATOMS_LU_BOUNDS",&
-            &                    i_vals=bounds,error=error)
+                                 i_vals=bounds,error=error)
        nat_print = bounds(2) - bounds(1)  + 1
        IF(nat_print > 0) THEN
           ALLOCATE(nmr_env%cs_atom_list(nat_print),STAT=istat)
@@ -239,12 +242,12 @@ CONTAINS
 
        IF(.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
           CALL section_vals_val_get(nmr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
-               &                    n_rep_val=n_rep,error=error)
+                                    n_rep_val=n_rep,error=error)
           nat_print = 0
           DO ir = 1,n_rep
              NULLIFY(list)
              CALL section_vals_val_get(nmr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
-                  &                    i_rep_val=ir,i_vals=list,error=error)
+                                       i_rep_val=ir,i_vals=list,error=error)
              IF(ASSOCIATED(list)) THEN
                 CALL reallocate(nmr_env%cs_atom_list,1,nat_print + SIZE(list))
                 DO ini = 1, SIZE(list)
@@ -285,7 +288,7 @@ CONTAINS
     IF(output_unit>0) THEN
        IF(ASSOCIATED(nmr_env%cs_atom_list)) THEN
           WRITE(output_unit,"(T2,A,T69,I5,A)") "NMR| Shielding tensor computed for ",&
-               & SIZE(nmr_env%cs_atom_list,1)," atoms"
+                 SIZE(nmr_env%cs_atom_list,1)," atoms"
        ELSE
           WRITE(output_unit,"(T2,A,T50)")&
                & "NMR| Shielding tensor not computed at the atomic positions"
@@ -294,13 +297,13 @@ CONTAINS
     !
     ! Initialize the chemical shift tensor
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),&
-         &   nmr_env%chemical_shift_loc(3,3,natom),STAT=istat)
+             nmr_env%chemical_shift_loc(3,3,natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%chemical_shift = 0.0_dp
     nmr_env%chemical_shift_loc = 0.0_dp
     IF(nmr_env%do_nics) THEN
        ALLOCATE(nmr_env%chemical_shift_nics_loc(3,3,nmr_env%n_nics),&
-            &   nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
+                nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        nmr_env%chemical_shift_nics_loc = 0.0_dp
        nmr_env%chemical_shift_nics = 0.0_dp
@@ -315,6 +318,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the nmr environment
+!> \param nmr_env ...
+!> \param error ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI

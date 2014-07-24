@@ -276,6 +276,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create MM kinds sections
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -322,6 +323,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create FORCE_MIXING sections
+!> \param section ...
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 !> \author noam
@@ -574,6 +576,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create QM kinds sections
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -613,6 +616,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -673,10 +677,11 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief Input section for QM/MM image charge calculations
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze
-! ****************************************************************************
+! *****************************************************************************
   SUBROUTINE create_qmmm_image_charge_section (section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -760,6 +765,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -926,6 +932,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the qm/mm forcefield section to override to the FF specification
 !>      given in the FIST input
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -974,6 +981,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the qm/mm forcefield section to override to the FF specification
 !>      given in the FIST input - NONBONDED PART
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -1019,6 +1027,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the qm/mm link section
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -1230,6 +1239,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the interpolation section
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino

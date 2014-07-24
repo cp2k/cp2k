@@ -142,12 +142,12 @@ CONTAINS
 !> \param rel_control the object to free
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      at the moment does nothing
 !> \par History
 !>      09.2002 created [fawzi] for scf_control_type
 !>      10.2008 copied to rel_control_type [JT]
 !> \author Fawzi Mohamed
+!> \note
+!>      at the moment does nothing
 ! *****************************************************************************
   SUBROUTINE rel_c_release(rel_control,error)
 
@@ -178,6 +178,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads the parameters of the relativistic section into the given rel_control
 !> \param rel_control the object that wil contain the values read
+!> \param dft_section ...
 !> \param error controls log and error handling
 !> \par History
 !>      05.2001 created [Matthias] for scf_control_type

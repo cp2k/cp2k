@@ -645,6 +645,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the ZMP subsection for Atom calculations
 !>  
+!> \param section ...
+!> \param error ...
 !> \author D. Varsano [daniele.varsano@nano.cnr.it] 
 ! *****************************************************************************
   SUBROUTINE create_zmp_section(section,error)
@@ -705,6 +707,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the ZMP restart subsection for Atom calculations
 !>  
+!> \param section ...
+!> \param error ...
 !> \author D. Varsano [daniele.varsano@nano.cnr.it] 
 ! *****************************************************************************
   SUBROUTINE create_zmp_restart_section(section,error)
@@ -742,6 +746,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Subroutine to create the external v_xc potential 
 !>  
+!> \param section ...
+!> \param error ...
 !> \author D. Varsano [daniele.varsano@nano.cnr.it] 
 ! *****************************************************************************
   SUBROUTINE create_external_vxc(section,error)

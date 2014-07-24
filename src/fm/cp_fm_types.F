@@ -136,13 +136,15 @@ CONTAINS
 !> \brief creates a new full matrix with the given structure
 !> \param matrix the matrix to be created
 !> \param matrix_struct the structure of matrix
+!> \param name ...
+!> \param use_sp ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      preferred allocation routine
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      preferred allocation routine
 ! *****************************************************************************
   SUBROUTINE cp_fm_create(matrix,matrix_struct,name,use_sp,error)
     TYPE(cp_fm_type), POINTER                :: matrix
@@ -303,9 +305,10 @@ CPSourceFileRef,&
 !> \param matrix : to be initialized
 !> \param ncol : numbers of cols to fill
 !> \param start_col : starting at coll number
+!> \param error ...
+!> \author Joost VandeVondele
 !> \note
 !>      the value of a_ij is independent of the number of cpus
-!> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
     TYPE(cp_fm_type), POINTER                :: matrix
@@ -390,6 +393,10 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief set all elements of a matrix to the same value,
 !>      and optionally the diagonal to a different one
+!> \param matrix ...
+!> \param alpha ...
+!> \param beta ...
+!> \param error ...
 !> \note
 !>      can be used to zero a matrix
 !>      can be used to create a unit matrix (I-matrix) alpha=0.0_dp beta=1.0_dp
@@ -433,6 +440,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief returns the diagonal elements of a fm
+!> \param matrix ...
+!> \param diag ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_fm_get_diag(matrix,diag,error)
 
@@ -501,6 +511,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief returns the diagonal elements of a fm
+!> \param matrix ...
+!> \param diag ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_fm_set_diag(matrix,diag,error)
 
@@ -630,6 +643,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief sets an element of a matrix
+!> \param matrix ...
+!> \param irow_global ...
+!> \param icol_global ...
+!> \param alpha ...
+!> \param error ...
 !> \note
 !>      we expect all cpus to have the same arguments in the call to this function
 !>      (otherwise one should use local_data tricks)
@@ -688,8 +706,8 @@ CPSourceFileRef,&
 !>       fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !>       = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta
 !>       * fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
-!> \param new_values a replicated full matrix with the new values
 !> \param fm the full to change
+!> \param new_values a replicated full matrix with the new values
 !> \param start_row the starting row of b_matrix (defaults to 1)
 !> \param start_col the starting col of b_matrix (defaults to 1)
 !> \param n_rows the number of row to change in b (defaults to
@@ -703,12 +721,12 @@ CPSourceFileRef,&
 !>        (defaults to false)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      optimized for full column updates and alpha=1.0, beta=0.0
-!>      the new_values need to be valid on all cpus
 !> \par History
 !>      07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      optimized for full column updates and alpha=1.0, beta=0.0
+!>      the new_values need to be valid on all cpus
 ! *****************************************************************************
   SUBROUTINE cp_fm_set_submatrix(fm,new_values,start_row,&
        start_col, n_rows, n_cols, alpha, beta, transpose, error)
@@ -837,8 +855,8 @@ CPSourceFileRef,&
 !>       =fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !>      target_m is replicated on all cpus
 !>      using this call is expensive
-!> \param target_m a replicated full matrix that will contain the result
 !> \param fm the full you want to get the info from
+!> \param target_m a replicated full matrix that will contain the result
 !> \param start_row the starting row of b_matrix (defaults to 1)
 !> \param start_col the starting col of b_matrix (defaults to 1)
 !> \param n_rows the number of row to change in b (defaults to
@@ -850,13 +868,13 @@ CPSourceFileRef,&
 !>        (defaults to false)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      optimized for full column updates. Zeros out a little too much
 !>      of target_m
 !>      the target_m is replicated and valid on all cpus
-!> \par History
-!>      07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cp_fm_get_submatrix(fm,target_m, start_row,&
        start_col, n_rows, n_cols, transpose, error)
@@ -961,6 +979,23 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief returns all kind of information about the full matrix
+!> \param matrix ...
+!> \param name ...
+!> \param nrow_global ...
+!> \param ncol_global ...
+!> \param nrow_block ...
+!> \param ncol_block ...
+!> \param nrow_local ...
+!> \param ncol_local ...
+!> \param row_indices ...
+!> \param col_indices ...
+!> \param local_data ...
+!> \param context ...
+!> \param nrow_locals ...
+!> \param ncol_locals ...
+!> \param matrix_struct ...
+!> \param para_env ...
+!> \param error ...
 !> \note
 !>       see also cp_fm_struct for explaination
 !>       - nrow_local, ncol_local, row_indices, col_indices, local_data are hooks for efficient
@@ -1021,6 +1056,11 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief find the maximum absolute value of the matrix element
 !>      maxval(abs(matrix))
+!> \param matrix ...
+!> \param a_max ...
+!> \param ir_max ...
+!> \param ic_max ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_fm_maxabsval(matrix,a_max,ir_max,ic_max,error)
     TYPE(cp_fm_type), POINTER                :: matrix
@@ -1125,6 +1165,9 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief find the maximum over the rows of the sum of the absolute values of the elements of a given row
 !>      = || A ||_infinity
+!> \param matrix ...
+!> \param a_max ...
+!> \param error ...
 !> \note
 !>      for a real symmetric matrix it holds that || A ||_2 = |lambda_max| < || A ||_infinity
 !>      Hence this can be used to estimate an upper bound for the eigenvalues of a matrix
@@ -1172,6 +1215,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief find the inorm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*A_{ij} )
+!> \param matrix ...
+!> \param norm_array ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_fm_vectorsnorm(matrix, norm_array, error)
     TYPE(cp_fm_type), POINTER                :: matrix
@@ -1222,13 +1268,13 @@ CPSourceFileRef,&
 !>        (defaults to false, i.e. global)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      uniquing_nr should be smartened: don't add if no file exist, else
 !>      increase nr until no file exists
 !>      routine to help debugging
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
    SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local, error)
     TYPE(cp_fm_type), POINTER                :: matrix
@@ -1330,6 +1376,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief copy one identically sized matrix in the other
+!> \param source ...
+!> \param destination ...
+!> \param error ...
 !> \note
 !>      see also cp_fm_to_fm_columns
 ! *****************************************************************************
@@ -1448,6 +1497,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief copy just a subset of columns of a fm to a fm
+!> \param msource ...
+!> \param mtarget ...
+!> \param ncol ...
+!> \param source_start ...
+!> \param target_start ...
 ! *****************************************************************************
   SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,&
                                  target_start)
@@ -1495,6 +1549,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief copy just a triangular matrix
+!> \param msource ...
+!> \param mtarget ...
+!> \param uplo ...
+!> \param error ...
 ! *****************************************************************************
 
   SUBROUTINE cp_fm_to_fm_triangular (msource, mtarget, uplo, error)
@@ -1537,6 +1595,15 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief copy just a part ot the matrix
+!> \param msource ...
+!> \param mtarget ...
+!> \param nrow ...
+!> \param ncol ...
+!> \param s_firstrow ...
+!> \param s_firstcol ...
+!> \param t_firstrow ...
+!> \param t_firstcol ...
+!> \param error ...
 ! *****************************************************************************
 
   SUBROUTINE cp_fm_to_fm_submat(msource, mtarget, nrow, ncol, s_firstrow, s_firstcol, t_firstrow, t_firstcol, error)
@@ -1613,6 +1680,13 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_to_fm_submat
 
 ! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param irow_global ...
+!> \param icol_global ...
+!> \param alpha ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE cp_fm_add_to_element(matrix,irow_global,icol_global,alpha,error)
 
     ! Add alpha to the matrix element specified by the global indices
@@ -1671,6 +1745,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_add_to_element
 
+! *****************************************************************************
+!> \brief ...
+!> \param fm ...
+!> \param unit ...
+!> \param error ...
+! *****************************************************************************
  SUBROUTINE cp_fm_write_unformatted(fm,unit,error)
     TYPE(cp_fm_type), POINTER                :: fm
     INTEGER                                  :: unit
@@ -1772,6 +1852,12 @@ CPSourceFileRef,&
 
  END SUBROUTINE cp_fm_write_unformatted
 
+! *****************************************************************************
+!> \brief ...
+!> \param fm ...
+!> \param unit ...
+!> \param error ...
+! *****************************************************************************
  SUBROUTINE cp_fm_read_unformatted(fm,unit,error)
     TYPE(cp_fm_type), POINTER                :: fm
     INTEGER                                  :: unit
@@ -1832,31 +1918,37 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief wrapper to scalapack function INDXG2P that computes the process 
-!         coordinate which posseses the entry of a distributed matrix specified 
-!         by a global index INDXGLOB.
-!
-!  Arguments
-!  =========
-!
-!  INDXGLOB  (global input) INTEGER
-!            The global index of the element.
-!
-!  NB        (global input) INTEGER
-!            Block size, size of the blocks the distributed matrix is
-!            split into.
-!
-!  IPROC     (local dummy) INTEGER
-!            Dummy argument in this case in order to unify the calling
-!            sequence of the tool-routines.
-!
-!  ISRCPROC  (global input) INTEGER
-!            The coordinate of the process that possesses the first
-!            row/column of the distributed matrix.
-!
-!  NPROCS    (global input) INTEGER
-!            The total number processes over which the matrix is
-!            distributed.         
-!
+!>         coordinate which posseses the entry of a distributed matrix specified 
+!>         by a global index INDXGLOB.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXGLOB  (global input) INTEGER
+!>            The global index of the element.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  ISRCPROC  (global input) INTEGER
+!>            The coordinate of the process that possesses the first
+!>            row/column of the distributed matrix.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the matrix is
+!>            distributed.         
+!>
+!> \param INDXGLOB ...
+!> \param NB ...
+!> \param IPROC ...
+!> \param ISRCPROC ...
+!> \param NPROCS ...
+!> \retval G2P ...
 !> \author Mauro Del Ben [MDB] - 12.2012
 ! *****************************************************************************
  FUNCTION  cp_fm_indxg2p( INDXGLOB, NB, IPROC, ISRCPROC, NPROCS ) RESULT(G2P)
@@ -1884,30 +1976,36 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief wrapper to scalapack function INDXG2L that computes the local index 
-!         of a distributed matrix entry pointed to by the global index INDXGLOB.
-!
-!  Arguments
-!  =========
-!
-!  INDXGLOB  (global input) INTEGER
-!            The global index of the distributed matrix entry.
-!
-!  NB        (global input) INTEGER
-!            Block size, size of the blocks the distributed matrix is
-!            split into.
-!
-!  IPROC     (local dummy) INTEGER
-!            Dummy argument in this case in order to unify the calling
-!            sequence of the tool-routines.
-!
-!  ISRCPROC  (local dummy) INTEGER
-!            Dummy argument in this case in order to unify the calling
-!            sequence of the tool-routines.
-!
-!  NPROCS    (global input) INTEGER
-!            The total number processes over which the distributed
-!            matrix is distributed.
-!
+!>         of a distributed matrix entry pointed to by the global index INDXGLOB.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXGLOB  (global input) INTEGER
+!>            The global index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  ISRCPROC  (local dummy) INTEGER
+!>            Dummy argument in this case in order to unify the calling
+!>            sequence of the tool-routines.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param INDXGLOB ...
+!> \param NB ...
+!> \param IPROC ...
+!> \param ISRCPROC ...
+!> \param NPROCS ...
+!> \retval G2L ...
 !> \author Mauro Del Ben [MDB] - 12.2012
 ! *****************************************************************************
  FUNCTION  cp_fm_indxg2l( INDXGLOB, NB, IPROC, ISRCPROC, NPROCS ) RESULT(G2L)
@@ -1935,31 +2033,37 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief wrapper to scalapack function INDXL2G that computes the global index
-!         of a distributed matrix entry pointed to by the local index INDXLOC 
-!         of the process indicated by IPROC.
-!
-!  Arguments
-!  =========
-!
-!  INDXLOC   (global input) INTEGER
-!            The local index of the distributed matrix entry.
-!
-!  NB        (global input) INTEGER
-!            Block size, size of the blocks the distributed matrix is
-!            split into.
-!
-!  IPROC     (local input) INTEGER
-!            The coordinate of the process whose local array row or
-!            column is to be determined.
-!
-!  ISRCPROC  (global input) INTEGER
-!            The coordinate of the process that possesses the first
-!            row/column of the distributed matrix.
-!
-!  NPROCS    (global input) INTEGER
-!            The total number processes over which the distributed
-!            matrix is distributed.
-!
+!>         of a distributed matrix entry pointed to by the local index INDXLOC 
+!>         of the process indicated by IPROC.
+!>
+!>  Arguments
+!>  =========
+!>
+!>  INDXLOC   (global input) INTEGER
+!>            The local index of the distributed matrix entry.
+!>
+!>  NB        (global input) INTEGER
+!>            Block size, size of the blocks the distributed matrix is
+!>            split into.
+!>
+!>  IPROC     (local input) INTEGER
+!>            The coordinate of the process whose local array row or
+!>            column is to be determined.
+!>
+!>  ISRCPROC  (global input) INTEGER
+!>            The coordinate of the process that possesses the first
+!>            row/column of the distributed matrix.
+!>
+!>  NPROCS    (global input) INTEGER
+!>            The total number processes over which the distributed
+!>            matrix is distributed.
+!>
+!> \param INDXLOC ...
+!> \param NB ...
+!> \param IPROC ...
+!> \param ISRCPROC ...
+!> \param NPROCS ...
+!> \retval L2G ...
 !> \author Mauro Del Ben [MDB] - 12.2012
 ! *****************************************************************************
  FUNCTION  cp_fm_indxl2g( INDXLOC, NB, IPROC, ISRCPROC, NPROCS ) RESULT(L2G)
@@ -1985,12 +2089,20 @@ CPSourceFileRef,&
 
  END FUNCTION  cp_fm_indxl2g
 
+! *****************************************************************************
+!> \brief ...
+!> \param mult_type ...
+! *****************************************************************************
  SUBROUTINE cp_fm_setup(mult_type)
     INTEGER                                  :: mult_type
 
    mm_type=mult_type
  END SUBROUTINE cp_fm_setup
 
+! *****************************************************************************
+!> \brief ...
+!> \retval res ...
+! *****************************************************************************
  FUNCTION cp_fm_get_mm_type()  RESULT(res)
     INTEGER                                  :: res
 

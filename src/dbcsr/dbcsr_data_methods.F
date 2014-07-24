@@ -89,6 +89,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Transfers data from host- to device-buffer, asynchronously.
+!> \param area ...
+!> \param error ...
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_host2dev(area, error)
@@ -142,6 +144,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Transfers data from device- to host-buffer, asynchronously.
+!> \param area ...
+!> \param error ...
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_dev2host(area, error)
@@ -269,6 +273,7 @@ CONTAINS
 !>                            default is to keep it
 !> \param[in] zero_pad        (optional) pad new data with zeros
 !> \param[in] factor          (optional) increase size by this factor
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area

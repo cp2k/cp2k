@@ -67,8 +67,9 @@ CONTAINS
 !> \brief  Allocate and initialize the orbital transformation matrices for
 !>         the transformation and for the backtransformation of orbitals
 !>         from the Cartesian representation to the spherical representation.
-!> \author  MK
+!> \param maxl ...
 !> \date    20.05.2004
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE create_spherical_harmonics(maxl)
@@ -276,8 +277,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate the orbital transformation matrices.
-!> \author  MK
 !> \date    20.05.2004
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_spherical_harmonics()
@@ -331,10 +332,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Initialize or update the orbital transformation matrices.
-!> \author MK
+!> \param maxl ...
+!> \param output_unit ...
+!> \param error ...
 !> \date     09.07.1999
 !> \par Variables
 !>      - maxl   : Maximum angular momentum quantum number
+!> \author MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_spherical_harmonics(maxl,output_unit,error)
@@ -392,13 +396,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Print a matrix to the logical unit "lunit".
-!> \author  MK
+!> \param matrix ...
+!> \param l ...
+!> \param lunit ...
+!> \param headline ...
 !> \date    07.06.2000
 !> \par Variables
 !>      - matrix  : Matrix to be printed.
 !>      - l       : Angular momentum quantum number
 !>      - lunit   : Logical unit number.
 !>      - headline: Headline of the matrix.
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_matrix(matrix,l,lunit,headline)

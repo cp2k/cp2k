@@ -72,6 +72,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Set values of a pw type to zero
+!> \param pw ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author apsi
@@ -114,14 +116,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief copy a pw type variable
-!> \note
-!>      Currently only copying of respective types allowed,
-!>      in order to avoid errors
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param error ...
 !> \par History
 !>      JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if
 !>        in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
 !>      JGH (21-Feb-2003) : Code for generalized reference grids
 !> \author apsi
+!> \note
+!>      Currently only copying of respective types allowed,
+!>      in order to avoid errors
 ! *****************************************************************************
   SUBROUTINE pw_copy ( pw1, pw2, error)
     TYPE(pw_type), INTENT(IN)                :: pw1
@@ -285,6 +290,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief multiplies pw coeffs with a number
+!> \param pw ...
+!> \param a ...
+!> \param error ...
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -329,12 +337,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculate the derivative of a plane wave vector
-!> \note
-!>      Calculate the derivative dx^n(1) dy^n(2) dz^n(3) PW
-!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \param pw ...
+!> \param n ...
+!> \param error ...
 !> \par History
 !>      JGH (06-10-2002) allow only for inplace derivatives
 !> \author JGH (25-Feb-2001)
+!> \note
+!>      Calculate the derivative dx^n(1) dy^n(2) dz^n(3) PW
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
   SUBROUTINE pw_derive ( pw, n, error )
 
@@ -428,11 +439,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculate the tensorial 2nd derivative of a plane wave vector
-!> \note
-!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \param pw ...
+!> \param pwdr2 ...
+!> \param i ...
+!> \param j ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (05-May-2006)
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
   SUBROUTINE pw_dr2 ( pw, pwdr2, i, j, error)
 
@@ -489,12 +505,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate the tensorial 2nd derivative of a plane wave vector
 !>      and divides by |G|^2. pwdr2_gg(G=0) is put to zero.
-!> \note
-!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
-!>      Adapted from pw_dr2
+!> \param pw ...
+!> \param pwdr2_gg ...
+!> \param i ...
+!> \param j ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author RD (20-Nov-2006)
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!>      Adapted from pw_dr2
 ! *****************************************************************************
   SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j, error)
 
@@ -553,11 +574,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Multiplies a G-space function with a smoothing factor of the form
 !>      f(|G|) = exp((ecut - G^2)/sigma)/(1+exp((ecut - G^2)/sigma))
-!> \note
-!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \param pw ...
+!> \param ecut ...
+!> \param sigma ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (09-June-2006)
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
   SUBROUTINE pw_smoothing ( pw, ecut, sigma, error)
 
@@ -604,11 +629,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Generalize copy of pw types
-!> \note
-!>      Copy routine that allows for in_space changes
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param debug ...
+!> \param error ...
 !> \par History
 !>      JGH (13-Mar-2001) : added gather/scatter cases
 !> \author JGH (25-Feb-2001)
+!> \note
+!>      Copy routine that allows for in_space changes
 ! *****************************************************************************
   SUBROUTINE pw_transfer ( pw1, pw2, debug, error)
 
@@ -664,13 +693,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief pw2 = alpha*pw1 + pw2
 !>      alpha defaults to 1
-!> \note
-!>      Currently only summing up of respective types allowed,
-!>      in order to avoid errors
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param alpha ...
+!> \param error ...
 !> \par History
 !>      JGH (21-Feb-2003) : added reference grid functionality
 !>      JGH (01-Dec-2007) : rename and remove complex alpha
 !> \author apsi
+!> \note
+!>      Currently only summing up of respective types allowed,
+!>      in order to avoid errors
 ! *****************************************************************************
   SUBROUTINE pw_axpy ( pw1, pw2, alpha, error)
 
@@ -873,6 +906,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Gathers the pw vector from a 3d data field
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH
@@ -944,6 +981,12 @@ CONTAINS
 
   END SUBROUTINE pw_gather_s
 
+! *****************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pw_gather_p ( pw, c, scale, error)
 
@@ -1024,6 +1067,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Scatters a pw vector to a 3d data field
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH
@@ -1133,6 +1180,12 @@ CONTAINS
 
   END SUBROUTINE pw_scatter_s
 
+! *****************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param c ...
+!> \param scale ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pw_scatter_p ( pw, c, scale, error)
 
@@ -1255,13 +1308,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Generic function for 3d FFT of a coefficient_type or pw_type
-!> \note
-!>       fft_wrap_pw1pw2
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param debug ...
+!> \param error ...
 !> \par History
 !>      JGH (30-12-2000): New setup of functions and adaptation to parallelism
 !>      JGH (04-01-2001): Moved routine from pws to this module, only covers
 !>                        pw_types, no more coefficient types
 !> \author apsi
+!> \note
+!>       fft_wrap_pw1pw2
 ! *****************************************************************************
   SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug, error)
 
@@ -1587,6 +1644,12 @@ CONTAINS
   END SUBROUTINE fft_wrap_pw1pw2
 
 ! *****************************************************************************
+!> \brief ...
+!> \param use1 ...
+!> \param use2 ...
+!> \param space1 ...
+!> \param error ...
+! *****************************************************************************
   FUNCTION fftselect ( use1, use2, space1, error) RESULT ( mode )
     INTEGER, INTENT(IN)                      :: use1, use2, space1
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1720,6 +1783,11 @@ CONTAINS
   END SUBROUTINE pw_write
 
 ! *****************************************************************************
+!> \brief ...
+!> \param grida ...
+!> \param gridb ...
+!> \param error ...
+! *****************************************************************************
   FUNCTION pw_compatible ( grida, gridb, error) RESULT ( compat )
     TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1745,6 +1813,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate integral over unit cell for functions in plane wave basis
 !>      only returns the real part of it ......
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param error ...
 !> \par History
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
@@ -1819,6 +1890,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate integral over unit cell for functions in plane wave basis
 !>      only returns the real part of it ......
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param error ...
 !> \par History
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
@@ -1891,6 +1965,11 @@ CONTAINS
   END FUNCTION pw_integral_ab_fast
 
 ! *****************************************************************************
+!> \brief ...
+!> \param pw1 ...
+!> \param flag ...
+!> \param error ...
+! *****************************************************************************
   FUNCTION pw_integral_aa_fast ( pw1, flag, error) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1
@@ -1955,6 +2034,11 @@ CONTAINS
   END FUNCTION pw_integral_aa_fast
 
 ! *****************************************************************************
+!> \brief ...
+!> \param pw1 ...
+!> \param pw2 ...
+!> \param error ...
+! *****************************************************************************
   FUNCTION pw_integral_a2b ( pw1, pw2, error) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
@@ -1998,11 +2082,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculate the structure factor for point r
-!> \note
-!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \param sf ...
+!> \param r ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (05-May-2006)
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
 ! *****************************************************************************
   SUBROUTINE pw_structure_factor ( sf, r, error)
 
@@ -2044,6 +2131,13 @@ CONTAINS
 
   END SUBROUTINE pw_structure_factor
 
+! *****************************************************************************
+!> \brief ...
+!> \param fun ...
+!> \param isign ...
+!> \param oprt ...
+!> \param error ...
+!> \retval total_fun ...
 ! *****************************************************************************
   FUNCTION pw_integrate_function(fun,isign,oprt,error) RESULT(total_fun)
 

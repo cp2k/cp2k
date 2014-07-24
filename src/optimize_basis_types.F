@@ -118,6 +118,7 @@ CONTAINS
 !> \brief Deallocate everything which was allocated before.
 !>        Note not all arrays are used depending on the type of basis
 !>        i.e derived or reference basis set
+!> \param opt_bas ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
@@ -156,6 +157,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Some more deallocation of the subtypes of optimize_absis type
+!> \param kind ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 

@@ -90,6 +90,11 @@ MODULE glbopt_minhop
 
 ! *****************************************************************************
 !> \brief Initializes master for Minima Hopping
+!> \param this ...
+!> \param glbopt_section ...
+!> \param n_workers ...
+!> \param iw ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE minhop_init(this, glbopt_section, n_workers, iw, error)
@@ -148,6 +153,9 @@ MODULE glbopt_minhop
 
 ! *****************************************************************************
 !> \brief Central steering routine of Minima Hopping
+!> \param this ...
+!> \param report ...
+!> \param cmd ...
 !> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE minhop_steer(this, report, cmd)
@@ -263,6 +271,7 @@ MODULE glbopt_minhop
 
 ! *****************************************************************************
 !> \brief Finalizes master for Minima Hopping
+!> \param this ...
 !> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE minhop_finalize(this)

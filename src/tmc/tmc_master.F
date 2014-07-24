@@ -94,6 +94,7 @@ CONTAINS
 !> \param work_list list with all elements processed by working groups
 !> \param cancel_count counter of canceled elements
 !> \param para_env communication environment
+!> \param tmc_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
@@ -174,11 +175,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief send analysis request to a worker 
 !> \param ana_list list with elements to be analysed
-!> \param work_list list with all elements processed by working groups
-!> \param cancel_count counter of canceled elements
+!> \param ana_worker_info ...
 !> \param para_env communication environment
+!> \param tmc_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cancel_count counter of canceled elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param work_list list with all elements processed by working groups UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE send_analysis_tasks(ana_list, ana_worker_info, para_env, tmc_env, error)

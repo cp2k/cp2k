@@ -497,8 +497,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Creates the machine architecture section
-!> \author  Christiane Pousa Ribeiro
+!> \param section ...
+!> \param error ...
 !> \date    2011-08-15
+!> \author  Christiane Pousa Ribeiro
 ! *****************************************************************************
   SUBROUTINE create_march_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -632,8 +634,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Creates the dbcsr section for configuring DBCSR
-!> \author  Urban Borstnik
+!> \param section ...
+!> \param error ...
 !> \date    2011-04-05
+!> \author  Urban Borstnik
 ! *****************************************************************************
   SUBROUTINE create_dbcsr_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -830,8 +834,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Creates the dbcsr section for configuring FM
-!> \author  Florian Schiffmann
+!> \param section ...
+!> \param error ...
 !> \date    2011-04-05
+!> \author  Florian Schiffmann
 ! *****************************************************************************
   SUBROUTINE create_fm_section(section,error)
     TYPE(section_type), POINTER              :: section

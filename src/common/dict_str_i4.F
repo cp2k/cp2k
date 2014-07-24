@@ -83,12 +83,13 @@ MODULE dict_str_i4
 !
 !> \brief generates the hash of a given string
 !> \param key a string of any length
-!> \note
-!>       http://en.wikipedia.org/wiki/Hash_table
-!>       http://www.burtleburtle.net/bob/hash/doobs.html
+!> \retval hash ...
 !> \par History
 !>       09.2006 created [Joost VandeVondele]
 !>       12.2012 copied and adopted [ole]
+!> \note
+!>       http://en.wikipedia.org/wiki/Hash_table
+!>       http://www.burtleburtle.net/bob/hash/doobs.html
 ! *****************************************************************************
 FUNCTION hash_str(key) RESULT(hash)
     CHARACTER(LEN=*), INTENT(IN)             :: key
@@ -112,6 +113,7 @@ END FUNCTION hash_str
 
 ! *****************************************************************************
 !> \brief Allocates the internal data-structures of the given dictionary.
+!> \param dict ...
 !> \param initial_capacity The initial size of the internal array (default=11).
 !> \par History
 !>      12.2012 created [ole]
@@ -140,6 +142,8 @@ END SUBROUTINE dict_str_i4_init
 
 ! *****************************************************************************
 !> \brief Test if the given dictionary has been initialized.
+!> \param dict ...
+!> \retval res ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -156,6 +160,7 @@ END FUNCTION dict_str_i4_isready
 !> \brief Deallocated the internal data-structures if the given dictionary.
 !>        Caution: If the stored keys or values are pointers, their targets will
 !>                 not get deallocated by this routine.
+!> \param dict ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -185,6 +190,9 @@ END SUBROUTINE dict_str_i4_destroy
 
 ! *****************************************************************************
 !> \brief Stores, and possibly overwrites, a given value under a given key.
+!> \param dict ...
+!> \param key ...
+!> \param value ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -207,6 +215,10 @@ END SUBROUTINE dict_str_i4_set
 
 ! *****************************************************************************
 !> \brief Common code used internally by dict_set() and change_capacity().
+!> \param dict ...
+!> \param key ...
+!> \param value ...
+!> \param hash ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -255,6 +267,8 @@ END SUBROUTINE set_hashed
 
 ! *****************************************************************************
 !> \brief Internal routine for changing the dictionary's capacity.
+!> \param dict ...
+!> \param new_capacity ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -303,6 +317,10 @@ END SUBROUTINE change_capacity
 !> \brief Gets a value for a given key from the dictionary.
 !>        If the key is not found the default_value will be returned.
 !>        If the key is not found and default_value was not provided the program stops.
+!> \param dict ...
+!> \param key ...
+!> \param default_value ...
+!> \retval value ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -347,6 +365,8 @@ END FUNCTION dict_str_i4_get
 ! *****************************************************************************
 !> \brief Remove the value for a given key from the dictionary.
 !>        If the key is not found the proigram stops.           
+!> \param dict ...
+!> \param key ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -389,6 +409,8 @@ END SUBROUTINE dict_str_i4_del
 
 ! *****************************************************************************
 !> \brief Returns the number of key/value-items currently stored in the dictionary.
+!> \param dict ...
+!> \retval size ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -406,6 +428,9 @@ END FUNCTION dict_str_i4_size
 
 ! *****************************************************************************
 !> \brief Checks whether a given key is currently stored in the dictionary. 
+!> \param dict ...
+!> \param key ...
+!> \retval res ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -446,6 +471,8 @@ END FUNCTION dict_str_i4_haskey
 ! *****************************************************************************
 !> \brief Returns a pointer to an array of all key/value-items stored in the dictionary.
 !>        Caution: The caller is responsible for deallocating targeted array after usage.        
+!> \param dict ...
+!> \retval items ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -483,8 +510,8 @@ END FUNCTION dict_str_i4_items
 !>        Afterards dict will contain all items from the from_dict and 
 !>        additionaly all its previous items, which were not overwritten.
 !>        The two dictionaries have to be of the same type.
-!> \param from_dict source of items - will not be change
 !> \param dict destination of items
+!> \param from_dict source of items - will not be change
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett

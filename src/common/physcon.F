@@ -95,12 +95,12 @@ CONTAINS
 !> \brief  Initialize all basic physical constants used by CP2K using
 !>         the recommended fundamental constants of physics and chemistry
 !>         based on the CODATA adjustments
-!> \author  JGH
 !> \date    14.11.2000
 !> \par History
 !>      - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
 !>      - Updated to CODATA 2006. (26.03.2008,AK)
 !>      - Updated to CODATA 2010. (10.12.2012,MK)
+!> \author  JGH
 !> \version 1.1
 ! *****************************************************************************
   SUBROUTINE init_physcon()
@@ -327,11 +327,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Write all basic physical constants used by CP2K to a logical
 !>           output unit.
-!> \author  JGH
+!> \param output_unit ...
 !> \date    14.11.2000
 !> \par History
 !>       - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
 !>       - Updated to CODATA 2006. (26.03.2008,AK)
+!> \author  JGH
 !> \version 1.1
 ! *****************************************************************************
   SUBROUTINE write_physcon(output_unit)

@@ -101,7 +101,7 @@ MODULE dbcsr_ptr_util
 !> \param[in] area            area to point into
 !> \param[in] offset          point to this offset in area
 !> \param[in] len             (optional) length of data area to point to
-!> \result narea2             copy of new_area
+!> \retval narea2 copy of new_area
 ! *****************************************************************************
   FUNCTION pointer_view_a (new_area, area, offset, len) RESULT (narea2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: new_area

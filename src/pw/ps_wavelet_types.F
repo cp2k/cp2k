@@ -45,6 +45,10 @@ MODULE ps_wavelet_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param wavelet ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE ps_wavelet_release(wavelet,error)
 
     TYPE(ps_wavelet_type), POINTER           :: wavelet

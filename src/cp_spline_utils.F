@@ -48,11 +48,13 @@ CONTAINS
 !> \brief restricts the function from a fine grid to a coarse one
 !> \param pw_fine_in the fine grid
 !> \param pw_coarse_out the coarse grid
+!> \param coarse_pool ...
+!> \param param_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      extremely slow (but correct) version
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_restrict_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
        error)
@@ -151,13 +153,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief prolongates a function from a coarse grid into a fine one
-!> \param pw_fine_in the fine grid
-!> \param pw_coarse_out the coarse grid
+!> \param pw_coarse_in ...
+!> \param pw_fine_out ...
+!> \param coarse_pool ...
+!> \param param_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param pw_coarse_out the coarse grid UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param pw_fine_in the fine grid UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author fawzi
 !> \note
 !>      extremely slow (but correct) version
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_prolongate_s3(pw_coarse_in,pw_fine_out,coarse_pool,&
        param_section,error)

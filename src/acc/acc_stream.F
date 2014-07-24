@@ -82,6 +82,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Returns C-pointer of given stream.
+!> \param this ...
+!> \retval res ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 #if ! defined (__ACC)
@@ -93,6 +95,11 @@ FUNCTION acc_stream_cptr(this) RESULT(res)
 END FUNCTION acc_stream_cptr
 
 #else
+! *****************************************************************************
+!> \brief ...
+!> \param this ...
+!> \retval res ...
+! *****************************************************************************
 FUNCTION acc_stream_cptr(this) RESULT(res)
     TYPE(acc_stream_type), INTENT(in)        :: this
     TYPE(C_PTR)                              :: res
@@ -104,6 +111,9 @@ END FUNCTION acc_stream_cptr
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaStreamCreate.
+!> \param this ...
+!> \param name ...
+!> \param priority ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_stream_create(this, name, priority)
@@ -130,6 +140,7 @@ END SUBROUTINE acc_stream_create
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaStreamDestroy.
+!> \param this ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_stream_destroy(this)
@@ -150,6 +161,7 @@ END SUBROUTINE acc_stream_destroy
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaStreamSynchronize.
+!> \param this ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_stream_synchronize(this)
@@ -169,6 +181,8 @@ END SUBROUTINE acc_stream_synchronize
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaDeviceGetStreamPriorityRange.
+!> \param least ...
+!> \param greatest ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_stream_priority_range(least, greatest)
@@ -186,6 +200,9 @@ END SUBROUTINE acc_stream_priority_range
 
 ! *****************************************************************************
 !> \brief Checks if two streams are equal
+!> \param this ...
+!> \param other ...
+!> \retval res ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 FUNCTION acc_stream_equal(this, other) RESULT(res)
@@ -201,6 +218,8 @@ END FUNCTION acc_stream_equal
 
 ! *****************************************************************************
 !> \brief Checks if a streams is associated
+!> \param this ...
+!> \retval res ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 FUNCTION acc_stream_associated(this) RESULT(res)

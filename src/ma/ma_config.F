@@ -70,6 +70,9 @@ MODULE ma_config
 CONTAINS
 
 
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
   SUBROUTINE ma_init_conf ()
     CHARACTER(len=*), PARAMETER :: routineN = 'ma_init_conf', &
       routineP = moduleN//':'//routineN
@@ -86,6 +89,10 @@ CONTAINS
     comm_thread = .FALSE.
   END SUBROUTINE ma_init_conf
 
+! *****************************************************************************
+!> \brief ...
+!> \param branch ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_print_branch (branch)
     LOGICAL, INTENT(IN)                      :: branch
 
@@ -95,6 +102,10 @@ CONTAINS
     print_branch = branch
   END SUBROUTINE ma_set_conf_print_branch
 
+! *****************************************************************************
+!> \brief ...
+!> \retval branch ...
+! *****************************************************************************
   FUNCTION ma_get_conf_print_branch () RESULT (branch)
     LOGICAL                                  :: branch
 
@@ -104,6 +115,10 @@ CONTAINS
     branch = print_branch
   END FUNCTION ma_get_conf_print_branch
 
+! *****************************************************************************
+!> \brief ...
+!> \param resume ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_print_resume (resume)
     LOGICAL, INTENT(IN)                      :: resume
 
@@ -113,6 +128,10 @@ CONTAINS
     print_resume = resume
   END SUBROUTINE ma_set_conf_print_resume
 
+! *****************************************************************************
+!> \brief ...
+!> \retval resume ...
+! *****************************************************************************
   FUNCTION ma_get_conf_print_resume () RESULT (resume)
     LOGICAL                                  :: resume
 
@@ -122,6 +141,10 @@ CONTAINS
     resume = print_resume
   END FUNCTION ma_get_conf_print_resume
 
+! *****************************************************************************
+!> \brief ...
+!> \param full ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_print_full (full)
     LOGICAL, INTENT(IN)                      :: full
 
@@ -131,6 +154,10 @@ CONTAINS
     print_full = full
   END SUBROUTINE ma_set_conf_print_full
 
+! *****************************************************************************
+!> \brief ...
+!> \retval full ...
+! *****************************************************************************
   FUNCTION ma_get_conf_print_full () RESULT (full)
     LOGICAL                                  :: full
 
@@ -140,6 +167,10 @@ CONTAINS
     full = print_full
   END FUNCTION ma_get_conf_print_full
 
+! *****************************************************************************
+!> \brief ...
+!> \param proc ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_print_proc (proc)
     LOGICAL, INTENT(IN)                      :: proc
 
@@ -149,6 +180,10 @@ CONTAINS
     print_proc = proc
   END SUBROUTINE ma_set_conf_print_proc
 
+! *****************************************************************************
+!> \brief ...
+!> \param comm ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_comm_thread (comm)
     LOGICAL, INTENT(IN)                      :: comm
 
@@ -159,6 +194,10 @@ CONTAINS
 
   END SUBROUTINE ma_set_conf_comm_thread
 
+! *****************************************************************************
+!> \brief ...
+!> \retval comm ...
+! *****************************************************************************
   FUNCTION ma_get_conf_comm_thread () RESULT (comm)
     LOGICAL                                  :: comm
 
@@ -168,6 +207,10 @@ CONTAINS
     comm = comm_thread
   END FUNCTION ma_get_conf_comm_thread
 
+! *****************************************************************************
+!> \brief ...
+!> \retval proc ...
+! *****************************************************************************
   FUNCTION ma_get_conf_print_proc () RESULT (proc)
     LOGICAL                                  :: proc
 
@@ -177,6 +220,10 @@ CONTAINS
     proc = print_proc
   END FUNCTION ma_get_conf_print_proc
 
+! *****************************************************************************
+!> \brief ...
+!> \param thread ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_print_thread (thread)
     LOGICAL, INTENT(IN)                      :: thread
 
@@ -186,6 +233,10 @@ CONTAINS
     print_thread = thread
   END SUBROUTINE ma_set_conf_print_thread
 
+! *****************************************************************************
+!> \brief ...
+!> \retval thread ...
+! *****************************************************************************
   FUNCTION ma_get_conf_print_thread () RESULT (thread)
     LOGICAL                                  :: thread
 
@@ -195,6 +246,10 @@ CONTAINS
     thread = print_thread
   END FUNCTION ma_get_conf_print_thread
 
+! *****************************************************************************
+!> \brief ...
+!> \param thread_cur ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_print_thread_cur (thread_cur)
     LOGICAL, INTENT(IN)                      :: thread_cur
 
@@ -204,6 +259,10 @@ CONTAINS
     print_thread_cur = thread_cur
   END SUBROUTINE ma_set_conf_print_thread_cur
 
+! *****************************************************************************
+!> \brief ...
+!> \retval thread_cur ...
+! *****************************************************************************
   FUNCTION ma_get_conf_print_thread_cur () RESULT (thread_cur)
     LOGICAL                                  :: thread_cur
 
@@ -213,6 +272,10 @@ CONTAINS
     thread_cur = print_thread_cur
   END FUNCTION ma_get_conf_print_thread_cur
 
+! *****************************************************************************
+!> \brief ...
+!> \param sched ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_sched (sched)
     CHARACTER(len=1), INTENT(IN)             :: sched
 
@@ -222,6 +285,10 @@ CONTAINS
     use_sched = sched
   END SUBROUTINE ma_set_conf_sched
 
+! *****************************************************************************
+!> \brief ...
+!> \param sched ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_mpiSched (sched)
     CHARACTER(len=1), INTENT(IN)             :: sched
 
@@ -231,6 +298,10 @@ CONTAINS
     mpi_sched = sched
   END SUBROUTINE ma_set_conf_mpiSched
 
+! *****************************************************************************
+!> \brief ...
+!> \retval sched ...
+! *****************************************************************************
   FUNCTION ma_get_conf_mpiSched () RESULT (sched)
     CHARACTER(len=1)                         :: sched
 
@@ -242,6 +313,10 @@ CONTAINS
   END FUNCTION ma_get_conf_mpiSched
 
 
+! *****************************************************************************
+!> \brief ...
+!> \retval sched ...
+! *****************************************************************************
   FUNCTION ma_get_conf_sched () RESULT (sched)
     CHARACTER(len=1)                         :: sched
 
@@ -251,6 +326,10 @@ CONTAINS
     sched = use_sched
   END FUNCTION ma_get_conf_sched
 
+! *****************************************************************************
+!> \brief ...
+!> \param mempol ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_mempol (mempol)
     CHARACTER(len=1), INTENT(IN)             :: mempol
 
@@ -260,6 +339,10 @@ CONTAINS
     use_mempol = mempol
   END SUBROUTINE ma_set_conf_mempol
 
+! *****************************************************************************
+!> \brief ...
+!> \retval mempol ...
+! *****************************************************************************
   FUNCTION ma_get_conf_mempol () RESULT (mempol)
     CHARACTER(len=1)                         :: mempol
 
@@ -269,6 +352,12 @@ CONTAINS
     mempol = use_mempol
   END FUNCTION ma_get_conf_mempol
 
+! *****************************************************************************
+!> \brief ...
+!> \param proc ...
+!> \param thr ...
+!> \param mem ...
+! *****************************************************************************
   SUBROUTINE ma_set_all_affinty (proc, thr, mem)
     INTEGER, DIMENSION(:), INTENT(IN)        :: proc, thr, mem
 
@@ -289,6 +378,11 @@ CONTAINS
 
   END SUBROUTINE ma_set_all_affinty
 
+! *****************************************************************************
+!> \brief ...
+!> \param nMPI ...
+!> \retval istat ...
+! *****************************************************************************
   LOGICAL FUNCTION ma_valid_inputs(nMPI) RESULT(istat)
     INTEGER :: nMPI
 
@@ -299,6 +393,10 @@ CONTAINS
     END IF
   END FUNCTION ma_valid_inputs
 
+! *****************************************************************************
+!> \brief ...
+!> \param mpi_reordering ...
+! *****************************************************************************
   SUBROUTINE ma_set_conf_mpi_reordering(mpi_reordering)
     CHARACTER(len=1), INTENT(IN)             :: mpi_reordering
 
@@ -308,6 +406,10 @@ CONTAINS
     mpi_reorder = mpi_reordering
   END SUBROUTINE ma_set_conf_mpi_reordering
 
+! *****************************************************************************
+!> \brief ...
+!> \retval mpi_reordering ...
+! *****************************************************************************
   FUNCTION ma_get_conf_mpi_reordering () RESULT (mpi_reordering)
     CHARACTER(len=1)                         :: mpi_reordering
 

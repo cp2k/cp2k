@@ -46,8 +46,11 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief creates the internal preprocessing type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param inpp ...
+!> \param initial_variables ...
+!> \param error ...
 !> \date  22.02.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE create_inpp_type(inpp, initial_variables, error)
     TYPE(inpp_type), POINTER                 :: inpp
@@ -89,8 +92,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief releases the internal preprocessing type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param inpp ...
+!> \param error ...
 !> \date  22.02.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE release_inpp_type(inpp, error)
     TYPE(inpp_type), POINTER                 :: inpp

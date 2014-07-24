@@ -97,6 +97,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaStreamWaitEvent.
+!> \param stream ...
+!> \param event ...
 !> \author  Ole Schuett
 !> Because of fortran cyrcular dependency restriction this can not go into acc_stream.F
 ! *****************************************************************************
@@ -121,6 +123,8 @@ END SUBROUTINE acc_stream_wait_event
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventRecord.
+!> \param this ...
+!> \param stream ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_record(this, stream)
@@ -144,6 +148,7 @@ END SUBROUTINE acc_event_record
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventCreate.
+!> \param this ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_create(this)
@@ -164,6 +169,7 @@ END SUBROUTINE acc_event_create
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventDestroy.
+!> \param this ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_destroy(this)
@@ -184,6 +190,8 @@ END SUBROUTINE acc_event_destroy
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventQuery.
+!> \param this ...
+!> \retval res ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 FUNCTION acc_event_query(this) RESULT(res)
@@ -205,6 +213,7 @@ END FUNCTION acc_event_query
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventSynchronize,.
+!> \param this ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_synchronize(this)

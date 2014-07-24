@@ -33,8 +33,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief creates the integer listing type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param ilist ...
+!> \param error ...
 !> \date  08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE create_ilist_type(ilist, error)
     TYPE(ilist_type), POINTER                :: ilist
@@ -60,8 +62,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief creates the integer listing type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param ilist ...
+!> \param error ...
 !> \date  08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE release_ilist_type(ilist, error)
     TYPE(ilist_type), POINTER                :: ilist

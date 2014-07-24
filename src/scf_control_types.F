@@ -303,11 +303,11 @@ CONTAINS
 !> \param scf_control the object to free
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      at the moment does nothing
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      at the moment does nothing
 ! *****************************************************************************
   SUBROUTINE scf_c_release(scf_control,error)
 
@@ -344,6 +344,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads the parameters of the scf section into the given scf_control
 !> \param scf_control the object that wil contain the values read
+!> \param dft_section ...
 !> \param error controls log and error handling
 !> \par History
 !>      05.2001 created [Matthias]
@@ -523,6 +524,11 @@ CONTAINS
 
   END SUBROUTINE scf_c_read_parameters
 
+! *****************************************************************************
+!> \brief ...
+!> \param smear ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_smear(smear,error)
     TYPE(smear_type), POINTER                :: smear
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -548,6 +554,12 @@ CONTAINS
     END IF
   END SUBROUTINE init_smear
 
+! *****************************************************************************
+!> \brief ...
+!> \param smear ...
+!> \param smear_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE read_smear_section(smear,smear_section,error)
     TYPE(smear_type), POINTER                :: smear
     TYPE(section_vals_type), POINTER         :: smear_section
@@ -599,6 +611,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief writes out the scf parameters
 !> \param scf_control the object you want to print
+!> \param dft_section ...
 !> \param error controls log and error handling
 !> \par History
 !>      05.2001 created [Matthias]
@@ -785,6 +798,12 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param settings ...
+!> \param scf_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE ot_diag_read_input(settings,scf_section,error)
     TYPE(qs_ot_settings_type)                :: settings
     TYPE(section_vals_type), POINTER         :: scf_section

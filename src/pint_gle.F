@@ -31,6 +31,11 @@ MODULE pint_gle
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_gle'
 
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_calc_gle_energy( pint_env, error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -45,6 +50,11 @@ MODULE pint_gle
     END IF
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_gle_init( pint_env, error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -72,6 +82,11 @@ MODULE pint_gle
 
   END SUBROUTINE pint_gle_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_gle_step( pint_env, error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error

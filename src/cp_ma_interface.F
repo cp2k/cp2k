@@ -91,6 +91,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Configures options for Machine Architecture
+!> \param root_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_config(root_section, error)
     TYPE(section_vals_type), POINTER         :: root_section
@@ -155,9 +157,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Set the network card affinity for a MPI
-!> \var proc is mpi for MPI process and threads for OpenMP threads
-!> \var id is the MPI rank or thread openmp id
-! NOTE: ONLY work on scenarios of one MPI per compute node
+!> \param proc is mpi for MPI process and threads for OpenMP threads 
+!> \param id is the MPI rank or thread openmp id 
+!> \note NOTE: ONLY work on scenarios of one MPI per compute node
 ! *****************************************************************************
 SUBROUTINE cp_ma_net_affinity(proc,id)
     INTEGER                                  :: proc, id
@@ -168,6 +170,8 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Get the cuda devices for the MPIs
+!> \param cuDev ...
+!> \param myRank ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_get_cuDev(cuDev, myRank)
     INTEGER                                  :: cuDev, myRank
@@ -200,6 +204,8 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Print the configuration options for Machine Architecture
+!> \param unit_nr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_print_config(unit_nr, error)
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
@@ -262,6 +268,8 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Prints the Machine Architecture
+!> \param unit_nr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_print_machine(unit_nr, error)
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
@@ -308,6 +316,9 @@ END SUBROUTINE cp_ma_net_affinity
 ! *****************************************************************************
 !> \brief Prints where the process is running - Also print the memory policy
 !> \brief associated with the process
+!> \param para_env ...
+!> \param error ...
+!> \param unit_nr ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_run_on(para_env, error, unit_nr)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -344,6 +355,8 @@ END SUBROUTINE cp_ma_net_affinity
 ! *****************************************************************************
 !> \brief Get the number of neighbors for a process. Neighbors is the process
 !> \brief running on the same machine
+!> \param error ...
+!> \retval nr_neighbors ...
 ! *****************************************************************************
   FUNCTION cp_ma_get_neighbors(error) RESULT (nr_neighbors)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -359,6 +372,8 @@ END SUBROUTINE cp_ma_net_affinity
 ! *****************************************************************************
 !> \brief Set the number of neighbors for a process. Neighbors is the process
 !> \brief running on the same machine
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_set_neighbors(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -388,7 +403,9 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Prints where the threads are running
-! Note: Should be used with the cp_ma_sched and outside of a parallel OMP
+!> Note: Should be used with the cp_ma_sched and outside of a parallel OMP
+!> \param unit_nr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_thread_run_on(unit_nr, error)
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
@@ -426,7 +443,10 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Prints where the threads are running
-! Note: must be used within a parallel OMP region
+!> Note: must be used within a parallel OMP region
+!> \param id ...
+!> \param unit_nr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_current_thread_run(id, unit_nr, error)
     INTEGER                                  :: id
@@ -465,7 +485,8 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Apply a memory binding strategy
-! Note: set the configuration keywords in the input file
+!> Note: set the configuration keywords in the input file
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_mempol(error)
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -507,7 +528,8 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Get or apply a process scheduling strategy
-! Note: set the configuration keywords in the input file
+!> Note: set the configuration keywords in the input file
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_mpi_sched(error)
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -556,7 +578,9 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Get or apply a thread scheduling strategy
-! Note: set the configuration keywords in the input file
+!> Note: set the configuration keywords in the input file
+!> \param id ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_thread_sched(id, error)
     INTEGER, INTENT(IN)                      :: id
@@ -596,6 +620,9 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Verify the thread scheduling
+!> \param id ...
+!> \param unit_nr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_verify_place(id, unit_nr, error)
     INTEGER, INTENT(IN)                      :: id
@@ -638,6 +665,10 @@ END SUBROUTINE cp_ma_net_affinity
     ENDIF
   END SUBROUTINE cp_ma_verify_place
 
+! *****************************************************************************
+!> \brief ...
+!> \param mpi_reordering ...
+! *****************************************************************************
   SUBROUTINE cp_ma_set_mpi_reordering(mpi_reordering)
     CHARACTER(len=1), INTENT(IN)             :: mpi_reordering
 
@@ -645,6 +676,11 @@ END SUBROUTINE cp_ma_net_affinity
 
   END SUBROUTINE cp_ma_set_mpi_reordering
 
+! *****************************************************************************
+!> \brief ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE cp_ma_print_strategy(unit_nr, error)
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -689,6 +725,11 @@ END SUBROUTINE cp_ma_net_affinity
 
   END SUBROUTINE cp_ma_print_strategy
 
+! *****************************************************************************
+!> \brief ...
+!> \param mapping_method ...
+!> \param strategy ...
+! *****************************************************************************
   SUBROUTINE cp_ma_mpi_reorder_strategy(mapping_method,strategy)
     INTEGER, INTENT(IN)                      :: mapping_method
     CHARACTER, INTENT(OUT)                   :: strategy
@@ -713,6 +754,12 @@ END SUBROUTINE cp_ma_net_affinity
    END SELECT
   END SUBROUTINE cp_ma_mpi_reorder_strategy
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_comm ...
+!> \param mp_reorder ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE cp_ma_mpi_reordering (mp_comm,mp_reorder,error)
     INTEGER, INTENT(INOUT)                   :: mp_comm
     CHARACTER(len=1), INTENT(IN), OPTIONAL   :: mp_reorder
@@ -769,6 +816,9 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Initializes Machine Architecture
+!> \param init_mpi ...
+!> \param group ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_init_lib (init_mpi, group, error)
     LOGICAL, INTENT(IN)                      :: init_mpi
@@ -846,6 +896,7 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Performs the default binding of process
+!> \param isallproc ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_default_affinity(isallproc)
     LOGICAL                                  :: isallproc
@@ -858,6 +909,7 @@ END SUBROUTINE cp_ma_net_affinity
 
 ! *****************************************************************************
 !> \brief Finalizes Machine Architecture
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_ma_finalize_lib (error)
     TYPE(cp_error_type), INTENT(INOUT)       :: error

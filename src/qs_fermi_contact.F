@@ -63,8 +63,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the Fermi contact matrix over Cartesian
 !>          Gaussian functions.
-!> \author  VW
+!> \param qs_env ...
+!> \param matrix_fc ...
+!> \param rc ...
+!> \param error ...
 !> \date    27.02.2009
+!> \author  VW
 !> \version 1.0
 ! *****************************************************************************
 

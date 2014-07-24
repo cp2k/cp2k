@@ -52,6 +52,15 @@ CONTAINS
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param matrix_hc ...
+!> \param output_unit ...
+!> \param aux_coeff_set ...
+!> \param pscp ...
+!> \param fscp ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -94,8 +103,8 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit,aux_coeff_set, pscp, fscp, er
                                         qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),error=error)
            CASE("REF")
               CALL qs_ot_get_derivative_ref(matrix_hc(ispin)%matrix,&
-                   &  qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx, &
-                   &  qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),output_unit,error=error)
+                      qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx, &
+                      qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),output_unit,error=error)
            CASE DEFAULT
               CALL stop_program(routineN,moduleN,__LINE__,"ALGORITHM NYI")
            END SELECT
@@ -201,6 +210,10 @@ END SUBROUTINE ot_mini
 ! or if we should improve the line_search, if it is used
 !
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \retval res ...
+! *****************************************************************************
 FUNCTION current_point_is_fine(qs_ot_env) RESULT(res)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     LOGICAL                                  :: res
@@ -230,6 +243,10 @@ END FUNCTION current_point_is_fine
 ! performs various kinds of line searches
 !
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE do_line_search(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -253,6 +270,9 @@ END SUBROUTINE do_line_search
 
 ! *****************************************************************************
 !> \brief moves x adding the right amount (ds) of the gradient or search direction
+!> \param ds ...
+!> \param qs_ot_env ...
+!> \param error ...
 !> \par History
 !>      08.2004 created [ Joost VandeVondele ] copied here from a larger number of subroutines
 ! *****************************************************************************
@@ -323,6 +343,10 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
 END SUBROUTINE take_step
 
 ! implements a golden ratio search as a robust way of minimizing
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE do_line_search_gold(qs_ot_env,error)
 
@@ -424,6 +448,10 @@ SUBROUTINE do_line_search_gold(qs_ot_env,error)
 END SUBROUTINE do_line_search_gold
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE do_line_search_3pnt(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -490,6 +518,10 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env,error)
 END SUBROUTINE do_line_search_3pnt
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE do_line_search_2pnt(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -543,6 +575,10 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env,error)
 END SUBROUTINE do_line_search_2pnt
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE do_line_search_none(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -556,6 +592,10 @@ END SUBROUTINE do_line_search_none
 ! also updates the gradient for line search
 !
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -694,6 +734,10 @@ END SUBROUTINE ot_new_sd_direction
 ! using the preconditioner if associated
 ! also updates the gradient for line search
 !
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -917,6 +961,10 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
    qs_ot_env(1)%gnorm_old=qs_ot_env(1)%gnorm
 END SUBROUTINE ot_new_cg_direction
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE ot_diis_step(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -1637,6 +1685,13 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 END SUBROUTINE ot_broyden_step
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param G ...
+!> \param S ...
+!> \param n ...
+!> \retval sigma ...
+! *****************************************************************************
 FUNCTION new_sigma(G, S, n) RESULT(sigma)
 !
 ! Calculate new sigma from eigenvalues of full size G by Arnoldi.
@@ -1673,6 +1728,13 @@ FUNCTION new_sigma(G, S, n) RESULT(sigma)
     DEALLOCATE(H, eigv)
 END FUNCTION new_sigma
 
+! *****************************************************************************
+!> \brief ...
+!> \param G ...
+!> \param S ...
+!> \param H ...
+!> \param n ...
+! *****************************************************************************
 SUBROUTINE hess_G(G, S, H, n)
 !
 ! Make a hessenberg out of G into H. Cf Arnoldi.

@@ -302,23 +302,18 @@ END SUBROUTINE mc_coordinate_fold
 !> \brief takes the last molecule in a force environment and moves it around
 !>      to different center of mass positions and orientations, selecting one
 !>      based on the rosenbluth weight
-!> \par Optional Avbmc Flags
-!>      - avbmc_atom: the atom number that serves for the target atom in each
-!>        molecule (1 is the first atom in the molecule, etc.)
-!>      - rmin: the minimum AVBMC radius for the shell around the target
-!>      - rmax: the maximum AVBMC radius for the shell around the target
-!>      - move_type: generate configs in the "in" or "out" volume
-!>      - target_atom: the number of the avbmc atom in the target molecule
-!> \par
-!>      Suitable for parallel.
 !> \param force_env the force environment containing the coordinates
 !> \param BETA the value of 1/kT for this simulations, in a.u.
+!> \param max_val ...
+!> \param min_val ...
+!> \param exp_max_val ...
+!> \param exp_min_val ...
 !> \param nswapmoves the number of desired trial configurations
 !> \param rosenbluth_weight the Rosenbluth weight for this set of configs
 !> \param start_atom the atom number that the molecule to be swapped starts on
 !> \param natoms_tot the total number of interaction sites in the box
 !> \param nunits the number of interaction sites for every molecule_type
-!> \param nunits_tot the number of interaction sites in the choosen molecule
+!> \param nunits_mol ...
 !> \param mass the mass for every interaction site of every molecule type
 !> \param loverlap the flag that indicates if all of the configs have an
 !>                  atomic overlap
@@ -333,6 +328,21 @@ END SUBROUTINE mc_coordinate_fold
 !> \param group the MPI group value, for broadcasts
 !> \param rng_stream the random number stream that we draw from
 !> \param error the the cp_error type
+!> \param avbmc_atom ...
+!> \param rmin ...
+!> \param rmax ...
+!> \param move_type ...
+!> \param target_atom ...
+!> \param nunits_tot the number of interaction sites in the choosen molecule UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par Optional Avbmc Flags
+!>      - avbmc_atom: the atom number that serves for the target atom in each
+!>        molecule (1 is the first atom in the molecule, etc.)
+!>      - rmin: the minimum AVBMC radius for the shell around the target
+!>      - rmax: the maximum AVBMC radius for the shell around the target
+!>      - move_type: generate configs in the "in" or "out" volume
+!>      - target_atom: the number of the avbmc atom in the target molecule
+!> \par
+!>      Suitable for parallel.
 !> \author MJM
 ! *****************************************************************************
 SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max_val,&
@@ -673,6 +683,7 @@ END SUBROUTINE generate_cbmc_swap_config
 !> \param rng_stream the stream we pull random numbers from
 !>
 !>    Use only in serial.
+!> \param error ...
 !> \author MJM
 ! *****************************************************************************
 SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
@@ -992,6 +1003,7 @@ END SUBROUTINE create_discrete_array
 !> \param rng_stream the random number stream that we draw from
 !>
 !>      Use only in serial.
+!> \param error ...
 !> \author MJM
 ! *****************************************************************************
 SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&

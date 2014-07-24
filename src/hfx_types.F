@@ -443,16 +443,20 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine allocates and initializes all types in hfx_data
 !> \param x_data contains all relevant data structures for hfx runs
+!> \param para_env ...
 !> \param hfx_section input section
 !> \param natom , max_set: quantities that define some array sizes
+!> \param atomic_kind_set ...
+!> \param dft_control ...
+!> \param cell ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
-!>        unknown at invocation time
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
+!>        unknown at invocation time
 ! *****************************************************************************
   SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, &
                         dft_control, cell, error)
@@ -876,8 +880,10 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - compute a truncation radius for the shortrange operator
 !> \param eps target accuracy
-!> \param omega screening parameter
+!> \param omg ...
 !> \param r_cutoff cutoff radius 
+!> \param error ...
+!> \param omega screening parameter UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2012 created [Hossein Banihashemian]
 !> \author Hossein Banihashemian
@@ -915,6 +921,14 @@ MODULE hfx_types
 
     CALL timestop(handle)
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param eps ...
+!> \param omega ...
+!> \param fn ...
+!> \param df ...
+! *****************************************************************************
     SUBROUTINE eval_transc_func(r,eps,omega,fn,df)
     REAL(dp), INTENT(in)                     :: r, eps, omega
     REAL(dp), INTENT(out)                    :: fn, df
@@ -925,6 +939,11 @@ MODULE hfx_types
   END SUBROUTINE erfc_cutoff
 ! *****************************************************************************
 !> \brief - This routine allocates and initializes the basis_info and basis_parameter types
+!> \param basis_parameter ...
+!> \param basis_info ...
+!> \param atomic_kind_set ...
+!> \param do_admm ...
+!> \param error ...
 !> \par History
 !>      07.2011 refactored
 ! *****************************************************************************
@@ -1074,6 +1093,11 @@ MODULE hfx_types
   END SUBROUTINE hfx_create_basis_types
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param basis_parameter ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE hfx_release_basis_types(basis_parameter,error)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -1104,6 +1128,16 @@ MODULE hfx_types
 
 ! *****************************************************************************
 !> \brief - Parses the memory section
+!> \param memory_parameter ...
+!> \param hf_sub_section ...
+!> \param storage_id ...
+!> \param i_thread ...
+!> \param n_threads ...
+!> \param para_env ...
+!> \param irep ...
+!> \param skip_disk ...
+!> \param skip_in_core_forces ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE parse_memory_section(memory_parameter, hf_sub_section, storage_id,&
        i_thread, n_threads, para_env, irep, skip_disk, skip_in_core_forces, error)
@@ -1369,10 +1403,10 @@ MODULE hfx_types
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param pbc_shells number of shells taken into account
 !> \param cell cell
-!> \param hfx_section HFX input section
 !> \param i_thread current thread ID
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param hfx_section HFX input section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -1779,6 +1813,14 @@ MODULE hfx_types
   END SUBROUTINE hfx_create_neighbor_cells
 
   ! performs a fuzzy check of being in a quadrilateral
+! *****************************************************************************
+!> \brief ...
+!> \param A ...
+!> \param B ...
+!> \param C ...
+!> \param D ...
+!> \param P ...
+! *****************************************************************************
   FUNCTION point_is_in_quadrilateral(A,B,C,D,P)
     REAL(dp)                                 :: A(3), B(3), C(3), D(3), P(3)
     LOGICAL                                  :: point_is_in_quadrilateral
@@ -1853,6 +1895,8 @@ MODULE hfx_types
 !> \brief - This routine deletes all list entries in a container in order to
 !>        deallocate the memory.
 !> \param container container that contains the compressed elements
+!> \param memory_usage ...
+!> \param do_disk_storage ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1908,10 +1952,11 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine stores the data obtained from the load balance routine
 !>        for the energy
-!> \param ptr_to_distr_energy contains data to store
+!> \param ptr_to_distr ...
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param ptr_to_distr_energy contains data to store UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -1940,10 +1985,11 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine stores the data obtained from the load balance routine
 !>        for the forces
-!> \param ptr_to_distr_energy contains data to store
+!> \param ptr_to_distr ...
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param ptr_to_distr_energy contains data to store UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -1976,7 +2022,7 @@ MODULE hfx_types
 !> \param memory_parameter Memory information
 !> \param subtr_size_mb size of buffers in MB
 !> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2119,6 +2165,12 @@ MODULE hfx_types
                                      "HF_INFO", error=error)
   END SUBROUTINE hfx_print_info
 
+! *****************************************************************************
+!> \brief ...
+!> \param x_data ...
+!> \param eval_type ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dealloc_containers(x_data, eval_type, error)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(IN)                      :: eval_type
@@ -2189,6 +2241,13 @@ MODULE hfx_types
 
   END SUBROUTINE dealloc_containers
 
+! *****************************************************************************
+!> \brief ...
+!> \param x_data ...
+!> \param bin_size ...
+!> \param eval_type ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE alloc_containers(x_data, bin_size, eval_type, error)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(IN)                      :: bin_size, eval_type

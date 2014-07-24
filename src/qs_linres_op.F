@@ -96,15 +96,18 @@ CONTAINS
 !>      the h1_psi1 full matrices are then ready to solve the
 !>      non-homogeneous linear equations that give the psi1
 !>      linear response orbitals.
+!> \param current_env ...
+!> \param qs_env ...
+!> \param error ...
+!> \par History
+!>      07.2005 created [MI]
+!> \author MI
 !> \note
 !>      For the operators rxp and D the h1 depends on the psi0 to which
 !>      is applied, or better the center of charge of the psi0 is
 !>      used to define the position operator
 !>      The centers of the orbitals result form the orbital localization procedure
 !>      that typicaly uses the berry phase operator to define the Wannier centers.
-!> \par History
-!>      07.2005 created [MI]
-!> \author MI
 ! *****************************************************************************
   SUBROUTINE current_operators(current_env,qs_env,error)
 
@@ -156,10 +159,10 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(atomic_kind_set,cell,dft_control,linres_control,&
-         &  logger,particle_set,lr_section,fm_work1,&
-         &  basisfun_center,centers_set,center_list,p_psi0,&
-         &  rxp_psi0,vecbuf_c0,psi0_order,&
-         &  mo_coeff,op_ao,sab_all)
+            logger,particle_set,lr_section,fm_work1,&
+            basisfun_center,centers_set,center_list,p_psi0,&
+            rxp_psi0,vecbuf_c0,psi0_order,&
+            mo_coeff,op_ao,sab_all)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,&
@@ -285,13 +288,13 @@ CONTAINS
           DO idir = 1,3
              CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
              CALL cp_dbcsr_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
-                  &                    rxp_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                    alpha=-1.0_dp,error=error)
+                                       rxp_psi0(ispin,idir)%matrix,ncol=nmo,&
+                                       alpha=-1.0_dp,error=error)
              DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
                 istate = center_list(ispin)%array(2,j)
            ! the p_psi0 fm is used as temporary matrix to store the results for the psi0 centered in dk
                 CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,&
-                     &           p_psi0(ispin,idir)%matrix,1,istate,istate)
+                                 p_psi0(ispin,idir)%matrix,1,istate,istate)
              ENDDO
           END DO
        ENDDO
@@ -350,8 +353,8 @@ CONTAINS
          nmo = nstates(ispin)
          CALL cp_fm_set_all(p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
          CALL cp_dbcsr_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
-              &                    p_psi0(ispin,idir)%matrix,ncol=nmo,&
-              &                    alpha=-1.0_dp,error=error)
+                                   p_psi0(ispin,idir)%matrix,ncol=nmo,&
+                                   alpha=-1.0_dp,error=error)
       END DO
     END DO
     !
@@ -401,7 +404,7 @@ CONTAINS
           ! This part should be done better, using the full matrix distribution
           DO istate = 1,nmo
              CALL cp_fm_get_submatrix(psi0_order(ispin)%matrix,vecbuf_c0,1,istate,nao,1,&
-                  &                   transpose=.TRUE.,error=error)
+                                      transpose=.TRUE.,error=error)
              !center of the localized psi0 state istate
              dk(1:3) = centers_set(ispin)%array(1:3,istate)
              DO idir = 1,3
@@ -458,6 +461,13 @@ CONTAINS
 
   END SUBROUTINE current_operators
 
+! *****************************************************************************
+!> \brief ...
+!> \param issc_env ...
+!> \param qs_env ...
+!> \param iatom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE issc_operators(issc_env,qs_env,iatom,error)
 
     TYPE(issc_env_type)                      :: issc_env
@@ -625,8 +635,8 @@ CONTAINS
        IF(do_sd) THEN
           DO idir = 1,6
              CALL cp_dbcsr_sm_fm_multiply(matrix_efg(idir)%matrix,mo_coeff,&
-                  &                    efg_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                    alpha=1.0_dp,error=error)
+                                       efg_psi0(ispin,idir)%matrix,ncol=nmo,&
+                                       alpha=1.0_dp,error=error)
           ENDDO
        ENDIF
        !
@@ -634,24 +644,24 @@ CONTAINS
        IF(do_pso) THEN
           DO idir = 1,3
              CALL cp_dbcsr_sm_fm_multiply(matrix_pso(idir)%matrix,mo_coeff,&
-                  &                   pso_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                   alpha=-1.0_dp,error=error)
+                                      pso_psi0(ispin,idir)%matrix,ncol=nmo,&
+                                      alpha=-1.0_dp,error=error)
           ENDDO
        ENDIF
        !
        ! FC
        IF(do_fc) THEN
           CALL cp_dbcsr_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
-               &                    fc_psi0(ispin)%matrix,ncol=nmo,&
-               &                    alpha=1.0_dp,error=error)
+                                    fc_psi0(ispin)%matrix,ncol=nmo,&
+                                    alpha=1.0_dp,error=error)
        ENDIF
        !
        !>>> for debugging only
        IF(do_dso) THEN
           DO idir = 1,3
              CALL cp_dbcsr_sm_fm_multiply(matrix_dso(idir)%matrix,mo_coeff,&
-                  &                    dso_psi0(ispin,idir)%matrix,ncol=nmo,&
-                  &                    alpha=-1.0_dp,error=error)
+                                       dso_psi0(ispin,idir)%matrix,ncol=nmo,&
+                                       alpha=-1.0_dp,error=error)
           ENDDO
        ENDIF
        !<<< for debugging only
@@ -665,16 +675,19 @@ CONTAINS
   END SUBROUTINE issc_operators
 
 
-!------------------------------------------------------------------------------------
+! *****************************************************************************
 !> \brief Calculate the Berry phase operator in the AO basis and 
-!         then the derivative of the Berry phase operator with respect to 
-!         the ground state wave function (see paper Putrino et al., JCP, 13, 7102) for the AOs;  
+!>         then the derivative of the Berry phase operator with respect to 
+!>         the ground state wave function (see paper Putrino et al., JCP, 13, 7102) for the AOs;  
 !>        afterwards multiply with the ground state MO coefficients 
-! 
+!> 
+!> \param polar_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      01.2013 created [SL]
 !> \author SL
-!------------------------------------------------------------------------- 
+! *****************************************************************************
 
   SUBROUTINE polar_operators(polar_env,qs_env,error)
 
@@ -909,6 +922,12 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief ...
+!> \param a ...
+!> \param b ...
+!> \param c ...
+!> \retval factor ...
+! *****************************************************************************
   FUNCTION fac_vecp(a,b,c) RESULT(factor)
 
     INTEGER                                  :: a, b, c
@@ -924,6 +943,11 @@ CONTAINS
 
   END FUNCTION fac_vecp
 
+! *****************************************************************************
+!> \brief ...
+!> \param ii ...
+!> \param iii ...
+!> \retval i ...
 ! *****************************************************************************
   FUNCTION ind_m2(ii,iii) RESULT(i)
 
@@ -948,6 +972,11 @@ CONTAINS
   END FUNCTION ind_m2
 
 ! *****************************************************************************
+!> \brief ...
+!> \param i1 ...
+!> \param i2 ...
+!> \param i3 ...
+! *****************************************************************************
   SUBROUTINE set_vecp(i1,i2,i3)
 
     INTEGER, INTENT(IN)                      :: i1
@@ -966,6 +995,11 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_vecp
+! *****************************************************************************
+!> \brief ...
+!> \param i1 ...
+!> \param i2 ...
+!> \param i3 ...
 ! *****************************************************************************
   SUBROUTINE set_vecp_rev(i1,i2,i3)
 
@@ -986,6 +1020,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief scale a matrix as a_ij = a_ij * pbc(rc(:,j),ra(:,i))(ixyz)
+!> \param matrix ...
+!> \param ra ...
+!> \param rc ...
+!> \param cell ...
+!> \param ixyz ...
+!> \param error ...
 !> \author vw
 ! *****************************************************************************
   SUBROUTINE fm_scale_by_pbc_AC(matrix,ra,rc,cell,ixyz,error)

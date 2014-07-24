@@ -187,6 +187,9 @@ MODULE dbcsr_mm_cannon
 ! \brief Initialize the library
 ! \author Ole Schuett
 ! *****************************************************************************
+!> \brief ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -205,6 +208,11 @@ MODULE dbcsr_mm_cannon
 ! *****************************************************************************
 ! \brief Finalize the library
 ! \author Ole Schuett
+! *****************************************************************************
+!> \brief ...
+!> \param group ...
+!> \param output_unit ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_lib_finalize(group, output_unit, error)
     INTEGER, INTENT(IN)                      :: group, output_unit
@@ -246,6 +254,9 @@ MODULE dbcsr_mm_cannon
 ! \brief Deallocate memory contained in mempools
 ! \author Ole Schuett
 ! *****************************************************************************
+!> \brief ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_clear_mempools(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -269,6 +280,31 @@ MODULE dbcsr_mm_cannon
 ! *****************************************************************************
 !> \brief Performs a multiplication of two dbcsr_type matrices,
 !>        as  C := alpha * op( A ) * op( B ) + beta * C.
+!> \param transa ...
+!> \param transb ...
+!> \param[in] alpha           scaling of product
+!> \param[in] matrix_a        left BCSR matrix
+!> \param[in] matrix_b        right BCSR matrix
+!> \param[in] beta            scaling of existing data
+!> \param[out] matrix_c       resulting BCSR product matrix.
+!> \param[in] first_row       (optional) first full row of limiting submatrix
+!> \param[in] last_row        (optional) last full row of limiting submatrix
+!> \param[in] first_column    (optional) first full column of limiting submatrix
+!> \param[in] last_column     (optional) last full column of limiting submatrix
+!> \param[in] first_k         (optional) first full column of limiting inner
+!>                            product
+!> \param[in] last_k          (optional) last full column of limiting inner
+!>                            product
+!> \param[in] retain_sparsity (optional) enforce the sparsity pattern of the
+!>                            existing product matrix; default is no
+!> \param[in] filter_eps      Filtering of the matrix
+!> \param[in,out] error       error
+!> \param[out] flop           (optional) effective flop
+!> \param[in] transa, transb  specifies the form of op( A or B ) to be used in
+!>                            the matrix multiplication
+!>                            transx = 'N' or 'n',  op( X ) = X.
+!>                            transx = 'T' or 't',  op( X ) = transpose(X).
+!>                            transx = 'C' or 'c',  op( X ) = transpose(conjg(X)). UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Matrices m_a and m_b are multiplied into the m_c product matrix. If the
 !>      dist2d parameter is not specified, then a new distribution_2d is
 !>      determined for it.
@@ -292,29 +328,6 @@ MODULE dbcsr_mm_cannon
 !>      specified epsilon divided by the maximum number of possible
 !>      multiplies in each row.  In addition a final filtering is done
 !>      as well with the same epsilon value.
-!> \param[in] transa, transb  specifies the form of op( A or B ) to be used in
-!>                            the matrix multiplication
-!>                            transx = 'N' or 'n',  op( X ) = X.
-!>                            transx = 'T' or 't',  op( X ) = transpose(X).
-!>                            transx = 'C' or 'c',  op( X ) = transpose(conjg(X)).
-!> \param[in] alpha           scaling of product
-!> \param[in] matrix_a        left BCSR matrix
-!> \param[in] matrix_b        right BCSR matrix
-!> \param[in] beta            scaling of existing data
-!> \param[out] matrix_c       resulting BCSR product matrix.
-!> \param[in] first_row       (optional) first full row of limiting submatrix
-!> \param[in] last_row        (optional) last full row of limiting submatrix
-!> \param[in] first_column    (optional) first full column of limiting submatrix
-!> \param[in] last_column     (optional) last full column of limiting submatrix
-!> \param[in] first_k         (optional) first full column of limiting inner
-!>                            product
-!> \param[in] last_k          (optional) last full column of limiting inner
-!>                            product
-!> \param[in] retain_sparsity (optional) enforce the sparsity pattern of the
-!>                            existing product matrix; default is no
-!> \param[in] filter_eps      Filtering of the matrix
-!> \param[in,out] error       error
-!> \param[out] flop           (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_multiply(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
@@ -1066,7 +1079,7 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Makes column-based and row-based images of a matrix.
-!> \param[in] sm    input symmetric matrix
+!> \param ism ...
 !> \param[in,out] ums         normalied matrices
 !> \param[in] target_imgdist  image distribution to normalize to
 !> \param[in] desymmetrize    (optional) desymmetrize a symmetric matrix
@@ -1076,6 +1089,7 @@ MODULE dbcsr_mm_cannon
 !> \param[in] no_copy_data    (optional) try to not merge data at the end
 !> \param[in] scale_value     (optional) scale with this value
 !> \param[in,out] error       cp2k error
+!> \param[in] sm    input symmetric matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE make_images(ism, ums, target_imgdist, desymmetrize, predistribute,&
        data_memory_type, index_memory_type, no_copy_data, scale_value, error)
@@ -1780,11 +1794,13 @@ MODULE dbcsr_mm_cannon
 !>
 !> \param[in] left_set             set of imaged left matrices
 !> \param[in] right_set            set of imaged right matrices
-!> \param[out] product             DBCSR product matrix
+!> \param product_matrix ...
 !> \param[in,out] error            cp2k error
 !> \param[in] retain_sparsity      (optional) retain the sparsity of the
 !>                                 existing product matrix; default is no
+!> \param filter_eps ...
 !> \param[out] flop                (optional) effective flop
+!> \param[out] product             DBCSR product matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cannon_multiply_low(left_set, right_set, product_matrix,&
        error, retain_sparsity, &
@@ -2873,8 +2889,17 @@ MODULE dbcsr_mm_cannon
 
 
 ! ******************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param buffer_set ...
+!> \param buff_rows ...
+!> \param buff_cols ...
+!> \param source_matrix ...
+!> \param index_size ...
+!> \param data_size ...
+!> \param error ...
 !>
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE setup_buffer_matrices (buffer_set, buff_rows, buff_cols,&
        source_matrix, index_size, data_size, error)
     TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: buffer_set
@@ -2982,8 +3007,12 @@ MODULE dbcsr_mm_cannon
 !>  This saves memory since no seperate buffers for the first cannon-tick
 !>  have to be allocated.
 !>  
+!> \param buffer_set ...
+!> \param index_size ...
+!> \param data_size ...
+!> \param error ...
 !> \author Ole Schuett
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE buffer_matrices_ensure_size(buffer_set, index_size, data_size, error)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: buffer_set
     INTEGER, INTENT(IN)                      :: index_size, data_size
@@ -3017,8 +3046,12 @@ MODULE dbcsr_mm_cannon
 
 
 ! ******************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_set ...
+!> \param error ...
 !>
-! ******************************************************************************  
+! *****************************************************************************
   SUBROUTINE setup_rec_index (matrix_set, error)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: matrix_set
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -3094,6 +3127,11 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Used to thunk a call to rec_sort_index
+!> \param m ...
+!> \param n ...
+!> \param nblks ...
+!> \param idx ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE call_rec_sort_index (m,n,nblks,idx, error)
     INTEGER, INTENT(IN)                      :: m, n, nblks
@@ -3117,10 +3155,17 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Sorts index for recursing.
-!> \author JV
-!> \note Always cut longest first. On a tie cut N
+!> \param mi ...
+!> \param mf ...
+!> \param ni ...
+!> \param nf ...
+!> \param nele ...
+!> \param a ...
+!> \param d ...
 !> \par History
 !> - 2011-02-17 [UB] modified for use in DBCSR; reduced memory usage.
+!> \author JV
+!> \note Always cut longest first. On a tie cut N
 ! *****************************************************************************
   RECURSIVE SUBROUTINE rec_sort_index(mi,mf,ni,nf,nele,a,d)
     INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, nele
@@ -3173,6 +3218,16 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE rec_sort_index
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param nele ...
+!> \param a ...
+!> \param split ...
+!> \param row_or_col ...
+!> \param nlow ...
+!> \param mi ...
+!> \param half ...
+! *****************************************************************************
   SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, half)
     INTEGER, INTENT(IN)                      :: nele
     INTEGER, DIMENSION(3, nele), INTENT(IN)  :: a
@@ -3201,7 +3256,9 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Switches pointers between two matrix sets
-!> \param[in,out] set1p, set2p
+!> \param set1p ...
+!> \param set2p ...
+!> \param[in,out] set1p, set2p UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_switch_sets (set1p, set2p)
     TYPE(dbcsr_2d_array_type), POINTER       :: set1p, set2p
@@ -3217,6 +3274,8 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Switches pointers between two data areas
+!> \param area1p ...
+!> \param area2p ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_switch_d_ptrs (area1p, area2p)
@@ -3234,6 +3293,10 @@ MODULE dbcsr_mm_cannon
 ! out.
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param t ...
+! *****************************************************************************
   ELEMENTAL FUNCTION blas_mat_type (t)
     LOGICAL, INTENT(IN)                      :: t
     CHARACTER                                :: blas_mat_type
@@ -3245,6 +3308,10 @@ MODULE dbcsr_mm_cannon
     ENDIF
   END FUNCTION blas_mat_type
 
+! *****************************************************************************
+!> \brief ...
+!> \param t ...
+! *****************************************************************************
   ELEMENTAL FUNCTION flip_type (t)
     CHARACTER, INTENT(IN)                    :: t
     CHARACTER                                :: flip_type
@@ -3390,6 +3457,9 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief write out a stack for transposing the blocks
+!> \param matrix ...
+!> \param trs_stackbuf ...
+!> \param error ...
 !>  \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_transpose_blocks(matrix, trs_stackbuf, error)
@@ -3524,6 +3594,9 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Enumerate all occuring blocksizes
+!> \param blk_sizes ...
+!> \param enum ...
+!> \param rev_enum ...
 !>  \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE enumerate_blk_sizes(blk_sizes, enum, rev_enum)

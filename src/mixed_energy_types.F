@@ -41,8 +41,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate and/or initialise a mixed energy data structure.
-!> \author  fschiff
+!> \param mixed_energy ...
+!> \param error ...
 !> \date    11.06
+!> \author  fschiff
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_mixed_energy(mixed_energy, error)
@@ -65,8 +67,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a mixed energy data structure.
-!> \author  fschiff
+!> \param mixed_energy ...
+!> \param error ...
 !> \date    11.06
+!> \author  fschiff
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_mixed_energy(mixed_energy, error)
@@ -86,6 +90,9 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_mixed_energy
 
+! *****************************************************************************
+!> \brief ...
+!> \param mixed_energy ...
 ! *****************************************************************************
   SUBROUTINE init_mixed_energy(mixed_energy)
     TYPE(mixed_energy_type), POINTER         :: mixed_energy

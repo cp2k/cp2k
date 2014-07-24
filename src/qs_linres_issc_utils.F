@@ -89,6 +89,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the issc environment
+!> \param issc_env ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE issc_response(issc_env,p_env,qs_env,error)
     !
@@ -178,9 +182,9 @@ CONTAINS
        CALL cp_fm_get_info(mo_coeff,ncol_global=nmo,nrow_global=nao,error=error)
        NULLIFY(tmp_fm_struct,psi1(ispin)%matrix,h1_psi0(ispin)%matrix)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-            &                   ncol_global=nmo,&
-            &                   context=mo_coeff%matrix_struct%context,&
-            &                   error=error)
+                                ncol_global=nmo,&
+                                context=mo_coeff%matrix_struct%context,&
+                                error=error)
        CALL cp_fm_create(psi1(ispin)%matrix,tmp_fm_struct,error=error)
        CALL cp_fm_create(h1_psi0(ispin)%matrix,tmp_fm_struct,error=error)
        CALL cp_fm_struct_release(tmp_fm_struct,error=error)
@@ -445,6 +449,13 @@ CONTAINS
   END SUBROUTINE issc_response
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param issc_env ...
+!> \param qs_env ...
+!> \param iatom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE issc_issc(issc_env,qs_env,iatom,error)
 
     TYPE(issc_env_type)                      :: issc_env
@@ -488,11 +499,11 @@ CONTAINS
     NULLIFY(matrix_efg, matrix_fc, matrix_pso, mos, mo_coeff, fc_psi0)
 
     CALL get_qs_env(qs_env=qs_env,&
-         &          cell=cell,&
-         &          dft_control=dft_control,&
-         &          particle_set=particle_set,&
-         &          mos=mos,&
-         &          error=error)
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    mos=mos,&
+                    error=error)
 
     gapw = dft_control%qs_control%gapw
     natom = SIZE(particle_set,1)
@@ -549,7 +560,7 @@ CONTAINS
              CALL cp_dbcsr_set(matrix_fc(1)%matrix,0.0_dp,error=error)
              CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_j,error)
              CALL cp_dbcsr_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
-                  &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                                    fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                   &                 alpha=1.0_dp,error=error)
 
              CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
@@ -576,7 +587,7 @@ CONTAINS
              CALL build_efg_matrix(qs_env,matrix_efg,r_j,error)
              DO ixyz = 1,6
                 CALL cp_dbcsr_sm_fm_multiply(matrix_efg(ixyz)%matrix,mo_coeff,&
-                     &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                                       fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                      &                 alpha=1.0_dp,beta=0.0_dp,error=error)
                 CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
                 WRITE(*,*) ' jatom',jatom,ixyz,'tr(P*efg)=',buf
@@ -600,7 +611,7 @@ CONTAINS
              CALL build_pso_matrix(qs_env,matrix_pso,r_j,error)
              DO ixyz = 1,3
                 CALL cp_dbcsr_sm_fm_multiply(matrix_pso(ixyz)%matrix,mo_coeff,&
-                     &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                                       fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                      &                 alpha=1.0_dp,beta=0.0_dp,error=error)
              DO jxyz = 1,3
                 CALL cp_fm_trace(fc_psi0(ispin)%matrix,psi1_pso(ispin,jxyz)%matrix,buf,error=error)
@@ -637,7 +648,7 @@ CONTAINS
              !CALL rRc_xyz_ao(matrix_dso,qs_env,(/0.0_dp,0.0_dp,0.0_dp/),1,error=error)
              DO ixyz = 1,3
                 CALL cp_dbcsr_sm_fm_multiply(matrix_dso(ixyz)%matrix,mo_coeff,&
-                     &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
+                                       fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                      &                 alpha=1.0_dp,beta=0.0_dp,error=error)
              DO jxyz = 1,3
                 CALL cp_fm_trace(psi1_dso(ispin,jxyz)%matrix,fc_psi0(ispin)%matrix,buf,error=error)
@@ -659,6 +670,12 @@ CONTAINS
     !
   END SUBROUTINE issc_issc
 
+! *****************************************************************************
+!> \brief ...
+!> \param issc_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE issc_print(issc_env,qs_env,error)
     TYPE(issc_env_type)                      :: issc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -697,17 +714,17 @@ CONTAINS
          "PROPERTIES%LINRES%SPINSPIN",error=error)
 
     CALL get_issc_env(issc_env=issc_env, &
-         &            issc=issc, &
+                      issc=issc, &
                       do_fc=do_fc, &
                       do_sd=do_sd, &
                       do_pso=do_pso, &
                       do_dso=do_dso, &
-         &            error=error)
+                      error=error)
     !
     CALL get_qs_env(qs_env=qs_env, &
-         &          dft_control=dft_control, &
-         &          particle_set=particle_set, &
-         &          error=error)
+                    dft_control=dft_control, &
+                    particle_set=particle_set, &
+                    error=error)
 
     natom = SIZE(particle_set,1)
     gapw = dft_control%qs_control%gapw
@@ -715,7 +732,7 @@ CONTAINS
     !
     IF(output_unit > 0) THEN
        WRITE(output_unit,'(T2,A,E14.6)') 'ISSC| CheckSum K =',&
-            & SQRT(DDOT(SIZE(issc),issc,1,issc,1))
+              SQRT(DDOT(SIZE(issc),issc,1,issc,1))
     ENDIF
     !
     IF(BTEST(cp_print_key_should_output(logger%iter_info,issc_section,&
@@ -792,6 +809,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the issc environment
+!> \param issc_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE issc_env_init(issc_env,qs_env,error)
     !
@@ -840,7 +860,7 @@ CONTAINS
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         &                             extension=".linresLog",error=error)
+                                       extension=".linresLog",error=error)
 
     IF(issc_env%ref_count /= 0) THEN
        CALL issc_env_cleanup(issc_env,error=error)
@@ -859,13 +879,13 @@ CONTAINS
     !CALL section_vals_val_get(nmr_section,"SHIFT_GAPW_RADIUS",r_val=nmr_env%shift_gapw_radius,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
-         &          dft_control=dft_control,&
-         &          linres_control=linres_control,&
-         &          mos=mos,&
-         &          sab_orb=sab_orb,&
-         &          particle_set=particle_set,&
-         &          dbcsr_dist=dbcsr_dist,&
-         &          error=error)
+                    dft_control=dft_control,&
+                    linres_control=linres_control,&
+                    mos=mos,&
+                    sab_orb=sab_orb,&
+                    particle_set=particle_set,&
+                    dbcsr_dist=dbcsr_dist,&
+                    error=error)
     !
     !
     gapw = dft_control%qs_control%gapw
@@ -921,17 +941,17 @@ CONTAINS
     !
     ! Initialize the issc tensor
     ALLOCATE(issc_env%issc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
-         &   issc_env%issc_loc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
-         &   STAT=istat)
+             issc_env%issc_loc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
+             STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     issc_env%issc(:,:,:,:,:) = 0.0_dp
     issc_env%issc_loc(:,:,:,:,:) = 0.0_dp
     !
     ! allocation
     ALLOCATE(issc_env%efg_psi0(nspins,6),issc_env%pso_psi0(nspins,3),issc_env%fc_psi0(nspins),&
-         &   issc_env%psi1_efg(nspins,6),issc_env%psi1_pso(nspins,3),issc_env%psi1_fc(nspins),&
-         &   issc_env%dso_psi0(nspins,3),issc_env%psi1_dso(nspins,3),&
-         &   STAT=istat)
+             issc_env%psi1_efg(nspins,6),issc_env%psi1_pso(nspins,3),issc_env%psi1_fc(nspins),&
+             issc_env%dso_psi0(nspins,3),issc_env%psi1_dso(nspins,3),&
+             STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
        !mo_coeff => current_env%psi0_order(ispin)%matrix
@@ -940,9 +960,9 @@ CONTAINS
 
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-            &                   ncol_global=m,&
-            &                   context=mo_coeff%matrix_struct%context,&
-            &                   error=error)
+                                ncol_global=m,&
+                                context=mo_coeff%matrix_struct%context,&
+                                error=error)
        DO idir = 1,6
           NULLIFY(issc_env%psi1_efg(ispin,idir)%matrix,issc_env%efg_psi0(ispin,idir)%matrix)
           CALL cp_fm_create(issc_env%psi1_efg(ispin,idir)%matrix,tmp_fm_struct,error=error)
@@ -950,7 +970,7 @@ CONTAINS
        ENDDO
        DO idir = 1,3
           NULLIFY(issc_env%psi1_pso(ispin,idir)%matrix,issc_env%pso_psi0(ispin,idir)%matrix,&
-               &  issc_env%dso_psi0(ispin,idir)%matrix)
+                  issc_env%dso_psi0(ispin,idir)%matrix)
           CALL cp_fm_create(issc_env%psi1_pso(ispin,idir)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_create(issc_env%pso_psi0(ispin,idir)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_create(issc_env%psi1_dso(ispin,idir)%matrix,tmp_fm_struct,error=error)
@@ -1083,6 +1103,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the issc environment
+!> \param issc_env ...
+!> \param error ...
 !> \par History
 ! *****************************************************************************
   SUBROUTINE issc_env_cleanup(issc_env,error)

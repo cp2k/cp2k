@@ -34,6 +34,9 @@ MODULE cg_test
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE clebsch_gordon_test (error)
 
     TYPE(cp_error_type), INTENT(inout)       :: error

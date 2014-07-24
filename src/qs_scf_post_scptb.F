@@ -49,14 +49,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
+!> \param dft_section ...
 !> \param scf_env the scf_env whose info should be written out
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
 !> \par History
 !>        09.2013  Adapted from qs_scf_post_gpw.F
 !> \author  Ralph Koitz
+!> \note
 ! *****************************************************************************
   SUBROUTINE scf_post_calculation_scptb(dft_section, scf_env,qs_env, error)
 
@@ -82,7 +83,7 @@ CONTAINS
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \history 09.2013 adapted from qs_scf_post_gpw.F. [RK]
+!> \par History 09.2013 adapted from qs_scf_post_gpw.F. [RK] 
 ! *****************************************************************************
   SUBROUTINE write_scptb_mo_free_results(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env

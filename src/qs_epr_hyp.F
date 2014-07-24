@@ -68,6 +68,10 @@ MODULE qs_epr_hyp
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_epr_hyp_calc(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env

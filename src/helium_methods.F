@@ -84,6 +84,13 @@ MODULE helium_methods
   !>         (superfluid) helium solvent
   !> \author hforbert
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param input ...
+!> \param solute ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_create( helium, input, solute, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(section_vals_type), POINTER         :: input
@@ -655,6 +662,11 @@ MODULE helium_methods
   !> \brief  Releases helium_solvent_type
   !> \author hforbert
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_release(helium,error)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -811,6 +823,11 @@ MODULE helium_methods
   !> \brief  Retains helium_solvent_type
   !> \author hforbert
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_retain(helium,error)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -840,6 +857,12 @@ MODULE helium_methods
   !>         removed refereces to pint_env_type data structure [lwalewski]
   !>         2009-11-10 init/restore coords, perm, RNG and forces [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_init( helium, pint_env, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -981,6 +1004,12 @@ MODULE helium_methods
   !> \author Lukasz Walewski
   !> \date   2009-11-09
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_coord_init( helium, pint_env, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1022,6 +1051,11 @@ MODULE helium_methods
   !>         2010-07-22 accomodate additional cpus in the runtime wrt the
   !>                    restart [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_coord_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1111,6 +1145,12 @@ MODULE helium_methods
   !>         positions, hence this function should be called AFTER
   !>         helium_coord_init/restore.
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_force_init( helium, pint_env, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1140,6 +1180,11 @@ MODULE helium_methods
   !> \author Lukasz Walewski
   !> \date   2009-11-10
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_force_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1211,6 +1256,11 @@ MODULE helium_methods
   !> \descr  Assign the identity permutation at each processor. Inverse
   !>         permutation array gets assigned as well.
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_perm_init( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1243,6 +1293,11 @@ MODULE helium_methods
   !>         2010-07-22 accomodate additional cpus in the runtime wrt the
   !>                    restart [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_perm_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1339,6 +1394,11 @@ MODULE helium_methods
   !>         initialization, i.e. setting the seed values etc, should be done
   !>         here, allocation should be moved to helium_create
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_rng_state_init( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1432,6 +1492,11 @@ MODULE helium_methods
   !>         2010-07-22 Create new rng streams if more cpus available in the
   !>         runtime than in the restart [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_rng_state_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1644,6 +1709,11 @@ MODULE helium_methods
   !> \author Lukasz Walewski
   !> \date   2011-06-22
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_densities_restore( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1711,6 +1781,11 @@ MODULE helium_methods
   !>        helium_release.
   !> \author Lukasz Walewski
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param pint_env ...
+! *****************************************************************************
   SUBROUTINE helium_set_solute_indices(helium, pint_env)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1829,6 +1904,11 @@ MODULE helium_methods
   !>        correctly.
   !> \note  At the moment only orthorhombic cells are supported.
   ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param pint_env ...
+! *****************************************************************************
   SUBROUTINE helium_set_solute_cell(helium, pint_env)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1867,6 +1947,13 @@ MODULE helium_methods
 
 !TODO headers/comments, beautify
 
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param n ...
+!> \param i ...
+!> \retval res ...
+! *****************************************************************************
 FUNCTION helium_atom_action(helium,n,i) RESULT(res)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1934,6 +2021,12 @@ FUNCTION helium_atom_action(helium,n,i) RESULT(res)
 
 END FUNCTION helium_atom_action
 
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param n ...
+!> \retval res ...
+! *****************************************************************************
 FUNCTION helium_link_action(helium,n) RESULT(res)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1986,6 +2079,11 @@ FUNCTION helium_link_action(helium,n) RESULT(res)
 
 END FUNCTION helium_link_action
 
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \retval res ...
+! *****************************************************************************
 FUNCTION helium_total_action(helium) RESULT(res)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -2003,6 +2101,14 @@ FUNCTION helium_total_action(helium) RESULT(res)
 
 END FUNCTION helium_total_action
 
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param part ...
+!> \param ref_bead ...
+!> \param delta_bead ...
+!> \param d ...
+! *****************************************************************************
 SUBROUTINE helium_delta_pos(helium,part,ref_bead,delta_bead,d)
 
     TYPE(helium_solvent_type), POINTER       :: helium

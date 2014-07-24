@@ -64,6 +64,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes analytical gradients for semiempirical integrals
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param itype ...
+!> \param e1b ...
+!> \param e2a ...
+!> \param de1b ...
+!> \param de2a ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
@@ -77,15 +88,15 @@ CONTAINS
 !>
 !>                      de1b = derivative of e1b term
 !>                      de2a = derivative of e2a term
-!>                      denuc= derivative of nuclear-nuclear repulsion term.
-!> \note
-!>      Analytical version of the MOPAC rotnuc routine
+!>                      denuc= derivative of nuclear-nuclear repulsion term. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 !>      Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
+!> \note
+!>      Analytical version of the MOPAC rotnuc routine
 ! *****************************************************************************
   RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,e1b,e2a,de1b,de2a,&
        se_int_control,se_taper,error)
@@ -333,6 +344,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes analytical gradients for semiempirical core-core interaction.
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param itype ...
+!> \param enuc ...
+!> \param denuc ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
@@ -341,9 +361,7 @@ CONTAINS
 !>
 !>    on output          enuc= nuclear-nuclear repulsion term.
 !>
-!>                      denuc= derivative of nuclear-nuclear repulsion term.
-!> \note
-!>      Analytical version of the MOPAC rotnuc routine
+!>                      denuc= derivative of nuclear-nuclear repulsion term. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -351,6 +369,8 @@ CONTAINS
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the
 !>                 core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
+!> \note
+!>      Analytical version of the MOPAC rotnuc routine
 ! *****************************************************************************
   RECURSIVE SUBROUTINE corecore_ana (sepi,sepj,rijv,itype,enuc,denuc,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -646,6 +666,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Computes analytical gradients for semiempirical core-core electrostatic
 !>        interaction only.
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param itype ...
+!> \param enuc ...
+!> \param denuc ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \param on input  sepi   = Atomic parameters of first atom
 !>                  sepj   = Atomic parameters of second atom
 !>                  rijv   = Coordinate vector i -> j
@@ -655,9 +684,7 @@ CONTAINS
 !>    on output          enuc= nuclear-nuclear electrostatic repulsion term.
 !>
 !>                      denuc= derivative of nuclear-nuclear electrostatic
-!>                             repulsion term.
-!> \note
-!>      Analytical version of the MOPAC rotnuc routine
+!>                             repulsion term. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -665,6 +692,8 @@ CONTAINS
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the
 !>                 core-core part
 !> \author Teodoro Laino [tlaino] - Zurich University
+!> \note
+!>      Analytical version of the MOPAC rotnuc routine
 ! *****************************************************************************
   RECURSIVE SUBROUTINE corecore_el_ana (sepi,sepj,rijv,itype,enuc,denuc,&
        se_int_control,se_taper,error)
@@ -722,6 +751,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Exploits inversion symmetry to avoid divergence
+!> \param sepi ...
+!> \param sepj ...
+!> \param int1el ...
+!> \param int2el ...
+!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      05.2008 New driver for integral invertion (supports d-orbitals)
@@ -835,6 +869,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Exploits inversion symmetry to avoid divergence
+!> \param sepi ...
+!> \param sepj ...
+!> \param dint1el ...
+!> \param dint2el ...
+!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
@@ -882,6 +921,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the ssss integral and analytical derivatives (main driver)
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param ssss ...
+!> \param dssss ...
+!> \param itype ...
+!> \param se_taper ...
+!> \param se_int_control ...
+!> \param lgrad ...
+!> \param error ...
 !> \param on input rij    = interatomic distance
 !>                sepi    = paramters of atom i
 !>                sepj    = paramters of atom j
@@ -891,16 +940,16 @@ CONTAINS
 !>                          integrals (shortrange, R3 residual, screening type)
 !>
 !>      on output ssss    = derivative of (ssss) integral
-!>                          derivatives are intended w.r.t. rij
-!> \note
-!>      Analytical version - Analytical evaluation of gradients
-!>      Teodoro Laino - Zurich University 04.2007
-!>
+!>                          derivatives are intended w.r.t. rij UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>
 ! *****************************************************************************
   SUBROUTINE dssss_nucint_ana(sepi, sepj, rij, ssss, dssss, itype, se_taper, se_int_control,&
        lgrad, error)
@@ -963,6 +1012,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals and analytical integrals (main driver)
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param core ...
+!> \param dcore ...
+!> \param itype ...
+!> \param se_taper ...
+!> \param se_int_control ...
+!> \param lgrad ...
+!> \param error ...
 !> \param on input rij    = interatomic distance
 !>                sepi    = paramters of atom i
 !>                sepj    = paramters of atom j
@@ -975,16 +1034,16 @@ CONTAINS
 !>                          derivatives are intended w.r.t. rij
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
 !>         (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
-!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
-!> \note
-!>      Analytical version - Analytical evaluation of gradients
-!>      Teodoro Laino - Zurich University 04.2007
-!>
+!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>
 ! *****************************************************************************
   SUBROUTINE dcore_nucint_ana ( sepi, sepj, rij, core, dcore, itype, se_taper, &
        se_int_control, lgrad, error)
@@ -1071,6 +1130,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals and derivatives for sp basis
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param dssss ...
+!> \param dcore ...
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_int_screen ...
+!> \param error ...
 !> \param on input rij     = interatomic distance
 !>                sepi    = paramters of atom i
 !>                sepj    = paramters of atom j
@@ -1086,18 +1154,18 @@ CONTAINS
 !>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
 !>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
 !>
-!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
-!> \note
-!>      Analytical version - Analytical evaluation of gradients
-!>      Teodoro Laino - Zurich University 04.2007
-!>      routine adapted from mopac7 (repp)
-!>      vector version written by Ernest R. Davidson, Indiana University
+!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 !>      05.2008 Teodoro Laino [tlaino] - University of Zurich: major rewriting
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>      routine adapted from mopac7 (repp)
+!>      vector version written by Ernest R. Davidson, Indiana University
 ! *****************************************************************************
   SUBROUTINE dnucint_sp_ana ( sepi, sepj, rij, dssss, dcore, itype, se_int_control,&
        se_int_screen, error)
@@ -1168,6 +1236,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the analytical derivative of the nuclear attraction
 !>        integrals involving d orbitals
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param dcore ...
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_int_screen ...
+!> \param error ...
 !> \param on input rij   = interatomic distance
 !>                sepi   = paramters of atom i
 !>                sepj   = paramters of atom j
@@ -1181,7 +1257,7 @@ CONTAINS
 !>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
 !>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
 !>
-!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich: created
 ! *****************************************************************************
@@ -1251,21 +1327,29 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the derivative of the two-particle interactions
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param w ...
+!> \param dw ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \param on input  sepi   = Atomic parameters of first atom
 !>               sepj   = Atomic parameters of second atom
 !>               rijv   = Coordinate vector i -> j
 !>
-!>     on output w      = Array of two-electron repulsion integrals.
-!> \note
-!>      Analytical version - Analytical evaluation of gradients
-!>      Teodoro Laino - Zurich University 04.2007
-!>      routine adapted from mopac7 (repp)
-!>      vector version written by Ernest R. Davidson, Indiana University
+!>     on output w      = Array of two-electron repulsion integrals. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>      routine adapted from mopac7 (repp)
+!>      vector version written by Ernest R. Davidson, Indiana University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -1586,6 +1670,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the derivative and the value of two-electron repulsion
 !>      integrals and the nuclear attraction integrals w.r.t. |r|
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param rep ...
+!> \param rep_d ...
+!> \param se_taper ...
+!> \param se_int_control ...
+!> \param lgrad ...
+!> \param error ...
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
@@ -1594,7 +1687,7 @@ CONTAINS
 !>
 !>     on output  ri     = array of two-electron repulsion integrals
 !>     on output dri     = array of two-electron repulsion integrals derivatives
-!>
+!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
@@ -1687,6 +1780,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the derivative and the value of two-electron repulsion
 !>      integrals and the nuclear attraction integrals w.r.t. |r| - sp shells only
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param drep ...
+!> \param rep ...
+!> \param se_int_control ...
+!> \param se_int_screen ...
+!> \param ft ...
+!> \param dft ...
+!> \param error ...
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
@@ -1694,18 +1797,18 @@ CONTAINS
 !>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>     on output ri      = array of two-electron repulsion integrals
-!>              dri      = array of derivatives of two-electron repulsion integrals
-!> \note
-!>      Analytical version - Analytical evaluation of gradients
-!>      Teodoro Laino - Zurich University 04.2007
-!>      routine adapted from mopac7 (repp)
-!>      vector version written by Ernest R. Davidson, Indiana University
+!>              dri      = array of derivatives of two-electron repulsion integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 !>      05.2008 Teodoro Laino [tlaino] - University of Zurich: major rewriting
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>      routine adapted from mopac7 (repp)
+!>      vector version written by Ernest R. Davidson, Indiana University
 ! *****************************************************************************
   SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, drep, rep, se_int_control, &
        se_int_screen, ft, dft, error)
@@ -1762,6 +1865,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the derivatives of the two-electron repulsion integrals - d shell only
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param drep ...
+!> \param rep ...
+!> \param se_int_control ...
+!> \param se_int_screen ...
+!> \param ft ...
+!> \param dft ...
+!> \param error ...
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
@@ -1769,7 +1882,7 @@ CONTAINS
 !>                         integrals (shortrange, R3 residual, screening type)
 !>
 !>     on output rep     = array of two-electron repulsion integrals
-!>
+!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integral derivatives for d-orbitals

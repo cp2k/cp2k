@@ -236,6 +236,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a new structure environment for TMC analysis
 !> \param ana_dens structure with parameters for TMC density analysis
+!> \param nr_bins ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 02.2013
@@ -307,9 +308,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a new structure environment for TMC analysis
-!> \param
+!> \param ana_pair_correl ...
+!> \param nr_bins ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_pair_correl_create(ana_pair_correl, nr_bins, error)
@@ -338,9 +341,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the structure environment for TMC analysis
-!> \param 
+!> \param ana_pair_correl ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_pair_correl_release(ana_pair_correl,error)
@@ -365,9 +369,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief search the pair of two atom types in list
-!> \param n1,n2 atom names
+!> \param pair_list ...
+!> \param n1 ...
+!> \param n2 ...
+!> \param list_end ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param n1,n2 atom names UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval ind ...
 !> \author Mandes 02.2013
 ! *****************************************************************************
   FUNCTION search_pair_in_list(pair_list, n1, n2, list_end, error) RESULT(ind)
@@ -411,9 +420,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a new structure environment for TMC analysis
-!> \param
+!> \param ana_dip_mom ...
+!> \param charge_atm ...
+!> \param charge ...
+!> \param dim_per_elem ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_dipole_moment_create(ana_dip_mom, charge_atm, charge, &
@@ -453,9 +466,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the structure environment for TMC analysis
-!> \param 
+!> \param ana_dip_mom ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_dipole_moment_release(ana_dip_mom, error)
@@ -482,9 +496,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a new structure environment for TMC analysis
-!> \param
+!> \param ana_dip_ana ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_dipole_analysis_create(ana_dip_ana, error)
@@ -519,9 +534,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the structure environment for TMC analysis
-!> \param 
+!> \param ana_dip_ana ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_dipole_analysis_release(ana_dip_ana, error)
@@ -554,9 +570,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a new structure environment for TMC analysis
-!> \param
+!> \param ana_disp ...
+!> \param dim_per_elem ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_displacement_create(ana_disp, dim_per_elem, error)
@@ -584,9 +602,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a structure environment for TMC analysis
-!> \param
+!> \param ana_disp ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_ana_displacement_release(ana_disp, error)

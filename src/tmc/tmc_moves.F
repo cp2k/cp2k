@@ -58,6 +58,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief applying the preselected move type
 !> \param tmc_params TMC parameters with dimensions ...
+!> \param move_types ...
 !> \param rng_stream random number stream
 !> \param elem configuration to change
 !> \param mv_conf temperature index for determinig the move size
@@ -432,11 +433,12 @@ CONTAINS
 !>        returns true if position is inside
 !> \param pos array with positions
 !> \param subbox_center actual center of sub box
-!> \param subbox_size size of the sub box
 !> \param box_scale scaling factors for the cell
 !> \param tmc_params TMC parameters with sub box size and cell
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param subbox_size size of the sub box UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval inside ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION check_pos_in_subbox(pos, subbox_center, box_scale, tmc_params, error)&
@@ -488,10 +490,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief set a new random sub box center and counte the number of atoms in it
-!> \param 
-!> \param 
+!> \param tmc_params ...
+!> \param rng_stream ...
+!> \param elem ...
+!> \param nr_of_sub_box_elements ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
+!> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE elements_in_new_subbox(tmc_params, rng_stream, elem, &
@@ -571,6 +577,7 @@ CONTAINS
 !> \param ind_start starting index in the array
 !> \param ind_end index of last atom in the array
 !> \param max_angle maximal angle in each direction
+!> \param move_types ...
 !> \param rng_stream ramdon stream
 !> \param dim_per_elem dimension per atom
 !> \param error variable to control error logging, stopping,...
@@ -637,7 +644,7 @@ CONTAINS
 !> \brief velocity change should be gaussian distributed 
 !>        around the old velocity with respect to kB*T/m
 !> \param vel velocity of atom (one direction)
-!> \param mass atom mass
+!> \param atom_kind ...
 !> \param phi angle for mixing old with random gaussian distributed velocity
 !>        phi =90 degree -> only gaussian velocity around 0
 !>        phi = 0 degree -> only old velocity (with sign change)
@@ -646,6 +653,7 @@ CONTAINS
 !> \param rng_stream random number stream
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param mass atom mass UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE vel_change(vel, atom_kind, phi, temp, rnd_sign_change, rng_stream, &
@@ -960,8 +968,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief checks if neighbor of the selected/orig element 
 !>        is a proron donator or acceptor
+!> \param elem ...
+!> \param i_orig ...
+!> \param i_neighbor ...
+!> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval donor_acceptor ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION check_donor_acceptor(elem, i_orig, i_neighbor, tmc_params, error) &
@@ -1180,8 +1193,10 @@ CONTAINS
 !> \param conf configuration to change with positions
 !> \param T_ind temperature index, to select the correct temperature 
 !>        for move size
+!> \param move_types ...
 !> \param rng_stream random number generator stream
 !> \param tmc_params TMC parameters with e.g. dimensions of atoms and molecules
+!> \param mv_cen_of_mass ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
@@ -1318,6 +1333,7 @@ CONTAINS
 !> \brief volume move, two atoms of different types are swapped, both selected 
 !>        randomly
 !> \param conf configuration to change with positions
+!> \param move_types ...
 !> \param rng_stream random number generator stream
 !> \param tmc_params TMC parameters with e.g. dimensions of atoms and molecules
 !> \param error variable to control error logging, stopping,...

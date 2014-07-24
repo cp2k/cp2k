@@ -55,6 +55,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Performs the perturbation calculation
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_calculation(qs_env, error)
 
@@ -115,6 +117,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply a special potential to obtain better
 !>       orbital eigenvalues.
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE orbital_eigenvalue_correction(qs_env, error)
 

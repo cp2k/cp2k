@@ -54,6 +54,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Performs the real task of reading the proper information from the XTL
 !>         file
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param error ...
+!> \date   05.2009
 !> \par    Format Information implemented:
 !>            TITLE
 !>            DIMENSION
@@ -64,7 +69,6 @@ CONTAINS
 !>            EOF
 !>
 !> \author Teodoro Laino [tlaino]
-!> \date   05.2009
 ! *****************************************************************************
   SUBROUTINE read_coordinate_xtl (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology

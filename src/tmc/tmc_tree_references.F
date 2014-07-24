@@ -96,6 +96,7 @@ CONTAINS
 !> \brief removes the global tree references of this actual global tree element
 !>        from all related sub tree elements
 !> \param gt_ptr actual global tree element
+!> \param tmc_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
@@ -214,6 +215,7 @@ CONTAINS
 !> \brief removes the global tree references of this actual global tree element
 !>        from all related sub tree elements
 !> \param gt_ptr actual global tree element
+!> \param elem ...
 !> \param tmc_env TMC environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling

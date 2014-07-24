@@ -31,13 +31,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief generates a unified output format for atomic charges
+!> \param particle_set ...
+!> \param scr ...
+!> \param title ...
 !> \param electronic_charges (natom,nspin), the number of electrons of (so positive) per spin
 !>                            if (nspin==1) it is the sum of alpha and beta electrons
 !> \param atomic_charges truely the atomic charge (taking Z into account, atoms negative, no spin)
-!> \note
-!>      charges are computed per spin in the LSD case
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
+!> \note
+!>      charges are computed per spin in the LSD case
 ! *****************************************************************************
   SUBROUTINE print_atomic_charges(particle_set, scr, title, electronic_charges,&
                                   atomic_charges)
@@ -119,6 +122,14 @@ CONTAINS
 
   END SUBROUTINE print_atomic_charges
 
+! *****************************************************************************
+!> \brief ...
+!> \param particle_set ...
+!> \param scr ...
+!> \param title ...
+!> \param charge ...
+!> \param dipole ...
+!> \param quadrupole ...
 ! *****************************************************************************
   SUBROUTINE print_multipoles(particle_set, scr, title, charge, dipole, quadrupole)
 

@@ -223,6 +223,7 @@ CONTAINS
 !> \brief Conjugate a DBCSR matrix
 !> \param[inout] matrix       DBCSR matrix
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_conjg(matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -427,8 +428,8 @@ CONTAINS
 !> \param[inout] matrix_a       DBCSR matrix
 !> \param[in] alpha_matrix      (optional) a list of matrices
 !> \param[in] side              (optional) ?
-!> \param[in] scale type        corresponds to scalar, vector, matrix
 !> \param[in,out] error         error
+!> \param[in] scale type        corresponds to scalar, vector, matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_scale_mat_any(matrix_a, alpha_matrix, side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -558,6 +559,7 @@ CONTAINS
 !> \param[inout] matrix_a       DBCSR matrix
 !> \param[in] alpha             the scaling vector
 !> \param[in] side              apply the scaling from the side
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_scale_by_vector_anytype(matrix_a, alpha, side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -657,6 +659,7 @@ CONTAINS
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in] alpha           a scalar
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_anytype(matrix, alpha, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -698,6 +701,7 @@ CONTAINS
 !> \param[in] alpha_scalar   (optional)
 !> \param[in] beta_scalar    (optional)
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_add_anytype(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -801,6 +805,14 @@ CONTAINS
   END SUBROUTINE dbcsr_add_anytype
 
   !> \brief Interface for dbcsr_add
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param alpha_scalar ...
+!> \param beta_scalar ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_add_d(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
@@ -840,6 +852,14 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_d
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param alpha_scalar ...
+!> \param beta_scalar ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_add_s(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
@@ -864,6 +884,14 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_s
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param alpha_scalar ...
+!> \param beta_scalar ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_add_z(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
@@ -893,6 +921,14 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_z
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param alpha_scalar ...
+!> \param beta_scalar ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_add_c(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
@@ -938,6 +974,18 @@ CONTAINS
 !>        dbcsr_func_asin:    asin(a1*x+a0)
 !>           fails if |a1*x+a0| > 1
 !> \param[in] matrix_a        DBCSR matrix
+!> \param func ...
+!> \param a0 ...
+!> \param a1 ...
+!> \param a2 ...
+!> \param a3 ...
+!> \param a4 ...
+!> \param a5 ...
+!> \param a6 ...
+!> \param a7 ...
+!> \param a8 ...
+!> \param a9 ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_function_of_elements(matrix_a, func, a0, a1, a2, a3, a4,&
     a5, a6, a7, a8, a9, error)
@@ -1086,8 +1134,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Hadamard product
 !>    C = A . B (C needs to be different from A and B)
+!> \param matrix_a ...
+!> \param matrix_b ...
 !> \param[in,out] matrix_c        DBCSR matrix
-!> \param[in] matrix_a, matrix_b  DBCSR matrix
+!> \param b_assume_value ...
+!> \param error ...
+!> \param[in] matrix_a, matrix_b  DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c,&
     b_assume_value, error)
@@ -1200,6 +1252,9 @@ CONTAINS
 !> \brief add a constant to the diagonal of a matrix
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in]    alpha_scalar scalar
+!> \param first_row ...
+!> \param last_row ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_add_on_diag_anytype(matrix, alpha_scalar, first_row, last_row, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -1285,6 +1340,12 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_on_diag_anytype
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param keep_sparsity ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_init_random(matrix, keep_sparsity, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     LOGICAL, OPTIONAL                        :: keep_sparsity
@@ -1356,6 +1417,7 @@ CONTAINS
 !> \param[in] matrix    the matrix
 !> \param[inout] diag   the diagonal
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_diag(matrix, diag, error)
 
@@ -1397,6 +1459,7 @@ CONTAINS
 !> \param[in] matrix    the matrix
 !> \param[inout] diag   diagonal
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_diag_anytype(matrix, diag, error)
 
@@ -1454,6 +1517,7 @@ CONTAINS
 !> \param[in] matrix    the matrix
 !> \param[inout] diag   diagonal
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_diag_anytype(matrix, diag, error)
 
@@ -1506,6 +1570,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief checks if matrix symmetry and data_type are consistent
 !> \brief note: does not check the symmetry of the data itself
+!> \param matrix_type ...
+!> \param data_type ...
+!> \param error ...
 ! *****************************************************************************
   LOGICAL FUNCTION symmetry_consistent(matrix_type,data_type,error)
     CHARACTER, INTENT(IN)                    :: matrix_type
@@ -1538,6 +1605,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief checks if symmetries of two matrices are compatible for copying
 !> \brief data from matrix_a(source) to matrix_b(target)
+!> \param matrix_type_a ...
+!> \param matrix_type_b ...
+!> \param error ...
 ! *****************************************************************************
   LOGICAL FUNCTION symmetry_compatible(matrix_type_a,matrix_type_b,error)
     CHARACTER, INTENT(IN)                    :: matrix_type_a, matrix_type_b
@@ -1577,7 +1647,6 @@ CONTAINS
 !> \param[inout] matrix_b       target DBCSR matrix
 !> \param[in]    matrix_a       source DBCSR matrix
 !> \param[in]    name           (optional) name of the new matrix
-!> \param[in,out] error         cp2k error
 !> \param[in]    keep_sparsity  (optional) keep the target matrix sparsity;
 !>                              default is False.
 !> \param[in]    shallow_data   (optional) shallow data copy
@@ -1586,6 +1655,7 @@ CONTAINS
 !>                               this flag is set, the imaginary part is used
 !> \param[in]    matrix_type     'N' for normal, 'T' for transposed, 'S' for
 !>                               symmetric, and 'A' for antisymmetric
+!> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, keep_sparsity,&
        shallow_data, keep_imaginary, matrix_type, error)
@@ -1893,16 +1963,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copy only a subset of matrix columns (element-wise, not block-size)
-!> \par Column block compatibility
-!>      The process column distributions of the copied columns must be
-!>      equal. Therefore, the source and target offsets must also be
-!>      the same.
 !> \param[in,out] matrix_b      target DBCSR matrix
 !> \param[in]    matrix_a       source DBCSR matrix
 !> \param[in]    ncol           number of elemental column to copy
 !> \param[in]    source_start   starting elemental column in source
 !> \param[in]    target_start   starting elemental column in target
 !> \param[in,out] error         cp2k error
+!> \par Column block compatibility
+!>      The process column distributions of the copied columns must be
+!>      equal. Therefore, the source and target offsets must also be
+!>      the same.
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy_columns(matrix_b, matrix_a,&
        ncol, source_start, target_start, error)
@@ -2031,6 +2101,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Determines the relation between two matrix positions.
+!> \param row1 ...
+!> \param col1 ...
+!> \param row2 ...
+!> \param col2 ...
 !> \retval relation  Relation between positions 1 and 2.
 !>                    0: same
 !>                   -1: pos1 < pos2
@@ -2196,6 +2270,7 @@ CONTAINS
 !> \param[in]    full_column_bounds   (optional) columns to extract (array of
 !>                                    size 2 holding the lower and upper
 !>                                    inclusive bounds)
+!> \param shallow_data ...
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_crop_matrix(matrix_b, matrix_a, name,&
@@ -2397,6 +2472,7 @@ CONTAINS
 !> \param[in] matrix_b  triu of the matrix
 !> \param[in] matrix_a  the matrix
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_btriu(matrix_b, matrix_a, error)
 
@@ -2435,6 +2511,7 @@ CONTAINS
 !> \brief  triu of a dbcsr matrix
 !> \param[inout] matrix_a  the matrix
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_triu(matrix_a, error)
 
@@ -2480,6 +2557,7 @@ CONTAINS
 !> \brief  symmetrize the block diagonal of a dbcsr matrix
 !> \param[inout] matrix_a  the matrix
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_symmetrize_block_diag(matrix_a, error)
 
@@ -2526,6 +2604,7 @@ CONTAINS
 !> \brief  tril of a dbcsr matrix
 !> \param[inout] matrix_a  the matrix
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_tril(matrix_a, error)
 
@@ -2569,13 +2648,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief filter a dbcsr matrix
-!> \param[inout] matrix_a  the matrix
+!> \param matrix ...
 !> \param[in] eps          the threshold
 !> \param[in] method       how the matrix is filtered
 !> \param[in] use_absolute ?
 !> \param[in] filter_diag  NYI
 !> \param[in] quick        (optional) filter just the index (no data copying)
 !> \param[error] error     error
+!> \param[inout] matrix_a  the matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_filter_anytype(matrix, eps, method,&
        use_absolute, filter_diag, quick, error)
@@ -2727,9 +2807,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
-!> \param[out] norm
-!> \param[in] which_norm
+!> \param[in] which_norm ...
 !>
+!> \param norm_scalar ...
+!> \param norm_vector ...
+!> \param error ...
+!> \param[out] norm UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_norm_anytype(matrix, which_norm, norm_scalar, norm_vector, error)
 
@@ -2866,6 +2949,13 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_norm_anytype
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param which_norm ...
+!> \param norm_vector ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_norm_r8_vec(matrix, which_norm, norm_vector, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: which_norm
@@ -2886,6 +2976,13 @@ CONTAINS
     CALL dbcsr_data_release (norm_vector_a)
   END SUBROUTINE dbcsr_norm_r8_vec
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param which_norm ...
+!> \param norm_scalar ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_norm_r4_scal(matrix, which_norm, norm_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: which_norm
@@ -2899,6 +2996,13 @@ CONTAINS
     norm_scalar = REAL(norm_r8, KIND=real_4)
   END SUBROUTINE dbcsr_norm_r4_scal
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param which_norm ...
+!> \param norm_vector ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_norm_r4_vec(matrix, which_norm, norm_vector, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: which_norm
@@ -2922,8 +3026,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
-!> \param[out] norm
-!>
+!> \retval norm ...
 ! *****************************************************************************
   FUNCTION dbcsr_gershgorin_norm_r8(matrix) RESULT (norm)
 
@@ -3024,8 +3127,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
-!> \param[out] norm
-!>
+!> \retval norm ...
 ! *****************************************************************************
   FUNCTION dbcsr_maxabs_r8(matrix) RESULT (norm)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -3079,8 +3181,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
-!> \param[out] norm
-!>
+!> \param local ...
+!> \retval norm ...
 ! *****************************************************************************
   FUNCTION dbcsr_frobenius_norm_r8(matrix, local) RESULT (norm)
 
@@ -3160,6 +3262,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sums blocks in a replicated dbcsr matrix, which has the same structure on all ranks.
 !> \param[in,out] matrix      dbcsr matrix to operate on
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_sum_replicated (matrix, error)
     TYPE(dbcsr_obj), INTENT(inout)           :: matrix
@@ -3209,6 +3312,16 @@ CONTAINS
   END SUBROUTINE dbcsr_sum_replicated
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param trace ...
+!> \param trans_a ...
+!> \param trans_b ...
+!> \param local_sum ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_trace_a_b_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
     REAL(kind=real_8), INTENT(INOUT)         :: trace
@@ -3244,6 +3357,12 @@ CONTAINS
 
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param trace ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_trace_a_any(matrix_a, trace, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: trace
@@ -3277,9 +3396,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief check if a block is not in the limits
-!> \param[in] row, col
+!> \param row ...
+!> \param col ...
+!> \param block_row_limits ...
+!> \param block_column_limits ...
 !> \param[in] block_row_limits, block_column_limits
-!>
+!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] row, col UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   FUNCTION dbcsr_block_in_limits(row, col, block_row_limits, block_column_limits)
     INTEGER, INTENT(in)                      :: row, col

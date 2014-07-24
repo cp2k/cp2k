@@ -50,6 +50,7 @@ CONTAINS
 !> \brief returns a unique string for a given derivative string
 !> \param deriv_desc input string which describes the derivative and
 !>                    should be standardized
+!> \param res ...
 !> \param error variable to control error logging, stopping,...
 !>                    see module cp_error_handling
 ! *****************************************************************************
@@ -100,6 +101,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns an array of 1st order derivative descriptions
 !> \param deriv_desc input string which describes the derivative
+!> \param res ...
 !> \param error variable to control error logging, stopping,...
 !>                    see module cp_error_handling
 ! *****************************************************************************

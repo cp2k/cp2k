@@ -80,13 +80,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Finds block to which a full element belongs.
+!> \param[in] full            full element
+!> \param[out] block          block to which full belongs
+!> \param nblocks ...
+!> \param[in] block_offsets   starting full elements of blocks
+!> \param[in] hint            where to start looking; ignored if 0
+!> \param error ...
 !> \par Assumptions
 !>        It is assumed that block_start and block_end are sorted and
 !>        that hint is in the range [0, nblocks].
-!> \param[in] full            full element
-!> \param[out] block          block to which full belongs
-!> \param[in] block_offsets   starting full elements of blocks
-!> \param[in] hint            where to start looking; ignored if 0
 ! *****************************************************************************
   SUBROUTINE find_block_of_element(full, block, nblocks,&
        block_offsets, hint, error)
@@ -133,7 +135,7 @@ CONTAINS
 !> \brief The sum of a subset of rows/columns
 !> \param[in] all_offsets     ordered offsets of all the elements
 !> \param[in] local_elements  enumerated local elements
-!> \result nfull_elements     sum of sizes of local elemetns
+!> \retval nfull_elements     sum of sizes of local elemetns 
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   PURE FUNCTION nfull_elements (all_offsets, local_elements)
@@ -236,13 +238,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Converts global offsets to local
+!> \param[in] global_offsets   Offsets of elements in the global grid
+!> \param[in] local_elements   Which elements are local
+!> \param[out] local_offsets   Offsets of local elements.
 !> \par Global vs. Local Indexing
 !>      local_offsets may be sized according to the
 !>      local index (|local_elements+|1) or the
 !>      global index (|global_offsets|).
-!> \param[in] global_offsets   Offsets of elements in the global grid
-!> \param[in] local_elements   Which elements are local
-!> \param[out] local_offsets   Offsets of local elements.
 ! *****************************************************************************
   SUBROUTINE global_offsets_to_local (global_offsets,&
        local_elements, local_offsets)
@@ -296,6 +298,11 @@ CONTAINS
 !>
 !> For all local blocks in blk_local_els, it calculates its offset in
 !> the dense block to which it belongs.
+!> \param blk_local_els ...
+!> \param el_map ...
+!> \param blk_el_offsets ...
+!> \param dense_el_offsets ...
+!> \param internal_offsets ...
 ! *****************************************************************************
   SUBROUTINE get_internal_offsets(blk_local_els, el_map, blk_el_offsets,&
        dense_el_offsets, internal_offsets)
@@ -329,9 +336,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copies row and column block sizes from another matrix.
-!> \param[in,out] matrix      target matrix
-!> \param[in] meta            source matrix
-!> \param[in,out] error       cp2k error
+!> \param dst ...
+!> \param src ...
+!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in,out] matrix      target matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] meta            source matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy_block_sizes(dst, src)
     TYPE(dbcsr_type), INTENT(INOUT)          :: dst
@@ -353,8 +362,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates explicit sizes for all data blocks.
 !> \param[out] sizes          sizes of all data blocks
-!> \param[in] row_p, col_i    index structure
-!> \param[in] rbs, cbs        row block sizes and column block sizes
+!> \param row_p ...
+!> \param col_i ...
+!> \param rbs ...
+!> \param cbs ...
+!> \param[in] rbs, cbs        row block sizes and column block sizes UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] row_p, col_i    index structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_calc_block_sizes(sizes, row_p, col_i, rbs, cbs)
     INTEGER, DIMENSION(*), INTENT(OUT)       :: sizes
@@ -375,6 +388,13 @@ CONTAINS
   END SUBROUTINE dbcsr_calc_block_sizes
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param n ...
+!> \param oldsign ...
+!> \param x ...
+!> \retval val ...
+! *****************************************************************************
   ELEMENTAL FUNCTION sgn (n, oldsign, x) RESULT (val)
     INTEGER, INTENT(IN)                      :: n, oldsign
     LOGICAL, INTENT(IN)                      :: x
@@ -517,10 +537,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the checksum of a DBCSR matrix.
 !> \param[in] matrix          matrix
-!> \param[out] chksum         calculated checksum
 !> \param[in] local           (optional) no global communication
 !> \param[in] pos             (optional) position-dependent checksum
 !> \param[in,out] error       cp2k error
+!> \param[out] chksum         calculated checksum UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval checksum ...
 ! *****************************************************************************
   FUNCTION dbcsr_checksum(matrix, local, pos, error) RESULT(checksum)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -596,7 +617,7 @@ CONTAINS
                            tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
-                           &                    r_dp(blk_p:blk_p+mn-1)), KIND=dp)
+                                                r_dp(blk_p:blk_p+mn-1)), KIND=dp)
                    ENDIF
                 CASE (dbcsr_type_real_4)
                    IF (pd) THEN
@@ -604,7 +625,7 @@ CONTAINS
                            tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
-                           &                    r_sp(blk_p:blk_p+mn-1)), KIND=dp)
+                                                r_sp(blk_p:blk_p+mn-1)), KIND=dp)
                    ENDIF
                 CASE (dbcsr_type_complex_8)
                    IF (pd) THEN
@@ -612,7 +633,7 @@ CONTAINS
                            tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
-                           &                    c_dp(blk_p:blk_p+mn-1)), KIND=dp)
+                                                c_dp(blk_p:blk_p+mn-1)), KIND=dp)
                    ENDIF
                 CASE (dbcsr_type_complex_4)
                    IF (pd) THEN
@@ -620,7 +641,7 @@ CONTAINS
                            tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
-                           &                    c_sp(blk_p:blk_p+mn-1)), KIND=dp)
+                                                c_sp(blk_p:blk_p+mn-1)), KIND=dp)
                    ENDIF
                 CASE default
                    blk_cs = 0.0_dp
@@ -642,6 +663,16 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END FUNCTION dbcsr_checksum
 
+! *****************************************************************************
+!> \brief ...
+!> \param ld ...
+!> \param od ...
+!> \param DATA ...
+!> \param tr ...
+!> \param ro ...
+!> \param co ...
+!> \retval pd_cs ...
+! *****************************************************************************
   PURE FUNCTION pd_blk_cs (ld, od, DATA, tr, ro, co) RESULT (pd_cs)
     INTEGER, INTENT(IN)                      :: ld, od
     REAL(KIND=dp), DIMENSION(ld, od), &
@@ -674,12 +705,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Verify the correctness of a BCSR matrix.
 !> \param[in] m     bcsr matrix
-!> \param[in,out] error     cp2k error
 !> \param[in] verbosity     how detailed errors are; 0=nothing; 1=summary at
 !>                          end if matrix not consistent; 2=also individual
 !>                          errors; 3=always print info about matrix; >3=even
 !>                          more info
 !> \param[in] local         (optional) no global communication
+!> \param[in,out] error     cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_verify_matrix(m, verbosity, local, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: m
@@ -872,6 +903,13 @@ CONTAINS
   END SUBROUTINE dbcsr_verify_matrix
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param nelements ...
+!> \param bins ...
+!> \param nbins ...
+!> \param bin_counts ...
+! *****************************************************************************
   PURE SUBROUTINE count_bins(nelements, bins, nbins, bin_counts)
     INTEGER, INTENT(IN)                      :: nelements
     INTEGER, DIMENSION(1:nelements), &
@@ -889,9 +927,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes a lookup table from the most common elements.
-!> \par Lookup table
-!>      The lookup table is indexed by the most common array values
-!>      (i.e., block sizes).  Its values are the order of their frequency.
 !> \param[in] array                  Array for which to find the most common
 !>                                   elements.
 !> \param[out] most_common_map       Ranking of the most common elements
@@ -899,6 +934,10 @@ CONTAINS
 !> \param[in] nmost_common           The number of most common elements
 !> \param[out] most_common_elements  The most common elements in array
 !> \param[in] size_limit             Limit maximum size to this value
+!> \param max_val ...
+!> \par Lookup table
+!>      The lookup table is indexed by the most common array values
+!>      (i.e., block sizes).  Its values are the order of their frequency.
 ! *****************************************************************************
   SUBROUTINE map_most_common(array, most_common_map, nmost_common,&
        most_common_elements, size_limit, max_val)

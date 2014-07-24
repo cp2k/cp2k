@@ -64,6 +64,20 @@ MODULE dbcsr_mp_operations
 CONTAINS
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param sb ...
+!> \param scount ...
+!> \param sdispl ...
+!> \param rb ...
+!> \param rcount ...
+!> \param rdispl ...
+!> \param mp_env ...
+!> \param most_ptp ...
+!> \param remainder_ptp ...
+!> \param no_hybrid ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE hybrid_alltoall_any (sb, scount, sdispl,&
        rb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid,&
        error)
@@ -113,11 +127,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Row/column and global all-to-all
-!> \par Communicator selection
-!>      Uses row and column communicators for row/column
-!>      sends. Remaining sends are performed using the global
-!>      communicator.  Point-to-point isend/irecv are used if ptp is
-!>      set, otherwise a alltoall collective call is issued.
+!> \param sb ...
+!> \param scount ...
+!> \param sdispl ...
+!> \param rb ...
+!> \param rcount ...
+!> \param rdispl ...
 !> \param[in] mp_env         MP Environment
 !> \param[in] most_ptp       (optional) Use point-to-point for row/column;
 !>                           default is no
@@ -125,7 +140,12 @@ CONTAINS
 !>                           default is no
 !> \param[in] no_hybrid      (optional) Use regular global collective; default
 !>                           is no
-!> \see mp_alltoall
+!> \par Communicator selection
+!>      Uses row and column communicators for row/column
+!>      sends. Remaining sends are performed using the global
+!>      communicator.  Point-to-point isend/irecv are used if ptp is
+!>      set, otherwise a alltoall collective call is issued.
+!>      see mp_alltoall
 ! *****************************************************************************
   SUBROUTINE hybrid_alltoall_i1 (sb, scount, sdispl,&
        rb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid)
@@ -212,6 +232,9 @@ CONTAINS
             all_group)
     ENDIF subgrouped
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE most_alltoall()
       FORALL (pcol = 0 : npcols-1)
          new_scount(1+pcol) = scount(1+pgrid(myprow, pcol))
@@ -232,6 +255,9 @@ CONTAINS
            rb, new_rcount(1:nprows), new_rdispl(1:nprows),&
            dbcsr_mp_my_col_group (mp_env))
     END SUBROUTINE most_alltoall
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE most_point_to_point ()
       ! Go through my prow and exchange.
       DO i = 0, npcols - 1
@@ -282,6 +308,9 @@ CONTAINS
          ENDIF
       ENDDO
     END SUBROUTINE most_point_to_point
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE remainder_alltoall ()
       new_scount(:) = scount(:)
       new_rcount(:) = rcount(:)
@@ -296,6 +325,9 @@ CONTAINS
       CALL mp_alltoall (sb, new_scount, sdispl,&
            rb, new_rcount, rdispl, all_group)
     END SUBROUTINE remainder_alltoall
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE remainder_point_to_point()
     INTEGER                                  :: col, row
 
@@ -330,7 +362,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates an MPI combined type from the given anytype.
 !> \param[in] data_area       Data area of any type
-!> \result mp_type            Type descriptor
+!> \retval mp_type            Type descriptor 
 ! *****************************************************************************
   FUNCTION dbcsr_mp_type_from_anytype(data_area) RESULT (mp_type)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: data_area
@@ -351,7 +383,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Blocking send of encapsulated data.
-!> \sa mp_send_iv
+!> \param msgin ...
+!> \param dest ...
+!> \param tag ...
+!> \param comm ...
+!> \param error ...
+!> \note see mp_send_iv 
 ! *****************************************************************************
   SUBROUTINE dbcsr_send_any(msgin,dest,tag,comm, error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
@@ -378,7 +415,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Non-blocking send of encapsulated data.
-!> \sa mp_isend_iv
+!> \param msgin ...
+!> \param dest ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
+!> \param error ...
+!> \note see mp_isend_iv 
 ! *****************************************************************************
   SUBROUTINE dbcsr_isend_any(msgin,dest,comm,request,tag, error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
@@ -407,7 +450,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Blocking recv of encapsulated data.
-!> \sa mp_recv_iv
+!> \param msgin ...
+!> \param source ...
+!> \param tag ...
+!> \param comm ...
+!> \param error ...
+!> \note see mp_recv_iv 
 ! *****************************************************************************
   SUBROUTINE dbcsr_recv_any(msgin,source,tag, comm, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: msgin
@@ -438,7 +486,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Non-blocking recv of encapsulated data.
-!> \sa mp_irecv_iv
+!> \param msgin ...
+!> \param source ...
+!> \param comm ...
+!> \param request ...
+!> \param tag ...
+!> \param error ...
+!> \note see mp_irecv_iv
 ! *****************************************************************************
   SUBROUTINE dbcsr_irecv_any(msgin,source,comm,request,tag, error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
@@ -468,7 +522,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allgather of encapsulated data
-!> \sa mp_allgatherv_dv
+!> \param send_data ...
+!> \param recv_data ...
+!> \param recv_count ...
+!> \param recv_displ ...
+!> \param gid ...
+!> \note see mp_allgatherv_dv 
 ! *****************************************************************************
   SUBROUTINE dbcsr_allgatherv(send_data, recv_data, recv_count, recv_displ, gid)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: send_data

@@ -75,13 +75,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief adds references that can later be cited / printed using the key
+!> \par History
+!>      08.2007 created [Joost VandeVondele]
 !> \note
 !>     - note that the ISI record is fixed format (line length limited and the
 !>       first 3 characters can indicate record type)
 !>     - please add DOI whenever available, this will result in a clickable
 !>       link in the input reference manual.
-!> \par History
-!>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
 

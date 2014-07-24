@@ -265,6 +265,7 @@ END SUBROUTINE wfi_release
 !> \param index the index of the snapshot you want
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi

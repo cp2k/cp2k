@@ -34,6 +34,9 @@ PUBLIC :: create_rsgrid_section
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
 !> \author Joost
 ! *****************************************************************************
   SUBROUTINE create_rsgrid_section(section, error)

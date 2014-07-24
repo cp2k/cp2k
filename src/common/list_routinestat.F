@@ -71,6 +71,8 @@ MODULE list_routinestat
 
 ! *****************************************************************************
 !> \brief Test if the given list has been initialized.
+!> \param list ...
+!> \retval res ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -87,6 +89,7 @@ END FUNCTION list_routinestat_isready
 !> \brief Allocates the internal data-structures of the given list.
 !>        This has to be called before any of the other routines.
 !>        For deallocation call list_routinestat_destroy.
+!> \param list ...
 !> \param initial_capacity The initial size of the internal array (default=11).
 !> \par History
 !>      12.2012 created [ole]
@@ -118,6 +121,7 @@ END SUBROUTINE list_routinestat_init
 !> \brief Deallocated the internal data-structures of the given list.
 !>        Caution: If the stored values are pointers, their targets will
 !>                 not get deallocated by this routine.
+!> \param list ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -143,6 +147,8 @@ END SUBROUTINE list_routinestat_destroy
 !> \brief Assings the given value to the given position in the list. 
 !>        Thereby, the former value at that position gets overwritten.
 !>        If the position is out of bounds, the program stops.
+!> \param list ...
+!> \param value ...
 !> \param pos Position in the list - musst fulfill 0 < pos < list_size+1.
 !> \par History
 !>      12.2012 created [ole]
@@ -165,6 +171,8 @@ END SUBROUTINE list_routinestat_set
 
 ! *****************************************************************************
 !> \brief Appends the given value at the end of the list.
+!> \param list ...
+!> \param value ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -192,6 +200,8 @@ END SUBROUTINE list_routinestat_push
 ! *****************************************************************************
 !> \brief Inserts the given value at the givenn position within the list.
 !>        Values which lay behind the insertion-position move one position up.
+!> \param list ...
+!> \param value ...
 !> \param pos Position in the list - musst fulfill 0 < pos < list_size+2 .
 !> \par History
 !>      12.2012 created [ole]
@@ -228,6 +238,8 @@ END SUBROUTINE list_routinestat_insert
 ! *****************************************************************************
 !> \brief Returns the last element in the list.
 !>    Is equivalent to: list_routinestat_get(list, list_routinestat_size(list))
+!> \param list ...
+!> \retval value ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -252,6 +264,8 @@ END FUNCTION list_routinestat_peek
 !>        value = list_routinestat_get(list, list_routinestat_size(list))
 !>            call list_routinestat_del(list, list_routinestat_size(list))
 !>
+!> \param list ...
+!> \retval value ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -275,6 +289,7 @@ END FUNCTION list_routinestat_pop
 
 ! *****************************************************************************
 !> \brief Removes all values from the list. The list itself is not deallocated.
+!> \param list ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -298,7 +313,9 @@ END SUBROUTINE list_routinestat_clear
 !
 ! *****************************************************************************
 !> \brief Returns the value at the given position from the list.
+!> \param list ...
 !> \param pos Position in the list - musst fulfill 0 < pos < list_size+1 .
+!> \retval value ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -320,6 +337,7 @@ END FUNCTION list_routinestat_get
 
 ! *****************************************************************************
 !> \brief Removes the value at the given position from the list.
+!> \param list ...
 !> \param pos Position in the list - musst fulfill 0 < pos < list_size+1 .
 !> \par History
 !>      12.2012 created [ole]
@@ -348,6 +366,8 @@ END SUBROUTINE list_routinestat_del
 
 ! *****************************************************************************
 !> \brief Returns the current size of the list.
+!> \param list ...
+!> \retval size ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
@@ -365,6 +385,8 @@ END FUNCTION list_routinestat_size
 
 ! *****************************************************************************
 !> \brief Internal routine for changing the size of the internal array.
+!> \param list ...
+!> \param new_capacity ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett

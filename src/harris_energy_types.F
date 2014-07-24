@@ -154,8 +154,6 @@ CONTAINS
 !> \brief Returns various attributes of the harris type
 !> \param harris_energy The enquired harris energy type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param Ehartree_elec The electronic hartree energy
 !> \param Ehartree_core The hartree energy computed with rho_core
 !> \param Exc The exchange-correlation energy
@@ -169,6 +167,8 @@ CONTAINS
 !> \param Eharris The actual harris functional energy
 !>
 !>      For possible missing arguments see the attributes of harris_energy_type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -224,8 +224,6 @@ CONTAINS
 !> \brief Sets various attributes of the harris energy type
 !> \param harris_energy The enquired harris energy type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param Ehartree_elec The electronic hartree energy
 !> \param Ehartree_core The hartree energy computed with rho_core
 !> \param Exc The exchange-correlation energy
@@ -239,6 +237,8 @@ CONTAINS
 !> \param Eharris The actual harris functional energy
 !>
 !>      For possible missing arguments see the attributes of harris_energy_type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

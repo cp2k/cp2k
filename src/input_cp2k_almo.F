@@ -36,6 +36,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the almo scf section
+!> \param section ...
+!> \param error ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin

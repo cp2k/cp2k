@@ -1561,10 +1561,12 @@ CONTAINS
 !> \param rpgfb2     Range of functions on B, used for screening (basis 4)
 !> \param zetb2      Exponents on center B (basis 4)
 !> \param rab        Distance vector A-B
-!> \param sab        Final overlap integrals
-!> \param dab        First derivative overlap integrals
-!> \param ddab       Second derivative overlap integrals
+!> \param saabb ...
+!> \param daabb ...
 !> \param error      CP2K error reporting
+!> \param dab        First derivative overlap integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ddab       Second derivative overlap integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param sab        Final overlap integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    01.07.2014
 !> \author  JGH
 ! *****************************************************************************
@@ -1782,9 +1784,11 @@ CONTAINS
 !> \param rpgfb3     Range of functions on B, used for screening (basis 3)
 !> \param zetb3      Exponents on center B (basis 3)
 !> \param rab        Distance vector A-B
-!> \param sabb       Final overlap integrals
-!> \param dabb       First derivative overlap integrals
+!> \param sabbb ...
+!> \param dabbb ...
 !> \param error      CP2K error reporting
+!> \param dabb       First derivative overlap integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param sabb       Final overlap integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    01.07.2014
 !> \author  JGH
 ! *****************************************************************************

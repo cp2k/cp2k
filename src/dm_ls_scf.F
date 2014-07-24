@@ -89,6 +89,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief perform an linear scaling scf procedure: entry point
 !>
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -123,6 +125,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creation and basic initialization of the LS type.
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -204,6 +208,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initialization needed for scf
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -279,6 +286,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deal with the scf initial guess
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -399,6 +409,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief store a history of matrices for later use in ls_scf_initial_guess
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -473,6 +485,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief initialize S matrix related properties (sqrt, inverse...)
 !>        Might be factored-out since this seems common code with the other SCF.
+!> \param matrix_s ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -605,6 +620,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief parse the input section, no need to pass it around
+!> \param input ...
+!> \param ls_scf_env ...
+!> \param unit_nr ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -782,6 +801,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Main SCF routine. Can we keep it clean ?
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -947,6 +969,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief after SCF we have a density matrix, and the self consistent KS matrix
 !>        analyze its properties.
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1037,6 +1062,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute the HOMO LUMO energies post SCF
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2013.06 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1112,6 +1139,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute the density matrix for various values of the chemical potential
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1179,6 +1208,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Report on the sparsities of various interesting matrices.
 !>
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1293,6 +1324,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Helper routine to report on the sparsity of a single matrix,
 !>        for several filtering values
+!> \param matrix ...
+!> \param unit_nr ...
+!> \param title ...
+!> \param eps ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1337,6 +1373,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute matrix_w as needed for the forces
+!> \param matrix_w ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1397,6 +1436,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief a place for quick experiments
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele

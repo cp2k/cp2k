@@ -68,9 +68,14 @@ MODULE neb_types
 
 CONTAINS
 ! *****************************************************************************
-!> \param  Creates a variable type for BAND calculation
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \brief ...
+!> \param neb_var ...
+!> \param neb_env ...
+!> \param full_allocation ...
+!> \param error ...
+!> \param  Creates a variable type for BAND calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date   05.2007
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE neb_var_create(neb_var, neb_env, full_allocation, error)
     TYPE(neb_var_type), POINTER              :: neb_var
@@ -121,9 +126,12 @@ CONTAINS
   END SUBROUTINE neb_var_create
 
 ! *****************************************************************************
-!> \param  Releases a variable type for BAND calculation
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \brief ...
+!> \param neb_var ...
+!> \param error ...
+!> \param  Releases a variable type for BAND calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date   05.2007
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE neb_var_release(neb_var, error)
     TYPE(neb_var_type), POINTER              :: neb_var

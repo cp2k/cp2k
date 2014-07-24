@@ -67,9 +67,9 @@ CONTAINS
 !>        (instead of the ending) 
 !> \param file_name original file name 
 !> \param extra string to be added before the file extention
-!> \param result_file_name the new filename
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_ending(file_name, extra, error) RESULT(result_file_name)
@@ -102,9 +102,9 @@ CONTAINS
 !>        (before the file extention) 
 !> \param file_name original file name 
 !> \param extra string to be added before the file extention
-!> \param result_file_name the new filename
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_char(file_name, extra, error) RESULT(result_file_name)
@@ -137,9 +137,9 @@ CONTAINS
 !>        (before the file extention) 
 !> \param file_name original file name 
 !> \param rvalue temperature to be added
-!> \param result_file_name the new filename
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_temp(file_name,rvalue, error) RESULT(result_file_name)
@@ -182,9 +182,9 @@ CONTAINS
 !>        (before the file extention) 
 !> \param file_name original file name 
 !> \param ivalue number to be added
-!> \param result_file_name the new filename
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_int(file_name,ivalue, error) RESULT(result_file_name)
@@ -229,11 +229,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief prints out the TMC restart files with all last configurations and 
 !>        counters etc.
-!> \param tmv_env the tmc environment, storing result lists and counters an in 
-!>        temperatures
+!> \param tmc_env ...
 !> \param job_counts the counters for counting the submitted different job types
+!> \param timings ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param tmv_env the tmc environment, storing result lists and counters an in 
+!>        temperatures UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE print_restart_file(tmc_env, job_counts, timings, error)
@@ -306,12 +308,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads the TMC restart file with all last configurations and 
 !>        counters etc.
-!> \param tmv_env the tmc environment, storing result lists and counters an in 
-!>        temperatures
+!> \param tmc_env ...
 !> \param job_counts the counters for counting the submitted different job types
+!> \param timings ...
 !> \param file_name the restart file name
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param tmv_env the tmc environment, storing result lists and counters an in 
+!>        temperatures UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE read_restart_file(tmc_env, job_counts, timings, file_name, error)
@@ -469,12 +473,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief writes the trajectory element in a file from sub tree element
 !> \param elem actual tree element to be printed out
-!> \param filename file name will be extended by type of file (pos, cell,...)
 !> \param tmc_params TMC environment parameters
+!> \param temp_index ...
+!> \param accepted ...
+!> \param file_name ...
 !> \param conf_nr Markov chain element number
 !> \param conf_info whole header line
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param filename file name will be extended by type of file (pos, cell,...) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE write_element_in_file(elem, tmc_params, temp_index, accepted, file_name, conf_nr, &
@@ -627,9 +634,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes the cell dipoles in dipole trajectory file
-!> \param
+!> \param file_name ...
+!> \param conf_nr ...
+!> \param dip ...
+!> \param file_ext ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE write_dipoles_in_file(file_name, conf_nr, dip, file_ext, error)
@@ -679,6 +690,7 @@ CONTAINS
 !> \param tmc_ana TMC analysis environment parameters
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
+!> \param stat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 03.2013
@@ -815,8 +827,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief search for the next configurational position in file
 !> \param elem actual tree element to be read
+!> \param tmc_ana ...
+!> \param stat ...
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
+!> \param header_info ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 03.2013
@@ -896,6 +911,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief search for the dipole entry
 !> \param elem actual tree element to be read
+!> \param tmc_ana ...
+!> \param stat ...
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
 !> \param error variable to control error logging, stopping,...
@@ -956,6 +973,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief search for the cell entry
 !> \param elem actual tree element to be read
+!> \param tmc_ana ...
+!> \param stat ...
 !> \param conf_nr Markov chain element number 
 !>        (input the old number and read only if conf nr from file is greater
 !> \param error variable to control error logging, stopping,...
@@ -1027,9 +1046,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief opens the files for reading configurations data to analyze
-!> \param 
+!> \param tmc_ana ...
+!> \param stat ...
+!> \param dir_ind ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE analyse_files_open(tmc_ana, stat, dir_ind, error)
@@ -1134,9 +1156,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief close the files for reading configurations data to analyze
-!> \param 
+!> \param tmc_ana ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE analyse_files_close(tmc_ana, error)

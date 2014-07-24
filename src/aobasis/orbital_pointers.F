@@ -66,8 +66,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Allocate and initialize the orbital pointers.
-!> \author MK
+!> \param maxl ...
 !> \date   20.05.2004
+!> \author MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE create_orbital_pointers(maxl)
@@ -234,8 +235,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate the orbital pointers.
-!> \author  MK
 !> \date    20.05.2005
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_orbital_pointers()
@@ -305,8 +306,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Initialize or update the orbital pointers.
-!> \author  MK
+!> \param maxl ...
 !> \date    07.06.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_orbital_pointers(maxl)

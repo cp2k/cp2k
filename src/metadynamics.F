@@ -66,10 +66,14 @@ MODULE metadynamics
 CONTAINS
 ! *****************************************************************************
 !> \brief  General driver for applying metadynamics
-!> \author Teodoro Laino
+!> \param force_env ...
+!> \param vel ...
+!> \param rand ...
+!> \param error ...
 !> \date   01.2009
 !> \par History
 !>      01.2009 created
+!> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_integrator(force_env, vel, rand, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -158,6 +162,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief add forces to the subsys due to the metadynamics run
 !>      possibly modifies the velocites (if reflective walls are applied)
+!> \param force_env ...
+!> \param vel ...
+!> \param error ...
 !> \par History
 !>      04.2004 created
 ! *****************************************************************************
@@ -424,8 +431,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Evolves velocities COLVAR according to
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
-!> \author Fabio Sterpone and Teodoro Laino
+!> \param force_env ...
+!> \param rand ...
+!> \param error ...
 !> \date  01.2009
+!> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_velocities_colvar(force_env,rand,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -484,8 +494,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Evolves COLVAR position
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
-!> \author Fabio Sterpone and Teodoro Laino
+!> \param force_env ...
+!> \param error ...
 !> \date  01.2009
+!> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_position_colvar(force_env,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -529,8 +541,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Write down COLVAR information evolved  according to
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
-!> \author Fabio Sterpone and Teodoro Laino
+!> \param force_env ...
+!> \param error ...
 !> \date  01.2009
+!> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_write_colvar(force_env,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -628,6 +642,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Major driver for adding hills and computing forces due to the history
 !>        dependent term
+!> \param meta_env ...
+!> \param error ...
 !> \par History
 !>      04.2004 created
 !>      10.2008 Teodoro Laino [tlaino] - University of Zurich

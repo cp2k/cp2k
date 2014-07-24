@@ -120,9 +120,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief for correct finalizing deallocate the cancelation list
-!> \param
+!> \param cancel_list ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE free_cancelation_list(cancel_list, error)

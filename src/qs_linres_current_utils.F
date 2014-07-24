@@ -118,6 +118,13 @@ MODULE qs_linres_current_utils
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE current_response(current_env,p_env,qs_env,error)
     !
     TYPE(current_env_type)                   :: current_env
@@ -175,10 +182,10 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     NULLIFY(cell, dft_control, linres_control, lr_section, current_section,&
-         &  logger, mpools, psi1,h1_psi0, vecbuf_dklxp0, mo_coeff,para_env, &
-         &  fm_work_ii, fm_work_iii, tmp_fm_struct, dkl_vec_ii,dkl_vec_iii, &
-         &  list_cubes, statetrueindex, centers_set, center_list, psi1_p, psi1_rxp, psi1_D, &
-         &  p_psi0, rxp_psi0, psi0_order, op_p_ao, sab_orb, particle_set)
+            logger, mpools, psi1,h1_psi0, vecbuf_dklxp0, mo_coeff,para_env, &
+            fm_work_ii, fm_work_iii, tmp_fm_struct, dkl_vec_ii,dkl_vec_iii, &
+            list_cubes, statetrueindex, centers_set, center_list, psi1_p, psi1_rxp, psi1_D, &
+            p_psi0, rxp_psi0, psi0_order, op_p_ao, sab_orb, particle_set)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -228,9 +235,9 @@ CONTAINS
           mo_coeff => psi0_order(ispin)%matrix
           NULLIFY(tmp_fm_struct,psi1(ispin)%matrix,h1_psi0(ispin)%matrix)
           CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-               &                   ncol_global=nstates(ispin),&
-               &                   context=mo_coeff%matrix_struct%context,&
-               &                   error=error)
+                                   ncol_global=nstates(ispin),&
+                                   context=mo_coeff%matrix_struct%context,&
+                                   error=error)
           CALL cp_fm_create(psi1(ispin)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_create(h1_psi0(ispin)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
@@ -401,7 +408,7 @@ CONTAINS
        max_states = MAXVAL(nstates(1:nspins))
        !
        ALLOCATE(vecbuf_dklxp0(1,nao),fm_work_ii(nspins),fm_work_iii(nspins),&
-            &   dkl_vec_ii(max_states),dkl_vec_iii(max_states),STAT=istat)
+                dkl_vec_ii(max_states),dkl_vec_iii(max_states),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        vecbuf_dklxp0(1,nao) = 0.0_dp
        !
@@ -410,9 +417,9 @@ CONTAINS
           mo_coeff => psi0_order(ispin)%matrix
           NULLIFY(tmp_fm_struct,fm_work_ii(ispin)%matrix,fm_work_iii(ispin)%matrix)
           CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-               &                   ncol_global=nmo,para_env=para_env,&
-               &                   context=mo_coeff%matrix_struct%context,&
-               &                   error=error)
+                                   ncol_global=nmo,para_env=para_env,&
+                                   context=mo_coeff%matrix_struct%context,&
+                                   error=error)
 
           CALL cp_fm_create(fm_work_ii(ispin)%matrix,tmp_fm_struct,error=error)
           CALL cp_fm_set_all(fm_work_ii(ispin)%matrix,0.0_dp,error=error)
@@ -435,7 +442,7 @@ CONTAINS
             IF(output_unit>0) THEN
                   WRITE(output_unit,"(T10,A,I4,A)")&
                      & "Response to the perturbation operators (dk-dl)xp up to state ",&
-                     & first_center," have been read from restart"
+                       first_center," have been read from restart"
             ENDIF
           END IF
           !
@@ -448,7 +455,7 @@ CONTAINS
              IF(output_unit>0) THEN
                 WRITE(output_unit,"(T10,A,I4,A)")&
                      & "Response to the perturbation operator (dk-dl)xp for -state- ",&
-                     & icenter," in dir. "//ACHAR(idir+119)
+                       icenter," in dir. "//ACHAR(idir+119)
              ENDIF
              !
              DO ispin = 1,nspins
@@ -491,8 +498,8 @@ CONTAINS
                 ! Apply the p_iii operator
                 ! fm_work_iii = -p_iii * (dk-dl)_ii * C0
                 CALL cp_dbcsr_sm_fm_multiply(op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
-                     &                    fm_work_iii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
-                     &                    error=error)
+                                          fm_work_iii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
+                                          error=error)
                 !
                 ! Copy in h1_psi0
                 ! h1_psi0_i = fm_work_iii
@@ -506,14 +513,14 @@ CONTAINS
                 ! Apply the p_ii operator
                 ! fm_work_ii = -p_ii * (dk-dl)_iii * C0
                 CALL cp_dbcsr_sm_fm_multiply(op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
-                     &                    fm_work_ii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
-                     &                    error=error)
+                                          fm_work_ii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
+                                          error=error)
                 !
                 ! Copy in h1_psi0
                 ! h1_psi0_i = fm_work_iii - fm_work_ii
                 CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,&
                      &                  -1.0_dp,fm_work_ii(ispin)%matrix,&
-                     &                   error=error)
+                                         error=error)
              ENDDO
 
              !
@@ -596,6 +603,12 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE current_env_init(current_env,qs_env,error)
     !
     TYPE(current_env_type)                   :: current_env
@@ -650,23 +663,23 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control,&
-         &  logger, mos, mpools, current_section, particle_set, mo_coeff,&
-         &  auxbas_pw_pool, pw_env, jrho1_atom_set, common_center, tmp_fm_struct,&
-         &  para_env, qs_loc_env,localized_wfn_control)
+            logger, mos, mpools, current_section, particle_set, mo_coeff,&
+            auxbas_pw_pool, pw_env, jrho1_atom_set, common_center, tmp_fm_struct,&
+            para_env, qs_loc_env,localized_wfn_control)
     !
     !
     CALL get_qs_env(qs_env=qs_env,&
-         &          atomic_kind_set=atomic_kind_set,&
-         &          cell=cell,&
-         &          dft_control=dft_control,&
-         &          linres_control=linres_control,&
-         &          mos=mos,&
-         &          mpools=mpools,&
-         &          particle_set=particle_set,&
-         &          pw_env=pw_env,&
-         &          scf_control=scf_control, &
-         &          para_env=para_env,&
-         &          error=error)
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    linres_control=linres_control,&
+                    mos=mos,&
+                    mpools=mpools,&
+                    particle_set=particle_set,&
+                    pw_env=pw_env,&
+                    scf_control=scf_control, &
+                    para_env=para_env,&
+                    error=error)
     !
     gapw = dft_control%qs_control%gapw
     nspins = dft_control%nspins
@@ -703,7 +716,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         &                             extension=".linresLog",error=error)
+                                       extension=".linresLog",error=error)
 
     IF(output_unit>0) THEN
        WRITE(output_unit,"(/,T20,A,/)") "*** Start current Calculation ***"
@@ -797,7 +810,7 @@ CONTAINS
     !
     !
     ALLOCATE(current_env%centers_set(nspins),current_env%center_list(nspins),&
-         &   state_list(max_states,nspins),STAT=istat)
+             state_list(max_states,nspins),STAT=istat)
     CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
     state_list(:,:) = HUGE(0)
     nstate_list(:)  = HUGE(0)
@@ -831,7 +844,7 @@ CONTAINS
     ! if the user has requested to compute the response for a subset of the states
     ! we collect them here. it requies the states to be localized!
     CALL section_vals_val_get(current_section,"SELECTED_STATES_ATOM_RADIUS",&
-         &                    r_val=current_env%selected_states_atom_radius,error=error)
+                              r_val=current_env%selected_states_atom_radius,error=error)
     CALL section_vals_val_get(current_section,"SELECTED_STATES_ON_ATOM_LIST",n_rep_val=n_rep,error=error)
     !
     current_env%do_selected_states = n_rep.GT.0
@@ -847,7 +860,7 @@ CONTAINS
     DO ir = 1,n_rep
        NULLIFY(list)
        CALL section_vals_val_get(current_section,"SELECTED_STATES_ON_ATOM_LIST",&
-            &                    i_rep_val=ir,i_vals=list,error=error)
+                                 i_rep_val=ir,i_vals=list,error=error)
        IF(ASSOCIATED(list)) THEN
           CALL reallocate(current_env%selected_states_on_atom_list,1,n+SIZE(list))
           DO ini = 1,SIZE(list)
@@ -898,7 +911,7 @@ CONTAINS
        current_env%nstates(ispin) = nstate
        !
        ALLOCATE(current_env%center_list(ispin)%array(2,nstate+1),&
-            &   current_env%centers_set(ispin)%array(3,nstate),STAT=istat)
+                current_env%centers_set(ispin)%array(3,nstate),STAT=istat)
        CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
        current_env%center_list(ispin)%array(:,:) = HUGE(0)
        current_env%centers_set(ispin)%array(:,:) = HUGE(0.0_dp)
@@ -972,9 +985,9 @@ CONTAINS
                    WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on atom ',iatom
                 ENDIF
                 current_env%center_list(ispin)%array(1,ii+1) = &
-                     & current_env%center_list(ispin)%array(1,ii) + j
+                       current_env%center_list(ispin)%array(1,ii) + j
                 current_env%centers_set(ispin)%array(:,ii) = &
-                     &  pbc(particle_set(iatom)%r,cell)
+                        pbc(particle_set(iatom)%r,cell)
                 ii = ii + 1
              ENDIF
           ENDDO
@@ -1036,7 +1049,7 @@ CONTAINS
                    WRITE(output_unit,'(T2,A,I6,A,I6)') 'clustering ',j,' center(s) on box ',ibox
                 ENDIF
                 current_env%center_list(ispin)%array(1,ii+1) = &
-                  & current_env%center_list(ispin)%array(1,ii) + j
+                    current_env%center_list(ispin)%array(1,ii) + j
                 current_env%centers_set(ispin)%array(:,ii) = rbuff(:,ibox)
                 ii = ii + 1
              ENDIF
@@ -1060,9 +1073,9 @@ CONTAINS
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-            &                   ncol_global=nstate_list(ispin),para_env=para_env,&
-            &                   context=mo_coeff%matrix_struct%context,&
-            &                   error=error)
+                                ncol_global=nstate_list(ispin),para_env=para_env,&
+                                context=mo_coeff%matrix_struct%context,&
+                                error=error)
        CALL cp_fm_create(current_env%psi0_order(ispin)%matrix,tmp_fm_struct,error=error)
        CALL cp_fm_struct_release(tmp_fm_struct,error=error)
        CALL cp_fm_set_all(current_env%psi0_order(ispin)%matrix,0.0_dp,error=error)
@@ -1097,8 +1110,8 @@ CONTAINS
     !
     IF(current_env%do_qmmm.AND.&
          & (current_env%orb_center.EQ.current_orb_center_wannier.OR.&
-         &  current_env%orb_center.EQ.current_orb_center_atom.OR.&
-         &  current_env%orb_center.EQ.current_orb_center_box)) THEN
+            current_env%orb_center.EQ.current_orb_center_atom.OR.&
+            current_env%orb_center.EQ.current_orb_center_box)) THEN
        IF(output_unit>0) THEN
           WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
           WRITE(output_unit,*) 'orbital center shifted to match the '
@@ -1206,7 +1219,7 @@ CONTAINS
        WRITE(output_unit,"(T2,A,T79,L1)") "CURRENT| Compute chi for PBC calculation",current_env%chi_pbc
        IF(current_env%gauge.EQ.current_gauge_atom) THEN
           WRITE(output_unit,"(T2,A,T68,E12.6)") "CURRENT| Radius for building the gauge",&
-               & current_env%gauge_atom_radius
+                 current_env%gauge_atom_radius
        ENDIF
        WRITE(output_unit,"(T2,A,T60,A)") "CURRENT| Orbital center used",&
             REPEAT(' ',20-LEN_TRIM(current_env%orb_center_name))//TRIM(current_env%orb_center_name)
@@ -1219,11 +1232,11 @@ CONTAINS
        DO ispin = 1,nspins
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo)
           WRITE(output_unit,'(T2,A,I6,A,I6,A,I2)') 'CURRENT| Compute', &
-               &  nstate_list(ispin),' selected response functions out of',&
-               &  nmo,' for spin ',ispin
+                  nstate_list(ispin),' selected response functions out of',&
+                  nmo,' for spin ',ispin
           !
           WRITE(output_unit,'(T2,A,I6,A,I2)') 'CURRENT| There is a total of ', &
-               & current_env%nbr_center(ispin),' (clustered) center(s) for spin ',ispin
+                 current_env%nbr_center(ispin),' (clustered) center(s) for spin ',ispin
        ENDDO
     ENDIF
 
@@ -1234,7 +1247,7 @@ CONTAINS
        ncubes = 0
        CALL section_vals_val_get(current_section,&
             &                    "PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LU_BOUNDS",&
-            &                    i_vals=bounds,error=error)
+                                 i_vals=bounds,error=error)
        ncubes = bounds(2) - bounds(1)  + 1
        IF(ncubes > 0 ) THEN
           ALLOCATE( current_env%list_cubes(ncubes),STAT=istat)
@@ -1245,12 +1258,12 @@ CONTAINS
        ENDIF
        IF(.NOT. ASSOCIATED(current_env%list_cubes)) THEN
           CALL section_vals_val_get(current_section,"PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LIST",&
-               &                    n_rep_val=n_rep,error=error)
+                                    n_rep_val=n_rep,error=error)
           ncubes = 0
           DO ir = 1,n_rep
              NULLIFY(list)
              CALL section_vals_val_get(current_section,"PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LIST",&
-                  &                    i_rep_val=ir,i_vals=list,error=error)
+                                       i_rep_val=ir,i_vals=list,error=error)
              IF(ASSOCIATED(list)) THEN
                 CALL reallocate(current_env%list_cubes,1,ncubes+ SIZE(list))
                 DO ini = 1, SIZE(list)
@@ -1286,7 +1299,7 @@ CONTAINS
     ! Therefore we prepare here the full matrix p_psi0 and rxp_psi0
     ! We also need a temporary sparse matrix where to store the integrals during the calculation
     ALLOCATE(current_env%p_psi0(nspins,3),current_env%rxp_psi0(nspins,3),&
-         &   current_env%psi1_p(nspins,3),current_env%psi1_rxp(nspins,3),STAT=istat)
+             current_env%psi1_p(nspins,3),current_env%psi1_rxp(nspins,3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF(current_env%full) THEN
        ALLOCATE(current_env%psi1_D(nspins,3),STAT=istat)
@@ -1296,9 +1309,9 @@ CONTAINS
        mo_coeff => current_env%psi0_order(ispin)%matrix
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-            &                   ncol_global=current_env%nstates(ispin),&
-            &                   context=mo_coeff%matrix_struct%context,&
-            &                   error=error)
+                                ncol_global=current_env%nstates(ispin),&
+                                context=mo_coeff%matrix_struct%context,&
+                                error=error)
        DO idir = 1,3
           NULLIFY(current_env%psi1_p(ispin,idir)%matrix,current_env%psi1_rxp(ispin,idir)%matrix)
           NULLIFY(current_env%p_psi0(ispin,idir)%matrix,current_env%rxp_psi0(ispin,idir)%matrix)
@@ -1332,13 +1345,13 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1,nspins
           CALL pw_pool_create_pw(auxbas_pw_pool,&
-               &                 current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,&
-               &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                                 current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,&
+                                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
           CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,&
-               &                 current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,&
-               &                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-               &                 error=error)
+                                 current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,&
+                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                                 error=error)
           CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,error=error)
        ENDDO
        CALL qs_rho_retain(current_env%jrho1_set(idir)%rho,error=error)
@@ -1348,11 +1361,11 @@ CONTAINS
     IF(gapw) THEN
        CALL init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,nspins,error=error)
        CALL set_current_env(current_env=current_env,jrho1_atom_set=jrho1_atom_set,&
-            &               error=error)
+                            error=error)
     ENDIF
     !
     ALLOCATE(current_env%basisfun_center(3,current_env%nao),&
-         &   first_sgf(natom),last_sgf(natom),STAT=istat)
+             first_sgf(natom),last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     current_env%basisfun_center = 0.0_dp
     CALL get_particle_set(particle_set=particle_set,&
@@ -1388,6 +1401,12 @@ CONTAINS
   END SUBROUTINE current_env_init
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE current_env_cleanup(current_env,qs_env,error)
 
     TYPE(current_env_type)                   :: current_env

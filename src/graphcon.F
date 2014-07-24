@@ -68,11 +68,11 @@ CONTAINS
 !> \param reference IN  : molecule with atomic kinds and bonds
 !> \param kind_ref OUT : an atomic hash which is the same for topologically equivalent atoms
 !> \param hash OUT : a hash which is the same for topologically equivalent molecules
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>      Although relatively fast in general, might be quadratic with molecule size for
 !>      some systems (e.g. linear alkanes)
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
     SUBROUTINE hash_molecule(reference,kind_ref,hash)
     TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference
@@ -116,16 +116,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief If two molecules are topologically the same, finds the ordering that maps
 !>      the unordered one on the ordered one.
-!> \param reference, unordered : molecular description (see type definition)
+!> \param reference ...
+!> \param unordered ...
 !> \param order the mapping reference=order(unordred) if matches=.TRUE.
 !>                             undefined if matches=.FALSE.
 !> \param matches .TRUE. = the ordering was found
+!> \param reference, unordered : molecular description (see type definition) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>      See not at the top of the file about why this algorithm might consider
 !>      molecules with a large number of equivalent atoms as different
 !>      despite the fact that an ordering could exist for which they are the same
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
     SUBROUTINE reorder_graph(reference, unordered, order, matches)
     TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
@@ -321,6 +323,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief spreads the superclass over all atoms of this class and all their bonded atoms
 !>      provided that the latter belong to a class which contains more than one element
+!> \param I ...
+!> \param isuperclass ...
+!> \param superclass_of_atom ...
+!> \param class_of_atom ...
+!> \param classes ...
+!> \param reference ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -349,6 +357,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief determines of the vertices of this superclass have the same edges
+!> \param reference ...
+!> \param unordered ...
+!> \param order ...
+!> \param super ...
+!> \param classes ...
+!> \retval res ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -385,6 +399,10 @@ loop:   DO iclass=1,super%Nele
 ! *****************************************************************************
 !> \brief determines of the vertices of the full set is equal, i.e.
 !>      we have the same connectivity graph
+!> \param reference ...
+!> \param unordered ...
+!> \param order ...
+!> \retval res ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -414,11 +432,14 @@ loop:   DO I=1,SIZE(reference)
 ! *****************************************************************************
 !> \brief creates a hash for an atom based on its own kind and on the kinds
 !>       of its bonded neighbors
+!> \param me ...
+!> \param bonds ...
+!> \retval res ...
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>       bonds are sorted so that the order of neighbors appearing in the bonded list
 !>       is not important
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
     FUNCTION hash_kind(me,bonds) RESULT(res)
     INTEGER, INTENT(IN)                      :: me
@@ -442,14 +463,15 @@ loop:   DO I=1,SIZE(reference)
 ! *****************************************************************************
 !> \brief generates the hash of an array of integers and the index in the table
 !> \param key an integer array of any length
+!> \retval hash_index ...
+!> \par History
+!>       09.2006 created [Joost VandeVondele]
 !> \note
 !>       http://en.wikipedia.org/wiki/Hash_table
 !>       http://www.burtleburtle.net/bob/hash/doobs.html
 !>       However, since fortran doesn't have an unsigned 4 byte int
 !>       we compute it using an integer with the appropriate range
 !>       we return already the index in the table as a final result
-!> \par History
-!>       09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   FUNCTION joaat_hash_i(key) RESULT(hash_index)
     INTEGER, DIMENSION(:), INTENT(IN)        :: key
@@ -493,6 +515,12 @@ loop:   DO I=1,SIZE(reference)
 !   x = initial values (/1...n/), first=.TRUE.
 !   q = scratch
 !   first = .TRUE. if you're back at the original order
+! *****************************************************************************
+!> \brief ...
+!> \param x ...
+!> \param n ...
+!> \param q ...
+!> \param first ...
 ! *****************************************************************************
         SUBROUTINE all_permutations(x,n,q,first)
     INTEGER                                  :: n, x(n), q(n)

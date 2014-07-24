@@ -86,10 +86,11 @@ CONTAINS
 !> \brief creates a new para environment by duplicating an environment
 !>      (and also the undelying mpi group)
 !> \param para_env the new group
-!> \param template the environment to copy
+!> \param TEMPLATE ...
 !> \param source the source of the new para_env, defaults to template%source
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param template the environment to copy UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -160,12 +161,12 @@ CONTAINS
 !> \param para_env the new group
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      to avoid circular dependencies cp_log_handling has a private copy
-!>      of this method (see cp_log_handling:my_cp_para_env_release)!
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      to avoid circular dependencies cp_log_handling has a private copy
+!>      of this method (see cp_log_handling:my_cp_para_env_release)!
 ! *****************************************************************************
   SUBROUTINE cp_para_env_release(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env

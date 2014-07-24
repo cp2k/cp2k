@@ -58,6 +58,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates Data-structure that contains damping information
+!> \param damping ...
+!> \param nkinds ...
+!> \param error ...
 !> \author Rodolphe Vuilleumier
 ! *****************************************************************************
   SUBROUTINE damping_p_create(damping,nkinds,error)
@@ -87,6 +90,8 @@ CONTAINS
   END SUBROUTINE damping_p_create
 ! *****************************************************************************
 !> \brief Release Data-structure that contains damping information
+!> \param damping ...
+!> \param error ...
 !> \author Rodolphe Vuilleumier [RV]
 ! *****************************************************************************
   SUBROUTINE damping_p_release(damping,error)
@@ -112,6 +117,9 @@ CONTAINS
 
   END SUBROUTINE damping_p_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param damping ...
 ! *****************************************************************************
   SUBROUTINE init_damping(damping)
     TYPE(damping_type)                       :: damping

@@ -37,6 +37,8 @@ MODULE swarm_input
 
 ! *****************************************************************************
 !> \brief Declares the SWARM input section
+!> \param swarm_section ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE create_swarm_section(swarm_section,error)

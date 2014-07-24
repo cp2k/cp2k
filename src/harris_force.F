@@ -86,16 +86,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs the harris functional force correction
 !> \param qs_env The QS environment of matter
-!> \param harris_force The harris force type in which all necessary informations
-!>                      are stored
+!> \param harris_env ...
 !> \param globenv The global environment from which the para_env is extracted
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Performs the force calculation according to the Harris energy functional
+!> \param harris_force The harris force type in which all necessary informations
+!>                      are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Performs the force calculation according to the Harris energy functional
 ! *****************************************************************************
   SUBROUTINE harris_force_correction(qs_env, harris_env, globenv, error)
 
@@ -469,16 +470,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs the harris functional force correction
 !> \param qs_env The QS environment of matter
-!> \param harris_force The harris force type in which all necessary informations
-!>                      are stored
+!> \param harris_env ...
 !> \param globenv The global environment from which the para_env is extracted
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Performs the force calculation according to the Harris energy functional
+!> \param harris_force The harris force type in which all necessary informations
+!>                      are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Performs the force calculation according to the Harris energy functional
 ! *****************************************************************************
   SUBROUTINE harris_force_EVal(qs_env, harris_env, globenv, error)
 
@@ -970,6 +972,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the non-self-consistent force correction, in order to keep
 !>      the forces consistent with the according energies.
+!> \param qs_env ...
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
 !> \par History
@@ -1254,11 +1257,11 @@ CONTAINS
 !>                      are stored
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Only for internal debugging purposes
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Only for internal debugging purposes
 ! *****************************************************************************
   SUBROUTINE harris_force_test_rho_core(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1349,11 +1352,11 @@ CONTAINS
 !>                      are stored
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Only for internal debugging purposes
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Only for internal debugging purposes
 ! *****************************************************************************
   SUBROUTINE harris_force_test_rho_elec(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1438,16 +1441,17 @@ CONTAINS
   END SUBROUTINE harris_force_test_rho_elec
 
 ! *****************************************************************************
+!> \brief ...
 !> \param qs_env The QS environment of matter
 !> \param harris_force The harris force type in which all necessary informations
 !>                      are stored
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Only for internal debugging purposes
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Only for internal debugging purposes
 ! *****************************************************************************
   SUBROUTINE harris_force_test_integral_vxc(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env

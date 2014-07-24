@@ -58,12 +58,13 @@ CONTAINS
 !> \brief returns a unique id for a given string, and stores the string for
 !>      later retrieval using the id.
 !> \param str the string to be stored (default_string_length)
+!> \retval id ...
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>      pass literal strings using the s2s function,
 !>      which converts strings of any length to default_string_length
 !>      id=str2id(s2s("my short string"))
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   FUNCTION str2id(str) RESULT(id)
     CHARACTER(LEN=default_string_length)     :: str
@@ -101,11 +102,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the string associated with a given id
 !> \param id the id to be converted into a string
+!> \retval str ...
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>      only id's of previously 'registered' strings (str2id) should be passed,
 !>      otherwise things crash
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   FUNCTION id2str(id) RESULT(str)
     INTEGER                                  :: id
@@ -125,12 +127,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief converts a string in a string of default_string_length
-!> \param str
+!> \param str ...
+!> \retval res ...
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>      useful to pass a literal string to str2id
 !>      i.e. id=str2id(s2s("X"))
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   FUNCTION s2s(str) RESULT(res)
     CHARACTER(LEN=*)                         :: str
@@ -141,11 +144,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates the string table
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
 !> \note
 !>      this needs to be done only once at program startup, before any use
 !>      of other procedures of this module. The scope of this table is global
-!> \par History
-!>      09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE string_table_allocate()
      ALLOCATE(hash_table(0:hash_table_size-1))
@@ -156,10 +159,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocates the string table
 !> \param iw a unit to which some info about the table usage can be printed
-!> \note
-!>      This should be done before program termination, all associated ids become meaningless
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
+!> \note
+!>      This should be done before program termination, all associated ids become meaningless
 ! *****************************************************************************
   SUBROUTINE string_table_deallocate(iw)
     INTEGER, INTENT(IN)                      :: iw
@@ -201,14 +204,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief generates the hash of a string and the index in the table
 !> \param key a string of any length
+!> \retval hash_index ...
+!> \par History
+!>       09.2006 created [Joost VandeVondele]
 !> \note
 !>       http://en.wikipedia.org/wiki/Hash_table
 !>       http://www.burtleburtle.net/bob/hash/doobs.html
 !>       However, since fortran doesn't have an unsigned 4 byte int
 !>       we compute it using an integer with the appropriate range
 !>       we return already the index in the table as a final result
-!> \par History
-!>       09.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   FUNCTION joaat_hash(key) RESULT(hash_index)
     CHARACTER(LEN=*), INTENT(IN)             :: key

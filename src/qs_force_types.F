@@ -61,8 +61,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate a Quickstep force data structure.
-!> \author  MK
+!> \param qs_force ...
+!> \param natom_of_kind ...
+!> \param error ...
 !> \date    05.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_qs_force(qs_force,natom_of_kind,error)
@@ -146,8 +149,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a Quickstep force data structure.
-!> \author  MK
+!> \param qs_force ...
+!> \param error ...
 !> \date    05.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_qs_force(qs_force,error)
@@ -301,8 +306,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief    Initialize a Quickstep force data structure.
-!> \author  MK
+!> \param qs_force ...
+!> \param error ...
 !> \date    15.07.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE zero_qs_force(qs_force,error)
@@ -353,13 +360,14 @@ CONTAINS
 !> \brief Duplicates a force type variable.
 !> \param qs_force_input The force type variable to be duplicated
 !> \param qs_force_output The force type duplicate
-!> \param natom_of_kind
-!> \note
-!>      The qs_force_variable is expected of the same size as
-!>      qs_force_input if present.
+!> \param natom_of_kind ...
+!> \param error ...
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      The qs_force_variable is expected of the same size as
+!>      qs_force_input if present.
 ! *****************************************************************************
   SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, &
                                 natom_of_kind,error)
@@ -427,7 +435,10 @@ CONTAINS
 !> \brief Add force to a force_type  variable.
 !> \param force Input force, dimension (3,natom)
 !> \param qs_force The force type variable to be used
-!> \param natom_of_kind
+!> \param forcetype ...
+!> \param atomic_kind_set ...
+!> \param error ...
+!> \param natom_of_kind UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2014 JGH
 !> \author JGH

@@ -82,8 +82,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Calculation of the angle between the vectors a and b.
 !>         The angle is returned in radians.
-!> \author  MK
+!> \param a ...
+!> \param b ...
+!> \retval angle_ab ...
 !> \date    14.10.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION angle(a,b) RESULT(angle_ab)
@@ -110,8 +113,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   The binomial coefficient n over k for 0 <= k <= n is calculated,
 !>            otherwise zero is returned.
-!> \author  MK
+!> \param n ...
+!> \param k ...
+!> \retval n_over_k ...
 !> \date    08.03.1999
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION binomial(n,k) RESULT(n_over_k)
@@ -131,8 +137,11 @@ CONTAINS
 !> \brief   The rotation matrix rotmat which rotates a vector about a
 !>          rotation axis defined by the vector a is build up.
 !>          The rotation angle is phi (radians).
-!> \author  MK
+!> \param phi ...
+!> \param a ...
+!> \param rotmat ...
 !> \date    16.10.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_rotmat(phi,a,rotmat)
@@ -171,8 +180,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Returns the determinante of the 3x3 matrix a.
-!> \author  MK
+!> \param a ...
+!> \retval det_a ...
 !> \date    13.03.2004
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION det_3x3_1(a) RESULT(det_a)
@@ -188,8 +199,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Returns the determinante of the 3x3 matrix a given by its columns.
-!> \author  MK
+!> \param a1 ...
+!> \param a2 ...
+!> \param a3 ...
+!> \retval det_a ...
 !> \date    13.03.2004
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION det_3x3_2(a1,a2,a3) RESULT(det_a)
@@ -206,13 +221,17 @@ CONTAINS
 !> \brief Diagonalize the symmetric n by n matrix a using the LAPACK
 !>        library. Only the upper triangle of matrix a is used.
 !>        Externals (LAPACK 3.0)
-!> \author  MK
+!> \param a ...
+!> \param eigval ...
+!> \param dac ...
+!> \param error ...
 !> \date    29.03.1999
 !> \par Variables
 !>      - a       : Symmetric matrix to be diagonalized (input; upper triangle) ->
 !>      -           eigenvectors of the matrix a (output).
 !>      - dac     : If true, then the divide-and-conquer algorithm is applied.
 !>      - eigval  : Eigenvalues of the matrix a (output).
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE diamat_all(a,eigval,dac,error)
@@ -315,8 +334,12 @@ CONTAINS
 !> \brief   Returns the dihedral angle, i.e. the angle between the planes
 !>          defined by the vectors (-ab,bc) and (cd,-bc).
 !>          The dihedral angle is returned in radians.
-!> \author  MK
+!> \param ab ...
+!> \param bc ...
+!> \param cd ...
+!> \retval dihedral_angle_abcd ...
 !> \date    13.03.2004
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION dihedral_angle(ab,bc,cd) RESULT(dihedral_angle_abcd)
@@ -338,8 +361,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Return the diagonal elements of matrix a as a vector.
-!> \author  MK
+!> \param a ...
+!> \retval a_diag ...
 !> \date    20.11.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION get_diag(a) RESULT(a_diag)
@@ -360,8 +385,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Returns the inverse of the 3 x 3 matrix a.
-!> \author  MK
+!> \param a ...
+!> \retval a_inv ...
 !> \date    13.03.2004
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION inv_3x3(a) RESULT(a_inv)
@@ -390,6 +417,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns inverse of matrix using the lapack routines DGETRF and DGETRI
+!> \param a ...
+!> \param info ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE invmat(a,info,error)
     REAL(KIND=dp), INTENT(INOUT)             :: a(:,:)
@@ -425,7 +455,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Compute the inverse of the n by n real matrix a using the LAPACK
 !>         library
-!> \author MK
+!> \param a ...
+!> \param a_inverse ...
+!> \param eval_error ...
+!> \param option ...
+!> \param error ...
+!> \param improve ...
 !> \date   23.03.1999
 !> \par Variables
 !>       - a        : Real matrix to be inverted (input).
@@ -436,9 +471,10 @@ CONTAINS
 !>       - r_cond   : Reciprocal condition number of the matrix a.
 !>       - trans    : "N" => invert a
 !>       -            "T" => invert transpose(a)
+!> \author MK
 !> \version 1.0
+!> \note NB add improve argument, used to disable call to dgerfs
 ! *****************************************************************************
-!NB add improve argument, used to disable call to dgerfs
   SUBROUTINE invert_matrix_d(a,a_inverse,eval_error,option,error,improve)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
@@ -616,7 +652,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Compute the inverse of the n by n complex matrix a using the LAPACK
 !>         library
-!> \author MK
+!> \param a ...
+!> \param a_inverse ...
+!> \param eval_error ...
+!> \param option ...
+!> \param error ...
 !> \date   08.06.2009
 !> \par Variables
 !>       - a        : Complex matrix to be inverted (input).
@@ -627,6 +667,7 @@ CONTAINS
 !>       - r_cond   : Reciprocal condition number of the matrix a.
 !>       - trans    : "N" => invert a
 !>       -            "T" => invert transpose(a)
+!> \author MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE invert_matrix_z(a,a_inverse,eval_error,option,error)
@@ -799,8 +840,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Reflection of the vector a through a mirror plane defined by the
 !>         normal vector b. The reflected vector a is stored in a_mirror.
-!> \author  MK
+!> \param a ...
+!> \param b ...
+!> \retval a_mirror ...
 !> \date    16.10.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION reflect_vector(a,b) RESULT(a_mirror)
@@ -834,8 +878,12 @@ CONTAINS
 !> \brief   Rotation of the vector a about an rotation axis defined by the
 !>          vector b. The rotation angle is phi (radians). The rotated vector
 !>          a is stored in a_rot.
-!> \author  MK
+!> \param a ...
+!> \param phi ...
+!> \param b ...
+!> \retval a_rot ...
 !> \date    16.10.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION rotate_vector(a,phi,b) RESULT(a_rot)
@@ -866,8 +914,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set the diagonal elements of matrix a to b.
-!> \author  MK
+!> \param a ...
+!> \param b ...
 !> \date    20.11.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_diag_scalar_d(a,b)
@@ -884,6 +934,11 @@ CONTAINS
 
   END SUBROUTINE set_diag_scalar_d
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+!> \param b ...
+! *****************************************************************************
   SUBROUTINE set_diag_scalar_z(a,b)
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -900,8 +955,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Symmetrize the matrix a.
-!> \author  MK
+!> \param a ...
+!> \param option ...
 !> \date    16.10.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE symmetrize_matrix(a,option)
@@ -943,8 +1000,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set the matrix a to be a unit matrix.
-!> \author  MK
+!> \param a ...
 !> \date    16.10.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE unit_matrix_d(a)
@@ -956,6 +1014,10 @@ CONTAINS
 
   END SUBROUTINE unit_matrix_d
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+! *****************************************************************************
   SUBROUTINE unit_matrix_z(a)
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -967,8 +1029,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculation of the vector product c = a x b.
-!> \author  MK
+!> \param a ...
+!> \param b ...
+!> \retval c ...
 !> \date    16.10.1998
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   PURE FUNCTION vector_product(a,b) RESULT(c)
@@ -983,6 +1048,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the greatest common divisor of two number
+!> \param a ...
+!> \param b ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
   ELEMENTAL FUNCTION gcd(a,b)
@@ -1015,6 +1082,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the least common multiplier of two numbers
+!> \param a ...
+!> \param b ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
   ELEMENTAL FUNCTION lcm(a,b)
@@ -1035,6 +1104,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the exponential integral
 !>      Ei(x) = Int(exp(-x*t)/t,t=1..infinity)  x>0
+!> \param x ...
 !> \author JGH (adapted from Numerical recipies)
 ! *****************************************************************************
   FUNCTION ei(x)
@@ -1085,6 +1155,10 @@ CONTAINS
   END FUNCTION ei
 
 ! *****************************************************************************
+!> \brief ...
+!> \param mat1 ...
+!> \param mat2 ...
+! *****************************************************************************
   FUNCTION matmul_3x3 ( mat1, mat2 )
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mat1, mat2
@@ -1102,6 +1176,11 @@ CONTAINS
   END FUNCTION matmul_3x3
 
 ! *****************************************************************************
+!> \brief ...
+!> \param res ...
+!> \param mat ...
+!> \param vec ...
+! *****************************************************************************
   SUBROUTINE matvec_3x3 (res, mat, vec )
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: res
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -1114,6 +1193,10 @@ CONTAINS
   END SUBROUTINE matvec_3x3
 
 ! *****************************************************************************
+!> \brief ...
+!> \param vec1 ...
+!> \param vec2 ...
+! *****************************************************************************
   FUNCTION dotprod_3d ( vec1, vec2 )
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec1, vec2
     REAL(KIND=dp)                            :: dotprod_3d
@@ -1124,6 +1207,9 @@ CONTAINS
          + vec1 ( 3 ) * vec2 ( 3 )
   END FUNCTION dotprod_3d
 
+! *****************************************************************************
+!> \brief ...
+!> \param mat ...
 ! *****************************************************************************
   FUNCTION transpose_3d ( mat )
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -1143,6 +1229,8 @@ CONTAINS
 !> \brief computes the exponential integral
 !>      En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
 !>      Note: Ei(-x) = -E1(x)
+!> \param n ...
+!> \param x ...
 !> \par History
 !>      05.2007 Created
 !> \author Manuel Guidon (adapted from Numerical recipies)
@@ -1217,6 +1305,9 @@ CONTAINS
 !>         vector d and the eigenvectors are returned in matrix v in ascending
 !>         order.
 !>
+!> \param a ...
+!> \param d ...
+!> \param v ...
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
 ! *****************************************************************************
@@ -1243,6 +1334,10 @@ CONTAINS
 !> \brief  Diagonalize matrix a. The eigenvalues are returned in vector d
 !>         and the eigenvectors are returned in matrix v.
 !>
+!> \param n ...
+!> \param a ...
+!> \param d ...
+!> \param v ...
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
 ! *****************************************************************************
@@ -1318,6 +1413,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Perform a Jacobi rotation of the vectors a and b.
 !>
+!> \param a ...
+!> \param b ...
+!> \param ss ...
+!> \param tt ...
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
 ! *****************************************************************************
@@ -1338,9 +1437,12 @@ CONTAINS
 !> \brief Sort the values in vector d in ascending order and swap the
 !>        corresponding columns of matrix v.
 !>
+!> \param n ...
+!> \param d ...
+!> \param v ...
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
-! **************************************************************************
+! *****************************************************************************
   SUBROUTINE eigsrt(n,d,v)
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(:), &
@@ -1363,9 +1465,11 @@ CONTAINS
 ! **************************************************************************
 !> \brief Swap two scalars
 !>
+!> \param a ...
+!> \param b ...
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
-! **************************************************************************
+! *****************************************************************************
    SUBROUTINE swap_scalar(a,b)
     REAL(KIND=dp), INTENT(INOUT)             :: a, b
 
@@ -1380,9 +1484,11 @@ CONTAINS
 ! **************************************************************************
 !> \brief Swap two vectors
 !>
+!> \param a ...
+!> \param b ...
 !> \par History
 !>         - Creation (20.11.98, Matthias Krack)
-! **************************************************************************
+! *****************************************************************************
    SUBROUTINE swap_vector(a,b)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: a, b

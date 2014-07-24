@@ -55,13 +55,16 @@ MODULE helium_sampling
 
   CONTAINS
 
-  ! ***************************************************************************
-  !> \brief  Performs MC simulation for helium (only)
-  !> \author Lukasz Walewski
-  !> \date   2009-07-14
-  !> \note   This routine gets called only when HELIUM_ONLY is set to .TRUE.,
-  !>         so do not put any property calculations here!
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Performs MC simulation for helium (only)
+!> \param helium ...
+!> \param globenv ...
+!> \param error ...
+!> \date   2009-07-14
+!> \author Lukasz Walewski
+!> \note   This routine gets called only when HELIUM_ONLY is set to .TRUE.,
+!>         so do not put any property calculations here!
+! *****************************************************************************
   SUBROUTINE helium_do_run(helium, globenv, error)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(global_environment_type), POINTER   :: globenv
@@ -115,19 +118,22 @@ MODULE helium_sampling
     RETURN
   END SUBROUTINE helium_do_run
 
-  ! ***************************************************************************
-  !> \brief  Sample the helium phase space
-  !> \author Lukasz Walewski
-  !> \date   2009-10-27
-  !> \descr  Samples helium variable space according to multilevel Metropolis
-  !>         MC scheme, calculates the forces exerted by helium solvent on the
-  !>         solute and stores them in helium%force_avrg array. The forces are
-  !>         averaged over outer MC loop.
-  !> \note   The implicit assumption is that we simulate solute _with_ solvent
-  !>         most of the time, so for performance reasons I do not check that
-  !>         everywhere I should. This leads to some redundancy in the case of
-  !>         helium-only calculations.
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Sample the helium phase space
+!> \param helium ...
+!> \param pint_env ...
+!> \param error ...
+!> \date   2009-10-27
+!> \author Lukasz Walewski
+!> \note   Samples helium variable space according to multilevel Metropolis
+!>         MC scheme, calculates the forces exerted by helium solvent on the
+!>         solute and stores them in helium%force_avrg array. The forces are
+!>         averaged over outer MC loop.
+!> \note   The implicit assumption is that we simulate solute _with_ solvent
+!>         most of the time, so for performance reasons I do not check that
+!>         everywhere I should. This leads to some redundancy in the case of
+!>         helium-only calculations.
+! *****************************************************************************
   SUBROUTINE helium_sample( helium, pint_env, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -237,11 +243,14 @@ MODULE helium_sampling
     RETURN
   END SUBROUTINE helium_sample
 
-  ! ***************************************************************************
-  !> \brief  Perform MC step for helium
-  !> \author Lukasz Walewski
-  !> \date   2009-06-12
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Perform MC step for helium
+!> \param helium ...
+!> \param pint_env ...
+!> \param error ...
+!> \date   2009-06-12
+!> \author Lukasz Walewski
+! *****************************************************************************
   SUBROUTINE helium_step( helium, pint_env, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -313,14 +322,15 @@ MODULE helium_sampling
     RETURN
   END SUBROUTINE helium_step
 
-  ! ***************************************************************************
-  !> \brief  ...
-  !> \param  pint_env  - path integral environment
-  !> \param  error     - error handling (see module cp_error_handling)
-  !> \author hforbert
-  !> \par    History
-  !>        2010-06-17 ratio for m-value added (m-sampling related) [lwalewski]
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  ...
+!> \param helium ...
+!> \param  pint_env  - path integral environment
+!> \param  error     - error handling (see module cp_error_handling)
+!> \par    History
+!>        2010-06-17 ratio for m-value added (m-sampling related) [lwalewski]
+!> \author hforbert
+! *****************************************************************************
   SUBROUTINE helium_try_permutations(helium, pint_env, error)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -378,11 +388,15 @@ MODULE helium_sampling
     RETURN
   END SUBROUTINE helium_try_permutations
 
-  ! ***************************************************************************
-  !> \brief ...
-  !> \return 1 - if the MC move was accepted, 0 - otherwise
-  !> \author hforbert
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param pint_env ...
+!> \param n ...
+!> \param error ...
+!> \retval res 1 - if the MC move was accepted, 0 - otherwise
+!> \author hforbert
+! *****************************************************************************
   FUNCTION helium_slice_metro_cyclic(helium,pint_env,n,error) RESULT(res)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -803,11 +817,14 @@ END DO
     RETURN
   END FUNCTION helium_slice_metro_cyclic
 
-  ! ***************************************************************************
-  !> \brief  ...
-  !> \author hforbert
-  !> \return 1 - if the permutation was successfully selected, 0 - otherwise
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param len ...
+!> \param error ...
+!> \retval res 1 - if the permutation was successfully selected, 0 - otherwise
+!> \author hforbert
+! *****************************************************************************
   FUNCTION helium_select_permutation(helium,len,error) RESULT(res)
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: len

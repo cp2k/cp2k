@@ -5,11 +5,12 @@
 
 ! *****************************************************************************
 !> \brief Row/column and global all-to-all
-!> \par Communicator selection
-!>      Uses row and column communicators for row/column
-!>      sends. Remaining sends are performed using the global
-!>      communicator.  Point-to-point isend/irecv are used if ptp is
-!>      set, otherwise a alltoall collective call is issued.
+!> \param sb ...
+!> \param scount ...
+!> \param sdispl ...
+!> \param rb ...
+!> \param rcount ...
+!> \param rdispl ...
 !> \param[in] mp_env         MP Environment
 !> \param[in] most_ptp       (optional) Use point-to-point for row/column;
 !>                           default is no
@@ -17,7 +18,12 @@
 !>                           default is no
 !> \param[in] no_hybrid      (optional) Use regular global collective; default
 !>                           is no
-!> \see mp_alltoall
+!> \par Communicator selection
+!>      Uses row and column communicators for row/column
+!>      sends. Remaining sends are performed using the global
+!>      communicator.  Point-to-point isend/irecv are used if ptp is
+!>      set, otherwise a alltoall collective call is issued.
+!>      see mp_alltoall 
 ! *****************************************************************************
   SUBROUTINE hybrid_alltoall_c1 (sb, scount, sdispl,&
        rb, rcount, rdispl, mp_env, most_ptp, remainder_ptp, no_hybrid)
@@ -104,6 +110,9 @@
             all_group)
     ENDIF subgrouped
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE most_alltoall()
       FORALL (pcol = 0 : npcols-1)
          new_scount(1+pcol) = scount(1+pgrid(myprow, pcol))
@@ -124,6 +133,9 @@
            rb, new_rcount(1:nprows), new_rdispl(1:nprows),&
            dbcsr_mp_my_col_group (mp_env))
     END SUBROUTINE most_alltoall
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE most_point_to_point ()
       ! Go through my prow and exchange.
       DO i = 0, npcols - 1
@@ -174,6 +186,9 @@
          ENDIF
       ENDDO
     END SUBROUTINE most_point_to_point
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE remainder_alltoall ()
       new_scount(:) = scount(:)
       new_rcount(:) = rcount(:)
@@ -188,6 +203,9 @@
       CALL mp_alltoall (sb, new_scount, sdispl,&
            rb, new_rcount, rdispl, all_group)
     END SUBROUTINE remainder_alltoall
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
     SUBROUTINE remainder_point_to_point()
     INTEGER                                  :: col, row
 

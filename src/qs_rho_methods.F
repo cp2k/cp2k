@@ -71,17 +71,19 @@ CONTAINS
 !> \param rebuild_ao if it is necessary to rebuild rho_ao. Defaults to true.
 !> \param rebuild_grids if it in necessary to rebuild rho_r and rho_g.
 !>        Defaults to false.
+!> \param gapw_xc ...
+!> \param basis_set_id ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      needs updated  pw pools, s, s_mstruct and h in qs_env.
 !>      The use of p to keep the structure of h (needed for the forces)
 !>      is ugly and should be removed.
 !>      Change so that it does not allocate a subcomponent if it is not
 !>      associated and not requested?
-!> \par History
-!>      11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, gapw_xc, &
                             basis_set_id, error)
@@ -341,6 +343,8 @@ END SUBROUTINE qs_rho_rebuild
 !> \param rho_struct the rho structure that should be updated
 !> \param qs_env the qs_env rho_struct refers to
 !>        the integrated charge in r space
+!> \param local_rho_set ...
+!> \param task_list_external ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -509,11 +513,11 @@ END SUBROUTINE qs_rho_update_rho
 !>                pool is taken
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Associated pointers are deallocated, nullified pointers are NOT accepted!
 !> \par History
 !>      07.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Associated pointers are deallocated, nullified pointers are NOT accepted!
 ! *****************************************************************************
   SUBROUTINE duplicate_rho_type(rho_input, rho_output, qs_env, error)
 
@@ -720,18 +724,21 @@ END SUBROUTINE qs_rho_update_rho
 !> \brief Creates a qs_rho_type, which is equivalent to
 !>      alpha*rho_input1 - beta*rho_input2
 !> \param alpha & beta: Multiplier for the rho input structures
-!> \param rho_input 1 & rho_input2: The rho input structure
+!> \param rho_input1 ...
+!> \param beta ...
+!> \param rho_input2 ...
 !> \param rho_output The difference rho structure
 !> \param qs_env The QS environment from which the auxilliary PW basis-set
 !>                pool is taken
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Associated pointers are deallocated, nullified pointers are NOT accepted!
-!>      Inputs and output must not be the same!
+!> \param rho_input 1 & rho_input2: The rho input structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Associated pointers are deallocated, nullified pointers are NOT accepted!
+!>      Inputs and output must not be the same!
 ! *****************************************************************************
   SUBROUTINE diff_rho_type(alpha, rho_input1, beta, rho_input2, rho_output, &
                            qs_env, error)

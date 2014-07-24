@@ -157,6 +157,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Allocates and sets up the green functions for the fft based poisson
 !>      solvers
+!> \param green ...
+!> \param poisson_params ...
+!> \param cell_hmat ...
+!> \param pw_pool ...
+!> \param mt_super_ref_pw_grid ...
+!> \param error ...
 !> \author Fawzi, based on previous functions by JGH and Teo
 ! *****************************************************************************
   SUBROUTINE pw_green_create ( green, poisson_params, cell_hmat, pw_pool, &
@@ -391,6 +397,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains the type
+!> \param gftype ...
+!> \param error ...
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE pw_green_retain(gftype,error)
@@ -413,6 +421,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief destroys the type (deallocates data)
+!> \param gftype ...
+!> \param pw_pool ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Joost VandeVondele
@@ -464,6 +475,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the influence_factor for the
 !>      SPME Green's function in reciprocal space'''
+!> \param gftype ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author DH (29-Mar-2001)
@@ -537,6 +550,9 @@ CONTAINS
   END SUBROUTINE influence_factor
 
 ! *****************************************************************************
+!> \brief ...
+!> \param gf ...
+! *****************************************************************************
 SUBROUTINE calc_p3m_charge ( gf )
 
     TYPE(greens_fn_type), POINTER            :: gf
@@ -570,6 +586,8 @@ END SUBROUTINE calc_p3m_charge
 !>      You should call this just before calling the work routine
 !>      pw_poisson_solver
 !>      Call pw_poisson_release when you have finished
+!> \param poisson_env ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (12-Mar-2001)
@@ -609,6 +627,7 @@ END SUBROUTINE calc_p3m_charge
 
 ! *****************************************************************************
 !> \brief retains the pw_poisson_env
+!> \param poisson_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -633,6 +652,8 @@ END SUBROUTINE calc_p3m_charge
 
 ! *****************************************************************************
 !> \brief releases the poisson solver
+!> \param poisson_env ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author fawzi (11.2002)
@@ -669,6 +690,8 @@ END SUBROUTINE calc_p3m_charge
 
 ! *****************************************************************************
 !> \brief Calculates the coefficients for the charge assignment function
+!> \param n ...
+!> \param coeff ...
 !> \par History
 !>      none
 !> \author DG (29-Mar-2001)

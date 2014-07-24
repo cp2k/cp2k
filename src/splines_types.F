@@ -83,6 +83,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases spline_env
+!> \param spline_env ...
+!> \param error ...
 !> \author unknown
 ! *****************************************************************************
   SUBROUTINE spline_env_release(spline_env,error)
@@ -122,6 +124,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases spline_data
+!> \param spline_data ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE spline_data_release (spline_data,error)
@@ -158,6 +162,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases spline_data_p
+!> \param spl_p ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE spline_data_p_release (spl_p,error)
@@ -189,6 +195,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains spline_env
+!> \param spline_data ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE spline_data_retain(spline_data,error)
@@ -210,6 +218,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains spline_data_p_type
+!> \param spl_p ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE spline_data_p_retain(spl_p,error)
@@ -234,6 +244,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains spline_env
+!> \param spline_env ...
+!> \param error ...
 !> \par History
 !>      2001-09-19-HAF added this doc entry and changed formatting
 !> \author unknown
@@ -258,6 +270,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Data-structure that holds all needed information about
 !>      a specific spline interpolation.
+!> \param spline_env ...
+!> \param ntype ...
+!> \param ntab_in ...
+!> \param error ...
 !> \par History
 !>      2001-09-19-HAF added this doc entry and changed formatting
 !> \author unknown
@@ -316,6 +332,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copy Data-structure of spline_data_p_type
+!> \param spl_p_source ...
+!> \param spl_p_dest ...
+!> \param error ...
 !> \author teo 06.2007
 ! *****************************************************************************
   SUBROUTINE spline_data_p_copy ( spl_p_source, spl_p_dest, error )
@@ -354,6 +373,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copy Data-structure that constains spline table
+!> \param spline_data_source ...
+!> \param spline_data_dest ...
+!> \param error ...
 !> \author teo 11.2005
 ! *****************************************************************************
   SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
@@ -395,6 +417,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Data-structure that constains spline table
+!> \param spline_data ...
+!> \param error ...
 !> \author unknown
 ! *****************************************************************************
   SUBROUTINE spline_data_create ( spline_data, error )
@@ -422,6 +446,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases spline_factor
+!> \param spline_factor ...
+!> \param error ...
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE spline_factor_release (spline_factor,error)
@@ -456,6 +482,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases spline_factor
+!> \param spline_factor ...
+!> \param error ...
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE spline_factor_create (spline_factor, error)
@@ -487,6 +515,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases spline_factor
+!> \param spline_factor_source ...
+!> \param spline_factor_dest ...
+!> \param error ...
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE spline_factor_copy (spline_factor_source,spline_factor_dest, error)

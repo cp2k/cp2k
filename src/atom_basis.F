@@ -48,6 +48,11 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_basis_opt(atom_section,error)
     TYPE(section_vals_type), POINTER         :: atom_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error

@@ -53,13 +53,17 @@ CONTAINS
 !> \brief compute s square of the single determinant defined by the
 !>       by the spin up and spin down orbitals
 !> \param mos , matrix_s : input
+!> \param matrix_s ...
 !> \param s_square , s_square_ideal : out
+!> \param s_square_ideal ...
 !> \param mo_derivs inout if present, add the derivative of s_square wrt mos to mo_derivs
+!> \param strength ...
+!> \param error ...
+!> \par History
+!>      07.2004 created [ Joost VandeVondele ]
 !> \note
 !>       see Eq. 2.271 in Modern Quantum Chemistry
 !>       Szabo and Ostlund
-!> \par History
-!>      07.2004 created [ Joost VandeVondele ]
 ! *****************************************************************************
    SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal,&
                                mo_derivs,strength,error)
@@ -162,9 +166,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief restrains/constrains the value of s2 in a calculation
-!> \param mos, matrix_s : input
-!>       s_square, s_square_ideal : out
+!> \param mos ...
+!> \param matrix_s ...
 !> \param mo_derivs inout if present, add the derivative of s_square wrt mos to mo_derivs
+!> \param energy ...
+!> \param s2_restraint_control ...
+!> \param just_energy ...
+!> \param error ...
+!> \param mos, matrix_s : input
+!>       s_square, s_square_ideal : out UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2004 created [ Joost VandeVondele ]
 ! *****************************************************************************

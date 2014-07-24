@@ -243,20 +243,19 @@ CONTAINS
 !> \param ks_env the ks_env that old all the temporary objects that
 !>        the calculation of the KS matrix needs
 !> \param qs_env the qs_env to update
+!> \param ks_matrix ...
+!> \param rho the density, must be up to date
+!> \param energy the place where energies are stored
 !> \param calculate_forces if true calculate the quantities needed
 !>        to calculate the forces. Defaults to false.
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
-!> \param ks the KS matrix that is created
-!> \param rho the density, must be up to date
+!> \param print_active ...
 !> \param rho_xc the soft density, only for gapw_xc , must be up to date
-!> \param energy the place where energies are stored
-!> \param qs_charges the place where the grids charges are stored
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      make rho, energy and qs_charges optional, defaulting
-!>      to qs_env components?
+!> \param ks the KS matrix that is created UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param qs_charges the place where the grids charges are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !>              new did_change scheme [fawzi]
@@ -267,6 +266,9 @@ CONTAINS
 !>              where the KS matrix alone (however this might be defined)
 !>               does not contain the info to construct this derivative.
 !> \author Matthias Krack
+!> \note
+!>      make rho, energy and qs_charges optional, defaulting
+!>      to qs_env components?
 ! *****************************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
                                           rho,energy,calculate_forces,&
@@ -845,17 +847,20 @@ CONTAINS
 !> \param ks_env the ks_env that holds all the temporary objects that
 !>        the calculation of the LRI KS matrix needs
 !> \param qs_env the qs_env to update
-!> \param ks the KS matrix that is created
+!> \param ks_matrix ...
 !> \param rho the density, must be up to date
 !> \param energy the place where energies are stored
+!> \param calculate_forces ...
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
+!> \param print_active ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note  might be integrate in qs_ks_build_kohn_sham_matrix later
+!> \param ks the KS matrix that is created UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2014 created
 !> \author Dorothea Golze
+!> \note  might be integrate in qs_ks_build_kohn_sham_matrix later
 ! *****************************************************************************
   SUBROUTINE lri_build_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,&
              calculate_forces,just_energy,print_active,error)
@@ -1047,6 +1052,13 @@ CONTAINS
   END SUBROUTINE lri_build_ks_matrix
 
 ! *****************************************************************************
+!> \brief ...
+!> \param rho_tot_gspace ...
+!> \param qs_env ...
+!> \param rho ...
+!> \param skip_nuclear_density ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density, error)
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_tot_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1099,9 +1111,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief compute MO derivatives
-!> \param ks_env the ks_env that old all the temporary objects that
-!>        the calculation of the KS matrix needs
 !> \param qs_env the qs_env to update
+!> \param ks_matrix ...
+!> \param mo_derivs ...
+!> \param error ...
+!> \param ks_env the ks_env that old all the temporary objects that
+!>        the calculation of the KS matrix needs UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2014 created, transferred from qs_ks_build_kohn_sham_matrix in
 !>      separate subroutine
@@ -1206,6 +1221,7 @@ CONTAINS
 !>        to calculate the forces. Defaults to false.
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
+!> \param print_active ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1352,6 +1368,7 @@ CONTAINS
 !>        overlap matrix has changed
 !>        (atoms have moved)
 !> \param rho_changed if true it means that the density has changed
+!> \param potential_changed ...
 !> \param full_reset if true everything has changed
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1411,6 +1428,7 @@ CONTAINS
 !> \param mo_set type containing the full matrix of the MO and the eigenvalues
 !> \param w_matrix sparse matrix
 !>        error
+!> \param error ...
 !> \par History
 !>         Creation (03.03.03,MK)
 !>         Modification that computes it as a full block, several times (e.g. 20)
@@ -1465,9 +1483,11 @@ CONTAINS
 !>        could overwrite the mo_derivs for increased memory efficiency
 !> \param mo_set type containing the full matrix of the MO coefs
 !>        mo_deriv:
+!> \param mo_deriv ...
 !> \param w_matrix sparse matrix
 !> \param s_matrix sparse matrix for the overlap
 !>        error
+!> \param error ...
 !> \par History
 !>         Creation (JV)
 !> \author MK
@@ -1570,6 +1590,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate the energy-weighted density matrix W if ROKS is active.
 !>        The W matrix is returned in matrix_w.
+!> \param mo_set ...
+!> \param matrix_ks ...
+!> \param matrix_p ...
+!> \param matrix_w ...
+!> \param error ...
 !> \author 04.05.06,MK
 ! *****************************************************************************
   SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p,matrix_w,error)
@@ -1623,6 +1648,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate ks_matrix and ks_env if necessary
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>    refactoring 04.03.2011 [MI]
 !> \author

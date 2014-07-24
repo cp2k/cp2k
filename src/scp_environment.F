@@ -58,6 +58,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes the SCP environment using the QS environment
+!> \param scp_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE scp_nddo_init ( scp_env, qs_env, error )
 

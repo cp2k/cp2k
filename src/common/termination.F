@@ -53,19 +53,24 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Perform a basic blocking of the text in message and print it
 !>        optionally decorated with a frame of stars as defined by declev.
-!> \note
-!>       after      : Number of empty lines after the message.
-!>       before     : Number of empty lines before the message.
-!>       declev     : Decoration level (0,1,2, ... star lines).
-!>       message    : String with the message text.
-!>       output_unit: Logical unit number of output unit.
+!> \param message ...
+!> \param output_unit ...
+!> \param declev ...
+!> \param before ...
+!> \param after ...
+!> \date 28.08.1996
 !> \par History
 !>      - Translated to Fortran 90/95 (07.10.1999, Matthias Krack)
 !>      - CP2K by JH 21.08.2000
 !>      - Bugs in the dynamic format generation removed (09.02.2001, MK)
 !>      - Revised (26.01.2011,MK)
 !> \author Matthias Krack (MK)
-!> \date 28.08.1996
+!> \note
+!>       after      : Number of empty lines after the message.
+!>       before     : Number of empty lines before the message.
+!>       declev     : Decoration level (0,1,2, ... star lines).
+!>       message    : String with the message text.
+!>       output_unit: Logical unit number of output unit.
 ! *****************************************************************************
   SUBROUTINE print_message(message,output_unit,declev,before,after)
 
@@ -203,11 +208,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print warning message
+!> \param routineN ...
+!> \param moduleN ...
+!> \param line_number ...
+!> \param warning_message ...
+!> \param para_env ...
+!> \par History
+!>      - Creation (20.11.2013,MK)
 !> \author Matthias Krack (MK)
 !> \note
 !>      routine: Name of the calling routine
-!> \par History
-!>      - Creation (20.11.2013,MK)
 ! *****************************************************************************
   SUBROUTINE print_warning(routineN,moduleN,line_number,warning_message,&
                            para_env)
@@ -241,6 +251,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialise the output unit number for error messages.
+!> \param lunit ...
 !> \par History
 !>      none
 !> \author JGH
@@ -258,6 +269,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief The memory allocation for a data object failed. Print an error
 !>        message and stop the program execution.
+!> \param routineN ...
+!> \param moduleN ...
+!> \param line_number ...
+!> \param object ...
+!> \param memory ...
+!> \param para_env ...
+!> \par History
+!>      - CP2K by JGH 21.08.2000
+!>      - Revised (16.02.2011,MK)
+!> \author Matthias Krack (12.10.1999,MK)
 !> \note
 !>      routineN   : Name of the calling routine
 !>      moduleN    : Name of the calling module including the calling routine
@@ -265,10 +286,6 @@ CONTAINS
 !>      object     : Name of the data object for which the allocation failed
 !>      memory     : Size of the data object in bytes. If zero no size is
 !>                   printed.
-!> \par History
-!>      - CP2K by JGH 21.08.2000
-!>      - Revised (16.02.2011,MK)
-!> \author Matthias Krack (12.10.1999,MK)
 ! *****************************************************************************
   SUBROUTINE stop_allocate(routineN,moduleN,line_number,object,memory,para_env)
 
@@ -311,15 +328,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief The memory deallocation for a data object failed. Print an error
 !>        message and stop the program execution.
+!> \param routineN ...
+!> \param moduleN ...
+!> \param line_number ...
+!> \param object ...
+!> \param para_env ...
+!> \par History
+!>      CP2K by JGH 21.08.2000
+!>      - Revised (16.02.2011,MK)
+!> \author Matthias Krack (20.10.1999,MK)
 !> \note
 !>      routineN   : Name of the calling routine
 !>      moduleN    : Name of the calling module including the calling routine
 !>      line_number: Code line number in the module
 !>      object     : Name of the data object for which the deallocation failed
-!> \par History
-!>      CP2K by JGH 21.08.2000
-!>      - Revised (16.02.2011,MK)
-!> \author Matthias Krack (20.10.1999,MK)
 ! *****************************************************************************
   SUBROUTINE stop_deallocate(routineN,moduleN,line_number,object,para_env)
 
@@ -345,11 +367,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Stop the program run and write an error message.
-!> \note
-!>      routine: Name of the calling routine
+!> \param routineN ...
+!> \param moduleN ...
+!> \param line_number ...
+!> \param error_message ...
+!> \param para_env ...
 !> \par History
 !>      Translated to Fortran 90 (07.10.99, MK)
 !> \author Matthias Krack (28.08.1996,MK)
+!> \note
+!>      routine: Name of the calling routine
 ! *****************************************************************************
   SUBROUTINE stop_program(routineN,moduleN,line_number,error_message,&
                           para_env)
@@ -391,14 +418,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Print an error message and stop the program execution in case of a
 !>        read error.
+!> \param routineN ...
+!> \param moduleN ...
+!> \param line_number ...
+!> \param object ...
+!> \param unit_number ...
+!> \param para_env ...
+!> \par History
+!>      - Creation (15.02.2011,MK)
+!> \author Matthias Krack (MK)
 !> \note
 !>      routineN   : Name of the calling routine
 !>      moduleN    : Name of the calling module including the calling routine
 !>      object     : Name of the data object for which I/O operation failed
 !>      unit_number: Logical unit number of the file read from
-!> \par History
-!>      - Creation (15.02.2011,MK)
-!> \author Matthias Krack (MK)
 ! *****************************************************************************
   SUBROUTINE stop_read(routineN,moduleN,line_number,object,unit_number,&
                        para_env)
@@ -438,14 +471,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Print an error message and stop the program execution in case of a
 !>        read error.
+!> \param routineN ...
+!> \param moduleN ...
+!> \param line_number ...
+!> \param object ...
+!> \param unit_number ...
+!> \param para_env ...
+!> \par History
+!>      - Creation (15.02.2011,MK)
+!> \author Matthias Krack (MK)
 !> \note
 !>      routineN   : Name of the calling routine
 !>      moduleN    : Name of the calling module including the calling routine
 !>      object     : Name of the data object for which I/O operation failed
 !>      unit_number: Logical unit number of the file written to
-!> \par History
-!>      - Creation (15.02.2011,MK)
-!> \author Matthias Krack (MK)
 ! *****************************************************************************
   SUBROUTINE stop_write(routineN,moduleN,line_number,object,unit_number,&
                         para_env)

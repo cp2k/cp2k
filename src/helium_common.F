@@ -55,9 +55,11 @@ MODULE helium_common
 
 ! *****************************************************************************
 !> \brief  General PBC routine for helium.
-!> \author Lukasz Walewski
+!> \param helium ...
+!> \param r ...
 !> \date   2009-09-30
-!> \descr  Check wheather PBC should be applied, if yes call low level
+!> \author Lukasz Walewski
+!> \note   Check wheather PBC should be applied, if yes call low level 
 !>         routine according to the unit cell shape.
 ! *****************************************************************************
   SUBROUTINE helium_pbc( helium, r )
@@ -78,11 +80,11 @@ MODULE helium_common
 !> \brief  Wrap r back to the helium box (if helium box is periodic)
 !> \param    helium - helium environment for which to wrap
 !> \param    r      - 3D vector to be wraped back to periodic box
-!> \author hforbert
 !> \par History
 !>      2009-10-02 renamed, originally was helium_box
 !>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
 !>      2009-10-02 redesigned so it now gets/returns a 3D vector [lwalewski]
+!> \author hforbert
 ! *****************************************************************************
   SUBROUTINE helium_pbc_cube( helium, r )
 
@@ -125,6 +127,8 @@ MODULE helium_common
 
 ! *****************************************************************************
 !> \brief  Apply PBC within truncated octahedral unit cell.
+!> \param helium ...
+!> \param r ...
 !> \date   2009-10-02
 !> \author Lukasz Walewski
 !> \note   Original Allen & Tildesley routine adapted for our helium code.
@@ -166,6 +170,8 @@ MODULE helium_common
 
 ! *****************************************************************************
 !> \brief  Apply PBC within truncated octahedral unit cell.
+!> \param helium ...
+!> \param r ...
 !> \date   2009-10-22
 !> \author hforbert
 !> \note   Version of the original Allen & Tildesley routine optimized for
@@ -243,12 +249,15 @@ MODULE helium_common
 !> \brief  Calculate the point equidistant from two other points a and b
 !>         within the helium box - 3D version
 !> \param    helium - helium environment for which
-!> \param    a, b   - vectors for which to find the mean within the He box
-!> \author hforbert
+!> \param a ...
+!> \param b ...
+!> \param c ...
+!> \param    a, b   - vectors for which to find the mean within the He box UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      2009-10-02 renamed, originally was helium_boxmean [lwalewski]
 !>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
 !>      2009-10-02 redesigned so it now gets/returns a 3D vectors [lwalewski]
+!> \author hforbert
 ! *****************************************************************************
   SUBROUTINE helium_boxmean_3d(helium, a, b, c)
 
@@ -263,12 +272,13 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_boxmean_3d
 
-  ! ***************************************************************************
-  !> \brief Calculate the winding number for helium
-  !> \author hforbert
-  !> \par   History
-  !>        2009-10-19 generalized for trunc. octahedron cell shape [lwalewski]
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief Calculate the winding number for helium
+!> \param helium ...
+!> \par   History
+!>        2009-10-19 generalized for trunc. octahedron cell shape [lwalewski]
+!> \author hforbert
+! *****************************************************************************
   SUBROUTINE helium_calc_wnumber( helium )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -330,8 +340,10 @@ MODULE helium_common
 
 ! *****************************************************************************
 !> \brief  Calculate helium radial distribution function wrt <r0>.
-!> \author Lukasz Walewski
+!> \param helium ...
+!> \param error ...
 !> \date   2009-07-22
+!> \author Lukasz Walewski
 !> \note   Actually calculate the histogram only, the normalization is
 !>         postponed to the postprocessing stage.
 ! *****************************************************************************
@@ -390,9 +402,11 @@ MODULE helium_common
 
 ! *****************************************************************************
 !> \brief  Calculate helium density distribution function wrt <r0>.
-!> \author Lukasz Walewski
+!> \param helium ...
+!> \param error ...
 !> \date   2011-06-14
-!> \descr  The calculated density is stored in the helium%rho_inst array.
+!> \author Lukasz Walewski
+!> \note   The calculated density is stored in the helium%rho_inst array. 
 !> \note   This version of helium_calc_rho routine calculates only the total
 !>         He density but it implements the data structure that is already
 !>         suitable for the superfluid density estimator calculation
@@ -452,15 +466,17 @@ MODULE helium_common
   END SUBROUTINE helium_calc_rho
 
 
-  ! ***************************************************************************
-  !> \brief  Calculate probability distribution of the permutation lengths
-  !> \author Lukasz Walewski
-  !> \date   2010-06-07
-  !> \descr  Valid permutation path length is an integer (1, NATOMS), number
-  !>         of paths of a given length is calculated here and average over
-  !>         inner loop iterations and helium environments is done in
-  !>         helium_sample.
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Calculate probability distribution of the permutation lengths
+!> \param helium ...
+!> \param error ...
+!> \date   2010-06-07
+!> \author Lukasz Walewski
+!> \note  Valid permutation path length is an integer (1, NATOMS), number
+!>         of paths of a given length is calculated here and average over
+!>         inner loop iterations and helium environments is done in
+!>         helium_sample.
+! *****************************************************************************
   SUBROUTINE helium_calc_plength( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -487,16 +503,19 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_calc_plength
 
-  ! ***************************************************************************
-  !> \brief  Rotate helium particles in imaginary time by nslices
-  !> \author hforbert
-  !> \descr  Positions of helium beads in helium%pos array are reorganized such
-  !>         that the indices are cyclically translated in a permutation-aware
-  !>         manner. helium%relrot is given a new value that represents the new
-  !>         'angle' of the beads. This is done modulo helium%beads, so relrot
-  !>         should be always within 0 (no rotation) and helium%beads-1 (almost
-  !>         full rotation). [lwalewski]
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Rotate helium particles in imaginary time by nslices
+!> \param helium ...
+!> \param nslices ...
+!> \param error ...
+!> \author hforbert
+!> \note  Positions of helium beads in helium%pos array are reorganized such
+!>         that the indices are cyclically translated in a permutation-aware
+!>         manner. helium%relrot is given a new value that represents the new
+!>         'angle' of the beads. This is done modulo helium%beads, so relrot
+!>         should be always within 0 (no rotation) and helium%beads-1 (almost
+!>         full rotation). [lwalewski]
+! *****************************************************************************
   SUBROUTINE helium_rotate(helium, nslices, error)
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: nslices
@@ -531,11 +550,17 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_rotate
 
-  ! ***************************************************************************
-  !> \brief  Calculate the pair-product action or energy by evaluating the
-  !>         power series expansion according to Eq. 4.46 in Ceperley 1995.
-  !> \author Harald Forbert
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Calculate the pair-product action or energy by evaluating the
+!>         power series expansion according to Eq. 4.46 in Ceperley 1995.
+!> \param helium ...
+!> \param r ...
+!> \param rp ...
+!> \param tab ...
+!> \param cut ...
+!> \retval res ...
+!> \author Harald Forbert
+! *****************************************************************************
   FUNCTION helium_eval_expansion(helium,r,rp,tab,cut) RESULT(res)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -601,6 +626,10 @@ MODULE helium_common
     RETURN
   END FUNCTION helium_eval_expansion
 
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE helium_update_transition_matrix(helium,error)
 
@@ -964,6 +993,11 @@ MODULE helium_common
 END SUBROUTINE helium_update_transition_matrix
 
 ! *****************************************************************************
+!> \brief ...
+!> \param spl ...
+!> \param xx ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION helium_spline(spl, xx) RESULT(res)
     TYPE(spline_data_type), POINTER          :: spl
     REAL(KIND=dp), INTENT(IN)                :: xx
@@ -986,6 +1020,11 @@ END SUBROUTINE helium_update_transition_matrix
   END FUNCTION helium_spline
 
 ! *****************************************************************************
+!> \brief ...
+!> \param spl ...
+!> \param xx ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION helium_spline_1(spl, xx) RESULT(res)
     TYPE(spline_data_type), POINTER          :: spl
     REAL(KIND=dp), INTENT(IN)                :: xx
@@ -1006,8 +1045,14 @@ END SUBROUTINE helium_update_transition_matrix
 ! *****************************************************************************
 !> \brief  Return the distance <rij> between bead <ib> of atom <ia>
 !>         and bead <jb> of atom <ja>.
-!> \author Lukasz Walewski
+!> \param helium ...
+!> \param ia ...
+!> \param ib ...
+!> \param ja ...
+!> \param jb ...
+!> \retval rij ...
 !> \date   2009-07-17
+!> \author Lukasz Walewski
 ! *****************************************************************************
   FUNCTION helium_bead_rij(helium, ia, ib, ja, jb) RESULT(rij)
 
@@ -1028,13 +1073,17 @@ END SUBROUTINE helium_update_transition_matrix
 ! *****************************************************************************
 !> \brief  Given the atom number and permutation state return the cycle
 !>         number the atom belongs to.
-!> \author Lukasz Walewski
+!> \param helium ...
+!> \param atom_number ...
+!> \param permutation ...
+!> \retval cycle_number ...
 !> \date   2009-07-21
-!> \descr  Cycles (or paths) are numbered from 1 to <num_cycles>, where
-!>         <num_cycles> is in the range of (1, <helium%atoms>).
-!>         if (num_cycles .EQ. 1) then all atoms belong to one cycle
-!>         if (num_cycles .EQ. helium%atoms) then there are no cycles of
-!>         length greater than 1 (i.e. no atoms are connected)
+!> \author Lukasz Walewski
+!> \note   Cycles (or paths) are numbered from 1 to <num_cycles>, where 
+!>         <num_cycles> is in the range of (1, <helium%atoms>). 
+!>         if (num_cycles .EQ. 1) then all atoms belong to one cycle 
+!>         if (num_cycles .EQ. helium%atoms) then there are no cycles of 
+!>         length greater than 1 (i.e. no atoms are connected) 
 ! *****************************************************************************
   FUNCTION helium_cycle_number(helium, atom_number, permutation) RESULT(cycle_number)
 
@@ -1134,13 +1183,16 @@ END SUBROUTINE helium_update_transition_matrix
 ! *****************************************************************************
 !> \brief  Given the atom number and permutation state return the cycle
 !>         number the atom belongs to.
-!> \author Lukasz Walewski
+!> \param helium ...
+!> \param permutation ...
+!> \retval num_cycles ...
 !> \date   2009-07-21
-!> \descr  Cycles (or paths) are numbered from 1 to <num_cycles>, where
-!>         <num_cycles> is in the range of (1, <helium%atoms>).
-!>         if (num_cycles .EQ. 1) then all atoms belong to one cycle
-!>         if (num_cycles .EQ. helium%atoms) then there are no cycles of
-!>         length greater than 1 (i.e. no atoms are connected)
+!> \author Lukasz Walewski
+!> \note   Cycles (or paths) are numbered from 1 to <num_cycles>, where 
+!>         <num_cycles> is in the range of (1, <helium%atoms>). 
+!>         if (num_cycles .EQ. 1) then all atoms belong to one cycle 
+!>         if (num_cycles .EQ. helium%atoms) then there are no cycles of 
+!>         length greater than 1 (i.e. no atoms are connected) 
 ! *****************************************************************************
   FUNCTION helium_ncycles(helium, permutation) RESULT(num_cycles)
 
@@ -1252,12 +1304,16 @@ END SUBROUTINE helium_update_transition_matrix
   END FUNCTION helium_ncycles
 
 
-  ! ***************************************************************************
-  !> \brief  Given the atom number and permutation state return the length of
-  !>         the path this atom belongs to.
-  !> \author Lukasz Walewski
-  !> \date   2009-10-07
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Given the atom number and permutation state return the length of
+!>         the path this atom belongs to.
+!> \param helium ...
+!> \param atom_number ...
+!> \param permutation ...
+!> \retval path_length ...
+!> \date   2009-10-07
+!> \author Lukasz Walewski
+! *****************************************************************************
   FUNCTION helium_path_length(helium, atom_number, permutation) RESULT(path_length)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1287,17 +1343,22 @@ END SUBROUTINE helium_update_transition_matrix
     RETURN
   END FUNCTION helium_path_length
 
-  ! ***************************************************************************
-  !> \brief  Given the atom number and permutation state returns .TRUE. if the
-  !>         atom belongs to the winding path, .FASLE. otherwise.
-  !> \author Lukasz Walewski
-  !> \date   2010-09-21
-  !> \note   The path winds around the periodic box if it's widing number is
-  !          greater than 0. This function calculates the winding number of the
-  !          path the atom in question belongs to by following the permutation
-  !          cycle; it exits from the path if the starting atom number is
-  !          reached again.
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Given the atom number and permutation state returns .TRUE. if the
+!>         atom belongs to the winding path, .FASLE. otherwise.
+!> \param helium ...
+!> \param atom_number ...
+!> \param pos ...
+!> \param permutation ...
+!> \retval is_winding ...
+!> \date   2010-09-21
+!> \author Lukasz Walewski
+!> \note   The path winds around the periodic box if it's widing number is
+!> \note   greater than 0. This function calculates the winding number of the
+!> \note   path the atom in question belongs to by following the permutation
+!> \note   cycle; it exits from the path if the starting atom number is
+!> \note   reached again.
+! *****************************************************************************
   FUNCTION helium_is_winding(helium, atom_number, pos, permutation) RESULT(is_winding)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1370,14 +1431,17 @@ END SUBROUTINE helium_update_transition_matrix
     RETURN
   END FUNCTION helium_is_winding
 
-  ! ***************************************************************************
-  !> \brief  Given the atom number and permutation state returns the
-  !>         contribution of this atom to the total superfluid density W^2/n.
-  !>         W^2 - squared winding number of the path the atom belongs to
-  !>         n   - number of atoms that belong to this path
-  !> \author Lukasz Walewski
-  !> \date   2011-06-16
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Given the atom number and permutation state returns the
+!>         contribution of this atom to the total superfluid density W^2/n.
+!>         W^2 - squared winding number of the path the atom belongs to
+!>         n   - number of atoms that belong to this path
+!> \param helium ...
+!> \param atom_number ...
+!> \retval res ...
+!> \date   2011-06-16
+!> \author Lukasz Walewski
+! *****************************************************************************
   FUNCTION helium_sdensity_part(helium, atom_number) RESULT(res)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1449,13 +1513,15 @@ END SUBROUTINE helium_update_transition_matrix
   END FUNCTION helium_sdensity_part
 
 
-  ! ***************************************************************************
-  !> \brief  Given the permutation state assign cycle lengths to all He atoms.
-  !> \author Lukasz Walewski
-  !> \date   2011-07-06
-  !> \descr  The helium%atom_plength array is filled with cycle lengths,
-  !>         each atom gets the length of the permutation cycle it belongs to.
-  ! ***************************************************************************
+! ***************************************************************************
+!> \brief  Given the permutation state assign cycle lengths to all He atoms.
+!> \param helium ...
+!> \param error ...
+!> \date   2011-07-06
+!> \author Lukasz Walewski
+!> \note   The helium%atom_plength array is filled with cycle lengths,
+!>         each atom gets the length of the permutation cycle it belongs to.
+! *****************************************************************************
   SUBROUTINE helium_calc_atom_cycle_length( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium

@@ -44,6 +44,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Get the dg_type
+!> \param dg ...
+!> \param id_nr ...
+!> \param grid_index ...
+!> \param dg_rho0 ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE dg_get ( dg, id_nr, grid_index, dg_rho0 )
@@ -62,6 +66,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   create the dg structure
+!> \param dg ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE dg_create ( dg, error )
@@ -87,14 +93,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains the given dg_type
-!> \param dg_type the dg_type to retain
+!> \param dg ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
+!> \param dg_type the dg_type to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   SUBROUTINE dg_retain ( dg, error)
     TYPE(dg_type), POINTER                   :: dg
@@ -119,11 +126,11 @@ CONTAINS
 !> \param dg the dg_type to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   SUBROUTINE dg_release(dg, error)
     TYPE(dg_type), POINTER                   :: dg
@@ -151,6 +158,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set the double grid environment
+!> \param dg ...
+!> \param dg_rho0 ...
+!> \param grid_index ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE dg_set ( dg, dg_rho0, grid_index, error )

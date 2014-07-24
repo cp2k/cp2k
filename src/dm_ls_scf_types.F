@@ -131,6 +131,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the LS type.
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele

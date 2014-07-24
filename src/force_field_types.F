@@ -278,6 +278,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate and initialize a bend kind set.
+!> \param bend_kind_set ...
+!> \param nkind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_bend_kind_set(bend_kind_set,nkind,error)
 
@@ -314,6 +317,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate and initialize a bond kind set.
+!> \param bond_kind_set ...
+!> \param nkind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_bond_kind_set(bond_kind_set,nkind,error)
 
@@ -345,6 +351,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate and initialize a torsion kind set.
+!> \param torsion_kind_set ...
+!> \param nkind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_torsion_kind_set(torsion_kind_set,nkind,error)
 
@@ -378,6 +387,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate and initialize a ub kind set.
+!> \param ub_kind_set ...
+!> \param nkind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_ub_kind_set(ub_kind_set,nkind,error)
 
@@ -406,6 +418,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate and initialize a impr kind set.
+!> \param impr_kind_set ...
+!> \param nkind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_impr_kind_set(impr_kind_set,nkind,error)
 
@@ -434,6 +449,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate and initialize a opbend kind set.
+!> \param opbend_kind_set ...
+!> \param nkind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_opbend_kind_set(opbend_kind_set,nkind,error)
 
@@ -462,6 +480,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief 1. Just NULLIFY and zero all the stuff
+!> \param ff_type ...
+!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
   SUBROUTINE init_ff_type (ff_type,error)
@@ -513,6 +533,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to initialize the gro_info
+!> \param gro_info ...
 !> \author ikuo
 ! *****************************************************************************
   SUBROUTINE init_gromos_info(gro_info)
@@ -540,6 +561,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to initialize the chm_info
+!> \param chm_info ...
 !> \par History
 !>      none
 !> \author teo
@@ -585,6 +607,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to initialize the chm_info
+!> \param amb_info ...
 !> \par History
 !>      none
 !> \author teo
@@ -616,6 +639,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to initialize the inp_info
+!> \param inp_info ...
 !> \par History
 !>      none
 !> \author teo
@@ -684,6 +708,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief 1. Just DEALLOCATE all the stuff
+!> \param ff_type ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE deallocate_ff_type (ff_type,error)
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
@@ -741,6 +767,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to deallocate the gro_info
+!> \param gro_info ...
+!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
   SUBROUTINE deallocate_gromos_info(gro_info,error)
@@ -827,6 +855,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to deallocate the chm_info
+!> \param chm_info ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author teo
@@ -979,6 +1009,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to deallocate the chm_info
+!> \param amb_info ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
@@ -1075,6 +1107,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Specific function to deallocate the inp_info
+!> \param inp_info ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author teo
@@ -1316,6 +1350,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate a bend kind set.
+!> \param bend_kind_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE deallocate_bend_kind_set(bend_kind_set,error)
 
@@ -1336,6 +1372,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate a bond kind set.
+!> \param bond_kind_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE deallocate_bond_kind_set(bond_kind_set,error)
 
@@ -1357,6 +1395,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate a torsion kind element
+!> \param torsion_kind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE torsion_kind_dealloc_ref(torsion_kind,error)
 
@@ -1388,6 +1428,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate a ub kind set.
+!> \param ub_kind_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ub_kind_dealloc_ref(ub_kind_set, error)
     TYPE(ub_kind_type), DIMENSION(:), &
@@ -1408,6 +1450,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate a impr kind element
+!> \param impr_kind ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE impr_kind_dealloc_ref(impr_kind, error)
 

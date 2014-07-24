@@ -50,6 +50,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate and initialize the matrix set of oce coefficients.
+!> \param oce_set ...
+!> \param natom ...
+!> \param nkind ...
+!> \param ndim ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_oce_set(oce_set,natom,nkind,ndim,error)
@@ -76,6 +81,10 @@ CONTAINS
   END SUBROUTINE allocate_oce_set
 
 ! *****************************************************************************
+!> \brief ...
+!> \param oce_set ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_oce_set(oce_set,error)
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
@@ -97,8 +106,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Deallocate the matrix set of oce coefficients
-!> \author
+!> \param oce_set ...
+!> \param error ...
 !> \date
+!> \author
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_oce_set(oce_set,error)

@@ -63,8 +63,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the electric field gradient matrix over
 !>          Cartesian Gaussian functions.
-!> \author  VW
+!> \param qs_env ...
+!> \param matrix_efg ...
+!> \param rc ...
+!> \param error ...
 !> \date    27.02.2009
+!> \author  VW
 !> \version 1.0
 ! *****************************************************************************
 

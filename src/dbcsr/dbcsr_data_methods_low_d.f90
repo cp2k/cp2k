@@ -5,11 +5,11 @@
 
 ! *****************************************************************************
 !> \brief Sets a data pointer.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
 !> \par Assumptions
 !>      Assumes that no memory will be lost when repointing the
 !>      pointer in the data area and that the area is initialized.
-!> \param[inout] area     target data area
-!> \param[in]    p        source data pointer
 ! *****************************************************************************
   SUBROUTINE set_data_p_d (area, p)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -25,11 +25,11 @@
 
 ! *****************************************************************************
 !> \brief Sets a data pointer.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
 !> \par Assumptions
 !>      Assumes that no memory will be lost when repointing the
 !>      pointer in the data area and that the area is initialized.
-!> \param[inout] area     target data area
-!> \param[in]    p        source data pointer
 ! *****************************************************************************
   SUBROUTINE set_data_p_2d_d (area, p)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -46,15 +46,15 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
-!> \par Calling
-!>      This routine is hidden behind the dbcsr_get_data interface, hence the
-!>      need for the coersion argument.
-!> \sa dbcsr_get_data_p_d
 !> \param[in] area       data area
 !> \param[in] coersion   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
 !> \retval data          pointer to data
+!> \par Calling
+!>      This routine is hidden behind the dbcsr_get_data interface, hence the
+!>      need for the coersion argument.
+!>      see dbcsr_get_data_p_d
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_c_d (area, coersion, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -97,14 +97,15 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
-!> \par Calling
-!>      This routine can be called explicitly.
 !> \brief dbcsr_get_data_c_d
 !> \param[in] area       data area
-!> \param[in] coersion   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[out] data      pointer to data
+!> \param[in] coersion   force datatype UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval DATA ...
+!> \par Calling
+!>      This routine can be called explicitly.
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_d (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -143,14 +144,15 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
-!> \par Calling
-!>      This routine can be called explicitly.
 !> \brief dbcsr_get_data_c_d
 !> \param[in] area       data area
-!> \param[in] coersion   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[out] data      pointer to data
+!> \param[in] coersion   force datatype UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval DATA ...
+!> \par Calling
+!>      This routine can be called explicitly.
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_2d_d (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)            :: area
@@ -198,9 +200,10 @@
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
-!> \param[out] data      pointer to data
+!> \param DATA ...
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
+!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE get_data_d (area, DATA, lb, ub)
     TYPE(dbcsr_data_obj), INTENT(IN)  :: area
@@ -241,9 +244,10 @@
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
-!> \param[out] data      pointer to data
+!> \param DATA ...
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
+!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE get_data_2d_d (area, DATA, lb, ub)
     TYPE(dbcsr_data_obj), INTENT(IN)            :: area
@@ -289,11 +293,13 @@
 
 ! *****************************************************************************
 !> \brief Returns the entire data for a matrix.
+!> \param matrix ...
+!> \param DATA ...
+!> \param[in] area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] coersion   force datatype UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Warning
 !>      This routine should only be used within DBCSR code.
-!> \param[in] area       data area
-!> \param[in] coersion   force datatype
-!> \param[out] data      pointer to data
 ! *****************************************************************************
   SUBROUTINE get_data_m_d (matrix, DATA)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -307,7 +313,7 @@
 ! *****************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
 !> \param[in] scalar                    scalar to encapsulate
-!> \result encapsulated_scalar          encapsulated scalar
+!> \retval encapsulated_scalar          encapsulated scalar 
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_d (scalar) RESULT (encapsulated_scalar)
     REAL(kind=real_8), INTENT(IN)       :: scalar
@@ -324,6 +330,8 @@
 
 ! *****************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
+!> \param encapsulated_scalar ...
+!> \param value ...
 !> \params[in] encapsulated_scalar          encapsulated scalar
 !> \params[out] value                       value of the scalar
 ! *****************************************************************************
@@ -343,13 +351,18 @@
 ! *****************************************************************************
 !> \brief Used to determine appropriate type for data.
 !> \param[in] data                      data to query
-!> \result data_type                    appropriate data_type
+!> \retval data_type                    appropriate data_type 
 ! *****************************************************************************
   PURE FUNCTION query_type_d_1d (DATA) RESULT (data_type)
     REAL(kind=real_8), DIMENSION(:), INTENT(IN) :: DATA
     INTEGER                           :: data_type
     data_type = dbcsr_type_real_8
   END FUNCTION query_type_d_1d
+! *****************************************************************************
+!> \brief ...
+!> \param data ...
+!> \retval data_type ...
+! *****************************************************************************
   PURE FUNCTION query_type_d_2d (DATA) RESULT (data_type)
     REAL(kind=real_8), DIMENSION(:,:), INTENT(IN) :: DATA
     INTEGER                             :: data_type

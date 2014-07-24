@@ -89,10 +89,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief performs an OR on all the flags (cflags1=cflag1.or.cflags2)
-!> \param cflags 1: the flags to change
-!> \param cflags 2: the flags to OR with
+!> \param cflags1 ...
+!> \param cflags2 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cflags 1: the flags to change UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param cflags 2: the flags to OR with UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE xc_rho_cflags_or(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
@@ -125,10 +127,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief performs an AND on all the flags (cflags1=cflag1.and.cflags2)
-!> \param cflags 1: the flags to change
-!> \param cflags 2: the flags to and with
+!> \param cflags1 ...
+!> \param cflags2 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cflags 1: the flags to change UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param cflags 2: the flags to and with UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE xc_rho_cflags_and(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
@@ -160,9 +164,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief return true if the two cflags are equal
-!> \param cflags 1, cflags2: the flags to compare
+!> \param cflags1 ...
+!> \param cflags2 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cflags 1, cflags2: the flags to compare UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval equal ...
 ! *****************************************************************************
   FUNCTION xc_rho_cflags_equal(cflags1, cflags2, error) RESULT(equal)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
@@ -195,9 +202,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief return true if all the true flags in cflags2 are also true in cflags1
-!> \param cflags 1, cflags2: the flags to compare
+!> \param cflags1 ...
+!> \param cflags2 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cflags 1, cflags2: the flags to compare UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval contain ...
 !> \note
 !>      defines a partial ordering on the cflags (cflags1>cflags2)
 ! *****************************************************************************

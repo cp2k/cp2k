@@ -112,6 +112,10 @@ MODULE qs_dispersion_types
 ! *****************************************************************************
   CONTAINS
 ! *****************************************************************************
+!> \brief ...
+!> \param dispersion_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_dispersion_release (dispersion_env,error)
 
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env

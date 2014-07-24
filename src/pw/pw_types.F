@@ -76,11 +76,11 @@ CONTAINS
 !> \param pw the pw to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
 !> \par History
 !>      03.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   SUBROUTINE pw_retain(pw, error)
     TYPE(pw_type), POINTER                   :: pw
@@ -105,11 +105,11 @@ CONTAINS
 !> \param pw the pw to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
 SUBROUTINE pw_release(pw, error)
     TYPE(pw_type), POINTER                   :: pw
@@ -162,12 +162,14 @@ END SUBROUTINE pw_release
 ! *****************************************************************************
 !> \brief allocates and initializes pw_type
 !> \param pw the type that will bw allocated and initialized
+!> \param pw_grid ...
 !> \param use_data which kind of data will be used
 !> \param in_space in which space the pw is (real or reciprocal)
-!> \param cr 3d_ptr: pointer with the cr3d data (make sense only if
-!>        use_data==REALDATA3D)
+!> \param cr3d_ptr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cr 3d_ptr: pointer with the cr3d data (make sense only if
+!>        use_data==REALDATA3D) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi

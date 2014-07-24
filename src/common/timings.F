@@ -63,11 +63,12 @@ MODULE timings
 
 ! *****************************************************************************
 !> \brief adds the given timer_env to the top of the stack
+!> \param timer_env ...
+!> \par History
+!>      02.2004 created [Joost VandeVondele]
 !> \note
 !>      for each init_timer_env there should be the symmetric call to
 !>      rm_timer_env
-!> \par History
-!>      02.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_timer_env(timer_env)
     TYPE(timer_env_type), OPTIONAL, POINTER  :: timer_env
@@ -85,6 +86,7 @@ MODULE timings
 
 ! *****************************************************************************
 !> \brief creates a new timer env
+!> \param timer_env ...
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE timer_env_create(timer_env) 
@@ -105,11 +107,11 @@ MODULE timings
 
 ! *****************************************************************************
 !> \brief removes the current timer env from the stack
+!> \par History
+!>      02.2004 created [Joost VandeVondele]
 !> \note
 !>      for each rm_timer_env there should have been the symmetric call to
 !>      add_timer_env
-!> \par History
-!>      02.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE rm_timer_env()
     TYPE(timer_env_type), POINTER            :: timer_env
@@ -121,6 +123,7 @@ MODULE timings
 
 ! *****************************************************************************
 !> \brief returns the current timer env from the stack
+!> \retval timer_env ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION get_timer_env() RESULT(timer_env)
@@ -183,6 +186,8 @@ MODULE timings
 
 ! *****************************************************************************
 !> \brief Start timer
+!> \param routineN ...
+!> \param handle ...
 !> \par History
 !>      none
 !> \author JGH
@@ -255,6 +260,7 @@ MODULE timings
 
 ! *****************************************************************************
 !> \brief End timer
+!> \param handle ...
 !> \par History
 !>      none
 !> \author JGH
@@ -364,7 +370,7 @@ MODULE timings
 !> \param trace_str short info-string which is printed along with every message
 !> \param routine_names List of routine-names.
 !>                     If provided only these routines will be traced.
-!.                      If not present all routines will traced.
+!>                     If not present all routines will traced.
 !> \par History
 !>       12.2012  added ability to trace only certain routines [ole]
 !> \author JGH
@@ -398,6 +404,7 @@ MODULE timings
 
 ! *****************************************************************************
 !> \brief Print current routine stack
+!> \param unit_nr ...
 !> \par History
 !>      none
 !> \author JGH
@@ -423,6 +430,8 @@ MODULE timings
 !> \brief Internal routine used by timestet and timings_setup_tracing.
 !>        If no routine with given name is found in timer_env%routine_names
 !>        then a new entiry is created.
+!> \param routineN ...
+!> \retval routine_id ...
 !> \author Ole Schuett
 ! *****************************************************************************
  FUNCTION routine_name2id(routineN) RESULT(routine_id)

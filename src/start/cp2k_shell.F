@@ -467,6 +467,11 @@ PROGRAM cp2k_shell
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param tst ...
+!> \param msg ...
+!> \param failure ...
+! *****************************************************************************
   SUBROUTINE my_assert(tst,msg,failure)
     LOGICAL, INTENT(in)                      :: tst
     CHARACTER(LEN=*), INTENT(in)             :: msg
@@ -481,6 +486,12 @@ CONTAINS
     END IF
   END SUBROUTINE my_assert
 
+! *****************************************************************************
+!> \brief ...
+!> \param str ...
+!> \param startI ...
+!> \param default_val ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION parse_env_id(str,startI,default_val) RESULT(res)
     CHARACTER(LEN=*), INTENT(in)             :: str
@@ -505,6 +516,10 @@ CONTAINS
   END FUNCTION parse_env_id
 
 ! *****************************************************************************
+!> \brief ...
+!> \param str ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION ll(str) RESULT(res)
     CHARACTER(LEN=*), INTENT(in)             :: str
     CHARACTER(LEN=default_string_length)     :: res
@@ -512,6 +527,9 @@ CONTAINS
     res=str
   END FUNCTION
 
+! *****************************************************************************
+!> \brief ...
+!> \param unit ...
 ! *****************************************************************************
  SUBROUTINE print_v_info(unit)
     INTEGER, INTENT(in)                      :: unit
@@ -555,6 +573,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns the number returned by iostat on eof
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION get_eof_stat() RESULT(res)
     INTEGER                                  :: res

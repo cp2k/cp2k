@@ -60,6 +60,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
 !> \param section will contain the coeff section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -145,6 +146,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
 !> \param section will contain the coeff section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -231,6 +233,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
 !> \param section will contain the coeff section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -333,6 +336,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates print section for thermostat section
+!> \param section ...
+!> \param error ...
 !> \author teo [tlaino] - University of Zurich - 02.2008
 ! *****************************************************************************
   SUBROUTINE create_print_section(section, error)
@@ -382,6 +387,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a section to arbitrary define a region to thermostat
 !> \param section will contain the coeff section
+!> \param label ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -453,7 +459,9 @@ CONTAINS
   END SUBROUTINE create_region_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the ewald section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author gloria
@@ -533,6 +541,9 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
 !> \param
 !> \author
 ! *****************************************************************************
@@ -648,7 +659,9 @@ CONTAINS
   END SUBROUTINE create_gles_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the ewald section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -698,6 +711,7 @@ CONTAINS
   END SUBROUTINE create_csvr_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the adaptive langevin section 
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
@@ -761,6 +775,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the thermostat chi restarting section
 !> \param section the section to create
+!> \param sec_name ...
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 !> \author teo
@@ -836,6 +851,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the mass section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -873,6 +889,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the mass section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -910,6 +927,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the velocity section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -947,6 +965,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the coord section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo

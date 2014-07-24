@@ -71,6 +71,11 @@ MODULE kg_environment_types
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param kg_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE kg_env_release(kg_env, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error

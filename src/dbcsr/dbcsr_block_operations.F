@@ -196,6 +196,7 @@ CONTAINS
 !> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
 !> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_block_transpose_aa (dst, src, &
        row_size, col_size, lb, source_lb, scale, lb2, source_lb2, error)
@@ -357,15 +358,17 @@ CONTAINS
 !> \brief Scale a data area.
 !>
 !> There are no checks done for correctness!
-!> \param[in] src        source data area
+!> \param dst ...
+!> \param[in] scale      (optional) scale data
 !> \param[in] row_size   row size of existing block
 !> \param[in] col_size   column size of existing block
 !> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
-!> \param[in] source_lb  (optional) lower bound of source
-!> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
+!> \param[in] source_lb  (optional) lower bound of source UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] src        source data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -444,15 +447,17 @@ CONTAINS
 !> \brief Negates the real part of a block
 !>
 !> There are no checks done for correctness!
-!> \param[in] src        source data area
+!> \param dst ...
 !> \param[in] row_size   row size of existing block
 !> \param[in] col_size   column size of existing block
 !> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
-!> \param[in] source_lb  (optional) lower bound of source
-!> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
+!> \param[in] scale      (optional) scale data UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] source_lb  (optional) lower bound of source UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] src        source data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -539,15 +544,17 @@ CONTAINS
 !> \brief Conjugate a data area.
 !>
 !> There are no checks done for correctness!
-!> \param[in] src        source data area
+!> \param dst ...
 !> \param[in] row_size   row size of existing block
 !> \param[in] col_size   column size of existing block
 !> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
-!> \param[in] source_lb  (optional) lower bound of source
-!> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
+!> \param[in] scale      (optional) scale data UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] source_lb  (optional) lower bound of source UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] src        source data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -625,6 +632,7 @@ CONTAINS
 !> \param[in] area       encapsulated data area
 !> \param[in] row_size   number of rows in existing block
 !> \param[in] col_size   number of columns in existing block
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_block_transpose_a (area, row_size, col_size, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1072,6 +1080,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Clears a data area, possibly transposed.
+!> \param area ...
+!> \param lb ...
+!> \param ub ...
+!> \param value ...
+!> \param lb2 ...
+!> \param ub2 ...
+!> \param tr ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_clear_nt (area, lb, ub, value, lb2, ub2, tr)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1096,9 +1111,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Clears a data area
 !> \param[in,out] area   area with encapsulated data
-!> \param[in] lb, lb2    (optional) lower bound for clearing
-!> \param[in] ub, ub2    (optional) upper bound for clearing
+!> \param lb ...
+!> \param ub ...
 !> \param[in] value      (optional) value to use for clearing
+!> \param lb2 ...
+!> \param ub2 ...
+!> \param[in] lb, lb2    (optional) lower bound for clearing UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] ub, ub2    (optional) upper bound for clearing UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_clear0 (area, lb, ub, value, lb2, ub2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1347,11 +1366,12 @@ CONTAINS
 !> \param[in] dst_r_lb   first row in target
 !> \param[in] dst_c_lb   first column in target
 !> \param[in] src_r_lb   first_row in source
-!> \param[in] src_r_lb   first column in target
+!> \param src_c_lb ...
 !> \param[in] nrow       number of rows to copy
 !> \param[in] ncol       number of columns to copy
 !> \param[in] dst_offset offset in target
 !> \param[in] src_offset offset in source
+!> \param[in] src_r_lb   first column in target UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE block_partial_copy_a(dst, dst_rs, dst_cs, dst_tr,&
        src, src_rs, src_cs, src_tr,&
@@ -1499,12 +1519,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sets the diagonal of a square data block
-!> \par Off-diagonal values
-!>      Other values are untouched.
 !> \param[in,out] block_data  sets the diagonal of this data block
 !> \param[in] diagonal        set diagonal of block_data to these values
 !> \param[in] d               block size
 !> \param[in] error           error
+!> \par Off-diagonal values
+!>      Other values are untouched.
 ! *****************************************************************************
   SUBROUTINE set_block2d_diagonal_a (block_data, diagonal, d, &
        error)
@@ -1624,6 +1644,9 @@ CONTAINS
 !> \param[in] alpha_scalar     Adds this value to the diagonal elements of the
 !>                             block
 !> \param[in] block_dimension  Dimension of the block
+!> \param imin ...
+!> \param imax ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE block_add_on_diag_anytype (block_a, alpha_scalar, block_dimension,&
        imin, imax, error)
@@ -1676,6 +1699,7 @@ CONTAINS
 !> \brief Adds two blocks
 !> \param[in,out] block_a      Block to add to
 !> \param[in] block_b          Block to add to block_a
+!> \param len ...
 !> \param[inout] error         error
 ! *****************************************************************************
   SUBROUTINE block_add_anytype (block_a, block_b, len, error)
@@ -1736,8 +1760,8 @@ CONTAINS
 !> \brief Calculates frobenious norm of a block
 !>
 !> \param[in] area       encapsulated data area
+!> \param norm single-precision real frobenius norm
 !> \param[in,out] error  error
-!> \result norm     single-precision real frobenius norm
 ! *****************************************************************************
   SUBROUTINE block_norm_frob_anytype_s (area, norm, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1777,6 +1801,12 @@ CONTAINS
     IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE block_norm_frob_anytype_s
 
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_s_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     REAL(KIND=real_4), DIMENSION(m), &
@@ -1788,6 +1818,12 @@ CONTAINS
 
     norm = SQRT (REAL (SUM (blk**2), KIND=real_4))
   END SUBROUTINE block_norm_frob_s_s
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_d_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     REAL(KIND=real_8), DIMENSION(m), &
@@ -1799,6 +1835,12 @@ CONTAINS
 
     norm = SQRT (REAL (SUM (blk**2), KIND=real_4))
   END SUBROUTINE block_norm_frob_d_s
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_c_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     COMPLEX(KIND=real_4), DIMENSION(m), &
@@ -1810,6 +1852,12 @@ CONTAINS
 
     norm = SQRT (REAL (SUM (CONJG(blk) * blk), KIND=real_4))
   END SUBROUTINE block_norm_frob_c_s
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_z_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     COMPLEX(KIND=real_8), DIMENSION(m), &

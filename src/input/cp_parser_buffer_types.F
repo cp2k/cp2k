@@ -41,8 +41,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief  Creates the parser buffer type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param buffer ...
+!> \param error ...
 !> \date   08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE create_buffer_type(buffer, error)
     TYPE(buffer_type), POINTER               :: buffer
@@ -73,8 +75,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief  Releases the parser buffer type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param buffer ...
+!> \param error ...
 !> \date   08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   RECURSIVE SUBROUTINE release_buffer_type(buffer, error)
     TYPE(buffer_type), POINTER               :: buffer
@@ -101,8 +105,12 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief  Copies  buffer types
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param buffer_in ...
+!> \param buffer_out ...
+!> \param force ...
+!> \param error ...
 !> \date   08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   RECURSIVE SUBROUTINE copy_buffer_type(buffer_in, buffer_out, force, error)
     TYPE(buffer_type), POINTER               :: buffer_in, buffer_out
@@ -141,8 +149,11 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief  Initializes sub buffer structure
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sub_buffer ...
+!> \param buffer ...
+!> \param error ...
 !> \date   08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE initialize_sub_buffer(sub_buffer, buffer, error)
     TYPE(buffer_type), POINTER               :: sub_buffer, buffer
@@ -164,8 +175,11 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief  Finalizes sub buffer structure
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sub_buffer ...
+!> \param buffer ...
+!> \param error ...
 !> \date   08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE finalize_sub_buffer(sub_buffer, buffer, error)
     TYPE(buffer_type), POINTER               :: sub_buffer, buffer

@@ -29,6 +29,10 @@ MODULE header
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+!> \param wdir ...
+! *****************************************************************************
   SUBROUTINE cp2k_header(iw,wdir)
     INTEGER, INTENT(IN)                      :: iw
     CHARACTER(LEN=default_path_length), &
@@ -55,6 +59,10 @@ CONTAINS
   END SUBROUTINE cp2k_header
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+!> \param wdir ...
+! *****************************************************************************
   SUBROUTINE cp2k_footer(iw,wdir)
     INTEGER, INTENT(IN)                      :: iw
     CHARACTER(LEN=default_path_length), &
@@ -80,6 +88,9 @@ CONTAINS
   END SUBROUTINE cp2k_footer
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+! *****************************************************************************
   SUBROUTINE qmmm_header(iw)
     INTEGER, INTENT(in)                      :: iw
 
@@ -103,6 +114,9 @@ CONTAINS
   END SUBROUTINE qmmm_header
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+! *****************************************************************************
   SUBROUTINE tddfpt_header(iw)
     INTEGER, INTENT(in)                      :: iw
 
@@ -125,6 +139,9 @@ CONTAINS
 
   END SUBROUTINE tddfpt_header
 
+! *****************************************************************************
+!> \brief ...
+!> \param iw ...
 ! *****************************************************************************
   SUBROUTINE fist_header(iw)
     INTEGER, INTENT(in)                      :: iw
@@ -152,6 +169,9 @@ CONTAINS
   END SUBROUTINE fist_header
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+! *****************************************************************************
   SUBROUTINE dftb_header(iw)
     INTEGER, INTENT(in)                      :: iw
 
@@ -171,6 +191,9 @@ CONTAINS
          '                                                          '
   END SUBROUTINE dftb_header
 
+! *****************************************************************************
+!> \brief ...
+!> \param iw ...
 ! *****************************************************************************
   SUBROUTINE scptb_header(iw)
     INTEGER, INTENT(in)                      :: iw
@@ -192,6 +215,9 @@ CONTAINS
   END SUBROUTINE scptb_header
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+! *****************************************************************************
   SUBROUTINE se_header(iw)
     INTEGER, INTENT(in)                      :: iw
 
@@ -212,6 +238,9 @@ CONTAINS
 
   END SUBROUTINE se_header
 
+! *****************************************************************************
+!> \brief ...
+!> \param iw ...
 ! *****************************************************************************
   SUBROUTINE qs_header(iw)
     INTEGER, INTENT(IN)                      :: iw
@@ -239,6 +268,9 @@ CONTAINS
   END SUBROUTINE qs_header
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+! *****************************************************************************
   SUBROUTINE atom_header(iw)
     INTEGER, INTENT(IN)                      :: iw
 
@@ -258,6 +290,9 @@ CONTAINS
   END SUBROUTINE atom_header
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+! *****************************************************************************
   SUBROUTINE atom_footer(iw)
     INTEGER, INTENT(IN)                      :: iw
 
@@ -273,6 +308,12 @@ CONTAINS
 
   END SUBROUTINE atom_footer
 
+! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+!> \param ni ...
+!> \param nr ...
+!> \param np ...
 ! *****************************************************************************
   SUBROUTINE band_header(iw, ni, nr, np)
     INTEGER, INTENT(IN)                      :: iw, ni, nr, np
@@ -298,6 +339,11 @@ CONTAINS
 
   END SUBROUTINE band_header
 
+! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+!> \param nr ...
+!> \param np ...
 ! *****************************************************************************
   SUBROUTINE vib_header(iw, nr, np)
     INTEGER, INTENT(IN)                      :: iw, nr, np
@@ -330,6 +376,9 @@ CONTAINS
   END SUBROUTINE vib_header
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iw ...
+! *****************************************************************************
   SUBROUTINE tmc_header(iw)
     INTEGER, INTENT(IN)                      :: iw
 
@@ -349,6 +398,9 @@ CONTAINS
          "*******************************************************************************"
   END SUBROUTINE tmc_header
 
+! *****************************************************************************
+!> \brief ...
+!> \param iw ...
 ! *****************************************************************************
   SUBROUTINE tmc_ana_header(iw)
     INTEGER, INTENT(IN)                      :: iw

@@ -67,6 +67,11 @@ MODULE pint_io
   !> \author Lukasz Walewski
   !> \date   2009-07-10
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param line ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_write_line(line,error)
 
     CHARACTER(len=*), INTENT(IN)             :: line
@@ -100,6 +105,11 @@ MODULE pint_io
   !>      2010-11-25 rewritten, added support for velocity printing,
   !>                 calc of the stddev of the beads turned off [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -269,6 +279,11 @@ MODULE pint_io
   !> \par    History
   !>         2010-11-25 added support for velocity printing [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_write_trajectory(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -434,6 +449,11 @@ MODULE pint_io
   !> \author Lukasz Walewski
   !> \date   2010-02-17
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_write_com( pint_env, error )
 
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -511,6 +531,11 @@ MODULE pint_io
   !>           various bug fixes [hforbert]
   !>           2009-11-16 energy components calc moved out of here [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_write_ener(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -600,6 +625,11 @@ MODULE pint_io
   !> \par History
   !>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_write_step_info( pint_env, error )
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -662,6 +692,11 @@ MODULE pint_io
   !> \author Lukasz Walewski
   !> \date   2011-01-07
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE pint_write_rgyr( pint_env, error )
 
     TYPE(pint_env_type), POINTER             :: pint_env

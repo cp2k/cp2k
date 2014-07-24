@@ -476,6 +476,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 !> \param mc_par the mc parameters for the force env
 !> \param move_updates holds the accepted/attempted moves since the last
 !>              update (or start of simulation)
+!> \param molecule_type ...
 !> \param flag indicates which displacements to update..."volume" is for
 !>              volume moves and "trans" is for everything else
 !> \param nnstep how many steps the simulation has run

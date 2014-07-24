@@ -108,10 +108,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a pool for pw
-!> \param pw_pool the pool to create
+!> \param pool ...
 !> \param pw_grid the grid that is used to create the pw
+!> \param max_cache ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param pw_pool the pool to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -326,11 +328,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief tries to pop an element from the given list (no error on failure)
 !> \param list the list to pop
-!> \note
-!>      private function
+!> \param error ...
+!> \retval res ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      private function
 ! *****************************************************************************
   FUNCTION try_pop(list,error) RESULT(res)
     TYPE(cp_sll_pw_type), POINTER            :: list
@@ -606,9 +610,10 @@ CPSourceFileRef,&
 !> \brief returns a 3d real array of coefficents as the one used by pw with
 !>      REALDATA3D, allocating it if none is present in the pool
 !> \param pw_pool the pool that caches the cr3d
-!> \param cr 3d: the pointer that will contain the array
+!> \param cr3d ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cr 3d: the pointer that will contain the array UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -671,11 +676,12 @@ END SUBROUTINE pw_pool_create_cr3d
 !> \brief returns a 3d real array of coefficents as the one used by pw with
 !>      REALDATA3D, allocating it if none is present in the pool
 !> \param pw_pool the pool that caches the cr3d
-!> \param cr 3d: the pointer that will contain the array
+!> \param cr3d ...
 !> \param accept_non_compatible if true deallocates the non compatible
 !>        arrays passed in, if false (the default) stops with an error
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param cr 3d: the pointer that will contain the array UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -754,6 +760,7 @@ END SUBROUTINE pw_pool_give_back_cr3d
 !> \param pws the multigrid of coefficent you want to initialize
 !> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
 !>        REALDATA3D, COMPLEXDATA3D
+!> \param in_space ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -826,10 +833,12 @@ END SUBROUTINE pw_pools_give_back_pws
 
 ! *****************************************************************************
 !> \brief copies a multigrid pool, the underlying pools are shared
-!> \param source_pool the pool to copy
-!> \param target_pool will hold the copy of the pool
+!> \param source_pools ...
+!> \param target_pools ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param source_pool the pool to copy UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param target_pool will hold the copy of the pool UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -925,6 +934,8 @@ END SUBROUTINE pw_pools_flush_cache
 
 ! *****************************************************************************
 !> \brief writes the actual contents of the pw_pool
+!> \param pw_pool ...
+!> \param unit_nr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

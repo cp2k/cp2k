@@ -467,8 +467,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the machine abstraction library
-!> \var ma_env            The parallel environment
-!> \var num_threads       The number of threads of each process
+!> \param core ...
+!> \param node ...
+!> \retval istat ...
 ! *****************************************************************************
   FUNCTION ma_init_machine(core,node) RESULT(istat)
     INTEGER                                  :: core, node, istat
@@ -503,6 +504,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Count the number of machines used in an execution
+!> \param group ...
+!> \retval nmachines ...
 ! *****************************************************************************
   FUNCTION ma_get_nmachines (group) RESULT (nmachines)
     INTEGER                                  :: group
@@ -551,6 +554,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the first core where a MPI process is running
+!> \retval core ...
 ! *****************************************************************************
   FUNCTION ma_my_first_core() RESULT (core)
     INTEGER                                  :: core
@@ -564,6 +568,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the process ID
+!> \retval pid ...
 ! *****************************************************************************
 FUNCTION ma_get_id() RESULT (pid)
     INTEGER                                  :: pid
@@ -573,7 +578,7 @@ END FUNCTION ma_get_id
 
 ! *****************************************************************************
 !> \brief Prints in text format the machine abstraction - only one branch
-!> \var unit_num the output console
+!> \param unit_num the output console 
 ! *****************************************************************************
   SUBROUTINE ma_show_machine_branch(unit_num)
   INTEGER :: unit_num
@@ -587,7 +592,7 @@ END FUNCTION ma_get_id
 
 ! *****************************************************************************
 !> \brief Prints in text format the machine abstraction - the full machine node
-!> \var unit_num the output console
+!> \param unit_num the output console 
 ! *****************************************************************************
    SUBROUTINE ma_show_machine_full(unit_num)
    INTEGER :: unit_num
@@ -602,6 +607,9 @@ END FUNCTION ma_get_id
 ! *****************************************************************************
 ! Functions to extract the machine information
 ! *****************************************************************************
+!> \brief ...
+!> \retval core ...
+! *****************************************************************************
   FUNCTION ma_get_mycore() RESULT (core)
     INTEGER                                  :: core
 
@@ -614,6 +622,10 @@ END FUNCTION ma_get_id
 #endif
   END FUNCTION ma_get_mycore
 
+! *****************************************************************************
+!> \brief ...
+!> \retval node ...
+! *****************************************************************************
   FUNCTION ma_get_mynode() RESULT (node)
     INTEGER                                  :: node
 
@@ -626,6 +638,11 @@ END FUNCTION ma_get_id
 #endif
   END FUNCTION ma_get_mynode
 
+! *****************************************************************************
+!> \brief ...
+!> \param flag ...
+!> \retval core ...
+! *****************************************************************************
   FUNCTION ma_get_proc_core(flag) RESULT (core)
     INTEGER                                  :: flag, core
 
@@ -638,6 +655,10 @@ END FUNCTION ma_get_id
 #endif
   END FUNCTION ma_get_proc_core
 
+! *****************************************************************************
+!> \brief ...
+!> \retval node ...
+! *****************************************************************************
   FUNCTION ma_get_proc_node() RESULT (node)
     INTEGER                                  :: node
 
@@ -650,6 +671,10 @@ END FUNCTION ma_get_id
 #endif
   END FUNCTION ma_get_proc_node
 
+! *****************************************************************************
+!> \brief ...
+!> \param node ...
+! *****************************************************************************
 SUBROUTINE ma_set_proc_node(node)
     INTEGER                                  :: node
 #if defined (__HWLOC) && !defined (__LIBNUMA)
@@ -660,42 +685,70 @@ SUBROUTINE ma_set_proc_node(node)
 #endif
   END SUBROUTINE ma_set_proc_node
 
+! *****************************************************************************
+!> \brief ...
+!> \retval nnodes ...
+! *****************************************************************************
   FUNCTION ma_get_nnodes() RESULT (nnodes)
     INTEGER                                  :: nnodes
 
      nnodes = topology%nnodes
   END FUNCTION ma_get_nnodes
 
+! *****************************************************************************
+!> \brief ...
+!> \retval nsockets ...
+! *****************************************************************************
   FUNCTION ma_get_nsockets() RESULT (nsockets)
     INTEGER                                  :: nsockets
 
      nsockets = topology%nsockets
   END FUNCTION ma_get_nsockets
 
+! *****************************************************************************
+!> \brief ...
+!> \retval ncores ...
+! *****************************************************************************
   FUNCTION ma_get_ncores() RESULT (ncores)
     INTEGER                                  :: ncores
 
      ncores = topology%ncores
   END FUNCTION ma_get_ncores
 
+! *****************************************************************************
+!> \brief ...
+!> \retval ncaches ...
+! *****************************************************************************
   FUNCTION ma_get_ncaches() RESULT (ncaches)
     INTEGER                                  :: ncaches
 
      ncaches = topology%ncaches
   END FUNCTION ma_get_ncaches
 
+! *****************************************************************************
+!> \brief ...
+!> \retval nshared_caches ...
+! *****************************************************************************
   FUNCTION ma_get_nshared_caches() RESULT (nshared_caches)
     INTEGER                                  :: nshared_caches
 
      nshared_caches = topology%nshared_caches
   END FUNCTION ma_get_nshared_caches
 
+! *****************************************************************************
+!> \brief ...
+!> \retval nsiblings ...
+! *****************************************************************************
   FUNCTION ma_get_nsiblings() RESULT (nsiblings)
     INTEGER                                  :: nsiblings
 
      nsiblings = topology%nsiblings
   END FUNCTION ma_get_nsiblings
 
+! *****************************************************************************
+!> \brief ...
+!> \retval netcards ...
+! *****************************************************************************
   FUNCTION ma_get_nnet_cards() RESULT (netcards)
     INTEGER                                  :: netcards
 
@@ -704,7 +757,7 @@ SUBROUTINE ma_set_proc_node(node)
 
 ! *****************************************************************************
 !> \brief Prints in text format the machine abstraction - the full machine node
-!> \var unit_num the output console
+!> \param unit_num the output console 
 ! *****************************************************************************
   SUBROUTINE ma_show_topology (unit_num)
     INTEGER                                  :: unit_num

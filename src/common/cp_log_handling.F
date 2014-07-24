@@ -169,8 +169,10 @@ MODULE cp_log_handling
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
 !> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_default_logger_stack_size() RESULT(res)
@@ -185,10 +187,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief adds a default logger.
 !>      MUST be called before logging occours
+!> \param logger ...
+!> \author Fawzi Mohamed
 !> \note
 !>      increments a stack of default loggers the latest one will be
 !>      available within the program
-!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cp_add_default_logger(logger)
     TYPE(cp_logger_type), POINTER            :: logger
@@ -229,11 +232,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns the default logger
-!> \note
-!>      initializes the default loggers if necessary
+!> \retval res ...
 !> \par History
 !>      4.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      initializes the default loggers if necessary
 ! *****************************************************************************
   FUNCTION cp_get_default_logger() RESULT(res)
     TYPE(cp_logger_type), POINTER            :: res
@@ -270,17 +274,18 @@ CONTAINS
 !> \param close_global_unit_on_dealloc if the unit should be closed when the
 !>        logger is deallocated (defaults to true if a local_filename is given,
 !>        to false otherwise)
+!> \param iter_info ...
 !> \param close_local_unit_on_dealloc if the unit should be closed when the
 !>        logger is deallocated (defaults to true)
 !> \param suffix the suffix that should be added to all the generated filenames
 !> \param template_logger a logger from where to take the unspecified things
+!> \par History
+!>      4.2002 created [fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      the handling of *_filename, default_*_unit_nr, close_*_unit_on_dealloc
 !>      tries to take the right decision with different inputs, and thus is a
 !>      little complex.
-!> \par History
-!>      4.2002 created [fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cp_logger_create(logger, para_env,print_level,&
        default_global_unit_nr,default_local_unit_nr, global_filename,&
@@ -411,7 +416,7 @@ CONTAINS
 !>      the logger)
 !> \param logger the logger to retain
 !> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -482,6 +487,7 @@ CONTAINS
 !> \param logger the logger you want to log in
 !> \param level describes the of the message: cp_fatal_level(3),
 !>     cp_failure_level(2), cp_warning_level(1), cp_note_level(0).
+!> \retval res ...
 !> \par History
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
@@ -511,6 +517,7 @@ CONTAINS
 !>     returns a global logger (only the process with para_env%mepos==
 !>     para_env%source should write to the global logger). Defaults to
 !>     false
+!> \retval res ...
 !> \par History
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
@@ -531,7 +538,8 @@ CONTAINS
 !> \param local if true returns a local logger (one per task), otherwise
 !>     returns a global logger (only the process with para_env%mepos==
 !>     para_env%source should write to the global logger). Defaults to
-!>     false
+!>     false UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval res ...
 !> \par History
 !>      12.2009 created [tlaino]
 !> \author Teodoro Laino
@@ -553,14 +561,14 @@ CONTAINS
 !> \param message is the message to print
 !> \param local if true this goes to the local logger, otherwise (the default)
 !>     it goes to the global logger (and only the master process writes it)
+!> \par History
+!>      4.2002 revised [fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      In multithreaded situations it should be modified to print also
 !>      the thread (and maybe the processor), and proper locking should be
 !>      performed.
 !>      At the moment it just goes to the default unit of the logger
-!> \par History
-!>      4.2002 revised [fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cp_logger_log(logger, level, fromWhere , message, local)
     TYPE(cp_logger_type), POINTER            :: logger
@@ -636,6 +644,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the logging level of the given logger.
 !> \param logger the logger you want info from
+!> \retval res ...
 !> \par History
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
@@ -662,6 +671,8 @@ CONTAINS
 !>      try to use cp_logger_get_unit_nr
 !> \param logger the logger you want info from
 !> \param local if you want the local unit nr (defaults to false)
+!> \param skip_not_ionode ...
+!> \retval res ...
 !> \par History
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
@@ -765,12 +776,12 @@ CONTAINS
 !> \brief releases the para object (to be called when you don't want anymore
 !>      the shared copy of this object)
 !> \param para_env the new group
-!> \note
-!>      local private version to avoid circular dependencies
-!>      (see cp_para_env:cp_para_env_release)!
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      local private version to avoid circular dependencies
+!>      (see cp_para_env:cp_para_env_release)!
 ! *****************************************************************************
   SUBROUTINE my_cp_para_env_release(para_env)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -799,18 +810,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief generates a unique filename (ie adding eventual suffixes and
 !>      process ids)
-!> \param result the resulting string
+!> \param logger ...
+!> \param res ...
 !> \param root the start of filename
 !> \param postfix the end of the name
 !> \param local if the name should be local to this task (defaults to false)
+!> \param result the resulting string UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      this should be a function returning a variable length string.
 !>      All spaces are moved to the end of the string.
 !>      Not fully optimized: result must be a littel longer than the
 !>      resulting compressed filename
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE cp_logger_generate_filename(logger,res, root, postfix,&
        local)
@@ -871,6 +884,7 @@ CONTAINS
 !>      (should be a variable length string, but that does not work with
 !>      all the compilers)
 !> \param i the integer to convert
+!> \retval res ...
 !> \par History
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
@@ -901,6 +915,7 @@ CONTAINS
 !>      (should be a variable length string, but that does not work with
 !>      all the compilers)
 !> \param val the number to convert
+!> \retval res ...
 !> \par History
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
@@ -915,6 +930,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief convert a logical in a string ('T' or 'F')
 !> \param val the number to convert
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_logical_to_string(val) RESULT(res)

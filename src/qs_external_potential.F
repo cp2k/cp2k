@@ -52,8 +52,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Computes the external potential on the grid
-!> \author Teodoro Laino [tlaino]
+!> \param qs_env ...
+!> \param error ...
 !> \date   12.2009
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE external_e_potential(qs_env,error)
 
@@ -109,8 +111,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Computes the force and the energy due to the external potential on the cores
-!> \author Teodoro Laino [tlaino]
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \date   12.2009
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE external_c_potential(qs_env,calculate_forces,error)
 
@@ -182,8 +187,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Low level function for computing the potential and the derivatives
-!> \author Teodoro Laino [tlaino]
+!> \param r ...
+!> \param ext_pot_section ...
+!> \param func ...
+!> \param dfunc ...
+!> \param calc_derivatives ...
+!> \param error ...
 !> \date   12.2009
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE get_external_potential(r, ext_pot_section, func, dfunc, calc_derivatives, error)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r

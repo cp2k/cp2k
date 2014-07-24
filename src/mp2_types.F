@@ -161,6 +161,11 @@ MODULE mp2_types
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE mp2_env_release(mp2_env,error)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -189,6 +194,11 @@ CONTAINS
 
   END SUBROUTINE mp2_env_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE mp2_env_create(mp2_env,error)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_error_type), INTENT(inout)       :: error

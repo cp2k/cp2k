@@ -169,7 +169,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief add a certain element to the specified element list at the beginning
 !> \param elem the sub tree element, to be added
-!> \param list 
+!> \param list  ...
+!> \param temp_ind ...
+!> \param nr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
@@ -219,7 +221,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief clean a certain element element list 
-!> \param list 
+!> \param list  ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
@@ -244,9 +246,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief prints out the TMC sub tree structure element unformated in file 
-!> \param 
+!> \param elem ...
+!> \param io_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE write_subtree_elem_unformated(elem, io_unit, error)
@@ -281,9 +285,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief reads the TMC sub tree structure element unformated in file 
-!> \param 
+!> \param elem ...
+!> \param io_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE read_subtree_elem_unformated(elem, io_unit, error)
@@ -316,6 +322,12 @@ CONTAINS
     CALL read_subtree_elem_darray(elem%dipole, io_unit, error)
   END SUBROUTINE read_subtree_elem_unformated
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param io_unit ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE write_subtree_elem_darray(array, io_unit, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     INTEGER                                  :: io_unit
@@ -331,6 +343,12 @@ CONTAINS
     END IF
   END SUBROUTINE write_subtree_elem_darray
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param io_unit ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE read_subtree_elem_darray(array, io_unit, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     INTEGER                                  :: io_unit

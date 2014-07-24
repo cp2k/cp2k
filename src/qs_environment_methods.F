@@ -228,9 +228,9 @@ END SUBROUTINE qs_env_setup
 !>      Should be called after the atoms have moved and the new overlap
 !>      has been calculated.
 !> \param qs_env the environment to update
-!> \param para_env the mpi environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param para_env the mpi environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -358,6 +358,11 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
 END SUBROUTINE qs_env_update_s_mstruct
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE qs_create_task_list(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -638,6 +643,9 @@ END SUBROUTINE qs_env_rebuild_pw_env
 
 ! *****************************************************************************
 !> \brief finds if a given qs run needs to use nlcc
+!> \param nlcc ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE has_nlcc(nlcc,qs_env,error)
 
@@ -677,14 +685,14 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !>        Defaults to false.
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      needs updated  pw pools, s_mstruct and h.
 !>      The use of p to keep the structure of h (needed for the forces)
 !>      is ugly and should be removed.
 !>      If necessary rho is created from scratch.
-!> \par History
-!>      10.2002 created [fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     TYPE(qs_environment_type), POINTER       :: qs_env

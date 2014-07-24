@@ -50,13 +50,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Build a table of F_n(t) values in the range tmin <= t <= tmax
 !>          with a stepsize of tdelta up to n equal to nmax.
-!> \author  MK
+!> \param nmax ...
+!> \param tmin ...
+!> \param tmax ...
+!> \param tdelta ...
 !> \date    11.01.1999
 !> \par Parameters
 !>       - nmax  : Maximum n value of F_n(t).
 !>       - tdelta: Difference between two consecutive t abcissas (step size).
 !>       - tmax  : Maximum t value.
 !>       - tmin  : Minimum t value.
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE create_md_ftable(nmax,tmin,tmax,tdelta)
@@ -119,8 +123,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate the table of F_n(t) values.
-!> \author  MK
 !> \date    24.05.2004
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_md_ftable()
@@ -147,7 +151,9 @@ CONTAINS
 !> \brief   Calculation of the incomplete Gamma function F(t) for multicenter
 !>          integrals over Gaussian functions. f returns a vector with all
 !>          F_n(t) values for 0 <= n <= nmax.
-!> \author  MK
+!> \param nmax ...
+!> \param t ...
+!> \param f ...
 !> \date    08.01.1999,
 !> \par History
 !>          09.06.1999, MK : Changed from a FUNCTION to a SUBROUTINE
@@ -159,6 +165,7 @@ CONTAINS
 !>       - t   : Argument of the incomplete Gamma function.
 !>       - kmax: Maximum number of iterations.
 !>       - expt: Exponential term in the upward recursion of F_n(t).
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE fgamma_0(nmax,t,f)
@@ -277,7 +284,9 @@ CONTAINS
 !> \brief   Calculation of the incomplete Gamma function F(t) for multicenter
 !>          integrals over Gaussian functions. f returns a vector with all
 !>          F_n(t) values for 0 <= n <= nmax.
-!> \author  MK
+!> \param nmax ...
+!> \param t ...
+!> \param f ...
 !> \date    08.01.1999
 !> \par Literature
 !>       L. E. McMurchie, E. R. Davidson, J. Comp. Phys. 26, 218 (1978)
@@ -285,6 +294,7 @@ CONTAINS
 !>       - f   : The incomplete Gamma function F_n(t).
 !>       - nmax: Maximum n value of F_n(t).
 !>       - t   : Argument of the incomplete Gamma function.
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE fgamma_1(nmax,t,f)
@@ -412,7 +422,9 @@ CONTAINS
 !>          for any combination of n and t, but the calculation is slow
 !>          and therefore the function may only be used for a pretabulation
 !>          of F_n(t) values or for reference calculations.
-!> \author  MK
+!> \param nmax ...
+!> \param t ...
+!> \retval f ...
 !> \date    07.01.1999
 !> \par Literature
 !>        F. E. Harris, Int. J. Quant. Chem. 23, 1469 (1983)
@@ -424,6 +436,7 @@ CONTAINS
 !>       - r      : Quotients of the Bessel functions.
 !>       - sumterm: One term in the sum over products of Bessel functions.
 !>       - t      : Argument of the incomplete Gamma function.
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION fgamma_ref(nmax,t) RESULT(f)
@@ -538,12 +551,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Initalize a table of F_n(t) values in the range 0 <= t <= 12 with
-!            a stepsize of 0.1 up to n equal to nmax for the Taylor series
-!            expansion used by McMurchie-Davidson (MD).
-!> \author  MK
+!>            a stepsize of 0.1 up to n equal to nmax for the Taylor series
+!>            expansion used by McMurchie-Davidson (MD).
+!> \param nmax ...
 !> \date    10.06.1999
 !> \par Parameters
 !>       - nmax   : Maximum n value of F_n(t).
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_md_ftable(nmax)

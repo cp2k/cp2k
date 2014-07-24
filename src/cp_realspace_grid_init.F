@@ -32,12 +32,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief parses an input section to assign the proper values to the input type
+!> \param input_settings ...
+!> \param nsmax ...
+!> \param rs_grid_section ...
+!> \param ilevel ...
 !> \param higher_grid_layout the layout of a higher level grid. layouts with
 !>       negative or zero values are ignored
-!> \note
-!>      if rs_grid_section is not present we setup for an replicated setup
+!> \param error ...
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
+!> \note
+!>      if rs_grid_section is not present we setup for an replicated setup
 ! *****************************************************************************
   SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_grid_layout,error)
     TYPE(realspace_grid_input_type), &

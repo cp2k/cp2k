@@ -143,6 +143,7 @@ CONTAINS
 !> \param needs the flags corresponding to the inputs needed by this
 !>        functional are set to true (the flags not needed aren't touched)
 !> \param max_deriv the maximal derivative available
+!> \param ifunc_name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -383,10 +384,11 @@ END SUBROUTINE xc_functional_get_info
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is requested (but to simplify
 !>        the code all the derivatives might be calculated, you should ignore
-!> \param them when adding derivatives of various functionals they might contain
-!>        the derivative of just one functional)
+!> \param ifunc_name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param them when adding derivatives of various functionals they might contain
+!>        the derivative of just one functional) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi
@@ -620,6 +622,7 @@ CPSourceFileRef,&
 END SUBROUTINE xc_functional_eval
 
 ! *****************************************************************************
+!> \brief ...
 !> \param functionals a section containing the functional combination to be
 !>        applied
 !> \param lsd if a local spin desnity is performed
@@ -689,6 +692,7 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
 END SUBROUTINE xc_functionals_eval
 
 ! *****************************************************************************
+!> \brief ...
 !> \param functionals a section containing the functional combination to be
 !>        applied
 !> \param lsd if a local spin desnity is performed
@@ -697,6 +701,7 @@ END SUBROUTINE xc_functionals_eval
 !>        is true rho_spin is requested. Defaults to false.
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval needs ...
 !> \author fawzi
 ! *****************************************************************************
 FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&

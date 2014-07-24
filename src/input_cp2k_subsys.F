@@ -69,6 +69,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the cell section
+!> \param section ...
+!> \param periodic ...
+!> \param label ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -660,9 +663,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates structure data section for output.. both subsys  (for initialization)
 !>      and motion section..
-!> \param section the section to create
+!> \param print_key ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param section the section to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE create_structure_data_section(print_key,error)
     TYPE(section_type), POINTER              :: print_key
@@ -1497,8 +1501,10 @@ CONTAINS
 !> \brief      Create CP2K input section for BS method: imposing atomic orbital occupation
 !>             different from default in initialization of the density  matrix
 !>             it works only with GUESS ATOMIC
-!> \author     MI
+!> \param section ...
+!> \param error ...
 !> \date       05.08.2009
+!> \author     MI
 !> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_bs_section(section,error)
@@ -1895,6 +1901,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Setup a list of fine exclusion elements
 !> \param section the section to create
+!> \param header ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - 12.2009
@@ -2343,6 +2350,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specify keywords used to define connectivity
 !> \param section the section to create
+!> \param default ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -2404,8 +2412,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief      Create CP2K input section for the DFT+U method parameters
-!> \author     Matthias Krack (MK)
+!> \param section ...
+!> \param error ...
 !> \date       01.11.2007
+!> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_dft_plus_u_section(section,error)

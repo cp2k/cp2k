@@ -210,11 +210,11 @@ END SUBROUTINE p_env_retain
 !>        (defaults to false, i.e. global)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      remove all iostat checks??
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
+!> \note
+!>      remove all iostat checks??
 ! *****************************************************************************
    SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
     TYPE(qs_p_env_type), POINTER             :: p_env

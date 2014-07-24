@@ -66,17 +66,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Performs the harris functional energy correction
-!> \param rho The frozen input density, in general the sum of
-!>             the atomic densities
 !> \param qs_env The QS environment, on which the Harris
 !>                functional energy correction should be performed.
 !> \param harris_env The harris environment in which all results are stored
+!> \param para_env ...
 !> \param EII_necessary Logical flag which indicates if EII has to be
 !>                       computes or not
 !> \param fast Logical which prevents some minor double calculations if the
 !>              Harris functional is driven on top of the QS SCF-cycle.
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
+!> \param rho The frozen input density, in general the sum of
+!>             the atomic densities UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

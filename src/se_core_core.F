@@ -74,8 +74,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Evaluates the core-core interactions for NDDO methods
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \date 04.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE se_core_core_interaction(qs_env, para_env, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env

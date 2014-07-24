@@ -46,10 +46,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a Gaussian-type orbital (GTO) basis set data set.
-!> \author  MK
+!> \param grid_atom ...
+!> \param error ...
 !> \date    03.11.2000
-!> \version 1.0
+!> \author  MK
 !> \author Matthias Krack (MK)
+!> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_grid_atom(grid_atom,error)
 
@@ -89,8 +91,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a Gaussian-type orbital (GTO) basis set data set.
-!> \author  MK
+!> \param grid_atom ...
+!> \param error ...
 !> \date    03.11.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_grid_atom(grid_atom,error)
@@ -190,6 +194,14 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_grid_atom
 
+! *****************************************************************************
+!> \brief ...
+!> \param grid_atom ...
+!> \param nr ...
+!> \param na ...
+!> \param llmax ...
+!> \param ll ...
+!> \param quadrature ...
 ! *****************************************************************************
   SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,ll,quadrature)
 
@@ -291,13 +303,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Generate a radial grid with n points by a quadrature rule.
-!> \author  Matthias Krack
+!> \param n ...
+!> \param r ...
+!> \param r2 ...
+!> \param wr ...
+!> \param radial_quadrature ...
 !> \date    20.09.1999
 !> \par Literature
 !>           - A. D. Becke, J. Chem. Phys. 88, 2547 (1988)
 !>           - J. M. Perez-Jorda, A. D. Becke and E. San-Fabian,
 !>             J. Chem. Phys. 100, 6520 (1994)
 !>           - M. Krack and A. M. Koester, J. Chem. Phys. 108, 3226 (1998)
+!> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE radial_grid(n,r,r2,wr,radial_quadrature)

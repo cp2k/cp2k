@@ -252,12 +252,12 @@ CONTAINS
 !> \param sll the list to be deallocated
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      does not deallocate the elments that are stored in the list
-!>      check more?
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      does not deallocate the elments that are stored in the list
+!>      check more?
 ! *****************************************************************************
   SUBROUTINE cp_sll_rs_dealloc(sll,error)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -342,6 +342,7 @@ CONTAINS
 !> \param sll the single linked list to change
 !> \param first_el the first element of this list (can be unassociated)
 !> \param rest the rest of the list (can be unassociated)
+!> \param empty ...
 !> \param length the length of the list
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
@@ -384,6 +385,7 @@ CONTAINS
 !> \param sll the single linked list to get the element from
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -415,11 +417,12 @@ CONTAINS
 !>            defaults to 1; -1 means till end of the list.
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      split the case iter=1 to make it more optimized?
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      split the case iter=1 to make it more optimized?
 ! *****************************************************************************
   FUNCTION cp_sll_rs_get_rest(sll, iter, error) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -467,9 +470,11 @@ CPSourceFileRef,&
   END FUNCTION cp_sll_rs_get_rest
 
 ! *****************************************************************************
+!> \brief ...
 !> \param sll the single linked list to get the rest from
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -494,11 +499,12 @@ CPSourceFileRef,&
 !> \param sll the list you want to know the length of
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      slow (O(n))
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      slow (O(n))
 ! *****************************************************************************
   FUNCTION cp_sll_rs_get_length(sll,error) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -531,11 +537,12 @@ CPSourceFileRef,&
 !> \param index the position of the element (stating at 1)
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      slow (O(index))
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      slow (O(index))
 ! *****************************************************************************
   FUNCTION cp_sll_rs_get_el_at(sll,index,error) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -573,11 +580,11 @@ CPSourceFileRef,&
 !> \param value the new element
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      slow (O(index))
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      slow (O(index))
 ! *****************************************************************************
   SUBROUTINE cp_sll_rs_set_el_at(sll,index,value,error)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -610,9 +617,10 @@ CPSourceFileRef,&
 !> \brief returns true if the actual element is valid (i.e. iterator ont at end)
 !>      moves the iterator to the next element
 !> \param iterator iterator that moves along the list
+!> \param el_att the actual element (valid only if the function returns true)
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \param el_att the actual element (valid only if the function returns true)
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -649,11 +657,11 @@ CPSourceFileRef,&
 !> \param el the element to add
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      fast (O(1))
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      fast (O(1))
 ! *****************************************************************************
   SUBROUTINE cp_sll_rs_insert_el(sll,el,error)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -679,11 +687,11 @@ CPSourceFileRef,&
 !> \param sll the list whose first element has to be removed
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      fast (O(1))
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      fast (O(1))
 ! *****************************************************************************
   SUBROUTINE cp_sll_rs_rm_first_el(sll,error)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -712,16 +720,16 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief inserts the element at the given index
 !> \param sll the list you get the element from
+!> \param el the new element
 !> \param index the position of the element (stating at 1).
 !>             If it is -1, it means at end
-!> \param el the new element
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      slow (O(index))
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      slow (O(index))
 ! *****************************************************************************
   SUBROUTINE cp_sll_rs_insert_el_at(sll,el,index,error)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -756,14 +764,14 @@ CPSourceFileRef,&
 !> \brief removes the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
-!> \param el the new element
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      slow (O(index))
+!> \param el the new element UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      slow (O(index))
 ! *****************************************************************************
   SUBROUTINE cp_sll_rs_rm_el_at(sll,index,error)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -801,11 +809,11 @@ CPSourceFileRef,&
 !> \param sll the list that should be removed
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      check more?
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
+!> \note
+!>      check more?
 ! *****************************************************************************
   SUBROUTINE cp_sll_rs_rm_all_el(sll,error)
     TYPE(cp_sll_rs_type), POINTER            :: sll
@@ -835,6 +843,7 @@ CPSourceFileRef,&
 !> \param sll the list to trasform in array
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -873,6 +882,7 @@ END FUNCTION cp_sll_rs_to_array
 !> \param array the array you want to copy
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -987,6 +997,8 @@ END SUBROUTINE cp_sll_rs_insert_ordered
 !>        than the second, 0 if they are equal, otherwise a positive number
 !> \param insert_equals if equal elements should be inserted
 !>        (defaults to false)
+!> \param did_insert ...
+!> \param pos ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

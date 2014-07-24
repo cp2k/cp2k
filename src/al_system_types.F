@@ -53,6 +53,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize type for Adaptive Langevin (AD_LANGEVIN)
+!> \param al ...
+!> \param simpar ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Noam Bernstein [noamb] 02.2012
@@ -81,6 +84,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize NVT type for AD_LANGEVIN thermostat
+!> \param al ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Noam Bernstein [noamb]  02.2012
@@ -114,6 +118,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate type for AD_LANGEVIN thermostat
+!> \param al ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Noam Bernstein [noamb] 02.2012
@@ -140,6 +145,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate NVT type for AD_LANGEVIN thermostat
+!> \param nvt ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Noam Bernstein [noamb] 02.2012

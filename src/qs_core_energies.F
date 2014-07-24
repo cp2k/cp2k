@@ -64,12 +64,16 @@ CONTAINS
 !>          the core Hamiltonian matrix h and the density matrix p have the
 !>          same sparse matrix structure (same atomic blocks and block
 !>          ordering)
-!> \author  MK
+!> \param h ...
+!> \param p ...
+!> \param ecore ...
+!> \param error ...
 !> \date    03.05.2001
 !> \par History
 !>         - simplified taking advantage of new non-redundant matrix
 !>           structure (27.06.2003,MK)
 !>         - simplified using DBCSR trace function (21.07.2010, jhu)
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_ecore(h,p,ecore,error)
@@ -94,13 +98,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculate the overlap energy of the core charge distribution.
-!> \author  MK
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param molecular ...
+!> \param E_overlap_core ...
+!> \param error ...
 !> \date    30.04.2001
 !> \par History
 !>       - Force calculation added (03.06.2002,MK)
 !>       - Parallelized using a list of local atoms for rows and
 !>         columns (19.07.2003,MK)
 !>       - Use precomputed neighborlists (sab_core) and nl iterator (28.07.2010,jhu)
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_ecore_overlap(qs_env,para_env,calculate_forces,molecular, &
@@ -263,8 +273,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculate the self energy of the core charge distribution.
-!> \author  MK
+!> \param qs_env ...
+!> \param E_self_core ...
+!> \param error ...
 !> \date    27.04.2001
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_ecore_self(qs_env,E_self_core,error)

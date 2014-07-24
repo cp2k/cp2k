@@ -54,6 +54,7 @@ PUBLIC :: create_md_section
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the md section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -286,6 +287,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Defines LANGEVIN section
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -346,6 +348,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Defines print section for MD
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -706,6 +709,7 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the coeff section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -783,6 +787,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief section will contain some parameters for the shells dynamics
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -856,6 +861,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief section will contain some parameters for the adiabatic dynamics
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -939,6 +945,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief section will contain parameters for the velocity softening
+!> \param section ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE create_softening_section(section, error)
@@ -987,6 +995,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief input section used to define regions with different temperature
 !>        initialization and control
+!> \param section ...
+!> \param error ...
 !> \par History
 !>   - Added input for langevin regions in thermal regions section
 !>     (2014/02/04, LT)
@@ -1111,10 +1121,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Defines the parameters for the setup of a cascade simulation
+!> \param section ...
 !> \param   error variable to control error logging, stopping,...
 !>          see module cp_error_handling
-!> \author  Matthias Krack (MK)
 !> \date    03.02.2012
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE create_cascade_section(section,error)
@@ -1196,6 +1207,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Defines AVERAGES section
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -1258,6 +1270,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Defines the AVERAGES RESTART section
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo

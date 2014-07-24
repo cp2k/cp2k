@@ -27,8 +27,11 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief setup the integer listing type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param ilist ...
+!> \param token ...
+!> \param error ...
 !> \date  08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ilist_setup(ilist, token, error)
     TYPE(ilist_type), POINTER                :: ilist
@@ -59,8 +62,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief updates the integer listing type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param ilist ...
+!> \param error ...
 !> \date  08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ilist_update(ilist, error)
     TYPE(ilist_type), POINTER                :: ilist
@@ -81,8 +86,10 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief updates the integer listing type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param ilist ...
+!> \param error ...
 !> \date  08.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ilist_reset(ilist, error)
     TYPE(ilist_type), POINTER                :: ilist

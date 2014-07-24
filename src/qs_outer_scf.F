@@ -50,6 +50,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns the number of variables that is employed in the outer loop
+!> \param scf_control ...
+!> \param error ...
+!> \retval res ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -77,6 +80,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the gradient wrt to the outer loop variables
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -161,10 +167,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief optimizes the parameters of the outer_scf
-!> \note
-!>       ought to be general, and independent of the actual kind of variables
+!> \param scf_env ...
+!> \param scf_control ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
+!> \note
+!>       ought to be general, and independent of the actual kind of variables
 ! *****************************************************************************
   SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -285,6 +294,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief propagates the updated variables to wherever they need to be set in
 !>       qs_env
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -341,11 +353,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief uses the outer_scf_history to extrapolate new values for the variables
 !>       and updates their value in qs_env accordingly
+!> \param qs_env ...
+!> \param error ...
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
 !> \note
 !>       it assumes that the current value of qs_env still needs to be added to the history
 !>       simple multilinear extrapolation is employed
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE outer_loop_extrapolate(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env

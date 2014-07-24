@@ -168,6 +168,7 @@ CONTAINS
 !> \param[in]  matrix         DBCSR matrix
 !> \param[in]  row            row of block to remove
 !> \param[in]  col            column of block to remove
+!> \param block_nze ...
 !> \param[in]  block_number   (optional) the block number, if it is known
 ! *****************************************************************************
   SUBROUTINE dbcsr_remove_block(matrix, row, col, block_nze, block_number)
@@ -216,9 +217,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Gets a block from a dbcsr matrix as a data area
-!> \par Data area
-!>      The pointer encapsulated in the data area points to data stored in the
-!>      matrix. It must be 2-dimensional.
 !> \param[in]  matrix DBCSR matrix
 !> \param[in]  row    the row
 !> \param[in]  col    the column
@@ -227,6 +225,9 @@ CONTAINS
 !> \param[out] found  whether the block exists in the matrix
 !> \param[out] row_size      (optional) logical row size of block
 !> \param[out] col_size      (optional) logical column size of block
+!> \par Data area
+!>      The pointer encapsulated in the data area points to data stored in the
+!>      matrix. It must be 2-dimensional.
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_p_area(matrix,row,col,block,tr,found,&
        row_size, col_size)
@@ -323,6 +324,13 @@ CONTAINS
 !>                  matrix(dp) [+]= [scale(dp)] * block(dp)
 !>                  matrix(dp) [+]= [scale(dp)] * block(sp)
 !>                  matrix(sp) [+]= [scale(dp)] * block(sp)
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
+!> \param transposed ...
+!> \param summation ...
+!> \param scale ...
 !> \param[in]
 !> \param[out]
 !>
@@ -539,6 +547,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Inserts block reservations into a matrix, avoiding the work matrix.
+!> \param[in,out] matrix      Matrix into which blocks should be added.
+!> \param[in] rows            Rows of the blocks to add
+!> \param[in] columns         Columns of the blocks to add
+!> \param[in] blk_pointers    (optional) block pointers to use for new blocks
+!> \param[in,out] error       Error
 !> \par Data
 !>      No data can be specified; instead, space is reserved and zeroed. To
 !>      add data, call dbcsr_put_block afterwards.
@@ -548,11 +561,6 @@ CONTAINS
 !> \par blk_pointers
 !>      When blk_pointers is passed, the newly added blocks use these pointers.
 !>      No data is cleared in this case
-!> \param[in,out] matrix      Matrix into which blocks should be added.
-!> \param[in] rows            Rows of the blocks to add
-!> \param[in] columns         Columns of the blocks to add
-!> \param[in] blk_pointers    (optional) block pointers to use for new blocks
-!> \param[in,out] error       Error
 ! *****************************************************************************
   SUBROUTINE dbcsr_reserve_blocks(matrix, rows, columns, blk_pointers, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -690,9 +698,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sets a pointer, possibly using the buffers.
 !> \param[in] matrix           Matrix to use
-!> \param[in,out] pointer      The pointer to set
-!> \param[in] row, col         Row and column of block to point to
-!> \param[in] rsize, csize     Row and column sizes of block to point to
+!> \param pointer_any ...
+!> \param row ...
+!> \param col ...
+!> \param rsize ...
+!> \param csize ...
 !> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
 !> \param[in] buffer_tr        Whether buffer should be transposed
@@ -700,6 +710,9 @@ CONTAINS
 !>                                 contiguous
 !> \param[in] read_only        (optional) User promise not to change data
 !> \param[in,out] error        error
+!> \param[in,out] pointer      The pointer to set UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] row, col         Row and column of block to point to UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rsize, csize     Row and column sizes of block to point to UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_any (matrix, pointer_any, row, col,&
        rsize, csize, main_tr, base_offset, buffer_tr, contiguous_pointers,&

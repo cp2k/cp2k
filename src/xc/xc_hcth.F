@@ -32,10 +32,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief return various information on the functional
+!> \param iparset ...
 !> \param reference string with the reference of the actual functional
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
+!> \param max_deriv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -99,13 +101,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief evaluates the hcth functional for lda
+!> \param iparset the parameter set that should be used (93,120,147,407)
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
-!> \param iparset the parameter set that should be used (93,120,147,407)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -173,12 +175,16 @@ CONTAINS
 !> \param iparset the parameter set that should be used (93,120,147,407)
 !> \param rho the density
 !> \param norm_drho the norm of the gradient of the density
-!> \param e_ 0: the value of the functional in that point
+!> \param e_0 ...
 !> \param e_rho the derivative of the functional wrt. rho
 !> \param e_ndrho the derivative of the functional wrt. norm_drho
 !> \param epsilon_rho the cutoff on rho
+!> \param epsilon_drho ...
+!> \param npoints ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param e_ 0: the value of the functional in that point UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author fawzi (copying from the routine of Matthias Krack in functionals.F)
 !> \note
 !>     Literature:- F. A. Hamprecht, A. J. Cohen, D. J. Tozer, and N. C. Handy,
 !>                  J. Chem. Phys. 109, 6264 (1998) -> HCTH/93
@@ -188,7 +194,6 @@ CONTAINS
 !>                  J. Chem. Phys. 114, 5497 (2001) -> HCTH/407
 !>                - J. P. Perdew and Y. Wang,
 !>                  Phys. Rev. B 45, 13244 (1992) -> PW92
-!> \author fawzi (copying from the routine of Matthias Krack in functionals.F)
 ! *****************************************************************************
   SUBROUTINE hcth_lda_calc(iparset,rho,norm_drho,e_0,e_rho,e_ndrho,&
        epsilon_rho,epsilon_drho,npoints,error)

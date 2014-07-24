@@ -64,6 +64,7 @@ CONTAINS
 !> \param parser the parser
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION parser_location(parser,error) RESULT(res)
@@ -98,8 +99,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   store the present status of the parser
-!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \param parser ...
+!> \param error ...
 !> \date    08.2008
+!> \author  Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE parser_store_status(parser, error)
 
@@ -128,8 +131,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   retrieve the original status of the parser
-!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \param parser ...
+!> \param error ...
 !> \date    08.2008
+!> \author  Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE parser_retrieve_status(parser, error)
 
@@ -164,10 +169,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Read the next line from a logical unit "unit" (I/O node only).
 !>          Skip (nline-1) lines and skip also all comment lines.
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param nline ...
+!> \param at_end ...
+!> \param error ...
 !> \date    22.11.1999
+!> \author  Matthias Krack (MK)
 !> \version 1.0
-!> \History 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer
+!> \note 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer 
 ! *****************************************************************************
   SUBROUTINE parser_read_line(parser,nline,at_end,error)
 
@@ -225,8 +234,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Retrieving lines from buffer
-!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \param parser ...
+!> \param istat ...
+!> \param error ...
 !> \date    08.2008
+!> \author  Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE parser_get_line_from_buffer(parser, istat, error)
 
@@ -260,8 +272,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Low level reading subroutine with buffering
-!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \param parser ...
+!> \param error ...
 !> \date    08.2008
+!> \author  Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE parser_read_line_low(parser,error)
 
@@ -369,9 +383,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Broadcast the input information.
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param error ...
 !> \date    02.03.2001
-!> \History 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer
+!> \author  Matthias Krack (MK)
+!> \note 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer 
 ! *****************************************************************************
   SUBROUTINE broadcast_input_information(parser,error)
 
@@ -407,6 +423,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns .true. if the line is a comment line or an empty line
+!> \param parser ...
+!> \param line ...
+!> \retval resval ...
 !> \par History
 !>      03.2009 [tlaino] - Teodoro Laino
 ! *****************************************************************************
@@ -435,9 +454,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns .true. if the character passed is a comment character
-!> \author AK
+!> \param parser ...
+!> \param testchar ...
+!> \retval resval ...
 !> \par History
 !>      02.2008 created, AK
+!> \author AK
 ! *****************************************************************************
   FUNCTION is_comment(parser,testchar) RESULT(resval)
 
@@ -459,8 +481,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Read the next input line and broadcast the input information.
 !>          Skip (nline-1) lines and skip also all comment lines.
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param nline ...
+!> \param at_end ...
+!> \param error ...
 !> \date    22.11.1999
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_get_next_line(parser,nline,at_end,error)
@@ -494,8 +520,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Skips the whitespaces
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param error ...
 !> \date    02.03.2001
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_skip_space(parser,error)
@@ -571,8 +599,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Get the next input string from the input line.
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param string_length ...
+!> \param error ...
 !> \date    19.02.2001
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 !> \notes   -) this function MUST be private in this module!
 ! *****************************************************************************
@@ -733,10 +764,14 @@ CONTAINS
 !>           -  test_result : "FLT": Floating point number
 !>           -  test_result : "INT": Integer number
 !>           -  test_result : "STR": String
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param string_length ...
+!> \param error ...
+!> \retval test_result ...
 !> \date    23.11.1999
-!> \History - 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer
-!>          - Major rewrite to parse also (multiple) products of integer or
+!> \author  Matthias Krack (MK)
+!> \note - 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer 
+!>          - Major rewrite to parse also (multiple) products of integer or 
 !>            floating point numbers (23.11.2012,MK)
 ! *****************************************************************************
   FUNCTION parser_test_next_token(parser,string_length,error) RESULT(test_result)
@@ -829,9 +864,17 @@ CONTAINS
 !>          ignore_case is .FALSE..
 !>          begin_line: give back the parser at the beginning of the line
 !>          matching the search
-!> \author  MK
+!> \param parser ...
+!> \param string ...
+!> \param ignore_case ...
+!> \param found ...
+!> \param line ...
+!> \param begin_line ...
+!> \param search_from_begin_of_file ...
+!> \param error ...
 !> \date    05.10.1999
-!> \History 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer
+!> \author  MK
+!> \note 08.2008 [tlaino] - Teodoro Laino UZH : updated for buffer 
 ! *****************************************************************************
   SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,begin_line,&
              search_from_begin_of_file,error)
@@ -912,12 +955,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Check, if the string object contains an object of type integer.
-!> \author  Matthias Krack (MK)
+!> \param string ...
+!> \retval contains_integer_object ...
 !> \date    22.11.1999
+!> \author  Matthias Krack (MK)
 !> \version 1.0
-!> \History - Introducing the possibility to parse a range of integers INT1..INT2
-!>            Teodoro Laino [tlaino] - University of Zurich - 08.2008
-!>          - Parse also a product of integer numbers (23.11.2012,MK)
+!> \note - Introducing the possibility to parse a range of integers INT1..INT2 
+!>            Teodoro Laino [tlaino] - University of Zurich - 08.2008 
+!>          - Parse also a product of integer numbers (23.11.2012,MK) 
 ! *****************************************************************************
   FUNCTION integer_object(string) RESULT(contains_integer_object)
 
@@ -957,6 +1002,11 @@ CONTAINS
 
   END FUNCTION integer_object
 
+! *****************************************************************************
+!> \brief ...
+!> \param string ...
+!> \retval check ...
+! *****************************************************************************
   FUNCTION is_integer(string) RESULT(check)
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
@@ -993,8 +1043,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Read an integer number.
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param object ...
+!> \param newline ...
+!> \param skip_lines ...
+!> \param string_length ...
+!> \param at_end ...
+!> \param error ...
 !> \date    22.11.1999
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_get_integer(parser,object,newline,skip_lines,&
@@ -1080,10 +1137,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Read a string representing logical object.
-!> \author  FM
+!> \param parser ...
+!> \param object ...
+!> \param newline ...
+!> \param skip_lines ...
+!> \param string_length ...
+!> \param at_end ...
+!> \param error ...
 !> \date    01.04.2003
 !> \par History
 !>      - New version (08.07.2003,MK)
+!> \author  FM
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_get_logical(parser,object,newline,skip_lines,&
@@ -1161,8 +1225,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Read a floating point number.
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param object ...
+!> \param newline ...
+!> \param skip_lines ...
+!> \param string_length ...
+!> \param at_end ...
+!> \param error ...
 !> \date    22.11.1999
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_get_real(parser,object,newline,skip_lines,string_length,&
@@ -1233,8 +1304,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Read a string.
-!> \author  Matthias Krack (MK)
+!> \param parser ...
+!> \param object ...
+!> \param lower_to_upper ...
+!> \param newline ...
+!> \param skip_lines ...
+!> \param string_length ...
+!> \param at_end ...
+!> \param error ...
 !> \date    22.11.1999
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_get_string(parser,object,lower_to_upper,newline,skip_lines,&
@@ -1310,10 +1389,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Returns a floating point number read from a string including
 !>          fraction like z1/z2.
-!> \author  Matthias Krack
+!> \param string ...
+!> \param object ...
+!> \param error_message ...
 !> \date    11.01.2011 (MK)
+!> \author  Matthias Krack
 !> \version 1.0
-!> \History - Parse also multiple products and fractions of floating point
+!> \note - Parse also multiple products and fractions of floating point
 !>            numbers (23.11.2012,MK)
 ! *****************************************************************************
   SUBROUTINE read_float_object(string,object,error_message)
@@ -1376,10 +1458,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Returns an integer number read from a string including products of
 !>          integer numbers like iz1*iz2*iz3
-!> \author  Matthias Krack
+!> \param string ...
+!> \param object ...
+!> \param error_message ...
 !> \date    23.11.2012 (MK)
+!> \author  Matthias Krack
 !> \version 1.0
-!> \History - Parse also (multiple) products of integer numbers (23.11.2012,MK)
+!> \note - Parse also (multiple) products of integer numbers (23.11.2012,MK)
 ! *****************************************************************************
   SUBROUTINE read_integer_object(string,object,error_message)
 

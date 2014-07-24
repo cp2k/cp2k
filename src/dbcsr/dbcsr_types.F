@@ -443,8 +443,8 @@ MODULE dbcsr_types
   TYPE dbcsr_work_type
      TYPE(dbcsr_data_obj)                    :: data_area
      INTEGER, DIMENSION(:), POINTER          :: row_i,&
-          &                                     col_i,&
-          &                                     blk_p
+                                                col_i,&
+                                                blk_p
      INTEGER        :: lastblk, datasize
      !TYPE(btree_2d_d)        :: tree
      TYPE(dbcsr_mutable_obj)                 :: mutable
@@ -515,16 +515,16 @@ MODULE dbcsr_types
      TYPE(dbcsr_data_obj)               :: data_area
      INTEGER, DIMENSION(:), POINTER     :: index
      INTEGER, DIMENSION(:), POINTER     :: row_p,&
-          &                                col_i,&
-          &                                blk_p,&
-          &                                thr_c,&
-          &                                coo_l
+                                           col_i,&
+                                           blk_p,&
+                                           thr_c,&
+                                           coo_l
      TYPE(array_i1d_obj)                   row_blk_size,&
-          &                                col_blk_size,&
-          &                                row_blk_offset,&
-          &                                col_blk_offset,&
-          &                                local_rows, global_rows,&
-          &                                local_cols, global_cols
+                                           col_blk_size,&
+                                           row_blk_offset,&
+                                           col_blk_offset,&
+                                           local_rows, global_rows,&
+                                           local_cols, global_cols
      LOGICAL                               has_local_rows, has_global_rows,&
                                            has_local_cols, has_global_cols
      INTEGER                            :: max_rbs, max_cbs
@@ -683,6 +683,8 @@ MODULE dbcsr_types
 
 ! *****************************************************************************
 !> \brief Helper-routine, returns size of given datatype in terms of bytes.
+!> \param datatype ...
+!> \retval size ...
 !> \author Ole Schuett
 ! *****************************************************************************
   FUNCTION dbcsr_datatype_sizeof(datatype) RESULT(size)

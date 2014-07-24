@@ -119,6 +119,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes a CP2K run (setting of the global environment variables)
+!> \param para_env ...
+!> \param output_unit ...
+!> \param globenv ...
+!> \param input_file_name ...
+!> \param wdir ...
 !> \par History
 !>      JGH (28.11.2001) : default for pp_library_path
 !>      - print keys added (17.01.2002, MK)
@@ -209,6 +214,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief echos the list of host names and pids
+!> \param para_env ...
+!> \param output_unit ...
 ! *****************************************************************************
   SUBROUTINE echo_all_hosts(para_env,output_unit)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -266,6 +273,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief echos the list the number of process per host
+!> \param para_env ...
+!> \param output_unit ...
 ! *****************************************************************************
   SUBROUTINE echo_all_process_host(para_env,output_unit)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -335,14 +344,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read part of cp2k_init
+!> \param root_section ...
+!> \param para_env ...
 !> \param globenv the globenv
+!> \param error ...
+!> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
@@ -401,13 +413,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief globenv initializations that need the input and error
+!> \param root_section ...
+!> \param para_env ...
 !> \param globenv the global environment to initialize
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      if possible do the initializations here as the environement
 !>      (error,...) is setup, instaed of cp2k_init
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp2k_setup(root_section,para_env,globenv,error)
 
@@ -478,12 +492,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read the global sectionof new input
-!> \note
-!>      Should not be required anymore once everything is converted
-!>      to get information directly from the input structure
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      06-2005 [created]
 !> \author MI
+!> \note
+!>      Should not be required anymore once everything is converted
+!>      to get information directly from the input structure
 ! *****************************************************************************
   SUBROUTINE read_global_section(root_section,para_env,globenv,error)
 
@@ -853,6 +871,11 @@ CONTAINS
   END SUBROUTINE read_global_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      2-Dec-2000 (JGH) added default fft library
 !> \author JGH,MK
@@ -887,6 +910,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief check FFT preferred library availability, if not switch
+!> \param globenv ...
+!> \param para_env ...
+!> \param global_section ...
+!> \param output_unit ...
+!> \param error ...
 !> \par History
 !>      2-Dec-2000 (JGH) added default fft library
 !>      Nov-2013 (MI) refactoring
@@ -988,6 +1016,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief availability diagonalizatioon library
 !>
+!> \param globenv ...
+!> \param output_unit ...
+!> \param error ...
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE diag_setup_library(globenv, output_unit,error)
@@ -1016,6 +1047,11 @@ CONTAINS
   
   END SUBROUTINE diag_setup_library
 
+! *****************************************************************************
+!> \brief ...
+!> \param glob_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE fm_setup(glob_section,error)
     TYPE(section_vals_type), POINTER         :: glob_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1043,6 +1079,10 @@ CONTAINS
   END SUBROUTINE fm_setup
 ! *****************************************************************************
 !> \brief reads the Walltime also in format HH:MM:SS
+!> \param section ...
+!> \param keyword_name ...
+!> \param walltime ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Mandes
@@ -1086,15 +1126,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Writes final timings and banner for CP2K
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param wdir ...
+!> \param error ...
+!> \par History
+!>      none
+!> \author JGH,MK
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \par History
-!>      none
-!> \author JGH,MK
 ! *****************************************************************************
   SUBROUTINE cp2k_finalize(root_section,para_env,globenv,wdir,error)
 

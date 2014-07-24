@@ -225,12 +225,14 @@ END SUBROUTINE p_proj_release
 !> \param min_m the full matrix in the reduced basis
 !> \param full_m the full matrix in the full basis that gets the new
 !>        values
-!> \param start_col the column of full_m at which the first column of
-!>        (i min_m) will be written (defaults to 1)
+!> \param start_col_full ...
+!> \param start_col_min ...
 !> \param ncol number of columns to set (defaults to all the columns of
 !>        min_m
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param start_col the column of full_m at which the first column of
+!>        (i min_m) will be written (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -314,16 +316,17 @@ END SUBROUTINE p_proj_transfer_blacs_to_f
 !> \brief restrains the requested columns of the full matrix to the space
 !>      of the minimal basis, i.e. computes:
 !>      full_m(:,start_col:star_col+ncol) = i pi full_m(:,start_col:star_col+ncol)
+!> \param p_proj ...
 !> \param full_m the matrix in the full basis to be restrained
 !> \param start_col the first column to restrain (defaults to 1)
 !> \param ncol number of columns to restrain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
 !> \par History
 !>      03.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
 ! *****************************************************************************
 SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj

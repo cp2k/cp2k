@@ -73,8 +73,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the affinity strategy information
-!> \var ma_env            The parallel environment
-!> \var num_threads       The number of threads of each process
+!> \param ma_env            The parallel environment
+!> \param num_threads       The number of threads of each process 
+!> \param core ...
+!> \param node ...
+!> \retval istat ...
 ! *****************************************************************************
 INTEGER FUNCTION ma_init_affinity(ma_env, num_threads, core, node) RESULT(istat)
   INTEGER                          :: num_threads, core, node
@@ -139,8 +142,8 @@ END SUBROUTINE ma_set_default_affinity
 
 ! *****************************************************************************
 !> \brief To convert a memory policy descriptor to a string
-!> \var mempol          Memory policy descriptor
-!> \var mempolicy       String to hold the memory policy name
+!> \param mempol          Memory policy descriptor 
+!> \param mempolicy       String to hold the memory policy name 
 ! *****************************************************************************
 SUBROUTINE ma_string_mempol(mempol, mempolicy)
     INTEGER, INTENT(IN)                      :: mempol
@@ -162,7 +165,7 @@ END SUBROUTINE ma_string_mempol
 
 ! *****************************************************************************
 !> \brief Set a memory policy for a process
-!> \var mempol          Memory policy descriptor
+!> \param mempol Memory policy descriptor
 ! *****************************************************************************
 SUBROUTINE  ma_set_mempol (mempol)
     INTEGER                                  :: mempol
@@ -199,8 +202,8 @@ END SUBROUTINE ma_set_mempol
 
 ! *****************************************************************************
 !> \brief Set a memory policy for a process
-!> \var mempol          Memory policy descriptor
-!> \var node            Node numa used by the policy
+!> \param node            Node numa used by the policy 
+!> \param mempol          Memory policy descriptor
 ! *****************************************************************************
 SUBROUTINE  ma_get_mempol (node, mempol)
   INTEGER                :: node, mempol
@@ -220,7 +223,7 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Sets the number of neighbors for a process
-!> \var ma_env parallel environment
+!> \param ma_env parallel environment
 ! *****************************************************************************
   SUBROUTINE ma_set_neighbors(ma_env)
     TYPE(ma_mp_type)                         :: ma_env
@@ -256,6 +259,7 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Gets the number of neighbors for a process
+!> \retval nr_occu ...
 ! *****************************************************************************
   FUNCTION ma_get_neighbors () RESULT (nr_occu)
     INTEGER                                  :: nr_occu
@@ -266,6 +270,7 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Verify if the number of MPI processes is greater than GPUS
+!> \retval is_greater ...
 ! *****************************************************************************
   FUNCTION ma_MPI_nGpus() RESULT(is_greater)
     LOGICAL                                  :: is_greater
@@ -278,7 +283,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Get the MPI/threads mapping on the machine cores
-!> \var id thread OMP id - MPI rank
+!> \param id thread OMP id - MPI rank 
+!> \param sched_unit ...
 ! *****************************************************************************
   SUBROUTINE ma_def_place(id, sched_unit)
     INTEGER                                  :: id, sched_unit
@@ -290,7 +296,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Get the MPI/threads mapping on the machine cores
-!> \var id thread OMP id - MPI rank
+!> \param id thread OMP id - MPI rank 
+!> \param sched_unit ...
 ! *****************************************************************************
   SUBROUTINE ma_no_place(id, sched_unit)
     INTEGER                                  :: id, sched_unit
@@ -343,11 +350,12 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Set the MPI/threads mapping on the machine cores - compact affinty
-!> \var id thread OMP id - MPI rank
+!> \param id thread OMP id - MPI rank
+!> \param sched_unit ...
+!> \note The strategy used here is a simple compact distrbution for threads of a
+!> \note process. In this case, threads of a process take into account the process
+!> \note affinity.
 ! *****************************************************************************
-! The strategy used hier is a simple compact distrbution for threads of a
-! process. In this case, threads of a process take into account the process
-! affinity.
 
   SUBROUTINE ma_linear_place(id, sched_unit)
     INTEGER                                  :: id, sched_unit
@@ -417,13 +425,14 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Set the MPI/threads mapping on the machine cores - scatter
-!> \var id thread OMP id - MPI rank
+!> \param id thread OMP id - MPI rank 
+!> \param sched_unit ...
+!> \note The strategy used hier is a simple compact distrbution for threads of a
+!> \note process. In this case, threads of a process take into account the process
+!> \note affinity.
+!> \note For MPI only process, the strategy is a scatter. In this case, the scheduling
+!> \note provides as much as possible cache memory for MPI processes.
 ! *****************************************************************************
-! The strategy used hier is a simple compact distrbution for threads of a
-! process. In this case, threads of a process take into account the process
-! affinity.
-! For MPI only process, the strategy is a scatter. In this case, the scheduling
-! provides as much as possible cache memory for MPI processes.
 
   SUBROUTINE ma_scatter_place(id, sched_unit)
     INTEGER                                  :: id, sched_unit
@@ -488,9 +497,10 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Set the MPI/threads mapping on the machine cores - group
-!> \var id thread OMP id - MPI rank
+!> \param id thread OMP id - MPI rank
+!> \param sched_unit ...
+!> \note Group the MPI processes in a Hierarchical way following the machine topology
 ! *****************************************************************************
-! Group the MPI processes in a Hierarchical way following the machine topology
 
   SUBROUTINE ma_group_place(id, sched_unit)
     INTEGER                                  :: id, sched_unit
@@ -596,9 +606,11 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Set the MPI mapping on the machine cores - numa node
-!> \var id thread OMP id - MPI rank
+!> \param node ...
+!> \param id thread OMP id - MPI rank
+!> \param sched_unit ...
+!> \note Group the MPI processes in a NUMA way following the machine topology
 ! *****************************************************************************
-! Group the MPI processes in a NUMA way following the machine topology
   SUBROUTINE ma_numa_node_place(node,id,sched_unit)
     INTEGER                                  :: node, id, sched_unit
 
@@ -656,9 +668,10 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Set the MPI/threads mapping on the machine cores - manual
-!> \var id thread OMP id - MPI rank
+!> \param id thread OMP id - MPI rank 
+!> \param sched_unit ...
+!> \note Group the MPI processes following the user inputs
 ! *****************************************************************************
-! Group the MPI processes following the user inputs
   SUBROUTINE ma_manual_place(id,sched_unit)
     INTEGER                                  :: id, sched_unit
 
@@ -716,8 +729,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Get the core and NUMA node of the process
-!> \var my_core the core where the process is running
-!> \var my_node the NUMA node where the process is running
+!> \param my_core the core where the process is running
+!> \param my_node the NUMA node where the process is running 
 ! *****************************************************************************
   SUBROUTINE ma_running_on (my_core, my_node)
       INTEGER                                  :: my_core, my_node
@@ -744,7 +757,7 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Update for all processes where the threads are running, also print
-!> \var unit_num the output console
+!> \param unit_num the output console 
 ! *****************************************************************************
   SUBROUTINE ma_thread_running_on(unit_num)
     INTEGER                                  :: unit_num
@@ -818,6 +831,7 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Shows threads of each MPI process
+!> \param unit_num ...
 ! *****************************************************************************
   SUBROUTINE ma_show_threads (unit_num)
     INTEGER                                  :: unit_num
@@ -855,8 +869,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Print the current core and NUMA node where a MPI process is running
-!> \var the MPI process id (use cp2k_info, r_pid)
-!> \var unit_num the output console
+!> \param id the MPI process id (use cp2k_info, r_pid) 
+!> \param unit_num the output console 
 ! *****************************************************************************
   SUBROUTINE ma_current_mpi_run(id,unit_num)
     INTEGER                                  :: id, unit_num
@@ -883,8 +897,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Print the current core and NUMA node where a thread is running
-!> \var unit_num the output console
-!> \var id Thread OMP id
+!> \param id Thread OMP id 
+!> \param unit_num the output console 
 ! *****************************************************************************
   SUBROUTINE ma_current_thread_run(id, unit_num)
     INTEGER                                  :: id, unit_num
@@ -908,6 +922,9 @@ END SUBROUTINE ma_get_mempol
 ! *****************************************************************************
 ! Get the core for a thread
 ! *****************************************************************************
+!> \brief ...
+!> \param id ...
+! *****************************************************************************
   SUBROUTINE ma_get_thread_run(id)
     INTEGER  :: id
 #if defined (__HWLOC) || defined (__LIBNUMA)
@@ -926,6 +943,10 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 ! Get/set the core for a thread
+! *****************************************************************************
+!> \brief ...
+!> \param id ...
+!> \param policy ...
 ! *****************************************************************************
   SUBROUTINE ma_sched_threads(id, policy)
     INTEGER                                  :: id, policy
@@ -949,6 +970,9 @@ END SUBROUTINE ma_get_mempol
 ! *****************************************************************************
 ! Get/set the core for a mpi
 ! *****************************************************************************
+!> \brief ...
+!> \param policy ...
+! *****************************************************************************
   SUBROUTINE ma_sched_mpi(policy)
     INTEGER                                  :: policy
 
@@ -970,8 +994,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Verify the last and current core for a thread
-!> \var unit_num the output console
-!> \var id Thread OMP id
+!> \param id Thread OMP id 
+!> \param unit_num the output console 
 ! *****************************************************************************
   SUBROUTINE ma_verify_place(id, unit_num)
     INTEGER                                  :: id, unit_num
@@ -1001,7 +1025,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Map the MPI process 0 to the NUMA node that holds the network card(s)
-!> \var myRank the MPI rank of the process
+!> \param proc ...
+!> \param id ...
 ! *****************************************************************************
   SUBROUTINE ma_set_net_affinity (proc, id)
     INTEGER(KIND=C_INT)                      :: proc, id
@@ -1033,6 +1058,7 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Get the Network card affinity for the rank 0 process
+!> \param cardId ...
 ! *****************************************************************************
   SUBROUTINE ma_get_net_affinity (cardId)
     INTEGER                                  :: cardId
@@ -1048,7 +1074,8 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Set the GPU for a MPI process
-!> \var myRank the MPI rank of the process
+!> \param myRank the MPI rank of the process 
+!> \retval gpuId ...
 ! *****************************************************************************
  INTEGER FUNCTION ma_set_gpu_affinity (myRank) RESULT (gpuId)
    INTEGER(KIND=C_INT) ::  myRank, rank,core
@@ -1070,6 +1097,7 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Get the gpu affinity of a process
+!> \param gpuId ...
 ! *****************************************************************************
   SUBROUTINE ma_get_gpu_affinity (gpuId)
     INTEGER                                  :: gpuId
@@ -1085,6 +1113,9 @@ END SUBROUTINE ma_get_mempol
 
 ! *****************************************************************************
 !> \brief Print the affinity for all MPI processes
+!> \param print_proc ...
+!> \param print_mem ...
+!> \param unit_nr ...
 ! *****************************************************************************
    SUBROUTINE ma_print_proc_affinity (print_proc,print_mem,unit_nr)
     LOGICAL                                  :: print_proc, print_mem

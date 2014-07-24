@@ -107,6 +107,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the total number of nodes of the machine
+!> \retval numnodes ...
 ! *****************************************************************************
  FUNCTION ma_num_nodes() RESULT (numnodes)
     INTEGER                                  :: numnodes
@@ -117,6 +118,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the job allocation strategy used on Cray machines
+!> \retval strategy ...
 ! *****************************************************************************
  FUNCTION ma_get_job_allocation() RESULT (strategy)
     INTEGER                                  :: strategy
@@ -138,8 +140,8 @@ CONTAINS
 !> For instance, on Cray machines with torus it keeps the coordinates. On 
 !> machines with no API support for topology information, we use definition
 !> of factor (remote/local). 
-!> \var ionode            If a MPI is a io MPI
-!>      2.2012 created [ Christiane Pousa ]
+!> \param mp_group ...
+!> \note     2.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
  SUBROUTINE ma_net_topology (mp_group)
     INTEGER                                :: mp_group
@@ -381,7 +383,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the allocated topology and update to all MPI processes
-!> \var mp_group the communicator
+!> \param mp_group the communicator 
 ! *****************************************************************************
  SUBROUTINE ma_allocated_topology (mp_group)
     INTEGER                                  :: mp_group
@@ -437,7 +439,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the allocated topology
-!> \var alloc_topo  the allocated topology
+!> \param alloc_topo  the allocated topology 
 ! *****************************************************************************
  SUBROUTINE ma_get_allocated_topology (alloc_topo)
     INTEGER, DIMENSION(:), POINTER           :: alloc_topo
@@ -448,7 +450,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Set the allocated topology
-!> \var alloc_topo  the allocated topology
+!> \param alloc_topo  the allocated topology 
 ! *****************************************************************************
  SUBROUTINE ma_set_allocated_topology (alloc_topo)
     INTEGER, DIMENSION(:), POINTER           :: alloc_topo
@@ -490,6 +492,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the maximum number of nodes for a 3D Torus in X direction
+!> \retval maxx ...
 ! *****************************************************************************
  FUNCTION ma_nodes_x() RESULT (maxx)
   INTEGER               ::         maxx
@@ -504,6 +507,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the maximum number of nodes for a 3D Torus in Y direction
+!> \retval maxy ...
 ! *****************************************************************************
  FUNCTION ma_nodes_y() RESULT (maxy)
   INTEGER  ::         maxy
@@ -518,6 +522,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the maximum number of nodes for a 3D Torus in Z direction
+!> \retval maxz ...
 ! *****************************************************************************
  FUNCTION ma_nodes_z() RESULT (maxz)
   INTEGER  ::         maxz
@@ -532,6 +537,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the host coordinates for a MPI process
+!> \param nid ...
+!> \param x ...
+!> \param y ...
+!> \param z ...
 ! *****************************************************************************
  SUBROUTINE ma_get_host_coordinates (nid, x,y,z)
   INTEGER, INTENT(IN)               :: nid
@@ -551,8 +560,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the number of hops between two host
-!> \var src   the id of the source node
-!> \var dest  the id of the dest node
+!> \param src   the id of the source node 
+!> \param dest  the id of the dest node 
+!> \retval nhops ...
 ! *****************************************************************************
   FUNCTION ma_hops (src,dest) RESULT (nhops)
    INTEGER, INTENT(IN)          :: src, dest
@@ -584,7 +594,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute the hop-bytes metric for the system
-!> \var mp_group the communicator
+!> \param mp_group the communicator 
+!> \retval hopsbyte ...
 ! *****************************************************************************
  FUNCTION ma_hop_bytes (mp_group) RESULT (hopsbyte)
   REAL                         :: hopsbyte
@@ -639,7 +650,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute the hopes-byte metric for the system
-!> \var mp_group the communicator
+!> \param mp_group the communicator 
+!> \retval hopsbyte ...
 ! *****************************************************************************
  FUNCTION ma_hops_byte (mp_group) RESULT (hopsbyte)
   REAL                         :: hopsbyte
@@ -682,6 +694,11 @@ CONTAINS
 #endif 
  END FUNCTION ma_hops_byte
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_group ...
+!> \retval distbytes ...
+! *****************************************************************************
  FUNCTION ma_dist_bytes (mp_group) RESULT (distbytes)
   REAL                          ::   distbytes
   INTEGER,INTENT(IN)            ::   mp_group 
@@ -717,8 +734,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Generates the comm graph dim  
-!> \var mp_group the communicator
-! ****************************************************************************
+!> \param npcol ...
+!> \param nprow ...
+!> \param numtask ...
+! *****************************************************************************
 SUBROUTINE ma_2dgrid_dimensions(npcol,nprow,numtask)
     INTEGER, INTENT(OUT)                     :: npcol, nprow
     INTEGER, INTENT(IN)                      :: numtask
@@ -744,7 +763,7 @@ END SUBROUTINE ma_2dgrid_dimensions
 
 ! *****************************************************************************
 !> \brief Generates the communication graph for alltoall pattern
-!> \var mp_group the communicator
+!> \param mp_group the communicator 
 ! *****************************************************************************
 SUBROUTINE ma_comm_pattern_alltoall (mp_group)
     INTEGER                                  :: mp_group
@@ -770,7 +789,7 @@ END SUBROUTINE ma_comm_pattern_alltoall
 
 ! *****************************************************************************
 !> \brief Generates the communication graph for cannon algorithm
-!> \var mp_group the communicator
+!> \param mp_group the communicator 
 ! *****************************************************************************
  SUBROUTINE ma_comm_pattern_cannon (mp_group)
     INTEGER                                  :: mp_group
@@ -829,6 +848,14 @@ ENDIF
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !Get the direction to for each communication
+! *****************************************************************************
+!> \brief ...
+!> \param src ...
+!> \param dest ...
+!> \param xdir ...
+!> \param ydir ...
+!> \param zdir ...
+! *****************************************************************************
  SUBROUTINE get_direction(src,dest,xdir,ydir,zdir)
    INTEGER                        :: src, dest, xdir, ydir, zdir
 
@@ -861,8 +888,8 @@ ENDIF
 
 ! *****************************************************************************
 !> \brief Get the contention for a given comm pattern, use the hops-byte metric
-!> \var contention The total contention on each direction of the 3D torus
-!> \var mp_group   The MPI group for communication
+!> \param contention The total contention on each direction of the 3D torus 
+!> \param mp_group   The MPI group for communication 
 ! *****************************************************************************
  SUBROUTINE ma_compute_contention (contention,mp_group)
   REAL, DIMENSION(:)          ::  contention
@@ -878,6 +905,11 @@ ENDIF
 #endif
  END SUBROUTINE ma_compute_contention
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_comm ...
+!> \param kernel ...
+! *****************************************************************************
  SUBROUTINE ma_comm_graph (mp_comm,kernel)
   INTEGER, INTENT(IN)      :: mp_comm,kernel
 

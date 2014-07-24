@@ -59,6 +59,13 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Initialize MPI communicators for a swarm run.
+!> \param swarm_mpi ...
+!> \param world_para_env ...
+!> \param root_section ...
+!> \param n_workers ...
+!> \param worker_id ...
+!> \param iw ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
    SUBROUTINE swarm_mpi_init(swarm_mpi, world_para_env, root_section, n_workers, worker_id, iw, error)
@@ -145,6 +152,8 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Helper routine for swarm_mpi_init, configures the master's logger.
+!> \param swarm_mpi ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE logger_init_master(swarm_mpi, error)
@@ -173,6 +182,8 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Helper routine for logger_init_master, inquires filename for given unit.
+!> \param output_unit ...
+!> \retval output_path ...
 !> \author Ole Schuett
 ! *****************************************************************************
   FUNCTION output_unit2path(output_unit) RESULT(output_path)
@@ -187,6 +198,10 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Helper routine for swarm_mpi_init, configures the workers's logger.
+!> \param swarm_mpi ...
+!> \param root_section ...
+!> \param worker_id ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE logger_init_worker(swarm_mpi, root_section, worker_id, error)
@@ -222,6 +237,10 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Helper routine for logger_init_master and logger_init_worker
+!> \param para_env ...
+!> \param output_path ...
+!> \param iter_info ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE error_add_new_logger(para_env, output_path, iter_info, error)
@@ -257,6 +276,9 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Finalizes the MPI communicators of a swarm run.
+!> \param swarm_mpi ...
+!> \param root_section ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_finalize(swarm_mpi, root_section, error)
@@ -276,6 +298,9 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Helper routine for swarm_mpi_finalize, restores the original loggers
+!> \param swarm_mpi ...
+!> \param root_section ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE logger_finalize(swarm_mpi, root_section, error)
@@ -316,6 +341,8 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Sends a report via MPI
+!> \param swarm_mpi ...
+!> \param report ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_send_report(swarm_mpi, report)
@@ -337,6 +364,8 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Receives a report via MPI
+!> \param swarm_mpi ...
+!> \param report ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_recv_report(swarm_mpi, report)
@@ -355,6 +384,8 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Sends a command via MPI
+!> \param swarm_mpi ...
+!> \param cmd ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_send_command(swarm_mpi, cmd)
@@ -374,6 +405,8 @@ MODULE swarm_mpi
 
 ! *****************************************************************************
 !> \brief Receives a command via MPI and broadcasts it within a worker.
+!> \param swarm_mpi ...
+!> \param cmd ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE swarm_mpi_recv_command(swarm_mpi, cmd)

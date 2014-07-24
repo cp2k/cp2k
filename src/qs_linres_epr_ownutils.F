@@ -89,6 +89,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Prints the g tensor
+!> \param epr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -138,8 +141,8 @@ CONTAINS
               "EPR%PRINT%G_TENSOR",error=error),cp_p_file)) THEN
 
        unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%G_TENSOR",&
-            &                          extension=".data",middle_name="GTENSOR",&
-            &                          log_filename=.FALSE.,error=error)
+                                       extension=".data",middle_name="GTENSOR",&
+                                       log_filename=.FALSE.,error=error)
 
        IF(unit_nr > 0) THEN
 
@@ -215,6 +218,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculate zke part of the g tensor
+!> \param epr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -274,6 +280,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates g_so
+!> \param epr_env ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -551,6 +562,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates g_soo (soft part only for now)
+!> \param epr_env ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -788,6 +804,14 @@ CONTAINS
 
   END SUBROUTINE epr_g_soo
 
+! *****************************************************************************
+!> \brief ...
+!> \param epr_env ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -850,17 +874,17 @@ CONTAINS
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
-               &                  use_data=COMPLEXDATA1D,&
-               &                  in_space=RECIPROCALSPACE,error=error)
+                                  use_data=COMPLEXDATA1D,&
+                                  in_space=RECIPROCALSPACE,error=error)
           CALL pw_zero(shift_pw_gspace(idir,ispin)%pw,error=error)
        ENDDO
     ENDDO
     CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
-         &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE,error=error)
     CALL pw_zero(shift_pw_rspace%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
-            &              use_data=COMPLEXDATA1D,&
-            &              in_space=RECIPROCALSPACE,error=error)
+                           use_data=COMPLEXDATA1D,&
+                           in_space=RECIPROCALSPACE,error=error)
 
     CALL pw_zero(pw_gspace_work%pw,error=error)
     !
@@ -881,7 +905,7 @@ CONTAINS
              IF(idir /= idir2) THEN
                 ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
                 CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
-                     &                 pw_gspace_work,idir2,0.0_dp,error=error)
+                                       pw_gspace_work,idir2,0.0_dp,error=error)
                 !
                 ! scale and add to the correct component of the shift column
                 CALL set_vecp_rev(idir,idir2,idir3)

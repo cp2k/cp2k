@@ -93,6 +93,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Evaluates Nabla V_KS on the grids
+!> \param epr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD

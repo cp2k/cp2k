@@ -40,6 +40,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates and initialised the components of the task_list_type
+!> \param task_list ...
+!> \param error ...
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -68,6 +70,8 @@ END SUBROUTINE allocate_task_list
 
 ! *****************************************************************************
 !> \brief deallocates the components and the object itself
+!> \param task_list ...
+!> \param error ...
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************

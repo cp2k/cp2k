@@ -204,6 +204,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Gives back the number of valence electrons for element z and also the
 !>         number of atomic orbitals for that specific element
+!> \param sep ...
+!> \param extended_basis_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE valence_electrons(sep, extended_basis_set, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -248,6 +251,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Gives back the number of basis function for each l
+!> \param sep ...
+!> \param l ...
+!> \param error ...
+!> \retval n ...
 ! *****************************************************************************
   FUNCTION get_se_basis(sep,l,error) RESULT(n)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -288,8 +295,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Converts parameter units to internal
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sep ...
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE convert_param_to_cp2k(sep,error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -330,8 +339,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Calculates missing parameters
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param z ...
+!> \param sep ...
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE calpar(z,sep,error)
     INTEGER                                  :: z
@@ -451,8 +463,10 @@ CONTAINS
 !> \brief  Finalize the initialization of parameters, defining additional
 !>         parameters for d-orbitals
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sep ...
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE calpar_d(sep,error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -503,8 +517,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Determines if the elements has d-orbitals
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sep ...
+!> \param error ...
+!> \retval res ...
 !> \date   05.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   FUNCTION element_has_d(sep, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -520,8 +537,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Determines if the elements has f-orbitals
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sep ...
+!> \param error ...
+!> \retval res ...
 !> \date   05.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   FUNCTION element_has_f(sep, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -538,10 +558,13 @@ CONTAINS
 !> \brief  Computes the A^{\mu \nu}_l values for the evaluation of the two-center
 !>          two-electron integrals. The term is the one reported in Eq.(7) of TCA
 !>
+!> \param sep ...
+!> \param amn ...
+!> \param error ...
+!> \date   03.2008 [tlaino]
 !> \par    Notation Index: 1 (SS), 2 (SP), 3 (SD), 4 (PP), 5 (PD), 6 (DD)
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date   03.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE amn_l1 (sep, amn, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -589,10 +612,13 @@ CPSourceFileRef)
 !> \brief  Computes the A^{\mu \nu}_l values for the evaluation of the two-center
 !>          two-electron integrals. The term is the one reported in Eq.(7) of TCA
 !>
+!> \param sep ...
+!> \param amn ...
+!> \param error ...
+!> \date   09.2008 [tlaino]
 !> \par
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date   09.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE amn_l2 (sep, amn, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -633,8 +659,14 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief  Low level for computing Eq.(7) of TCA
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param z1 ...
+!> \param z2 ...
+!> \param n1 ...
+!> \param n2 ...
+!> \param l ...
+!> \retval amnl ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   FUNCTION amn_l_low(z1, z2, n1, n2, l) RESULT(amnl)
     REAL(KIND=dp), INTENT(IN)                :: z1, z2
@@ -650,6 +682,10 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief  Calculation of chare separations and additive terms used for computing
 !>         the two-center two-electron integrals with d-orbitals
+!> \param sep ...
+!> \param amn ...
+!> \param error ...
+!> \date   03.2008 [tlaino]
 !> \par    Notation
 !>         -) Charge separations [sep%cs(1:6)]  [see equations (12)-(16) of TCA]
 !>         -) Additive terms of Klopman-Ohno terms [sep%ko(1:9)] [see equations
@@ -657,7 +693,6 @@ CPSourceFileRef)
 !>         -) Atomic core additive term stored in sep%ko(9): used in the calculation
 !>            of the core-electron attractions and core-core repulsions
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date   03.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE eval_cs_ko (sep,amn,error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -712,8 +747,10 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief  Computes the 1 center two-electrons integrals for a SPD basis
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sep ...
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE eval_1c_2el_spd(sep,error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -810,8 +847,22 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief  Slater-Condon parameters for 1 center 2 electrons integrals
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sep ...
+!> \param r066 ...
+!> \param r266 ...
+!> \param r466 ...
+!> \param r016 ...
+!> \param r244 ...
+!> \param r036 ...
+!> \param r236 ...
+!> \param r155 ...
+!> \param r355 ...
+!> \param r125 ...
+!> \param r234 ...
+!> \param r246 ...
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE sc_param (sep, r066, r266, r466, r016, r244, r036, r236, r155, r355, &
        r125, r234, r246, error)
@@ -850,14 +901,25 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief  Slater-Condon parameters for 1 center 2 electrons integrals - Low level
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param k ...
+!> \param na ...
+!> \param ea ...
+!> \param nb ...
+!> \param eb ...
+!> \param nc ...
+!> \param ec ...
+!> \param nd ...
+!> \param ed ...
+!> \param error ...
+!> \retval res ...
+!> \date   03.2008 [tlaino]
 !> \par    Notation
 !>         -) k:      Type of integral
 !>         -) na,na:  Principle Quantum Number of AO,corresponding to electron 1
 !>         -) ea,eb:  Exponents of AO,corresponding to electron 1
 !>         -) nb,nc:  Principle Quantum Number of AO,corresponding to electron 2
 !>         -) ec,ed:  Exponents of AO,corresponding to electron 2
-!> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   FUNCTION sc_param_low (k, na, ea, nb, eb, nc, ec, nd, ed, error) RESULT(res)
     INTEGER, INTENT(in)                      :: k, na
@@ -923,6 +985,14 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief  Corrects the EISOL fo the one-center terms coming from those atoms
 !>         that have partially filled "d" shells
+!> \param sep ...
+!> \param r016 ...
+!> \param r066 ...
+!> \param r244 ...
+!> \param r266 ...
+!> \param r466 ...
+!> \param error ...
+!> \date   03.2008 [tlaino]
 !> \par    Notation
 !>         r016:  <SS|DD>
 !>         r066:  <DD|DD> "0" term
@@ -931,7 +1001,6 @@ CPSourceFileRef)
 !>         r466:  <DD|DD> "4" term
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date   03.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE eisol_corr (sep, r016, r066, r244, r266, r466, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -955,8 +1024,13 @@ CPSourceFileRef)
 !> \brief  Computes the Klopman-Ohno additive terms for 2-center 2-electron
 !>         integrals requiring that the corresponding 1-center 2-electron integral
 !>         is reproduced from the 2-center one for r->0
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param l ...
+!> \param d ...
+!> \param fg ...
+!> \param error ...
+!> \retval res ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   FUNCTION ko_ij(l, d, fg, error) RESULT(res)
     INTEGER, INTENT(in)                      :: l
@@ -1017,8 +1091,10 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief  Fills the 1 center 2 electron integrals for the construction of the
 !>         one-electron fock matrix
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sep ...
+!> \param error ...
 !> \date   04.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE setup_1c_2el_int(sep, error)
     TYPE(semi_empirical_type), POINTER       :: sep

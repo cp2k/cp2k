@@ -133,10 +133,10 @@ CONTAINS
 !> \param rep_env the replica environment to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      here and not in replica_types to allow the use of replica_env_type
 !>      in a force_env (call to destroy_force_env gives circular dep)
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE rep_env_release(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -344,9 +344,9 @@ CONTAINS
 !> \param vals the values to synchronize (second index runs over replicas)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      could be optimized: bcast in inter_rep, all2all or shift vs sum
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE rep_env_sync(rep_env,vals,error)
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -420,8 +420,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the replica environment with the given id_nr
 !> \param id_nr the id_nr of the requested rep_envs
+!> \param ierr ...
 !> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION rep_envs_get_rep_env(id_nr,ierr) RESULT(res)
@@ -547,6 +549,7 @@ CONTAINS
 !> \param global_index the global replica index
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION rep_env_local_index(rep_env,global_index,error) RESULT(res)

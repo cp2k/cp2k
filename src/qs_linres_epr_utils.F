@@ -70,6 +70,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the epr environment
+!> \param epr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      07.2006 created [MI]
 !> \author MI
@@ -123,7 +126,7 @@ CONTAINS
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         &                             extension=".linresLog",error=error)
+                                       extension=".linresLog",error=error)
 
     IF(epr_env%ref_count /= 0) THEN
       CALL epr_env_cleanup(epr_env,error=error)
@@ -183,7 +186,7 @@ CONTAINS
                    nspins,error=error)
        CALL set_epr_env(epr_env=epr_env,&
                         nablavks_atom_set=nablavks_atom_set,&
-            &           error=error)
+                        error=error)
     ENDIF
     !
     ! Bind
@@ -256,6 +259,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the epr environment
+!> \param epr_env ...
+!> \param error ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI

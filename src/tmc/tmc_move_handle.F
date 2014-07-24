@@ -65,9 +65,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initialization of the different moves, with sizes and probabilities
-!> \param move_types pointer to the structure which should be deallocated
+!> \param tmc_params ...
+!> \param tmc_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param move_types pointer to the structure which should be deallocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 10.2013
 ! *****************************************************************************
   SUBROUTINE read_init_move_types(tmc_params, tmc_section, error)
@@ -361,6 +363,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief checks if the moves are possible
+!> \param tmc_params ...
+!> \param move_types ...
+!> \param mol_array ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 10.2013
@@ -444,12 +449,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocating the module variables
-!> \param move_types pointer to the structure which should be deallocated
+!> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param move_types pointer to the structure which should be deallocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
+!> \note deallocating the module variables
 ! *****************************************************************************
-  ! deallocating the module variables
   SUBROUTINE finalize_mv_types(tmc_params, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -472,9 +478,12 @@ CONTAINS
 !>        which is printed out at the beginning of the programm and 
 !>        .NOT.init which are the probabilites and counter printed out every 
 !>        print cycle
-!> \param move_types pointer to the structure which should be deallocated
+!> \param init ...
+!> \param file_io ...
+!> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param move_types pointer to the structure which should be deallocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE print_move_types(init, file_io, tmc_params, error)
@@ -879,13 +888,16 @@ error)
 ! *****************************************************************************
 !> \brief add the actual moves to the average probabilities
 !> \param move_types structure with move counters and probabilities
+!> \param prob_opt ...
 !> \param mv_counter move counter for actual performed moves of certain types
 !> \param acc_counter counters of acceptance for these moves
-!> \param subbox_counter, subbox_acc_counter same for sub box moves
+!> \param subbox_counter ...
+!> \param subbox_acc_counter ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param subbox_counter, subbox_acc_counter same for sub box moves UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
-! ***************************************************************************** 
+! *****************************************************************************
   SUBROUTINE add_mv_prob(move_types, prob_opt, mv_counter, acc_counter, &
                          subbox_counter, subbox_acc_counter, error)
     TYPE(tmc_move_type), POINTER             :: move_types
@@ -951,13 +963,13 @@ error)
 !> \brief selects a move type related to the weighings and the entered rnd nr
 !> \param move_types structure for storing sizes and probabilities of moves
 !> \param rnd random number
-!> \param mv_type (result) move type
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param mv_type (result) move type
 !> \author Mandes 12.2012
+!> \note function returns a possible move type without the PT swap moves 
+!> \note (are selected in global tree, this routine is for sub tree elements)
 ! *****************************************************************************
-  ! function returns a possible move type without the PT swap moves 
-  !   (are selected in global tree, this routine is for sub tree elements)
   FUNCTION select_random_move_type(move_types, rnd, error) RESULT(mv_type)
     TYPE(tmc_move_type), POINTER             :: move_types
     REAL(KIND=dp)                            :: rnd

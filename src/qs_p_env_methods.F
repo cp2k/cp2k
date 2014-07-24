@@ -104,11 +104,15 @@ CONTAINS
 !> \brief allocates and initializes the perturbation environment (no setup)
 !> \param p_env the environment to initialize
 !> \param qs_env the qs_environment for the system
-!> \param kpp 1_env: the environment that builds the second order
-!>        perturbation kernel.
+!> \param kpp1_env ...
+!> \param p1_option ...
+!> \param psi0d ...
 !> \param orthogonal_orbitals if the orbitals are orthogonal
+!> \param linres_control ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param kpp 1_env: the environment that builds the second order
+!>        perturbation kernel. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -311,11 +315,11 @@ CONTAINS
 !> \param qs_env the qs environment this p_env lives in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      private routine
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      private routine
 ! *****************************************************************************
   SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -379,8 +383,8 @@ CONTAINS
 !> \brief function to advise of changes either in the grids or in the the
 !>      matrix structure (to update p_env's internal cache)
 !> \param p_env the p_env to inform of the changes
-!> \param grid_changed true if the grids have changed and have to be rebuilt
 !> \param s_struct_changed true if the structure of the s matrix has changed
+!> \param grid_changed true if the grids have changed and have to be rebuilt
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -434,11 +438,14 @@ END SUBROUTINE p_env_did_change
 !> \brief To be called after the value of psi0 has changed.
 !>      Recalculates the quantities S_psi0 and m_epsilon.
 !> \param p_env the perturbation environment to set
-!> \param psi 0: the value of psi0, if not given defaults to the qs_env mos
-!> \param Hrho_psi 0d: is given, then the partial result Hrho_psi0d is stored in
-!>        that vector
+!> \param qs_env ...
+!> \param psi0 ...
+!> \param Hrho_psi0d ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param Hrho_psi 0d: is given, then the partial result Hrho_psi0d is stored in
+!>        that vector UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param psi 0: the value of psi0, if not given defaults to the qs_env mos UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -718,11 +725,11 @@ END SUBROUTINE p_env_did_change
 !> \param v the matrix to operate on
 !> \param res the result
 !> \param error error handling object (optional)
-!> \note
-!>      Same as p_op_l1 but takes a spin as additional argument.
 !> \par History
 !>      10.2002, TCH, created
 !> \author Thomas Chassaing
+!> \note
+!>      Same as p_op_l1 but takes a spin as additional argument.
 ! *****************************************************************************
   SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res, error)
 
@@ -787,20 +794,21 @@ END SUBROUTINE p_env_did_change
 !>      with kpp1 evaluated with p=qs_env%rho%rho_ao, p1=p1
 !> \param p_env the perturbation environment
 !> \param qs_env the qs_env that is perturbed by this p_env
-!> \param p 1: direction in which evaluate the second derivative
+!> \param p1 ...
 !> \param res place where to store the result
-!> \param v values of the coeffs of the correcting orbitals
 !> \param alpha scale factor of the result (defaults to 1.0)
 !> \param beta scale factor of the old values (defaults to 0.0)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      qs_env%rho must be up to date
-!>      it would be better to pass rho1, not p1
+!> \param p 1: direction in which evaluate the second derivative UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param v values of the coeffs of the correcting orbitals UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      02.09.2002 adapted for new qs_p_env_type (TC)
 !>      03.2003 extended for p1 not taken from v (TC)
 !> \author fawzi
+!> \note
+!>      qs_env%rho must be up to date
+!>      it would be better to pass rho1, not p1
 ! *****************************************************************************
   SUBROUTINE p_op_l2(p_env, qs_env, p1, res, alpha, beta, error)
 
@@ -1118,17 +1126,17 @@ END SUBROUTINE p_env_did_change
 !> \brief evaluates res = alpha kpp1(v)*psi0 + beta res
 !> \param p_env the perturbation environment
 !> \param qs_env the qs_env that is perturbed by this p_env
-!> \param res place where to store the result
 !> \param v values of the coeffs of the correcting orbitals
+!> \param res place where to store the result
 !> \param alpha scale factor of the result (defaults to 1.0)
 !> \param beta scale factor of the old values (defaults to 0.0)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      to be removed
 !> \par History
 !>      02.09.2002 adapted for new qs_p_env_type (TC)
 !> \author Fawzi Mohamed
+!> \note
+!>      to be removed
 ! *****************************************************************************
   SUBROUTINE p_op_l2_fawzi(p_env, qs_env, v, res, alpha, beta, error)
 

@@ -45,6 +45,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief wrapper for ep_env_create()
+!> \param ep_env_id ...
+!> \param root_section ...
+!> \param input_declaration ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE ep_f77_create(ep_env_id,root_section,input_declaration,para_env,globenv, error)
@@ -76,6 +82,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns ep_env%energy%e_tot
+!> \param ep_env_id ...
+!> \retval energy ...
 !> \author Ole Schuett
 ! *****************************************************************************
   FUNCTION ep_f77_get_energy(ep_env_id) RESULT(energy)
@@ -92,6 +100,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns ep_env%main_qs_env
+!> \param ep_env_id ...
+!> \param main_qs_env ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE ep_f77_get_main_qs_env(ep_env_id, main_qs_env)
@@ -109,6 +119,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief wrapper for ep_env_retain()
+!> \param ep_env_id ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE ep_f77_retain(ep_env_id, error)
@@ -125,6 +137,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief wrapper for ep_env_release()
+!> \param ep_env_id ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE ep_f77_release(ep_env_id, error)
@@ -141,6 +155,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief wrapper for ep_env_calc_e_f()
+!> \param ep_env_id ...
+!> \param calc_f ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE ep_f77_calc_e_f(ep_env_id, calc_f, error)

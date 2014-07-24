@@ -33,8 +33,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Build a Cartesian orbital symbol (orbital labels for printing).
-!> \author  Matthias Krack
+!> \param n ...
+!> \param lxyz ...
+!> \retval symbol ...
 !> \date    07.07.99
+!> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
@@ -92,15 +95,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Build a spherical orbital symbol (orbital labels for printing).
-!> \author  Matthias Krack
+!> \param n ...
+!> \param l ...
+!> \param m ...
+!> \retval symbol ...
 !> \date    11.03.99
 !> \par Variables
 !>       - l: Angular momentum quantum number l of the orbital.
 !>       - m: Magnetic quantum number m of the orbital.
 !>       - n: Principle quantum number n of the orbital.
-!> \version 1.0
 !> \par History
 !>  - Ignore n value for n = 0 (16.02.2009,MK)
+!> \author  Matthias Krack
+!> \version 1.0
 ! *****************************************************************************
   FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
     INTEGER, INTENT(IN)                      :: n, l, m

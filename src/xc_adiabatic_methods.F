@@ -30,14 +30,24 @@ MODULE xc_adiabatic_methods
 
 ! *****************************************************************************
 !> \brief - Calculates rescaling factors for XC potentials and energy expression
-!> \param qs_en v
+!> \param qs_env ...
 !> \param hf_energy Array of size 2 containing the two HF energies (Ex^{HF} and Ex^{HF,LR}
 !> \param energy QS energy type
 !> \param adiabatic_lambda , adiabatic_omega: Parameters for adiabatic connection
-!> \param scale_ * : scaling coefficients for xc-potentials to be calculated
-!> \param total_energy will contain the full xc energy
+!> \param adiabatic_omega ...
+!> \param scale_dEx1 ...
+!> \param scale_ddW0 ...
+!> \param scale_dDFA ...
+!> \param scale_dEx2 ...
+!> \param total_energy_xc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param qs_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param scale_ * : scaling coefficients for xc-potentials to be calculated UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param total_energy will contain the full xc energy UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
 !> \note
 !>      - Model for adiabatic connection:
 !>
@@ -46,9 +56,6 @@ MODULE xc_adiabatic_methods
 !>         a = Ex^{HF}
 !>         b = -c1*2*omega/sqrt(PI)*nelectron
 !>         c = -1/lambda - b/(Ex^{HF}-W_lambda^{BLYP} + c2*W_lambda^{B88,LR}-c3*W_lambda^{HF,LR}
-!> \par History
-!>      09.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
                                adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&

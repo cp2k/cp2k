@@ -93,14 +93,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a local list
-!> \param distribution_ 1d: the lists to create
-!> \param n_lists number of lists to create (defaults to 1, or size(n_el))
+!> \param distribution_1d ...
 !> \param para_env parallel environement to be used
 !> \param listbased_distribution if each list has its own distribution
 !>        (defaults to false)
 !> \param n_el number of elements in each list (defaults to 0)
+!> \param n_lists number of lists to create (defaults to 1, or size(n_el))
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the lists to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -169,9 +170,10 @@ END SUBROUTINE distribution_1d_create
 
 ! *****************************************************************************
 !> \brief retains a distribution_1d
-!> \param distribution_ 1d: the object to retain
+!> \param distribution_1d ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the object to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -196,9 +198,10 @@ END SUBROUTINE distribution_1d_retain
 
 ! *****************************************************************************
 !> \brief releases the given distribution_1d
-!> \param distribution_ 1d: the object to release
+!> \param distribution_1d ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the object to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -249,9 +252,9 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
               nparticle_local = SIZE(local_particle_set(iparticle_kind)%rng)
               DO iparticle_local=1,nparticle_local
                 IF (ASSOCIATED(local_particle_set(iparticle_kind)%&
-                               &rng(iparticle_local)%stream)) THEN
+                                rng(iparticle_local)%stream)) THEN
                   CALL delete_rng_stream(local_particle_set(iparticle_kind)%&
-                                         &rng(iparticle_local)%stream,error=error)
+                                          rng(iparticle_local)%stream,error=error)
                 END IF
               END DO
               DEALLOCATE (local_particle_set(iparticle_kind)%rng,STAT=stat)
@@ -273,11 +276,12 @@ END SUBROUTINE distribution_1d_release
 
 ! *****************************************************************************
 !> \brief sorts the given list (if not specified all)
-!> \param distribution_ 1d: the lists to sort
+!> \param distribution_1d ...
 !> \param i_list the index of the list to sort (if not specified sorts
 !>        all the lists)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the lists to sort UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -325,7 +329,7 @@ END SUBROUTINE distribution_1d_sort_list
 
 ! *****************************************************************************
 !> \brief returns true if the given element is contained in the requested list
-!> \param distribution_ 1d: the lists to be looked in
+!> \param distribution_1d ...
 !> \param element the element to look for
 !> \param found returns true if the element was found
 !> \param i_list_to_search index of the list to be searched (if not given
@@ -338,6 +342,7 @@ END SUBROUTINE distribution_1d_sort_list
 !>        was found (makes sense only if an element was found)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the lists to be looked in UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -390,10 +395,11 @@ END SUBROUTINE distribution_1d_search_el
 ! *****************************************************************************
 !> \brief build an array with the id of the processor that owns that index
 !>      (-1 if no processor owns it)
-!> \param distribution_ 1d: the list of which you want to build the global
-!>        distribution
+!> \param distribution_1d ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the list of which you want to build the global
+!>        distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -546,10 +552,11 @@ END SUBROUTINE distribution_1d_build_gdist
 
 ! *****************************************************************************
 !> \brief deallocates the global dist array
-!> \param distribution_ 1d: the list of which you want to destroy the global
-!>        distribution
+!> \param distribution_1d ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the list of which you want to destroy the global
+!>        distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -586,10 +593,11 @@ END SUBROUTINE distribution_1d_destroy_gdist
 
 ! *****************************************************************************
 !> \brief writes a description of the local distribution to the given unit
-!> \param distribution_ 1d: the list to describe
+!> \param distribution_1d ...
 !> \param unit_nr the unit to write to
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param distribution_ 1d: the list to describe UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed

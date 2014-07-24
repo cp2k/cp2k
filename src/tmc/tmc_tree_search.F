@@ -59,10 +59,11 @@ CONTAINS
 !> \param global_tree_elem starting point for search
 !> \param prob return value, the probability of reaching the tree node
 !> \param n_acc drection of branch the next tree node should extend
-!> \parma search_energy_node flag if configuration for calculating exact 
-!>        energy sould be searched
+!> \param search_energy_node ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \parma search_energy_node flag if configuration for calculating exact 
+!>        energy sould be searched
 !> \author Mandes 12.2012
 ! *****************************************************************************
   RECURSIVE SUBROUTINE most_prob_end(global_tree_elem, prob, n_acc, &
@@ -228,6 +229,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief gt_head head of the global tree
+!> \param gt_head ...
 !> \param new_gt_elem return value the energy should be calculated for
 !> \param stat routine status return value
 !> \param react_count reactivation counter
@@ -286,12 +288,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief searching the parent element (last accepted configuration before)
 !> \param current actual tree element 
-!> \param parent parent tree element (last accepted one)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param parent parent tree element (last accepted one)
 !> \author Mandes 12.2012
+!> \note routine searches last (assumed) accepted element in subtree
 ! *****************************************************************************
-  !-- routine searches last (assumed) accepted element in subtree
   RECURSIVE FUNCTION search_parent_element(current, error) RESULT(parent)
     TYPE(tree_type), POINTER                 :: current
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -388,9 +390,11 @@ CONTAINS
 !> \brief get the changed element of the actual global tree element and its 
 !>        related last accepted parent
 !> \param gt_act_elem actual global tree element
-!> \param elem1, elem2 two subtree elements which should be compared
+!> \param elem1 ...
+!> \param elem2 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param elem1, elem2 two subtree elements which should be compared UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE get_subtree_elements_to_check(gt_act_elem, elem1, elem2, error)
@@ -501,8 +505,8 @@ CONTAINS
 !>        also found the last accepted element before.
 !>        searches the last element which at least have ONE (not calculated) 
 !>        node in the tree branch
-!> \param tree_ptr 
-!> \param last_acc
+!> \param tree_ptr  ...
+!> \param last_acc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 12.2012

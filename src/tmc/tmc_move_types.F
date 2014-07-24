@@ -76,11 +76,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocating the module variables
 !> \param move_types pointer to the structure which should be deallocated
+!> \param nr_temp ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
+!> \note deallocating the module variables
 ! *****************************************************************************
-  ! deallocating the module variables
   SUBROUTINE move_types_create(move_types, nr_temp, error)
     TYPE(tmc_move_type), POINTER             :: move_types
     INTEGER                                  :: nr_temp
@@ -115,8 +116,8 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
+!> \note deallocating the module variables
 ! *****************************************************************************
-  ! deallocating the module variables
   SUBROUTINE move_types_release(move_types, error)
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(cp_error_type), INTENT(inout)       :: error

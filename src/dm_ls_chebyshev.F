@@ -47,6 +47,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief compute chebyshev polynomials up to order n for a given value of x
+!> \param value ...
+!> \param x ...
+!> \param n ...
 !> \par History
 !>       2012.11 created [Jinwoong Cha]
 !> \author Jinwoong Cha
@@ -65,6 +68,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief kernel for chebyshev polynomials expansion (Jackson kernel)
+!> \param value ...
+!> \param n ...
+!> \param nc ...
 !> \par History
 !>       2012.11 created [Jinwoong Cha]
 !> \author Jinwoong Cha
@@ -85,6 +91,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief compute properties based on chebyshev expansion
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2012.10 created [Jinwoong Cha]
 !> \author Jinwoong Cha

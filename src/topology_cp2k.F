@@ -48,8 +48,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Read the CP2K &COORD section from an external file, i.e. read
 !>          atomic coordinates and molecule/residue information in CP2K format.
-!> \author  Matthias Krack (MK)
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    17.01.2011 (Creation, MK)
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_coordinate_cp2k(topology,para_env,subsys_section,error)

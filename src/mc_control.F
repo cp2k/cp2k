@@ -80,11 +80,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief writes the coordinates of the current step to a file that can
 !>      be read in at the start of the next simulation
-!> \param mc_par the mc parameters for the force env
-!> \param force_env the force environment to write the coords from
 !> \param nnstep how many steps the simulation has run
 !>
 !>    Only use in serial.
+!> \param mc_par the mc parameters for the force env
+!> \param nchains ...
+!> \param force_env the force environment to write the coords from
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
@@ -176,6 +177,7 @@ CONTAINS
 !> \param force_env the force environment to write the coords from
 !> \param iw the unit to write an error message to, in case current
 !>            simulation parameters don't match what's in the restart file
+!> \param mc_nunits_tot ...
 !> \param rng_stream the stream we pull random numbers from
 !>
 !>      Used in parallel.
@@ -366,10 +368,14 @@ CONTAINS
 !> \brief creates a force environment for any of the different kinds of
 !>      MC simulations we can do (FIST, QS)
 !> \param force_env the force environment to create
-!> \param globenv the global environment parameters
+!> \param input_declaration ...
+!> \param para_env ...
+!> \param input_file_name ...
+!> \param globenv_new ...
 !> \param error the CP error structure
 !>
 !>    Suitable for parallel.
+!> \param globenv the global environment parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_create_force_env ( force_env, input_declaration, para_env, input_file_name,&
@@ -440,12 +446,21 @@ CONTAINS
 !> \brief essentially copies the cell size and coordinates of one force env
 !>      to another that we will use to bias some moves with
 !> \param bias_env the force environment to create
-!> \param force_env the force environment we're copying cell length
-!>            and coordinates from
-!> \param globenv the global environment parameters
+!> \param r ...
+!> \param atom_symbols ...
+!> \param nunits_tot ...
+!> \param para_env ...
+!> \param box_length ...
+!> \param nchains ...
+!> \param input_declaration ...
+!> \param mc_input_file ...
+!> \param ionode ...
 !> \param error the CP error structure
 !>
 !>    Suitable for parallel.
+!> \param force_env the force environment we're copying cell length
+!>            and coordinates from UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param globenv the global environment parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_create_bias_force_env (bias_env,r,atom_symbols,nunits_tot,&

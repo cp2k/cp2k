@@ -80,6 +80,11 @@ MODULE ipi_driver
 
   CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fdata ...
+! *****************************************************************************
   SUBROUTINE writebuffer_d (psockfd, fdata)
       USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
@@ -91,6 +96,11 @@ MODULE ipi_driver
       CALL writebuffer_csocket(psockfd, c_loc(cdata), 8)
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fdata ...
+! *****************************************************************************
   SUBROUTINE writebuffer_i (psockfd, fdata)
       USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd, fdata
@@ -101,6 +111,12 @@ MODULE ipi_driver
       CALL writebuffer_csocket(psockfd, c_loc(cdata), 4)
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fstring ...
+!> \param plen ...
+! *****************************************************************************
   SUBROUTINE writebuffer_s (psockfd, fstring, plen)
       USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
@@ -116,6 +132,12 @@ MODULE ipi_driver
       CALL writebuffer_csocket(psockfd, c_loc(cstring(1)), plen)
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fdata ...
+!> \param plen ...
+! *****************************************************************************
   SUBROUTINE writebuffer_dv(psockfd, fdata, plen)
       USE ISO_C_BINDING  
     INTEGER, INTENT(IN)                      :: psockfd, plen
@@ -124,6 +146,11 @@ MODULE ipi_driver
       CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fdata ...
+! *****************************************************************************
   SUBROUTINE readbuffer_d (psockfd, fdata)
       USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
@@ -135,6 +162,11 @@ MODULE ipi_driver
       fdata=cdata
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fdata ...
+! *****************************************************************************
   SUBROUTINE readbuffer_i (psockfd, fdata)
       USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
@@ -146,6 +178,12 @@ MODULE ipi_driver
       fdata = cdata
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fstring ...
+!> \param plen ...
+! *****************************************************************************
   SUBROUTINE readbuffer_s (psockfd, fstring, plen)
       USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
@@ -163,6 +201,12 @@ MODULE ipi_driver
       ENDDO
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param psockfd ...
+!> \param fdata ...
+!> \param plen ...
+! *****************************************************************************
   SUBROUTINE readbuffer_dv(psockfd, fdata, plen)
       USE ISO_C_BINDING  
     INTEGER, INTENT(IN)                      :: psockfd, plen
@@ -172,7 +216,10 @@ MODULE ipi_driver
   END SUBROUTINE
 
 ! *****************************************************************************
-!> \brief
+!> \brief ...
+!> \param force_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>       12.2013 included in repository 
 !> \author Ceriotti

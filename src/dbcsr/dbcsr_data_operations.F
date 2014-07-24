@@ -293,13 +293,17 @@ CONTAINS
 !> \param[out] blk_p          re-arranged block pointers reflecting the new
 !>                            data order
 !> \param[in] old_blk_p       current block pointers
-!> \param[in] rbs, cbs        sizes of the blocked rows and columns
-!> \param[in] row_p, col_i    index
+!> \param row_p ...
+!> \param col_i ...
+!> \param rbs ...
+!> \param cbs ...
 !> \param[out] dst            sorted data
 !> \param[in] src             existing unordered data
 !> \param[in] mark_transposed           mark data as transposed by negating the
 !>                                      blk_p index entries
 !> \param[in] transpose_blocks          transpose data blocks
+!> \param[in] rbs, cbs        sizes of the blocked rows and columns UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] row_p, col_i    index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy_sort_data(blk_p, old_blk_p, row_p, col_i, rbs, cbs,&
        dst, src, mark_transposed, transpose_blocks)
@@ -376,11 +380,13 @@ CONTAINS
 !>                            data order
 !> \param[in] old_blk_p       current block pointers
 !> \param[in] sizes           sizes of the data blocks
-!> \param[out] dst            sorted data
+!> \param dsts ...
 !> \param[in] src             existing unordered data
 !> \param[in] srcs            (optional) multiple source areas
-!> \param[in] blk_d           (optional) mapping from blocks to source areas
+!> \param old_blk_d ...
 !> \param[in,out] error       cp2k error
+!> \param[in] blk_d           (optional) mapping from blocks to source areas UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] dst            sorted data UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dsts, src,&
        srcs, old_blk_d, error)

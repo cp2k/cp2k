@@ -136,14 +136,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a list of keywords
 !> \param section the list to be created
+!> \param name ...
+!> \param description ...
 !> \param n_keywords hint about the number of keywords, defaults to 10
-!> \param n_sections a hint about how many sections will be added to this
-!>        structure, defaults to 0
+!> \param n_subsections ...
 !> \param repeats if this section can repeat (defaults to false)
 !> \param required if this section is required (and thus it cannot be
 !>        totally default). Defaults to false.
+!> \param citations ...
+!> \param supported_feature ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param n_sections a hint about how many sections will be added to this
+!>        structure, defaults to 0 UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_create(section,name,description,n_keywords,&
@@ -300,6 +305,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief collects additional information on the section for IO + documentation
+!> \param section ...
+!> \param error ...
+!> \retval message ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION get_section_info(section, error) RESULT(message)
@@ -340,6 +348,7 @@ CONTAINS
 !>        then see keyword_describe :-)
 !> \param hide_root if the name of the first section should be hidden
 !>        (defaults to false).
+!> \param recurse ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -407,6 +416,13 @@ CONTAINS
     END IF
   END SUBROUTINE section_describe
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param prefix ...
+!> \param depth ...
+!> \param unit_nr ...
+!> \param error ...
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  error)
     TYPE(section_type), POINTER              :: section
@@ -522,6 +538,12 @@ CONTAINS
   END SUBROUTINE section_describe_html
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param prefix ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_describe_index_html(section,prefix, unit_nr, error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
@@ -563,9 +585,10 @@ CONTAINS
 !> \param subsection_name the name of the subsection you want to get
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
+!> \author fawzi
 !> \note
 !>      private utility function
-!> \author fawzi
 ! *****************************************************************************
   FUNCTION section_get_subsection_index(section,subsection_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
@@ -604,6 +627,7 @@ CONTAINS
 !> \param subsection_name the name of the subsection you want to get
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION section_get_subsection(section,subsection_name,error) RESULT(res)
@@ -631,9 +655,10 @@ CONTAINS
 !> \param keyword_name the keyword you are interested in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
+!> \author fawzi
 !> \note
 !>      private utility function
-!> \author fawzi
 ! *****************************************************************************
   FUNCTION section_get_keyword_index(section,keyword_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
@@ -684,6 +709,7 @@ CONTAINS
 !> \param keyword_name the keyword you are interested in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE FUNCTION section_get_keyword(section,keyword_name,error) RESULT(res)
@@ -720,13 +746,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns various attibutes of a section object
 !> \param section the section you want informations about
+!> \param frozen ...
+!> \param required ...
+!> \param repeats ...
+!> \param id_nr ...
+!> \param ref_count ...
+!> \param name ...
+!> \param description ...
+!> \param citations ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>
 !>      For the other attributes see the section type
+!> \author fawzi
 !> \note
 !>       give direct access to keywords and subsections?
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_get(section,frozen, required, repeats,id_nr,ref_count, &
        name,description,citations,error)
@@ -1006,14 +1040,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns various attributes about the section_vals
 !> \param section_vals the section vals you want information from
+!> \param ref_count ...
+!> \param id_nr ...
 !> \param n_repetition number of repetitions of the section
-!> \param n_sub_vals_rep number of repetitions of the subsections values
-!>        (max(1,n_repetition))
+!> \param n_subs_vals_rep ...
+!> \param section ...
 !> \param explicit if the section was explicitly present in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>
 !>      For the other arguments see the attributes of section_vals_type
+!> \param n_sub_vals_rep number of repetitions of the subsections values
+!>        (max(1,n_repetition)) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition,&
@@ -1056,6 +1094,7 @@ CONTAINS
 !> \param can_return_null if the results can be null (defaults to false)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
@@ -1126,6 +1165,7 @@ CONTAINS
 !>        you want to extract the subsection (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION section_vals_get_subs_vals2(section_vals,i_section,i_rep_section,error) RESULT(res)
@@ -1168,11 +1208,13 @@ CONTAINS
 !> \brief returns the values of the n-th non default subsection (null if no
 !>      such section exists (not so many non default section))
 !> \param section_vals the root section
-!> \param i_section index of the section
+!> \param subsection_name ...
 !> \param i_rep_section index of the repetition of section_vals from which
 !>        you want to extract the subsection (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param i_section index of the section UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION section_vals_get_subs_vals3(section_vals,subsection_name,&
@@ -1320,6 +1362,12 @@ CONTAINS
 ! an example.
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section_vals ...
+!> \param keyword_name ...
+!> \param error ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION section_get_cval(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1331,6 +1379,12 @@ CONTAINS
 
   END FUNCTION section_get_cval
 
+! *****************************************************************************
+!> \brief ...
+!> \param section_vals ...
+!> \param keyword_name ...
+!> \param error ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION section_get_rval(section_vals,keyword_name,error) RESULT(res)
 
@@ -1344,6 +1398,12 @@ CONTAINS
   END FUNCTION section_get_rval
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section_vals ...
+!> \param keyword_name ...
+!> \param error ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION section_get_rvals(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1355,6 +1415,12 @@ CONTAINS
 
   END FUNCTION section_get_rvals
 
+! *****************************************************************************
+!> \brief ...
+!> \param section_vals ...
+!> \param keyword_name ...
+!> \param error ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION section_get_ival(section_vals,keyword_name,error) RESULT(res)
 
@@ -1368,6 +1434,12 @@ CONTAINS
   END FUNCTION section_get_ival
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section_vals ...
+!> \param keyword_name ...
+!> \param error ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION section_get_ivals(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1379,6 +1451,12 @@ CONTAINS
 
   END FUNCTION section_get_ivals
 
+! *****************************************************************************
+!> \brief ...
+!> \param section_vals ...
+!> \param keyword_name ...
+!> \param error ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION section_get_lval(section_vals,keyword_name,error) RESULT(res)
 
@@ -1393,19 +1471,31 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns the requested value
-!> \param section the root section
+!> \param section_vals ...
 !> \param keyword_name the name of the keyword you want
-!> \param isection which repetition of the section you are interested in
-!>        (defaults to 1)
-!> \param ival which repetition of the keyword/val you are interested in
-!>        (defaults to 1)
+!> \param i_rep_section ...
+!> \param i_rep_val ...
 !> \param n_rep_val returns number of val available
+!> \param val ...
 !> \param l_val ,i_val,r_val,c_val: returns the logical,integer,real or
 !>        character value
+!> \param i_val ...
+!> \param r_val ...
+!> \param c_val ...
 !> \param l_vals ,i_vals,r_vals,c_vals: returns the logical,integer,real or
 !>        character arrays. The val reamins the owner of the array
+!> \param i_vals ...
+!> \param r_vals ...
+!> \param c_vals ...
+!> \param ignore_required ...
+!> \param explicit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param isection which repetition of the section you are interested in
+!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ival which repetition of the keyword/val you are interested in
+!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
@@ -1544,13 +1634,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns the requested list
-!> \param section the root section
+!> \param section_vals ...
 !> \param keyword_name the name of the keyword you want
+!> \param i_rep_section ...
+!> \param list ...
+!> \param error ...
 !> \param isection which repetition of the section you are interested in
-!>        (defaults to 1)
+!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author Joost VandeVondele
 !> \note
 !>      - most useful if the full list is needed anyway, so that faster iteration can be used
-!> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE section_vals_list_get(section_vals,keyword_name,i_rep_section,&
        list,error)
@@ -1611,19 +1705,30 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief sets the requested value
-!> \param section the root section
+!> \param section_vals ...
 !> \param keyword_name the name of the keyword you want (can be a path
 !>        separated by '%')
-!> \param isection which repetition of the section you are interested in
-!>        (defaults to 1)
-!> \param ival which repetition of the keyword/val you are interested in
-!>        (defaults to 1)
+!> \param i_rep_section ...
+!> \param i_rep_val ...
+!> \param val ...
 !> \param l_val ,i_val,r_val,c_val: sets the logical,integer,real or
 !>        character value
+!> \param i_val ...
+!> \param r_val ...
+!> \param c_val ...
 !> \param l_vals_ptr ,i_vals_ptr,r_vals,c_vals: sets the logical,integer,real or
 !>        character arrays. The val becomes the owner of the array
+!> \param i_vals_ptr ...
+!> \param r_vals_ptr ...
+!> \param c_vals_ptr ...
+!> \param ignore_required ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param isection which repetition of the section you are interested in
+!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ival which repetition of the keyword/val you are interested in
+!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,i_rep_val,&
@@ -1777,15 +1882,18 @@ CONTAINS
 !> \brief unsets (removes) the requested value (if it is a keyword repetitions
 !>      removes the repetition, so be careful: the repetition indices bigger
 !>      than the actual change.
-!> \param section the root section
+!> \param section_vals ...
 !> \param keyword_name the name of the keyword you want (can be a path
 !>        separated by '%')
-!> \param isection which repetition of the section you are interested in
-!>        (defaults to 1)
-!> \param ival which repetition of the keyword/val you are interested in
-!>        (defaults to 1)
+!> \param i_rep_section ...
+!> \param i_rep_val ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param isection which repetition of the section you are interested in
+!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ival which repetition of the keyword/val you are interested in
+!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
@@ -1866,12 +1974,13 @@ CONTAINS
 !> \brief Checks if all sections or keywords defined have been supported for
 !>      release version
 !> \param section_vals the section to check for released features
-!> \param unit_nr the unit where to write to
+!> \param enable_unsupported_features ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param unit_nr the unit where to write to UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 !> \note
 !>      skips required sections which weren't read
-!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_check_release(section_vals,enable_unsupported_features,error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1978,11 +2087,13 @@ CONTAINS
 !>      the automatic parsing
 !> \param section_vals the section to write out
 !> \param unit_nr the unit where to write to
+!> \param hide_root ...
+!> \param hide_defaults ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      skips required sections which weren't read
-!> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,hide_defaults,error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -2132,6 +2243,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes the values in the given section in xml
+!> \param section ...
+!> \param level ...
+!> \param unit_number ...
+!> \param error ...
 ! *****************************************************************************
   RECURSIVE SUBROUTINE write_section_xml(section,level,unit_number,error)
 
@@ -2209,6 +2324,14 @@ CONTAINS
 
   END SUBROUTINE write_section_xml
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param unknown_string ...
+!> \param location_string ...
+!> \param matching_rank ...
+!> \param matching_string ...
+!> \param error ...
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,&
        matching_rank,matching_string,error)
@@ -2340,6 +2463,8 @@ CONTAINS
 !> \brief creates a deep copy from section_vals_in to section_vals_out
 !> \param section_vals_in the section_vals to copy
 !> \param section_vals_out the section_vals to create
+!> \param i_rep_start ...
+!> \param i_rep_end ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -2371,11 +2496,13 @@ CONTAINS
 !> \brief deep copy from section_vals_in to section_vals_out
 !> \param section_vals_in the section_vals to copy
 !> \param section_vals_out the section_vals where to copy
+!> \param i_rep_low ...
+!> \param i_rep_high ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      private, only works with a newly initialized section_vals_out
-!> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
        i_rep_low,i_rep_high,error)

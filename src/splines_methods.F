@@ -80,10 +80,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocates storage for y2 table
 !>      calculates y2 table and other spline parameters
-!> \par Examples
-!>      CALL init_spline(spline,dx=0.1_dp)
-!>      CALL init_spline(spline,y1b=0.0_dp)
-!>      CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
 !> \param spl spline_data structure to be initialized
 !>                       spl%y() must hold the function values
 !>                       spl%x() must hold the absissa values in increasing
@@ -97,13 +93,19 @@ CONTAINS
 !>      y1b : (OPTIONAL) if present, the 1-deriv of the right endpoint
 !>                       if not present, natural spline condition at this end
 !>                       (2-deriv == 0)
-!> \note
-!>      if dx is given, the x array will be used as y2 array instead of
-!>      allocating a new array. (y2 will become x, and x will be nullified)
+!> \param y1a ...
+!> \param y1b ...
+!> \par Examples
+!>      CALL init_spline(spline,dx=0.1_dp)
+!>      CALL init_spline(spline,y1b=0.0_dp)
+!>      CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
 !> \par History
 !>      2001-09-21-HAF added this doc entry and changed formatting
 !>      2001-09-24-HAF changed interface and re-written
 !> \author unknown
+!> \note
+!>      if dx is given, the x array will be used as y2 array instead of
+!>      allocating a new array. (y2 will become x, and x will be nullified)
 ! *****************************************************************************
   SUBROUTINE init_spline(spl, dx, y1a, y1b)
 
@@ -157,18 +159,23 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates the potential interpolated with splines value at a given point
 !>      and the first derivative. Checks included to avoid just segfaulting!!
+!> \param spl_p ...
+!> \param xxi ...
+!> \param y1 ...
+!> \param spl_f ...
+!> \param logger ...
+!> \param spl spline_data structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param xx absissa value UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Output
 !>      spline interpolated value at xx
 !>      y1 : 1. derivative at xx
-!> \param spl spline_data structure
-!> \param xx absissa value
+!> \par History
+!>      2001-09-25-HAF added this doc entry and changed formatting
+!> \author unknown
 !> \note
 !>      the spline MUST have uniform x values and xx MUST be
 !>      in the interpolation interval. No checks are done to ensure
 !>      either condition.
-!> \par History
-!>      2001-09-25-HAF added this doc entry and changed formatting
-!> \author unknown
 ! *****************************************************************************
   FUNCTION potential_s (spl_p, xxi, y1, spl_f, logger )
     TYPE(spline_data_p_type), DIMENSION(:), &
@@ -221,6 +228,9 @@ CONTAINS
 !>        and without any funny scaling business, or weird
 !>        1/x^2 grid assumptions
 !>
+!> \param spl ...
+!> \param xx ...
+!> \param y1 ...
 !> \author HAF
 ! *****************************************************************************
   FUNCTION spline_value ( spl, xx, y1 )

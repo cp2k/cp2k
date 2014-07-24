@@ -83,6 +83,11 @@ MODULE dbcsr_test_methods
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param narg ...
+!> \param args ...
+! *****************************************************************************
   SUBROUTINE dbcsr_test_read_args(narg, args)
     INTEGER, INTENT(out)                     :: narg
     CHARACTER(len=*), DIMENSION(:), &
@@ -319,6 +324,12 @@ CONTAINS
 
   END SUBROUTINE dbcsr_to_dense_local
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist_array ...
+!> \param dist_size ...
+!> \param nbins ...
+! *****************************************************************************
   SUBROUTINE dbcsr_random_dist (dist_array, dist_size, nbins)
     TYPE(array_i1d_obj), INTENT(out)         :: dist_array
     INTEGER, INTENT(in)                      :: dist_size, nbins
@@ -341,8 +352,19 @@ CONTAINS
 
 
 !> \brief Creates a random matrix.
+!> \param matrix ...
+!> \param row_blk_sizes ...
+!> \param col_blk_sizes ...
+!> \param name ...
+!> \param sparsity ...
+!> \param mp_group ...
+!> \param data_type ...
+!> \param symmetry ...
+!> \param dist ...
 !> \param[in] nondet     (optional) Specifies that deterministic behavior is
 !>                       unneeded.
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
        name, sparsity, mp_group, data_type, symmetry, dist, nondet, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
@@ -497,6 +519,12 @@ CONTAINS
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_make_random_matrix
 
+! *****************************************************************************
+!> \brief ...
+!> \param block_sizes ...
+!> \param size_sum ...
+!> \param size_mix ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_random_block_sizes(block_sizes, size_sum, size_mix)
     TYPE(array_i1d_obj), INTENT(out)         :: block_sizes
     INTEGER, INTENT(in)                      :: size_sum
@@ -554,6 +582,11 @@ CONTAINS
   END SUBROUTINE dbcsr_make_random_block_sizes
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \param group ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_null_mp (mp_env, group)
     TYPE(dbcsr_mp_obj), INTENT(out)          :: mp_env
     INTEGER, INTENT(in), OPTIONAL            :: group
@@ -572,6 +605,13 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_make_null_mp
   !
+! *****************************************************************************
+!> \brief ...
+!> \param distribution ...
+!> \param nblkrows ...
+!> \param nblkcols ...
+!> \param group ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_null_dist (distribution, nblkrows, nblkcols, group)
     TYPE(dbcsr_distribution_obj), &
       INTENT(out)                            :: distribution
@@ -592,6 +632,10 @@ CONTAINS
     CALL dbcsr_mp_release (mp_env)
   END SUBROUTINE dbcsr_make_null_dist
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+! *****************************************************************************
   FUNCTION atoi(a)
     CHARACTER(len=*), INTENT(in)             :: a
     INTEGER                                  :: atoi
@@ -599,6 +643,10 @@ CONTAINS
     READ(a,'(I6)') atoi
   END FUNCTION atoi
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+! *****************************************************************************
   FUNCTION atol(a)
     CHARACTER(len=*), INTENT(in)             :: a
     LOGICAL                                  :: atol
@@ -606,6 +654,10 @@ CONTAINS
     READ(a,'(L1)') atol
   END FUNCTION atol
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+! *****************************************************************************
   FUNCTION ator(a)
     CHARACTER(len=*), INTENT(in)             :: a
     REAL(real_8)                             :: ator

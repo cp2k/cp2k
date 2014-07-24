@@ -94,12 +94,14 @@ CONTAINS
 !> \param nnstep the Monte Carlo step we're on
 !> \param old_energy the energy of the last accepted move involving the full potential
 !> \param bias_energy_new the energy of the current configuration involving the bias potential
+!> \param last_bias_energy ...
 !> \param nboxes the number of boxes (force environments) in the system
 !> \param box_flag indicates if a move has been tried in a given box..if not, we don't
 !>        recompute the energy
 !> \param subsys the pointers for the particle subsystems of both boxes
 !> \param particles the pointers for the particle sets
 !> \param rng_stream the stream we pull random numbers from
+!> \param unit_conv ...
 !> \param error the cp_error_type in case something goes wrong
 !>
 !>      Designed for parallel use.
@@ -440,6 +442,7 @@ CONTAINS
 !>               full potential calculation for both boxes
 !> \param old_energy the energy of the last accepted move involving a
 !>                    a full potential calculation
+!> \param input_declaration ...
 !> \param para_env the parallel environment for this simulation
 !> \param bias_energy_old the energies of both boxes computed using the biasing
 !>        potential

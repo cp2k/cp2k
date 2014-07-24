@@ -47,6 +47,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Reads the POISSON input-section and into pw_poisson_parameter_type.
+!> \param poisson_section ...
+!> \param params ...
+!> \param error ...
 !> \par History
 !>      01.2014 Code moved into separate module from pw_poisson_types,
 !>              pw_poisson_methods and ps_wavelet_types.
@@ -106,6 +109,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Helper routien for pw_poisson_read_parameters
+!> \param periodic ...
+!> \param params ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE decode_periodic_green(periodic, params, error)
@@ -149,6 +155,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Helper routien for pw_poisson_read_parameters
+!> \param periodic ...
+!> \param params ...
+!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE decode_periodic_wavelet(periodic, params, error)

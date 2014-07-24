@@ -65,6 +65,7 @@ CONTAINS
 !> \brief Does a shallow copy of an array of full matrices (i.e. just retains
 !>      the matrices)
 !> \param matrixes the matrixes to copy
+!> \param copy ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -106,11 +107,11 @@ END SUBROUTINE cp_fm_vect_copy
 !>        (defaults to false, i.e. global)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      routine to help debugging
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      routine to help debugging
 ! *****************************************************************************
    SUBROUTINE cp_fm_vect_write(matrixes, unit_nr, long_description,&
         local, error)

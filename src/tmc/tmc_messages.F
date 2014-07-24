@@ -83,9 +83,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief checks if the core is the group master
 !> \param para_env defines the mpi communicator
-!> \param master return value, logical
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param master return value, logical
 !> \author Mandes 01.2013
 ! *****************************************************************************
   FUNCTION check_if_group_master(para_env, error) RESULT(master)
@@ -111,15 +111,23 @@ CONTAINS
 !>        type. Send first info message with task type and message sizes and
 !>        then the int and real messages. The same for receiving
 !> \param msg_type defines the message types, see message tags definition
-!> \param send_recv: 1= send, 0= receive
-!> \param dest: defines the target or source of message 
-!>              (-1=braodcast, 0= master, 1... working group)
+!> \param send_recv ...
+!> \param dest ...
 !> \param para_env defines the mpi communicator
 !> \param tmc_params stuct with parameters (global settings)
-!> \param elem: a subtree element from which info are readed or written in
-!> \param T_ind: (optinal) given because not in tree structure
+!> \param elem ...
+!> \param elem_array ...
+!> \param list_elem ...
+!> \param result_count ...
+!> \param wait_for_message ...
+!> \param success ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param T_ind: (optinal) given because not in tree structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param dest: defines the target or source of message 
+!>              (-1=braodcast, 0= master, 1... working group) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param elem: a subtree element from which info are readed or written in UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param send_recv: 1= send, 0= receive UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE tmc_message(msg_type, send_recv, dest, para_env, tmc_params, &
@@ -400,11 +408,6 @@ CONTAINS
   END SUBROUTINE tmc_message
 
 ! *****************************************************************************
-!> \brief following pairs of routines creating outgoing and 
-!>        handling incoming messages are defined
-! *****************************************************************************
-
-! *****************************************************************************
 !> \brief set the messege just with an status tag
 !> \param msg_type the status tag 
 !> \param m_send the message structure
@@ -412,6 +415,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
+
   SUBROUTINE create_status_message(msg_type, m_send, error)
     INTEGER                                  :: msg_type
     TYPE(message_send), POINTER              :: m_send
@@ -521,10 +525,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
 !> \param msg_type the status tag 
-!> \param tmc_parms to send the cell properties
+!> \param tmc_params ...
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param tmc_parms to send the cell properties UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 07.2013
 ! *****************************************************************************
   SUBROUTINE create_worker_init_message(msg_type, tmc_params, m_send, error)
@@ -580,10 +585,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
 !> \param msg_type the status tag 
-!> \param tmc_parms to send the cell properties
+!> \param tmc_params ...
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param tmc_parms to send the cell properties UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 07.2013
 ! *****************************************************************************
   SUBROUTINE read_worker_init_message(msg_type, tmc_params, m_send, error)
@@ -636,10 +642,12 @@ CONTAINS
 !> \param msg_type the status tag 
 !> \param elem the intial tree element with initial coordinates and energy 
 !>        (using the approximated potential)
-!> \param tmc_parms to send the cell properties
+!> \param result_count ...
+!> \param tmc_params ...
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param tmc_parms to send the cell properties UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_start_conf_message(msg_type, elem, result_count, &
@@ -724,6 +732,7 @@ CONTAINS
 !> \param msg_type the status tag 
 !> \param elem the intial tree element with initial coordinates and energy 
 !>        (using the approximated potential)
+!> \param result_count ...
 !> \param m_send the message structure
 !> \param tmc_params the param struct with necessary values for allocation
 !> \param error variable to control error logging, stopping,...
@@ -1059,6 +1068,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create message for sending back the approximate energy of new conf
+!> \param msg_type ...
 !> \param elem tree element with calculated approx energy 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
@@ -1595,11 +1605,12 @@ CONTAINS
 !> \brief creating message for requesting analysing a new configuration
 !>        we plot temperatur index into the sub tree number and 
 !>        the Markov chain number into the element number
-!> \param elem tree element with new coordinates 
+!> \param list_elem ...
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param elem tree element with new coordinates  UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_analysis_request_message(list_elem, m_send, &
@@ -1750,7 +1761,8 @@ CONTAINS
 !> \brief routines send atom names to the global master 
 !>        (using broadcast in a specialized group consisting of the master 
 !>        and the first energy worker master)
-!> \param atoms
+!> \param atoms ...
+!> \param source ...
 !> \param para_env the communicator environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1795,10 +1807,13 @@ CONTAINS
   !============================================================================
 ! *****************************************************************************
 !> \brief send stop command to all group participants
-!> \param 
-!> \param 
+!> \param para_env ...
+!> \param worker_info ...
+!> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param 
+!> \param 
 !> \author Mandes 01.2013
 ! *****************************************************************************
   SUBROUTINE stop_whole_group(para_env, worker_info, tmc_params, error)

@@ -63,6 +63,9 @@ MODULE hfx_compression_methods
 !> \param nbits number of bits to be stored
 !> \param cache cache to which we want to add
 !> \param container container that contains the compressed elements
+!> \param memory_usage ...
+!> \param use_disk_storage ...
+!> \param max_val_memory ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -100,10 +103,13 @@ MODULE hfx_compression_methods
 !>        in a container. If necessary, a new list entry is allocated
 !> \param full_array values from the cache
 !> \param container linked list, that stores the compressed values
-!> \param nints number of int_8 values to be compressed
 !> \param nbits number of bits to be stored
+!> \param memory_usage ...
+!> \param use_disk_storage ...
+!> \param max_val_memory ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param nints number of int_8 values to be compressed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -168,6 +174,8 @@ MODULE hfx_compression_methods
 !> \param nbits number of bits with which the value has been compressed
 !> \param cache cache from which we get the value
 !> \param container container that contains the compressed elements
+!> \param memory_usage ...
+!> \param use_disk_storage ...
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -198,8 +206,10 @@ MODULE hfx_compression_methods
 !>        a cache.
 !> \param full_array values to be retained from container
 !> \param container linked list, that stores the compressed values
-!> \param nints number of int_8 values to be decompressed
 !> \param nbits number of bits with which the values have been stored
+!> \param memory_usage ...
+!> \param use_disk_storage ...
+!> \param nints number of int_8 values to be decompressed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -249,6 +259,8 @@ MODULE hfx_compression_methods
 !>        moves the element counters of container and cache to the beginning
 !> \param cache cache from which we get the value
 !> \param container container that contains the compressed elements
+!> \param memory_usage ...
+!> \param do_disk_storage ...
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -279,6 +291,8 @@ MODULE hfx_compression_methods
 !> \param nbits number of bits with which the data has been stored
 !> \param cache array where we want to decompress the data
 !> \param container container that contains the compressed elements
+!> \param memory_usage ...
+!> \param use_disk_storage ...
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -300,6 +314,8 @@ MODULE hfx_compression_methods
 !> \param nbits number of bits with which the data has been stored
 !> \param cache array where we want to decompress the data
 !> \param container container that contains the compressed elements
+!> \param memory_usage ...
+!> \param use_disk_storage ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -331,9 +347,14 @@ MODULE hfx_compression_methods
 !> \brief - This routine adds an a few real values to a cache. If the cache is full
 !>        a compression routine is invoked and the cache is cleared
 !> \param values values to be added to the cache
+!> \param nints ...
 !> \param nbits number of bits to be stored
 !> \param cache cache to which we want to add
 !> \param container container that contains the compressed elements
+!> \param eps_schwarz ...
+!> \param pmax_entry ...
+!> \param memory_usage ...
+!> \param use_disk_storage ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -414,8 +435,10 @@ MODULE hfx_compression_methods
 !> \param container container that contains the compressed elements
 !> \param eps_schwarz threshold for storage
 !> \param pmax_entry multiplication factor for values
+!> \param memory_usage ...
+!> \param use_disk_storage ...
 !> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon

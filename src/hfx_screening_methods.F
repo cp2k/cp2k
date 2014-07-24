@@ -51,15 +51,27 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief calculates max values of two-electron integrals in a quartet/shell
 !>      w.r.t. different zetas using the library lib_int
-!> \param r position
-!> \param z zeta
-!> \param l angular momentum
-!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param lib ...
+!> \param ra ...
+!> \param rb ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param la_min ...
+!> \param la_max ...
+!> \param lb_min ...
+!> \param lb_max ...
+!> \param npgfa ...
+!> \param npgfb ...
 !> \param max_val schwarz screening value
 !> \param potential_parameter contains info for libint
-!> \param i_thread thread id of the current task
 !> \param tmp_R_1 pgf_based screening coefficients
 !> \param rab2 Squared Distance of centers ab
+!> \param p_work ...
+!> \param i_thread thread id of the current task UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param l angular momentum UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param npgf number of primitive cartesian gaussian in actual shell UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param r position UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param z zeta UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>     03.2007 created [Manuel Guidon]
 !>     02.2009 refactored [Manuel Guidon]
@@ -109,11 +121,22 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief updates the maximum of the density matrix in compressed form for screening purposes
 !> \param pmax_set buffer to store matrix
-!> \note
-!>      - updates for each pair of shells the maximum absolute value of p
+!> \param map_atom_to_kind_atom ...
+!> \param set_offset ...
+!> \param atomic_block_offset ...
+!> \param pmax_atom ...
+!> \param full_density ...
+!> \param full_density_beta ...
+!> \param natom ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param nkind ...
+!> \param is_assoc_atomic_block ...
 !> \par History
 !>     09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - updates for each pair of shells the maximum absolute value of p
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
                              pmax_atom, full_density, full_density_beta, natom, &
@@ -248,15 +271,22 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief calculates screening functions for schwarz screening
 !> \param qs_env qs_env
+!> \param basis_parameter ...
 !> \param lib structure to libint
 !> \param potential_parameter contains infos on potential
-!> \param i_thread Thread ID of current task
 !> \param coeffs_set set based coefficients
 !> \param coeffs_kind kind based coefficients
 !> \param coeffs_pgf pgf based coefficients
 !> \param radii_pgf coefficients for long-range screening
 !> \param max_set Maximum Number of basis set sets in the system
 !> \param max_pgf Maximum Number of basis set pgfs in the system
+!> \param n_threads ...
+!> \param i_thread Thread ID of current task
+!> \param p_work ...
+!> \param error ...
+!> \par History
+!>     02.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
 !> \note
 !>      This routine calculates (ab|ab) for different distances Rab = |a-b|
 !>      and uses the powell optimiztion routines in order to fit the results
@@ -272,9 +302,6 @@ MODULE hfx_screening_methods
 !>      the corresponding ranges of the prodiuct charge distributions
 !>      Doing so, we only need arrays of size nkinds^2*2 instead of big
 !>      screening matrices
-!> \par History
-!>     02.2009 created [Manuel Guidon]
-!> \author Manuel Guidon
 ! *****************************************************************************
 
   SUBROUTINE calc_screening_functions(qs_env, basis_parameter, lib, potential_parameter, &
@@ -631,12 +658,19 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief calculates radius functions for longrange screening
 !> \param qs_env qs_env
-!> \param lib structure to libint
-!> \param potential_parameter contains infos on potential
-!> \param i_thread Thread ID of current task
+!> \param basis_parameter ...
 !> \param radii_pgf pgf based coefficients
 !> \param max_set Maximum Number of basis set sets in the system
 !> \param max_pgf Maximum Number of basis set pgfs in the system
+!> \param eps_schwarz ...
+!> \param n_threads ...
+!> \param i_thread Thread ID of current task
+!> \param error ...
+!> \param lib structure to libint UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param potential_parameter contains infos on potential UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par History
+!>     02.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
 !> \note
 !>      This routine calculates the pair-distribution radius of a product
 !>      Gaussian and uses the powell optimiztion routines in order to fit
@@ -644,9 +678,6 @@ MODULE hfx_screening_methods
 !>
 !>                 (ab| = (ab(Rab) = c2*Rab^2 + c0
 !>
-!> \par History
-!>     02.2009 created [Manuel Guidon]
-!> \author Manuel Guidon
 ! *****************************************************************************
 
   SUBROUTINE calc_pair_dist_radii(qs_env, basis_parameter, &
@@ -813,6 +844,12 @@ END SUBROUTINE calc_pair_dist_radii
 ! it constructs an approximate upper bound of the fitted function
 !
 !
+! *****************************************************************************
+!> \brief ...
+!> \param DATA ...
+!> \param x ...
+!> \param fmin ...
+! *****************************************************************************
   SUBROUTINE optimize_it(DATA,x,fmin)
 
     REAL(KIND=dp), INTENT(IN)                :: DATA(2,0:100)
@@ -880,8 +917,10 @@ END SUBROUTINE calc_pair_dist_radii
 !>        a symmetric upper triangle NxN matrix
 !>        The compiler should inline this function, therefore it appears in
 !>        several modules
-!> \param i,j 2d index
+!> \param i ...
+!> \param j ...
 !> \param N matrix size
+!> \param i,j 2d index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

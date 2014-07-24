@@ -55,6 +55,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set the dg_rho0_type
+!> \param dg_rho0 ...
+!> \param TYPE ...
+!> \param grid ...
+!> \param kind ...
+!> \param cutoff_radius ...
+!> \param gcc ...
+!> \param zet ...
+!> \param density ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE dg_rho0_set ( dg_rho0, TYPE, grid, kind, cutoff_radius, &
@@ -81,6 +89,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Get the dg_rho0_type
+!> \param dg_rho0 ...
+!> \param cutoff_radius ...
+!> \param TYPE ...
+!> \param grid ...
+!> \param kind ...
+!> \param gcc ...
+!> \param zet ...
+!> \param density ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE dg_rho0_get ( dg_rho0, cutoff_radius, TYPE, grid, kind, gcc, zet, density )
@@ -105,6 +121,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   create the dg_rho0 structure
+!> \param dg_rho0 ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE dg_rho0_create ( dg_rho0, error )
@@ -133,14 +151,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains the given dg_rho0_type
-!> \param dg_rho 0_type: the dg_rho0_type to retain
+!> \param dg_rho0 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
+!> \param dg_rho 0_type: the dg_rho0_type to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   SUBROUTINE dg_rho0_retain ( dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -162,14 +181,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the given dg_rho0_type
-!> \param dg the dg_rho0_type to release
+!> \param dg_rho0 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
+!> \param dg the dg_rho0_type to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   SUBROUTINE dg_rho0_release(dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -206,6 +226,11 @@ CONTAINS
   END SUBROUTINE dg_rho0_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param dg_rho0 ...
+!> \param pw_grid ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid, error )
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -228,6 +253,11 @@ CONTAINS
 
   END SUBROUTINE dg_rho0_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param dg_rho0 ...
+!> \param alpha ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha, error)
 

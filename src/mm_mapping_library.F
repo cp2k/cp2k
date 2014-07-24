@@ -39,6 +39,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize arrays for mapping KINDS <-> ELEMENTS
 !>      for major elements in AMBER and CHARMM
+!> \param ff_type ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -141,6 +142,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocates the arrays used for mapping
+!> \param ff_type ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

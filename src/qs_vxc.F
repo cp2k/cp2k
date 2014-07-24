@@ -72,16 +72,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates and allocates the xc potential, already reducing it to
 !>      the dependence on rho and the one on tau
+!> \param qs_env qs_environment to get all the needed things
+!> \param rho_struct density for which v_xc is calculated
+!> \param xc_section ...
 !> \param vxc_rho will contain the v_xc part that depend on rho
 !>        (if one of the choosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param vxc_tau will contain the kinetic (tau) part of v_xc
 !>        (if one of the choosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param qs_env qs_environment to get all the needed things
-!> \param rho_struct density for which v_xc is calculated
+!> \param exc ...
 !> \param just_energy if true calculates just the energy, and does not
 !>        allocate v_*_rspace
+!> \param edisp ...
+!> \param dispersion_env ...
+!> \param adiabatic_rescale_factor ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

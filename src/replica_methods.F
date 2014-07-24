@@ -79,6 +79,7 @@ MODULE replica_methods
 !> \param rep_env the replica environment that will be created
 !> \param para_env the parallel enviroment that will contain the replicas
 !> \param input the input used to initialize the force environment
+!> \param input_declaration ...
 !> \param nrep the number of replicas to calculate
 !> \param prep the number of processors for each replica
 !> \param sync_v if the volocity should be synchronized (defaults to false)
@@ -401,9 +402,9 @@ MODULE replica_methods
 !>        energy
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      indirect through f77_int_low to work around fortran madness
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE rep_env_calc_e_f(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -440,10 +441,10 @@ MODULE replica_methods
 !> \param calc_f if nonzero calculates also the forces along with the
 !>        energy
 !> \param ierr if an error happens this will be nonzero
+!> \author fawzi
 !> \note
 !>      low level wrapper to export this function in f77_int_low and work
 !>      around the handling of circular dependecies in fortran
-!> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id,calc_f,ierr)
     INTEGER, INTENT(in)                      :: rep_env_id, calc_f
@@ -473,12 +474,13 @@ MODULE replica_methods
 ! *****************************************************************************
 !> \brief calculates energy and force, internal private method
 !> \param rep_env the replica env to update
-!> \param if the force should be calculated as well (defaults to true)
+!> \param calc_f ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param if the force should be calculated as well (defaults to true) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author fawzi
 !> \note
 !>      this is the where the real work is done
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -560,6 +562,10 @@ MODULE replica_methods
 
 
 ! *****************************************************************************
+!> \brief ...
+!> \param para_env ...
+!> \param input ...
+!> \param input_declaration ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi

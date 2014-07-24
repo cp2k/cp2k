@@ -375,6 +375,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief initializes a colvar_param type
 !> \param colvar the colvat to initialize
+!> \param colvar_id ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
@@ -511,6 +512,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Check and setup about the use of geometrical points instead of atoms
 !> \param colvar the colvat to initialize
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino, [teo] 03.2007
@@ -1127,6 +1129,9 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Gives back the size of an array of integer. If not associated gives back 1
+!> \param colvar ...
+!> \param i ...
+!> \retval my_size ...
 !> \author Teodoro Laino - 03.2007
 ! *****************************************************************************
   FUNCTION colv_size(colvar,i) RESULT(my_size)
@@ -1377,9 +1382,12 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Clone a colvar type
-!> \param colvar the colvar to deallocate
+!> \param colvar_out ...
+!> \param colvar_in ...
+!> \param i_atom_offset ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param colvar the colvar to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
   RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
@@ -1757,9 +1765,12 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Clone points type of a colvar type
-!> \param colvar the colvar to deallocate
+!> \param colvar_out ...
+!> \param colvar_in ...
+!> \param offset ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param colvar the colvar to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino [tlaino] 03.2007
 ! *****************************************************************************
   SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset, error)
@@ -1808,9 +1819,12 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Change the dimension of a colvar_p_type
-!> \param colvar the colvar to deallocate
+!> \param colvar_set ...
+!> \param lb1_new ...
+!> \param ub1_new ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param colvar the colvar to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
   SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new, error)
@@ -1873,10 +1887,12 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Deallocate a set of colvar_p_type
-!> \author Ole Schuett
+!> \param colvar_p ...
+!> \param error ...
 !> \par History
 !>      07.2003 created [fawzi]
 !>      01.2014 moved from cp_subsys_release() into separate routine.
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE colvar_p_release(colvar_p, error)
     TYPE(colvar_p_type), DIMENSION(:), &
@@ -1898,6 +1914,9 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Evaluate the position of the geometrical point
+!> \param point ...
+!> \param particles ...
+!> \param r ...
 !> \author Teodoro Laino - 03.2007
 ! *****************************************************************************
   SUBROUTINE eval_point_pos(point, particles, r)
@@ -1920,6 +1939,12 @@ CPSourceFileRef)
 
   END SUBROUTINE eval_point_pos
 
+! *****************************************************************************
+!> \brief ...
+!> \param point ...
+!> \param particles ...
+!> \param m ...
+! *****************************************************************************
   SUBROUTINE eval_point_mass(point, particles, m)
     TYPE(point_type)                         :: point
     TYPE(particle_type), DIMENSION(:), &
@@ -1942,6 +1967,10 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Evaluate the position of the geometrical point
+!> \param points ...
+!> \param i ...
+!> \param dsdr ...
+!> \param f ...
 !> \author Teodoro Laino - 03.2007
 ! *****************************************************************************
   SUBROUTINE eval_point_der(points, i, dsdr, f)
@@ -1974,9 +2003,12 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief Complete the description of the COORDINATION colvar when
 !>      defined using KINDS
-!> \author Teodoro Laino - 07.2007
+!> \param colvar ...
+!> \param particles ...
+!> \param error ...
 !> \par History
 !>      1.2009 Fabio Sterpone : Added a part for population
+!> \author Teodoro Laino - 07.2007
 ! *****************************************************************************
   SUBROUTINE post_process_colvar(colvar, particles, error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -2206,6 +2238,9 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief subtract b from the ss value of a colvar: general function for handling
 !>        periodic/non-periodic colvar
+!> \param colvar ...
+!> \param b ...
+!> \retval diff ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   FUNCTION diff_colvar(colvar, b) RESULT(diff)

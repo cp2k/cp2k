@@ -138,8 +138,12 @@ CONTAINS
 !>      An scf optimization using the TP scheme or TD-DFT is used
 !>      to evaluate the spectral energies and oscillator strengths
 !> \param qs_env the qs_env, the xas_env lives in
+!> \param dft_control ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      05.2005 created [MI]
+!> \author MI
 !> \note
 !>      the iteration counter is not finilized yet
 !>      only the transition potential approach is active
@@ -147,9 +151,6 @@ CONTAINS
 !>      it uses by default the berry phase approach
 !>      The number of states to be localized is xas_control%nexc_search
 !>      In general only the core states are needed
-!> \par History
-!>      05.2005 created [MI]
-!> \author MI
 ! *****************************************************************************
   SUBROUTINE xas(qs_env, dft_control, error)
 
@@ -584,6 +585,8 @@ CONTAINS
 !> \param xas_env the environment for XAS  calculations
 !> \param xas_control parameters for the xas calculation
 !> \param qs_env the qs_env, the xas_env lives in
+!> \param xas_section ...
+!> \param logger ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1039,15 +1042,19 @@ CONTAINS
 !> \brief Calculate and write the spectrum relative to the core level excitation
 !>      of a specific atom. It works for TP approach, because of the definition
 !>      of the oscillator strengths as  matrix elements of the dipole operator
+!> \param xas_control ...
+!> \param xas_env ...
+!> \param qs_env ...
+!> \param xas_section ...
 !> \param iatom index of the excited atom
-!> \param iter iteration of the xas calculation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      for the tddft calculation should be re-thought
+!> \param iter iteration of the xas calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI
+!> \note
+!>      for the tddft calculation should be re-thought
 ! *****************************************************************************
   SUBROUTINE cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
              iatom,error)
@@ -1162,17 +1169,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief write the spectrum for each atom in a different output file
-!> \param spectrum temporary variable contaning the spectrum for the actual atom
-!> \param xas_rootfname root of the filename where the spectrum is written
+!> \param sp_em ...
+!> \param sp_ab ...
+!> \param estate ...
+!> \param xas_section ...
 !> \param iatom index of the excited atom
-!> \param ionode logical assigning the i/o node
+!> \param lfomo ...
+!> \param length ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      the iteration counter is not finilized yet
+!> \param ionode logical assigning the i/o node UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param spectrum temporary variable contaning the spectrum for the actual atom UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param xas_rootfname root of the filename where the spectrum is written UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI
+!> \note
+!>      the iteration counter is not finilized yet
 ! *****************************************************************************
   SUBROUTINE xas_write(sp_em, sp_ab, estate, xas_section, iatom, &
              lfomo, length, error)
@@ -1250,11 +1263,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief write the cube files for a set of selected states
 !> \param xas_control provide number ant indexes of the states to be printed
-!> \param qs_en v
+!> \param qs_env ...
+!> \param xas_section ...
 !> \param mos mos from which the states to be printed are extracted
-!> \param iter iteration step (e.g. along an md)
+!> \param all_vectors ...
 !> \param iatom index of the atom that has been excited
-!> \param ionod e
+!> \param append_cube ...
+!> \param error ...
+!> \param ionod e UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param iter iteration step (e.g. along an md) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param qs_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2005 created [MI]
 !> \author MI
@@ -1326,12 +1344,17 @@ CONTAINS
 !>               calculated for the basis functions
 !> \param mos wavefunctions coefficients
 !> \param excvec coefficients of the excited orbital
+!> \param all_vectors ...
+!> \param all_evals ...
 !> \param fm_work work space
 !> \param cell parameters for the simulation cell
-!> \param spectrum temporary variable contaning the spectrum for the actual atom
+!> \param sp_em ...
+!> \param sp_ab ...
 !> \param estate index of the excited state
+!> \param nstate ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param spectrum temporary variable contaning the spectrum for the actual atom UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 created [MI]
 !> \author MI
@@ -1430,11 +1453,16 @@ CONTAINS
 !>               calculated for the basis functions
 !> \param mos wavefunctions coefficients
 !> \param excvec coefficients of the excited orbital
+!> \param all_vectors ...
+!> \param all_evals ...
 !> \param fm_work work space
-!> \param spectrum temporary variable contaning the spectrum for the actual atom
+!> \param sp_em ...
+!> \param sp_ab ...
 !> \param estate index of the excited state
+!> \param nstate ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param spectrum temporary variable contaning the spectrum for the actual atom UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 created [MI]
 !> \author MI
@@ -1517,6 +1545,12 @@ CONTAINS
 
   END SUBROUTINE spectrum_dip_vel
 
+! *****************************************************************************
+!> \brief ...
+!> \param base_a ...
+!> \param base_b ...
+!> \param matrix ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calc_stogto_overlap(base_a, base_b, matrix,error)
 
@@ -1603,6 +1637,11 @@ CONTAINS
 !>      proceeding to the assignment of the type
 !>      The type is determined by computing the overalp with a
 !>      type specific, minimal, STO bais set
+!> \param xas_control ...
+!> \param xas_env ...
+!> \param localized_wfn_control ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI

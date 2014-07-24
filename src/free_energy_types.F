@@ -79,6 +79,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the fe_env
+!> \param fe_env ...
+!> \param fe_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino 01.2007
@@ -158,6 +160,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the fe_env
+!> \param fe_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Laino Teodoro 01.2007

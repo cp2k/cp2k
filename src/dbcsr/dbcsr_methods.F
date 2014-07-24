@@ -218,7 +218,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes a DBCSR matrix but does not create it.
 !> \param[out] matrix         uninitialized matrix
-!> \param[in,out] error       cp2k error
+!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_type (matrix)
     TYPE(dbcsr_type), INTENT(OUT)            :: matrix
@@ -251,7 +251,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes a DBCSR matrix but does not allocate any memory.
 !> \param[out] matrix         uninitialized matrix
-!> \param[in,out] error       cp2k error
+!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_obj (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -371,7 +371,8 @@ CONTAINS
 !> \brief Releases a reference for a DBCSR matrix
 !>
 !> If there are no references left, the matrix is destroyed.
-!> \param[in,out] set    DBCSR matrix
+!> \param matrix ...
+!> \param[in,out] set    DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dbcsr_release (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -399,7 +400,9 @@ CONTAINS
 !> \brief Releases a reference for a DBCSR matrix
 !>
 !> If there are no references left, the matrix is destroyed.
-!> \param[in,out] set    DBCSR matrix
+!> \param matrix ...
+!> \param error ...
+!> \param[in,out] set    DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_release_p (matrix,error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
@@ -489,6 +492,11 @@ CONTAINS
     CALL dbcsr_error_stop (error_handle, error=error)
   END SUBROUTINE dbcsr_destroy
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_release_locals (matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -529,6 +537,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes a new process grid
+!> \param mp_env ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mp_init (mp_env)
     TYPE(dbcsr_mp_obj), INTENT(OUT)          :: mp_env
@@ -538,6 +547,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Checks whether the message passing environment exists.
+!> \param mp_env ...
+!> \retval exists ...
 ! *****************************************************************************
   FUNCTION dbcsr_mp_exists (mp_env) RESULT (exists)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -548,6 +559,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Checks whether this process is part of the message passing environment
+!> \param mp_env ...
+!> \retval active ...
 ! *****************************************************************************
   FUNCTION dbcsr_mp_active (mp_env) RESULT (active)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -561,8 +574,11 @@ CONTAINS
 !> \brief Creates new process grid
 !> \param[out] mp_env         multiprocessor environment
 !> \param[in] pgrid           process grid
+!> \param mp_group ...
 !> \param[in] mynode          my processor number
 !> \param[in] numnodes        total number of processors (processes)
+!> \param myprow ...
+!> \param mypcol ...
 !> \par History
 !>      UB (2010-02-04)       Duplicates own communicator and sets up
 !>                            cartesian grid
@@ -726,6 +742,13 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_mp_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \param prow ...
+!> \param pcol ...
+!> \retval process ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_get_process(mp_env, prow, pcol) RESULT (process)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, INTENT(IN)                      :: prow, pcol
@@ -734,6 +757,13 @@ CONTAINS
     process = mp_env%mp%pgrid(prow, pcol)
   END FUNCTION dbcsr_mp_get_process
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \param node ...
+!> \param prow ...
+!> \param pcol ...
+! *****************************************************************************
   PURE SUBROUTINE dbcsr_mp_get_coordinates(mp_env, node, prow, pcol)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, INTENT(IN)                      :: node
@@ -748,72 +778,133 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_mp_get_coordinates
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval pgrid ...
+! *****************************************************************************
   FUNCTION dbcsr_mp_pgrid(mp_env) RESULT (pgrid)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
     pgrid => mp_env%mp%pgrid
   END FUNCTION dbcsr_mp_pgrid
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval numnodes ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_numnodes(mp_env) RESULT (numnodes)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: numnodes
 
     numnodes = mp_env%mp%numnodes
   END FUNCTION dbcsr_mp_numnodes
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval mynode ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_mynode(mp_env) RESULT (mynode)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: mynode
 
     mynode = mp_env%mp%mynode
   END FUNCTION dbcsr_mp_mynode
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval mp_group ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_group(mp_env) RESULT (mp_group)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: mp_group
 
     mp_group = mp_env%mp%mp_group
   END FUNCTION dbcsr_mp_group
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval nprows ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_nprows(mp_env) RESULT (nprows)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: nprows
 
     nprows = SIZE (mp_env%mp%pgrid, 1)
   END FUNCTION dbcsr_mp_nprows
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval npcols ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_npcols(mp_env) RESULT (npcols)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: npcols
 
     npcols = SIZE (mp_env%mp%pgrid, 2)
   END FUNCTION dbcsr_mp_npcols
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval myprow ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_myprow(mp_env) RESULT (myprow)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: myprow
 
     myprow = mp_env%mp%myprow
   END FUNCTION dbcsr_mp_myprow
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval mypcol ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_mypcol(mp_env) RESULT (mypcol)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: mypcol
 
     mypcol = mp_env%mp%mypcol
   END FUNCTION dbcsr_mp_mypcol
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval has_subgroups ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_has_subgroups(mp_env) RESULT (has_subgroups)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     LOGICAL                                  :: has_subgroups
 
     has_subgroups = mp_env%mp%subgroups_defined
   END FUNCTION dbcsr_mp_has_subgroups
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval row_group ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_my_row_group(mp_env) RESULT (row_group)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: row_group
 
     row_group = mp_env%mp%prow_group
   END FUNCTION dbcsr_mp_my_row_group
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \retval col_group ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_mp_my_col_group(mp_env) RESULT (col_group)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER                                  :: col_group
 
     col_group = mp_env%mp%pcol_group
   END FUNCTION dbcsr_mp_my_col_group
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env1 ...
+!> \param mp_env2 ...
+!> \retval equal_pgrid ...
+! *****************************************************************************
   FUNCTION dbcsr_mp_pgrid_equal(mp_env1, mp_env2) RESULT (equal_pgrid)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env1, mp_env2
     LOGICAL                                  :: equal_pgrid
@@ -856,7 +947,11 @@ CONTAINS
 !> \brief Creates new distribution
 !> \param[out] dist           distribution
 !> \param[in] mp_env          multiprocessing environment
-!> \param[in] row_dist, col_dist        row and column distributions
+!> \param row_dist ...
+!> \param col_dist ...
+!> \param local_rows ...
+!> \param local_cols ...
+!> \param[in] row_dist, col_dist        row and column distributions UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_new(dist, mp_env, row_dist, col_dist,&
        local_rows, local_cols)
@@ -950,7 +1045,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Marks another use of the distribution
-!> \param[in,out] mp_env      multiprocessor environment
+!> \param dist ...
+!> \param[in,out] mp_env      multiprocessor environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_hold(dist)
     TYPE(dbcsr_distribution_obj), &
@@ -963,7 +1059,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases and potentially destrops a distribution
-!> \param[in,out] mp_env         multiprocessor environment
+!> \param dist ...
+!> \param[in,out] mp_env         multiprocessor environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_release(dist)
     TYPE(dbcsr_distribution_obj), &
@@ -992,6 +1089,11 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_distribution_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_dist_release_locals (dist, error)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
@@ -1027,6 +1129,10 @@ CONTAINS
 
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+! *****************************************************************************
   SUBROUTINE dbcsr_distribution_init (dist)
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist
@@ -1034,6 +1140,11 @@ CONTAINS
     NULLIFY (dist%d)
   END SUBROUTINE dbcsr_distribution_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param row_map ...
+! *****************************************************************************
   SUBROUTINE dbcsr_distribution_add_row_map (dist, row_map)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
@@ -1042,6 +1153,11 @@ CONTAINS
     dist%d%row_map = row_map
     CALL array_hold (dist%d%row_map)
   END SUBROUTINE dbcsr_distribution_add_row_map
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param col_map ...
+! *****************************************************************************
   SUBROUTINE dbcsr_distribution_add_col_map (dist, col_map)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
@@ -1050,6 +1166,10 @@ CONTAINS
     dist%d%col_map = col_map
     CALL array_hold (dist%d%col_map)
   END SUBROUTINE dbcsr_distribution_add_col_map
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+! *****************************************************************************
   SUBROUTINE dbcsr_distribution_del_row_map (dist)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
@@ -1057,6 +1177,10 @@ CONTAINS
     CALL array_release (dist%d%row_map)
     CALL array_nullify (dist%d%row_map)
   END SUBROUTINE dbcsr_distribution_del_row_map
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+! *****************************************************************************
   SUBROUTINE dbcsr_distribution_del_col_map (dist)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
@@ -1065,6 +1189,11 @@ CONTAINS
     CALL array_nullify (dist%d%col_map)
   END SUBROUTINE dbcsr_distribution_del_col_map
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval mp_env ...
+! *****************************************************************************
   FUNCTION dbcsr_distribution_mp(dist) RESULT (mp_env)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(dbcsr_mp_obj)                       :: mp_env
@@ -1073,18 +1202,33 @@ CONTAINS
 
     mp_env = dist%d%mp_env
   END FUNCTION dbcsr_distribution_mp
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval nrows ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_distribution_nrows(dist) RESULT (nrows)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: nrows
 
     nrows = array_size (dist%d%row_dist)
   END FUNCTION dbcsr_distribution_nrows
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval ncols ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_distribution_ncols(dist) RESULT (ncols)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: ncols
 
     ncols = array_size (dist%d%col_dist)
   END FUNCTION dbcsr_distribution_ncols
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval row_dist ...
+! *****************************************************************************
   FUNCTION dbcsr_distribution_row_dist(dist) RESULT (row_dist)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(array_i1d_obj)                      :: row_dist
@@ -1093,6 +1237,11 @@ CONTAINS
 
     row_dist = dist%d%row_dist
   END FUNCTION dbcsr_distribution_row_dist
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval col_dist ...
+! *****************************************************************************
   FUNCTION dbcsr_distribution_col_dist(dist) RESULT (col_dist)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(array_i1d_obj)                      :: col_dist
@@ -1102,24 +1251,44 @@ CONTAINS
     col_dist = dist%d%col_dist
   END FUNCTION dbcsr_distribution_col_dist
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval nlocalrows ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_distribution_nlocal_rows(dist) RESULT (nlocalrows)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: nlocalrows
 
     nlocalrows = array_size (dist%d%local_rows)
   END FUNCTION dbcsr_distribution_nlocal_rows
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval nlocalcols ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_distribution_nlocal_cols(dist) RESULT (nlocalcols)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: nlocalcols
 
     nlocalcols = array_size (dist%d%local_cols)
   END FUNCTION dbcsr_distribution_nlocal_cols
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval local_rows ...
+! *****************************************************************************
   FUNCTION dbcsr_distribution_local_rows(dist) RESULT (local_rows)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(array_i1d_obj)                      :: local_rows
 
     local_rows = dist%d%local_rows
   END FUNCTION dbcsr_distribution_local_rows
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval local_cols ...
+! *****************************************************************************
   FUNCTION dbcsr_distribution_local_cols(dist) RESULT (local_cols)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(array_i1d_obj)                      :: local_cols
@@ -1127,6 +1296,13 @@ CONTAINS
     local_cols = dist%d%local_cols
   END FUNCTION dbcsr_distribution_local_cols
   !
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param row ...
+!> \param col ...
+!> \retval processor ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_distribution_processor(dist, row, col)&
        RESULT (processor)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -1149,6 +1325,11 @@ CONTAINS
          dist%d%col_dist%low%data(c))
   END FUNCTION dbcsr_distribution_processor
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval thread_dist ...
+! *****************************************************************************
   FUNCTION dbcsr_distribution_thread_dist(dist) RESULT (thread_dist)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(array_i1d_obj)                      :: thread_dist
@@ -1159,6 +1340,11 @@ CONTAINS
   END FUNCTION dbcsr_distribution_thread_dist
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval has_thread_dist ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_distribution_has_threads(dist) RESULT (has_thread_dist)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     LOGICAL                                  :: has_thread_dist
@@ -1168,6 +1354,11 @@ CONTAINS
     has_thread_dist = dist%d%has_thread_dist
   END FUNCTION dbcsr_distribution_has_threads
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval num_threads ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_distribution_num_threads(dist) RESULT (num_threads)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: num_threads
@@ -1206,14 +1397,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates a distribution for threads
+!> \param[in,out] dist   Add thread distribution to this distribution
+!> \param[in] row_sizes  (optional) row block sizes
 !> \par Presence of row_sizes
 !>      When row_sizes is present then the thread distribution
 !>      attempts to distribute rows to threads such that the sum of
 !>      delegated row sizes is approximately matched for all rows.
 !>
 !>      When row_sizes is not present then a random distribution is chosen.
-!> \param[in,out] dist   Add thread distribution to this distribution
-!> \param[in] row_sizes  (optional) row block sizes
 ! *****************************************************************************
   SUBROUTINE make_threads(dist, row_sizes)
     TYPE(dbcsr_distribution_obj), POINTER    :: dist
@@ -1351,6 +1542,8 @@ CONTAINS
   END SUBROUTINE make_threads
 
 !> \brief Removes the thread distribution from a distribution
+!> \param dist ...
+! *****************************************************************************
   SUBROUTINE dbcsr_distribution_no_threads(dist)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
@@ -1364,6 +1557,11 @@ CONTAINS
 
 ! Pertaining to the dbcsr matrix.
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nblkrows_total ...
+! *****************************************************************************
   FUNCTION dbcsr_nblkrows_total(matrix) RESULT (nblkrows_total)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkrows_total
@@ -1371,54 +1569,99 @@ CONTAINS
     nblkrows_total = matrix%m%nblkrows_total
   END FUNCTION dbcsr_nblkrows_total
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nblkcols_total ...
+! *****************************************************************************
   FUNCTION dbcsr_nblkcols_total(matrix) RESULT (nblkcols_total)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkcols_total
 
     nblkcols_total = matrix%m%nblkcols_total
   END FUNCTION dbcsr_nblkcols_total
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nfullrows_total ...
+! *****************************************************************************
   FUNCTION dbcsr_nfullrows_total(matrix) RESULT (nfullrows_total)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullrows_total
 
     nfullrows_total = matrix%m%nfullrows_total
   END FUNCTION dbcsr_nfullrows_total
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nfullcols_total ...
+! *****************************************************************************
   FUNCTION dbcsr_nfullcols_total(matrix) RESULT (nfullcols_total)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullcols_total
 
     nfullcols_total = matrix%m%nfullcols_total
   END FUNCTION dbcsr_nfullcols_total
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nblkrows_local ...
+! *****************************************************************************
   FUNCTION dbcsr_nblkrows_local(matrix) RESULT (nblkrows_local)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkrows_local
 
     nblkrows_local = matrix%m%nblkrows_local
   END FUNCTION dbcsr_nblkrows_local
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nblkcols_local ...
+! *****************************************************************************
   FUNCTION dbcsr_nblkcols_local(matrix) RESULT (nblkcols_local)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nblkcols_local
 
     nblkcols_local = matrix%m%nblkcols_local
   END FUNCTION dbcsr_nblkcols_local
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nfullrows_local ...
+! *****************************************************************************
   FUNCTION dbcsr_nfullrows_local(matrix) RESULT (nfullrows_local)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullrows_local
 
     nfullrows_local = matrix%m%nfullrows_local
   END FUNCTION dbcsr_nfullrows_local
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval nfullcols_local ...
+! *****************************************************************************
   FUNCTION dbcsr_nfullcols_local(matrix) RESULT (nfullcols_local)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: nfullcols_local
 
     nfullcols_local = matrix%m%nfullcols_local
   END FUNCTION dbcsr_nfullcols_local
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval max_row_size ...
+! *****************************************************************************
   FUNCTION dbcsr_max_row_size(matrix) RESULT (max_row_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: max_row_size
 
     max_row_size = matrix%m%max_rbs
   END FUNCTION dbcsr_max_row_size
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval max_col_size ...
+! *****************************************************************************
   FUNCTION dbcsr_max_col_size(matrix) RESULT (max_col_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: max_col_size
@@ -1426,6 +1669,11 @@ CONTAINS
     max_col_size = matrix%m%max_cbs
   END FUNCTION dbcsr_max_col_size
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval distribution ...
+! *****************************************************************************
   FUNCTION dbcsr_distribution (matrix) RESULT (distribution)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_distribution_obj)             :: distribution
@@ -1433,6 +1681,11 @@ CONTAINS
     distribution = matrix%m%dist
   END FUNCTION dbcsr_distribution
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval name ...
+! *****************************************************************************
   FUNCTION dbcsr_name (matrix) RESULT (name)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER(len=default_string_length)     :: name
@@ -1471,6 +1724,11 @@ CONTAINS
   END FUNCTION dbcsr_use_mutable
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval row_blk_sizes ...
+! *****************************************************************************
   FUNCTION dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(array_i1d_obj)                      :: row_blk_sizes
@@ -1478,6 +1736,11 @@ CONTAINS
     row_blk_sizes = matrix%m%row_blk_size
   END FUNCTION dbcsr_row_block_sizes
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval col_blk_sizes ...
+! *****************************************************************************
   FUNCTION dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(array_i1d_obj)                      :: col_blk_sizes
@@ -1485,6 +1748,11 @@ CONTAINS
     col_blk_sizes = matrix%m%col_blk_size
   END FUNCTION dbcsr_col_block_sizes
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval col_blk_offsets ...
+! *****************************************************************************
   FUNCTION dbcsr_col_block_offsets (matrix) RESULT (col_blk_offsets)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(array_i1d_obj)                      :: col_blk_offsets
@@ -1492,6 +1760,11 @@ CONTAINS
     col_blk_offsets = matrix%m%col_blk_offset
   END FUNCTION dbcsr_col_block_offsets
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval row_blk_offsets ...
+! *****************************************************************************
   FUNCTION dbcsr_row_block_offsets (matrix) RESULT (row_blk_offsets)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(array_i1d_obj)                      :: row_blk_offsets
@@ -1502,28 +1775,36 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Gets information about a matrix
 !> \param[in] matrix          matrix to query
-!> \param[out] nblkrows_total
-!> \param[out] nblkcols_total
-!> \param[out] nfullrows_total
-!> \param[out] nfullcols_total
-!> \param[out] nblkrows_local
-!> \param[out] nblkrows_local
-!> \param[out] nfullrows_local
-!> \param[out] nfullrows_local
-!> \param[out] my_prow, my_pcol
-!> \param[out] local_rows, local_cols
-!> \param[out] proc_row_dist, proc_col_dist
-!> \param[out] row_blk_size
-!> \param[out] col_blk_size
-!> \param[out] row_blk_offset
-!> \param[out] col_blk_offset
+!> \param[out] nblkrows_total ...
+!> \param[out] nblkcols_total ...
+!> \param[out] nfullrows_total ...
+!> \param[out] nfullcols_total ...
+!> \param[out] nblkrows_local ...
+!> \param nblkcols_local ...
+!> \param[out] nfullrows_local ...
+!> \param nfullcols_local ...
+!> \param my_prow ...
+!> \param my_pcol ...
+!> \param local_rows ...
+!> \param local_cols ...
+!> \param proc_row_dist ...
+!> \param proc_col_dist ...
+!> \param[out] row_blk_size ...
+!> \param[out] col_blk_size ...
+!> \param[out] row_blk_offset ...
+!> \param[out] col_blk_offset ...
 !> \param[out] distribution   the data distribution of the matrix
 !> \param[out] name           matrix name
 !> \param[out] data_area      data_area
 !> \param[out] matrix_type    matrix type (regular, symmetric, see
 !>                            dbcsr_types.F for values)
 !> \param[out] data_type      data type (single/double precision real/complex)
-!> \param[in,out] error       cp2k error
+!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] local_rows, local_cols UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] my_prow, my_pcol UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] nblkrows_local UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] nfullrows_local UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] proc_row_dist, proc_col_dist UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total,&
        nfullrows_total, nfullcols_total,&
@@ -1601,8 +1882,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns whether the matrix could be represeneted in a dense form
 !> \param[in] matrix          matrix
-!> \result may_be_dense    use the mutable and not append-only working
-!>                            structures
+!> \param occ_thresh ...
+!> \retval may_be_dense    use the mutable and not append-only working
+!>                            structures 
 ! *****************************************************************************
   FUNCTION dbcsr_may_be_dense (matrix, occ_thresh) RESULT (may_be_dense)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1634,6 +1916,12 @@ CONTAINS
 
     row_size = matrix%row_blk_size%low%data(row)
   END FUNCTION dbcsr_blk_row_size_type
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \retval row_size ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_blk_row_size_obj (matrix, row) RESULT (row_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row
@@ -1641,6 +1929,12 @@ CONTAINS
 
     row_size = matrix%m%row_blk_size%low%data(row)
   END FUNCTION dbcsr_blk_row_size_obj
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \retval row_offset ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_blk_row_offset (matrix, row) RESULT (row_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row
@@ -1665,6 +1959,12 @@ CONTAINS
 
     column_size = matrix%col_blk_size%low%data(column)
   END FUNCTION dbcsr_blk_column_size_type
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param column ...
+!> \retval column_size ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_blk_column_size_obj (matrix, column) RESULT (column_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: column
@@ -1672,6 +1972,12 @@ CONTAINS
 
     column_size = matrix%m%col_blk_size%low%data(column)
   END FUNCTION dbcsr_blk_column_size_obj
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param col ...
+!> \retval col_offset ...
+! *****************************************************************************
   PURE FUNCTION dbcsr_blk_col_offset (matrix, col) RESULT (col_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: col
@@ -1683,7 +1989,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the data area
 !> \param matrix     matrix from which to get data
-!> \param area       data area
+!> \param area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval data_area ...
 ! *****************************************************************************
   FUNCTION dbcsr_data_area (matrix) RESULT (data_area)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
@@ -1755,7 +2062,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Whether matrix has symmetry
 !> \param matrix              query this matrix
-!> \result has_symmetry       matrix has symmetry
+!> \retval has_symmetry       matrix has symmetry
 ! *****************************************************************************
   PURE FUNCTION dbcsr_has_symmetry (matrix) RESULT (has_symmetry)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1765,23 +2072,13 @@ CONTAINS
   END FUNCTION dbcsr_has_symmetry
 
 ! *****************************************************************************
-!> \brief Whether matrix is (logically) transposed
-!> \param matrix          query this matrix
-!> \result transposed     matrix is transposed
-! *****************************************************************************
-  !PURE FUNCTION dbcsr_is_transposed (matrix) RESULT (transposed)
-  !  TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-  !  LOGICAL                                  :: transposed
-  !
-  !  transposed = matrix%m%transpose
-  !END FUNCTION dbcsr_is_transposed
-
-! *****************************************************************************
 !> \brief Returns the data type stored in the matrix
 !> \param matrix              query this matrix
 !> \param data_type           repl_type (see dbcsr_types.F for possible
-!>                            values)
+!>                            values) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval repl_type ...
 ! *****************************************************************************
+
   PURE FUNCTION dbcsr_get_replication_type (matrix) RESULT (repl_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: repl_type
@@ -1805,7 +2102,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns true if the data type of the matrix is real
 !> \param[in]  matrix              query this matrix
-!> \param[out] is_real
+!> \retval is_real ...
 ! *****************************************************************************
   PURE FUNCTION dbcsr_is_real_obj (matrix) RESULT (is_real)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1822,7 +2119,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns true if the data type of the matrix is complex
 !> \param[in]  matrix              query this matrix
-!> \param[out] is_complex
+!> \retval is_complex ...
 ! *****************************************************************************
   PURE FUNCTION dbcsr_is_complex_obj (matrix) RESULT (is_complex)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1839,11 +2136,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Returns the type of memory used for data in the matrix
-!> \note It returns the declared data type, not the actually used type
 !> \param[in] matrix           query this matrix
 !> \param[out] same_as_actual  (optional) whether the data actually uses the
-!>                             declared memory type
-!> \result memory_type         memory type used for data
+!>                             declared memory type UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval memory_type         memory type used for data
+!> \note It returns the declared data type, not the actually used type
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_memory_type (matrix) &
        RESULT (memory_type)
@@ -1856,7 +2153,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the type of memory used for the index in the matrix
 !> \param[in] matrix          query this matrix
-!> \result memory_type        memory type used for the index
+!> \retval memory_type        memory type used for the index 
 ! *****************************************************************************
   FUNCTION dbcsr_get_index_memory_type (matrix) RESULT (memory_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1941,7 +2238,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Get actual data storage used for matrix
 !> \param[in] matrix          Count data of this matrix
-!> \result data_size          Data size used by matrix
+!> \retval data_size_referenced Data size used by matrix
 ! *****************************************************************************
   PURE FUNCTION get_data_size_ref_matrix (matrix) RESULT (data_size_referenced)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1954,7 +2251,7 @@ CONTAINS
 !> \brief Count actual data storage used for matrix data.
 !> \param[in] matrix          Count data of this matrix
 !> \param[in,out] error       Error
-!> \result data_size          Data size used by matrix
+!> \retval data_size          Data size used by matrix 
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_size_used (matrix, error) RESULT (data_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1995,7 +2292,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the number of blocks in the matrix
 !> \param matrix     matrix from which to get data
-!> \param area       data area
+!> \param area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval num_blocks ...
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_num_blocks (matrix) RESULT (num_blocks)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -2007,7 +2305,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the number of non-zero elements in the matrix
 !> \param matrix     matrix from which to get data
-!> \param area       data area
+!> \param area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval num_nze ...
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_nze (matrix) RESULT (num_nze)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -2019,6 +2318,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the occupation of the matrix
 !> \param matrix     matrix from which to get the occupation
+!> \retval occupation ...
 ! *****************************************************************************
   FUNCTION dbcsr_get_occupation (matrix) RESULT (occupation)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -2413,8 +2713,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases all matrices in a 1-d arrray.
-!> \param[in] source          input matrix
 !> \param[in,out] marray      matrix array
+!> \param error ...
+!> \param[in] source          input matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_destroy_1d_array(marray, error)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: marray
@@ -2437,8 +2738,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases all matrices in 2-d arrray.
-!> \param[in] source          input matrix
 !> \param[in,out] marray      matrix array
+!> \param error ...
+!> \param[in] source          input matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_destroy_2d_array(marray,error)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: marray
@@ -2463,8 +2765,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases a reference to and possible deallocates an image
-!         distribution
-!*****************************************************************************
+!>         distribution
+!> \param imgdist ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_image_dist_release (imgdist, error)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: imgdist
@@ -2482,6 +2786,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Retains a reference to an image distribution
+!> \param imgdist ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_image_dist_hold (imgdist, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2493,6 +2799,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialized an image distribution
+!> \param imgdist ...
+!> \param error ...
 !> \par Akin to nullify.
 ! *****************************************************************************
   SUBROUTINE dbcsr_image_dist_init (imgdist, error)
@@ -2506,7 +2814,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Destroys a DBCSR distribution for a matrix multiplication based on
 !>        the right matrix
-!> \param[inout] imgdist_product        product distribution repetition
+!> \param imgdist ...
+!> \param[inout] imgdist_product        product distribution repetition UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_destroy_image_dist(imgdist)
     TYPE(dbcsr_imagedistribution_type), &

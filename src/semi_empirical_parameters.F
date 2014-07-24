@@ -81,6 +81,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: POINT_CHARGE
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pcharge_default_parameter(sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -101,6 +104,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: MNDO
+!> \param sep ...
+!> \param z ...
+!> \param itype ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE mndo_default_parameter ( sep, z, itype, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -697,6 +704,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models developed at PNNL
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pnnl_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -775,6 +785,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Additional default parameter sets for semi empirical models: MNDO-d
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE mndod_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -1023,6 +1036,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: AM1
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE am1_default_parameter ( sep, z, error )
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -1505,6 +1521,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: RM1
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE rm1_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -1716,6 +1735,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: PM3
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pm3_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -2510,6 +2532,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: PM6
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pm6_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -3867,6 +3892,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: PDDG
+!> \param sep ...
+!> \param z ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pdg_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -4237,6 +4265,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default pair parameter for: PM6
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_pm6_pair_params(error)
     TYPE(cp_error_type), INTENT(inout)       :: error

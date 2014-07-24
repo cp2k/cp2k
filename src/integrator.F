@@ -111,6 +111,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Langevin integrator for particle positions & momenta (Brownian dynamics)
+!> \param md_env ...
+!> \param error ...
 !> \par Literature
 !>      - A. Ricci and G. Ciccotti, Mol. Phys. 101, 1927-1931 (2003)
 !>      - For langevin regions:
@@ -263,7 +265,7 @@ CONTAINS
           IF (do_langevin(iparticle)) THEN
              sigma = var_w(iparticle)*mass
              rng_stream => local_particles%local_particle_set(iparticle_kind)%&
-                  &rng(iparticle_local)%stream
+                   rng(iparticle_local)%stream
              w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
              w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
              w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
@@ -385,6 +387,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief nve integrator for particle positions & momenta
+!> \param md_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
 !>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
@@ -603,6 +608,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief simplest version of the isokinetic gaussian thermostat
+!> \param md_env ...
+!> \param error ...
+!> \par History
+!>   - Created [2004-07]
+!> \author Joost VandeVondele
 !> \note
 !>      - time reversible, and conserves the kinetic energy to machine precision
 !>      - is not yet supposed to work for e.g. constraints, our the extended version
@@ -610,9 +620,6 @@ CONTAINS
 !>        see:
 !>         - Zhang F. , JCP 106, 6102 (1997)
 !>         - Minary P. et al, JCP 118, 2510 (2003)
-!> \par History
-!>   - Created [2004-07]
-!> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE isokin ( md_env, error )
 
@@ -735,6 +742,9 @@ CONTAINS
   END SUBROUTINE isokin
 ! *****************************************************************************
 !> \brief nvt adiabatic integrator for particle positions & momenta
+!> \param md_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
 !>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
@@ -964,6 +974,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief nvt integrator for particle positions & momenta
+!> \param md_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
 !>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
@@ -1224,6 +1237,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief npt_i integrator for particle positions & momenta
 !>      isotropic box changes
+!> \param md_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
@@ -1577,11 +1593,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief uses coordinates in a file and generates frame after frame of these
-!> \note
-!>     it can be used to compute some properties on already available trajectories
+!> \param md_env ...
+!> \param error ...
 !> \par History
 !>   - 04.2005 created [Joost VandeVondele]
 !>   - modified to make it more general [MI]
+!> \note
+!>     it can be used to compute some properties on already available trajectories
 ! *****************************************************************************
   SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
@@ -1729,6 +1747,8 @@ CPSourceFileRef,&
 !>      uniaxial stress ( in x-direction of orthorhombic cell)
 !>      due to a shock compression:
 !>      Reed et. al. Physical Review Letters 90, 235503 (2003).
+!> \param md_env ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
@@ -1988,6 +2008,8 @@ CPSourceFileRef,&
 !>      due to a shock compression:
 !>      Reed et. al. Physical Review Letters 90, 235503 (2003).
 !>      Added damping (e.g. thermostat to barostat)
+!> \param md_env ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
@@ -2255,6 +2277,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Velocity Verlet integrator for the NPT ensemble with fully flexible cell
+!> \param md_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author CJM
@@ -2579,6 +2604,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief RESPA integrator for nve ensemble for particle positions & momenta
+!> \param md_env ...
+!> \param error ...
 !> \author FS
 ! *****************************************************************************
   SUBROUTINE nve_respa ( md_env, error)

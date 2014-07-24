@@ -140,6 +140,7 @@ END SUBROUTINE wfs_create
 !> \brief duplicates a single qs_wf_snapshot_type
 !> \param input_snapshot the snapshot to be duplicated
 !> \param output_snapshot the out coming duplicate
+!> \param qs_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -429,9 +430,13 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
 END SUBROUTINE wfs_update
 
 ! *****************************************************************************
+!> \brief ...
+!> \param wf_history ...
 !> \param interpolation_method_nr the tag of the method used for
 !>        the extrapolation of the intial density for the next md step
 !>        (see qs_wf_history_types:wfi_*_method_nr)
+!> \param extrapolation_order ...
+!> \param has_unit_metric ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -533,9 +538,11 @@ END SUBROUTINE wfi_create
 
 ! *****************************************************************************
 !> \brief returns a string describing the interpolation method
-!> \param wf_history the wf history object you want information about
+!> \param method_nr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param wf_history the wf history object you want information about UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval res ...
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
@@ -594,6 +601,7 @@ END FUNCTION wfi_get_method_label
 !>        the new starting state
 !> \param dt the time at which to extrapolate (wrt. to the last snapshot)
 !> \param extrapolation_method_nr returns the extrapolation method used
+!> \param orthogonal_wf ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1041,6 +1049,7 @@ CPSourceFileRef,&
 !> \brief Decides if scf control variables has to changed due
 !>      to using a WF extrapolation.
 !> \param qs_env The QS environment
+!> \param nvec ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1088,6 +1097,7 @@ CPSourceFileRef,&
 !> \brief updates the snapshot buffer, taking a new snapshot
 !> \param wf_history the history buffer to update
 !> \param qs_env the qs_env we get the info from
+!> \param dt ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

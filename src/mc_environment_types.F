@@ -46,6 +46,7 @@ CONTAINS
 !> \param mc_env the mc_environment you want to create
 !>
 !>    Suitable for parallel use.
+!> \param error ...
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_env_create ( mc_env, error )
@@ -125,9 +126,9 @@ CONTAINS
 !>        see module cp_error_handling
 !>
 !>    Suitable for parallel.
+!> \author MJM
 !> \note
 !>      see doc/ReferenceCounting.html
-!> \author MJM
 ! *****************************************************************************
 SUBROUTINE mc_env_retain(mc_env, error)
     TYPE(mc_environment_type), POINTER       :: mc_env
@@ -154,9 +155,9 @@ END SUBROUTINE mc_env_retain
 !>        see module cp_error_handling
 !>
 !>    Suitable for parallel.
+!> \author MJM
 !> \note
 !>      see doc/ReferenceCounting.html
-!> \author MJM
 ! *****************************************************************************
 SUBROUTINE mc_env_release(mc_env, error)
     TYPE(mc_environment_type), POINTER       :: mc_env

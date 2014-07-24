@@ -142,9 +142,9 @@ MODULE admm_types
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
 !> \param para_env The parallel env
 !> \param admm_env The ADMM env
-!> \param para_env The parallel env
-!> \param error
+!> \param error ...
 !>
+!> \param para_env The parallel env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -339,7 +339,7 @@ MODULE admm_types
 !> \brief releases the ADMM environment, cleans up all types
 !>
 !> \param admm_env The ADMM env
-!> \param error
+!> \param error ...
 !>
 !> \par History
 !>      05.2008 created [Manuel Guidon]
@@ -465,6 +465,13 @@ MODULE admm_types
   END SUBROUTINE admm_env_release
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param admm_block_section ...
+!> \param admm_env ...
+!> \param natom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE admm_create_block_list(admm_block_section, admm_env, natom, error)
     TYPE(section_vals_type), POINTER         :: admm_block_section
     TYPE(admm_type), POINTER                 :: admm_env

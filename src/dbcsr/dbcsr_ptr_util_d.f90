@@ -6,8 +6,8 @@
 ! *****************************************************************************
 !> \brief Returns a pointer with different bounds.
 !> \param[in] original   original data pointer
-!> \param[in] lb, ub     lower and upper bound for the new pointer view
 !> \param[out] view      new pointer
+!> \param[in] lb, ub     lower and upper bound for the new pointer view UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   FUNCTION pointer_view_d (original, lb, ub) RESULT (view)
     REAL(kind=real_8), DIMENSION(:), POINTER :: original, view
@@ -28,6 +28,7 @@
 !> \param[in] memory_type     (optional) use special memory
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ensure_array_size_d(array, lb, ub, factor,&
        nocopy, memory_type, zero_pad, error)
@@ -212,9 +213,10 @@
 ! *****************************************************************************
 !> \brief Allocates memory
 !> \param[out] mem        memory to allocate
-!> \param[in] n           length of elements to allocate
+!> \param sizes ...
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
+!> \param[in] n           length of elements to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mem_alloc_d_2d (mem, sizes, mem_type, error)
     REAL(kind=real_8), DIMENSION(:,:), POINTER      :: mem
@@ -249,9 +251,9 @@
 ! *****************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
-!> \param[in] n           length of elements to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
+!> \param[in] n           length of elements to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mem_dealloc_d (mem, mem_type, error)
     REAL(kind=real_8), DIMENSION(:), POINTER        :: mem
@@ -281,9 +283,9 @@
 ! *****************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
-!> \param[in] n           length of elements to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
+!> \param[in] n           length of elements to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mem_dealloc_d_2d (mem, mem_type, error)
     REAL(kind=real_8), DIMENSION(:,:), POINTER      :: mem
@@ -317,6 +319,10 @@
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
 !>        rank remapping.
+!> \param r2p ...
+!> \param d1 ...
+!> \param d2 ...
+!> \param r1p ...
 ! *****************************************************************************
   SUBROUTINE pointer_d_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2

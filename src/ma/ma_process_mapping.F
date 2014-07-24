@@ -45,8 +45,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Apply a process mapping to CP2K MPI
-!> \param mp_comm [input/output] : handle of the default communicator
 !> \param reorder [input] : the strategy to be applied
+!> \param mp_comm [input/output] : handle of the default communicator
 !> \par History
 !>      2.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -203,6 +203,13 @@ FUNCTION ma_find_grid_level(numtask) RESULT (n)
 #endif
 END FUNCTION
 
+! *****************************************************************************
+!> \brief ...
+!> \param angle ...
+!> \param coordX ...
+!> \param coordY ...
+!> \param pos ...
+! *****************************************************************************
 SUBROUTINE move(angle,coordX,coordY,pos)
     INTEGER                                  :: angle, coordX, coordY, pos
 
@@ -225,6 +232,17 @@ SUBROUTINE move(angle,coordX,coordY,pos)
 
 END SUBROUTINE move
 
+! *****************************************************************************
+!> \brief ...
+!> \param tmp ...
+!> \param original_grid ...
+!> \param grid_level_t ...
+!> \param ori ...
+!> \param angle ...
+!> \param coordX ...
+!> \param coordY ...
+!> \param pos ...
+! *****************************************************************************
 RECURSIVE SUBROUTINE peano_curve (tmp, original_grid,grid_level_t, &
                                   ori,angle,coordX,coordY,pos)
     INTEGER, DIMENSION(:)                    :: tmp
@@ -283,6 +301,11 @@ RECURSIVE SUBROUTINE peano_curve (tmp, original_grid,grid_level_t, &
 
 END SUBROUTINE peano_curve
 
+! *****************************************************************************
+!> \brief ...
+!> \param numtask ...
+!> \retval ispower ...
+! *****************************************************************************
 FUNCTION is_power_three(numtask) RESULT(ispower)
     INTEGER, INTENT(IN)                      :: numtask
     LOGICAL                                  :: ispower
@@ -305,9 +328,9 @@ END FUNCTION is_power_three
 
 ! *****************************************************************************
 !> \brief Create the peano curve for a two dimensional grid 
-!> \param mp_comm [output] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
 !> note: Algorithm presented on C Code From Graphics Gems II, Academic Press, Inc
+!> \param mp_comm [output] : handle of the default communicator
 !> \par History
 !>      4.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -383,8 +406,8 @@ END SUBROUTINE ma_peano_curve
 
 ! *****************************************************************************
 !> \brief Define a packed (sequential) distribution for MPI ranks
-!> \param mp_comm [output] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
+!> \param mp_comm [output] : handle of the default communicator
 !> \par History
 !>      4.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -420,8 +443,8 @@ END SUBROUTINE ma_packed
 ! *****************************************************************************
 !> \brief Define a round-robin distribution for MPI ranks, the round is made
 !> \brief using the number of allocated machines and cores
-!> \param mp_comm [output] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
+!> \param mp_comm [output] : handle of the default communicator
 !> \par History
 !>      4.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -494,12 +517,14 @@ END SUBROUTINE ma_round_robin
 
 ! *****************************************************************************
 !> \brief Create the hilbert curve for a two dimensional grid
+!> \param ranks_order ...
+!> \param ntask ...
 !> \param mp_comm [output] : handle of the default communicator
-!> \param mp_new_comm [output] : handle of the new  communicator
-!> \note  Based on the algorithm proposed Liu and SCHRACK, 1996
-!>        Enconding and Decoding the Hilbert Order
+!> \param mp_new_comm [output] : handle of the new  communicator UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      2.2012 created [ Christiane Pousa ]
+!> \note  Based on the algorithm proposed Liu and SCHRACK, 1996
+!>        Enconding and Decoding the Hilbert Order
 ! *****************************************************************************
 SUBROUTINE ma_hilbert_bits(ranks_order,ntask,mp_comm)
     INTEGER, INTENT(IN)                   :: mp_comm
@@ -575,12 +600,12 @@ END SUBROUTINE ma_hilbert_bits
 
 ! *****************************************************************************
 !> \brief Create the hilbert curve for a two dimensional grid
-!> \param mp_comm [output] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
-!> \note  Based on the algorithm proposed Liu and SCHRACK, 1996
-!>        Enconding and Decoding the Hilbert Order
+!> \param mp_comm [output] : handle of the default communicator
 !> \par History
 !>      2.2012 created [ Christiane Pousa ]
+!> \note  Based on the algorithm proposed Liu and SCHRACK, 1996
+!>        Enconding and Decoding the Hilbert Order
 ! *****************************************************************************
 SUBROUTINE ma_hilbert_curve(mp_new_comm,mp_comm)
     INTEGER, INTENT(IN)                   :: mp_comm
@@ -617,6 +642,15 @@ SUBROUTINE ma_hilbert_curve(mp_new_comm,mp_comm)
 
 END SUBROUTINE ma_hilbert_curve
 
+! *****************************************************************************
+!> \brief ...
+!> \param myrank ...
+!> \param pos ...
+!> \param order ...
+!> \param grid_dim ...
+!> \param neighbor ...
+!> \param done ...
+! *****************************************************************************
 RECURSIVE SUBROUTINE snake_curve (myrank, pos, order,grid_dim,neighbor,done)
     INTEGER, INTENT(IN)                      :: grid_dim
     INTEGER                                  :: pos, myrank
@@ -654,8 +688,8 @@ END SUBROUTINE snake_curve
 
 ! *****************************************************************************
 !> \brief Create the interleaved rows order for a two dimensional grid
-!> \param mp_comm [output] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
+!> \param mp_comm [output] : handle of the default communicator
 !> \par History
 !>      2.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -718,6 +752,14 @@ SUBROUTINE ma_snake_curve (mp_new_comm,mp_comm)
 #endif
 END SUBROUTINE ma_snake_curve
 
+! *****************************************************************************
+!> \brief ...
+!> \param s ...
+!> \param x ...
+!> \param y ...
+!> \param rx ...
+!> \param ry ...
+! *****************************************************************************
 SUBROUTINE rotate(s,x,y,rx,ry)
     INTEGER                                  :: s, x, y, rx, ry
 
@@ -736,6 +778,13 @@ SUBROUTINE rotate(s,x,y,rx,ry)
 
 END SUBROUTINE rotate
 
+! *****************************************************************************
+!> \brief ...
+!> \param grid_dim ...
+!> \param countx ...
+!> \param county ...
+!> \retval dist ...
+! *****************************************************************************
 FUNCTION distance(grid_dim,countx,county) RESULT(dist)
     INTEGER                                  :: grid_dim, countx, county, dist
 
@@ -765,6 +814,11 @@ FUNCTION distance(grid_dim,countx,county) RESULT(dist)
 
 END FUNCTION distance
 
+! *****************************************************************************
+!> \brief ...
+!> \param tmp_order ...
+!> \param grid_dim ...
+! *****************************************************************************
 SUBROUTINE ma_hilbert_order(tmp_order,grid_dim)
 
   INTEGER, DIMENSION(:)                  :: tmp_order
@@ -794,11 +848,20 @@ END SUBROUTINE ma_hilbert_order
 
 ! *****************************************************************************
 !> \brief Create a hilbert order for all sub-grids within a grid
-!> \param first_grid [input] : grid dimension for the biggest grid
-!> \param rest_grid [input] : dim for the grid rest
+!> \param ranks_order ...
+!> \param ncol ...
+!> \param nrow ...
 !> \param numtask [input] : number of tasks
 !> return has_2d one if has more 2d gris and zero if not
 !>      7.2012 created [ Christiane Pousa ]
+!> \param current_numtask ...
+!> \param current_nrow ...
+!> \param current_ncol ...
+!> \param start_grid ...
+!> \param working_col ...
+!> \param mp_comm ...
+!> \param first_grid [input] : grid dimension for the biggest grid UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param rest_grid [input] : dim for the grid rest UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
 RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,& 
                                           current_numtask,current_nrow, &
@@ -1013,6 +1076,11 @@ ENDIF
 
 END SUBROUTINE ma_hilbert_recursive
 
+! *****************************************************************************
+!> \brief ...
+!> \param grid_dim ...
+!> \retval square ...
+! *****************************************************************************
 FUNCTION is_square (grid_dim) RESULT (square)
     INTEGER                                  :: grid_dim
     LOGICAL                                  :: square
@@ -1036,10 +1104,12 @@ END FUNCTION is_square
 ! *****************************************************************************
 !> \brief Verify if there are any other hilbert grids
 !> \param ncol [input] : number of columns
-!> \param nrows [input] : number of rows
+!> \param nrow ...
 !> \param numtask [input] : number of tasks
 !> return has_2d one if has more 2d gris and zero if not
 !>      7.2012 created [ Christiane Pousa ]
+!> \param nrows [input] : number of rows UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \retval has_2d ...
 ! *****************************************************************************
 FUNCTION has_more_2dgrid(ncol,nrow,numtask) RESULT(has_2d)
 
@@ -1070,6 +1140,7 @@ END FUNCTION has_more_2dgrid
 !> \param numtask [input] : number of tasks
 !> return square true if it is square
 !>      10.2012 created [ Christiane Pousa ]
+!> \retval square ...
 ! *****************************************************************************
 FUNCTION square_grid(numtask) RESULT(square)
     INTEGER, INTENT(IN)                      :: numtask
@@ -1088,8 +1159,8 @@ END FUNCTION  square_grid
 
 ! *****************************************************************************
 !> \brief Create the hilbert curve for a two dimensional grid
-!> \param mp_comm [input] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
+!> \param mp_comm [input] : handle of the default communicator
 !> \par History
 !>      6.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -1289,8 +1360,8 @@ END SUBROUTINE ma_hilbert_peano
 
 ! *****************************************************************************
 !> \brief Create the hilbert curve for a two dimensional grid
-!> \param mp_comm [input] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
+!> \param mp_comm [input] : handle of the default communicator
 !> \param order [input] : the current MPI ordering
 !> \param kernel [input]: for each kernel the switch should be applied 
 !> \par History
@@ -1446,8 +1517,8 @@ END SUBROUTINE ma_switch
 
 ! *****************************************************************************
 !> \brief Create the near-optimal ordering for cannon communication
-!> \param mp_comm [input] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
+!> \param mp_comm [input] : handle of the default communicator
 !> \par History
 !>      6.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -1856,8 +1927,8 @@ END SUBROUTINE ma_cannon
 ! *****************************************************************************
 !> \brief Create a new communicator with the ordering designed by the user
 !> the file should be named cp2k_ordering
-!> \param mp_comm [input] : handle of the default communicator
 !> \param mp_new_comm [output] : handle of the new  communicator
+!> \param mp_comm [input] : handle of the default communicator
 !> \par History
 !>      7.2012 created [ Christiane Pousa ]
 ! *****************************************************************************

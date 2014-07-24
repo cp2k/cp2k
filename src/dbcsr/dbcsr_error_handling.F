@@ -129,6 +129,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief set the error
 !> \param[in]    name    name of the routine
+!> \param handler ...
 !> \param[inout] error   dbcsr error
 ! *****************************************************************************
   SUBROUTINE dbcsr_error_set(name, handler, error)
@@ -150,6 +151,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief stop the error
+!> \param handler ...
 !> \param[inout] error   dbcsr error
 ! *****************************************************************************
   SUBROUTINE dbcsr_error_stop(handler, error)
@@ -184,6 +186,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief stop the error
 !> \param[inout] error   dbcsr error
+!> \param output_unit ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_error_print_stack(error, output_unit)
     TYPE(dbcsr_error_type)                   :: error
@@ -227,7 +230,13 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief
+!> \brief ...
+!> \param level ...
+!> \param etype ...
+!> \param routine ...
+!> \param msg ...
+!> \param line ...
+!> \param error ...
 !> \param[inout]
 ! *****************************************************************************
   SUBROUTINE dbcsr_abort (level, etype, routine, msg, line, error)
@@ -268,6 +277,8 @@ CONTAINS
 !> \param[in] etype           error type
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
+!> \param line ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_int_assert(left, rel, right, level, etype, routine, msg, line, error)
     INTEGER, INTENT(IN)                      :: left
@@ -315,6 +326,8 @@ CONTAINS
 !> \param[in] etype           error type
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
+!> \param line ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_logical_assert(left, rel, right, level, etype, routine, msg, line, error)
     LOGICAL, INTENT(IN)                      :: left
@@ -361,6 +374,8 @@ CONTAINS
 !> \param[in] etype           error type
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
+!> \param line ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_char_assert(left, rel, right, level, etype, routine, msg, line, error)
     CHARACTER, INTENT(IN)                    :: left
@@ -400,6 +415,8 @@ CONTAINS
 !> \param[in] etype           error type
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
+!> \param line ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_true_assert(right, level, etype, routine, msg, line, error)
     LOGICAL, INTENT(IN)                      :: right
@@ -430,6 +447,8 @@ CONTAINS
 !> \param[in] etype           error type
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
+!> \param line ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_not_assert(rel, right, level, etype, routine, msg, line, error)
     CHARACTER(len=3), INTENT(IN)             :: rel

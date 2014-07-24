@@ -164,6 +164,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the 1D rank of the task which is a cartesian shift away from 1D rank rank_in
 !>        only possible if rs_grid is a distributed grid
+!> \param rs_desc ...
+!> \param rank_in ...
+!> \param shift ...
+!> \retval rank_out ...
 ! *****************************************************************************
   FUNCTION rs_grid_locate_rank(rs_desc,rank_in,shift) RESULT(rank_out)
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
@@ -180,6 +184,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determine the setup of real space grids - this is divided up into the
 !>        creation of a descriptor and the actual grid itself (see rs_grid_create)
+!> \param desc ...
+!> \param pw_grid ...
+!> \param input_settings ...
+!> \param error ...
 !> \par History
 !>      JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
 !>      Iain Bethune (05-Sep-2008) : modified cut heuristic
@@ -456,6 +464,12 @@ CONTAINS
 
   END SUBROUTINE rs_grid_create_descriptor
 
+! *****************************************************************************
+!> \brief ...
+!> \param rs ...
+!> \param desc ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE rs_grid_create ( rs, desc, error)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(realspace_grid_desc_type), POINTER  :: desc
@@ -536,6 +550,9 @@ CONTAINS
 !>        and recreate the corresponding rs_grids
 !>        The desc%real2virtual and desc%virtual2real arrays can be used to map
 !>        a physical rank to the 'rank' of data owned by that process and vice versa
+!> \param desc ...
+!> \param real2virtual ...
+!> \param error ...
 !> \par History
 !>        04-2009 created [Iain Bethune]
 !>          (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
@@ -571,6 +588,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print information on grids to output
+!> \param rs ...
+!> \param iounit ...
+!> \param error ...
 !> \author JGH (17-May-2007)
 ! *****************************************************************************
   SUBROUTINE rs_grid_print ( rs, iounit, error)
@@ -652,6 +672,10 @@ CONTAINS
 !> \brief Copy a function from/to a PW grid type to/from a real
 !>      space type
 !>      dir is the named constant rs2pw or pw2rs
+!> \param rs ...
+!> \param pw ...
+!> \param dir ...
+!> \param error ...
 !> \par History
 !>      JGH (15-Feb-2003) reduced additional memory usage
 !>      Joost VandeVondele (Sep-2003) moved from sum/bcast to shift
@@ -718,7 +742,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief transfer from a realspace grid to a planewave grid or the other way around
+!> \param rs ...
+!> \param pw ...
 !> \param dir == rs2pw or dir == pw2rs
+!> \param error ...
 !> \note
 !>      rs2pw sums all data on the rs grid into the respective pw grid
 !>      pw2rs will scatter all pw data to the rs grids
@@ -858,6 +885,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief does the rs2pw and pw2rs transfer in the case where the rs grid is
 !>       distributed (3D domain decomposition)
+!> \param rs ...
+!> \param pw ...
+!> \param dir ...
+!> \param error ...
+!> \par History
+!>      12.2007 created [Matt Watkins]
+!>      9.2008 reduced amount of halo data sent [Iain Bethune]
+!>      10.2008 added non-blocking communication [Iain Bethune]
+!>      4.2009 added support for rank-reordering on the grid [Iain Bethune]
+!>      12.2009 added OMP and sparse alltoall [Iain Bethune]
+!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008-2009 on behalf of the HECToR project
 !> \note
 !>       the transfer is a two step procedure. For example, for the rs2pw transfer:
 !>
@@ -867,13 +905,6 @@ CONTAINS
 !>       the halo exchange is most expensive on a large number of CPUs. Particular in this halo
 !>       exchange is that the border region is rather large (e.g. 20 points) and that it might overlap
 !>       with the central domain of several CPUs (i.e. next nearest neighbors)
-!> \par History
-!>      12.2007 created [Matt Watkins]
-!>      9.2008 reduced amount of halo data sent [Iain Bethune]
-!>      10.2008 added non-blocking communication [Iain Bethune]
-!>      4.2009 added support for rank-reordering on the grid [Iain Bethune]
-!>      12.2009 added OMP and sparse alltoall [Iain Bethune]
-!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008-2009 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir,error)
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -1879,6 +1910,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize grid to zero
+!> \param rs ...
 !> \par History
 !>      none
 !> \author JGH (23-Mar-2002)
@@ -1912,6 +1944,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief rs1(i) = rs1(i) + rs2(i)*rs3(i)
+!> \param rs1 ...
+!> \param rs2 ...
+!> \param rs3 ...
+!> \param scalar ...
 !> \par History
 !>      none
 !> \author
@@ -1950,6 +1986,9 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 ! *****************************************************************************
 !> \brief Set box matrix info for real space grid
 !>      This is needed for variable cell simulations
+!> \param pw_grid ...
+!> \param rs ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (15-May-2007)
@@ -2002,9 +2041,10 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
 ! *****************************************************************************
 !> \brief retains the given rs grid descriptor (see doc/ReferenceCounting.html)
-!> \param rs_grid the grid to retain
+!> \param rs_desc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param rs_grid the grid to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
@@ -2073,9 +2113,10 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
 ! *****************************************************************************
 !> \brief releases the given rs grid descriptor (see doc/ReferenceCounting.html)
-!> \param rs_grid the rs grid to release
+!> \param rs_desc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param rs_grid the rs grid to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
@@ -2136,6 +2177,11 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 ! *****************************************************************************
 !> \brief emulates the function of an MPI_cart_shift operation, but the shift is
 !>        done in virtual coordinates, and the corresponding real ranks are returned
+!> \param rs_grid ...
+!> \param dir ...
+!> \param disp ...
+!> \param source ...
+!> \param dest ...
 !> \par History
 !>      04.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
@@ -2163,6 +2209,8 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 ! *****************************************************************************
 !> \brief returns the maximum number of points in the local grid of any process
 !>        to account for the case where the grid may later be reordered
+!> \param desc ...
+!> \retval max_ngpts ...
 !> \par History
 !>      10.2011 created [Iain Bethune]
 ! *****************************************************************************

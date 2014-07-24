@@ -58,6 +58,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create retain release the flexible partitioning environment
+!> \param fp_env ...
+!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -88,6 +90,10 @@ CONTAINS
   END SUBROUTINE fp_env_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param fp_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE fp_env_release(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -117,6 +123,10 @@ CONTAINS
   END SUBROUTINE fp_env_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param fp_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE fp_env_retain(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -134,6 +144,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief reads the corresponding input section and stores it in the fp_env
+!> \param fp_env ...
+!> \param fp_section ...
+!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -180,6 +193,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes information concerning the fp_env to the output
+!> \param fp_env ...
+!> \param fp_section ...
+!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************

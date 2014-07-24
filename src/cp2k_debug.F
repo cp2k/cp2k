@@ -61,6 +61,11 @@ MODULE cp2k_debug
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param force_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE cp2k_debug_energy_and_forces(force_env, error)
 
     TYPE(force_env_type), POINTER            :: force_env

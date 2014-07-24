@@ -102,6 +102,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Helper-routine performing allocation of host-pinned cuda memory.
+!> \param host_mem_c_ptr ...
+!> \param n_bytes ...
 ! *****************************************************************************
 #if defined (__ACC)
  SUBROUTINE acc_hostmem_alloc_raw (host_mem_c_ptr, n_bytes)

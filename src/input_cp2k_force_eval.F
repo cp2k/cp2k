@@ -173,8 +173,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates the section for applying an external potential
-!> \author teo
+!> \param section ...
+!> \param error ...
 !> \date 03.2008
+!> \author teo
 ! *****************************************************************************
   SUBROUTINE create_ext_pot_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -294,6 +296,8 @@ CONTAINS
   END SUBROUTINE create_rescale_force_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi

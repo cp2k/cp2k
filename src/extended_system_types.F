@@ -86,6 +86,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize type for Nose-Hoover thermostat
+!> \param lnhc ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -115,6 +117,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the map_info type
+!> \param map_info ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -142,6 +145,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the map_info type
+!> \param map_info ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -191,6 +195,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate type for Nose-Hoover thermostat
+!> \param lnhc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************

@@ -60,6 +60,10 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param preconditioner ...
+! *****************************************************************************
   FUNCTION preconditioner_in_use(preconditioner)
     TYPE(preconditioner_type)                :: preconditioner
     LOGICAL                                  :: preconditioner_in_use
@@ -67,6 +71,12 @@ CONTAINS
     preconditioner_in_use = .NOT. (preconditioner%in_use .EQ. 0)
   END FUNCTION
 
+! *****************************************************************************
+!> \brief ...
+!> \param preconditioner_env ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
 
@@ -90,6 +100,10 @@ CONTAINS
 
   END SUBROUTINE init_preconditioner
 
+! *****************************************************************************
+!> \brief ...
+!> \param preconditioner_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE destroy_preconditioner(preconditioner_env, error)
 

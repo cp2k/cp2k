@@ -60,6 +60,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Configures options for DBCSR
+!> \param root_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_config(root_section, error)
     TYPE(section_vals_type), POINTER         :: root_section
@@ -149,6 +151,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Prints configuration for DBCSR
+!> \param unit_nr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_print_config(unit_nr, error)
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
@@ -238,14 +242,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocate the blocks of a dbcsr based on the neighbor list
-!> \note
 !> \param matrix        the matrix
 !> \param sab_orb       the corresponding neighbor list
-!> \param error
+!> \param error ...
 !> \par History
 !>      11.2009 created vw
 !>      01.2014 moved here from cp_dbcsr_operations (Ole Schuett)
 !> \author vw
+!> \note
 ! *****************************************************************************
 
   SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix,sab_orb,error)

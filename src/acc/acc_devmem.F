@@ -164,8 +164,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Ensures that given devmem has at least the requested size.
+!> \param this ...
 !> \param stream on which zeroing and memcopying is performed
-!> \param requested_size_in_bytes
+!> \param requested_size_in_bytes ...
 !> \param nocopy if after growin old content should NOT be copied over. default:false.
 !> \param zero_pad if after growing the new memory should be zeroed. default: false.
 !> \author Ole Schuett
@@ -226,6 +227,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Returns a logical, which indicates if the given devmem is allocated.
+!> \param this ...
+!> \retval res ...
 !> \author  Ole Schuett
 ! *****************************************************************************
   FUNCTION acc_devmem_allocated(this) RESULT(res)
@@ -238,6 +241,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Returns size of given devmem in terms of item count (not bytes!)
+!> \param this ...
+!> \retval res ...
 !> \author  Ole Schuett
 ! *****************************************************************************
   FUNCTION acc_devmem_size_in_bytes(this) RESULT(res)
@@ -252,6 +257,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Returns C-pointer to data of give devmem.
+!> \param this ...
+!> \retval res ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 #if ! defined (__ACC)
@@ -262,6 +269,11 @@ CONTAINS
      res = .FALSE.
   END FUNCTION acc_devmem_cptr
 #else
+! *****************************************************************************
+!> \brief ...
+!> \param this ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION acc_devmem_cptr(this) RESULT(res)
     TYPE(acc_devmem_type), INTENT(IN)        :: this
     TYPE(C_PTR)                              :: res
@@ -274,6 +286,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaMemGetInfo.
+!> \param free ...
+!> \param avail ...
 !> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE acc_devmem_info(free, avail)
@@ -291,6 +305,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocates a given devmem.
+!> \param this ...
+!> \param size_in_bytes ...
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_devmem_allocate_bytes(this, size_in_bytes)
@@ -317,6 +333,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocates a given devmem.
+!> \param this ...
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_devmem_deallocate(this)
@@ -344,9 +361,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sets entries in given devmem to zero, asynchronously.
-!> \param first begin of region to zero, defaults to 1 if not given.
-!> \param last end of region to zero, defaults to size if not given.
+!> \param this ...
+!> \param first_byte ...
+!> \param last_byte ...
 !> \param stream on which zeroing is performed.
+!> \param first begin of region to zero, defaults to 1 if not given. UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param last end of region to zero, defaults to size if not given. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_devmem_setzero_bytes(this, first_byte, last_byte, stream)
@@ -382,6 +402,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Helper-routine performing actuall host2dev transfers.
+!> \param this ...
+!> \param hostmem_cptr ...
+!> \param n_bytes ...
+!> \param stream ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 #if defined (__ACC)
@@ -411,6 +435,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Helper-routine performing actual dev2host transfers.
+!> \param this ...
+!> \param hostmem_cptr ...
+!> \param n_bytes ...
+!> \param stream ...
 !> \author  Ole Schuett
 ! *****************************************************************************
 #if defined (__ACC)

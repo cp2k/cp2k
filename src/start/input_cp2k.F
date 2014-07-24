@@ -793,8 +793,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   creates the rs_pw_transfer section for use in the test section
-!> \author  Joost VandeVondele
+!> \param section ...
+!> \param error ...
 !> \date    2008-03-09
+!> \author  Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_rs_pw_transfer_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -852,8 +854,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   creates the rs_pw_transfer section for use in the test section
-!> \author  Joost VandeVondele
+!> \param section ...
+!> \param error ...
 !> \date    2008-03-09
+!> \author  Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_pw_transfer_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -936,8 +940,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   creates the cp_fm_gemm section for use in the test section
-!> \author  Joost VandeVondele
+!> \param section ...
+!> \param error ...
 !> \date    2009-06-15
+!> \author  Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_cp_fm_gemm_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -1029,8 +1035,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   creates the eigensolver section for use in the test section
-!> \author  Joost VandeVondele
+!> \param section ...
+!> \param error ...
 !> \date    2010-03-10
+!> \author  Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_eigensolver_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -1094,8 +1102,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   creates the cp_dbcsr section for use in the test section
-!> \author  Urban Borstnik
+!> \param section ...
+!> \param error ...
 !> \date    2010-02-08
+!> \author  Urban Borstnik
 ! *****************************************************************************
   SUBROUTINE create_cp_dbcsr_section(section,error)
     TYPE(section_type), POINTER              :: section

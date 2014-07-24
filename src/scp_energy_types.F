@@ -33,6 +33,9 @@ MODULE scp_energy_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param scp_energy ...
+! *****************************************************************************
   SUBROUTINE allocate_scp_energy(scp_energy)
 
     TYPE(scp_energy_type), POINTER           :: scp_energy
@@ -52,6 +55,9 @@ CONTAINS
 
   END SUBROUTINE allocate_scp_energy
 
+! *****************************************************************************
+!> \brief ...
+!> \param scp_energy ...
 ! *****************************************************************************
   SUBROUTINE deallocate_scp_energy(scp_energy)
 
@@ -73,6 +79,9 @@ CONTAINS
 
   END SUBROUTINE deallocate_scp_energy
 
+! *****************************************************************************
+!> \brief ...
+!> \param scp_energy ...
 ! *****************************************************************************
   SUBROUTINE init_scp_energy(scp_energy)
 

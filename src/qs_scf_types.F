@@ -391,6 +391,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  creates krylov space
+!> \param krylov_space ...
+!> \param scf_section ...
+!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]
@@ -445,6 +448,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases krylov space
+!> \param krylov_space ...
+!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]
@@ -511,6 +516,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates subspace-rotation environment
+!> \param subspace_env ...
+!> \param scf_section ...
+!> \param ecut ...
+!> \param error ...
 !> \par History
 !>      09.2009 created [MI]
 !> \author [MI]
@@ -576,6 +585,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases subspace-rotation environment
+!> \param subspace_env ...
+!> \param error ...
 !> \par History
 !>      09.2009 created [MI]
 !> \author [MI]

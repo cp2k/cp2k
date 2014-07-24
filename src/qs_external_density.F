@@ -50,8 +50,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Computes the external density on the grid
-!> \author D. Varsano 
+!> \param qs_env ...
+!> \param error ...
 !> \date   03.2011
+!> \author D. Varsano 
 ! *****************************************************************************
   SUBROUTINE external_read_density(qs_env,error)
 
@@ -212,8 +214,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Read external vxc potential
-!> \author DV 
+!> \param qs_env ...
+!> \param error ...
 !> \date   03.2011
+!> \author DV 
 ! *****************************************************************************
   SUBROUTINE external_read_vxc(qs_env,error)
 

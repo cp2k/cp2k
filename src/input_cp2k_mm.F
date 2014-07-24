@@ -818,6 +818,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the bond of the MM atoms
 !> \param section the section to create
+!> \param label ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -2396,6 +2397,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for Tersoff potential type
 !>      (Tersoff, J. PRB 39(8), 5566, 1989)
+!> \param section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_Tersoff_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -2561,6 +2564,8 @@ CONTAINS
 !> \brief This section specifies the input parameters for Siepmann-Sprik
 !>        potential type
 !>      (Siepmann and Sprik, J. Chem. Phys. 102(1) 511, 1995)  
+!> \param section ...
+!> \param error ...
 ! *****************************************************************************
  SUBROUTINE create_Siepmann_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -2652,9 +2657,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the input section for the qs part
-!> \param section the section to create
+!> \param print_key ...
+!> \param label ...
+!> \param print_level ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param section the section to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_dipoles_section(print_key,label,print_level,error)
