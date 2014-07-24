@@ -167,7 +167,7 @@ OTHER_HELP += "realclean : Remove all file for given ARCH and VERSION"
 #
 # Remove all files from previous builds
 #
-distclean: prettyclean
+distclean: prettyclean doxifyclean
 	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(LIBCUSMM_DIR)/libcusmm.cu
 OTHER_HELP += "distclean : Remove all files from previous builds"
 

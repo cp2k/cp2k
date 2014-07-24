@@ -24,12 +24,12 @@ open ($OUTPUT , ">" , $ARGV[1]) or die "Cant create $ARGV[1] $!";
 # date =    toggle  "       "          "           "        "      "     "  "   \date field (date)
 # author = toggle  "       "          "           "        "      "     "  "   \author field (author)
 # note = toggle  "       "          "           "        "      "     "  "   \note field (notes)
-# result = toggle  "       "          "           "        "      "     "  "   \result field (result of function of subroutine)
+# retval = toggle  "       "          "           "        "      "     "  "   \retval field (returned value of function)
 # random = toggle  "       "          "           "        "      "     "  "   random field - text that has a preceeding \ but isn't in our standard header e.g. \version
 # remainder = toggle  "       "          "           "        "      "     "  "   remainder field - anything else in the comment block that doesn't have a preceeding \
 # ampersand = Variable used to specifiy if the SUBROUTINE/FUNCTION definition contains an & 
 # insideinterface - determines whether we are in an interface block or not
-# hasresultasarg - whether the procedure 
+# hasretvalasarg - whether the procedure 
 $param=0;  
 $brief=0;
 $par=0;
@@ -37,12 +37,12 @@ $date=0;
 $version=0;
 $author=0;
 $note=0;
-$result=0;  
+$retval=0;  
 $random=0;
 $remainder=0;
 $ampersand = 0;
 $insideinterface=0;
-$hasresultasarg=0;
+$hasretvalasarg=0;
 
 # Variables with s at the end contains the actual text read in from header
 %$params = ();
@@ -53,7 +53,7 @@ $versions="";
 $pars="";
 $authors="";
 $notes="";
-$results="";
+$retvals="";
 $randoms="";
 $remainders="";
 $buffer="";        # Used to buffer data
@@ -74,7 +74,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	$version=0;
 	$author=0;
 	$note=0;
-	$result=0;
+	$retval=0;
         $random=0;
 	$remainder=0;
 	undef %params;
@@ -85,7 +85,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	$pars="";
 	$authors="";
 	$notes="";
-	$results="";
+	$retvals="";
 	$buffer="";
         $randoms="";
         $remainders="";
@@ -109,7 +109,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
-		$result=0;
+		$retval=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -122,7 +122,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
-		$result=0;
+		$retval=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -135,7 +135,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
-		$result=0;
+		$retval=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -148,7 +148,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=1;
 		$author=0;
 		$note=0;
-		$result=0;
+		$retval=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -161,7 +161,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
-		$result=0;
+		$retval=0;
                 $random=0;
 		$remainder=0;
 	    }
@@ -174,7 +174,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=1;
 		$note=0;
-		$result=0;
+		$retval=0;
                 $random=0;
 		$remainder=0;
             }
@@ -190,8 +190,8 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
             }
-	    elsif ($currline =~ m/\s*\\result\s*/) {
-		$results=$results . $currline;
+	    elsif ($currline =~ m/\s*\\retval\s*/) {
+		$retvals=$retvals . $currline;
 		$param=0;
 		$brief=0;
 		$par=0;
@@ -199,7 +199,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		$version=0;
 		$author=0;
 		$note=0;
-		$result=1;
+		$retval=1;
                 $random=0;
 		$remainder=0;
             }
@@ -218,7 +218,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $version=0;
                 $author=0;
                 $note=0;
-                $result=0;
+                $retval=0;
                 $random=1;
 		$remainder=0;
 	    }
@@ -242,8 +242,8 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		elsif ($note==1){
 		    $notes=$notes . $currline;
 		}
-		elsif ($result==1){
-		    $results=$results . $currline;
+		elsif ($retval==1){
+		    $retvals=$retvals . $currline;
 		}
                 elsif ($random==1){
 		    if (($currline !~ m/UNKNOWN_DOXYGEN_COMMENT/) && ($currline !~ m/UNKNOWN_COMMENT/) ) { # Must check to see if line has already been commented
@@ -308,9 +308,9 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
         chomp($functionline); # Strip the newline char from the end
 # Check to see if functionline contains RESULT( 
 	if ($functionline =~ m/RESULT\s*\(\w+\)/) {
-	    $hasresultasarg=1;
+	    $hasretvalasarg=1;
 	} else {
-	    $hasresultasarg = 0;
+	    $hasretvalasarg = 0;
 	}
 
         $ampersand = 0;
@@ -341,7 +341,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		    if ( (exists $params{$p}) && ($params{$p} !~ m/\\param\s*(\w+|\[.*\]\s+\w+)\s*\n/ ) ) { # Entry must exist and contain some text after the parameter
 			print $OUTPUT $params{$p};
 		    } else {
-			if ( ($p ne "RESULT") && ($lelement ne "RESULT") && ($hasresultasarg eq 0) ) {  # Print out all regular procedure arguments, RESULT gets treated as a parameter but we don't want to print it out so protect against this happening. 
+			if ( ($p ne "RESULT") && ($lelement ne "RESULT") && ($hasretvalasarg eq 0) ) {  # Print out all regular procedure arguments, RESULT gets treated as a parameter but we don't want to print it out so protect against this happening. 
                                                                                                         # We don't print the RESULT value under \param as we handle this separately. 
 			    # If the entry for this parameter is missing we use the standard text for a missing entry
 			    if ($params{$p} eq ""){
@@ -363,8 +363,8 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 				}
 			    }
 			}
-			if ( ($lelement eq "RESULT") && ($results eq "") && ($hasresultasarg eq 1) ) {    # If the previous element was RESULT then this element must be whatever gets returned by the procedure - if no result data is available print out the ... to header
-			    print $OUTPUT "!> \\result $p ...\n";			    
+			if ( ($lelement eq "RESULT") && ($retvals eq "") && ($hasretvalasarg eq 1) ) {    # If the previous element was RESULT then this element must be whatever gets returned by the procedure - if no retval data is available print out the ... to header
+			    print $OUTPUT "!> \\retval $p ...\n";			    
 			}
 		    }
 
@@ -392,8 +392,8 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
         # If after looping through the elements there is no ampersand
         # we close off the comment and write out the procedure definition
         if ($ampersand ne 1) {
-            if ($results ne ""){   # Print RESULT value first so that it should come straight after the \param definitions
-                print $OUTPUT $results;
+            if ($retvals ne ""){   # Print RESULT value first so that it should come straight after the \param definitions
+                print $OUTPUT $retvals;
             }           
             if (($dates eq "") || ($dates eq "!> \\date\n")){  # dates entry empty or exists and contains no text
 ###                print $OUTPUT "!> \\date MISSING_COMMENT: Unknown\n";  # Use this line if you want to add text to the entry
@@ -438,7 +438,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $version=0;
 	    $author=0;
 	    $note=0;
-	    $result=0;
+	    $retval=0;
             $random=0;
 	    $remainder=0;
 	    undef %params;
@@ -449,7 +449,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $pars="";
 	    $authors="";
 	    $notes="";
-	    $results="";
+	    $retvals="";
             $oldheader="";
             $randoms="";
             $remainders="";
@@ -468,7 +468,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $version=0;
 	    $author=0;
 	    $note=0;
-	    $result=0;
+	    $retval=0;
             $random=0;
 	    $remainder=0;
 	    undef %params;
@@ -479,7 +479,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	    $pars="";
 	    $authors="";
 	    $notes="";
-	    $results="";
+	    $retvals="";
             $randoms="";
             $remainders="";
             $oldheader="";
