@@ -290,7 +290,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
         $insideinterface=0;
     }
 
-    if ( ((($currline =~ m/(SUBROUTINE|FUNCTION)\s+\w+\s*\(/ && $currline !~ m/^\!/ && $currline !~ m/!\s*(SUBROUTINE|FUNCTION)/ ) || $ampersand eq 1) && ($insideinterface eq 0)  ) || ($currline =~ m/^\s*SUBROUTINE\s*\w+\s*.*/ && $currline !~ m/SUBROUTINE\s+\w+\s*\(/ ) ) { # We only work on lines that contain subroutines/functions. 
+    if ( ((($currline =~ m/(SUBROUTINE|FUNCTION)\s+(\w|\[|\])+\s*\(/ && $currline !~ m/^\!/ && $currline !~ m/!\s*(SUBROUTINE|FUNCTION)/ ) || $ampersand eq 1) && ($insideinterface eq 0)  ) || ($currline =~ m/^\s*SUBROUTINE\s*(\w|\[|\])+\s*.*/ && $currline !~ m/SUBROUTINE\s+(\w|\[|\])+\s*\(/ ) ) { # We only work on lines that contain subroutines/functions. 
 # Assuming that lines contain SUBROUTINE or FUNCTION followed by space and then the name of the procedure which may have a space before the (
 # We don't add comments to code inside an interface block
 # We also protect against adding comments to commented out SUBROUTINE/FUNCTION calls
@@ -308,7 +308,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
         chomp($functionline); # Strip the newline char from the end
 # Check to see if functionline contains RESULT( 
 	if ($functionline =~ m/RESULT\s*\(\w+\)/) {
-	    $hasretvalasarg=1;
+	    $hasretvalasarg = 1;
 	} else {
 	    $hasretvalasarg = 0;
 	}
@@ -341,7 +341,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 		    if ( (exists $params{$p}) && ($params{$p} !~ m/\\param\s*(\w+|\[.*\]\s+\w+)\s*\n/ ) ) { # Entry must exist and contain some text after the parameter
 			print $OUTPUT $params{$p};
 		    } else {
-			if ( ($p ne "RESULT") && ($lelement ne "RESULT") && ($hasretvalasarg eq 0) ) {  # Print out all regular procedure arguments, RESULT gets treated as a parameter but we don't want to print it out so protect against this happening. 
+			if ( ($p ne "RESULT") && ($lelement ne "RESULT") ) {  # Print out all regular procedure arguments, RESULT gets treated as a parameter but we don't want to print it out so protect against this happening. 
                                                                                                         # We don't print the RESULT value under \param as we handle this separately. 
 			    # If the entry for this parameter is missing we use the standard text for a missing entry
 			    if ($params{$p} eq ""){
