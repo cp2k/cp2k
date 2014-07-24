@@ -364,7 +364,8 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 			    }
 			}
 			if ( ($lelement eq "RESULT") && ($retvals eq "") && ($hasretvalasarg eq 1) ) {    # If the previous element was RESULT then this element must be whatever gets returned by the procedure - if no retval data is available print out the ... to header
-			    print $OUTPUT "!> \\retval $p ...\n";			    
+                            #retval is stored for now so it is always printed in the same place (after the \params)
+                            $retvals = "!> \\retval $p ...\n";
 			}
 		    }
 
