@@ -869,8 +869,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "On entry to lbd, have tasks = ", size(tasks,2)
-
     failure=.FALSE.
     NULLIFY(list)
     ! here we create for each cpu (0:ncpu-1) a list of possible destinations.
@@ -1086,19 +1084,9 @@ CONTAINS
     ALLOCATE (list_global(2,maxdest,ncpu),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    write(100+my_pos,*)" In optimize_load_list we allocate 3 &
-   arrays, load_per_source is the O(ncpu^2) one"
-
     load_all(:)=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
 
-    write(100+my_pos,*) "load_all is just a reshaping of the&
-         2nd dimension of list"
-    write(100+my_pos,*) "load_all = ", load_all
-
     CALL mp_gather(load_all,load_per_source,0,group)
-
-    write(100+my_pos,*) " load_per_source (gathered) = &
-",load_per_source
 
     IF (my_pos==0) THEN
 
@@ -1108,22 +1096,11 @@ CONTAINS
           load_all(:)=load_all+load_per_source(maxdest*ncpu*(icpu-1)+1:maxdest*ncpu*icpu)
        ENDDO
 
-       write(100+my_pos,*) "load_all now overwritten"
-       write(100+my_pos,*) "mpi_reduce instead?"
-       write(100+my_pos,*) "load_all=",load_all 
        list_global(1,:,:)=list(1,:,:)
        list_global(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
 
-       write(100+my_pos,*) "Before balance"
-       write(100+my_pos,*) "list_global(1,:,:)=",list_global(1,:,:)
-       write(100+my_pos,*) "list_global(2,:,:)=",list_global(2,:,:)
-
        ! optimize the fluxes
        CALL balance_global_list(list_global)
-
-       write(100+my_pos,*) "After balance"
-       write(100+my_pos,*) "list_global(1,:,:)=",list_global(1,:,:)
-       write(100+my_pos,*) "list_global(2,:,:)=",list_global(2,:,:)
 
        ! figure out the amount of data a given CPU can send to a destination
        !
@@ -1141,18 +1118,8 @@ CONTAINS
 
     ENDIF
 
-    write(100+my_pos,*) "After update to l_g and l_p_s"
-    write(100+my_pos,*) "list_global(1,:,:)=",list_global(1,:,:)
-    write(100+my_pos,*) "list_global(2,:,:)=",list_global(2,:,:)
-    write(100+my_pos,*) "load_per_source=",load_per_source
-
     CALL mp_scatter(load_per_source,load_all,0,group)
     list(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
-
-    write(100+my_pos,*) "Finally we scatter and update local &
-lists"
-       write(100+my_pos,*) "list(1,:,:)=",list(1,:,:)
-       write(100+my_pos,*) "list(2,:,:)=",list(2,:,:)
 
     DEALLOCATE (load_all,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1214,8 +1181,6 @@ lists"
     CALL get_current_loads(loads, rs_descs, grid_level, ntasks, natoms, maxset, maxpgf, &
                            tasks, use_reordered_ranks=.FALSE. , error=error)
 
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "On entry to compute_load_list, &
-current_loads are",loads
     failure=.FALSE.
 
     maxdest=SIZE(list,2)
@@ -1374,10 +1339,6 @@ current_loads are",loads
 
     ENDDO
 
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "At end of compute_load_list"
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "list(1,:,:)=",list(1,:,:)
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "list(2,:,:)=",list(2,:,:)
-
     CALL timestop(handle)
 
   END SUBROUTINE compute_load_list
@@ -1467,11 +1428,6 @@ current_loads are",loads
     ENDDO
 
     CALL reallocate(list,1,2,1,maxcount,0,ncpu-1)
-
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "At end of create_destination_list"
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "maxcount=",maxcount
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "list(1,:,:)=",list(1,:,:)
-    write(100+rs_descs(1)%rs_desc%my_pos,*) "list(2,:,:)=",list(2,:,:)
 
     CALL timestop(handle)
 
@@ -2021,11 +1977,6 @@ current_loads are",loads
            CALL get_current_loads( loads(:,igrid_level), rs_descs, igrid_level, ntasks, natoms, maxset,maxpgf, &
                                    tasks, use_reordered_ranks=.FALSE. , error=error)
 
-           write(100+rs_descs(1)%rs_desc%my_pos,*) "After l_b_d, per-process&
-loads=",loads
-           close(100+rs_descs(1)%rs_desc%my_pos)
-           call stop_program(routineN,moduleN,__LINE__,"Done with load &
-balancing")
            total_loads(:)=total_loads+loads(:,igrid_level)
 
          END IF
