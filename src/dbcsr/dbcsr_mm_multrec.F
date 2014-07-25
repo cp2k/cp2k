@@ -145,8 +145,8 @@ MODULE dbcsr_mm_multrec
 
 ! *****************************************************************************
 !> \brief Initialize the library
-!> \author Ole Schuett
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -157,10 +157,10 @@ MODULE dbcsr_mm_multrec
 
 ! *****************************************************************************
 !> \brief Finalize the library
-!> \author Ole Schuett
 !> \param group ...
 !> \param output_unit ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
     INTEGER, INTENT(IN)                      :: group, output_unit
@@ -479,9 +479,9 @@ MODULE dbcsr_mm_multrec
 
 ! *****************************************************************************
 !> \brief Signal approaching end of multiplication
-!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_phaseout(this, error)
     TYPE(dbcsr_mm_multrec_type), &

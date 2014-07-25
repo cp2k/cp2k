@@ -43,8 +43,8 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Creates a memory pool.
-!> \author Ole Schuett
 !> \param pool ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mempool_create(pool)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
@@ -58,9 +58,9 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Ensures that mempool has at least the given capacity.
-!> \author Ole Schuett
 !> \param pool ...
 !> \param capacity ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mempool_ensure_capacity(pool, capacity)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
@@ -75,12 +75,12 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Picks a suitable data_area from mempool, returns Null() if none found.
-!> \author Ole Schuett
 !> \param memtype ...
 !> \param datatype ...
 !> \param datasize ...
 !> \param error ...
 !> \retval res ...
+!> \author Ole Schuett
 ! *****************************************************************************
   FUNCTION dbcsr_mempool_get(memtype, datatype, datasize, error) RESULT(res)
     TYPE(dbcsr_memtype_type)                 :: memtype
@@ -133,9 +133,9 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Adds an unused (refcount==0) data_area to the pool.
-!> \author Ole Schuett
 !> \param area ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE dbcsr_mempool_add(area, error)
     TYPE(dbcsr_data_obj)                     :: area
@@ -161,9 +161,9 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Ensures that pool_size < max_size, e.g. that there is a free slot.
-!> \author Ole Schuett
 !> \param pool ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE mempool_collect_garbage(pool, error)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
@@ -197,9 +197,9 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Finalizes mempool, includes deallocation of all contained data_areas.
-!> \author Ole Schuett
 !> \param pool ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE dbcsr_mempool_destruct(pool, error)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
@@ -218,9 +218,9 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Deallocates all data_areas contained in given mempool.
-!> \author Ole Schuett
 !> \param pool ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE dbcsr_mempool_clear(pool, error)
     TYPE(dbcsr_mempool_type), POINTER        :: pool
@@ -252,7 +252,6 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Ensures that given memtype has requested settings.
-!> \author Ole Schuett
 !> \param memtype ...
 !> \param acc_hostalloc ...
 !> \param acc_devalloc ...
@@ -261,6 +260,7 @@ MODULE dbcsr_mem_methods
 !> \param oversize_factor ...
 !> \param has_pool ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_memtype_setup(memtype, acc_hostalloc, acc_devalloc, mpi,&
               acc_stream, oversize_factor, has_pool, error)
@@ -313,10 +313,10 @@ MODULE dbcsr_mem_methods
 
 ! *****************************************************************************
 !> \brief Test if two memtypes are equal
-!> \author Ole Schuett
 !> \param mt1 ...
 !> \param mt2 ...
 !> \retval res ...
+!> \author Ole Schuett
 ! *****************************************************************************
   FUNCTION dbcsr_memtype_equal(mt1,mt2) RESULT (res)
     TYPE(dbcsr_memtype_type), INTENT(in)     :: mt1, mt2

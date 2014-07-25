@@ -216,6 +216,7 @@ CONTAINS
 !> \param pool the pool from where you get the element
 !> \param element will contain the new element
 !>\param name the name for the new matrix (optional)
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

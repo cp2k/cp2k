@@ -107,9 +107,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Signal approaching end of multiplication
-!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_phaseout(this, error)
     TYPE(dbcsr_mm_hostdrv_type), &
@@ -123,9 +123,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Signal that previous stacks should be processed first
-!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_barrier(this, error)
     TYPE(dbcsr_mm_hostdrv_type), &

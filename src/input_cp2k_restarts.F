@@ -989,11 +989,11 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Update PINT section in the input structure
-!> \date   2010-10-13
-!> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
 !> \param motion_section ...
 !> \param pint_env ...
 !> \param error ...
+!> \date   2010-10-13
+!> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
 ! *****************************************************************************
   SUBROUTINE update_motion_pint(motion_section, pint_env, error)
 

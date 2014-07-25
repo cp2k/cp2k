@@ -141,7 +141,6 @@ MODULE dbcsr_mm_csr
 
 ! *****************************************************************************
 !> \brief A wrapper around dbcsr_mm_csr_multiply_low to avoid expensive dereferencings.
-!> \author Ole Schuett
 !> \param this ...
 !> \param left ...
 !> \param right ...
@@ -170,6 +169,7 @@ MODULE dbcsr_mm_csr
 !> \param a_norms ...
 !> \param b_norms ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE dbcsr_mm_csr_multiply(this, left, right, mi, mf, ni, nf, ki, kf,&
        ai, af,&
@@ -759,9 +759,9 @@ MODULE dbcsr_mm_csr
 
 ! *****************************************************************************
 !> \brief Signal approaching end of multiplication
-!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_csr_phaseout(this, error)
     TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this

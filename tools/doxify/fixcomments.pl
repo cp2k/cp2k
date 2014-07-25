@@ -95,7 +95,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                                                                  # keep the complete headers for MODULE and TYPE intact such that we
                                                                  # can just dump them straight back out without making any changes. 
 	    # Pick up parameters - matches the word param separated by spaces
-	    if ( ($currline =~ m/\s*\\param\s+(\S+)\s*/) || ($currline =~ m/\s*\\param\[.*\]\s+(\S+)\s+/) ) {
+	    if ( ($currline =~ m/!>\s\\param\s+(\S+)\s*/) || ($currline =~ m/!>\s\\param\[.*\]\s+(\S+)\s+/) ) {
 		$paramtype = $1; # Contains the param name
 		if (exists $params{$paramtype}){ # Covers the case where two arguments have the same name
 		    $paramtype=$paramtype . "new";
@@ -113,7 +113,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
 	    }
-	    elsif ($currline =~ m/\s*\\brief\s*/) {
+	    elsif ($currline =~ m/!>\s\\brief\s*/) {
 		$briefs=$briefs . $currline;
 		$param=0;
 		$brief=1;
@@ -126,7 +126,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
 	    }
-	    elsif ($currline =~ m/\s*\\date*/) {
+	    elsif ($currline =~ m/!>\s\\date*/) {
 		$dates=$dates . $currline;
 		$param=0;
 		$brief=0;
@@ -139,7 +139,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
 	    }
-	    elsif ($currline =~ m/\s*\\version\s*/) {
+	    elsif ($currline =~ m/!>\s\\version\s*/) {
 		$versions=$versions . $currline;
 		$param=0;
 		$brief=0;
@@ -152,7 +152,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
 	    }
-	    elsif ($currline =~ m/\s*\\par\s*/) {
+	    elsif ($currline =~ m/!>\s\\par\s*/) {
 		$pars=$pars . $currline;
 		$param=0;
 		$brief=0;
@@ -165,7 +165,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
 	    }
-	    elsif ($currline =~ m/\s*\\author\s*/) {
+	    elsif ($currline =~ m/!>\s\\author\s*/) {
 		$authors=$authors . $currline;
 		$param=0;
 		$brief=0;
@@ -178,7 +178,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
             }
-	    elsif ($currline =~ m/\s*\\note\s*/) {
+	    elsif ($currline =~ m/!>\s\\note\s*/) {
 		$notes=$notes . $currline;
 		$param=0;
 		$brief=0;
@@ -190,7 +190,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
             }
-	    elsif ($currline =~ m/\s*\\retval\s*/) {
+	    elsif ($currline =~ m/!>\s\\retval\s*/) {
 		$retvals=$retvals . $currline;
 		$param=0;
 		$brief=0;
@@ -203,7 +203,7 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
                 $random=0;
 		$remainder=0;
             }
-            elsif ( ($currline =~ m/!>\s*\\\S+/) ) {  # randoms contains anything else that looks like a DOXYGEN header. with a \whatever
+            elsif ( ($currline =~ m/!>\s\\\S+/) ) {  # randoms contains anything else that looks like a DOXYGEN header. with a \whatever
 		if (($currline !~ m/UNKNOWN_DOXYGEN_COMMENT/) && ($currline !~ m/UNKNOWN_COMMENT/) && ($currline !~ m/!>\s*\\param\s*\n/)  ) { # Must check to see if line has already been commented. We also avoid commenting a blank \param line
 		    $randoms=$randoms . $currline;
 		    chomp($randoms);

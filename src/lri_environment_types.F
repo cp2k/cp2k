@@ -710,7 +710,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocate lri_ints, matrices that store LRI integrals
 !> \param lri_env ...
-!  \param lri_ints structure storing the LRI integrals
+!> \param lri_ints structure storing the LRI integrals
 !> \param nkind number of atom kinds 
 !> \param error variable to control error logging, stopping,...
 ! *****************************************************************************
@@ -853,7 +853,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocate lri_ints_rho, storing integral for the exact density
 !> \param lri_env ...
-!  \param lri_ints_rho structure storing the integrals (aa,bb)
+!> \param lri_ints_rho structure storing the integrals (aa,bb)
 !> \param nkind number of atom kinds 
 !> \param error variable to control error logging, stopping,...
 ! *****************************************************************************
@@ -937,7 +937,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates and initializes lri_rhos
 !> \param lri_env ...
-!  \param lri_rhos structure storing tvec and avec
+!> \param lri_rhos structure storing tvec and avec
 !> \param nspin ...
 !> \param nkind number of atom kinds 
 !> \param error variable to control error logging, stopping,...

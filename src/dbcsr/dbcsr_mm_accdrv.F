@@ -131,8 +131,8 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Initialize the library
-!> \author Ole Schuett
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -144,9 +144,9 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Finalize the library
-!> \author Ole Schuett
 !> \param output_unit ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_lib_finalize(output_unit, error)
     INTEGER, INTENT(IN)                      :: output_unit
@@ -227,8 +227,8 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Helper routine used by dbcsr_mm_accdrv_init()
-!> \author Ole Schuett
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE setup_streams(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -255,8 +255,8 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Helper routine used by setup_streams() and dbcsr_mm_accdrv_lib_finalize()
-!> \author Ole Schuett
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE deallocate_streams(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -273,13 +273,13 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Helper routine
-!> \author Ole Schuett
 !> \param streams ...
 !> \param basename ...
 !> \param n ...
 !> \param events ...
 !> \param priority ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE stream_array_force_size(streams, basename, n, events, priority, error)
     TYPE(acc_stream_type), DIMENSION(:), &
@@ -318,9 +318,9 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Helper routine used by dbcsr_mm_accdrv_init()
-!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE setup_stackbuffers(this, error)
     TYPE(dbcsr_mm_accdrv_type), &
@@ -375,8 +375,8 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Helper routine used by setup_stackbuffers() and dbcsr_mm_accdrv_lib_finalize()
-!> \author Ole Schuett
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
  SUBROUTINE deallocate_stackbuffers(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -422,10 +422,10 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Sort stack entries with respect to the c_id.
-!> \author Ole Schuett
 !> \param params_in ...
 !> \param params_out ...
 !> \param stack_size ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE stack_sort(params_in, params_out, stack_size)
     INTEGER, INTENT(IN)                      :: stack_size
@@ -450,10 +450,10 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Roughly order stacks with a cheaper Binning-scheme by Peter Messmer
-!> \author Ole Schuett
 !> \param params_in ...
 !> \param params_out ...
 !> \param stack_size ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE stack_binning(params_in, params_out, stack_size)
     INTEGER, INTENT(IN)                      :: stack_size
@@ -494,9 +494,9 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Signal approaching end of multiplication
-!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_phaseout(this, error)
     TYPE(dbcsr_mm_accdrv_type), &
@@ -510,9 +510,9 @@ MODULE dbcsr_mm_accdrv
 ! *****************************************************************************
 !> \brief After beeing called by ALL threads, it installs a special barrier that
 !>        forces the priority-streams to wait for the normal-streams.
-!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_barrier(this, error)
     TYPE(dbcsr_mm_accdrv_type), &
@@ -539,7 +539,6 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Processes a given stack using accelerator
-!> \author Ole Schuett
 !> \param this ...
 !> \param left ...
 !> \param right ...
@@ -548,6 +547,7 @@ MODULE dbcsr_mm_accdrv
 !> \param stack_descr ...
 !> \param success ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_process(this, left, right, params, stack_size, &
        stack_descr, success, error)

@@ -185,8 +185,8 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Initialize the library
-!> \author Ole Schuett
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -205,10 +205,10 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Finalize the library
-!> \author Ole Schuett
 !> \param group ...
 !> \param output_unit ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_lib_finalize(group, output_unit, error)
     INTEGER, INTENT(IN)                      :: group, output_unit
@@ -248,8 +248,8 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Deallocate memory contained in mempools
-!> \author Ole Schuett
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_clear_mempools(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error

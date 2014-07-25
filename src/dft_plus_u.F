@@ -87,8 +87,8 @@ CONTAINS
 !> \param[in,out] matrix_h Hamiltonian matrices for each spin
 !> \param[in,out] matrix_w Energy weighted density matrices for each spin
 !> \param[in]     error environment
-!> \author        Matthias Krack (MK)
 !> \date          14.01.2008
+!> \author        Matthias Krack (MK)
 !> \version       1.0
 ! *****************************************************************************
   SUBROUTINE plus_u(qs_env,matrix_h,matrix_w,error)
@@ -179,8 +179,16 @@ CONTAINS
 !>                \f[Q = S^{1/2} P S^{1/2}\f]
 !>                where \b P and \b S are the density and the
 !>                overlap matrix, respectively.
-!> \details
-!>  \f{eqnarray*}
+!> \param[in]     qs_env Quickstep environment
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param should_output ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param[in]     error environment
+!> \date          02.07.2008
+!> \par
+!>  \f{eqnarray*}{
 !>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
 !>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
 !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
@@ -192,12 +200,7 @@ CONTAINS
 !>                                \frac{\partial E^{\rm U}}{\partial q_\mu}
 !>                                \frac{\partial q_\mu}{\partial P_{\mu\nu}}\\\
 !>  \f}
-!> \param[in]     qs_env Quickstep environment
-!> \param[in,out] matrix_h Hamiltonian matrices for each spin
-!> \param[in,out] matrix_w Energy weighted density matrices for each spin
-!> \param[in]     error environment
 !> \author        Matthias Krack (MK)
-!> \date          02.07.2008
 !> \version       1.0
 ! *****************************************************************************
   SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,should_output,output_unit,&
@@ -871,8 +874,16 @@ CONTAINS
 !>                                             S_{\mu\nu} P_{\nu\mu})\f]
 !>                where \b P and \b S are the density and the
 !>                overlap matrix, respectively.
-!> \details
-!>  \f{eqnarray*}
+!> \param[in]     qs_env Quickstep environment
+!> \param orthonormal_basis ...
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param should_output ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param[in]     error environment
+!> \date          03.07.2008
+!> \par
+!>  \f{eqnarray*}{
 !>   E^{\rm DFT+U} & = & E^{\rm DFT} + E^{\rm U}\\\
 !>                 & = & E^{\rm DFT} + \frac{1}{2}\sum_A(U_A - J_A)(Tr(q_A) - Tr(q^2_A))\\[1ex]
 !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
@@ -884,11 +895,7 @@ CONTAINS
 !>                                \frac{\partial E^{\rm U}}{\partial q_A}
 !>                                \frac{\partial q_A}{\partial P_{\mu\nu}}\\\
 !>  \f}
-!> \param[in]     qs_env Quickstep environment
-!> \param[in,out] matrix_h Hamiltonian matrices for each spin
-!> \param[in]     error environment
 !> \author        Matthias Krack (MK)
-!> \date          03.07.2008
 !> \version       1.0
 ! *****************************************************************************
   SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,should_output,&
@@ -1547,8 +1554,17 @@ CONTAINS
 !>                         = \sum_\nu P_{\mu\nu} S_{\nu\mu}\f]
 !>                where \b P and \b S are the density and the
 !>                overlap matrix, respectively.
-!> \details
-!>  \f{eqnarray*}
+!> \param[in]     qs_env Quickstep environment
+!> \param orthonormal_basis ...
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param should_output ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param[in]     error environment
+!> \date          11.01.2008
+!> \par
+!>  \f{eqnarray*}{
 !>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
 !>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
 !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
@@ -1562,12 +1578,7 @@ CONTAINS
 !>                          & = & H_{\mu\nu} +
 !>                                \frac{1}{2}(U - J)(1 - q_\mu - q_\nu) S_{\mu\nu}\\\
 !>  \f}
-!> \param[in]     qs_env Quickstep environment
-!> \param[in,out] matrix_h Hamiltonian matrices for each spin
-!> \param[in,out] matrix_w Energy weighted density matrices for each spin
-!> \param[in]     error environment
 !> \author        Matthias Krack (MK)
-!> \date          11.01.2008
 !> \version       1.0
 !> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
 !>                calls are performed
