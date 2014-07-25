@@ -2673,7 +2673,7 @@ CONTAINS
        ! Integers
        CALL keyword_create(keyword, name="LMAXN1",&
             variants=(/"LMAXRHO1"/),&
-            description="GAPW : max L number for espansion of the atomic densities in spherical gaussians",&
+            description="GAPW : max L number for expansion of the atomic densities in spherical gaussians",&
             usage="LMAXN1 integer",&
             default_i_val=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
