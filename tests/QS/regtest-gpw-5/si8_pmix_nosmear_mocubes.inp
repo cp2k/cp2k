@@ -1,0 +1,82 @@
+&GLOBAL
+  PROJECT si8_pmix
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+  FLUSH_SHOULD_FLUSH
+&END GLOBAL
+&FORCE_EVAL
+  METHOD QS
+  &PRINT
+    &FORCES ON
+    &END
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    &MGRID
+      NGRIDS 4
+      CUTOFF 40
+    &END MGRID
+    &QS
+      METHOD GPW
+      MAP_CONSISTENT
+      EXTRAPOLATION PS
+      EXTRAPOLATION_ORDER 2
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF   5
+      EPS_SCF 1.0e-7
+      EPS_DIIS 1.0e-7
+      &OUTER_SCF OFF
+        EPS_SCF 1.0E-6
+        MAX_SCF 1
+      &END
+      &OT OFF
+        PRECONDITIONER FULL_ALL
+        ENERGY_GAP 0.001
+      &END OT
+#      &SMEAR
+#        METHOD FERMI_DIRAC 
+#        ELECTRONIC_TEMPERATURE   5000.
+#      &END
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.4
+      &END
+      ADDED_MOS   20 20
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MO
+        &EACH
+          QS_SCF 100
+        &END
+        EIGENVALUES
+        OCCUPATION_NUMBERS
+      &END
+      &MO_CUBES
+        NHOMO  2
+        NLUMO 2
+        WRITE_CUBE T
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+       ABC   5.42858871335 5.42858871335 5.42858871335
+    &END CELL
+    &KIND  Si
+      BASIS_SET  DZVP-GTH
+      POTENTIAL  GTH-PBE-q4
+    &END
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
+      COORDINATE XYZ
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
