@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE qs_energy
   USE almo_scf,                        ONLY: almo_entry_scf
-  USE cp_control_types,                ONLY: dft_control_type, rtp_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE dm_ls_scf,                       ONLY: ls_scf
   USE f77_blas
@@ -171,7 +172,7 @@ CONTAINS
     REAL(Kind=dp)                            :: eps_ener
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
-    TYPE(dft_control_type), POINTER          :: dft_control  
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 

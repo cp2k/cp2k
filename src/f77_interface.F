@@ -89,7 +89,8 @@ MODULE f77_interface
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_chdir,&
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_chdir,&
                                              m_getcwd
   USE message_passing,                 ONLY: &
        MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
@@ -259,7 +260,7 @@ CONTAINS
        CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
             owns_group=.FALSE.,error=error)
        IF (default_para_env%source==default_para_env%mepos) THEN
-          unit_nr=6
+          unit_nr=default_output_unit
        ELSE
           unit_nr=-1
        END IF
@@ -628,7 +629,7 @@ CONTAINS
 !> \param output_unit if given it should be the unit for the output
 !>        and no file is open(should be valid on the processor with rank 0)
 !> \param owns_out_unit if the output unit should be closed upon destroing
-!>        of the force_env (defaults to true if not 6)
+!>        of the force_env (defaults to true if not default_output_unit)
 !> \param input the parsed input, if given and valid it is used
 !>        instead of parsing from file
 !> \param ierr will return a number different from 0 if there was an error
@@ -720,7 +721,7 @@ CONTAINS
     ELSE
        IF (para_env%mepos==para_env%source) THEN
           IF (output_path=="__STD_OUT__") THEN
-             unit_nr=6
+             unit_nr=default_output_unit
           ELSE
              CALL open_file(file_name=output_path,file_status="UNKNOWN",&
                   file_action="WRITE", file_position="APPEND",&
@@ -730,7 +731,7 @@ CONTAINS
           unit_nr=-1
        END IF
     END IF
-    my_owns_out_unit=unit_nr/=6
+    my_owns_out_unit=unit_nr/=default_output_unit
     IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
     CALL globenv_create(globenv,error=error)
     CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path,&
@@ -1531,7 +1532,7 @@ CPSourceFileRef,&
 !> \param input_declaration ...
 !> \param input_file_path the path of the input file to check
 !> \param output_file_path path of the output file (to which it is appended)
-!>        if it is "__STD_OUT__" the unit 6 is used
+!>        if it is "__STD_OUT__" the default_output_unit is used
 !> \param echo_input if the parsed input should be written out with all the
 !>        defaults made explicit
 !> \param mpi_comm the mpi communicator (if not given it uses the default
@@ -1576,7 +1577,7 @@ CPSourceFileRef,&
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
-          unit_nr=6
+          unit_nr=default_output_unit
        ELSE
           CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&

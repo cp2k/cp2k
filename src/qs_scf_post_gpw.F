@@ -215,13 +215,14 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: occupied_evals, &
-                                                unoccupied_evals, unoccupied_evals_stm
+                                                unoccupied_evals, &
+                                                unoccupied_evals_stm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: kinetic_m, ks_rmpv, &
-                                                matrix_s, &
+      POINTER                                :: kinetic_m, ks_rmpv, matrix_s, &
                                                 mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, &
-      lumo_localized, lumo_ptr, mo_loc_history, occupied_orbs, unoccupied_orbs, unoccupied_orbs_stm 
+      lumo_localized, lumo_ptr, mo_loc_history, occupied_orbs, &
+      unoccupied_orbs, unoccupied_orbs_stm
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -855,8 +856,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv,  &
-                                                matrix_s
+      POINTER                                :: ks_rmpv, matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1272,7 +1272,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
-    INTEGER                                  :: handle, ifirst, index_mo, ivector, unit_nr
+    INTEGER                                  :: handle, ifirst, index_mo, &
+                                                ivector, unit_nr
     LOGICAL                                  :: append_cube
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2151,8 +2152,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, &
-                                                matrix_s
+      POINTER                                :: ks_rmpv, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2342,8 +2342,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, &
-                                                matrix_s
+      POINTER                                :: ks_rmpv, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
