@@ -780,6 +780,7 @@ CONTAINS
    INTEGER :: ii, jj, im, ip, jm, jp, np1, np2 
 
 
+   found_val = .false.
    d1=dir+1; if(d1>3) d1=1
    d2=dir-1; if(d2<1) d2=3
    IF(d1>d2)THEN
@@ -843,10 +844,16 @@ CONTAINS
      alpha = 2.D0*0.5123D0*bwidth*sqrt(au2ev)
      i = cube%npoints(d1)/2
      j = cube%npoints(d2)/2
+!dbg
+!  write(*,*) 'center grid ', i, j, ' k range ', i1,i2, incr
+!dbg
      DO k = i1,i2,incr
        IF(dir==3)THEN
          val1 = cube%grid(i,j,k)
          val2 = cube%grid(i,j,k+1)
+!dbg
+!  write(*,*) 'cube ', i,j,k, val1, val2
+!dbg
        ELSEIF(dir==2)THEN
          val1 = cube%grid(i,k,j)
          val2 = cube%grid(i,k+1,j)
@@ -868,6 +875,9 @@ CONTAINS
            END IF
        END IF
        IF(found_val) THEN
+!dbg
+! write(*,*) 'found val ', val1, val2, ' at k ', k, ' weights ', fac1, fac2  
+!dbg
          IF(dir==3)THEN
            val1_e = cube_espot%grid(i,j,k) 
            val2_e = cube_espot%grid(i,j,k+1)
@@ -880,6 +890,10 @@ CONTAINS
          END IF 
          iso_val = fac1*(val1*exp(alpha*sqrt(val1_e))) + &
                    fac2*(val2*exp(alpha*sqrt(val2_e)))
+!dbg
+!  write(*,*) 'iso val ', iso_val, ' with espot ', val1_e, val2_e
+!  stop
+!dbg
          EXIT
        END IF
      END DO
