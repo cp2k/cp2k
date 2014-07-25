@@ -98,9 +98,11 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE propagation_step(qs_env, error)
+  SUBROUTINE propagation_step(qs_env, rtp, rtp_control, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'propagation_step', &
@@ -113,25 +115,21 @@ CONTAINS
       POINTER                                :: delta_mos, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
-    NULLIFY(rho,ks_env,rtp)
+    NULLIFY(rho,ks_env,delta_P, rho_new,delta_mos, mos_new)
     ! get everything needed and set some values
     CALL get_qs_env(qs_env,&
          rho=rho,&
          ks_env=ks_env,&
-         rtp=rtp,&
          error=error)
-    rtp_control=>qs_env%dft_control%rtp_control
     IF(rtp%iter==1)THEN
        aspc_order=rtp_control%aspc_order
-       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error)
+       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error=error)
        IF(rtp%linear_scaling) THEN
-          CALL calc_update_rho_sparse(qs_env,error)
+          CALL calc_update_rho_sparse(qs_env,error=error)
        ELSE
-          CALL calc_update_rho(qs_env,error)
+          CALL calc_update_rho(qs_env,error=error)
        ENDIF
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
             error=error)

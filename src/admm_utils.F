@@ -50,10 +50,10 @@ MODULE admm_utils
 !> \param ks_matrix_aux_fit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE admm_correct_for_eigenvalues(ispin, admm_env, ks_matrix, ks_matrix_aux_fit, error)
+  SUBROUTINE admm_correct_for_eigenvalues(ispin, admm_env, ks_matrix,  error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_dbcsr_type), POINTER             :: ks_matrix, ks_matrix_aux_fit
+    TYPE(cp_dbcsr_type), POINTER             :: ks_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: nao_aux_fit, nao_orb
@@ -147,10 +147,10 @@ MODULE admm_utils
 !> \param ks_matrix_aux_fit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_matrix, ks_matrix_aux_fit, error)
+  SUBROUTINE admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_matrix, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_dbcsr_type), POINTER             :: ks_matrix, ks_matrix_aux_fit
+    TYPE(cp_dbcsr_type), POINTER             :: ks_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: nao_aux_fit, nao_orb

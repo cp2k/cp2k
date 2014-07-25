@@ -310,14 +310,14 @@ MODULE mp2
       ! If ADMM we should make the ks matrix up-to-date
       IF( qs_env%dft_control%do_admm ) THEN
         CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
-                                          matrix_ks_aux(ispin)%matrix, error)
+                                          error)
       END IF
 
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, fm_matrix_ks, error=error)
 
       IF( qs_env%dft_control%do_admm ) THEN
         CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
-                                          matrix_ks_aux(ispin)%matrix, error)
+                                          error)
       END IF
 
       CALL init_mo_set(mos_mp2(ispin)%mo_set,&

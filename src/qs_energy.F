@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE qs_energy
   USE almo_scf,                        ONLY: almo_entry_scf
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type, rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE dm_ls_scf,                       ONLY: ls_scf
   USE f77_blas
@@ -111,24 +111,24 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-
-    CALL qs_energies_init(qs_env, calc_forces, error)
+    NULLIFY(dft_control)
+    CALL qs_energies_init(qs_env, calc_forces, error=error)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
 
     ! *** Perform a SCF run ***
     IF (dft_control%qs_control%do_ls_scf) THEN
       CALL ls_scf(qs_env=qs_env, error=error)
-    ELSE IF (qs_env%dft_control%qs_control%do_almo_scf) THEN
+    ELSE IF (dft_control%qs_control%do_almo_scf) THEN
       CALL almo_entry_scf(qs_env=qs_env, calc_forces=calc_forces, error=error)
     ELSE
       CALL scf(qs_env=qs_env, error=error)
 
       ! Compute MP2 energy
-      CALL qs_energies_mp2(qs_env, calc_forces, error)
+      CALL qs_energies_mp2(qs_env, calc_forces, error=error)
        
       ! if calculate forces, time to compute the w matrix
-      CALL qs_energies_compute_matrix_w(qs_env,calc_forces,error)
+      CALL qs_energies_compute_matrix_w(qs_env,calc_forces,error=error)
 
     END IF
 
@@ -145,7 +145,7 @@ CONTAINS
       END IF
     END IF
 
-    CALL qs_energies_properties(qs_env,error)
+    CALL qs_energies_properties(qs_env,error=error)
 
     CALL timestop(handle)
 
@@ -171,27 +171,33 @@ CONTAINS
     REAL(Kind=dp)                            :: eps_ener
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
+    TYPE(dft_control_type), POINTER          :: dft_control  
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
 
-    eps_ener=qs_env%dft_control%rtp_control%eps_ener
-    aspc_order=qs_env%dft_control%rtp_control%aspc_order
-    IF(qs_env%dft_control%rtp_control%initial_step)THEN
-       CALL init_emd_propagators(qs_env,error)
+    NULLIFY(dft_control,rtp,rtp_control,s_mat)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+
+    rtp_control=>dft_control%rtp_control
+    eps_ener=rtp_control%eps_ener
+    aspc_order=rtp_control%aspc_order
+    IF(rtp_control%initial_step)THEN
+       CALL init_emd_propagators(qs_env,error=error)
     ELSE
        IF(qs_env%rtp%iter==1)THEN
-          CALL qs_energies_init(qs_env, .FALSE. , error)
+          CALL qs_energies_init(qs_env, .FALSE. , error=error)
           CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
-          CALL s_matrices_create (s_mat,rtp,error)
+          CALL s_matrices_create (s_mat,rtp,error=error)
        END IF
        CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
 
-       CALL calc_S_derivs(qs_env,error)
+       CALL calc_S_derivs(qs_env,error=error)
 
-       eps_ener=qs_env%dft_control%rtp_control%eps_ener
+       eps_ener=rtp_control%eps_ener
 
-       CALL propagation_step(qs_env, error)
+       CALL propagation_step(qs_env, rtp, rtp_control, error=error)
        rtp%energy_new=qs_env%energy%total
 
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter=rtp%delta_iter,error=error)

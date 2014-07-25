@@ -978,7 +978,7 @@ CONTAINS
 !>         02.2013 moved from qs_scf_post_gpw
 !>
 ! *****************************************************************************
-  SUBROUTINE make_mo_eig(mos,nspins,ks_rmpv,scf_control,mo_derivs,admm_env,ks_aux,error)
+  SUBROUTINE make_mo_eig(mos,nspins,ks_rmpv,scf_control,mo_derivs,admm_env,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -989,8 +989,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ks_aux
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig', &
@@ -1015,9 +1013,9 @@ CONTAINS
             eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
        IF (output_unit>0) WRITE(output_unit,*) " "
        IF (output_unit>0) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
-       IF (homo .NE. nmo) THEN
-          IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
-       ENDIF
+ !      IF (homo .NE. nmo) THEN
+ !         IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
+ !      ENDIF
        IF (output_unit>0) WRITE(output_unit,*) "---------------------------------------------"
 
        IF(scf_control%use_ot) THEN
@@ -1031,7 +1029,7 @@ CONTAINS
           ! ** If we do ADMM, we add have to modify the kohn-sham matrix
           IF( PRESENT(admm_env) ) THEN
             CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
-                                              ks_aux(ispin)%matrix, error)
+                                               error)
           END IF
 
           CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
@@ -1041,10 +1039,10 @@ CONTAINS
           ! ** If we do ADMM, we restore the original kohn-sham matrix
           IF( PRESENT(admm_env) ) THEN
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
-                                                ks_aux(ispin)%matrix, error)
+                                                error)
           END IF
        ELSE
-          IF (output_unit>0) WRITE(output_unit,'(4(1X,1F16.8))') mo_eigenvalues
+          IF (output_unit>0) WRITE(output_unit,'(4(1X,1F16.8))') mo_eigenvalues(1:homo)
        END IF
        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
        IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') &

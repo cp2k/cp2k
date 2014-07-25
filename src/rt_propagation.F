@@ -9,7 +9,7 @@
 ! *****************************************************************************
 
 MODULE rt_propagation
-  USE cp_control_types,                ONLY: rtp_control_type
+  USE cp_control_types,                ONLY: dft_control_type, rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
@@ -317,6 +317,7 @@ CONTAINS
     REAL(Kind=dp)                            :: eps_ener, time_iter_start, &
                                                 time_iter_stop, used_time
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
@@ -324,13 +325,16 @@ CONTAINS
     failure=.FALSE.
     should_stop=.FALSE.
     CALL timeset(routineN,handle)
+    NULLIFY(logger,dft_control,energy,rtp,rtp_control)
     logger   => cp_error_get_logger(error)
-    rtp_control=>qs_env%dft_control%rtp_control
-    max_steps=qs_env%rtp%nsteps
-    max_iter=qs_env%dft_control%rtp_control%max_iter
-    eps_ener=qs_env%dft_control%rtp_control%eps_ener
 
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,energy=energy,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,rtp=rtp,energy=energy,error=error)
+
+    rtp_control=>dft_control%rtp_control
+    max_steps=rtp%nsteps
+    max_iter=rtp_control%max_iter
+    eps_ener=rtp_control%eps_ener
+
     aspc_order=rtp_control%aspc_order
 
     rtp%energy_old=energy%total
@@ -338,11 +342,11 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
     CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
     DO i_step=rtp%i_start+1,max_steps
-       qs_env%energy%efield_core=0.0_dp
+       energy%efield_core=0.0_dp
        qs_env%sim_time=REAL(i_step,dp)*rtp%dt
        qs_env%sim_step=i_step
        rtp%istep=i_step-rtp%i_start
-       CALL calculate_ecore_efield(qs_env,.FALSE.,error)
+       CALL calculate_ecore_efield(qs_env,.FALSE.,error=error)
        CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
        CALL external_e_potential(qs_env,error=error)
        CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
@@ -351,7 +355,7 @@ CONTAINS
           IF(i_step==rtp%i_start+1.AND.i_iter==2.AND.rtp_control%hfx_redistribute)&
               CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
           rtp%iter=i_iter
-          CALL propagation_step(qs_env, error)
+          CALL propagation_step(qs_env,rtp, rtp_control, error=error)
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
                error=error)
           rtp%energy_new=energy%total

@@ -444,7 +444,7 @@ CPSourceFileRef,&
 
              ! Prints the cube files of UNOCCUPIED ORBITALS
              CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
-                  unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, error)
+                  unoccupied_orbs(ispin)%matrix, wf_g, wf_r, particles, nlumos, homo, ispin, error=error)
           ENDDO
 
        ENDIF

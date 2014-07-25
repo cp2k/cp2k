@@ -157,6 +157,7 @@ CONTAINS
           END IF
        END IF
        IF(efield%envelop_id==ramp_env)THEN
+! check this part, it seems to be wrong
           IF(sim_step.GE.efield%envelop_i_vars(1).AND.sim_step.GE.efield%envelop_i_vars(2)) &
                strength=strength*(sim_step-efield%envelop_i_vars(1))/(efield%envelop_i_vars(2)-efield%envelop_i_vars(1))
           IF(sim_step.GE.efield%envelop_i_vars(3).AND.sim_step.GE.efield%envelop_i_vars(4)) &

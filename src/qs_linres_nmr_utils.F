@@ -134,7 +134,7 @@ CONTAINS
 
     CALL nmr_env_create(nmr_env,error=error)
     !
-    ! If surrent_density or full_nmr different allocations are required
+    ! If current_density or full_nmr different allocations are required
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
          &                                    "PROPERTIES%LINRES%NMR",error=error)
     CALL section_vals_val_get(nmr_section,"INTERPOLATE_SHIFT",l_val=nmr_env%interpolate_shift,error=error)
