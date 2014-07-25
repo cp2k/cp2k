@@ -21,7 +21,6 @@ MODULE glbopt_worker
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE geo_opt,                         ONLY: cp_geo_opt
-  USE glbopt_types,                    ONLY: glbopt_mdctrl_data_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_get_subs_vals,&
@@ -31,14 +30,15 @@ MODULE glbopt_worker
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE md_run,                          ONLY: qs_mol_dyn
-  USE mdctrl_types,                    ONLY: mdctrl_type
+  USE mdctrl_types,                    ONLY: glbopt_mdctrl_data_type,&
+                                             mdctrl_type
   USE parallel_rng_types,              ONLY: reset_to_next_rng_substream
   USE physcon,                         ONLY: angstrom,&
                                              kelvin
   USE swarm_message,                   ONLY: swarm_message_add,&
                                              swarm_message_get,&
                                              swarm_message_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE

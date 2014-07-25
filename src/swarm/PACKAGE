@@ -1,0 +1,4 @@
+{
+"description": "Swarm framework for asynchronous master/worker schemes",
+"requires": ["../", "../common", "../mpiwrap", "../input", "../base"]
+}

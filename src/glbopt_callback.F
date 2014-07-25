@@ -13,11 +13,11 @@ MODULE glbopt_callback
                                              pack_subsys_particles
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE glbopt_types,                    ONLY: glbopt_mdctrl_data_type
   USE kinds,                           ONLY: dp
   USE md_ener_types,                   ONLY: md_ener_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
+  USE mdctrl_types,                    ONLY: glbopt_mdctrl_data_type
 #include "./common/cp_common_uses.f90"
 
  IMPLICIT NONE

@@ -34,7 +34,7 @@ MODULE swarm_mpi
                                              swarm_message_mpi_recv,&
                                              swarm_message_mpi_send,&
                                              swarm_message_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
  IMPLICIT NONE
  PRIVATE
