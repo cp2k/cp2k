@@ -112,10 +112,8 @@ MODULE dbcsr_mm_sched
 
 
 ! *****************************************************************************
-! \brief Initialize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Initialize the library
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_sched_lib_init(error)
@@ -138,10 +136,8 @@ MODULE dbcsr_mm_sched
 
 
 ! *****************************************************************************
-! \brief Finalize the library and prints DBCSR statistics
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Finalize the library and prints DBCSR statistics
+!> \author Ole Schuett
 !> \param group ...
 !> \param output_unit ...
 !> \param error ...
@@ -232,10 +228,8 @@ MODULE dbcsr_mm_sched
   END SUBROUTINE dbcsr_mm_sched_init
 
 ! *****************************************************************************
-! \brief Signal approaching end of multiplication
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal approaching end of multiplication
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -278,10 +272,8 @@ MODULE dbcsr_mm_sched
   END SUBROUTINE dbcsr_mm_sched_finalize
 
 ! *****************************************************************************
-! \brief Signal begin of a burst of calls to dbcsr_mm_sched_process.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal begin of a burst of calls to dbcsr_mm_sched_process.
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -293,10 +285,8 @@ MODULE dbcsr_mm_sched
   END SUBROUTINE dbcsr_mm_sched_begin_burst
 
 ! *****************************************************************************
-! \brief Signal end of a burst of calls to dbcsr_mm_sched_process.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal end of a burst of calls to dbcsr_mm_sched_process.
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -309,10 +299,8 @@ MODULE dbcsr_mm_sched
   END SUBROUTINE dbcsr_mm_sched_end_burst
 
 ! *****************************************************************************
-! \brief Signal that previous stacks should be processed first
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal that previous stacks should be processed first
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -327,10 +315,8 @@ MODULE dbcsr_mm_sched
   END SUBROUTINE dbcsr_mm_sched_barrier
 
 ! *****************************************************************************
-! \brief Processes a given stack.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Processes a given stack.
+!> \author Ole Schuett
 !> \param this ...
 !> \param left ...
 !> \param right ...
@@ -445,11 +431,8 @@ MODULE dbcsr_mm_sched
 
 
 ! ******************************************************************************
-! \brief Helper-routine used by dbcsr_mm_sched_process to supply statistics.
-! \author Ole Schuett
-! ******************************************************************************
-! *****************************************************************************
-!> \brief ...
+!> \brief Helper-routine used by dbcsr_mm_sched_process to supply statistics.
+!> \author Ole Schuett
 !> \param m ...
 !> \param n ...
 !> \param k ...
@@ -494,10 +477,8 @@ MODULE dbcsr_mm_sched
 
 
 ! *****************************************************************************
-! \brief Collects statistics from all OpenMP-threads
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Collects statistics from all OpenMP-threads
+!> \author Ole Schuett
 !> \param report ...
 !> \param error ...
 ! *****************************************************************************
@@ -537,10 +518,8 @@ MODULE dbcsr_mm_sched
 
 
 ! *****************************************************************************
-! \brief Collects statistics from all MPI-ranks
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Collects statistics from all MPI-ranks
+!> \author Ole Schuett
 !> \param report ...
 !> \param group ...
 !> \param error ...
@@ -593,10 +572,8 @@ MODULE dbcsr_mm_sched
 
 
 ! *****************************************************************************
-! \brief Prints collected statistics
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Prints collected statistics
+!> \author Ole Schuett
 !> \param report ...
 !> \param output_unit ...
 !> \param error ...

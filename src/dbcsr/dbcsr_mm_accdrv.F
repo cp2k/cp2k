@@ -130,10 +130,8 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief Initialize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Initialize the library
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_lib_init(error)
@@ -145,10 +143,8 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief Finalize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Finalize the library
+!> \author Ole Schuett
 !> \param output_unit ...
 !> \param error ...
 ! *****************************************************************************
@@ -230,10 +226,8 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief Helper routine used by dbcsr_mm_accdrv_init()
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Helper routine used by dbcsr_mm_accdrv_init()
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE setup_streams(error)
@@ -260,10 +254,8 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief Helper routine used by setup_streams() and dbcsr_mm_accdrv_lib_finalize()
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Helper routine used by setup_streams() and dbcsr_mm_accdrv_lib_finalize()
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE deallocate_streams(error)
@@ -280,10 +272,8 @@ MODULE dbcsr_mm_accdrv
   END SUBROUTINE deallocate_streams
 
 ! *****************************************************************************
-! \brief Helper routine
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Helper routine
+!> \author Ole Schuett
 !> \param streams ...
 !> \param basename ...
 !> \param n ...
@@ -327,10 +317,8 @@ MODULE dbcsr_mm_accdrv
   END SUBROUTINE stream_array_force_size
 
 ! *****************************************************************************
-! \brief Helper routine used by dbcsr_mm_accdrv_init()
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Helper routine used by dbcsr_mm_accdrv_init()
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -386,10 +374,8 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief Helper routine used by setup_stackbuffers() and dbcsr_mm_accdrv_lib_finalize()
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Helper routine used by setup_stackbuffers() and dbcsr_mm_accdrv_lib_finalize()
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
  SUBROUTINE deallocate_stackbuffers(error)
@@ -435,10 +421,8 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief Sort stack entries with respect to the c_id.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Sort stack entries with respect to the c_id.
+!> \author Ole Schuett
 !> \param params_in ...
 !> \param params_out ...
 !> \param stack_size ...
@@ -465,10 +449,8 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief Roughly order stacks with a cheaper Binning-scheme by Peter Messmer
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Roughly order stacks with a cheaper Binning-scheme by Peter Messmer
+!> \author Ole Schuett
 !> \param params_in ...
 !> \param params_out ...
 !> \param stack_size ...
@@ -511,10 +493,8 @@ MODULE dbcsr_mm_accdrv
   END SUBROUTINE  stack_binning
 
 ! *****************************************************************************
-! \brief Signal approaching end of multiplication
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal approaching end of multiplication
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -528,11 +508,9 @@ MODULE dbcsr_mm_accdrv
 
 
 ! *****************************************************************************
-! \brief After beeing called by ALL threads, it installs a special barrier that
-!        forces the priority-streams to wait for the normal-streams.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief After beeing called by ALL threads, it installs a special barrier that
+!>        forces the priority-streams to wait for the normal-streams.
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -560,10 +538,8 @@ MODULE dbcsr_mm_accdrv
   END SUBROUTINE dbcsr_mm_accdrv_barrier
 
 ! *****************************************************************************
-! \brief Processes a given stack using accelerator
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Processes a given stack using accelerator
+!> \author Ole Schuett
 !> \param this ...
 !> \param left ...
 !> \param right ...

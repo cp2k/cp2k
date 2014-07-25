@@ -113,11 +113,9 @@ MODULE dbcsr_mm_csr
   CONTAINS
 
 ! *****************************************************************************
-! \brief Initialize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Initialize the library
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_csr_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -127,13 +125,11 @@ MODULE dbcsr_mm_csr
 
 
 ! *****************************************************************************
-! \brief Finalize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Finalize the library
 !> \param group ...
 !> \param output_unit ...
 !> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_csr_lib_finalize(group, output_unit, error)
     INTEGER, INTENT(IN)                      :: group, output_unit
@@ -144,10 +140,8 @@ MODULE dbcsr_mm_csr
 
 
 ! *****************************************************************************
-! \brief A wrapper around dbcsr_mm_csr_multiply_low to avoid expensive dereferencings.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief A wrapper around dbcsr_mm_csr_multiply_low to avoid expensive dereferencings.
+!> \author Ole Schuett
 !> \param this ...
 !> \param left ...
 !> \param right ...
@@ -764,10 +758,8 @@ MODULE dbcsr_mm_csr
 
 
 ! *****************************************************************************
-! \brief Signal approaching end of multiplication
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal approaching end of multiplication
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************

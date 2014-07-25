@@ -42,12 +42,8 @@ MODULE dbcsr_mem_methods
   CONTAINS
 
 ! *****************************************************************************
-! \brief Creates a memory pool.
-! \param capacity number of data_areas to hold at most within the pool
-! \param name for debug purpose
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Creates a memory pool.
+!> \author Ole Schuett
 !> \param pool ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mempool_create(pool)
@@ -61,10 +57,8 @@ MODULE dbcsr_mem_methods
 
 
 ! *****************************************************************************
-! \brief Ensures that mempool has at least the given capacity.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Ensures that mempool has at least the given capacity.
+!> \author Ole Schuett
 !> \param pool ...
 !> \param capacity ...
 ! *****************************************************************************
@@ -80,10 +74,8 @@ MODULE dbcsr_mem_methods
   END SUBROUTINE dbcsr_mempool_ensure_capacity
 
 ! *****************************************************************************
-! \brief Picks a suitable data_area from mempool, returns Null() if none found.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Picks a suitable data_area from mempool, returns Null() if none found.
+!> \author Ole Schuett
 !> \param memtype ...
 !> \param datatype ...
 !> \param datasize ...
@@ -140,10 +132,8 @@ MODULE dbcsr_mem_methods
 
 
 ! *****************************************************************************
-! \brief Adds an unused (refcount==0) data_area to the pool.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Adds an unused (refcount==0) data_area to the pool.
+!> \author Ole Schuett
 !> \param area ...
 !> \param error ...
 ! *****************************************************************************
@@ -170,10 +160,8 @@ MODULE dbcsr_mem_methods
  END SUBROUTINE dbcsr_mempool_add
 
 ! *****************************************************************************
-! \brief Ensures that pool_size < max_size, e.g. that there is a free slot.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Ensures that pool_size < max_size, e.g. that there is a free slot.
+!> \author Ole Schuett
 !> \param pool ...
 !> \param error ...
 ! *****************************************************************************
@@ -208,10 +196,8 @@ MODULE dbcsr_mem_methods
 
 
 ! *****************************************************************************
-! \brief Finalizes mempool, includes deallocation of all contained data_areas.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Finalizes mempool, includes deallocation of all contained data_areas.
+!> \author Ole Schuett
 !> \param pool ...
 !> \param error ...
 ! *****************************************************************************
@@ -231,10 +217,8 @@ MODULE dbcsr_mem_methods
  END SUBROUTINE dbcsr_mempool_destruct
 
 ! *****************************************************************************
-! \brief Deallocates all data_areas contained in given mempool.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Deallocates all data_areas contained in given mempool.
+!> \author Ole Schuett
 !> \param pool ...
 !> \param error ...
 ! *****************************************************************************
@@ -267,10 +251,8 @@ MODULE dbcsr_mem_methods
  END SUBROUTINE dbcsr_mempool_clear
 
 ! *****************************************************************************
-! \brief Ensures that given memtype has requested settings.
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Ensures that given memtype has requested settings.
+!> \author Ole Schuett
 !> \param memtype ...
 !> \param acc_hostalloc ...
 !> \param acc_devalloc ...
@@ -330,10 +312,8 @@ MODULE dbcsr_mem_methods
 
 
 ! *****************************************************************************
-! \brief Test if two memtypes are equal
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Test if two memtypes are equal
+!> \author Ole Schuett
 !> \param mt1 ...
 !> \param mt2 ...
 !> \retval res ...

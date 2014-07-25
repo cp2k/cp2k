@@ -77,9 +77,7 @@ MODULE dbcsr_mm_hostdrv
 CONTAINS
 
 ! *****************************************************************************
-! \brief Initialize the library
-! *****************************************************************************
-!> \brief ...
+!> \brief Initialize the library
 !> \param this ...
 !> \param left ...
 !> \param right ...
@@ -108,10 +106,8 @@ CONTAINS
 
 
 ! *****************************************************************************
-! \brief Signal approaching end of multiplication
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal approaching end of multiplication
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -126,10 +122,8 @@ CONTAINS
 
 
 ! *****************************************************************************
-! \brief Signal that previous stacks should be processed first
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal that previous stacks should be processed first
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************
@@ -144,9 +138,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-! \brief Finalize the library
-! *****************************************************************************
-!> \brief ...
+!> \brief Finalize the library
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************

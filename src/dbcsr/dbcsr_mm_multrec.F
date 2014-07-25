@@ -144,10 +144,8 @@ MODULE dbcsr_mm_multrec
   CONTAINS
 
 ! *****************************************************************************
-! \brief Initialize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Initialize the library
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_lib_init(error)
@@ -158,10 +156,8 @@ MODULE dbcsr_mm_multrec
 
 
 ! *****************************************************************************
-! \brief Finalize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Finalize the library
+!> \author Ole Schuett
 !> \param group ...
 !> \param output_unit ...
 !> \param error ...
@@ -482,10 +478,8 @@ MODULE dbcsr_mm_multrec
 
 
 ! *****************************************************************************
-! \brief Signal approaching end of multiplication
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Signal approaching end of multiplication
+!> \author Ole Schuett
 !> \param this ...
 !> \param error ...
 ! *****************************************************************************

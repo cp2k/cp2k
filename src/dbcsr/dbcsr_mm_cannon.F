@@ -184,10 +184,8 @@ MODULE dbcsr_mm_cannon
   CONTAINS
 
 ! *****************************************************************************
-! \brief Initialize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Initialize the library
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_lib_init(error)
@@ -206,10 +204,8 @@ MODULE dbcsr_mm_cannon
 
 
 ! *****************************************************************************
-! \brief Finalize the library
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Finalize the library
+!> \author Ole Schuett
 !> \param group ...
 !> \param output_unit ...
 !> \param error ...
@@ -251,10 +247,8 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE dbcsr_mm_cannon_lib_finalize
 
 ! *****************************************************************************
-! \brief Deallocate memory contained in mempools
-! \author Ole Schuett
-! *****************************************************************************
-!> \brief ...
+!> \brief Deallocate memory contained in mempools
+!> \author Ole Schuett
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_cannon_clear_mempools(error)

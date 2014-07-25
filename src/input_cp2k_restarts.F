@@ -987,13 +987,10 @@ CONTAINS
   END SUBROUTINE update_motion
 
 
-  ! ***************************************************************************
-  ! \brief  Update PINT section in the input structure
-  ! \date   2010-10-13
-  ! \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Update PINT section in the input structure
+!> \date   2010-10-13
+!> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
 !> \param motion_section ...
 !> \param pint_env ...
 !> \param error ...
