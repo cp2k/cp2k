@@ -366,7 +366,7 @@ CONTAINS
                 END DO
                 summed_contributions = summed_contributions + (contribution)**2
                 IF (ABS(contribution) > 5.0e-2_dp) THEN
-                   IF (output_unit>0) WRITE (output_unit,'(18X,I3,A,I3,10X,F8.3,5X,F8.3)') &
+                   IF (output_unit>0) WRITE (output_unit,'(14X,I5,A,I5,10X,F8.3,5X,F8.3)') &
                         occ, " ->", nhomos(spin)+virt, ABS(contribution), summed_contributions
                 END IF
                 IF (ABS(summed_contributions - 1.0_dp) < 1.0e-3_dp) CYCLE searchloop
