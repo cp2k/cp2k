@@ -626,7 +626,6 @@ CONTAINS
 
  END SUBROUTINE build_oce_matrices
 
-!==========================================================================================================
 ! *****************************************************************************
 !> \brief Project a matrix block onto the local atomic functions.
 !>
@@ -697,13 +696,11 @@ CONTAINS
     ENDIF
     !
   END SUBROUTINE proj_blk
-!==========================================================================================================
-  ! ain  : matrix in old indexing
-  ! aout : matrix in new compressed indexing
+
 ! *****************************************************************************
 !> \brief ...
-!> \param ain ...
-!> \param aout ...
+!> \param ain matrix in old indexing
+!> \param aout matrix in new compressed indexing
 !> \param atom ...
 !> \param error ...
 ! *****************************************************************************
@@ -736,13 +733,11 @@ CONTAINS
     END DO
 
   END SUBROUTINE prj_gather
-!==========================================================================================================
-  ! aout : matrix in old indexing (addup)
-  ! ain  : matrix in new compressed indexing
+
 ! *****************************************************************************
 !> \brief ...
-!> \param ain ...
-!> \param aout ...
+!> \param ain  matrix in new compressed indexing
+!> \param aout matrix in old indexing (addup)
 !> \param atom ...
 !> \param error ...
 ! *****************************************************************************
@@ -775,6 +770,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE prj_scatter
-!==========================================================================================================
 
 END MODULE qs_oce_methods
