@@ -2510,15 +2510,15 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
 !$  call omp_unset_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
     ENDDO
 !$omp end do
-  END IF
-
-  IF (scatter) THEN
+  ELSE
     ! We will insert new blocks into P, so create mutable work matrices
     CALL cp_dbcsr_work_create(pmat,work_mutable=.TRUE.,&
       nblks_guess=SIZE(atom_pair_recv)/nthread,sizedata_guess=SIZE(recv_buf_r)/nthread,&
       n=nthread,error=error)
-!$omp barrier
   END IF
+
+! wait for comm and setup to finish
+!$omp barrier
 
   !do unpacking
 !$omp do schedule(guided)
