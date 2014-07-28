@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 MODULE optimize_input
   USE cell_methods,                    ONLY: parse_cell_line
+  USE cp2k_info,                       ONLY: write_restart_header
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -22,7 +23,6 @@ MODULE optimize_input
                                              destroy_force_env,&
                                              set_cell
   USE input_constants,                 ONLY: opt_force_matching
-  USE input_cp2k_restarts,             ONLY: write_restart_header
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -458,7 +458,7 @@ CONTAINS
                CALL section_vals_val_set(variable_section,"VALUE",i_rep_section=free_var_index(i_free_var), &
                                          r_val=free_vars(i_free_var),error=error)
             ENDDO
-            CALL write_restart_header(restart_unit, error)
+            CALL write_restart_header(restart_unit)
             CALL section_vals_write(root_section,unit_nr=restart_unit,hide_root=.TRUE., error=error)
          ENDIF
          CALL cp_print_key_finished_output(restart_unit,logger,root_section,"OPTIMIZE_INPUT%RESTART", error=error)

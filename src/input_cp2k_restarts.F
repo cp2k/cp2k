@@ -15,10 +15,7 @@ MODULE input_cp2k_restarts
   USE averages_types,                  ONLY: average_quantities_type
   USE cell_methods,                    ONLY: cell_type,&
                                              real_to_scaled
-  USE cp2k_info,                       ONLY: compile_arch,&
-                                             compile_date,&
-                                             compile_host,&
-                                             compile_revision
+  USE cp2k_info,                       ONLY: write_restart_header
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
@@ -63,8 +60,6 @@ MODULE input_cp2k_restarts
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE machine,                         ONLY: m_datum,&
-                                             m_getcwd
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
@@ -113,7 +108,6 @@ MODULE input_cp2k_restarts
 
   PUBLIC :: write_restart,&
             update_subsys,&
-            write_restart_header,&
             update_input
 
 CONTAINS
@@ -214,7 +208,7 @@ CONTAINS
                                          do_backup=(ikey==2),&
                                          error=error)
              IF (ires > 0) THEN
-                CALL write_restart_header(ires,error)
+                CALL write_restart_header(ires)
                 CALL section_vals_write(root_section,unit_nr=ires,hide_root=.TRUE.,error=error)
              END IF
              CALL cp_print_key_finished_output(ires,logger,motion_section,TRIM(keys(ikey)),error=error)
@@ -231,46 +225,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_restart
-
-! *****************************************************************************
-!> \brief Writes the header for the restart file
-!> \param ires ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      01.2008 [created] - Splitted from write_restart
-!> \author Teodoro Laino - University of Zurich - 01.2008
-! *****************************************************************************
-  SUBROUTINE write_restart_header(ires, error)
-    INTEGER, INTENT(IN)                      :: ires
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart_header', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=256)                       :: cwd, datx
-
-    CALL m_datum(datx)
-    CALL m_getcwd(cwd)
-
-    WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
-    WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
-    WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
-
-    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-         "# Program compiled at",&
-         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
-    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-         "# Program compiled on",&
-         ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
-    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-         "# Program compiled for",&
-         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-         "# Source code revision number",&
-         ADJUSTR(compile_revision)
-
-  END SUBROUTINE write_restart_header
 
 ! *****************************************************************************
 !> \brief deallocate some sub_sections of the section subsys to save some memory

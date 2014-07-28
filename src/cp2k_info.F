@@ -28,7 +28,7 @@ MODULE cp2k_info
 
   PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version
   PUBLIC :: compile_arch,compile_date,compile_host,compile_revision
-  PUBLIC :: print_cp2k_license, get_runtime_info
+  PUBLIC :: print_cp2k_license, get_runtime_info, write_restart_header
 
   ! the version string of CP2K intended to be adjust after releases and branches
 #if defined(__RELEASE_VERSION)
@@ -133,7 +133,46 @@ CONTAINS
     CALL m_datum(r_datx)
     CALL m_getcwd(r_cwd)
 
-  END SUBROUTINE get_runtime_info
+  END SUBROUTINE
+
+
+! *****************************************************************************
+!> \brief Writes the header for the restart file
+!> \param iunit ...
+!> \par History
+!>      01.2008 [created] - Splitted from write_restart
+!> \author Teodoro Laino - University of Zurich - 01.2008
+! *****************************************************************************
+  SUBROUTINE write_restart_header(iunit)
+    INTEGER, INTENT(IN)                      :: iunit
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart_header', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=256)                       :: cwd, datx
+
+    CALL m_datum(datx)
+    CALL m_getcwd(cwd)
+
+    WRITE (UNIT=iunit,FMT="(T2,A)") "# Version information for this restart file "
+    WRITE (UNIT=iunit,FMT="(T2,A)") "# current date "//TRIM(datx)
+    WRITE (UNIT=iunit,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
+
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Program compiled at",&
+         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Program compiled on",&
+         ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Program compiled for",&
+         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Source code revision number",&
+         ADJUSTR(compile_revision)
+
+  END SUBROUTINE write_restart_header
+
 
 END MODULE cp2k_info
 
