@@ -22,12 +22,11 @@ MODULE qmmm_update
                                              force_env_release,&
                                              force_env_type,&
                                              use_qmmm
-  USE input_cp2k_restarts,             ONLY: update_input
+  USE input_cp2k_restarts,             ONLY: update_force_eval
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_type
-  USE md_environment_types,            ONLY: md_environment_type
   USE qmmm_create,                     ONLY: qmmm_create_force_env_low
   USE qmmm_force_mixing,               ONLY: setup_force_mixing_qmmm_sections,&
                                              update_force_mixing_labels
@@ -54,27 +53,25 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param md_env ...
 !> \param force_env ...
 !> \param root_section ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qmmm_update_force_mixing_env(md_env, force_env, root_section, error)
-    TYPE(md_environment_type), POINTER       :: md_env
+  SUBROUTINE qmmm_update_force_mixing_env(force_env, root_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iforce_eval, nforce_eval
 
-    CALL qmmm_update_force_mixing_env_low(md_env, force_env, root_section, error)
+    CALL qmmm_update_force_mixing_env_low(force_env, root_section, error)
     IF (ASSOCIATED(force_env%sub_force_env)) THEN
       nforce_eval = SIZE(force_env%sub_force_env)
       ! loop over sub force envs, e.g. for mixed force env
       DO iforce_eval=1, nforce_eval
          ! QMMM sub force envs are dups of top level, which have FORCE_MIXING, so explicitly avoid recursing into those
          IF (force_env%in_use /= use_qmmm) THEN 
-            CALL qmmm_update_force_mixing_env_low(md_env, force_env%sub_force_env(iforce_eval)%force_env, root_section, error)
+            CALL qmmm_update_force_mixing_env_low(force_env%sub_force_env(iforce_eval)%force_env, root_section, error)
          ENDIF
       END DO
     ENDIF
@@ -84,13 +81,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param md_env ...
 !> \param force_env ...
 !> \param root_section ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qmmm_update_force_mixing_env_low(md_env, force_env, root_section, error)
-    TYPE(md_environment_type), POINTER       :: md_env
+  SUBROUTINE qmmm_update_force_mixing_env_low(force_env, root_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -134,7 +129,7 @@ CONTAINS
 CPSourceFileRef,&
                only_ionode=.TRUE.)
 
-       CALL update_input(md_env,force_env,root_section,error=error)
+       CALL update_force_eval(force_env, root_section, .FALSE., error)
 
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

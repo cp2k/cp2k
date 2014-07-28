@@ -1146,7 +1146,7 @@ CONTAINS
     END IF
 
     ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
+    CALL qmmm_update_force_mixing_env(force_env, force_env%root_section, error=error)
 
     ![NB] recreate pointers changed by creation of new subsys in qmmm_update_force_mixing_env
     ![NB] ugly hack, which is why adaptivity isn't implemented in most other ensembles
@@ -1717,7 +1717,7 @@ CPSourceFileRef,&
     END IF
 
     ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(md_env, force_env, force_env%root_section, error=error)
+    CALL qmmm_update_force_mixing_env(force_env, force_env%root_section, error=error)
     ! no pointers into force_env%subsys to update
 
     ! Task to perform on the reference trajectory

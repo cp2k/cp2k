@@ -108,7 +108,8 @@ MODULE input_cp2k_restarts
 
   PUBLIC :: write_restart,&
             update_subsys,&
-            update_input
+            update_input,&
+            update_force_eval
 
 CONTAINS
 
@@ -507,7 +508,6 @@ CONTAINS
        ! Update one force_env_section per time..
        IF (ASSOCIATED(my_force_env)) THEN
           CALL update_force_eval(force_env=my_force_env,&
-                                 logger=logger,&
                                  root_section=root_section,&
                                  write_binary_restart_file=my_write_binary_restart_file,&
                                  error=error)
@@ -2059,7 +2059,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Updates the force_eval section of the input file
 !> \param force_env ...
-!> \param logger ...
 !> \param root_section ...
 !> \param write_binary_restart_file ...
 !> \param error variable to control error logging, stopping,...
@@ -2068,10 +2067,9 @@ CONTAINS
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_force_eval(force_env,logger,root_section,&
+  SUBROUTINE update_force_eval(force_env,root_section,&
                                write_binary_restart_file,error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN)                      :: write_binary_restart_file
     TYPE(cp_error_type), INTENT(INOUT)       :: error
