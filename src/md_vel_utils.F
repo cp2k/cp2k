@@ -40,7 +40,7 @@ MODULE md_vel_utils
        reftraj_ensemble, use_perd_none, use_perd_x, use_perd_xy, &
        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_cp2k_binary_restarts,      ONLY: read_binary_velocities
-  USE input_cp2k_restarts,             ONLY: update_subsys
+  USE input_restart_force_eval,        ONLY: update_subsys
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&

@@ -22,7 +22,7 @@ MODULE qmmm_update
                                              force_env_release,&
                                              force_env_type,&
                                              use_qmmm
-  USE input_cp2k_restarts,             ONLY: update_force_eval
+  USE input_restart_force_eval,        ONLY: update_force_eval
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
