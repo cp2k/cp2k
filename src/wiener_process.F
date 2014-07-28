@@ -37,8 +37,6 @@ MODULE wiener_process
   USE particle_list_types,             ONLY: particle_list_type
   USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -49,7 +47,7 @@ MODULE wiener_process
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wiener_process'
 
   ! Public subroutines
-  PUBLIC :: create_wiener_process, create_wiener_process_cv, copy_wiener_process
+  PUBLIC :: create_wiener_process, create_wiener_process_cv
 
 CONTAINS
 
@@ -286,83 +284,5 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE create_wiener_process_cv
-
-! *****************************************************************************
-!> \brief ...
-!> \param from_local_particle_kinds ...
-!> \param from_local_particles ...
-!> \param to_local_particle_kinds ...
-!> \param to_local_particles ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE copy_wiener_process(from_local_particle_kinds, from_local_particles, to_local_particle_kinds, to_local_particles,error)
-    TYPE(atomic_kind_list_type), POINTER     :: from_local_particle_kinds
-    TYPE(distribution_1d_type), POINTER      :: from_local_particles
-    TYPE(atomic_kind_list_type), POINTER     :: to_local_particle_kinds
-    TYPE(distribution_1d_type), POINTER      :: to_local_particles
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_wiener_process', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: from_iparticle_kind, from_iparticle_local(1), &
-      from_nparticle_kind, from_nparticle_local, handle, to_iparticle_global, &
-      to_iparticle_kind, to_iparticle_local, to_nparticle_kind, &
-      to_nparticle_local, tot_from_nparticle_local, tot_to_nparticle_local
-    LOGICAL                                  :: failure, found_it
-
-     CALL timeset(routineN,handle)
-     CPPrecondition (ASSOCIATED(from_local_particles),cp_failure_level,routineP,error,failure)
-     CPPrecondition (ASSOCIATED(to_local_particles),cp_failure_level,routineP,error,failure)
-
-     IF (.NOT. ASSOCIATED(from_local_particles%local_particle_set)) RETURN
-     CPPrecondition (.NOT. ASSOCIATED(to_local_particles%local_particle_set),cp_failure_level,routineP,error,failure)
-
-     from_nparticle_kind = from_local_particle_kinds%n_els
-     to_nparticle_kind = to_local_particle_kinds%n_els
-
-     ! make sure total number of particles hasn't changed, even if particle kinds have
-     tot_from_nparticle_local = 0
-     DO from_iparticle_kind=1, from_nparticle_kind
-       tot_from_nparticle_local = tot_from_nparticle_local + from_local_particles%n_el(from_iparticle_kind)
-     END DO
-     tot_to_nparticle_local = 0
-     DO to_iparticle_kind=1, to_nparticle_kind
-       tot_to_nparticle_local = tot_to_nparticle_local + to_local_particles%n_el(to_iparticle_kind)
-     END DO
-     CPPrecondition (tot_from_nparticle_local == tot_to_nparticle_local, cp_failure_level,routineP,error,failure)
-
-     ALLOCATE(to_local_particles%local_particle_set(to_nparticle_kind))
-     DO to_iparticle_kind=1, to_nparticle_kind
-
-        to_nparticle_local = to_local_particles%n_el(to_iparticle_kind)
-        ALLOCATE(to_local_particles%local_particle_set(to_iparticle_kind)%rng(to_nparticle_local))
-
-        DO to_iparticle_local=1, to_nparticle_local
-           to_iparticle_global = to_local_particles%list(to_iparticle_kind)%array(to_iparticle_local)
-           ALLOCATE(to_local_particles%local_particle_set(to_iparticle_kind)%rng(to_iparticle_local)%stream)
-
-           found_it = .FALSE.
-           ! find the matching kind/index where this particle was before
-           DO from_iparticle_kind=1, from_nparticle_kind
-              from_nparticle_local = from_local_particles%n_el(from_iparticle_kind)
-              IF (MINVAL(ABS( from_local_particles%list(from_iparticle_kind)%array(1:from_nparticle_local) -&
-                  to_iparticle_global)) == 0) THEN
-                from_iparticle_local = MINLOC(ABS( &
-                    from_local_particles%list(from_iparticle_kind)%array(1:from_nparticle_local) - to_iparticle_global))
-                to_local_particles%local_particle_set(to_iparticle_kind)%rng(to_iparticle_local)%stream = &
-                   from_local_particles%local_particle_set(from_iparticle_kind)%rng(from_iparticle_local(1))%stream
-                found_it = .TRUE.
-                EXIT
-              ENDIF
-           END DO
-           CPPostcondition (found_it, cp_failure_level,routineP,error,failure)
-
-        END DO ! to_iparticle_local
-
-     END DO ! to_iparticle_kind
-     CALL timestop(handle)
-
-  END SUBROUTINE copy_wiener_process
 
 END MODULE wiener_process
