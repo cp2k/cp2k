@@ -33,7 +33,7 @@ hcn_pm6.inp                       3     1e-09
 # MNDOd (non-d element)
 H2O-MNDOD.inp      3
 hcl.inp            3
-brcl.inp           3
+brcl.inp                          3     9e-12
 sih_x.inp          3
 sih_y.inp          3
 tio.inp            3
