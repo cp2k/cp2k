@@ -623,7 +623,6 @@ END SUBROUTINE qmmm_image_charge_dealloc
 !> \param Potentials ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param qmmm_env the object to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino
 ! *****************************************************************************
 SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
@@ -659,7 +658,6 @@ END SUBROUTINE qmmm_pot_type_dealloc
 !> \param Per_Potentials ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param qmmm_env the object to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino
 ! *****************************************************************************
 SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)

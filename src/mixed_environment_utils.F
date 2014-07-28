@@ -57,7 +57,6 @@ CONTAINS
 !> \param overwrite ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param force_env the force env to shake UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
   SUBROUTINE mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces,&
@@ -147,7 +146,6 @@ CONTAINS
 !> \param map_index ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param force_env the force env to shake UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
   SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)

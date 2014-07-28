@@ -371,12 +371,11 @@ CONTAINS
 !> \param input_declaration ...
 !> \param para_env ...
 !> \param input_file_name ...
-!> \param globenv_new ...
+!> \param globenv_new the global environment parameters
 !> \param error the CP error structure
 !>
-!>    Suitable for parallel.
-!> \param globenv the global environment parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
+!> \note   Suitable for parallel.
 ! *****************************************************************************
   SUBROUTINE mc_create_force_env ( force_env, input_declaration, para_env, input_file_name,&
        globenv_new, error )
@@ -457,11 +456,8 @@ CONTAINS
 !> \param ionode ...
 !> \param error the CP error structure
 !>
-!>    Suitable for parallel.
-!> \param force_env the force environment we're copying cell length
-!>            and coordinates from UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param globenv the global environment parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
+!> \note   Suitable for parallel.
 ! *****************************************************************************
   SUBROUTINE mc_create_bias_force_env (bias_env,r,atom_symbols,nunits_tot,&
        para_env, box_length,nchains,input_declaration,mc_input_file,ionode,error)

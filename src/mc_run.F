@@ -93,18 +93,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief starts the Monte Carlo simulation and determines which ensemble we're
 !>      running
-!> \param force_env_1 ...
+!> \param force_env_1 the force environment for the simulation, or
+!>                   the force environment for box 1, depending on which
+!>                   ensemble we're running
 !> \param globenv the global environment for the simulation
 !> \param input_declaration ...
 !> \param input_file_name the name of the input file that force_env_1 was
 !>        created from
 !> \param error the error type
-!>
-!>      Designed for parallel.
-!> \param force_env_ 1: the force environment for the simulation, or
-!>                   the force environment for box 1, depending on which
-!>                   ensemble we're running UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
+!> \note
+!>      Designed for parallel.
 ! *****************************************************************************
   SUBROUTINE do_mon_car ( force_env_1, globenv, input_declaration, input_file_name, error )
 
@@ -388,10 +387,10 @@ CONTAINS
 !> \param mc_par the pointer that contains the simulation parameters
 !>           for both boxes
 !> \param iw the unit number that prints to screen
-!> \param ionode equal to .TRUE. if this is the main MPI node
-!>
-!>      Designed for parallel. UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ionode equal to .TRUE. if this is the main MPI node UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
+!> \note
+!>      Designed for parallel.
 ! *****************************************************************************
     SUBROUTINE equilize_mc_sim_parameters(mc_par,iw)
     TYPE(mc_simulation_parameters_p_type), &

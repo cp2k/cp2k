@@ -60,8 +60,6 @@ CONTAINS
 !> \brief creates and initializes an ri_env
 !> \param qs_env ...
 !> \param error ...
-!> \param ri_env the ri_environment you want to create
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE hfx_ri_env_create (qs_env,error)

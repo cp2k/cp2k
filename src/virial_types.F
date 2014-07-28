@@ -249,10 +249,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains the given virial_type
-!> \param virial ...
+!> \param virial the virial_type to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param virial_type the virial_type to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi

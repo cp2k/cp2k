@@ -791,7 +791,6 @@ CPSourceFileRef,&
 !> \param index the position of the element (stating at 1)
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \param el the new element UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      none
 !> \author Fawzi Mohamed

@@ -251,8 +251,6 @@ CONTAINS
 !> \param imol ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param main_qs_env the qs_env of the full system UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param projections the projections into the subsystems UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Clotilde Cucinotta
 ! *****************************************************************************
   SUBROUTINE calc_c0_tilde(ep_env,mol_pos,new_c,imol,error)
@@ -295,8 +293,6 @@ CONTAINS
 !> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param main_qs_env the qs_env of the full system UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param projections the projections into the subsystems UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -360,11 +356,6 @@ CONTAINS
 !> \param ep_env_id ...
 !> \param input_declaration ...
 !> \param ierr ...
-!> \param ep_env the ep_env env to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param main_qs_env the qs_env of the full system UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param projections the projections into the subsystems UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -2297,10 +2288,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief zeroes out the energies
-!> \param ep_energy ...
+!> \param ep_energy the energy object to zero out
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param energy the energy object to zero out UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE ep_energy_zero(ep_energy,error)

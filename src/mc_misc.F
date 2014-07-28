@@ -108,7 +108,8 @@ END SUBROUTINE mc_averages_release
 ! *****************************************************************************
 !> \brief writes a bunch of simulation data to the specified unit
 !> \param mc_par the mc parameters for the simulation
-!> \param all_moves ...
+!> \param all_moves the structure that holds data on how many moves are
+!>               accepted/rejected
 !> \param iw the unit to write to
 !> \param energy_check the sum of the energy changes of each move
 !> \param initial_energy the initial unbiased energy of the system
@@ -117,8 +118,6 @@ END SUBROUTINE mc_averages_release
 !>               the simulation
 !>
 !>    Only use in serial.
-!> \param moves the structure that holds data on how many moves are
-!>               accepted/rejected UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
 SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
@@ -434,18 +433,15 @@ END SUBROUTINE final_move_write
 !>      box_length and coordinates should be passed in a.u.
 !> \param coordinates the coordiantes of the atoms in the force_env (a.u.)
 !> \param atom_names ...
-!> \param nunits_tot ...
+!> \param nunits_tot the total number of atoms
 !> \param box_length the length of all sides of the simulation box (angstrom)
 !> \param filename the name of the file to write to
 !> \param nchains ...
 !> \param mc_input_file ...
 !> \param fft_lib the FFT library we're using (FFTW,FFTSG)
-!>
-!>    Only use in serial. UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param force_env the force environment that holds the parameters needed
-!>                   to write on the file UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param natoms_tot the total number of atoms UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
+!> \note   Only use in serial.
 ! *****************************************************************************
 SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
      box_length,filename,nchains,mc_input_file)

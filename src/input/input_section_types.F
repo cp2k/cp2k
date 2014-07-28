@@ -139,7 +139,8 @@ CONTAINS
 !> \param name ...
 !> \param description ...
 !> \param n_keywords hint about the number of keywords, defaults to 10
-!> \param n_subsections ...
+!> \param n_subsections a hint about how many sections will be added to this
+!>        structure, defaults to 0
 !> \param repeats if this section can repeat (defaults to false)
 !> \param required if this section is required (and thus it cannot be
 !>        totally default). Defaults to false.
@@ -147,8 +148,6 @@ CONTAINS
 !> \param supported_feature ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param n_sections a hint about how many sections will be added to this
-!>        structure, defaults to 0 UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_create(section,name,description,n_keywords,&
@@ -1043,16 +1042,15 @@ CONTAINS
 !> \param ref_count ...
 !> \param id_nr ...
 !> \param n_repetition number of repetitions of the section
-!> \param n_subs_vals_rep ...
+!> \param n_subs_vals_rep number of repetitions of the subsections values
+!>        (max(1,n_repetition))
 !> \param section ...
 !> \param explicit if the section was explicitly present in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>
-!>      For the other arguments see the attributes of section_vals_type
-!> \param n_sub_vals_rep number of repetitions of the subsections values
-!>        (max(1,n_repetition)) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
+!> \note     For the other arguments see the attributes of section_vals_type
 ! *****************************************************************************
   SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition,&
        n_subs_vals_rep,section,explicit, error)
@@ -1213,7 +1211,6 @@ CONTAINS
 !>        you want to extract the subsection (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param i_section index of the section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
@@ -1473,8 +1470,10 @@ CONTAINS
 !> \brief returns the requested value
 !> \param section_vals ...
 !> \param keyword_name the name of the keyword you want
-!> \param i_rep_section ...
-!> \param i_rep_val ...
+!> \param i_rep_section which repetition of the section you are interested in
+!>        (defaults to 1)
+!> \param i_rep_val which repetition of the keyword/val you are interested in
+!>        (defaults to 1)
 !> \param n_rep_val returns number of val available
 !> \param val ...
 !> \param l_val ,i_val,r_val,c_val: returns the logical,integer,real or
@@ -1491,11 +1490,6 @@ CONTAINS
 !> \param explicit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param isection which repetition of the section you are interested in
-!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ival which repetition of the keyword/val you are interested in
-!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
@@ -1636,12 +1630,10 @@ CONTAINS
 !> \brief returns the requested list
 !> \param section_vals ...
 !> \param keyword_name the name of the keyword you want
-!> \param i_rep_section ...
+!> \param i_rep_section which repetition of the section you are interested in
+!>        (defaults to 1)
 !> \param list ...
 !> \param error ...
-!> \param isection which repetition of the section you are interested in
-!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Joost VandeVondele
 !> \note
 !>      - most useful if the full list is needed anyway, so that faster iteration can be used
@@ -1708,8 +1700,10 @@ CONTAINS
 !> \param section_vals ...
 !> \param keyword_name the name of the keyword you want (can be a path
 !>        separated by '%')
-!> \param i_rep_section ...
-!> \param i_rep_val ...
+!> \param i_rep_section isection which repetition of the section you are
+!>        nterested in (defaults to 1)
+!> \param i_rep_val which repetition of the keyword/val you are interested in
+!>        (defaults to 1)
 !> \param val ...
 !> \param l_val ,i_val,r_val,c_val: sets the logical,integer,real or
 !>        character value
@@ -1724,11 +1718,6 @@ CONTAINS
 !> \param ignore_required ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param isection which repetition of the section you are interested in
-!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ival which repetition of the keyword/val you are interested in
-!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,i_rep_val,&
@@ -1885,15 +1874,12 @@ CONTAINS
 !> \param section_vals ...
 !> \param keyword_name the name of the keyword you want (can be a path
 !>        separated by '%')
-!> \param i_rep_section ...
-!> \param i_rep_val ...
+!> \param i_rep_section which repetition of the section you are interested in
+!>        (defaults to 1)
+!> \param i_rep_val which repetition of the keyword/val you are interested in
+!>        (defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param isection which repetition of the section you are interested in
-!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ival which repetition of the keyword/val you are interested in
-!>        (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param section the root section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
@@ -1977,7 +1963,6 @@ CONTAINS
 !> \param enable_unsupported_features ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param unit_nr the unit where to write to UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 !> \note
 !>      skips required sections which weren't read

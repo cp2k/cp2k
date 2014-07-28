@@ -103,11 +103,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates and initializes a kpp1_env
-!> \param kpp1_env ...
+!> \param kpp1_env the environement to initialize
 !> \param qs_env the qs environment in which this environment lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param kpp 1_env: the environement to initialize UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -142,20 +141,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calcualtes the k_p_p1 kernel of the pertubation theory
-!> \param kpp1_env ...
+!> \param kpp1_env the kpp1 environement in which perform the calculation
 !> \param p_env ...
 !> \param qs_env kpp1's qs_env
-!> \param k_p_p1 ...
+!> \param k_p_p1 the sparse matrix that will contain the kernel k_p_p1
 !> \param rho the density where to evaluate the derivatives (i.e. p along
 !>        with with its grid representations, that must be valid)
-!> \param rho1 ...
+!> \param rho1 the density that represent the first direction along which
+!>        you should evaluate the derivatives
 !> \param rho1_xc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param k_p_p 1: the sparse matrix that will contain the kernel k_p_p1 UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param kpp 1_env: the kpp1 environement in which perform the calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho 1: the density that represent the first direction along which
-!>        you should evaluate the derivatives UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, p_env, qs_env, k_p_p1, rho, rho1, rho1_xc, error)
 
@@ -524,19 +520,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calcualtes the k_p_p1 kernel of the pertubation theory with finite
 !>      differences
-!> \param kpp1_env ...
+!> \param kpp1_env the kpp1 environement in which perform the calculation
 !> \param qs_env kpp1's qs_env
-!> \param k_p_p1 ...
+!> \param k_p_p1 the sparse matrix that will contain the kernel k_p_p1
 !> \param rho the density where to evaluate the derivatives (i.e. p along
 !>        with with its grid representations, that must be valid)
-!> \param rho1 ...
+!> \param rho1 the density that represent the first direction along which
+!>        you should evaluate the derivatives
 !> \param diff the amount of the finite difference step
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param k_p_p 1: the sparse matrix that will contain the kernel k_p_p1 UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param kpp 1_env: the kpp1 environement in which perform the calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho 1: the density that represent the first direction along which
-!>        you should evaluate the derivatives UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -637,11 +630,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief checks that the intenal storage is allocated, and allocs it if needed
-!> \param kpp1_env ...
+!> \param kpp1_env the environment to check
 !> \param qs_env the qs environment this kpp1_env lives in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param kpp 1_env: the environment to check UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Fawzi Mohamed
 !> \note
 !>      private routine
@@ -763,14 +755,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief function to advise of changes either in the grids or in the the
 !>      matrix structure (to update kpp1_env internal cache)
-!> \param kpp1_env ...
+!> \param kpp1_env the kpp1_env
 !> \param s_struct_changed true if the structure of the s matrix has changed
 !> \param grid_changed true if the grids have changed and have to be rebuilt
-!> \param psi0_changed ...
+!> \param psi0_changed true if the value of psi0 (qs_env%rho) has changed
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param kpp 1_env: the kpp1_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param psi 0_changed: true if the value of psi0 (qs_env%rho) has changed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed

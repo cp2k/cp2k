@@ -137,7 +137,6 @@ CONTAINS
 !> \param metadyn_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param do_hills if the hills should be added UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2004 created
 !>      02.2006 Reorganized the structure of the restart for Metadynamics (teo)

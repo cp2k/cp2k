@@ -52,8 +52,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief help poor compilers do their job
 !>       i.e. provide a default initialization
-!> \param farming_env ...
-!> \param an associated farming env pointer UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param farming_env an associated farming env pointer
 !> \par History
 !>      03.2004 created [Joost VandeVondele ]
 ! *****************************************************************************

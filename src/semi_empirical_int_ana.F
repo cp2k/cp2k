@@ -64,31 +64,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes analytical gradients for semiempirical integrals
-!> \param sepi ...
-!> \param sepj ...
-!> \param rijv ...
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
 !> \param itype ...
-!> \param e1b ...
-!> \param e2a ...
-!> \param de1b ...
-!> \param de2a ...
-!> \param se_int_control ...
+!> \param e1b Array of electron-nuclear attraction integrals, Electron on atom ni attracting nucleus of nj.
+!> \param e2a Array of electron-nuclear attraction integrals, Electron on atom nj attracting nucleus of ni.
+!> \param de1b derivative of e1b term
+!> \param de2a derivative of e2a term
+!> \param se_int_control input parameters that control the calculation of SE
+!>                           integrals (shortrange, R3 residual, screening type)
 !> \param se_taper ...
 !> \param error ...
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE
-!>                           integrals (shortrange, R3 residual, screening type)
-!>
-!>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
-!>                       e1b = Electron on atom ni attracting nucleus of nj.
-!>                       e2a = Electron on atom nj attracting nucleus of ni.
-!>                       enuc= nuclear-nuclear repulsion term.
-!>
-!>                      de1b = derivative of e1b term
-!>                      de2a = derivative of e2a term
-!>                      denuc= derivative of nuclear-nuclear repulsion term. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -344,24 +331,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes analytical gradients for semiempirical core-core interaction.
-!> \param sepi ...
-!> \param sepj ...
-!> \param rijv ...
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
 !> \param itype ...
-!> \param enuc ...
-!> \param denuc ...
-!> \param se_int_control ...
+!> \param enuc nuclear-nuclear repulsion term.
+!> \param denuc derivative of nuclear-nuclear repulsion term.
+!> \param se_int_control input parameters that control the calculation of SE
+!>                           integrals (shortrange, R3 residual, screening type)
 !> \param se_taper ...
 !> \param error ...
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE
-!>                           integrals (shortrange, R3 residual, screening type)
-!>
-!>    on output          enuc= nuclear-nuclear repulsion term.
-!>
-!>                      denuc= derivative of nuclear-nuclear repulsion term. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -666,25 +645,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Computes analytical gradients for semiempirical core-core electrostatic
 !>        interaction only.
-!> \param sepi ...
-!> \param sepj ...
-!> \param rijv ...
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
 !> \param itype ...
-!> \param enuc ...
-!> \param denuc ...
-!> \param se_int_control ...
+!> \param enuc nuclear-nuclear electrostatic repulsion term.
+!> \param denuc derivative of nuclear-nuclear electrostatic
+!>                             repulsion term.
+!> \param se_int_control input parameters that control the calculation of SE
+!>                           integrals (shortrange, R3 residual, screening type)
 !> \param se_taper ...
 !> \param error ...
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE
-!>                           integrals (shortrange, R3 residual, screening type)
-!>
-!>    on output          enuc= nuclear-nuclear electrostatic repulsion term.
-!>
-!>                      denuc= derivative of nuclear-nuclear electrostatic
-!>                             repulsion term. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -921,26 +892,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the ssss integral and analytical derivatives (main driver)
-!> \param sepi ...
-!> \param sepj ...
-!> \param rij ...
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
 !> \param ssss ...
-!> \param dssss ...
+!> \param dssss derivative of (ssss) integral
+!>                          derivatives are intended w.r.t. rij
 !> \param itype ...
 !> \param se_taper ...
-!> \param se_int_control ...
+!> \param se_int_control input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
 !> \param lgrad ...
 !> \param error ...
-!> \param on input rij    = interatomic distance
-!>                sepi    = paramters of atom i
-!>                sepj    = paramters of atom j
-!>                itype   = type of semi_empirical model
-!>                          extension to the original routine to compute qm/mm integrals
-!>        se_int_control   = input parameters that control the calculation of SE
-!>                          integrals (shortrange, R3 residual, screening type)
-!>
-!>      on output ssss    = derivative of (ssss) integral
-!>                          derivatives are intended w.r.t. rij UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -1012,29 +975,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals and analytical integrals (main driver)
-!> \param sepi ...
-!> \param sepj ...
-!> \param rij ...
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
 !> \param core ...
-!> \param dcore ...
-!> \param itype ...
-!> \param se_taper ...
-!> \param se_int_control ...
-!> \param lgrad ...
-!> \param error ...
-!> \param on input rij    = interatomic distance
-!>                sepi    = paramters of atom i
-!>                sepj    = paramters of atom j
-!>                itype   = type of semi_empirical model
-!>                          extension to the original routine to compute qm/mm integrals
-!>       se_int_control   = input parameters that control the calculation of SE
-!>                          integrals (shortrange, R3 residual, screening type)
-!>
-!>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
+!> \param dcore derivative of 4 X 2 array of electron-core attraction integrals
 !>                          derivatives are intended w.r.t. rij
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
 !>         (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
-!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j. UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+!> \param itype type of semi_empirical model
+!>                          extension to the original routine to compute qm/mm
+!>                          integrals
+!> \param se_taper ...
+!> \param se_int_control input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
+!> \param lgrad ...
+!> \param error ...
 !> \par History
 !>      03.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -1130,31 +1087,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals and derivatives for sp basis
-!> \param sepi ...
-!> \param sepj ...
-!> \param rij ...
-!> \param dssss ...
-!> \param dcore ...
-!> \param itype ...
-!> \param se_int_control ...
-!> \param se_int_screen ...
-!> \param error ...
-!> \param on input rij     = interatomic distance
-!>                sepi    = paramters of atom i
-!>                sepj    = paramters of atom j
-!>                itype   = type of semi_empirical model
-!>                          extension to the original routine to compute qm/mm integrals
-!>       se_int_control   = input parameters that control the calculation of SE
-!>                          integrals (shortrange, R3 residual, screening type)
-!>
-!>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
-!>                ssss    = derivative of (ssss) integral
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param dssss derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
+!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+!> \param dcore derivative of 4 X 2 array of electron-core attraction integrals
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
 !>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
 !>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
-!>
-!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j. UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param itype type of semi_empirical model
+!>                          extension to the original routine to compute qm/mm
+!>                          integrals
+!> \param se_int_control input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
+!> \param se_int_screen ...
+!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
@@ -1236,28 +1185,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the analytical derivative of the nuclear attraction
 !>        integrals involving d orbitals
-!> \param sepi ...
-!> \param sepj ...
-!> \param rij ...
-!> \param dcore ...
-!> \param itype ...
-!> \param se_int_control ...
-!> \param se_int_screen ...
-!> \param error ...
-!> \param on input rij   = interatomic distance
-!>                sepi   = paramters of atom i
-!>                sepj   = paramters of atom j
-!>                itype  = type of semi_empirical model
-!>                         extension to the original routine to compute qm/mm integrals
-!>      se_int_control   = input parameters that control the calculation of SE
-!>                         integrals (shortrange, R3 residual, screening type)
-!>
-!>      on output core   = 4 X 2 array of electron-core attraction integrals
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param dcore 4 X 2 array of electron-core attraction integrals
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
 !>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
 !>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
 !>
-!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j. UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+!> \param itype type of semi_empirical model
+!>                         extension to the original routine to compute qm/mm
+!>                         integrals
+!> \param se_int_control input parameters that control the calculation of SE
+!>                         integrals (shortrange, R3 residual, screening type)
+!> \param se_int_screen ...
+!> \param error ...
 !> \author
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich: created
 ! *****************************************************************************
@@ -1327,19 +1270,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the derivative of the two-particle interactions
-!> \param sepi ...
-!> \param sepj ...
-!> \param rijv ...
-!> \param w ...
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
+!> \param w Array of two-electron repulsion integrals.
 !> \param dw ...
 !> \param se_int_control ...
 !> \param se_taper ...
 !> \param error ...
-!> \param on input  sepi   = Atomic parameters of first atom
-!>               sepj   = Atomic parameters of second atom
-!>               rijv   = Coordinate vector i -> j
-!>
-!>     on output w      = Array of two-electron repulsion integrals. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
@@ -1670,24 +1608,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the derivative and the value of two-electron repulsion
 !>      integrals and the nuclear attraction integrals w.r.t. |r|
-!> \param sepi ...
-!> \param sepj ...
-!> \param rij ...
-!> \param rep ...
-!> \param rep_d ...
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param rep rray of two-electron repulsion integrals
+!> \param rep_d array of two-electron repulsion integrals derivatives
 !> \param se_taper ...
-!> \param se_int_control ...
+!> \param se_int_control input parameters that control the calculation of SE
+!>                         integrals (shortrange, R3 residual, screening type)
 !> \param lgrad ...
 !> \param error ...
-!> \param on input rij   = interatomic distance
-!>               sepi    = paramters of atom i
-!>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE
-!>                         integrals (shortrange, R3 residual, screening type)
-!>
-!>     on output  ri     = array of two-electron repulsion integrals
-!>     on output dri     = array of two-electron repulsion integrals derivatives
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
@@ -1780,24 +1710,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the derivative and the value of two-electron repulsion
 !>      integrals and the nuclear attraction integrals w.r.t. |r| - sp shells only
-!> \param sepi ...
-!> \param sepj ...
-!> \param rij ...
-!> \param drep ...
-!> \param rep ...
-!> \param se_int_control ...
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param drep array of derivatives of two-electron repulsion integrals
+!> \param rep array of two-electron repulsion integrals
+!> \param se_int_control input parameters that control the calculation of SE
+!>                         integrals (shortrange, R3 residual, screening type)
 !> \param se_int_screen ...
 !> \param ft ...
 !> \param dft ...
 !> \param error ...
-!> \param on input rij   = interatomic distance
-!>               sepi    = paramters of atom i
-!>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE
-!>                         integrals (shortrange, R3 residual, screening type)
-!>
-!>     on output ri      = array of two-electron repulsion integrals
-!>              dri      = array of derivatives of two-electron repulsion integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
@@ -1865,24 +1788,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the derivatives of the two-electron repulsion integrals - d shell only
-!> \param sepi ...
-!> \param sepj ...
-!> \param rij ...
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
 !> \param drep ...
-!> \param rep ...
-!> \param se_int_control ...
+!> \param rep array of two-electron repulsion integrals
+!> \param se_int_control input parameters that control the calculation of
+!>                         integrals (shortrange, R3 residual, screening type)
 !> \param se_int_screen ...
 !> \param ft ...
 !> \param dft ...
 !> \param error ...
-!> \param on input rij   = interatomic distance
-!>               sepi    = paramters of atom i
-!>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of
-!>                         integrals (shortrange, R3 residual, screening type)
-!>
-!>     on output rep     = array of two-electron repulsion integrals
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      Teodoro Laino (05.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integral derivatives for d-orbitals

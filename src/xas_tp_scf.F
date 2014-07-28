@@ -620,7 +620,6 @@ CONTAINS
 !> \param should_stop ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param iatom index of the excited atom UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI

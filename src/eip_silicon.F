@@ -645,7 +645,9 @@ CONTAINS
 !>      by Stefan Goedecker
 !> \param nat number of atoms
 !> \param alat lattice constants of the orthorombic box containing the particles
-!> \param rxyz0 ...
+!> \param rxyz0 atomic positions in Angstrom, may be modified on output.
+!>               If an atom is outside the box the program will bring it back
+!>               into the box by translations through alat
 !> \param fxyz forces in eV/A
 !> \param ener total energy in eV
 !> \param coord average coordination number
@@ -653,11 +655,6 @@ CONTAINS
 !> \param coord_var variance of the coordination number
 !> \param count count is increased by one per call, has to be initialized
 !>                to 0.e0_dp before first call of eip_bazant
-!> \param rxyz 0: atomic positions in Angstrom
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rxyz 0: rxyz0 may be modified on output.
-!>               If an atom is outside the box the program will bring it back
-!>               into the box by translations through alat UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Literature
 !>      http://www-math.mit.edu/~bazant/EDIP
 !>      M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
@@ -1825,7 +1822,9 @@ CONTAINS
 !>      by Stefan Goedecker
 !> \param nat number of atoms
 !> \param alat lattice constants of the orthorombic box containing the particles
-!> \param rxyz0 ...
+!> \param rxyz0 atomic positions in Angstrom, may be modified on output.
+!>               If an atom is outside the box the program will bring it back
+!>               into the box by translations through alat
 !> \param fxyz forces in eV/A
 !> \param ener total energy in eV
 !> \param coord average coordination number
@@ -1833,11 +1832,6 @@ CONTAINS
 !> \param coord_var variance of the coordination number
 !> \param count count is increased by one per call, has to be initialized
 !>                to 0.e0_dp before first call of eip_bazant
-!> \param rxyz 0: atomic positions in Angstrom
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rxyz 0: rxyz0 may be modified on output.
-!>               If an atom is outside the box the program will bring it back
-!>               into the box by translations through alat UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Literature
 !>      T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
 !>                           Modelling Simul. Sci. Eng., 8 (2000)

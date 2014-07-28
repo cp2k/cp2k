@@ -159,16 +159,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates the potential interpolated with splines value at a given point
 !>      and the first derivative. Checks included to avoid just segfaulting!!
-!> \param spl_p ...
-!> \param xxi ...
-!> \param y1 ...
+!> \param spl_p spline_data structure
+!> \param xxi absissa value
+!> \param y1 1. derivative at xx
 !> \param spl_f ...
 !> \param logger ...
-!> \param spl spline_data structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param xx absissa value UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Output
 !>      spline interpolated value at xx
-!>      y1 : 1. derivative at xx
 !> \par History
 !>      2001-09-25-HAF added this doc entry and changed formatting
 !> \author unknown

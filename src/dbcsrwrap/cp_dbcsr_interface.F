@@ -2181,12 +2181,10 @@ CONTAINS
 !> It adds a block to the dbcsr matrix and returns a rank-2 pointer to the
 !> block. Currently it only and always uses the mutable data.
 !> \param[in,out] matrix      DBCSR matrix
-!> \param block_row ...
-!> \param block_col ...
+!> \param[in]  block_row      the row
+!> \param[in]  block_col      the column
 !> \param[in]  block          the block to put
 !> \param[in,out] error       cp2k error
-!> \param[in]  col            the column UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in]  row            the row UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_add_block_node (matrix, block_row, block_col, block, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
