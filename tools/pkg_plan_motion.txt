@@ -1,0 +1,151 @@
+#
+#  exploring possible packages , can be listed here in python syntax
+#
+[
+
+#============================================================================
+        {'dirname':'start',
+        "requires": ["../", "../common", "../input", "../dbcsrwrap", "../pw", "../tmc",
+                     "../acc", "../base", "../mpiwrap", "../swarm",
+                     "../vib", "../geopt", "../pint", "../mc", "../md", "../neb", "../rt"] ,
+        },
+
+
+#============================================================================
+        {'dirname':'swarm',
+         "requires": ["../", "../common", "../mpiwrap", "../input", "../base", "../motion", "../md", "../geopt"],
+        },
+
+#============================================================================
+         {'dirname':'mc',
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../dbcsrwrap", "../motion", "../md", "../rt",],
+          'files': [
+            "tamc_run.F",
+            "mc_control.F",
+            "mc_coordinates.F",
+            "mc_ensembles.F",
+            "mc_environment_types.F",
+            "mc_ge_moves.F",
+            "mc_misc.F",
+            "mc_move_control.F",
+            "mc_moves.F",
+            "mc_run.F",
+            "mc_types.F",
+           ],
+          },
+
+#============================================================================
+         {'dirname':'md',
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../dbcsrwrap", "../motion"],
+          'files': [
+            "md_run.F",
+            "velocity_verlet_control.F",
+            "md_vel_utils.F",
+            "integrator.F",
+            "md_util.F",
+            "md_energies.F",
+            "md_ener_types.F",
+            "mdctrl_methods.F",
+            "thermostat_types.F",
+            "thermostat_methods.F",
+            "thermostat_utils.F",
+            "thermal_region_types.F",
+            "thermal_region_utils.F",
+            "simpar_methods.F",
+            "reftraj_types.F",
+            "reftraj_util.F",
+            "barostat_types.F",
+            "barostat_utils.F",
+            "md_environment_types.F",
+            "md_conserved_quantities.F",
+            "integrator_utils.F",
+           ],
+          },
+
+#============================================================================
+         {'dirname':'geopt',
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../dbcsrwrap", "../motion"],
+          'files': [
+            "geo_opt.F",
+            "gopt_f77_methods.F",
+            "gopt_f77_methods.h",
+            "gopt_f_methods.F",
+            "gopt_f_types.F",
+            "dimer_methods.F",
+            "dimer_types.F",
+            "dimer_utils.F",
+            "bfgs_optimizer.F",
+            "cg_optimizer.F",
+            "cg_utils.F",
+            "cp_lbfgs_optimizer_gopt.F",
+            "cp_lbfgs_geo.F",
+            "cp_lbfgs.F",
+            "shell_opt.F",
+            "cell_opt.F",
+            "cell_opt_utils.F",
+            "cell_opt_types.F",
+            "gopt_param_types.F",
+           ],
+          },
+
+#============================================================================
+         {'dirname':'pint',
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../dbcsrwrap", "../motion"],
+          'files': [
+            "pint_gle.F",
+            "pint_io.F",
+            "pint_methods.F",
+            "pint_normalmode.F",
+            "pint_public.F",
+            "pint_staging.F",
+            "pint_transformations.F",
+            "pint_types.F",
+            "helium_methods.F",
+            "helium_sampling.F",
+            "helium_interactions.F",
+           ],
+          },
+
+#============================================================================
+         {'dirname':'neb',
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../dbcsrwrap", "../motion", "../geopt", "../md"],
+          'files': [
+            "neb_io.F",
+            "neb_md_utils.F",
+            "neb_methods.F",
+            "neb_opt_utils.F",
+            "neb_types.F",
+            "neb_utils.F",
+           ],
+          },
+
+#============================================================================
+         {'dirname':'vib',
+          'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../dbcsrwrap", "../motion"],
+          'files': [
+            "vibrational_analysis.F",
+            "input_cp2k_vib.F",
+           ],
+          },
+
+#============================================================================
+         {'dirname':'rt',
+         'requires': ["../", "../base", "../common","../mpiwrap","../input", "../fm", "../dbcsrwrap", "../aobasis", "../motion", "../md"],
+          'files': [
+            "rtp_admm_methods.F",
+            "rt_delta_pulse.F",
+            "rt_hfx_utils.F",
+            "rt_make_propagators.F",
+            "rt_matrix_exp_dbcsr.F",
+            "rt_matrix_exp.F",
+            "rt_propagation_methods.F",
+            "rt_propagation_output.F",
+            "rt_propagation_types.F",
+            "rt_propagation_utils.F",
+            "rt_propagator_init.F",
+            "rt_propagation.F",
+           ],
+          },
+
+]
+
