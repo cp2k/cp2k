@@ -53,7 +53,7 @@ MODULE md_conserved_quantities
 
   PRIVATE
 
-  PUBLIC :: compute_conserved_quantity
+  PUBLIC :: compute_conserved_quantity, calc_nfree_qm
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_conserved_quantities'
 
 CONTAINS
@@ -91,9 +91,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind
+    INTEGER                                  :: ikind, nfree_qm, nkind
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, init, myqmmm
+    LOGICAL                                  :: failure, init
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(simpar_type), POINTER               :: simpar
@@ -103,8 +103,6 @@ CONTAINS
     NULLIFY(itimes, para_env, simpar)
 
     CALL zero_md_ener(md_ener, tkind, tshell, error=error)
-
-    myqmmm = .FALSE.
 
     CALL get_md_env (md_env=md_env,&
                      constant=constant,&
@@ -121,9 +119,9 @@ CONTAINS
          md_ener%temp_part = md_ener%temp_part*kelvin
     END IF
 
-    IF ( md_ener%nfree_qm > 0) THEN
-       myqmmm = .TRUE.
-       md_ener%temp_qm   = 2.0_dp * md_ener%ekin_qm / REAL ( md_ener%nfree_qm,KIND=dp)
+    nfree_qm = calc_nfree_qm(md_env, md_ener, error)
+    IF (nfree_qm > 0) THEN
+       md_ener%temp_qm   = 2.0_dp * md_ener%ekin_qm / REAL (nfree_qm,KIND=dp)
        md_ener%temp_qm = md_ener%temp_qm*kelvin
     END IF
 
@@ -189,6 +187,63 @@ CONTAINS
     END IF
 
   END SUBROUTINE compute_conserved_quantity
+
+! *****************************************************************************
+!> \brief Calculates the number of QM degress of freedom
+!> \param md_env ...
+!> \param md_ener ...
+!> \param error ...
+! *****************************************************************************
+  FUNCTION calc_nfree_qm(md_env, md_ener, error) RESULT(nfree_qm)
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), POINTER              :: md_ener
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER                                  :: nfree_qm
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_nfree_qm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ip
+    INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
+    NULLIFY(qmmm_env,subsys,particles,force_env,force_env_section)
+    nfree_qm = 0
+
+    CALL get_md_env (md_env, force_env=force_env, error=error)
+    CALL force_env_get(force_env, subsys=subsys, qmmm_env=qmmm_env, force_env_section=force_env_section, error=error)
+    IF(ASSOCIATED(qmmm_env)) THEN
+      IF (SIZE(force_env%sub_force_env) == 1) THEN ! conventional QM/MM
+        CALL cp_subsys_get(subsys, particles=particles, error=error)
+        ! The degrees of freedom for the quantum part of the system
+        ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
+        ! system is treated at QM level (not really QM/MM, just for consistency).
+        ! The degree of freedom will not be correct if 1-3 atoms are treated only
+        ! MM. In this case we should take care of rotations
+        nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
+        IF (nfree_qm == 3*(particles%n_els)) nfree_qm = md_ener%nfree
+      ELSE IF (qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! doing force mixing
+        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
+        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
+        nfree_qm = 0
+        DO ip=1, SIZE(cur_indices)
+          IF (cur_labels(ip) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
+            nfree_qm = nfree_qm + 3
+          END IF
+        END DO
+      ELSE
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,"bad number of sub_force_envs (or do_force_mixing setting) updating nfree_qm "//&
+CPSourceFileRef, error)
+      ENDIF
+    END IF
+
+  END FUNCTION calc_nfree_qm
+
 
 ! *****************************************************************************
 !> \brief calculates conserved quantity for nvt ensemble

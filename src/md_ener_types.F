@@ -19,7 +19,7 @@ MODULE md_ener_types
 ! *****************************************************************************
   TYPE md_ener_type
      INTEGER       :: id_nr, ref_count
-     INTEGER       :: nfree, nfree_qm, nfree_shell
+     INTEGER       :: nfree, nfree_shell
      REAL(KIND=dp) :: constant
      REAL(KIND=dp) :: delta_cons, delta_epot
      REAL(KIND=dp) :: epot

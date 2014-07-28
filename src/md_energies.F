@@ -49,12 +49,12 @@ MODULE md_energies
                                              section_release,&
                                              section_type,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE md_conserved_quantities,         ONLY: compute_conserved_quantity
+  USE md_conserved_quantities,         ONLY: calc_nfree_qm,&
+                                             compute_conserved_quantity
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
   USE md_environment_types,            ONLY: get_md_env,&
@@ -68,8 +68,7 @@ MODULE md_energies
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin
-  USE qmmm_types,                      ONLY: force_mixing_label_QM_dynamics,&
-                                             qmmm_env_qm_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE reftraj_types,                   ONLY: reftraj_type
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: thermal_regions_type
@@ -91,7 +90,6 @@ MODULE md_energies
   PUBLIC :: initialize_md_ener,&
             md_energy,&
             md_ener_reftraj,&
-            update_nfree_qm,&
             md_write_output
 
 CONTAINS
@@ -147,7 +145,6 @@ CONTAINS
     IF(shell_adiabatic) THEN
       md_ener%nfree_shell = 3*(shell_particles%n_els)
     END IF
-    CALL update_nfree_qm(md_ener, force_env, error)
 
     IF(simpar%temperature_per_kind) THEN
       ALLOCATE(md_ener%temp_kind(nkind), STAT=istat)
@@ -174,64 +171,6 @@ CONTAINS
     md_ener%epot = 0.0_dp
 
   END SUBROUTINE initialize_md_ener
-
-! *****************************************************************************
-!> \brief ...
-!> \param md_ener ...
-!> \param force_env ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE update_nfree_qm(md_ener, force_env, error)
-    TYPE(md_ener_type), POINTER              :: md_ener
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_nfree_qm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ip
-    INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
-    LOGICAL                                  :: failure
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
-
-    failure = .FALSE.
-
-    md_ener%nfree_qm    = -HUGE(0)
-
-    NULLIFY(qmmm_env,subsys,particles,force_env_section)
-    CALL force_env_get(force_env, subsys=subsys, qmmm_env=qmmm_env, force_env_section=force_env_section, error=error)
-    IF(ASSOCIATED(qmmm_env)) THEN
-      IF (SIZE(force_env%sub_force_env) == 1) THEN ! conventional QM/MM
-        CALL cp_subsys_get(subsys, particles=particles, error=error)
-        ! The degrees of freedom for the quantum part of the system
-        ! are set to 3*Number of QM atoms and to simpar%nfree in case all the MM
-        ! system is treated at QM level (not really QM/MM, just for consistency).
-        ! The degree of freedom will not be correct if 1-3 atoms are treated only
-        ! MM. In this case we should take care of rotations
-        md_ener%nfree_qm = 3*SIZE(qmmm_env%qm_atom_index)
-        IF (md_ener%nfree_qm == 3*(particles%n_els)) md_ener%nfree_qm = md_ener%nfree
-      ELSE IF (qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! doing force mixing
-        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%INDICES",i_vals=cur_indices,error=error)
-        CALL section_vals_val_get(force_env_section,"QMMM%FORCE_MIXING%RESTART_INFO%LABELS",i_vals=cur_labels,error=error)
-        md_ener%nfree_qm = 0
-        DO ip=1, SIZE(cur_indices)
-          IF (cur_labels(ip) >= force_mixing_label_QM_dynamics) THEN ! this is a QM atom
-            md_ener%nfree_qm = md_ener%nfree_qm + 3
-          END IF
-        END DO
-      ELSE
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"bad number of sub_force_envs (or do_force_mixing setting) updating nfree_qm "//&
-CPSourceFileRef,&
-             error,failure)
-      ENDIF
-    END IF
-
-  END SUBROUTINE update_nfree_qm
-
 
 ! *****************************************************************************
 !> \brief ...
@@ -398,7 +337,7 @@ CPSourceFileRef,&
     CALL force_env_get(force_env, cell=cell, subsys=subsys, qmmm_env=qmmm_env,&
          virial=virial, error=error)
 
-    qmmm     = (md_ener%nfree_qm>0)
+    qmmm     = calc_nfree_qm(md_env, md_ener, error) > 0
     is_mixed = (force_env%in_use == use_mixed_force)
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)

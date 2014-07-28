@@ -27,10 +27,7 @@ MODULE qmmm_update
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_type
-  USE md_ener_types,                   ONLY: md_ener_type
-  USE md_energies,                     ONLY: update_nfree_qm
-  USE md_environment_types,            ONLY: get_md_env,&
-                                             md_environment_type
+  USE md_environment_types,            ONLY: md_environment_type
   USE qmmm_create,                     ONLY: qmmm_create_force_env_low
   USE qmmm_force_mixing,               ONLY: setup_force_mixing_qmmm_sections,&
                                              update_force_mixing_labels
@@ -68,7 +65,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iforce_eval, nforce_eval
-    TYPE(md_ener_type), POINTER              :: md_ener
 
     CALL qmmm_update_force_mixing_env_low(md_env, force_env, root_section, error)
     IF (ASSOCIATED(force_env%sub_force_env)) THEN
@@ -80,12 +76,6 @@ CONTAINS
             CALL qmmm_update_force_mixing_env_low(md_env, force_env%sub_force_env(iforce_eval)%force_env, root_section, error)
          ENDIF
       END DO
-    ENDIF
-
-    NULLIFY(md_ener)
-    CALL get_md_env(md_env, md_ener=md_ener, error=error)
-    IF (ASSOCIATED(md_ener)) THEN
-      CALL update_nfree_qm(md_ener, force_env, error)
     ENDIF
 
   END SUBROUTINE qmmm_update_force_mixing_env
