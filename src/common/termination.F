@@ -396,7 +396,8 @@ CONTAINS
       ionode = .TRUE.
     END IF
 
-    ! Print the error message
+    ! Print the error message, we do this only on the ionode to limit output....
+    ! but this might mean error messages are not seen if only a non-ionode errors out
 
     IF (ionode) THEN
       message = "ERROR in "//TRIM(routineN)//&
@@ -410,8 +411,10 @@ CONTAINS
       CALL print_stack(error_unit)
       CALL m_flush_internal(default_output_unit)
       CALL m_flush_internal(error_unit)
-      CALL mp_abort()
     END IF
+
+    ! make sure we abort, even if not called by ionode
+    CALL mp_abort()
 
   END SUBROUTINE stop_program
 
@@ -447,7 +450,11 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name
     LOGICAL                                  :: file_exists
 
-    INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    IF (unit_number>=0) THEN
+       INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    ELSE
+       file_exists=.FALSE.
+    ENDIF
     IF (file_exists) THEN
        INQUIRE (UNIT=unit_number,NAME=file_name)
        WRITE (UNIT=message,FMT="(A)")&
@@ -500,7 +507,11 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name
     LOGICAL                                  :: file_exists
 
-    INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    IF (unit_number>=0) THEN
+       INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    ELSE
+       file_exists=.FALSE.
+    ENDIF
     IF (file_exists) THEN
        INQUIRE (UNIT=unit_number,NAME=file_name)
        WRITE (UNIT=message,FMT="(A)")&

@@ -3677,11 +3677,13 @@ CONTAINS
        END IF
     ELSE
        nhc_size = 0
-       WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       TRIM(section_label)//", nhc_size "//&
-                                       "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+       IF (output_unit > 0) THEN
+          WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          TRIM(section_label)//", nhc_size "//&
+                                          "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
+                                          output_unit,para_env)
+       ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (output_unit > 0) THEN ! only ionode
@@ -3704,11 +3706,13 @@ CONTAINS
        END IF
     ELSE
        nhc_size = 0
-       WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       "nhc_size "//&
-                                       "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,IOSTAT=istat) section_label,nhc_size
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          "nhc_size "//&
+                                          "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
+                                          output_unit,para_env)
+       ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (output_unit > 0) THEN ! only ionode
@@ -3724,11 +3728,13 @@ CONTAINS
     IF (output_unit > 0) THEN ! only ionode
        ! Write particle velocities if needed
        section_label = "VELOCITIES"
-       WRITE (UNIT=output_unit,IOSTAT=istat) section_label,MERGE(natom,0,write_velocities)
-       IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
-                                       TRIM(section_label)//", write_velocities "//&
-                                       "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                       output_unit,para_env)
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,IOSTAT=istat) section_label,MERGE(natom,0,write_velocities)
+          IF (istat /= 0) CALL stop_write(routineN,moduleN,__LINE__,&
+                                          TRIM(section_label)//", write_velocities "//&
+                                          "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
+                                          output_unit,para_env)
+       ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
        IF (print_info) THEN
