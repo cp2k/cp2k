@@ -666,7 +666,6 @@ CONTAINS
 !> \param print_key ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param section the section to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE create_structure_data_section(print_key,error)
     TYPE(section_type), POINTER              :: print_key

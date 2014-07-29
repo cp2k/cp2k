@@ -164,7 +164,6 @@ CONTAINS
 !> \param nocompatibility ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param subsys the subsys containing the MM charges UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -244,7 +243,6 @@ CONTAINS
 !> \param qmmm_links ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param subsys the subsys containing the MM charges UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino

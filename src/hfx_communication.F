@@ -67,11 +67,6 @@ MODULE hfx_communication
 !> \param antisymmetric ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param last_sgf_global helper array for mapping local to global indices UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param nato m UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param para_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param particle_se t UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -216,11 +211,6 @@ MODULE hfx_communication
 !> \param diag_fac ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param last_sgf_global helper array for mapping local to global indices UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param nato m UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param para_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param particle_se t UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -341,13 +331,6 @@ MODULE hfx_communication
 !> \param scaling_factor ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param full_ks The full Kohn-Sham matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param last_sgf_global helper array for mapping local to global indices UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param nato m UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param number_of_p_entries Maximal buffer size UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param para_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param particle_se t UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -440,10 +423,9 @@ MODULE hfx_communication
 !>        a symmetric upper triangle NxN matrix
 !>        The compiler should inline this function, therefore it appears in
 !>        several modules
-!> \param i ...
-!> \param j ...
+!> \param i 2d index
+!> \param j 2d index
 !> \param N matrix size
-!> \param i,j 2d index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -474,7 +456,6 @@ MODULE hfx_communication
 !> \param map_atoms_to_cpus ...
 !> \param nkind ...
 !> \param error ...
-!> \param para_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2007 refactored [Joost VandeVondele]
 !>      07.2009 add new maps

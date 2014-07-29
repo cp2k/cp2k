@@ -77,8 +77,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief marks a given reference as cited.
-!> \param key ...
-!> \param citation key as returned from add_reference UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param key citation key as returned from add_reference
 !> \par History
 !>      XX.2007 created [ ]
 ! *****************************************************************************
@@ -212,10 +211,9 @@ CONTAINS
 !> \param cited_only print only those marked as cited
 !> \param sorted sort entries most recent first according to the date,
 !>              otherways sort with respect to key
-!> \param FORMAT ...
+!> \param FORMAT see module parameters print_format_XXXXXXXXX
 !> \param unit ...
 !> \param list optionally, output a sub-list only
-!> \param format see module parameters print_format_XXXXXXXXX UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2007 Joost VandeVondele [ ]
 ! *****************************************************************************
@@ -303,9 +301,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief printout of a specified reference to a given unit in a selectable format
 !> \param key as returned from add_reference
-!> \param FORMAT ...
+!> \param FORMAT see module parameters print_format_XXXXXXXXX
 !> \param unit ...
-!> \param format see module parameters print_format_XXXXXXXXX UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2007 Joost VandeVondele [ ]
 ! *****************************************************************************

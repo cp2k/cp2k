@@ -80,7 +80,7 @@ MODULE distribution_1d_types
 
 ! *****************************************************************************
 !> \brief pointer to a distribution_1d_type
-!> \param distribution_ 1d: the pointer to the distribution_1d
+!> \param distribution_1d: the pointer to the distribution_1d
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -93,7 +93,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a local list
-!> \param distribution_1d ...
+!> \param distribution_1d the lists to create
 !> \param para_env parallel environement to be used
 !> \param listbased_distribution if each list has its own distribution
 !>        (defaults to false)
@@ -101,7 +101,6 @@ CONTAINS
 !> \param n_lists number of lists to create (defaults to 1, or size(n_el))
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the lists to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -170,10 +169,9 @@ END SUBROUTINE distribution_1d_create
 
 ! *****************************************************************************
 !> \brief retains a distribution_1d
-!> \param distribution_1d ...
+!> \param distribution_1d  the object to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the object to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -198,10 +196,9 @@ END SUBROUTINE distribution_1d_retain
 
 ! *****************************************************************************
 !> \brief releases the given distribution_1d
-!> \param distribution_1d ...
+!> \param distribution_1d the object to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the object to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -276,12 +273,11 @@ END SUBROUTINE distribution_1d_release
 
 ! *****************************************************************************
 !> \brief sorts the given list (if not specified all)
-!> \param distribution_1d ...
+!> \param distribution_1d the lists to sort
 !> \param i_list the index of the list to sort (if not specified sorts
 !>        all the lists)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the lists to sort UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -329,7 +325,7 @@ END SUBROUTINE distribution_1d_sort_list
 
 ! *****************************************************************************
 !> \brief returns true if the given element is contained in the requested list
-!> \param distribution_1d ...
+!> \param distribution_1d the lists to be looked in
 !> \param element the element to look for
 !> \param found returns true if the element was found
 !> \param i_list_to_search index of the list to be searched (if not given
@@ -342,7 +338,6 @@ END SUBROUTINE distribution_1d_sort_list
 !>        was found (makes sense only if an element was found)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the lists to be looked in UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -395,11 +390,10 @@ END SUBROUTINE distribution_1d_search_el
 ! *****************************************************************************
 !> \brief build an array with the id of the processor that owns that index
 !>      (-1 if no processor owns it)
-!> \param distribution_1d ...
+!> \param distribution_1d the list of which you want to build the global
+!>        distribution
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the list of which you want to build the global
-!>        distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -552,11 +546,10 @@ END SUBROUTINE distribution_1d_build_gdist
 
 ! *****************************************************************************
 !> \brief deallocates the global dist array
-!> \param distribution_1d ...
+!> \param distribution_1d the list of which you want to destroy the global
+!>        distribution
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the list of which you want to destroy the global
-!>        distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -593,11 +586,10 @@ END SUBROUTINE distribution_1d_destroy_gdist
 
 ! *****************************************************************************
 !> \brief writes a description of the local distribution to the given unit
-!> \param distribution_1d ...
+!> \param distribution_1d the list to describe 
 !> \param unit_nr the unit to write to
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 1d: the list to describe UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed

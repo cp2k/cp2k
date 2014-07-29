@@ -86,11 +86,10 @@ CONTAINS
 !> \brief creates a new para environment by duplicating an environment
 !>      (and also the undelying mpi group)
 !> \param para_env the new group
-!> \param TEMPLATE ...
+!> \param TEMPLATE the environment to copy
 !> \param source the source of the new para_env, defaults to template%source
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param template the environment to copy UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

@@ -115,11 +115,10 @@ END SUBROUTINE ep_qs_release
 !> \param ep_qs_env the env to modify
 !> \param dH_coeffs_ptr new coeffs, might be null, aquires ownership of
 !>        the pointer
-!> \param dS_coeffs_ptr ...
+!> \param dS_coeffs_ptr the new coeffs, might be null, aquires ownership of
+!>        the pointer
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param dS_coeffs the new coeffs, might be null, aquires ownership of
-!>        the pointer UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)

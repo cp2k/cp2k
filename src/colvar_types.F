@@ -1383,11 +1383,10 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief Clone a colvar type
 !> \param colvar_out ...
-!> \param colvar_in ...
+!> \param colvar_in the colvar to deallocate
 !> \param i_atom_offset ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param colvar the colvar to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
   RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
@@ -1766,11 +1765,10 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief Clone points type of a colvar type
 !> \param colvar_out ...
-!> \param colvar_in ...
+!> \param colvar_in the colvar to deallocate
 !> \param offset ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param colvar the colvar to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino [tlaino] 03.2007
 ! *****************************************************************************
   SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset, error)
@@ -1824,7 +1822,6 @@ CPSourceFileRef)
 !> \param ub1_new ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param colvar the colvar to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Teodoro Laino [tlaino] 04.2006
 ! *****************************************************************************
   SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new, error)

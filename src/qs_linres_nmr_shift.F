@@ -520,7 +520,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief interpolate the shift calculated on the PW grid in order to ger
 !>       the value on arbitrary points in real space
-!> \param nmr_env ...
+!> \param nmr_env to get the shift tensor and the list of additional points
 !> \param pw_env ...
 !> \param particle_set for the atomic position
 !> \param cell to take into account the pbs, and to have the volume
@@ -529,7 +529,6 @@ CONTAINS
 !> \param idir component of the vector \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
 !> \param nmr_section ...
 !> \param error ...
-!> \param nme_env to get the shift tensor and the list of additional points UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&

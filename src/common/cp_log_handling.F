@@ -170,8 +170,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
@@ -415,8 +413,6 @@ CONTAINS
 !> \brief retains the given logger (to be called to keep a shared copy of
 !>      the logger)
 !> \param logger the logger to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -535,10 +531,6 @@ CONTAINS
 !> \brief returns the unit nr for the ionode (-1 on all other processors)
 !>        skips as well checks if the procs calling this function is not the ionode
 !> \param logger the logger you want to log in
-!> \param local if true returns a local logger (one per task), otherwise
-!>     returns a global logger (only the process with para_env%mepos==
-!>     para_env%source should write to the global logger). Defaults to
-!>     false UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval res ...
 !> \par History
 !>      12.2009 created [tlaino]
@@ -811,11 +803,10 @@ CONTAINS
 !> \brief generates a unique filename (ie adding eventual suffixes and
 !>      process ids)
 !> \param logger ...
-!> \param res ...
+!> \param res the resulting string
 !> \param root the start of filename
 !> \param postfix the end of the name
 !> \param local if the name should be local to this task (defaults to false)
-!> \param result the resulting string UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

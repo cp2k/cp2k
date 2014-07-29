@@ -225,14 +225,13 @@ END SUBROUTINE p_proj_release
 !> \param min_m the full matrix in the reduced basis
 !> \param full_m the full matrix in the full basis that gets the new
 !>        values
-!> \param start_col_full ...
+!> \param start_col_full the column of full_m at which the first column of
+!>        (i min_m) will be written (defaults to 1) 
 !> \param start_col_min ...
 !> \param ncol number of columns to set (defaults to all the columns of
 !>        min_m
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param start_col the column of full_m at which the first column of
-!>        (i min_m) will be written (defaults to 1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed

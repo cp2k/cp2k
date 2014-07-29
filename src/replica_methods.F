@@ -474,10 +474,9 @@ MODULE replica_methods
 ! *****************************************************************************
 !> \brief calculates energy and force, internal private method
 !> \param rep_env the replica env to update
-!> \param calc_f ...
+!> \param calc_f if the force should be calculated as well (defaults to true)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param if the force should be calculated as well (defaults to true) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 !> \note
 !>      this is the where the real work is done

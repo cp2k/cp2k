@@ -880,10 +880,9 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - compute a truncation radius for the shortrange operator
 !> \param eps target accuracy
-!> \param omg ...
+!> \param omg screening parameter
 !> \param r_cutoff cutoff radius 
 !> \param error ...
-!> \param omega screening parameter UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2012 created [Hossein Banihashemian]
 !> \author Hossein Banihashemian
@@ -1406,7 +1405,6 @@ MODULE hfx_types
 !> \param i_thread current thread ID
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param hfx_section HFX input section UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -1952,11 +1950,10 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine stores the data obtained from the load balance routine
 !>        for the energy
-!> \param ptr_to_distr ...
+!> \param ptr_to_distr contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param ptr_to_distr_energy contains data to store UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -1985,11 +1982,10 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine stores the data obtained from the load balance routine
 !>        for the forces
-!> \param ptr_to_distr ...
+!> \param ptr_to_distr contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param ptr_to_distr_energy contains data to store UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2021,8 +2017,6 @@ MODULE hfx_types
 !>          safety margin
 !> \param memory_parameter Memory information
 !> \param subtr_size_mb size of buffers in MB
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

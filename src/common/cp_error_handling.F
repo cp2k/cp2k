@@ -757,7 +757,6 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param failure ...
-!> \param from _ UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi

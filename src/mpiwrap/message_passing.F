@@ -674,8 +674,6 @@ CONTAINS
 !> \brief start and stop the performance indicators
 !>      for every call to start there has to be (exactly) one call to stop
 !> \param perf_env ...
-!> \param mp_comm the mpi communicator UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param scr output unit UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      2.2004 created [Joost VandeVondele]
 !> \note
@@ -868,8 +866,6 @@ CONTAINS
 !> \param count ...
 !> \param time ...
 !> \param msg_size ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE add_perf(perf_id,count,time,msg_size)
@@ -1720,7 +1716,6 @@ CONTAINS
 !> \param n_subgroups the number of subgroups wanted
 !> \param group_partition n_subgroups sized array containing the number of cpus wanted per group.
 !>                         should match the total number of cpus (only used if present and associated) (0..ngroups-1)
-!> \param output the number of the group the proc belongs to (0..ngroups-1) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2003 created [fawzi]
 !>      02.2004 modified [Joost VandeVondele]
@@ -1828,8 +1823,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Extract the processor name of a MPI process
-!> \param host_name ...
-!> \param[out] msg    The MPI process host name UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param host_name The MPI process host name
 !> \author Christiane Ribeiro Pousa
 !> \note
 !> - 2011-11-23 [UB] Copied from old ma_message_passing and correctly set 
@@ -1854,16 +1848,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief probes for an incomming message with any tag
-!> \param source ...
-!> \param comm ...
-!> \param tag ...
-!> \param comm[in] the communicator UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param source[inout] the source of the possible incomming message, 
+!> \param[inout] source the source of the possible incomming message, 
 !>        if MP_ANY_SOURCE it is a blocking one and return value is the source 
 !>        of the next incomming message
 !>        if source is a different value it is a non-blocking probe retuning 
-!>        MP_ANY_SOURCE if there is no incomming message UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param tag[out] the tag of the incomming message UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!>        MP_ANY_SOURCE if there is no incomming message 
+!> \param[in] comm the communicator 
+!> \param[out] tag the tag of the incomming message
 !> \author Mandes
 ! *****************************************************************************
   SUBROUTINE mp_probe(source, comm, tag)
@@ -2480,9 +2471,8 @@ CONTAINS
 !> \param[in] groupid    message passing environment identifier
 !> \param[out] fh        file handle (file storage unit)
 !> \param[in] filepath   path to the file 
-!> \param amode_status ...
+!> \param amode_status   access mode
 !> \param info ...
-!> \param[in] amode      access mode UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par MPI-I/O mapping  mpi_file_open 
 !> \par STREAM-I/O mapping  OPEN
 !> 

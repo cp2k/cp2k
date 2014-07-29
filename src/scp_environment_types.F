@@ -260,7 +260,6 @@ CONTAINS
 !> \param scp_env the object to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param para_env the parallel environement for the scp_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
 SUBROUTINE scp_env_create(scp_env,error)
     TYPE(scp_environment_type), POINTER      :: scp_env

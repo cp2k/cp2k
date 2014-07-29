@@ -2348,10 +2348,9 @@
 
 ! *****************************************************************************
 !> \brief Allocates special parallel memory
-!> \param DATA ...
+!> \param[in]  DATA      pointer to integer array to allocate 
 !> \param[in]  len       number of integers to allocate
 !> \param[out] stat      (optional) allocation status result
-!> \param[in]  data      pointer to integer array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author UB
 ! *****************************************************************************
   SUBROUTINE mp_allocate_r(DATA, len, stat)
@@ -2391,9 +2390,8 @@
 
 ! *****************************************************************************
 !> \brief Deallocates special parallel memory
-!> \param DATA ...
+!> \param[in] DATA         pointer to special memory to deallocate 
 !> \param stat ...
-!> \param[in] data         pointer to special memory to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author UB
 ! *****************************************************************************
   SUBROUTINE mp_deallocate_r(DATA, stat)
@@ -2745,10 +2743,9 @@
 ! *****************************************************************************
 !> \brief Allocates an array, using MPI_ALLOC_MEM ... this is hackish
 !>        as the Fortran version returns an integer, which we take to be a C_PTR
-!> \param DATA ...
+!> \param DATA           data array to allocate  
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
-!> \param data           data array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_r(DATA, len, stat)
     REAL(kind=real_4), DIMENSION(:), POINTER           :: DATA
@@ -2782,9 +2779,8 @@
 ! *****************************************************************************
 !> \brief Deallocates am array, ... this is hackish 
 !>        as the Fortran version takes an integer, which we hope to get by reference
-!> \param DATA ...
+!> \param DATA           data array to allocate
 !> \param[out] stat      (optional) allocation status result
-!> \param data           data array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
    SUBROUTINE mp_free_mem_r(DATA, stat)
     REAL(kind=real_4), DIMENSION(:), &
