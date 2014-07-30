@@ -115,7 +115,6 @@ MODULE rt_propagation_types
     TYPE(cp_fm_struct_type), POINTER            :: ao_ao_fmstruct
     INTEGER                                     :: lanzcos_max_iter
     REAL(KIND=dp)                               :: lanzcos_threshold
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE    :: sparsity
     INTEGER                                     :: newton_schulz_order
     LOGICAL                                     :: linear_scaling
  END TYPE rt_prop_type
@@ -198,8 +197,6 @@ CONTAINS
           CALL cp_dbcsr_init_p(rtp%rho%new(i)%matrix,error=error)
           CALL cp_dbcsr_create(rtp%rho%new(i)%matrix,template=template,matrix_type="N",error=error)
       END DO
-      ALLOCATE(rtp%sparsity(2*nspin),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
        CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)
@@ -456,10 +453,6 @@ CONTAINS
          CALL cp_dbcsr_deallocate_matrix_set(rtp%SinvB,error)
     IF(ASSOCIATED(rtp%history))&
          CALL rtp_history_release(rtp,error)
-    IF(rtp%linear_scaling) THEN
-         DEALLOCATE(rtp%sparsity,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
     DEALLOCATE(rtp%orders,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF(ASSOCIATED(rtp%rtp_hfx))&

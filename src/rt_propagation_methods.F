@@ -24,11 +24,11 @@ MODULE rt_propagation_methods
        cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
        cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
        cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, &
-       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -241,9 +241,6 @@ CONTAINS
     IF(rtp%converged)THEN
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error) 
-          DO i=1,SIZE(rho_new)
-             rtp%sparsity(i)=cp_dbcsr_get_occupation(rho_new(i)%matrix)
-          END DO
           IF(rtp_control%mcweeny_max_iter>0.OR.rtp_control%calc_idempotency) THEN
              IF(SIZE(rho_new)==2) THEN
                 CALL cp_dbcsr_scale(rho_new(1)%matrix,one/2,error=error)

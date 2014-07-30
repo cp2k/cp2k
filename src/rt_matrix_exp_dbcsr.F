@@ -385,12 +385,13 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary propagator (rtp)
-!> \param propagator ...
-!> \param density_re ...
-!> \param density_im ...
-!> \param filter_eps ...
-!> \param eps_exp ...
-!> \param error ...
+!>         Works for a non unitary propagator, because the density matrix is hermitian
+!> \param propagator The exponent of the matrix exponential
+!> \param density_re Real part of the density matrix
+!> \param density_im Imaginary part of the density matrix
+!> \param filter_eps The filtering threshold for all matrices
+!> \param eps_exp The accuracy of the exponential
+!> \param error The cp2k error type
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
 
@@ -488,15 +489,15 @@ END SUBROUTINE
    END SUBROUTINE
 
 ! *****************************************************************************
-!> \brief  The Baker-Campbell-Hausdorff expansion for a purely imaginary propagator (rtp)
+!> \brief  The Baker-Campbell-Hausdorff expansion for a complex propagator (rtp)
 !>         Works for a non unitary propagator, because the density matrix is hermitian
-!> \param propagator_re ...
-!> \param propagator_im ...
-!> \param density_re ...
-!> \param density_im ...
-!> \param filter_eps ...
-!> \param eps_exp ...
-!> \param error ...
+!> \param propagator_re Real part of the exponent
+!> \param propagator_im Imaginary part of the exponent
+!> \param density_re Real part of the density matrix
+!> \param density_im Imaginary part of the density matrix
+!> \param filter_eps The filtering threshold for all matrices
+!> \param eps_exp The accuracy of the exponential
+!> \param error The cp2k error type
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
 
