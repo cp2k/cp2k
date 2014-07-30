@@ -121,7 +121,7 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
   x(nt+nt/2-1)=1._dp
   loop3: DO
      nt=2*nt
-     !write(6,*) 'nd,nt',nd,nt
+     !WRITE(*,*) 'nd,nt',nd,nt
      CALL back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
      CALL dcopy(nd,y,1,x,1)
      IF (nt.EQ.nd) THEN
@@ -313,7 +313,7 @@ SUBROUTINE ftest(m,ch,cg,cgt,cht)
     REAL(KIND=dp)                            :: eps, t1, t2, t3, t4
 
 ! do i=-m,m
-! write(6,*) i,ch(i),cg(i)
+! WRITE(*,*) i,ch(i),cg(i)
 ! end do
 
   DO i=-m,m
@@ -335,18 +335,18 @@ SUBROUTINE ftest(m,ch,cg,cgt,cht)
         IF (i.eq.j) THEN
            IF (ABS(t1-1._dp).gt.eps .OR. ABS(t2-1._dp).gt.eps .OR. &
                ABS(t3).gt.eps  .OR. ABS(t4).gt.eps ) THEN
-              WRITE(6,fmt22) 'Orthogonality ERROR', i,j,t1,t2,t3,t4
+              WRITE(*,fmt22) 'Orthogonality ERROR', i,j,t1,t2,t3,t4
            END IF
         ELSE
            IF (ABS(t1).gt.eps .OR. ABS(t2).gt.eps .OR. &
                ABS(t3).gt.eps  .OR. ABS(t4).gt.eps ) THEN
-              WRITE(6,fmt22) 'Orthogonality ERROR', i,j,t1,t2,t3,t4
+              WRITE(*,fmt22) 'Orthogonality ERROR', i,j,t1,t2,t3,t4
            END IF
         END IF
      END DO
   END DO
 
-  WRITE(6,*) 'FILTER TEST PASSED'
+  WRITE(*,*) 'FILTER TEST PASSED'
 
 END SUBROUTINE ftest
 

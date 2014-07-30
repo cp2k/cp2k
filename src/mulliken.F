@@ -267,7 +267,7 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     ! analytic results vs deriv_num
     CALL restraint_functional(mulliken_restraint_control,charges, &
                                    charges_deriv,energy2,dum)
-    WRITE(6,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
+    WRITE(*,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
                                                       MAXVAL(ABS(charges_deriv))
 
     DEALLOCATE(charges_local,charges_deriv,deriv_num)

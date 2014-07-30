@@ -473,9 +473,9 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
 
          IF(loverlap_array(1)) THEN
             IF(ionode) THEN
-               WRITE(6,*) start_atom,end_atom,natoms_tot
+               WRITE(*,*) start_atom,end_atom,natoms_tot
                DO iatom=1,natoms_tot
-                  WRITE(6,*) r(1:3,iatom,1)
+                  WRITE(*,*) r(1:3,iatom,1)
                ENDDO
             ENDIF
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -571,13 +571,13 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
 ! should never have 0.0 for an old weight...causes a divide by zero
 ! in the acceptance rule
          IF(ionode) THEN
-            WRITE(6,*) boltz_weights(1:nswapmoves)
-            WRITE(6,*) start_atom,end_atom,lremove
-            WRITE(6,*) loverlap_array(1:nswapmoves)
-            WRITE(6,*) natoms_tot
-            WRITE(6,*)
+            WRITE(*,*) boltz_weights(1:nswapmoves)
+            WRITE(*,*) start_atom,end_atom,lremove
+            WRITE(*,*) loverlap_array(1:nswapmoves)
+            WRITE(*,*) natoms_tot
+            WRITE(*,*)
             DO iatom=1,natoms_tot
-               WRITE(6,*) r(1:3,iatom,1)*angstrom
+               WRITE(*,*) r(1:3,iatom,1)*angstrom
             ENDDO
          ENDIF
          CALL stop_program(routineN,moduleN,__LINE__,&
@@ -608,11 +608,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
 ! this should never be the case, but I'm testing something
          IF(lremove) THEN
             IF(ionode) THEN
-               WRITE(6,*) boltz_weights(1:nswapmoves)
-               WRITE(6,*) start_atom,end_atom,lremove
-               WRITE(6,*) loverlap_array(1:nswapmoves)
+               WRITE(*,*) boltz_weights(1:nswapmoves)
+               WRITE(*,*) start_atom,end_atom,lremove
+               WRITE(*,*) loverlap_array(1:nswapmoves)
                DO iatom=1,natoms_tot
-                  WRITE(6,*) r(1:3,iatom,1)
+                  WRITE(*,*) r(1:3,iatom,1)
                ENDDO
             ENDIF
             CALL stop_program(routineN,moduleN,__LINE__,&

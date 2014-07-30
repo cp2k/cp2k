@@ -903,7 +903,7 @@ CONTAINS
     ENDDO
     CALL mp_max(max_alpha,mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env%group)
     orthonormality=max_alpha
-    ! write(6,*) "max deviation from orthonormalization ",orthonormality
+    ! write(*,*) "max deviation from orthonormalization ",orthonormality
 
     CALL timestop(handle)
 

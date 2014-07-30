@@ -606,7 +606,7 @@ CONTAINS
 
     ! scale matrix_exp by omega, matrix_exp=omega*B_square
     CALL cp_dbcsr_scale(matrix_exp, alpha_scalar=omega, error=error)
-    ! write(6,*) alpha,omega
+    ! write(*,*) alpha,omega
 
     CALL timestop(handle)
 

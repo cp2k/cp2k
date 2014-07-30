@@ -42,7 +42,6 @@ MODULE tmc_dot_tree
   PUBLIC :: create_dot, create_global_tree_dot
 
   INTEGER :: DEBUG = 0
-  INTEGER :: tmc_out_file_nr = 6
 !  CHARACTER(LEN=30) :: filename ="tree.dot"
 
 CONTAINS
@@ -476,7 +475,7 @@ CONTAINS
          IF(.TRUE.)  WRITE(list_of_nr, *) ref_count,' | '
          tmp_pt_list_elem => tmp_pt_list_elem%next
       END DO
-      WRITE(tmc_out_file_nr,*)"mark subtree",tree_element%sub_tree_nr," node", tree_element%nr, " with status ", &
+      WRITE(*,*)"mark subtree",tree_element%sub_tree_nr," node", tree_element%nr, " with status ", &
             tree_element%stat, "ref ", TRIM(ADJUSTL(list_of_nr))
     END IF
 
@@ -508,7 +507,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(gt_tree_element),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
-     IF(DEBUG.GT.8) WRITE(tmc_out_file_nr,*)"mark global tree node color", gt_tree_element%nr, gt_tree_element%stat
+     IF(DEBUG.GT.8) WRITE(*,*)"mark global tree node color", gt_tree_element%nr, gt_tree_element%stat
      CALL write_color(node_nr=gt_tree_element%nr, stat=gt_tree_element%stat, &
                       filename=get_dot_file_name(tmc_params,0,error), error=error)
    END SUBROUTINE create_global_tree_dot_color

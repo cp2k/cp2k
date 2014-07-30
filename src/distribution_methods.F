@@ -1301,7 +1301,7 @@ CONTAINS
 
     CALL spatial_recurse(pbc_scaled_coords, costs, (/(iatom,iatom=1,natoms)/) , bin_costs, distribution,0)
 
-    ! WRITE(6,*) "Final bin costs: ",bin_costs
+    ! WRITE(*,*) "Final bin costs: ",bin_costs
 
     ! final row_distribution / col_distribution
     DO iatom=1,natoms
@@ -1351,10 +1351,10 @@ CONTAINS
        atom_costs_sorted(:)=costs
        CALL sort(atom_costs_sorted,natoms,atom_permutation)
        ibin=0
-       ! WRITE(6,*) "Dealing with a new bunch of atoms "
+       ! WRITE(*,*) "Dealing with a new bunch of atoms "
        DO iatom=natoms,1,-1
           ibin=ibin+1
-          ! WRITE(6,*) "atom",indices(atom_permutation(iatom)),"cost",atom_costs_sorted(iatom),&
+          ! WRITE(*,*) "atom",indices(atom_permutation(iatom)),"cost",atom_costs_sorted(iatom),&
           !            "bin",permutation(ibin),"its cost",bin_costs(permutation(ibin))
           ! WRITE(100,'(A,I0,3F12.6)') "A",permutation(ibin),pbc_scaled_coords(:,atom_permutation(iatom))
           bin_costs(permutation(ibin))=bin_costs(permutation(ibin))+atom_costs_sorted(iatom)

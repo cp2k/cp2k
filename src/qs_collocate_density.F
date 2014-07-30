@@ -3862,7 +3862,7 @@ END SUBROUTINE calculate_rho_resp_all
         ENDDO
       ENDDO
       !t2=nanotime_ia32()
-      !write(6,*) t2-t1
+      !write(*,*) t2-t1
       ! deallocation needed to pass around a pgi bug..
       DEALLOCATE(coef_ijk)
       DEALLOCATE(coef_map)

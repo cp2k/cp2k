@@ -950,7 +950,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,1.0_dp,matrix_tmp,error=error)
 
     ! preconditioner shift, we target the middle of the occupied spectrum, and taking into account the error_estimate
-    ! write(6,*) "Error estimate = ",error_estimate
+    ! write(*,*) "Error estimate = ",error_estimate
     preconditioner_shift=-(MINVAL(c0_evals)+ MAXVAL(c0_evals))/2.0_dp + &
                            error_estimate*fudge_factor
     CALL copy_dbcsr_to_fm(matrix_s,matrix_tmp,error=error)
@@ -964,7 +964,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
        CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error=error)
 
        CALL cp_fm_release(matrix_tmp2,error=error)
-       WRITE(6,*) "evals ",evals
+       WRITE(*,*) "evals ",evals
        DEALLOCATE(evals)
     ENDIF
 
@@ -1105,7 +1105,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
         ALLOCATE(norms(k))
         CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
         CALL choose_eigv_solver(matrix_s1,matrix_s2,norms,error=error)
-        WRITE(6,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
+        WRITE(*,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
         DEALLOCATE(norms)
         CALL cp_fm_release(matrix_s1,error=error)
         CALL cp_fm_release(matrix_s2,error=error)
@@ -1729,7 +1729,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
     CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,1.0_dp,matrix_tmp,error=error)
 
     ! preconditioner shift, we target the middle of the occupied spectrum, and taking into account the error_estimate
-    ! write(6,*) "Error estimate = ",error_estimate
+    ! write(*,*) "Error estimate = ",error_estimate
     preconditioner_shift=-(MINVAL(c0_evals)+ MAXVAL(c0_evals))/2.0_dp + &
                            error_estimate*fudge_factor
     CALL cp_fm_set_all(matrix_tmp,alpha=0._dp,beta=1._dp,error=error)
@@ -1741,7 +1741,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
        ALLOCATE(evals(n))
        CALL choose_eigv_solver(matrix_tmp,matrix_tmp2,evals,error=error)
        CALL cp_fm_release(matrix_tmp2,error=error)
-       WRITE(6,*) "evals ",evals
+       WRITE(*,*) "evals ",evals
        DEALLOCATE(evals)
     ENDIF
 
@@ -1865,7 +1865,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
         CALL cp_gemm('T','N',k,k,n,1.0_dp,matrix_sc0,matrix_tmp,0.0_dp,matrix_s1,error=error)
         CALL choose_eigv_solver(matrix_s1,matrix_s2,norms,error=error)
 
-        WRITE(6,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
+        WRITE(*,*) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms)-1.0_dp))
         DEALLOCATE(norms)
         CALL cp_fm_release(matrix_s1,error=error)
         CALL cp_fm_release(matrix_s2,error=error)

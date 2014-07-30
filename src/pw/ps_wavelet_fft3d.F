@@ -214,7 +214,7 @@ CONTAINS
 111        CONTINUE
         PRINT*,'VALUE OF',n,'NOT ALLOWED FOR FFT, ALLOWED VALUES ARE:'
 37        FORMAT(15(i5))
-        WRITE(6,37) (idata(1,i),i=1,149)
+        WRITE(*,37) (idata(1,i),i=1,149)
         STOP
 1000        CONTINUE
 

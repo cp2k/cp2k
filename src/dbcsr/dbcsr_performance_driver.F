@@ -13,7 +13,6 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_performance_driver
-
   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -29,6 +28,7 @@ PROGRAM dbcsr_performance_driver
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
   USE kinds,                           ONLY: default_string_length
+  USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_cart_create,&
                                              mp_cart_rank,&
@@ -82,7 +82,7 @@ PROGRAM dbcsr_performance_driver
   !
   ! set standard output parameters
   io_unit = 0
-  IF (mynode.EQ.0) io_unit = 6
+  IF (mynode.EQ.0) io_unit = default_output_unit
 
   !
   ! read and distribute input args

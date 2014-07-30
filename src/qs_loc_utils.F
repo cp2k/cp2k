@@ -210,9 +210,9 @@ CONTAINS
 
     ! XXXXXXX testing
     ! CALL cp_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
-    ! WRITE(6,*) o1%local_data
+    ! WRITE(*,*) o1%local_data
     ! CALL cp_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
-    ! WRITE(6,*) o1%local_data
+    ! WRITE(*,*) o1%local_data
 
     CALL cp_fm_release(o1,error=error)
     CALL cp_fm_release(o2,error=error)

@@ -198,7 +198,7 @@ CONTAINS
      IF ( mx*my == 0 ) THEN
        f = 1.0_dp
      ELSE IF ( m == 0 ) THEN
-       IF(ABS(mx) /= ABS(my)) WRITE(6,'(A,3I6)') " 1) Illegal Case ",m1,m2,m
+       IF(ABS(mx) /= ABS(my)) WRITE(*,'(A,3I6)') " 1) Illegal Case ",m1,m2,m
        IF(mx*my > 0) THEN
          f = 1.0_dp
        ELSE
@@ -210,14 +210,14 @@ CONTAINS
      ELSE IF ( ABS(mx)+ABS(my) == -m ) THEN
        f = osq2
      ELSE IF ( ABS(mx)-ABS(my) == -m ) THEN
-       IF(mx*my > 0) WRITE(6,'(A,3I6)') " 2) Illegal Case ",m1,m2,m
+       IF(mx*my > 0) WRITE(*,'(A,3I6)') " 2) Illegal Case ",m1,m2,m
        IF( mx > 0 ) f = -osq2
        IF( mx < 0 ) f = osq2
      ELSE IF ( ABS(mx)-ABS(my) == m ) THEN
-       IF(mx*my < 0) WRITE(6,'(A,3I6)') " 3) Illegal Case ",m1,m2,m
+       IF(mx*my < 0) WRITE(*,'(A,3I6)') " 3) Illegal Case ",m1,m2,m
        f = osq2
      ELSE
-       WRITE(6,'(A,3I6)') " 4) Illegal Case ",m1,m2,m
+       WRITE(*,'(A,3I6)') " 4) Illegal Case ",m1,m2,m
      END IF
   END FUNCTION get_factor
 
@@ -325,8 +325,8 @@ CONTAINS
 ! m1 >= 0; m2 >= 0; mp >= 0
 
     IF ( m1<0 .OR. m2<0 .OR. mp<0 ) THEN
-       WRITE(6,*) l1,l2,lp
-       WRITE(6,*) m1,m2,mp
+       WRITE(*,*) l1,l2,lp
+       WRITE(*,*) m1,m2,mp
        CALL stop_program(routineN,moduleN,__LINE__,"Illegal input values")
     END IF
     IF ( l2 < l1 ) THEN

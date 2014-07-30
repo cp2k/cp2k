@@ -102,9 +102,9 @@ SUBROUTINE clebsch_gordon_test (error)
                il = lp/2 + 1
                ca = cga(il)
                IF ( ABS(ca-cn) > 1.e-10_dp ) THEN
-                  WRITE ( 6, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
-                  WRITE ( 6, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mp," N ",cn
-                  WRITE ( 6, * )
+                  WRITE ( *, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
+                  WRITE ( *, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mp," N ",cn
+                  WRITE ( *, * )
                END IF
              END DO
            END DO
@@ -137,9 +137,9 @@ SUBROUTINE clebsch_gordon_test (error)
                  il = lp/2 + 1
                  ca = rga(il,1)
                  IF ( ABS(ca-cn) > 1.e-10_dp ) THEN
-                    WRITE ( 6, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
-                    WRITE ( 6, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mp," N ",cn
-                    WRITE ( 6, * )
+                    WRITE ( *, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
+                    WRITE ( *, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mp," N ",cn
+                    WRITE ( *, * )
                  END IF
                END IF
                IF ( mp /= mm .AND. ABS(mm) <= lp ) THEN
@@ -148,9 +148,9 @@ SUBROUTINE clebsch_gordon_test (error)
                  il = lp/2 + 1
                  ca = rga(il,2)
                  IF ( ABS(ca-cn) > 1.e-10_dp ) THEN
-                    WRITE ( 6, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
-                    WRITE ( 6, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mm," N ",cn
-                    WRITE ( 6, * )
+                    WRITE ( *, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
+                    WRITE ( *, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mm," N ",cn
+                    WRITE ( *, * )
                  END IF
                END IF
              END DO

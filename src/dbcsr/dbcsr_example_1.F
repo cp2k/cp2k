@@ -21,6 +21,7 @@ PROGRAM dbcsr_example_1
        dbcsr_finalize_lib, dbcsr_init, dbcsr_init_lib, dbcsr_mp_new, &
        dbcsr_mp_obj, dbcsr_mp_release, dbcsr_obj, dbcsr_print, dbcsr_release, &
        dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
+  USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_rank,&
                                              mp_comm_free,&
@@ -89,7 +90,7 @@ PROGRAM dbcsr_example_1
   !
   ! set standard output parameters
   io_unit = 0
-  IF (mynode.EQ.0) io_unit = 6
+  IF (mynode.EQ.0) io_unit = default_output_unit
 
   !
   ! the matrix will contain nblkrows_total row blocks and nblkcols_total column blocks

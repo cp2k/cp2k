@@ -1575,7 +1575,7 @@ CONTAINS
        DEALLOCATE(scaling_factor,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       WRITE(6,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
+       WRITE(*,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
        CALL cp_fm_release(gradient,error=error)
     ENDIF
 

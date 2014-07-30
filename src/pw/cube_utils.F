@@ -112,7 +112,7 @@ CONTAINS
             ! This error can invariably be fixed by improving the computation of maxradius
             ! in the call to init_cube_info
             !
-            WRITE(6,*) info%max_rad_ga,radius
+            WRITE(*,*) info%max_rad_ga,radius
             CALL stop_program(routineN,moduleN,__LINE__,"Called with too large radius.")
     ENDIF
 

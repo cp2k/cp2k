@@ -200,7 +200,7 @@ CONTAINS
     CALL search(unit,TRIM(section),line,stat=stat)
 
     IF (stat/=0) THEN 
-       WRITE(6,*)"Pattern: "//TRIM(section)//" not found in input file!"
+       WRITE(*,*)"Pattern: "//TRIM(section)//" not found in input file!"
        STOP "Search failed!"
     END IF
 

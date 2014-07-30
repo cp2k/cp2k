@@ -96,7 +96,8 @@ MODULE cp2k_runs
                                              default_string_length,&
                                              dp
   USE library_tests,                   ONLY: lib_test
-  USE machine,                         ONLY: m_chdir,&
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_chdir,&
                                              m_flush,&
                                              m_getcwd,&
                                              m_walltime
@@ -927,7 +928,7 @@ CONTAINS
        ! remove the default keyword that ignores things outside the section
        CALL keyword_release(root_section%keywords(0)%keyword,error=error)
 
-       CALL section_describe_html(root_section,"InputReference",0,6,error=error)
+       CALL section_describe_html(root_section,"InputReference",0,default_output_unit,error=error)
 
        CALL open_file(unit_number=unit_nr,file_name="index.html",&
             file_action="WRITE", file_status="REPLACE")
@@ -1155,7 +1156,7 @@ CONTAINS
 !> \param input_declaration ...
 !> \param input_file_path the path of the input file
 !> \param output_file_path path of the output file (to which it is appended)
-!>        if it is "__STD_OUT__" the unit 6 is used
+!>        if it is "__STD_OUT__" the default_output_unit is used
 !> \param ierr will return a number different from 0 if there was an error
 !> \param mpi_comm the mpi communicator to be used for this environment
 !>        it will not be freed
@@ -1188,7 +1189,7 @@ CONTAINS
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
-          unit_nr=6
+          unit_nr=default_output_unit
        ELSE
           CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&

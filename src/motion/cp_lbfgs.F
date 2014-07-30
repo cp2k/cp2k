@@ -743,7 +743,7 @@ CONTAINS
       CALL projgr(n,l,u,nbd,x,g,sbgnrm)
 
       IF (iprint >= 1) THEN
-         WRITE (6,1002) iter,f,sbgnrm
+         WRITE (*,1002) iter,f,sbgnrm
          WRITE (itfile,1003) iter,nfgv,sbgnrm,f
       END IF
       IF (sbgnrm <= pgtol) THEN
@@ -755,7 +755,7 @@ CONTAINS
 ! ----------------- the beginning of the loop --------------------------
 
   222 CONTINUE
-      IF (iprint >= 99) WRITE (6,1001) iter + 1
+      IF (iprint >= 99) WRITE (*,1001) iter + 1
       iword = -1
 !
       IF (.NOT. cnstnd .AND. col > 0) THEN
@@ -779,7 +779,7 @@ CONTAINS
                   iprint, sbgnrm, info, epsmch)
       IF (info /= 0) THEN
 !         singular triangular system detected; refresh the lbfgs memory.
-         IF(iprint >= 1) WRITE (6, 1005)
+         IF(iprint >= 1) WRITE (*, 1005)
          info   = 0
          col    = 0
          head   = 1
@@ -827,7 +827,7 @@ CONTAINS
       IF (info /= 0) THEN
 !          nonpositive definiteness in Cholesky factorization;
 !          refresh the lbfgs memory and restart the iteration.
-         IF(iprint >= 1) WRITE (6, 1006)
+         IF(iprint >= 1) WRITE (*, 1006)
          info   = 0
          col    = 0
          head   = 1
@@ -853,7 +853,7 @@ CONTAINS
       IF (info /= 0) THEN
 !          singular triangular system detected;
 !          refresh the lbfgs memory and restart the iteration.
-         IF(iprint >= 1) WRITE (6, 1005)
+         IF(iprint >= 1) WRITE (*, 1005)
          info   = 0
          col    = 0
          head   = 1
@@ -904,7 +904,7 @@ CONTAINS
             GOTO 999
          ELSE
 !             refresh the lbfgs memory and restart the iteration.
-            IF(iprint >= 1) WRITE (6, 1008)
+            IF(iprint >= 1) WRITE (*, 1008)
             IF (info == 0) nfgv = nfgv - 1
             info   = 0
             col    = 0
@@ -974,7 +974,7 @@ CONTAINS
 !                            skip the L-BFGS update.
          nskip = nskip + 1
          updatd = .FALSE.
-         IF (iprint >= 1) WRITE (6,1004) dr, ddum
+         IF (iprint >= 1) WRITE (*,1004) dr, ddum
          GOTO 888
       END IF
 
@@ -1002,7 +1002,7 @@ CONTAINS
       IF (info /= 0) THEN
 !          nonpositive definiteness in Cholesky factorization;
 !          refresh the lbfgs memory and restart the iteration.
-         IF(iprint >= 1) WRITE (6, 1007)
+         IF(iprint >= 1) WRITE (*, 1007)
          info = 0
          col = 0
          head = 1
@@ -1200,13 +1200,13 @@ CONTAINS
    20 CONTINUE
 
       IF (iprint >= 0) THEN
-         IF (prjctd) WRITE (6,*)                                        &
+         IF (prjctd) WRITE (*,*)                                        &
      &   'The initial X is infeasible.  Restart with its projection.'
          IF (.NOT. cnstnd)                                              &
-            WRITE (6,*) 'This problem is unconstrained.'
+            WRITE (*,*) 'This problem is unconstrained.'
       END IF
 
-      IF (iprint > 0) WRITE (6,1001) nbdd
+      IF (iprint > 0) WRITE (*,1001) nbdd
 
  1001 FORMAT (/,'At X0 ',i9,' variables are exactly at the bounds')
 
@@ -1589,7 +1589,7 @@ CONTAINS
 !       the derivative f1 and the vector p = W'd (for theta = 1).
 
       IF (sbgnrm <= zero) THEN
-         IF (iprint >= 0) WRITE (6,*) 'Subgnorm = 0.  GCP = X.'
+         IF (iprint >= 0) WRITE (*,*) 'Subgnorm = 0.  GCP = X.'
          CALL dcopy(n,x,1,xcp,1)
          RETURN
       END IF
@@ -1600,7 +1600,7 @@ CONTAINS
       bkmin = zero
       col2 = 2*col
       f1 = zero
-      IF (iprint >= 99) WRITE (6,3010)
+      IF (iprint >= 99) WRITE (*,3010)
 
 !     We set p to zero and build it up as we determine d.
 
@@ -1690,7 +1690,7 @@ CONTAINS
 
       IF (nbreak == 0 .AND. nfree == n + 1) THEN
 !                  is a zero vector, return with the initial xcp as GCP.
-         IF (iprint > 100) WRITE (6,1010) (xcp(i), i = 1, n)
+         IF (iprint > 100) WRITE (*,1010) (xcp(i), i = 1, n)
          RETURN
       END IF
 
@@ -1713,7 +1713,7 @@ CONTAINS
       tsum = zero
       nseg = 1
       IF (iprint >= 99)                                               &
-         WRITE (6,*) 'There are ',nbreak,'  breakpoints '
+         WRITE (*,*) 'There are ',nbreak,'  breakpoints '
 
 !     If there are no breakpoints, locate the GCP and return.
 
@@ -1758,9 +1758,9 @@ CONTAINS
       dt = tj - tj0
 
       IF (dt /= zero .AND. iprint >= 100) THEN
-         WRITE (6,4011) nseg,f1,f2
-         WRITE (6,5010) dt
-         WRITE (6,6010) dtm
+         WRITE (*,4011) nseg,f1,f2
+         WRITE (*,5010) dt
+         WRITE (*,6010) dtm
       END IF
 
 !     If a minimizer is within this interval, locate the GCP and return.
@@ -1784,7 +1784,7 @@ CONTAINS
          xcp(ibp) = l(ibp)
          iwhere(ibp) = 1
       END IF
-      IF (iprint >= 100) WRITE (6,*) 'Variable  ',ibp,'  is fixed.'
+      IF (iprint >= 100) WRITE (*,*) 'Variable  ',ibp,'  is fixed.'
       IF (nleft == 0 .AND. nbreak == n) THEN
 !                                             all n variables are fixed,
 !                                                return with xcp as GCP.
@@ -1848,10 +1848,10 @@ CONTAINS
 
   888 CONTINUE
       IF (iprint >= 99) THEN
-         WRITE (6,*)
-         WRITE (6,*) 'GCP found in this segment'
-         WRITE (6,4010) nseg,f1,f2
-         WRITE (6,6010) dtm
+         WRITE (*,*)
+         WRITE (*,*) 'GCP found in this segment'
+         WRITE (*,4010) nseg,f1,f2
+         WRITE (*,6010) dtm
       END IF
       IF (dtm <= zero) dtm = zero
       tsum = tsum + dtm
@@ -1867,8 +1867,8 @@ CONTAINS
 !       which will be used in computing r = Z'(B(x^c - x) + g).
 
       IF (col > 0) CALL daxpy(col2,dtm,p,1,c,1)
-      IF (iprint > 100) WRITE (6,1010) (xcp(i),i = 1,n)
-      IF (iprint >= 99) WRITE (6,2010)
+      IF (iprint > 100) WRITE (*,1010) (xcp(i),i = 1,n)
+      IF (iprint >= 99) WRITE (*,2010)
 
  1010 FORMAT ('Cauchy X =  ',/,(4x,1p,6(1x,d11.4)))
  2010 FORMAT (/,'---------------- exit CAUCHY----------------------',/)
@@ -2551,13 +2551,13 @@ CONTAINS
          DO 20 i = 1, nfree
             k = INDEX(i)
 
-!            write(6,*) ' k  = index(i) ', k
-!            write(6,*) ' index = ', i
+!            write(*,*) ' k  = index(i) ', k
+!            write(*,*) ' index = ', i
 
             IF (iwhere(k) > 0) THEN
                ileave = ileave - 1
                indx2(ileave) = k
-               IF (iprint >= 100) WRITE (6,*)                         &
+               IF (iprint >= 100) WRITE (*,*)                         &
      &             'Variable ',k,' leaves the set of free variables'
             END IF
    20    CONTINUE
@@ -2566,11 +2566,11 @@ CONTAINS
             IF (iwhere(k) <= 0) THEN
                nenter = nenter + 1
                indx2(nenter) = k
-               IF (iprint >= 100) WRITE (6,*)                         &
+               IF (iprint >= 100) WRITE (*,*)                         &
      &             'Variable ',k,' enters the set of free variables'
             END IF
    22    CONTINUE
-         IF (iprint >= 99) WRITE (6,*)                                &
+         IF (iprint >= 99) WRITE (*,*)                                &
              n+1-ileave,' variables leave; ',nenter,' variables enter'
       END IF
       wrk = (ileave < n+1) .OR. (nenter > 0) .OR. updatd
@@ -2588,7 +2588,7 @@ CONTAINS
             INDEX(iact) = i
          END IF
    24 CONTINUE
-      IF (iprint >= 99) WRITE (6,*)                                   &
+      IF (iprint >= 99) WRITE (*,*)                                   &
             nfree,' variables are free at GCP ',iter + 1
 
       RETURN
@@ -2855,7 +2855,7 @@ CONTAINS
          IF (gd >= zero) THEN
 !                               the directional derivative >=0.
 !                               Line search is impossible.
-            WRITE(6,*)' ascent direction in projection gd = ', gd
+            WRITE(*,*)' ascent direction in projection gd = ', gd
             info = -4
             RETURN
          END IF
@@ -3036,16 +3036,16 @@ CONTAINS
 !     ************
 
       IF (iprint >= 0) THEN
-         WRITE (6,7001) epsmch
-         WRITE (6,*) 'N = ',n,'    M = ',m
+         WRITE (*,7001) epsmch
+         WRITE (*,*) 'N = ',n,'    M = ',m
          IF (iprint >= 1) THEN
             WRITE (itfile,2001) epsmch
             WRITE (itfile,*)'N = ',n,'    M = ',m
             WRITE (itfile,9001)
             IF (iprint > 100) THEN
-               WRITE (6,1004) 'L =',(l(i),i = 1,n)
-               WRITE (6,1004) 'X0 =',(x(i),i = 1,n)
-               WRITE (6,1004) 'U =',(u(i),i = 1,n)
+               WRITE (*,1004) 'L =',(l(i),i = 1,n)
+               WRITE (*,1004) 'X0 =',(x(i),i = 1,n)
+               WRITE (*,1004) 'U =',(u(i),i = 1,n)
             END IF
          END IF
       END IF
@@ -3146,15 +3146,15 @@ CONTAINS
          word = '---'
       END IF
       IF (iprint >= 99) THEN
-         WRITE (6,*) 'LINE SEARCH',iback,' times; norm of step = ',xstep
-         WRITE (6,2001) iter,f,sbgnrm
+         WRITE (*,*) 'LINE SEARCH',iback,' times; norm of step = ',xstep
+         WRITE (*,2001) iter,f,sbgnrm
          IF (iprint > 100) THEN
-            WRITE (6,1004) 'X =',(x(i), i = 1, n)
-            WRITE (6,1004) 'G =',(g(i), i = 1, n)
+            WRITE (*,1004) 'X =',(x(i), i = 1, n)
+            WRITE (*,1004) 'G =',(g(i), i = 1, n)
          END IF
       ELSE IF (iprint > 0) THEN
          imod = MOD(iter,iprint)
-         IF (imod == 0) WRITE (6,2001) iter,f,sbgnrm
+         IF (imod == 0) WRITE (*,2001) iter,f,sbgnrm
       END IF
       IF (iprint >= 1) WRITE (itfile,3001)                            &
                 iter,nfgv,nseg,nact,word,iback,stp,xstep,sbgnrm,f
@@ -3240,31 +3240,31 @@ CONTAINS
       IF (task(1:5) == 'ERROR') GOTO 999
 
       IF (iprint >= 0) THEN
-         WRITE (6,3003)
-         WRITE (6,3004)
-         WRITE(6,3005) n,iter,nfgv,nintol,nskip,nact,sbgnrm,f
+         WRITE(*,3003)
+         WRITE(*,3004)
+         WRITE(*,3005) n,iter,nfgv,nintol,nskip,nact,sbgnrm,f
          IF (iprint >= 100) THEN
-            WRITE (6,1004) 'X =',(x(i),i = 1,n)
+            WRITE (*,1004) 'X =',(x(i),i = 1,n)
          END IF
-         IF (iprint >= 1) WRITE (6,*) ' F =',f
+         IF (iprint >= 1) WRITE (*,*) ' F =',f
       END IF
   999 CONTINUE
       IF (iprint >= 0) THEN
-         WRITE (6,3009) task
+         WRITE (*,3009) task
          IF (info /= 0) THEN
-            IF (info == -1) WRITE (6,9011)
-            IF (info == -2) WRITE (6,9012)
-            IF (info == -3) WRITE (6,9013)
-            IF (info == -4) WRITE (6,9014)
-            IF (info == -5) WRITE (6,9015)
-            IF (info == -6) WRITE (6,*)' Input nbd(',k,') is invalid.'
+            IF (info == -1) WRITE (*,9011)
+            IF (info == -2) WRITE (*,9012)
+            IF (info == -3) WRITE (*,9013)
+            IF (info == -4) WRITE (*,9014)
+            IF (info == -5) WRITE (*,9015)
+            IF (info == -6) WRITE (*,*)' Input nbd(',k,') is invalid.'
             IF (info == -7)                                           &
-            WRITE (6,*)' l(',k,') > u(',k,').  No feasible solution.'
-            IF (info == -8) WRITE (6,9018)
-            IF (info == -9) WRITE (6,9019)
+            WRITE (*,*)' l(',k,') > u(',k,').  No feasible solution.'
+            IF (info == -8) WRITE (*,9018)
+            IF (info == -9) WRITE (*,9019)
          END IF
-         IF (iprint >= 1) WRITE (6,3007) cachyt,sbtime,lnscht
-         WRITE (6,3008) time
+         IF (iprint >= 1) WRITE (*,3007) cachyt,sbtime,lnscht
+         WRITE (*,3008) time
          IF (iprint >= 1) THEN
             IF (info == -4 .OR. info == -9) THEN
                WRITE (itfile,3002)                                      &
@@ -3619,7 +3619,7 @@ CONTAINS
 !
 
       IF (nsub <= 0) RETURN
-      IF (iprint >= 99) WRITE (6,1001)
+      IF (iprint >= 99) WRITE (*,1001)
 
 !     Compute wv = W'Zd.
 
@@ -3716,8 +3716,8 @@ CONTAINS
    55 CONTINUE
       IF ( dd_p .gt.zero ) THEN
          CALL dcopy( n, xp, 1, x, 1 )
-         WRITE(6,*) ' Positive dir derivative in projection '
-         WRITE(6,*) ' Using the backtracking step '
+         WRITE(*,*) ' Positive dir derivative in projection '
+         WRITE(*,*) ' Using the backtracking step '
       ELSE
          go to 911
       END IF
@@ -3771,7 +3771,7 @@ CONTAINS
 !ccccc
   911 CONTINUE
 
-      IF (iprint >= 99) WRITE (6,1004)
+      IF (iprint >= 99) WRITE (*,1004)
 
  1001 FORMAT (/,'----------------SUBSM entered-----------------',/)
  1004 FORMAT (/,'----------------exit SUBSM --------------------',/)

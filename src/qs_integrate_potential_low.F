@@ -525,7 +525,7 @@ CONTAINS
       cubecenter(:) = FLOOR(gp)
 
       !t2=nanotime_ia32()
-      !write(6,*) t2-t1
+      !write(*,*) t2-t1
       !t1=nanotime_ia32()
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)

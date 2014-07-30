@@ -606,8 +606,8 @@ CONTAINS
                 rho=orb_rho_r,rho_gspace=orb_rho_g, total_rho=total_rho,&
                 qs_env=qs_env, error=error)
 
-       ! write(6,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
-       ! write(6,*) 'Total orbital rho= ',total_rho
+       ! write(*,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
+       ! write(*,*) 'Total orbital rho= ',total_rho
 
        ! compute the energy functional for this orbital and its derivative
 

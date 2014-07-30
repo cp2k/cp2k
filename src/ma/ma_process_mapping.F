@@ -10,7 +10,6 @@
 !> <b>Modification history:</b>
 !> - Created 2012-01-17
 MODULE ma_process_mapping
-
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_stop
   USE ma_kinds,                        ONLY: dp,&
@@ -453,7 +452,6 @@ SUBROUTINE ma_round_robin(mp_new_comm,mp_comm)
     INTEGER, INTENT(IN)                      :: mp_comm
 
 #if defined(__parallel)
-    INTEGER                                  :: unit_nr
 #if defined(__HWLOC)
     INTEGER                                  :: i, ind, n, ncores, nnodes, &
                                                 numtask, rounds, stat, taskid
@@ -499,14 +497,12 @@ SUBROUTINE ma_round_robin(mp_new_comm,mp_comm)
       IF(ASSOCIATED(ranks_order)) DEALLOCATE(ranks_order,stat=stat)
       IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
     ELSE
-       unit_nr = 6
-       WRITE(unit_nr,'(T2,A,A)') "WARNING: round-robin not", &
+       WRITE(*,'(T2,A,A)') "WARNING: round-robin not", &
             " applied"
        mp_new_comm = mp_comm
     ENDIF
 #else
-   unit_nr = 6
-   WRITE(unit_nr,'(T2,A,A)') "WARNING: You need hwloc library", &
+   WRITE(*,'(T2,A,A)') "WARNING: You need hwloc library", &
             " to use round-robin strategy"
     mp_new_comm = mp_comm
 #endif

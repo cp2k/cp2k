@@ -1995,7 +1995,7 @@ CONTAINS
        END DO
 
        !IF (desc%my_pos==0) THEN
-       ! WRITE(6,*) "Total replicated load is ",replicated_load
+       ! WRITE(*,*) "Total replicated load is ",replicated_load
        !END IF
 
        ! Now we adjust the rank ordering based on the current loads
@@ -2081,11 +2081,11 @@ CONTAINS
        !END DO
 
        !IF (desc%my_pos==0) THEN
-       !  WRITE(6,*) ""
-       !  WRITE(6,*) "At the end of the load balancing procedure"
-       !  WRITE(6,*) "Maximum  load:",MAXVAL(total_loads)
-       !  WRITE(6,*) "Average  load:",SUM(total_loads)/SIZE(total_loads)
-       !  WRITE(6,*) "Minimum  load:",MINVAL(total_loads)
+       !  WRITE(*,*) ""
+       !  WRITE(*,*) "At the end of the load balancing procedure"
+       !  WRITE(*,*) "Maximum  load:",MAXVAL(total_loads)
+       !  WRITE(*,*) "Average  load:",SUM(total_loads)/SIZE(total_loads)
+       !  WRITE(*,*) "Minimum  load:",MINVAL(total_loads)
        !ENDIF
 
        ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
@@ -2105,8 +2105,8 @@ CONTAINS
        ! natom_send=SIZE(atom_pair_send)
        ! CALL mp_sum(natom_send,desc%group)
        ! IF (desc%my_pos==0) THEN
-       !     WRITE(6,*) ""
-       !     WRITE(6,*) "Total number of atomic blocks to be send:",natom_send
+       !     WRITE(*,*) ""
+       !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
        ! ENDIF
 
        ALLOCATE (atom_pair_recv(ntasks_recv),STAT=stat)

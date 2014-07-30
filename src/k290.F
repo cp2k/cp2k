@@ -11,6 +11,7 @@
 MODULE k290
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: default_output_unit
   USE mathlib,                         ONLY: invmat
   USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
@@ -268,7 +269,7 @@ CONTAINS
     IF ( PRESENT(unit) ) THEN
        csym%punit = unit
     ELSE
-       csym%punit = 6
+       csym%punit = default_output_unit
     END IF
     IF ( PRESENT(delta) ) THEN
        csym%delta = delta

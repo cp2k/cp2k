@@ -99,7 +99,7 @@ CONTAINS
          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                   routineP,"try to add deleted element cancelation list ",&
                   error,failure)
-         WRITE(6,*)"WARNING: try to cancel subtree, element ",elem%sub_tree_nr, elem%nr, ", with status ", elem%stat
+         WRITE(*,*)"WARNING: try to cancel subtree, element ",elem%sub_tree_nr, elem%nr, ", with status ", elem%stat
       CASE DEFAULT
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"try to add element with unknown status to cancelation list (stat="&

@@ -56,7 +56,6 @@ MODULE tmc_messages
   INTEGER, PARAMETER                         :: message_end_flag = 25
 
   INTEGER, PARAMETER                         :: DEBUG = 0
-  INTEGER, PARAMETER                         :: tmc_out_file_nr =6
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_messages'
 
@@ -181,10 +180,10 @@ CONTAINS
       IF((DEBUG.GE.7).AND.(dest.NE.bcast_group).AND.&
          (dest.NE.MASTER_COMM_ID)) THEN
          IF(PRESENT(elem)) THEN
-           WRITE(tmc_out_file_nr,*)"send element info to ", dest, " of type ", msg_type,"of subtree", elem%sub_tree_nr, &
+           WRITE(*,*)"send element info to ", dest, " of type ", msg_type,"of subtree", elem%sub_tree_nr, &
                                    "elem", elem%nr
          ELSE
-           WRITE(tmc_out_file_nr,*)"send element info to ", dest, " of type ", msg_type
+           WRITE(*,*)"send element info to ", dest, " of type ", msg_type
          END IF
       END IF
       SELECT CASE (msg_type)
@@ -239,7 +238,7 @@ CONTAINS
         !TODO send characters CALL mp_send(m_send%task_char, dest, message_tag, para_env%group)
       END IF
       IF(DEBUG.GE.1) &
-        WRITE(tmc_out_file_nr,*)"TMC|message: ID: ",para_env%mepos, &
+        WRITE(*,*)"TMC|message: ID: ",para_env%mepos, &
           " send element info to   ", dest, " of stat ", m_send%info(1), &
           " with size int/real/char", m_send%info(2:), " with comm ", &
           para_env%group, " and tag ", message_tag
@@ -318,7 +317,7 @@ CONTAINS
         CALL mp_recv(m_send%info, dest, message_tag, para_env%group)
       END IF
       IF(DEBUG.GE.1) &
-        WRITE(tmc_out_file_nr,*)"TMC|message: ID: ",para_env%mepos, &
+        WRITE(*,*)"TMC|message: ID: ",para_env%mepos, &
           " recv element info from ", dest, " of stat ", m_send%info(1), &
           " with size int/real/char", m_send%info(2:)
        !-- receive message integer part
@@ -1041,7 +1040,7 @@ CONTAINS
        counter = 1
        IF(elem%sub_tree_nr .NE. m_send%task_int(counter+1) .OR. &
           elem%nr .NE. m_send%task_int(counter+3)) THEN
-          WRITE(6,*)"ERROR: read_energy_result: master got energy result of subtree elem ", &
+          WRITE(*,*)"ERROR: read_energy_result: master got energy result of subtree elem ", &
                     m_send%task_int(counter+1),  m_send%task_int(counter+3), &
                     " but expect result of subtree elem", elem%sub_tree_nr, elem%nr
           STOP "read_energy_result: got energy result from unexpected tree element."

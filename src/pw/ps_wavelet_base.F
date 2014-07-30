@@ -151,7 +151,7 @@ CONTAINS
     ! transform along z axis
     lot=ncache/(4*n3)
     IF (lot.LT.1) THEN
-       WRITE(6,*) &
+       WRITE(*,*) &
             'convolxc_off:ncache has to be enlarged to be able to hold at' // &
             'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths'
@@ -205,7 +205,7 @@ CONTAINS
           ! transform along x axis
           lot=ncache/(4*n1)
           IF (lot.LT.1) THEN
-             WRITE(6,*) &
+             WRITE(*,*) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
@@ -245,7 +245,7 @@ CONTAINS
           !transform along y axis
           lot=ncache/(4*n2)
           IF (lot.LT.1) THEN
-             WRITE(6,*) &
+             WRITE(*,*) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
@@ -1048,7 +1048,7 @@ CONTAINS
     ! transform along z axis
     lot=ncache/(2*n3)
     IF (lot.LT.1) THEN
-       WRITE(6,*) &
+       WRITE(*,*) &
             'convolxc_off:ncache has to be enlarged to be able to hold at' // &
             'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths',n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc
@@ -1102,7 +1102,7 @@ CONTAINS
           ! transform along x axis
           lot=ncache/(4*n1)
           IF (lot.LT.1) THEN
-             WRITE(6,*) &
+             WRITE(*,*) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
@@ -1142,7 +1142,7 @@ CONTAINS
           !transform along y axis
           lot=ncache/(4*n2)
           IF (lot.LT.1) THEN
-             WRITE(6,*) &
+             WRITE(*,*) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
@@ -1860,7 +1860,7 @@ CONTAINS
     ! transform along z axis
     lot=ncache/(2*n3)
     IF (lot.LT.1) THEN
-       WRITE(6,*) &
+       WRITE(*,*) &
             'convolxc_on:ncache has to be enlarged to be able to hold at' // &
             'least one 1-d FFT of this size even though this will' // &
             'reduce the performance for shorter transform lengths'
@@ -1917,7 +1917,7 @@ CONTAINS
           ! transform along x axis
           lot=ncache/(4*n1)
           IF (lot.LT.1) THEN
-             WRITE(6,*) &
+             WRITE(*,*) &
                   'convolxc_on:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'
@@ -1957,7 +1957,7 @@ CONTAINS
           !transform along y axis
           lot=ncache/(4*n2)
           IF (lot.LT.1) THEN
-             WRITE(6,*) &
+             WRITE(*,*) &
                   'convolxc_on:ncache has to be enlarged to be able to hold at' // &
                   'least one 1-d FFT of this size even though this will' // &
                   'reduce the performance for shorter transform lengths'

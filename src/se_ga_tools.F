@@ -234,7 +234,7 @@ CONTAINS
       kzmin = -kzmax
       IF (kx==0.AND.ky==0) kzmin = 1
       DO kz = kzmin, kzmax
-!        write(6,'(a,6i3)') 'klims: ',kxmin,kxmax,kymin,kymax,kzmin,kzmax
+!        write(*,'(a,6i3)') 'klims: ',kxmin,kxmax,kymin,kymax,kzmin,kzmax
         IF (kx/=0) THEN
           cx = xcell*REAL(iabs(kx)-1, dp)
         ELSE
@@ -285,10 +285,10 @@ CONTAINS
 !
 !  Find number of unique neighbors
 !
-!  if (me.eq.0) write(6,'(a,i8)') 'Number of neighbors found: ',kcmax
+!  if (me.eq.0) write(*,'(a,i8)') 'Number of neighbors found: ',kcmax
 !  if (me.eq.0) then
 !    do i = 1, kcmax
-!      write(6,'(i4,a,3i4)') i,' nix, niy, niz: ',nix(i),niy(i),niz(i)
+!      write(*,'(i4,a,3i4)') i,' nix, niy, niz: ',nix(i),niy(i),niz(i)
 !    end do
 !  endif
 !
@@ -372,7 +372,7 @@ CONTAINS
   ga_env % npairs = icnt
   WRITE ( *, * ) 'NPAIRS', icnt
   CALL ga_igop(1,ga_env%npairs,1,'+')
-!  if (me.eq.0) write(6,'(a,i8)') 'Total number of pairs found: ',npairs
+!  if (me.eq.0) write(*,'(a,i8)') 'Total number of pairs found: ',npairs
 !
 !  Create global counter and distributed pair list
 !
@@ -1104,7 +1104,7 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
           IF (MOD(i,prime(j))==0) go to 100
         END DO
         pmax = pmax + 1
-        IF (pmax>MAX_FACTOR) WRITE(6,*) 'Overflow in grid_factor'
+        IF (pmax>MAX_FACTOR) WRITE(*,*) 'Overflow in grid_factor'
         prime(pmax) = i
         100   CONTINUE
       END DO
@@ -1139,7 +1139,7 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
         ELSEIF (iz>=ix.and.iz>=iy.and.iz>1) THEN
           idz = fac(i)*idz
         ELSE
-          WRITE(6,*) 'Too many processors in grid factoring routine'
+          WRITE(*,*) 'Too many processors in grid factoring routine'
         ENDIF
       END DO
     END SUBROUTINE grid_factor

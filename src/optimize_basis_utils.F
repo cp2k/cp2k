@@ -23,7 +23,8 @@ MODULE optimize_basis_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_getcwd
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_getcwd
   USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                              derived_basis_info,&
                                              flex_basis_type,&
@@ -1259,7 +1260,7 @@ CONTAINS
       p_param%state=0
       p_param%nvar=0
       p_param%iprint=0
-      p_param%unit=6
+      p_param%unit=default_output_unit
       CALL section_vals_val_get(powell_section,"ACCURACY",r_val=p_param%rhoend,error=error)
       CALL section_vals_val_get(powell_section,"STEP_SIZE",r_val=p_param%rhobeg,error=error)
       CALL section_vals_val_get(powell_section,"MAX_FUN",i_val=p_param%maxfun,error=error)

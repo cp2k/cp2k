@@ -418,7 +418,7 @@ CPSourceFileRef,&
       reftraj%msd%drcom (1) = rcom(1) - reftraj%msd%ref0_com(1)
       reftraj%msd%drcom (2) = rcom(2) - reftraj%msd%ref0_com(2)
       reftraj%msd%drcom (3) = rcom(3) - reftraj%msd%ref0_com(3)
-!      IF(para_env%ionode) WRITE(6,'(A,T50,3f10.5)') ' COM displacement (dx,dy,dz) [angstrom]:  ', &
+!      IF(para_env%ionode) WRITE(*,'(A,T50,3f10.5)') ' COM displacement (dx,dy,dz) [angstrom]:  ', &
 !                         drcom(1)*angstrom,drcom(2)*angstrom,drcom(3)*angstrom
 ! compute_com
 

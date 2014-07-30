@@ -104,7 +104,7 @@ SUBROUTINE fftw3_do_init(wisdom_file)
             ACTION="READ",IOSTAT=istat)
        IF (istat==0) THEN
           CALL fftw_import_wisdom_from_file(isuccess,iunit)
-          ! write(6,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
+          ! write(*,*) "FFTW3 import wisdom from file ....",MERGE((/"OK    "/),(/"NOT OK"/),(/isuccess==1/))
           CLOSE(iunit)
        ENDIF
     ENDIF

@@ -271,8 +271,8 @@ CONTAINS
 
     ntrust  = ngrid/10
     ntrials = PRODUCT (ngrid)
-    WRITE(6,'(A,10I6)',ADVANCE="no")"FES| Trust hyper-radius ",ntrust
-    WRITE(6,'(A,10F12.6)')" which is equivalent to: ",ntrust*dp_grid
+    WRITE(*,'(A,10I6)',ADVANCE="no")"FES| Trust hyper-radius ",ntrust
+    WRITE(*,'(A,10F12.6)')" which is equivalent to: ",ntrust*dp_grid
 
     ALLOCATE(xx(ndim),dx(ndim),pos0(ndim),rnd(ndim),pos(ndim))
     ALLOCATE(history(ndim,ntrials))
@@ -345,13 +345,13 @@ CONTAINS
        IF (do_save) THEN
           pnt = point_no_pbc(pos,ngrid,ndim)
           xx  = x0+dp_grid*(pos-1)
-          WRITE(6,'(A,5F12.6)',ADVANCE="NO") "FES| Minimum found (",(xx(id),id=ndim,ndim-ndw+1,-1)
-          WRITE(6,'(A,F12.6,A,I6)')" ). FES value = ",-fes(pnt)," Hartree. Number of Iter: ",iter
+          WRITE(*,'(A,5F12.6)',ADVANCE="NO") "FES| Minimum found (",(xx(id),id=ndim,ndim-ndw+1,-1)
+          WRITE(*,'(A,F12.6,A,I6)')" ). FES value = ",-fes(pnt)," Hartree. Number of Iter: ",iter
           nacc = nacc + 1
           history (:,nacc) = pos
        END IF
     END DO Trials
-    WRITE(6,'(A,I6,A)') "FES| Number of Minimum found: ",nacc,"."
+    WRITE(*,'(A,I6,A)') "FES| Number of Minimum found: ",nacc,"."
 
     DEALLOCATE(xx,dx,pos0,rnd,pos)
     DEALLOCATE(history)
@@ -596,8 +596,8 @@ CONTAINS
 
     CALL init_physcon
     IF (ndw .GT. 3) THEN
-       WRITE(6,*) 
-       WRITE(6,*) 'ERROR: GAUSSIAN format can only handle FES on 3 CV !'
+       WRITE(*,*)
+       WRITE(*,*) 'ERROR: GAUSSIAN format can only handle FES on 3 CV !'
        STOP
     END IF
 
@@ -610,9 +610,9 @@ CONTAINS
     rt(2)=-(cell(2,2)/2._dp)
     rt(3)=-(cell(3,3)/2._dp)
 
-    WRITE(6,*) 'Dumping GAUSSIAN CUBE format' 
-    WRITE(6,*) 'Cell vectors'
-    WRITE(6,*) 
+    WRITE(*,*) 'Dumping GAUSSIAN CUBE format'
+    WRITE(*,*) 'Cell vectors'
+    WRITE(*,*)
 
     residual = 0.0d0
     DO ix=1,3
@@ -622,16 +622,16 @@ CONTAINS
     END DO
 
     IF (residual .GT. 1.0d-6) THEN
-       WRITE(6,*) 
-       WRITE(6,*) 'ERROR: this progam can only handle orthogonal cells'
-       WRITE(6,*) ' with vectors pointing in the X, Y and Z directions'
+       WRITE(*,*)
+       WRITE(*,*) 'ERROR: this progam can only handle orthogonal cells'
+       WRITE(*,*) ' with vectors pointing in the X, Y and Z directions'
        STOP
     END IF
 
-    WRITE(6,*) 
-    WRITE(6,*) 'Cube grid mesh: ',ngrid(1),'x',ngrid(2),'x',ngrid(3)
-    WRITE(6,*) 'Origin in:',rt
-    WRITE(6,*) 
+    WRITE(*,*)
+    WRITE(*,*) 'Cube grid mesh: ',ngrid(1),'x',ngrid(2),'x',ngrid(3)
+    WRITE(*,*) 'Origin in:',rt
+    WRITE(*,*)
     
     DO ix=1,3
        dr(ix)=cell(ix,ix)/REAL(ngrid(ix),KIND=dp)
@@ -640,7 +640,7 @@ CONTAINS
     np = ngrid(1) * ngrid(2) * ngrid(3)    
     ALLOCATE(rho(np), rhot(np))
     CALL fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int, rho)
-    WRITE(6,*) 'Internal FES transfer completed!'
+    WRITE(*,*) 'Internal FES transfer completed!'
 
     ! translate cell
     DO ix=1,3
@@ -696,7 +696,7 @@ CONTAINS
           IF (TRIM(label)==TRIM(labelp)) EXIT
        END DO
        IF (i == nelem+1) THEN
-          WRITE(6,*)TRIM(label), "In line: ", line
+          WRITE(*,*)TRIM(label), "In line: ", line
           STOP "Element not recognized!"
        END IF
        izat(natoms)=i

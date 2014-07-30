@@ -302,7 +302,7 @@ CONTAINS
                 ENDIF
              ENDDO
              ! XXXXXXX I think the overlap criterium / neighbour calculation is too conservative
-             ! write(6,*) n_slices_tmp,desc % neighbours, overlap
+             ! write(*,*) n_slices_tmp,desc % neighbours, overlap
              IF (overlap) CYCLE
 
              ! a heuristic optimisation to reduce the memory usage

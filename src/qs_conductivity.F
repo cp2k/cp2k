@@ -132,7 +132,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 
            ! this should be the strength of the transition.
            strength=Pi*(matrix_elements%local_data(i,j))**2 / (volume*energy)
-           ! write(6,*) i,j,matrix_elements%local_data(i,j)
+           ! write(*,*) i,j,matrix_elements%local_data(i,j)
 
            ! put the transitions in the correct bin
            index=FLOOR(((energy-emin)/(emax-emin))*npoints)

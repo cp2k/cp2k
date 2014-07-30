@@ -1213,12 +1213,12 @@ CONTAINS
       DO 6000,ii=1,icell(0,l1,l2,l3)
         iat=icell(ii,l1,l2,l3)
         IF ( ((iat-1)*npr)/nat .EQ. iam) THEN
-!       write(6,*) 'sublstiat:iam,iat',iam,iat
+!       write(*,*) 'sublstiat:iam,iat',iam,iat
         lsta(1,iat)=iam*myspace+indlst+1
         CALL sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
              rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
         lsta(2,iat)=iam*myspace+indlst
-!        write(6,'(a,4(x,i3),100(x,i2))') &
+!        write(*,'(a,4(x,i3),100(x,i2))') &
 !               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
 !                    (lstb(j),j=lsta(1,iat),lsta(2,iat))
         ENDIF
@@ -1278,7 +1278,7 @@ CONTAINS
         lot=INT(float(nat)/float(npr)+.999999999999e0_dp)
         iat1=iam*lot+1
         iat2=MIN((iam+1)*lot,nat)
-!       write(6,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
+!       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
         CALL subfeniat_b(iat1,iat2,nat,lsta,lstb,rel,tener,tener2,  &
           tcoord,tcoord2,nnbrx,txyz,max_nbrs,istop,  &
           s2(1,1),s2(1,2),s2(1,3),s2(1,4),s2(1,5),s2(1,6),s2(1,7),s2(1,8),  &
@@ -1315,7 +1315,7 @@ CONTAINS
         ENDIF
 !$omp end parallel
 
-!         write(6,*) 'ener,norm force', &
+!         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
         IF (istopg.gt.0) STOP 'DIMENSION ERROR (see WARNING above)'
         ener_var=ener2/nat-(ener/nat)**2
@@ -1500,7 +1500,7 @@ CONTAINS
                 s2_r(n2)  = r
                 n2 = n2 + 1
                 IF (n2.gt.max_nbrs) THEN
-                WRITE(6,*) 'WARNING enlarge max_nbrs'
+                WRITE(*,*) 'WARNING enlarge max_nbrs'
                 istop=1
                 RETURN
                 ENDIF
@@ -1532,7 +1532,7 @@ CONTAINS
                   s3_r(n3) = r
                   n3 = n3 + 1
                   IF (n3.gt.max_nbrs) THEN
-                  WRITE(6,*) 'WARNING enlarge max_nbrs'
+                  WRITE(*,*) 'WARNING enlarge max_nbrs'
                   istop=1
                   RETURN
                   ENDIF
@@ -1558,7 +1558,7 @@ CONTAINS
                     sz_r(nz) = r
                     nz = nz + 1
                     IF (nz.gt.max_nbrs) THEN
-                    WRITE(6,*) 'WARNING enlarge max_nbrs'
+                    WRITE(*,*) 'WARNING enlarge max_nbrs'
                     istop=1
                     RETURN
                     ENDIF
@@ -1799,7 +1799,7 @@ CONTAINS
           IF ( rr2 .LE. cut2 ) THEN
            indlst=MIN(indlst,myspace-1)
            lstb(indlst)=lay(jat)
-!        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
+!        write(*,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
            tt=SQRT(rr2)
            tti=1.e0_dp/tt
            rel(1,indlst)=xrel*tti
@@ -2385,12 +2385,12 @@ CONTAINS
       DO 6600,ii=1,icell(0,l1,l2,l3)
         iat=icell(ii,l1,l2,l3)
         IF ( ((iat-1)*npr)/nat .EQ. iam) THEN
-!       write(6,*) 'sublstiat:iam,iat',iam,iat
+!       write(*,*) 'sublstiat:iam,iat',iam,iat
         lsta(1,iat)=iam*myspace+indlst+1
         CALL sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
              rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
         lsta(2,iat)=iam*myspace+indlst
-!        write(6,'(a,4(x,i3),100(x,i2))') &
+!        write(*,'(a,4(x,i3),100(x,i2))') &
 !               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
 !                    (lstb(j),j=lsta(1,iat),lsta(2,iat))
         ENDIF
@@ -2448,7 +2448,7 @@ CONTAINS
         lot=INT(float(nat)/float(npr)+.999999999999e0_dp)
         iat1=iam*lot+1
         iat2=MIN((iam+1)*lot,nat)
-!       write(6,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
+!       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
         CALL subfeniat_l(iat1,iat2,nat,lsta,lstb,rel,tener,tener2, &
                tcoord,tcoord2,nnbrx,txyz,f2ij,npjx,f3ij,npjkx,f3ik,istop)
 !$omp critical
@@ -2477,7 +2477,7 @@ CONTAINS
         ENDIF
 !$omp end parallel
 
-!         write(6,*) 'ener,norm force', &
+!         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
         IF (istopg.gt.0) STOP 'DIMENSION ERROR (see WARNING above)'
         ener_var=ener2/nat-(ener/nat)**2
@@ -2655,7 +2655,7 @@ CONTAINS
         jat=lstb(jbr)
         jcnt=jcnt+1
         IF (jcnt.gt.npjx) THEN
-            WRITE(6,*) 'WARNING: enlarge npjx'
+            WRITE(*,*) 'WARNING: enlarge npjx'
             istop=1
             RETURN
         ENDIF
@@ -2704,7 +2704,7 @@ CONTAINS
         IF (kat.lt.jat) THEN
         jkcnt=jkcnt+1
         IF (jkcnt.gt.npjkx) THEN
-            WRITE(6,*) 'WARNING: enlarge npjkx',npjkx
+            WRITE(*,*) 'WARNING: enlarge npjkx',npjkx
             istop=1
             RETURN
         ENDIF
@@ -2931,7 +2931,7 @@ CONTAINS
 3300        CONTINUE
 2200        CONTINUE
 
-!        write(6,'(a,i4,x,e19.12,x,e10.3)') 'iat,ener_iat,coord_iat', &
+!        write(*,'(a,i4,x,e19.12,x,e10.3)') 'iat,ener_iat,coord_iat', &
 !                                       iat,ener_iat,coord_iat
         tener=tener+ener_iat
         tener2=tener2+ener_iat**2
@@ -2993,7 +2993,7 @@ CONTAINS
           IF ( rr2 .LE. cut2 ) THEN
            indlst=MIN(indlst,myspace-1)
            lstb(indlst)=lay(jat)
-!        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
+!        write(*,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
            tt=SQRT(rr2)
            tti=1.e0_dp/tt
            rel(1,indlst)=xrel*tti

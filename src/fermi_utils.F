@@ -228,7 +228,7 @@ CONTAINS
        ! get an exact machine representable number close to this h
        h=2.0_dp**EXPONENT(h)
        ! this should write three times the same number
-       ! write(6,*) h,(e(i)+h)-e(i),(e(i)-h)-e(i)
+       ! write(*,*) h,(e(i)+h)-e(i),(e(i)-h)-e(i)
        ! and the symmetric finite difference
        ex(:)=e
        ex(i)=e(i)+h

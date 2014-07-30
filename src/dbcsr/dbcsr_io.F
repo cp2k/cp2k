@@ -13,7 +13,6 @@
 !> - 2010-02-18 Moved from dbcsr_util
 ! *****************************************************************************
 MODULE dbcsr_io
-
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj,&
                                              array_new,&
@@ -52,6 +51,7 @@ MODULE dbcsr_io
                                              real_8,&
                                              real_8_size,&
                                              sp
+  USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: &
        file_amode_create, file_amode_rdonly, file_amode_wronly, file_offset, &
        mp_allgather, mp_environ, mp_file_close, mp_file_get_size, &
@@ -126,7 +126,7 @@ CONTAINS
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Can not print invalid matrix.",__LINE__,error)
 
-    iunit=6
+    iunit=default_output_unit
     IF (PRESENT(unit_nr)) iunit=unit_nr
 
     my_matlab_format = .FALSE.
@@ -1254,7 +1254,7 @@ CONTAINS
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Can not print invalid matrix.",__LINE__,error)
 
-    iunit=6
+    iunit=default_output_unit
     IF (PRESENT(unit_nr)) iunit=unit_nr
 
     SELECT CASE (matrix%m%data_type)

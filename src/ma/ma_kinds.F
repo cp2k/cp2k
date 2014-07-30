@@ -43,7 +43,5 @@ MODULE ma_kinds
 
   INTEGER, PARAMETER :: default_string_length=80
 
-  INTEGER, PARAMETER, PUBLIC :: default_output_unit=6
-
 END MODULE ma_kinds
 

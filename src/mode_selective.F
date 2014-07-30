@@ -537,9 +537,9 @@ CONTAINS
        ENDDO
        CALL close_file(hesunit)
        IF (stat /= 0) THEN
-          WRITE(6,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
+          WRITE(*,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
        ELSE
-          WRITE(6,FMT="(/,T2,A)")&
+          WRITE(*,FMT="(/,T2,A)")&
                "*** Initial Hessian has been read successfully ***"
        END IF
        DO i = 1, ncoord
@@ -669,13 +669,13 @@ CONTAINS
        READ(UNIT=hesunit,IOSTAT=stat)ms_vib%b_mat
        READ(UNIT=hesunit,IOSTAT=stat)ms_vib%s_mat
        IF(calc_intens) READ(UNIT=hesunit,IOSTAT=statint)ms_vib%dip_deriv(:,1:ms_vib%mat_size)
-       IF(statint/=0) WRITE(6,FMT="(/,T2,A)")"**  Error while reading MS_RESTART,",&
+       IF(statint/=0) WRITE(*,FMT="(/,T2,A)")"**  Error while reading MS_RESTART,",&
             "intensities are requested but not present in restart file **"
        CALL close_file(hesunit)
        IF (stat /= 0) THEN
-          WRITE(6,FMT="(/,T2,A)")"**  Error while reading MS_RESTART **"
+          WRITE(*,FMT="(/,T2,A)")"**  Error while reading MS_RESTART **"
        ELSE
-          WRITE(6,FMT="(/,T2,A)")"*** RESTART has been read successfully ***"
+          WRITE(*,FMT="(/,T2,A)")"*** RESTART has been read successfully ***"
        END IF
     END IF
     CALL mp_bcast(ms_vib%b_mat,para_env%source,para_env%group)
@@ -829,9 +829,9 @@ CONTAINS
        END DO
        IF(ms_filename.NE."")  CALL close_file(iw)
        IF (istat /= 0) THEN
-          WRITE(6,FMT="(/,T2,A)")"**  Error while reading MOLDEN file **"
+          WRITE(*,FMT="(/,T2,A)")"**  Error while reading MOLDEN file **"
        ELSE
-          WRITE(6,FMT="(/,T2,A)")"*** MOLDEN file has been read successfully ***"
+          WRITE(*,FMT="(/,T2,A)")"*** MOLDEN file has been read successfully ***"
        END IF
        !!!!!!!    select modes     !!!!!!
        ALLOCATE(tmp(nvibs),stat=stat)

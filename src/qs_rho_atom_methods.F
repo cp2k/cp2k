@@ -906,12 +906,12 @@ MODULE qs_rho_atom_methods
       grid_atom%nr = nr
 
       IF (llmax > la) THEN
-        WRITE(6,'(/,72("*"))')
-        WRITE(6,'(T2,A,T66,I4)') &
+        WRITE(*,'(/,72("*"))')
+        WRITE(*,'(T2,A,T66,I4)') &
           "WARNING: the lebedev grid is built for angular momentum l up to ",la,&
           "         the max l of spherical harmonics is larger, l_max = ", llmax,&
           "         good integration is guaranteed only for l <= ",la
-        WRITE(6,'(72("*"),/)')
+        WRITE(*,'(72("*"),/)')
       END IF
 
 !     *** calculate the radial grid ***

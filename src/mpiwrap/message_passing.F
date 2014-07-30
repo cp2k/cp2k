@@ -3056,11 +3056,11 @@ CONTAINS
     CALL mpi_comm_rank(comm,taskid,ierror)
     CALL mpi_comm_size(comm,Nprocs,ierror)
     ionode=(taskid==0)
-    IF (ionode) WRITE(6,*) "Running with ",nprocs
-    IF (ionode) WRITE(6,*) "running messages with npow = ",npow
-    IF (ionode) WRITE(6,*) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
+    IF (ionode) WRITE(*,*) "Running with ",nprocs
+    IF (ionode) WRITE(*,*) "running messages with npow = ",npow
+    IF (ionode) WRITE(*,*) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
     IF (MODULO(nprocs,2).NE.0) THEN
-       WRITE(6,*) "Testing only with an even number of tasks"
+       WRITE(*,*) "Testing only with an even number of tasks"
        RETURN
     ENDIF
 
@@ -3094,8 +3094,8 @@ CONTAINS
     ! ------------------------------ some in memory tests                   ---------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Testing in memory copies just 1 CPU "
-    IF (ionode) WRITE(6,*) "  could tell something about the motherboard / cache / compiler "
+    IF (ionode) WRITE(*,*) "Testing in memory copies just 1 CPU "
+    IF (ionode) WRITE(*,*) "  could tell something about the motherboard / cache / compiler "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -3108,7 +3108,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -3116,8 +3116,8 @@ CONTAINS
     ! ------------------------------ some in memory tests                   ---------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Testing in memory copies all cpus"
-    IF (ionode) WRITE(6,*) "  is the memory bandwidth affected on an SMP machine ?"
+    IF (ionode) WRITE(*,*) "Testing in memory copies all cpus"
+    IF (ionode) WRITE(*,*) "  is the memory bandwidth affected on an SMP machine ?"
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -3130,7 +3130,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -3138,10 +3138,10 @@ CONTAINS
     ! ------------------------------ first test point to point communication ---------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Testing truely point to point communication (i with j only)"
-    IF (ionode) WRITE(6,*) "  is there some different connection between i j (e.g. shared memory comm)"
+    IF (ionode) WRITE(*,*) "Testing truely point to point communication (i with j only)"
+    IF (ionode) WRITE(*,*) "  is there some different connection between i j (e.g. shared memory comm)"
     ncount=10**npow
-    IF (ionode) WRITE(6,*) "For messages of ",ncount*8," bytes"
+    IF (ionode) WRITE(*,*) "For messages of ",ncount*8," bytes"
     IF (ncount.GT.nbufmax) STOP
     DO itask=0,nprocs-1
        DO jtask=itask+1,nprocs-1
@@ -3161,7 +3161,7 @@ CONTAINS
     IF (ionode) THEN
        DO itask=0,nprocs-1
           DO jtask=itask+1,nprocs-1
-             WRITE(6,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
+             WRITE(*,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
           ENDDO
        ENDDO
     ENDIF
@@ -3170,8 +3170,8 @@ CONTAINS
     ! ------------------------------ second test point to point communication -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Testing all nearby point to point communication (0,1)(2,3)..."
-    IF (ionode) WRITE(6,*) "    these could / should all be on the same shared memory node "
+    IF (ionode) WRITE(*,*) "Testing all nearby point to point communication (0,1)(2,3)..."
+    IF (ionode) WRITE(*,*) "    these could / should all be on the same shared memory node "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -3188,7 +3188,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -3196,8 +3196,8 @@ CONTAINS
     ! ------------------------------ third test point to point communication -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Testing all far point to point communication (0,nprocs/2),(1,nprocs/2+1),.."
-    IF (ionode) WRITE(6,*) "    these could all be going over the network, and stress it a lot"
+    IF (ionode) WRITE(*,*) "Testing all far point to point communication (0,nprocs/2),(1,nprocs/2+1),.."
+    IF (ionode) WRITE(*,*) "    these could all be going over the network, and stress it a lot"
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -3215,15 +3215,15 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ test root to all broadcast               -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Testing root to all broadcast "
-    IF (ionode) WRITE(6,*) "    using trees at least ? "
+    IF (ionode) WRITE(*,*) "Testing root to all broadcast "
+    IF (ionode) WRITE(*,*) "    using trees at least ? "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -3236,14 +3236,14 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ test mp_sum like behavior                -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Test global summation (mp_sum / mpi_allreduce) "
+    IF (ionode) WRITE(*,*) "Test global summation (mp_sum / mpi_allreduce) "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -3256,15 +3256,15 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ test all to all communication            -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) WRITE(6,*) "Test all to all communication (mpi_alltoallv)"
-    IF (ionode) WRITE(6,*) "    mpi/network getting confused ? "
+    IF (ionode) WRITE(*,*) "Test all to all communication (mpi_alltoallv)"
+    IF (ionode) WRITE(*,*) "    mpi/network getting confused ? "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -3284,18 +3284,18 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(6,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
 
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ other stuff                            ---------------------
     ! -------------------------------------------------------------------------------------------
-    IF (ionode) WRITE(6,*) " Clean tests completed "
-    IF (ionode) WRITE(6,*) " Testing MPI_REDUCE scatter"
+    IF (ionode) WRITE(*,*) " Clean tests completed "
+    IF (ionode) WRITE(*,*) " Testing MPI_REDUCE scatter"
     rcount=Nloc
     DO itests=1,3
-       IF (ionode) WRITE(6,*) "------------------------------- test ",itests," ------------------------"
+       IF (ionode) WRITE(*,*) "------------------------------- test ",itests," ------------------------"
        ! *** reference ***
        DO j=1,Nprocs
           DO i=1,Nloc
@@ -3306,7 +3306,7 @@ CONTAINS
        CALL MPI_REDUCE_SCATTER(grid, lgrid, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
        t2=MPI_WTIME()-t1+threshold
        CALL mpi_allreduce(t2,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
-       IF (ionode) WRITE(6,*) "MPI_REDUCE_SCATTER    ",res
+       IF (ionode) WRITE(*,*) "MPI_REDUCE_SCATTER    ",res
        ! *** simple shift ***
        DO j=1,Nprocs
           DO i=1,Nloc
@@ -3326,7 +3326,7 @@ CONTAINS
        CALL mpi_allreduce(t4,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        maxdiff=MAXVAL(ABS(lgrid2-lgrid))
        CALL mpi_allreduce(maxdiff,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
-       IF (ionode) WRITE(6,*) "MPI_SENDRECV_REPLACE  ",res,res2
+       IF (ionode) WRITE(*,*) "MPI_SENDRECV_REPLACE  ",res,res2
        ! *** involved shift ****
        IF (MODULO(nprocs,2)/=0) STOP
        DO j=1,Nprocs
@@ -3371,7 +3371,7 @@ CONTAINS
        CALL mpi_allreduce(t5,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        maxdiff=MAXVAL(ABS(lgrid3-lgrid))
        CALL mpi_allreduce(maxdiff,res3,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
-       IF (ionode) WRITE(6,*) "INVOLVED SHIFT        ",res+res2,"(",res,",",res2,")",res3
+       IF (ionode) WRITE(*,*) "INVOLVED SHIFT        ",res+res2,"(",res,",",res2,")",res3
     ENDDO
     DEALLOCATE(rcount)
     DEALLOCATE(scount)
@@ -3389,7 +3389,7 @@ CONTAINS
     DEALLOCATE(send_timings)
     DEALLOCATE(send_timings2)
 #else
-    WRITE(6,*) "No MPI tests for a serial program"
+    WRITE(*,*) "No MPI tests for a serial program"
 #endif
   END SUBROUTINE mpi_perf_test
 

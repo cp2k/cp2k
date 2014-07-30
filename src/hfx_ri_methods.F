@@ -358,7 +358,7 @@ CONTAINS
        CALL ri_vector_norm(rnorm, ri_res, error)
 
        IF ( output_unit > 0 .AND. print_on ) THEN
-          WRITE(6,'(T15,A,T25,A,T35,i4,T50,A,T61,F20.10)') "HFX_RI|","Iteration :",iter,"Residual=",rnorm
+          WRITE(*,'(T15,A,T25,A,T35,i4,T50,A,T61,F20.10)') "HFX_RI|","Iteration :",iter,"Residual=",rnorm
        END IF
 
        IF ( rnorm < eps_ri ) THEN

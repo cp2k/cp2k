@@ -106,7 +106,7 @@ CONTAINS
            ! if we have not generated new classes, we have presumably found all equivalence classes
            IF (Nclasses==Nclasses_old) EXIT
            Nclasses_old=Nclasses
-           ! write(6,*) "Classes",Ihash, Nclasses
+           ! write(*,*) "Classes",Ihash, Nclasses
         ENDDO
         ! hash (sorted) kinds to a molecular hash
         hash=joaat_hash_i(kind_new)
@@ -258,9 +258,9 @@ CONTAINS
            ENDIF
         ENDDO
 
-        ! write(6,*) "Class generation time",t2-t1
-        ! WRITE(6,*) "Nclasses, max size, total-non-1 ",Nclasses,MAXVAL(classes%Nele),COUNT(classes%Nele>1)
-        ! write(6,*) "isuperclass ",isuperclass
+        ! write(*,*) "Class generation time",t2-t1
+        ! WRITE(*,*) "Nclasses, max size, total-non-1 ",Nclasses,MAXVAL(classes%Nele),COUNT(classes%Nele>1)
+        ! write(*,*) "isuperclass ",isuperclass
 
         ! assign the order array to their initial value
         DO Iclass=1,Nclasses
@@ -282,8 +282,8 @@ CONTAINS
             ! check for matches within this superclass only, be happy if we have a match
             matches =  matrix_superclass_equal(reference,unordered,order,superclasses(I),classes)
             IF (itries>max_tries) THEN
-               WRITE(6,*) "Could not find the 1-to-1 mapping to prove graph isomorphism"
-               WRITE(6,*) "Reordering failed, assuming these molecules are different"
+               WRITE(*,*) "Could not find the 1-to-1 mapping to prove graph isomorphism"
+               WRITE(*,*) "Reordering failed, assuming these molecules are different"
                EXIT
             ENDIF
             IF (matches) EXIT

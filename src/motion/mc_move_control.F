@@ -518,7 +518,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
       SELECT CASE (flag)
       CASE DEFAULT
-         WRITE(6,*) 'flag =',flag
+         WRITE(*,*) 'flag =',flag
          CALL stop_program(routineN,moduleN,__LINE__,"Wrong option passed")
       CASE ("trans")
 

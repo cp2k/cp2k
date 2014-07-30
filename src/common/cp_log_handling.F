@@ -48,7 +48,8 @@ MODULE cp_log_handling
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_datum,&
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_datum,&
                                              m_flush,&
                                              m_getpid,&
                                              m_hostnm
@@ -723,7 +724,7 @@ CONTAINS
              PRINT*," *** MPI_Communicator = ",lggr%para_env%group
              PRINT*," *** PID              = ",pid
              PRINT*," *** Hostname         = "//TRIM(host_name)
-             CALL print_stack(6)
+             CALL print_stack(default_output_unit)
           ELSE
              CALL print_stack(lggr%default_global_unit_nr)
           END IF
@@ -756,7 +757,7 @@ CONTAINS
              PRINT*," *** MPI_Communicator = ",lggr%para_env%group
              PRINT*," *** PID              = ",pid
              PRINT*," *** Hostname         = "//TRIM(host_name)
-             CALL print_stack(6)
+             CALL print_stack(default_output_unit)
           END IF
 
        END IF

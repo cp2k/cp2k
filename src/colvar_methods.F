@@ -5440,7 +5440,7 @@ CPSourceFileRef,&
 !     CALL put_derivative(colvar, 2,zero)
 !     CALL put_derivative(colvar, 3, zero)
 
-!     write(6,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
+!     write(*,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
     colvar%ss = wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
     DEALLOCATE(wcai,stat=ierror)
     CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)

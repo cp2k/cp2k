@@ -74,7 +74,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
 !$  num_threads = omp_get_num_threads()
   ALLOCATE ( Z ( LENGTH, 2, 0:num_threads - 1 ), stat=ierr )
   IF (ierr /= 0) THEN
-     WRITE (6,*) "Error in allocating memory for z in mltfftsg.F"
+     WRITE (*,*) "Error in allocating memory for z in mltfftsg.F"
      STOP
   ENDIF
   iterations = (M + LOT - 1) / LOT
@@ -133,7 +133,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
 
   DEALLOCATE ( Z, stat=ierr )
   IF (ierr /= 0) THEN
-     WRITE (6,*) "Error in DEallocating memory for z in mltfftsg.F"
+     WRITE (*,*) "Error in DEallocating memory for z in mltfftsg.F"
      STOP
   ENDIF
 

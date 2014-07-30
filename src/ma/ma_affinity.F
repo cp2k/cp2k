@@ -21,6 +21,7 @@ MODULE ma_affinity
                                              ma_error_stop
   USE ma_kinds,                        ONLY: default_string_length,&
                                              int_4
+  USE machine,                         ONLY: default_output_unit
   USE machine_architecture,            ONLY: &
        ma_get_id, ma_get_mycore, ma_get_mynode, ma_get_ncores, ma_get_nnodes, &
        ma_get_proc_core, ma_get_proc_node, ma_my_first_core, &
@@ -173,7 +174,7 @@ SUBROUTINE  ma_set_mempol (mempol)
     INTEGER                                  :: istat, realnode, unit_nr
 
     istat = 0
-    unit_nr = 6
+    unit_nr = default_output_unit
 
   IF (mempol .EQ. manual) THEN
     realnode = memory(MOD(my_info%mp_info%myproc,my_info%nr_neighbors)+1)
@@ -879,7 +880,7 @@ END SUBROUTINE ma_get_mempol
 
      core = ma_get_proc_core(1)
      node = ma_get_proc_node()
-     unit_num = 6
+     unit_num = default_output_unit
     IF(unit_num .GT. 0) THEN
       IF (node .EQ. -1 .AND. core .EQ. -1) THEN
         WRITE(unit_num, "(T2,A)") "WARNING: Compile with HWLOC"
