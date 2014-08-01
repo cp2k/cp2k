@@ -564,7 +564,6 @@ CONTAINS
 !> \param scale a scaling factor (defaults to 1.0)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param cell the mapping to the real cell UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -952,8 +951,6 @@ CONTAINS
 !> \param in_val_last the last argument (needed to calculate out_val(n_el))
 !> \param out_val the place where the result is accumulated
 !> \param n_el the number of elements in in_v and out_v
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2004 created [fawzi]
 !> \author fawzi
@@ -1375,8 +1372,6 @@ END SUBROUTINE pw_nn_compose_r
 !> \param idir ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param spline_g on entry the FFT of the values to interpolate as cc3d,
-!>        will contain the FFT of the smeared values UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Fawzi Mohamed
 !> \note
 !>      with coeff=(/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /)
@@ -1456,18 +1451,15 @@ END SUBROUTINE pw_nn_compose_r
 !> \param coarse_coeffs_pw the values of the coefficients
 !> \param fine_values_pw where to add the values due to the
 !>        coarse coeffs
-!> \param weights_1d ...
-!> \param w_border0 ...
-!> \param w_border1 ...
+!> \param weights_1d the weights of the 1d smearing
+!> \param w_border0 the 1d weight at the border (when pbc is false)
+!> \param w_border1 the 1d weights for a point one off the border
+!>        (w_border1(1) is the weight of the coefficent at the border)
+!>        (used if pbc is false)
 !> \param pbc if periodic boundary conditions should be applied
 !> \param safe_computation ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param w_border 0: the 1d weight at the border (when pbc is false) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param w_border 1: the 1d weights for a point one off the border
-!>        (w_border1(1) is the weight of the coefficent at the border)
-!>        (used if pbc is false) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param weights_ 1d: the weights of the 1d smearing UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 !> \note
 !>      coarse looping is continuos, I did not check if keeping the fine looping
@@ -2285,24 +2277,18 @@ CPSourceFileRef,&
 !>      for i,j,k in -3..3
 !>         w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
 !>                  weights_1d(abs(k)+1)
-!> \param fine_values_pw ...
-!> \param coarse_coeffs_pw ...
-!> \param weights_1d ...
-!> \param w_border0 ...
-!> \param w_border1 ...
+!> \param fine_values_pw 3d array where to add the values due to the
+!>        coarse coeffs
+!> \param coarse_coeffs_pw 3d array with boundary of size 1 with the values of the
+!>        coefficients
+!> \param weights_1d the weights of the 1d smearing
+!> \param w_border0 the 1d weight at the border
+!> \param w_border1 the 1d weights for a point one off the border
+!>        (w_border1(1) is the weight of the coefficent at the border)
 !> \param pbc ...
 !> \param safe_computation ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param coarse_bounds bounds of the coarse coefficents UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param coarse_coeffs 3d array with boundary of size 1 with the values of the
-!>        coefficients UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param fine_values 3d array where to add the values due to the
-!>        coarse coeffs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param w_border 0: the 1d weight at the border UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param w_border 1: the 1d weights for a point one off the border
-!>        (w_border1(1) is the weight of the coefficent at the border) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param weights_ 1d: the weights of the 1d smearing UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 !> \note
 !>      see coarse2fine for some relevant notes
@@ -3086,13 +3072,12 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief switches the types of precoditioner to use
-!> \param preconditioner ...
+!> \param preconditioner the preconditioner to be changed
 !> \param precond_kind the new kind of preconditioner to use
 !> \param pbc ...
 !> \param transpose ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param precoditioner the preconditioner to be changed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,&
@@ -3243,12 +3228,10 @@ CPSourceFileRef,&
 !> \brief applies the preconditioner to the system of equations to find the
 !>      coefficents of the spline
 !> \param preconditioner the preconditioner to apply
-!> \param in_v ...
-!> \param out_v ...
+!> \param in_v the grid on which the preconditioner should be applied
+!> \param out_v place to store the preconditioner applied on v_out
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param v_in the grid on which the preconditioner should be applied UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param v_out place to store the preconditioner applied on v_out UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v,error)
@@ -3303,7 +3286,8 @@ CPSourceFileRef,&
 !>      (for example those needed to find the coefficents of a spline)
 !>      Returns true if the it succeded to acheive the requested accuracy
 !> \param values the right hand side of the system
-!> \param coeffs ...
+!> \param coeffs will contain the solution of the system (and on entry
+!>        it contains the starting point)
 !> \param linOp the linear operator to be inverted
 !> \param preconditioner the preconditioner to apply
 !> \param pool a pool of grids (for the temporary objects)
@@ -3312,9 +3296,6 @@ CPSourceFileRef,&
 !> \param max_iter maximum number of iteration allowed
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param coeff will contain the solution of the system (and on entry
-!>        it contains the starting point) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param print_section information about when to print information UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval res ...
 !> \author fawzi
 ! *****************************************************************************

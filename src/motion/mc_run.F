@@ -387,7 +387,6 @@ CONTAINS
 !> \param mc_par the pointer that contains the simulation parameters
 !>           for both boxes
 !> \param iw the unit number that prints to screen
-!> \param ionode equal to .TRUE. if this is the main MPI node UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 !> \note
 !>      Designed for parallel.

@@ -2041,10 +2041,9 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
 ! *****************************************************************************
 !> \brief retains the given rs grid descriptor (see doc/ReferenceCounting.html)
-!> \param rs_desc ...
+!> \param rs_desc the grid descriptor to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param rs_grid the grid to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
@@ -2113,10 +2112,9 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
 ! *****************************************************************************
 !> \brief releases the given rs grid descriptor (see doc/ReferenceCounting.html)
-!> \param rs_desc ...
+!> \param rs_desc the rs grid descriptor to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param rs_grid the rs grid to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project

@@ -93,10 +93,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains the given dg_type
-!> \param dg ...
+!> \param dg the dg_type to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param dg_type the dg_type to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi

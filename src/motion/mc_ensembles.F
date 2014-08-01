@@ -1214,7 +1214,6 @@ CONTAINS
 !>
 !>    Suitable for parallel.
 !> \param error the error type
-!> \param globenv the global environment for the simulation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 ! *****************************************************************************
   SUBROUTINE mc_compute_virial ( mc_env, rng_stream, error)

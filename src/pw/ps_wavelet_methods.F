@@ -51,11 +51,10 @@ CONTAINS
 !> \brief creates the ps_wavelet_type which is needed for the link to
 !>      the Poisson Solver of Luigi Genovese
 !> \param poisson_params ...
-!> \param wavelet ...
+!> \param wavelet wavelet to create
 !> \param pw_grid the grid that is used to create the wavelet kernel
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param wavlet wavelet to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Flroian Schiffmann
 ! *****************************************************************************
   SUBROUTINE ps_wavelet_create(poisson_params,wavelet,pw_grid, error)

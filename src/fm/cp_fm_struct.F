@@ -398,12 +398,10 @@ END SUBROUTINE cp_fm_struct_release
 ! *****************************************************************************
 !> \brief returns true if the two matrix structures are equivalent, false
 !>      otherwise.
-!> \param fmstruct1 ...
-!> \param fmstruct2 ...
+!> \param fmstruct1 one of the full matrix structures to compare
+!> \param fmstruct2 the second of the full matrix structures to compare
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param fmstruct 1: one of the full matrix structures to compare UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param fmstruct 2: the second of the full matrix structures to compare UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval res ...
 !> \par History
 !>      08.2002 created [fawzi]
@@ -445,12 +443,10 @@ END FUNCTION cp_fm_struct_equivalent
 ! *****************************************************************************
 !> \brief returns true if the two matrix structures are compatible,
 !>      (i.e. in the same parallel environment) false otherwise.
-!> \param fmstruct1 ...
-!> \param fmstruct2 ...
+!> \param fmstruct1 one of the full matrix structures to compare
+!> \param fmstruct2 the second of the full matrix structures to compare
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param fmstruct 1: one of the full matrix structures to compare UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param fmstruct 2: the second of the full matrix structures to compare UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval res ...
 !> \par History
 !>      08.2002 created [fawzi]
@@ -729,11 +725,10 @@ END SUBROUTINE cp_fm_struct_get
 !> \param fmstruct the struct to create
 !> \param struct struct of either A or B
 !> \param context ...
-!> \param col ...
-!> \param row ...
+!> \param col in which direction the matrix should be enlarged
+!> \param row in which direction the matrix should be enlarged
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param col, row  in which direction the matrix should be enlarged UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2009 created [fschiff]
 !> \author Florian Schiffmann

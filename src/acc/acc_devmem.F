@@ -362,11 +362,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sets entries in given devmem to zero, asynchronously.
 !> \param this ...
-!> \param first_byte ...
-!> \param last_byte ...
+!> \param first_byte begin of region to zero, defaults to 1 if not given.
+!> \param last_byte end of region to zero, defaults to size if not given.
 !> \param stream on which zeroing is performed.
-!> \param first begin of region to zero, defaults to 1 if not given. UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param last end of region to zero, defaults to size if not given. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_devmem_setzero_bytes(this, first_byte, last_byte, stream)

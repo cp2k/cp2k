@@ -269,10 +269,9 @@ CONTAINS
 !> \param pool the pool from where you get the elements
 !> \param n_elements the number of elements in the vector
 !> \param elements will contain the new vector
-!> \param name ...
+!> \param name the name for the new matrixes (optional)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param name: the name for the new matrixes (optional) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -545,10 +544,9 @@ END SUBROUTINE fm_pools_flush_cache
 !> \brief Returns a vector with an element from each pool
 !> \param pools the pools to create the elements from
 !> \param elements will contain the vector of elements
-!> \param name ...
+!> \param name the name for the new matrixes (optional)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param name: the name for the new matrixes (optional) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed

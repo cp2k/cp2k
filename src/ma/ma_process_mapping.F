@@ -516,7 +516,6 @@ END SUBROUTINE ma_round_robin
 !> \param ranks_order ...
 !> \param ntask ...
 !> \param mp_comm [output] : handle of the default communicator
-!> \param mp_new_comm [output] : handle of the new  communicator UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      2.2012 created [ Christiane Pousa ]
 !> \note  Based on the algorithm proposed Liu and SCHRACK, 1996
@@ -848,16 +847,12 @@ END SUBROUTINE ma_hilbert_order
 !> \param ncol ...
 !> \param nrow ...
 !> \param numtask [input] : number of tasks
-!> return has_2d one if has more 2d gris and zero if not
-!>      7.2012 created [ Christiane Pousa ]
 !> \param current_numtask ...
 !> \param current_nrow ...
 !> \param current_ncol ...
 !> \param start_grid ...
 !> \param working_col ...
 !> \param mp_comm ...
-!> \param first_grid [input] : grid dimension for the biggest grid UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rest_grid [input] : dim for the grid rest UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
 RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,& 
                                           current_numtask,current_nrow, &
@@ -1100,12 +1095,11 @@ END FUNCTION is_square
 ! *****************************************************************************
 !> \brief Verify if there are any other hilbert grids
 !> \param ncol [input] : number of columns
-!> \param nrow ...
+!> \param nrow [input] : number of rows
 !> \param numtask [input] : number of tasks
-!> return has_2d one if has more 2d gris and zero if not
+!> \retval has_2d one if has more 2d gris and zero if not
+!> \par History
 !>      7.2012 created [ Christiane Pousa ]
-!> \param nrows [input] : number of rows UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval has_2d ...
 ! *****************************************************************************
 FUNCTION has_more_2dgrid(ncol,nrow,numtask) RESULT(has_2d)
 

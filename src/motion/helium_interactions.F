@@ -300,7 +300,6 @@ vkin = 0.0_dp
 !> \param   pint_env - path integral environment
 !> \param helium ...
 !> \param   energy   - calculated interaction energy
-!> \param   force    - calculated forces (P,NDIM) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_solute_e_f(pint_env, helium, energy)

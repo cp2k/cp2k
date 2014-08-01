@@ -438,8 +438,6 @@ END SUBROUTINE final_move_write
 !> \param filename the name of the file to write to
 !> \param nchains ...
 !> \param mc_input_file ...
-!> \param fft_lib the FFT library we're using (FFTW,FFTSG)
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MJM
 !> \note   Only use in serial.
 ! *****************************************************************************

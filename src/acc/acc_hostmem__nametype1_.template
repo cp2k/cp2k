@@ -28,9 +28,8 @@
 ! *****************************************************************************
 !> \brief Allocates 2D fortan-array as cuda host-pinned memory.
 !> \param host_mem ...
-!> \param n1 ...
-!> \param n2 ...
-!> \param n1,n2 sizes given in terms of item-count (not bytes!) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param n1 sizes given in terms of item-count (not bytes!)
+!> \param n2 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_hostmem_alloc_[nametype1]_2D (host_mem, n1, n2)
@@ -51,10 +50,9 @@ SUBROUTINE acc_hostmem_alloc_[nametype1]_2D (host_mem, n1, n2)
 ! *****************************************************************************
 !> \brief Allocates 3D fortan-array as cuda host-pinned memory.
 !> \param host_mem ...
-!> \param n1 ...
-!> \param n2 ...
-!> \param n3 ...
-!> \param n1,n2,n3 sizes given in terms of item-count (not bytes!) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param n1 sizes given in terms of item-count (not bytes!)
+!> \param n2 sizes given in terms of item-count (not bytes!)
+!> \param n3 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_hostmem_alloc_[nametype1]_3D (host_mem, n1, n2, n3)
@@ -76,11 +74,10 @@ SUBROUTINE acc_hostmem_alloc_[nametype1]_2D (host_mem, n1, n2)
 ! *****************************************************************************
 !> \brief Allocates 4D fortan-array as cuda host-pinned memory.
 !> \param host_mem ...
-!> \param n1 ...
-!> \param n2 ...
-!> \param n3 ...
-!> \param n4 ...
-!> \param n1,..,n4 sizes given in terms of item-count (not bytes!) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param n1 sizes given in terms of item-count (not bytes!)
+!> \param n2 sizes given in terms of item-count (not bytes!)
+!> \param n3 sizes given in terms of item-count (not bytes!)
+!> \param n4 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_hostmem_alloc_[nametype1]_4D (host_mem, n1, n2, n3, n4)

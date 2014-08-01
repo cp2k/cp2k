@@ -63,13 +63,18 @@ CONTAINS
 !>                 between the processors may overlap.
 !> \param iproc label of the process,from 0 to nproc-1
 !> \param nproc number of processors
-!> \param n01 ...
-!> \param n02 ...
-!> \param n03 ...
-!> \param hx ,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to
+!> \param n01 global dimension in the three directions. They are the same no matter if the
+!>                 datacode is in 'G' or in 'D' position.
+!> \param n02 global dimension in the three directions. They are the same no matter if the
+!>                 datacode is in 'G' or in 'D' position.
+!> \param n03 global dimension in the three directions. They are the same no matter if the
+!>                 datacode is in 'G' or in 'D' position.
+!> \param hx    grid spacings. For the isolated BC case for the moment they are supposed to
 !>                 be equal in the three directions
-!> \param hy ...
-!> \param hz ...
+!> \param hy grid spacings. For the isolated BC case for the moment they are supposed to
+!>                 be equal in the three directions
+!> \param hz grid spacings. For the isolated BC case for the moment they are supposed to
+!>                 be equal in the three directions
 !> \param rhopot main input/output array.
 !>                 On input, it represents the density values on the grid points
 !>                 On output, it is the Hartree potential, namely the solution of the Poisson
@@ -81,8 +86,6 @@ CONTAINS
 !>                 it MUST be created by following the same geocode as the Poisson Solver.
 !> \param pw_grid ...
 !> \param error ...
-!> \param n 01,n02,n03: global dimension in the three directions. They are the same no matter if the
-!>                 datacode is in 'G' or in 'D' position. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date February 2007
 !> \author Luigi Genovese
 !> \note The dimensions of the arrays must be compatible with geocode, datacode, nproc, 
@@ -226,35 +229,34 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate four sets of dimension needed for the calculation of the
 !>     convolution for the periodic system
-!> \param n01 ...
-!> \param n02 ...
-!> \param n03 ...
-!> \param m1 ...
-!> \param m2 ...
-!> \param m3 ...
-!> \param n1 ...
-!> \param n2 ...
-!> \param n3 ...
-!> \param md1 ...
-!> \param md2 ...
-!> \param md3 ...
-!> \param nd1 ...
-!> \param nd2 ...
-!> \param nd3 ...
-!> \param nproc ...
-!> \param m 1,m2,m3: original real dimension, with m2 and m3 exchanged
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param md 1,md2,md3: the n1,n2,n3 dimensions. They contain the real unpadded space,
+!> \param n01 original real dimensions (input)
+!> \param n02 original real dimensions (input)
+!> \param n03 original real dimensions (input)
+!> \param m1 original real dimension, with m2 and m3 exchanged
+!> \param m2 original real dimension, with m2 and m3 exchanged
+!> \param m3 original real dimension, with m2 and m3 exchanged
+!> \param n1 the first FFT dimensions, for the moment supposed to be even
+!> \param n2 the first FFT dimensions, for the moment supposed to be even
+!> \param n3 the first FFT dimensions, for the moment supposed to be even
+!> \param md1 the n1,n2,n3 dimensions. They contain the real unpadded space,
 !>                 properly enlarged to be compatible with the FFT dimensions n_i.
 !>                 md2 is further enlarged to be a multiple of nproc
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param n 01,n02,n03: original real dimensions (input)
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param nd 1,nd2,nd3: fourier dimensions for which the kernel is injective,
+!> \param md2 the n1,n2,n3 dimensions. They contain the real unpadded space,
+!>                 properly enlarged to be compatible with the FFT dimensions n_i.
+!>                 md2 is further enlarged to be a multiple of nproc
+!> \param md3 the n1,n2,n3 dimensions. They contain the real unpadded space,
+!>                 properly enlarged to be compatible with the FFT dimensions n_i.
+!>                 md2 is further enlarged to be a multiple of nproc
+!> \param nd1 fourier dimensions for which the kernel is injective,
 !>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
-!>                 enlarged to be a multiple of nproc UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param n 1,n2,n3: the first FFT dimensions, for the moment supposed to be even
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!>                 enlarged to be a multiple of nproc
+!> \param nd2 fourier dimensions for which the kernel is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \param nd3 fourier dimensions for which the kernel is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \param nproc ...
 !> \date October 2006
 !> \author Luigi Genovese
 !> \note This four sets of dimensions are actually redundant (mi=n0i), 
@@ -328,37 +330,31 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate four sets of dimension needed for the calculation of the
 !>     convolution for the surface system
-!> \param n01 ...
-!> \param n02 ...
-!> \param n03 ...
-!> \param m1 ...
-!> \param m2 ...
-!> \param m3 ...
-!> \param n1 ...
-!> \param n2 ...
-!> \param n3 ...
-!> \param md1 ...
-!> \param md2 ...
-!> \param md3 ...
-!> \param nd1 ...
-!> \param nd2 ...
-!> \param nd3 ...
-!> \param nproc ...
-!> \param m 1,m2,m3: original real dimension, with 2 and 3 exchanged
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param md 1,md2:     the n1,n2 dimensions. UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param md 3:         half of n3 dimension. They contain the real unpadded space,
+!> \param n01 original real dimensions (input)
+!> \param n02 original real dimensions (input)
+!> \param n03 original real dimensions (input)
+!> \param m1 original real dimension, with 2 and 3 exchanged
+!> \param m2 original real dimension, with 2 and 3 exchanged
+!> \param m3 original real dimension, with 2 and 3 exchanged
+!> \param n1 the first FFT dimensions, for the moment supposed to be even
+!> \param n2 the first FFT dimensions, for the moment supposed to be even
+!> \param n3 the double of the first FFT even dimension greater than m3
+!>           (improved for the HalFFT procedure)
+!> \param md1 the n1,n2 dimensions. 
+!> \param md2 the n1,n2,n3 dimensions.
+!> \param md3 the half of n3 dimension. They contain the real unpadded space,
 !>                 properly enlarged to be compatible with the FFT dimensions n_i.
 !>                 md2 is further enlarged to be a multiple of nproc
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param n 01,n02,n03: original real dimensions (input)
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param nd 1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
+!> \param nd1 fourier dimensions for which the kernel is injective,
 !>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
-!>                 enlarged to be a multiple of nproc UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param n 3:    the double of the first FFT even dimension greater than m3
-!>           (improved for the HalFFT procedure)
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!>                 enlarged to be a multiple of nproc
+!> \param nd2 fourier dimensions for which the kernel is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \param nd3 fourier dimensions for which the kernel is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \param nproc ...
 !> \date October 2006
 !> \author Luigi Genovese
 !> \note This four sets of dimensions are actually redundant (mi=n0i), 
@@ -441,36 +437,35 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate four sets of dimension needed for the calculation of the
 !>     zero-padded convolution
-!> \param n01 ...
-!> \param n02 ...
-!> \param n03 ...
-!> \param m1 ...
-!> \param m2 ...
-!> \param m3 ...
+!> \param n01 original real dimensions (input)
+!> \param n02 original real dimensions (input)
+!> \param n03 original real dimensions (input)
+!> \param m1 original real dimension with the dimension 2 and 3 exchanged
+!> \param m2 original real dimension with the dimension 2 and 3 exchanged
+!> \param m3 original real dimension with the dimension 2 and 3 exchanged
 !> \param n1 ...
 !> \param n2 ...
-!> \param n3 ...
-!> \param md1 ...
-!> \param md2 ...
-!> \param md3 ...
-!> \param nd1 ...
-!> \param nd2 ...
-!> \param nd3 ...
-!> \param nproc ...
-!> \param m 1,m2,m3: original real dimension with the dimension 2 and 3 exchanged
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param md 1,md2,md3: half of n1,n2,n3 dimension. They contain the real unpadded space,
+!> \param n3 the double of the first FFT even dimension greater than m3
+!>           (improved for the HalFFT procedure)
+!> \param md1 half of n1,n2,n3 dimension. They contain the real unpadded space,
 !>                 properly enlarged to be compatible with the FFT dimensions n_i.
 !>                 md2 is further enlarged to be a multiple of nproc
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param n 01,n02,n03: original real dimensions (input)
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param nd 1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
+!> \param md2 half of n1,n2,n3 dimension. They contain the real unpadded space,
+!>                 properly enlarged to be compatible with the FFT dimensions n_i.
+!>                 md2 is further enlarged to be a multiple of nproc
+!> \param md3 half of n1,n2,n3 dimension. They contain the real unpadded space,
+!>                 properly enlarged to be compatible with the FFT dimensions n_i.
+!>                 md2 is further enlarged to be a multiple of nproc
+!> \param nd1 fourier dimensions for which the kernel FFT is injective,
 !>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
-!>                 enlarged to be a multiple of nproc UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param n 3:    the double of the first FFT even dimension greater than m3
-!>           (improved for the HalFFT procedure)
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!>                 enlarged to be a multiple of nproc
+!> \param nd2 fourier dimensions for which the kernel FFT is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \param nd3 fourier dimensions for which the kernel FFT is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \param nproc ...
 !> \date February 2006
 !> \author Luigi Genovese
 !> \note The dimension m2 and m3 correspond to n03 and n02 respectively 

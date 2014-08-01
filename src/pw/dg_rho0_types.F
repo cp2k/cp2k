@@ -151,10 +151,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains the given dg_rho0_type
-!> \param dg_rho0 ...
+!> \param dg_rho0 the dg_rho0_type to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param dg_rho 0_type: the dg_rho0_type to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
@@ -181,10 +180,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the given dg_rho0_type
-!> \param dg_rho0 ...
+!> \param dg_rho0 the dg_rho0_type to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param dg the dg_rho0_type to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
