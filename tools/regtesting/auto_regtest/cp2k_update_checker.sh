@@ -220,7 +220,7 @@ while true; do
     fi
 
 # Copyback everything to www folder if it is accessible    
-    if [[ -r ${wwwdir}/${regtesthtml} ]]; then
+    if [[ -r ${wwwtestdir}/${regtesthtml} ]]; then
       cp ${wwwtestdir}/* ${wwwdir}
     else
       echo "ERROR: www directory is not accessible!" &>>${reglog}
