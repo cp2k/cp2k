@@ -116,12 +116,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief If two molecules are topologically the same, finds the ordering that maps
 !>      the unordered one on the ordered one.
-!> \param reference ...
-!> \param unordered ...
+!> \param reference molecular description (see type definition)
+!> \param unordered molecular description (see type definition)
 !> \param order the mapping reference=order(unordred) if matches=.TRUE.
 !>                             undefined if matches=.FALSE.
 !> \param matches .TRUE. = the ordering was found
-!> \param reference, unordered : molecular description (see type definition) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
 !> \note
