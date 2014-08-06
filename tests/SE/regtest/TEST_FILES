@@ -21,7 +21,7 @@ h2o_lsd-ot.inp                    3     2e-14
 # tests for high-spin ROKS
 O-ROKS.inp         3
 O2-ROKS.inp        3
-NO2-ROKS.inp       3
+NO2-ROKS.inp                      3     2e-14
 #RM1 Model
 c2h4_rm1.inp       3
 h2op_2.inp                        3     2e-10

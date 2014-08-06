@@ -3,7 +3,7 @@
 # see regtest/TEST_FILES
 H2O-hfx-1.inp         1
 H2O-hfx-2.inp         1
-H2O-hfx-3.inp                     1     3e-14
+H2O-hfx-3.inp                     1     6e-14
 CH-hfx-md.inp                     2     1e-11
 CH-hfx-md-2.inp                   2     1e-11
 H2O_pw.inp           22
