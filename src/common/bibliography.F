@@ -69,7 +69,7 @@ MODULE bibliography
        Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013,    &
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
-       Kantorovich2008a, Wellendorff2012, Niklasson2014
+       Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014
 
 CONTAINS
 
@@ -2637,6 +2637,32 @@ CONTAINS
          "DI 10.1137/130911585",&
          "ER" ),&
          DOI="10.1137/130911585")
+
+    CALL add_reference(key=Borstnik2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Borstnik, U",&
+         "   VandeVondele, J",&
+         "   Weber, V",&
+         "   Hutter, J",&
+         "AF Borstnik, Urban",&
+         "   VandeVondele, Joost",&
+         "   Weber, Valery",&
+         "   Hutter, Juerg",&
+         "TI Sparse matrix multiplication: The distributed block-compressed sparse",&
+         "   row library",&
+         "SO PARALLEL COMPUTING",&
+         "SN 0167-8191",&
+         "EI 1872-7336",&
+         "PD MAY",&
+         "PY 2014",&
+         "VL 40",&
+         "IS 5-6",&
+         "BP 47",&
+         "EP 58",&
+         "DI 10.1016/j.parco.2014.03.012",&
+         "UT WOS:000338614300001",&
+         "ER"),&
+         DOI="10.1016/j.parco.2014.03.012")
 
   END SUBROUTINE add_all_references
 

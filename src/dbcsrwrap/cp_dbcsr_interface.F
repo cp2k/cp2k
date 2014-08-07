@@ -13,6 +13,8 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE cp_dbcsr_interface
+  USE bibliography,                    ONLY: Borstnik2014,&
+                                             cite_reference
   USE dbcsr_api,                       ONLY: &
        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
@@ -358,6 +360,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL cite_reference(Borstnik2014)
 
     CALL dbcsr_init_lib (group, dbcsr_error)
   END SUBROUTINE cp_dbcsr_init_lib
