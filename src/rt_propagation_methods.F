@@ -593,10 +593,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(tmp,PS,PSP)
-    CALL cp_dbcsr_allocate_matrix_set(tmp,2,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(PSP,2,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(PS,2,error=error)
-    DO i=1,2
+    CALL cp_dbcsr_allocate_matrix_set(tmp,SIZE(P),error=error)
+    CALL cp_dbcsr_allocate_matrix_set(PSP,SIZE(P),error=error)
+    CALL cp_dbcsr_allocate_matrix_set(PS,SIZE(P),error=error)
+    DO i=1,SIZE(P)
        CALL cp_dbcsr_init_p(PS(i)%matrix,error=error)
        CALL cp_dbcsr_create(PS(i)%matrix,template=P(1)%matrix,error=error)
        CALL cp_dbcsr_init_p(PSP(i)%matrix,error=error)
