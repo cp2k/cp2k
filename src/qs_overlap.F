@@ -160,7 +160,7 @@ CONTAINS
 
      CALL timeset(routineN,handle)
 
-     NULLIFY (atomic_kind_set)
+     NULLIFY (atomic_kind_set, p_block)
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
                      dbcsr_dist=dbcsr_dist,error=error)
 
