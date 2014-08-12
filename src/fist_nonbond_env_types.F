@@ -30,7 +30,8 @@ MODULE fist_nonbond_env_types
   INTEGER, PRIVATE, SAVE :: last_fist_nonbond_env_id_nr=0
   PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
             fist_nonbond_env_get, fist_nonbond_env_create, &
-            fist_nonbond_env_retain, fist_nonbond_env_release, pos_type, eam_type
+            fist_nonbond_env_retain, fist_nonbond_env_release, pos_type, eam_type, &
+            quip_data_type
 
 ! *****************************************************************************
   TYPE pos_type
@@ -39,6 +40,12 @@ MODULE fist_nonbond_env_types
 
   TYPE eam_type
     REAL (KIND=dp) :: f_embed, rho
+  END TYPE
+
+  TYPE quip_data_type
+    INTEGER, POINTER :: use_indices(:)
+    REAL (KIND=dp), POINTER :: force(:,:)
+    REAL (KIND=dp) :: virial(3,3)
   END TYPE
 
 ! *****************************************************************************
@@ -59,6 +66,7 @@ MODULE fist_nonbond_env_types
     TYPE(pos_type), DIMENSION(:), POINTER       :: rshell_last_update_pbc
     TYPE(pos_type), DIMENSION(:), POINTER       :: rcore_last_update_pbc
     TYPE(eam_type), DIMENSION(:), POINTER       :: eam_data
+    TYPE(quip_data_type), POINTER               :: quip_data
   END TYPE fist_nonbond_env_type
 
 CONTAINS
@@ -100,7 +108,7 @@ CONTAINS
        shift_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
        rcore_last_update_pbc, cell_last_update, num_update, last_update, &
        counter, natom_types, long_range_correction, ij_kind_full_fac, eam_data, &
-       charges, error)
+       quip_data, charges, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
@@ -125,6 +133,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: ij_kind_full_fac
     TYPE(eam_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eam_data
+    TYPE(quip_data_type), OPTIONAL, POINTER  :: quip_data
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -132,6 +141,7 @@ CONTAINS
     IF ( PRESENT ( charges ) ) charges => fist_nonbond_env%charges
     IF ( PRESENT ( potparm14 ) ) potparm14 => fist_nonbond_env%potparm14
     IF ( PRESENT ( eam_data ) ) eam_data => fist_nonbond_env%eam_data
+    IF ( PRESENT ( quip_data ) ) quip_data => fist_nonbond_env%quip_data
     IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env%potparm
     IF ( PRESENT ( rlist_cut ) ) rlist_cut => fist_nonbond_env%rlist_cut
     IF ( PRESENT ( rlist_lowsq ) ) rlist_lowsq => fist_nonbond_env%rlist_lowsq
@@ -196,7 +206,7 @@ CONTAINS
        rlist_cut, rlist_lowsq, nonbonded, aup, lup, ei_scale14, vdw_scale14, &
        shift_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
        rcore_last_update_pbc, cell_last_update, num_update, last_update, &
-       counter, natom_types, long_range_correction, eam_data, charges, error)
+       counter, natom_types, long_range_correction, eam_data, quip_data, charges, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
@@ -219,12 +229,14 @@ CONTAINS
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
     TYPE(eam_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eam_data
+    TYPE(quip_data_type), OPTIONAL, POINTER  :: quip_data
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     IF ( PRESENT ( potparm14 ) ) fist_nonbond_env%potparm14 => potparm14
     IF ( PRESENT ( eam_data ) ) fist_nonbond_env%eam_data => eam_data
+    IF ( PRESENT ( quip_data ) ) fist_nonbond_env%quip_data => quip_data
     IF ( PRESENT ( potparm ) ) fist_nonbond_env%potparm => potparm
     IF ( PRESENT ( rlist_cut ) ) fist_nonbond_env%rlist_cut => rlist_cut
     IF ( PRESENT ( charges ) ) fist_nonbond_env%charges => charges
@@ -307,6 +319,7 @@ CONTAINS
     NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
     NULLIFY(fist_nonbond_env%eam_data)
+    NULLIFY(fist_nonbond_env%quip_data)
     NULLIFY(fist_nonbond_env%charges)
     CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm14, &
          potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, vdw_scale14, &
@@ -526,6 +539,18 @@ CONTAINS
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%eam_data)) THEN
              DEALLOCATE (fist_nonbond_env%eam_data,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED(fist_nonbond_env%quip_data)) THEN
+             IF (ASSOCIATED(fist_nonbond_env%quip_data%force)) THEN
+                DEALLOCATE (fist_nonbond_env%quip_data%force,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ENDIF
+             IF (ASSOCIATED(fist_nonbond_env%quip_data%use_indices)) THEN
+                DEALLOCATE (fist_nonbond_env%quip_data%use_indices,STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ENDIF
+             DEALLOCATE (fist_nonbond_env%quip_data,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN

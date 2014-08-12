@@ -27,6 +27,8 @@ MODULE manybody_potential
                                              pos_type
   USE kinds,                           ONLY: dp
   USE manybody_eam,                    ONLY: get_force_eam
+  USE manybody_quip,                   ONLY: quip_add_force_virial,&
+                                             quip_energy_store_force_virial
   USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
                                              setup_siepmann_arrays,&
                                              siepmann_energy,&
@@ -38,14 +40,10 @@ MODULE manybody_potential
                                              tersoff_forces
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
-  USE pair_potential_types,            ONLY: ea_type,&
-                                             eam_pot_type,&
-                                             pair_potential_pp_type,&
-                                             pair_potential_single_type,&
-                                             siepmann_pot_type,&
-                                             siepmann_type,&
-                                             tersoff_pot_type,&
-                                             tersoff_type
+  USE pair_potential_types,            ONLY: &
+       ea_type, eam_pot_type, pair_potential_pp_type, &
+       pair_potential_single_type, quip_type, siepmann_pot_type, &
+       siepmann_type, tersoff_pot_type, tersoff_type
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -100,10 +98,10 @@ CONTAINS
       nparticle_local, nunique, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
-    LOGICAL                                  :: any_siepmann, any_tersoff, &
-                                                failure
-    REAL(KIND=dp)                            :: drij, embed, pot_loc, qr, &
-                                                rab2_max, rij(3)
+    LOGICAL                                  :: any_quip, any_siepmann, &
+                                                any_tersoff, failure
+    REAL(KIND=dp)                            :: drij, embed, pot_loc, &
+                                                pot_quip, qr, rab2_max, rij(3)
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
     REAL(KIND=dp), POINTER                   :: fembed( : )
@@ -121,6 +119,7 @@ CONTAINS
     NULLIFY(eam, siepmann, tersoff)
     any_tersoff = .FALSE.
     any_siepmann = .FALSE.
+    any_quip = .FALSE.
     failure = .FALSE.
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, r_last_update_pbc=r_last_update_pbc,&
@@ -166,10 +165,17 @@ CONTAINS
        DO jkind =  ikind, SIZE ( atomic_kind_set )
           pot => potparm %pot ( ikind, jkind ) % pot
           any_tersoff = any_tersoff .OR. ANY(pot%type==tersoff_type)
+          any_quip = any_quip .OR. ANY(pot%type==quip_type)
           any_siepmann = any_siepmann .OR. ANY(pot%type==siepmann_type)
        END DO
     END DO
     CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,natom_types=nkinds,error=error)
+    ! QUIP
+    IF (any_quip) THEN
+      CALL quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
+         fist_nonbond_env, pot_quip, para_env, error=error)
+      pot_manybody = pot_manybody + pot_quip
+    ENDIF
     ! TERSOFF
     IF (any_tersoff) THEN 
        NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
@@ -331,6 +337,7 @@ CONTAINS
        END DO
        CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
     END IF
+
     CALL timestop ( handle )
   END SUBROUTINE energy_manybody
 
@@ -371,8 +378,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
-    LOGICAL                                  :: any_siepmann, any_tersoff, &
-                                                failure
+    LOGICAL                                  :: any_quip, any_siepmann, &
+                                                any_tersoff, failure
     REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, &
       ptens22, ptens23, ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, &
       rtmp(3)
@@ -391,6 +398,7 @@ CONTAINS
 
     failure     = .FALSE.
     any_tersoff = .FALSE.
+    any_quip = .FALSE.
     any_siepmann = .FALSE.
     CALL timeset ( routineN, handle )
     NULLIFY(eam_a, eam_b, tersoff, siepmann)
@@ -422,6 +430,9 @@ CONTAINS
           END DO
        END DO
     END DO
+
+    ! QUIP
+    CALL quip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, error=error)
 
     ! starting the force loop
     DO ilist=1,nonbonded%nlists

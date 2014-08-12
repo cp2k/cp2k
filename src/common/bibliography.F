@@ -69,7 +69,8 @@ MODULE bibliography
        Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013,    &
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
-       Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014
+       Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
+       QUIP_ref
 
 CONTAINS
 
@@ -150,6 +151,15 @@ CONTAINS
          "UT ISI:A1986C899400011",&
          "ER"),&
          DOI="10.1103/PhysRevB.33.7983")
+
+    CALL add_reference(key=QUIP_ref, ISI_record=s2a(&
+         "AU QUIP", &
+         "TI libAtoms/QUIP libraries from http://www.libatoms.org, please cite",&
+         "   web site and references for appropriate potential invoked",&
+         "SO web site", &
+         "PY 2014", &
+         "ER"),&
+         DOI="")
 
     CALL add_reference(key=VandenCic2006, ISI_record=s2a(&
          "AU Vanden-Eijnden, E",&

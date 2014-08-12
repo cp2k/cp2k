@@ -53,8 +53,8 @@ MODULE force_fields_input
        eam_pot_type, ft_pot_type, ft_type, ftd_pot_type, ftd_type, gp_type, &
        gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
        no_potential_single_allocation, pair_potential_p_type, &
-       pair_potential_reallocate, potential_single_allocation, siepmann_type, &
-       tersoff_type, wl_type
+       pair_potential_reallocate, potential_single_allocation, quip_type, &
+       siepmann_type, tersoff_type, wl_type
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
   USE string_utilities,                ONLY: uppercase
@@ -96,8 +96,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngd, &
-      ngp, nimpr, nipbv, nlj, nopbend, nshell, nsiepmann, ntersoff, ntors, &
-      ntot, nubs, nwl
+      ngp, nimpr, nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, &
+      ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
     REAL(KIND=dp)                            :: min_eps_spline_allowed
@@ -253,6 +253,14 @@ CPSourceFileRef,&
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nsiepmann,siepmann=.TRUE.,error=error)
              CALL read_siepmann_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
+          END IF
+
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"quip",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nquip,error=error)
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp+ntersoff+nsiepmann
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nquip,quip=.TRUE.,error=error)
+             CALL read_quip_section(inp_info%nonbonded,tmp_section2,ntot,para_env,mm_section,error)
           END IF
        END IF
 
@@ -598,6 +606,59 @@ CPSourceFileRef,&
        nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%set(1)%eam%acutal**2
     END DO
   END SUBROUTINE read_eam_section
+
+! *****************************************************************************
+!> \brief Reads the QUIP section
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE read_quip_section(nonbonded, section, start, para_env, mm_section, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_quip_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: args_str, atm_names
+    INTEGER                                  :: is, isec, n_calc_args, n_items
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = quip_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       CALL section_vals_val_get(section,"PARM_FILE_NAME",i_rep_section=isec,&
+            c_val=nonbonded%pot(start+isec)%pot%set(1)%quip%quip_file_name,error=error)
+       CALL section_vals_val_get(section,"INIT_ARGS",i_rep_section=isec,&
+            c_vals=args_str, error=error)
+       nonbonded%pot(start+isec)%pot%set(1)%quip%init_args = ""
+       DO is=1, SIZE(args_str)
+          nonbonded%pot(start+isec)%pot%set(1)%quip%init_args = &
+             TRIM(nonbonded%pot(start+isec)%pot%set(1)%quip%init_args) // &
+             " "//TRIM(args_str(is))
+       END DO ! is
+       CALL section_vals_val_get(section,"CALC_ARGS",i_rep_section=isec,&
+            n_rep_val=n_calc_args,error=error)
+       IF (n_calc_args > 0) THEN
+          CALL section_vals_val_get(section,"CALC_ARGS",i_rep_section=isec,&
+               c_vals=args_str,error=error)
+               DO is=1, SIZE(args_str)
+                  nonbonded%pot(start+isec)%pot%set(1)%quip%calc_args =  &
+                     TRIM(nonbonded%pot(start+isec)%pot%set(1)%quip%calc_args) // &
+                     " "//TRIM(args_str(is))
+               END DO ! is
+       END IF
+       nonbonded%pot(start+isec)%pot%rcutsq  = 0.0_dp
+    END DO
+  END SUBROUTINE read_quip_section
 
 ! *****************************************************************************
 !> \brief Reads the LJ section
