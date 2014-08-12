@@ -107,7 +107,6 @@ How to compile CP2K code
        calculations.  The Fortran compiler must use an appended
        underscore for linking C subroutines.
      * USE __CUDA_PROFILING to turn on Nvidia Tools Extensions.
-     * Consult cuda_tools/README for more information.
 
  2i) Machine architecture abstraction support (optional, under development):
      * Use the __HWLOC or __LIBNUMA to compile with hwloc or libnuma support
