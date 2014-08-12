@@ -50,6 +50,7 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
       routineN = 'quip_energy_store_force_virial', &
       routineP = moduleN//':'//routineN
 
+#ifdef __QUIP
     CHARACTER(len=2), ALLOCATABLE            :: elem_symbol(:)
     INTEGER                                  :: i, iat, iat_use, ikind, &
                                                 jkind, n_atoms, n_atoms_use, &
@@ -64,12 +65,12 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
     TYPE(quip_data_type), POINTER            :: quip_data
     TYPE(quip_pot_type), POINTER             :: quip
 
-    failure = .FALSE.
+#endif
 #ifndef __QUIP
     CALL stop_program(routineN,moduleN,__LINE__,&
         "In order to use QUIP you need to download and install the libAtoms/QUIP library (check CP2K manual for details)")
 #else
-
+    failure = .FALSE.
     n_atoms = SIZE(particle_set)
     ALLOCATE(use_atom(n_atoms))
     use_atom = .FALSE.
@@ -178,15 +179,16 @@ SUBROUTINE quip_add_force_virial(fist_nonbond_env, force, virial, error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'quip_add_force_virial', &
       routineP = moduleN//':'//routineN
 
+#ifdef __QUIP
     INTEGER                                  :: iat, iat_use
     LOGICAL                                  :: failure
     TYPE(quip_data_type), POINTER            :: quip_data
+#endif
 
-    failure = .FALSE.
 #ifndef __QUIP
     RETURN
 #else
-
+    failure = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, quip_data=quip_data, error=error)
     IF (.NOT. ASSOCIATED(quip_data)) RETURN
 
