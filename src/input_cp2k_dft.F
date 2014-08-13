@@ -87,6 +87,7 @@ MODULE input_cp2k_dft
   USE input_cp2k_almo,                 ONLY: create_almo_scf_section
   USE input_cp2k_atom,                 ONLY: create_powell_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section
+  USE input_cp2k_kpoints,              ONLY: create_kpoints_section
   USE input_cp2k_ls,                   ONLY: create_ls_scf_section
   USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
                                              create_neighbor_lists_section
@@ -547,7 +548,7 @@ CONTAINS
     CALL create_ext_pot_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
-! ZMP sections to include the external density or v_xc potential
+    ! ZMP sections to include the external density or v_xc potential
     CALL create_ext_den_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -557,6 +558,10 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
     CALL create_poisson_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_kpoints_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -1494,6 +1499,13 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"dft_control_parameters",&
             description="Controls the printing of dft control parameters.", &
+            print_level=medium_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"KPOINTS",&
+            description="Controls the printing of kpoint information.", &
             print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)

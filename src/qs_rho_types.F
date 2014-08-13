@@ -8,6 +8,7 @@
 !>      keeps track of which ones are valid
 !> \par History
 !>      08.2002 created [fawzi]
+!>      08.2014 kpoints [JGH]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_rho_types
@@ -33,8 +34,11 @@ MODULE qs_rho_types
 !> \brief keeps the density in various representations, keeping track of
 !>      which ones are valid.
 !> \param most attributes are array with either lda or lsd_alpha,lsd_beta.
-!> \param rho_ao the filterd rho in the localized atom basis (to have rho(r)
+!> \param rho_ao the filtered rho in the localized atom basis (to have rho(r)
 !>        the filtred matrix is enough, but rho(r,r') is lost).
+!> \param rho_ao_kp the filtered rho in the localized atom basis (to have rho(r)
+!>        the filtered matrix is enough, but rho(r,r') is lost).
+!>        for kpoints, in real space index form
 !> \param rho_r grids with rho in the real space
 !> \param tau_r grids with the kinetic energy density in real space
 !> \param rho_g grids with rho in the g space
@@ -54,6 +58,7 @@ MODULE qs_rho_types
 ! *****************************************************************************
   TYPE qs_rho_type
      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: rho_ao_kp
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: drho_g, drho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: tau_g, tau_r
@@ -133,10 +138,19 @@ CONTAINS
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
           IF (ASSOCIATED(rho_struct%rho_ao)) THEN
+             ! What is the rational behind this?
              IF(rho_struct%soft_valid) THEN
                NULLIFY(rho_struct%rho_ao)
              ELSE
                CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
+             ENDIF
+          END IF
+          IF (ASSOCIATED(rho_struct%rho_ao_kp)) THEN
+             ! What is the rational behind this?
+             IF(rho_struct%soft_valid) THEN
+               NULLIFY(rho_struct%rho_ao_kp)
+             ELSE
+               CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_kp,error=error)
              ENDIF
           END IF
           IF (ASSOCIATED(rho_struct%rho_r)) THEN
@@ -245,6 +259,7 @@ CONTAINS
 !>      If some representation is not available an error is issued
 !> \param rho_struct ...
 !> \param rho_ao ...
+!> \param rho_ao_kp ...
 !> \param rho_r ...
 !> \param drho_r ...
 !> \param rho_g ...
@@ -267,12 +282,15 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, drho_r, rho_g, drho_g, tau_r, tau_g, &
-       rho_r_valid, drho_r_valid, rho_g_valid, drho_g_valid, tau_r_valid, tau_g_valid, &
-       rebuild_each, tot_rho_r, soft_valid, error)
+  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_kp, rho_r, drho_r, &
+       rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
+       drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, soft_valid, &
+       error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: rho_ao_kp
     TYPE(pw_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, drho_r, rho_g, drho_g, &
                                                 tau_r, tau_g
@@ -297,6 +315,9 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(rho_ao)) THEN
              rho_ao => rho_struct%rho_ao
+       END IF
+       IF (PRESENT(rho_ao_kp)) THEN
+             rho_ao_kp => rho_struct%rho_ao_kp
        END IF
        IF (PRESENT(rho_r)) THEN
           IF (PRESENT(rho_r_valid).or.rho_struct%rho_r_valid) THEN

@@ -20,7 +20,7 @@ MODULE fermi_utils
 
   PRIVATE
 
-  PUBLIC :: FermiFixed, FermiFixedDeriv
+  PUBLIC :: FermiFixed, FermiFixedDeriv, Fermikp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
 
@@ -101,6 +101,89 @@ CONTAINS
  END SUBROUTINE Fermi
 
 ! *****************************************************************************
+!> \brief Fermi function for KP cases
+!> \param f   Occupation numbers
+!> \param nel Number of electrons (total)
+!> \param kTS Entropic energy contribution
+!> \param e   orbital (band) energies
+!> \param mu  chemical potential
+!> \param wk  kpoint weights
+!> \param t   Temperature
+!> \param maxocc Maximum occupation
+! *****************************************************************************
+ SUBROUTINE Fermi2(f,nel,kTS,e,mu,wk,t,maxocc)
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: f
+    REAL(KIND=dp), INTENT(OUT)               :: nel, kTS
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: e
+    REAL(KIND=dp), INTENT(IN)                :: mu
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wk
+    REAL(KIND=dp), INTENT(IN)                :: t, maxocc
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'Fermi2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, is, nkp, nmo
+    REAL(KIND=dp)                            :: arg, beta, term1, term2, tmp, &
+                                                tmp2, tmp3, tmp4, tmplog
+
+   nmo = SIZE(e,1)
+   nkp = SIZE(e,2)
+   kTS = 0.0_dp
+   ! kTS is the entropic contribution to the energy i.e. -TS
+   ! kTS= kT*[f ln f + (1-f) ln (1-f)]
+   IF(t > 1.0e-14_dp) THEN
+      beta = 1.0_dp/t
+      DO ik=1,nkp
+         DO is=1,nmo
+            IF (e(is,ik) > mu) THEN
+               arg  = -(e(is,ik)-mu)*beta
+               tmp  = EXP(arg)
+               tmp4 = tmp + 1.0_dp
+               tmp2 = tmp/tmp4
+               tmp3 = 1.0_dp/tmp4
+               f(is,ik) = maxocc*tmp2
+               tmplog = -LOG(tmp4)
+               term1 = tmp2 * ( arg + tmplog )
+               term2 = tmp3 * tmplog
+               kTS = kTS + t*maxocc*(term1 + term2)
+            ELSE
+               arg  = (e(is,ik)-mu)*beta
+               tmp  = EXP(arg)
+               tmp4 = tmp + 1.0_dp
+               tmp2 = 1.0_dp/tmp4
+               tmp3 = tmp/tmp4
+               f(is,ik) = maxocc*tmp2
+               tmplog = -LOG(tmp4)
+               term1= tmp2 * tmplog
+               term2= tmp3 * (arg + tmplog )
+               kTS = kTS + T*maxocc*(term1 + term2)
+            END IF
+         END DO
+      END DO
+   ELSE
+      beta = HUGE(1.0_dp)
+      DO ik=1,nkp
+         DO is=1,nmo
+            IF (e(is,ik) <= mu) THEN
+               f(is,ik) = maxocc
+            ELSE
+               f(is,ik) = 0.0_dp
+            END IF
+         END DO
+      END DO
+   END IF
+
+   nel = 0.0_dp
+   DO ik=1,nkp
+      nel = nel + accurate_sum(f(1:nmo,ik)) * wk(ik)
+   END DO
+
+ END SUBROUTINE Fermi2
+
+! *****************************************************************************
 !> \brief   returns occupations according to Fermi-Dirac statistics
 !>          for a given set of energies and number of electrons.
 !>          Note that singly occupied orbitals are assumed.
@@ -179,6 +262,59 @@ CONTAINS
     CALL Fermi(f,N_now,kTS,e,mu,T, maxocc,estate,festate)
 
  END SUBROUTINE FermiFixed
+
+! *****************************************************************************
+!> \brief Bisection search to find mu for a given nel (kpoint case)
+!> \param f   Occupation numbers
+!> \param mu  chemical potential
+!> \param kTS Entropic energy contribution
+!> \param e   orbital (band) energies
+!> \param nel Number of electrons (total)
+!> \param wk  kpoint weights
+!> \param t   Temperature
+!> \param maxocc Maximum occupation
+! *****************************************************************************
+ SUBROUTINE Fermikp(f,mu,kTS,e,nel,wk,t,maxocc)
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: f
+    REAL(KIND=dp), INTENT(OUT)               :: mu, kTS
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: e
+    REAL(KIND=dp), INTENT(IN)                :: nel
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wk
+    REAL(KIND=dp), INTENT(IN)                :: t, maxocc
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'Fermikp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iter
+    REAL(KIND=dp)                            :: mu_max, mu_min, mu_now, &
+                                                N_max, N_min, N_now
+
+! bisection search to find mu for a given nel
+
+    mu_min=MINVAL(e) - 0.5_dp
+    mu_max=MAXVAL(e) + 0.5_dp
+    iter=0
+    DO WHILE( mu_max-mu_min > EPSILON(mu)*MAX(1.0_dp,ABS(mu_max),ABS(mu_min)) )
+       iter=iter+1
+       mu_now = (mu_max+mu_min)/2.0_dp
+       CALL Fermi2(f,N_now,kTS,e,mu_now,wk,T,maxocc)
+       iter = iter + 1
+       IF (N_now<=nel) THEN
+          mu_min = mu_now
+          N_min  = N_now
+       ELSE
+          mu_max = mu_now
+          N_max  = N_now
+       ENDIF
+       IF (iter>200) EXIT
+    ENDDO
+
+    mu=(mu_max+mu_min)/2.0_dp
+    CALL Fermi2(f,N_now,kTS,e,mu,wk,T,maxocc)
+
+ END SUBROUTINE Fermikp
 
 ! *****************************************************************************
 !> \brief   returns f and dfde for a given set of energies and number of electrons

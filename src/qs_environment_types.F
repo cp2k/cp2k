@@ -35,11 +35,8 @@ MODULE qs_environment_types
                                              cp_ddapc_release,&
                                              cp_ddapc_retain,&
                                              cp_ddapc_type
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -91,6 +88,9 @@ MODULE qs_environment_types
   USE kg_environment_types,            ONLY: kg_env_release,&
                                              kg_environment_type
   USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: kpoint_create,&
+                                             kpoint_release,&
+                                             kpoint_type
   USE lri_environment_types,           ONLY: lri_density_release,&
                                              lri_density_type,&
                                              lri_env_release,&
@@ -135,14 +135,9 @@ MODULE qs_environment_types
                                              local_rho_type,&
                                              rhoz_type,&
                                              set_local_rho
-  USE qs_matrix_pools,                 ONLY: mpools_get,&
-                                             mpools_release,&
+  USE qs_matrix_pools,                 ONLY: mpools_release,&
                                              mpools_retain,&
                                              qs_matrix_pools_type
-  USE qs_mo_methods,                   ONLY: make_basis_cholesky,&
-                                             make_basis_lowdin,&
-                                             make_basis_simple,&
-                                             make_basis_sm
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -157,8 +152,7 @@ MODULE qs_environment_types
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
-  USE qs_scf_types,                    ONLY: ot_method_nr,&
-                                             qs_scf_env_type,&
+  USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              scf_env_release,&
                                              scf_env_retain
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
@@ -185,8 +179,6 @@ MODULE qs_environment_types
                                              se_taper_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
                                              task_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
@@ -212,7 +204,6 @@ MODULE qs_environment_types
   PUBLIC :: get_qs_env,&
             qs_env_create,&
             qs_env_release,&
-            qs_env_reorthogonalize_vectors,&
             qs_env_retain,&
             set_qs_env
 
@@ -221,6 +212,7 @@ MODULE qs_environment_types
 !> \param id_nr identification number, guarateed to be unique
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param cell the simulation cell (box)
+!> \param kpoints information on the kpoints used
 !> \param image_matrix matrix needed for the image charge approach within QM/MM
 !> \param image_coeff coefficients of the image charges within QM/MM
 !> \param ipiv auxiliary matrix needed for solving linear system of equations
@@ -346,6 +338,7 @@ MODULE qs_environment_types
     TYPE(ls_scf_env_type), POINTER                        :: ls_scf_env
     TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
+    TYPE(kpoint_type), POINTER                            :: kpoints
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
@@ -389,7 +382,7 @@ MODULE qs_environment_types
     TYPE(pw_p_type), POINTER                              :: rho_nlcc
     TYPE(pw_p_type), POINTER                              :: rho_nlcc_g
     TYPE(pw_p_type), POINTER                              :: vee
-! ZMP adding variables
+    ! ZMP adding variables
     TYPE(qs_rho_type), POINTER                            :: rho_external
     TYPE(pw_p_type), POINTER                              :: external_vxc
     TYPE(pw_p_type), POINTER                              :: mask
@@ -472,6 +465,7 @@ CONTAINS
 !> \param super_cell ...
 !> \param cell_ref ...
 !> \param use_ref_cell ...
+!> \param kpoints ...
 !> \param dft_control ...
 !> \param mos ...
 !> \param mos_aux_fit ...
@@ -555,6 +549,7 @@ CONTAINS
 !> \param ecoul_1c ...
 !> \param rho0_s_rs ...
 !> \param rho0_s_gs ...
+!> \param do_kpoints ...
 !> \param has_unit_metric ...
 !> \param requires_mo_derivs ...
 !> \param mo_derivs ...
@@ -604,7 +599,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
+  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,kpoints,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_scp,sap_oce,sab_lrc,&
        sab_se,sab_tbe,sab_core,sab_almo,particle_set,energy,force,harris_env,&
@@ -615,7 +610,7 @@ CONTAINS
        vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr, local_particles,&
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_zmp,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
-       rho0_s_rs,rho0_s_gs,has_unit_metric,requires_mo_derivs,mo_derivs,&
+       rho0_s_rs,rho0_s_gs,do_kpoints,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
@@ -627,6 +622,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
+    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -710,7 +706,7 @@ CONTAINS
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
-    LOGICAL, OPTIONAL                        :: has_unit_metric, &
+    LOGICAL, OPTIONAL                        :: do_kpoints, has_unit_metric, &
                                                 requires_mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
@@ -800,6 +796,10 @@ CONTAINS
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
+    IF (PRESENT(kpoints)) kpoints => qs_env%kpoints
+    IF (PRESENT(do_kpoints)) THEN
+       do_kpoints = (qs_env%kpoints%nkp > 0)
+    END IF
     IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
     IF (PRESENT(qmmm_periodic)) qmmm_periodic = qs_env%qmmm_periodic
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
@@ -855,7 +855,7 @@ CONTAINS
     IF (PRESENT(rho_nlcc_g)) rho_nlcc_g => qs_env%rho_nlcc_g
     IF (PRESENT(vppl)) vppl => qs_env%vppl
     IF (PRESENT(vee)) vee => qs_env%vee
-! ZMP pointing vectors
+    ! ZMP pointing vectors
     IF (PRESENT(rho_external)) rho_external => qs_env%rho_external
     IF (PRESENT(external_vxc)) external_vxc => qs_env%external_vxc
     IF (PRESENT(mask)) mask => qs_env%mask
@@ -979,6 +979,7 @@ CONTAINS
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%super_cell)
     NULLIFY (qs_env%cell_ref)
+    NULLIFY (qs_env%kpoints)
     NULLIFY (qs_env%dft_control)
     NULLIFY (qs_env%mos)
     NULLIFY (qs_env%mos_aux_fit)
@@ -1030,7 +1031,7 @@ CONTAINS
     NULLIFY (qs_env%rho_core)
     NULLIFY (qs_env%vppl)
     NULLIFY (qs_env%vee)
-! ZMP initializing arrays
+    ! ZMP initializing arrays
     NULLIFY (qs_env%rho_external)
     NULLIFY (qs_env%external_vxc)
     NULLIFY (qs_env%mask)
@@ -1061,7 +1062,7 @@ CONTAINS
     NULLIFY (qs_env%task_list)
     NULLIFY (qs_env%task_list_aux_fit)
     NULLIFY (qs_env%task_list_soft)
-! ZMP zmp task list
+    ! ZMP zmp task list
     NULLIFY (qs_env%task_list_zmp)
 
     NULLIFY (qs_env%scp_env)
@@ -1095,6 +1096,7 @@ CONTAINS
     CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
                              globenv%blacs_grid_layout,&
                              globenv%blacs_repeatable,error=error)
+    CALL kpoint_create(qs_env%kpoints,error)
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
@@ -1128,6 +1130,7 @@ CONTAINS
 !> \param super_cell ...
 !> \param cell_ref ...
 !> \param use_ref_cell ...
+!> \param kpoints ...
 !> \param dft_control ...
 !> \param mos ...
 !> \param mos_aux_fit ...
@@ -1247,7 +1250,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,dft_control,&
+  SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,kpoints,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
        sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,energy,force,harris_env,&
@@ -1269,6 +1272,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
+    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1432,8 +1436,10 @@ CONTAINS
        qs_env%dft_control => dft_control
     END IF
     IF ( PRESENT ( use_ref_cell ) ) qs_env%use_ref_cell = use_ref_cell
-    IF ( PRESENT ( qmmm ) ) qs_env%qmmm = qmmm
-    IF ( PRESENT ( qmmm_periodic ) ) qs_env%qmmm_periodic = qmmm_periodic
+    !
+    IF (PRESENT(kpoints)) qs_env%kpoints = kpoints
+    IF (PRESENT(qmmm)) qs_env%qmmm = qmmm
+    IF (PRESENT(qmmm_periodic)) qs_env%qmmm_periodic = qmmm_periodic
     IF (PRESENT(mos)) qs_env%mos => mos
     IF (PRESENT(mos_aux_fit)) qs_env%mos_aux_fit => mos_aux_fit
     IF (PRESENT(neighbor_list_id)) qs_env%neighbor_list_id=neighbor_list_id
@@ -1482,7 +1488,7 @@ CONTAINS
     IF (PRESENT(task_list)) qs_env%task_list=>task_list
     IF (PRESENT(task_list_aux_fit)) qs_env%task_list_aux_fit=>task_list_aux_fit
     IF (PRESENT(task_list_soft)) qs_env%task_list_soft=>task_list_soft
-! ZMP pointer
+    ! ZMP pointer
     IF (PRESENT(task_list_zmp)) qs_env%task_list_zmp=>task_list_zmp
     IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
     IF (PRESENT(rtp)) qs_env%rtp=>rtp
@@ -1545,7 +1551,7 @@ CONTAINS
     IF (PRESENT(rho_nlcc_g)) qs_env%rho_nlcc_g => rho_nlcc_g
     IF (PRESENT(vppl)) qs_env%vppl => vppl
     IF (PRESENT(vee)) qs_env%vee => vee
-! ZMP associating variables
+    ! ZMP associating variables
     IF (PRESENT(rho_external)) THEN ! accepts also null pointers !
        IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external,error=error)
        CALL qs_rho_release(qs_env%rho_external,error=error)
@@ -1776,6 +1782,7 @@ CONTAINS
           CALL cell_release(qs_env%cell,error=error)
           CALL cell_release(qs_env%super_cell,error=error)
           CALL cell_release(qs_env%cell_ref,error=error)
+          CALL kpoint_release(qs_env%kpoints,error=error)
           CALL dft_control_release(qs_env%dft_control, error=error)
           IF (ASSOCIATED(qs_env%mos)) THEN
              DO i=1,SIZE(qs_env%mos)
@@ -1974,8 +1981,10 @@ CONTAINS
              CALL cp_dbcsr_deallocate_matrix_set(qs_env % matrix_ks_aux_fit,error)
           ENDIF
           IF (ASSOCIATED(qs_env%matrix_s)) CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_s,error)
-          IF (ASSOCIATED(qs_env%matrix_s_aux_fit)) CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_s_aux_fit,error)
-          IF (ASSOCIATED(qs_env%matrix_s_aux_fit_vs_orb)) CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_s_aux_fit_vs_orb,error)
+          IF (ASSOCIATED(qs_env%matrix_s_aux_fit)) &
+             CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_s_aux_fit,error)
+          IF (ASSOCIATED(qs_env%matrix_s_aux_fit_vs_orb)) &
+             CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_s_aux_fit_vs_orb,error)
           IF (ASSOCIATED(qs_env%matrix_w)) CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_w,error)
           IF (ASSOCIATED(qs_env%matrix_w_mp2)) CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_w_mp2,error)
           IF (ASSOCIATED(qs_env%matrix_p_mp2)) CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_p_mp2,error)
@@ -2017,7 +2026,7 @@ CONTAINS
           IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
              CALL ls_scf_release(qs_env%ls_scf_env,error)
           ENDIF
-! ZMP 
+          ! ZMP 
           IF(ASSOCIATED(qs_env%task_list_zmp)) THEN
              CALL deallocate_task_list(qs_env%task_list_zmp,error)
           ENDIF
@@ -2063,7 +2072,7 @@ CONTAINS
              CALL pw_release(qs_env%vee%pw,error=error)
              DEALLOCATE(qs_env%vee)
           ENDIF
-! ZMP
+          ! ZMP
           IF(ASSOCIATED(qs_env%rho_external)) THEN
              NULLIFY(qs_env%rho_external%rho_ao)
              CALL qs_rho_release(qs_env%rho_external, error=error)
@@ -2163,87 +2172,5 @@ CONTAINS
     END IF
     NULLIFY(qs_env)
   END SUBROUTINE qs_env_release
-
-! *****************************************************************************
-!> \brief reorthogonalizes the mos
-!> \param qs_env the qs_env in which to orthogonalize
-!> \param v_matrix ...
-!> \param n_col number of column of v to orthogonalize
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \param v the vectors to orthogonalize UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \par History
-!>      04.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, n_col,&
-       error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_type), POINTER                :: v_matrix
-    INTEGER, INTENT(in), OPTIONAL            :: n_col
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'qs_env_reorthogonalize_vectors', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, my_n_col
-    LOGICAL                                  :: failure, has_unit_metric, &
-                                                ortho_contains_cholesky, &
-                                                smearing_is_used
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
-    TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(scf_control_type), POINTER          :: scf_control
-
-    failure=.FALSE.
-    NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
-    CALL timeset(routineN,handle)
-
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
-
-    IF (.NOT. failure) THEN
-
-       CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
-       IF (PRESENT(n_col)) my_n_col=n_col
-       CALL get_qs_env(qs_env,mpools=mpools,&
-            scf_env=scf_env,&
-            scf_control=scf_control,&
-            matrix_s=matrix_s,&
-            error=error)
-       CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
-            error=error)
-       IF (ASSOCIATED(scf_env)) THEN
-          ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
-               (scf_env%cholesky_method>0 ).AND.&
-               ASSOCIATED(scf_env%ortho)
-       ELSE
-          ortho_contains_cholesky=.FALSE.
-       END IF
-
-       CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
-       smearing_is_used = .FALSE.
-       IF (qs_env%dft_control%smear) THEN
-           smearing_is_used = .TRUE.
-       END IF
-
-
-       IF (has_unit_metric) THEN
-          CALL make_basis_simple(v_matrix,my_n_col,error=error)
-       ELSE IF (smearing_is_used) THEN
-          CALL make_basis_lowdin(vmatrix=v_matrix,ncol=my_n_col,&
-                 matrix_s=matrix_s(1)%matrix,error=error)
-       ELSE IF (ortho_contains_cholesky) THEN
-          CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
-               ortho=scf_env%ortho,error=error)
-       ELSE
-          CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix ,error=error)
-       END IF
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE qs_env_reorthogonalize_vectors
 
 END MODULE qs_environment_types

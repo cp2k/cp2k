@@ -71,6 +71,9 @@ MODULE qs_ks_methods
   USE kg_correction,                   ONLY: kg_ekin_subset
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type,&
+                                             set_kpoint_info
   USE lri_environment_types,           ONLY: lri_density_type,&
                                              lri_environment_type,&
                                              lri_kind_type
@@ -102,7 +105,7 @@ MODULE qs_ks_methods
                                              calculate_image_pot,&
                                              integrate_potential_devga_rspace
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_core_energies,                ONLY: calculate_ecore
+  USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -190,11 +193,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: auxbas_grid, handle, nspins, &
-                                                stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -207,16 +207,11 @@ CONTAINS
     ALLOCATE(ks_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.not.failure) THEN
-       NULLIFY( pw_env, auxbas_pw_pool,&
-            pw_env, cell,pw_pools)
-       CALL get_qs_env(qs_env=qs_env,&
-            dft_control=dft_control,&
-            pw_env=pw_env, cell=cell,error=error)
-       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
-            auxbas_grid=auxbas_grid,error=error)
+    IF (.NOT.failure) THEN
 
-       nspins=dft_control%nspins
+       NULLIFY( pw_env, auxbas_pw_pool, pw_pools)
+       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
+       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,error=error)
 
        ks_env%s_mstruct_changed=.TRUE.
        ks_env%rho_changed=.TRUE.
@@ -226,11 +221,12 @@ CONTAINS
        ks_env%ref_count=1
 
     END IF
+
     IF (.NOT.failure) THEN
        ks_env%auxbas_pw_pool=>auxbas_pw_pool
        CALL pw_pool_retain(ks_env%auxbas_pw_pool,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,ks_env%v_hartree_rspace%pw,&
-            use_data=REALDATA3D, in_space=REALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool, ks_env%v_hartree_rspace%pw,&
+            use_data=REALDATA3D, in_space=REALSPACE, error=error)
     END IF
 
     CALL timestop(handle)
@@ -1226,6 +1222,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \par History
 !>      4.2002 created [fawzi]
+!>      8.2014 kpoints [JGH]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,calculate_forces,&
@@ -1239,15 +1236,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
+    INTEGER                                  :: handle
     LOGICAL                                  :: c_forces, did_update, &
-                                                energy_only, failure
-    REAL(KIND=dp)                            :: ecore, ekin
+                                                do_kpoints, energy_only, &
+                                                failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_t
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_h, matrixkp_ks, &
+                                                matrixkp_t
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
 
@@ -1264,44 +1264,47 @@ CONTAINS
 
     failure=.FALSE.
     did_update=.FALSE.
-    NULLIFY(matrix_ks,matrix_t,matrix_h,energy, logger, rho, rho_xc, dft_control, para_env)
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    CALL get_qs_env(qs_env,do_kpoints=do_kpoints,error=error)
 
     IF (.NOT. failure) THEN
        IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR. &
             ks_env%potential_changed .OR. &
             (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
           did_update=.TRUE.
-          CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
-               rho_xc=rho_xc,energy=energy,&
-               dft_control=dft_control,kinetic=matrix_t, &
-               matrix_h=matrix_h,para_env=para_env,error=error)
-          ! update ecore
-          energy%core=0.0_dp
-          DO ispin=1,dft_control%nspins
-             CALL calculate_ecore(h=matrix_h(1)%matrix,&
-                  p=rho%rho_ao(ispin)%matrix,&
-                  ecore=ecore,&
-                  error=error)
-             energy%core=energy%core+ecore
-          END DO
 
-          ! update ekin, but only when doing scptb, otherwise segfault.
-          ! who knows, it might segfault anyway, this is a kindof ugly solution
-!          IF (dft_control%qs_control%scptb) THEN
-          IF(ASSOCIATED(matrix_t)) THEN
-              energy%kinetic=0.0_dp
-              DO ispin=1,dft_control%nspins
-                 CALL calculate_ecore(h=matrix_t(1)%matrix,&
-                      p=rho%rho_ao(ispin)%matrix,&
-                      ecore=ekin,&
-                      error=error)
-                 !abusing the ecore method to calculate the same trace.
-                 energy%kinetic=energy%kinetic+ekin
-              END DO
+          NULLIFY(energy,rho,dft_control)
+          CALL get_qs_env(qs_env,rho=rho,energy=energy,dft_control=dft_control,error=error)
+          IF (do_kpoints) THEN
+             NULLIFY(matrixkp_t,matrixkp_h)
+             CALL get_qs_env(qs_env,kpoints=kpoints,error=error)
+             CALL get_kpoint_info(kpoints,matrix_t=matrixkp_t,matrix_h=matrixkp_h,error=error)
+             ! ecore
+             CALL calculate_ptrace(matrixkp_h,rho%rho_ao_kp,energy%core,dft_control%nspins,error)
+             !
+             IF(ASSOCIATED(matrixkp_t)) THEN
+                ! kinetic energy
+                CALL calculate_ptrace(matrixkp_t,rho%rho_ao_kp,energy%kinetic,dft_control%nspins,error)
+             END IF
+             NULLIFY(matrixkp_ks)
+             CALL get_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
+          ELSE
+             NULLIFY(matrix_t,matrix_h)
+             CALL get_qs_env(qs_env,kinetic=matrix_t,matrix_h=matrix_h,error=error)
+             ! ecore
+             CALL calculate_ptrace(matrix_h,rho%rho_ao,energy%core,dft_control%nspins,error)
+             !
+             IF(ASSOCIATED(matrix_t)) THEN
+                ! kinetic energy
+                CALL calculate_ptrace(matrix_t,rho%rho_ao,energy%kinetic,dft_control%nspins,error)
+             END IF
+             NULLIFY(matrix_ks,rho_xc)
+             CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho_xc=rho_xc,error=error)
           END IF
 
           ! the ks matrix will be rebuilt so this is fine now
@@ -1317,10 +1320,17 @@ CONTAINS
                   calculate_forces=c_forces,just_energy=energy_only,&
                   error=error)
           ELSEIF ( dft_control%qs_control%scptb ) THEN
-             CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
+             IF (do_kpoints) THEN
+                CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrixkp=matrixkp_ks,rho=rho,energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,&
+                  error=error)
+             ELSE
+                CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks,rho=rho,energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&
                   error=error)
+             END IF
           ELSEIF (dft_control%qs_control%gapw_xc) THEN
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&
@@ -1663,84 +1673,114 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: headline
-    INTEGER                                  :: ispin
+    INTEGER                                  :: ic, ispin, ncount
+    INTEGER, DIMENSION(:, :), POINTER        :: index_to_cell
+    LOGICAL                                  :: do_kpoints
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_ks
+    TYPE(cp_dbcsr_type), POINTER             :: refmatrix
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    NULLIFY(dft_control, matrix_s, matrix_ks_aux_fit, matrix_ks, ks_env)
+    NULLIFY(dft_control,ks_env)
+    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints,&
+                    dft_control=dft_control,ks_env=ks_env,error=error)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         matrix_ks=matrix_ks,&
-         matrix_ks_aux_fit=matrix_ks_aux_fit,&
-         matrix_s=matrix_s,&
-         ks_env=ks_env,&
-         error=error)
+    IF(do_kpoints) THEN
 
-    IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
-       DO ispin=1,dft_control%nspins
-          ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
-          IF (dft_control%nspins > 1) THEN
-             IF (ispin == 1) THEN
-                headline="KOHN-SHAM MATRIX FOR ALPHA SPIN"
+       NULLIFY(matrixkp_ks)
+       CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+       CALL get_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
+       IF (.NOT.ASSOCIATED(matrixkp_ks)) THEN
+          headline="KOHN-SHAM MATRIX"
+          CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,error=error)
+          ncount = SIZE(index_to_cell,2)
+          CALL cp_dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, ncount, error)
+          refmatrix => qs_env%matrix_s(1)%matrix
+          DO ispin=1,dft_control%nspins
+             DO ic=1,ncount
+                ALLOCATE(matrixkp_ks(ispin,ic)%matrix)
+                CALL cp_dbcsr_init(matrixkp_ks(ispin,ic)%matrix,error=error)
+                CALL cp_dbcsr_create(matrix=matrixkp_ks(ispin,ic)%matrix,&
+                  name=TRIM(headline),&
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin,ic)%matrix,&
+                     qs_env%sab_orb,error=error)
+                CALL cp_dbcsr_set(matrixkp_ks(ispin,ic)%matrix,0.0_dp,error=error)
+             ENDDO
+          ENDDO
+          CALL set_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
+       END IF
+
+    ELSE
+
+       NULLIFY(matrix_ks)
+       CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       IF (.NOT.ASSOCIATED(matrix_ks)) THEN
+          CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
+          refmatrix => qs_env%matrix_s(1)%matrix
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_ks(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
+             IF (dft_control%nspins > 1) THEN
+                IF (ispin == 1) THEN
+                   headline="KOHN-SHAM MATRIX FOR ALPHA SPIN"
+                ELSE
+                   headline="KOHN-SHAM MATRIX FOR BETA SPIN"
+                END IF
              ELSE
-                headline="KOHN-SHAM MATRIX FOR BETA SPIN"
+                headline="KOHN-SHAM MATRIX"
              END IF
-          ELSE
-             headline="KOHN-SHAM MATRIX"
-          END IF
-          CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
-               name=TRIM(headline),&
-               dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
-               col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
-               nblks=0, nze=0, error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
-          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
-       ENDDO
-
-       CALL set_qs_env(qs_env=qs_env,&
-            matrix_ks=matrix_ks,error=error)
+             CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
+                  name=TRIM(headline),&
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
+             CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+          ENDDO
+          CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       END IF
 
     END IF
 
-!   *** Allocate matrix_ks_aux_fit if requested and put it in the QS environment ***
-
+    ! Allocate matrix_ks_aux_fit if requested and put it in the QS environment
     IF( dft_control%do_admm) THEN
-      IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
-         CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
-         DO ispin=1,dft_control%nspins
-            ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
-            CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
-
-            CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
-                 name="KOHN-SHAM_MATRIX for ADMM", &
-                 dist=cp_dbcsr_distribution(qs_env%matrix_s_aux_fit(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                 row_blk_size=cp_dbcsr_row_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 col_blk_size=cp_dbcsr_col_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 nblks=0, nze=0, error=error)
-            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
-                 error=error)
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
-         ENDDO
-
-         CALL set_qs_env(qs_env=qs_env,&
-              matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
-      END IF
+       NULLIFY(matrix_ks_aux_fit)
+       CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+       IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
+          refmatrix => qs_env%matrix_s_aux_fit(1)%matrix
+          CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
+             CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
+                  name="KOHN-SHAM_MATRIX for ADMM", &
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
+                  error=error)
+             CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
+          ENDDO
+          CALL set_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+       END IF
     END IF
 
-!   *** allocate the ks env **
+    ! allocate the ks_env
     IF (.NOT.ASSOCIATED(ks_env)) THEN
        CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
        CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
        CALL qs_ks_release(ks_env,error=error)
     END IF
-
 
   END SUBROUTINE qs_ks_allocate_basics
 

@@ -52,6 +52,7 @@ MODULE qs_neighbor_lists
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8
+  USE kpoint_types,                    ONLY: kpoint_type
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE molecule_types_new,              ONLY: molecule_type
@@ -356,7 +357,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER                                  :: handle, ikind, iw, maxatom, &
                                                 nkind, stat, zat
-    LOGICAL :: all_potential_present, almo, dftb, failure, &
+    LOGICAL :: all_potential_present, almo, dftb, dokp, failure, &
       gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, nddo, &
       paw_atom, paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
@@ -381,6 +382,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
                                                 aux_fit_basis_set, &
                                                 orb_basis_set
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom2d
     TYPE(molecule_type), DIMENSION(:), &
@@ -438,6 +440,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
+                    kpoints=kpoints,&
                     distribution_2d=distribution_2d,&
                     local_particles=distribution_1d,&
                     particle_set=particle_set,&
@@ -460,6 +463,7 @@ CONTAINS
                     sab_almo=sab_almo, &
                     error=error)
 
+    dokp = (kpoints%nkp > 0)
     nddo = qs_env%dft_control%qs_control%semi_empirical
     dftb = qs_env%dft_control%qs_control%dftb
     scptb = qs_env%dft_control%qs_control%scptb
@@ -600,11 +604,16 @@ CONTAINS
 
     END DO
 
-    ! enforce MIC for interaction lists in SE and DFTB
-    IF (nddo .OR. dftb .OR. scptb) THEN
-       mic = .TRUE.
-    ELSE
+    IF (dokp) THEN
+       ! no MIC for kpoints
        mic = .FALSE.
+    ELSE
+       ! enforce MIC for interaction lists in SE and DFTB
+       IF (nddo .OR. dftb .OR. scptb) THEN
+          mic = .TRUE.
+       ELSE
+          mic = .FALSE.
+       END IF
     END IF
 
     ! Build the orbital-orbital overlap neighbor lists

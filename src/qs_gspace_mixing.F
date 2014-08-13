@@ -12,7 +12,8 @@ MODULE qs_gspace_mixing
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_info, &
        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, dbcsr_type_symmetric
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -21,6 +22,8 @@ MODULE qs_gspace_mixing
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix
   USE message_passing,                 ONLY: mp_bcast,&
@@ -1819,6 +1822,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \par History
 !>      05.2009 created [MI]
+!>      08.2014 kpoints [JGH]
 !> \author fawzi
 ! *****************************************************************************
  SUBROUTINE mixing_allocate(qs_env,mixing_method,mixing_store,&
@@ -1832,11 +1836,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mixing_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iat, ispin, natom, &
-                                                nbuffer, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, i, iat, ic, ispin, &
+                                                natom, nbuffer, ncount, stat
+    LOGICAL                                  :: do_kpoints, failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: refmatrix
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1851,7 +1857,9 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
          scf_env=scf_env, &
          matrix_s=matrix_s, &
+         do_kpoints=do_kpoints, &
          error=error)
+    refmatrix => matrix_s(1)%matrix
 
 !   *** allocate p_mix_new ***
     IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
@@ -1861,13 +1869,36 @@ CONTAINS
           CALL cp_dbcsr_init(scf_env%p_mix_new(i)%matrix, error=error)
           CALL cp_dbcsr_create(matrix=scf_env%p_mix_new(i)%matrix, &
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
-               dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-               col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+               dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+               col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
                nblks=0, nze=0, error=error)
           CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
        ENDDO
+    END IF
+
+!   *** allocate p_mix_kp ***
+    IF(do_kpoints) THEN
+       IF (.NOT.ASSOCIATED(scf_env%p_mix_kp)) THEN
+          CALL get_qs_env(qs_env=qs_env, kpoints=kpoints, error=error)
+          CALL get_kpoint_info(kpoint=kpoints, ncount=ncount, error=error)
+          CALL cp_dbcsr_allocate_matrix_set(scf_env%p_mix_kp,nspins,ncount,error=error)
+          DO i=1,nspins
+             DO ic=1,ncount
+                ALLOCATE(scf_env%p_mix_kp(i,ic)%matrix)
+                CALL cp_dbcsr_init(scf_env%p_mix_kp(i,ic)%matrix, error=error)
+                CALL cp_dbcsr_create(matrix=scf_env%p_mix_kp(i,ic)%matrix, &
+                     name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
+                     dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                     row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+                     col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
+                     nblks=0, nze=0, error=error)
+                CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_mix_kp(i,ic)%matrix,sab_orb,error=error)
+                CALL cp_dbcsr_set(scf_env%p_mix_kp(i,ic)%matrix,0.0_dp,error=error)
+             ENDDO
+          ENDDO
+       END IF
     END IF
 
 !   *** allocate p_delta ***
@@ -1879,9 +1910,9 @@ CONTAINS
              CALL cp_dbcsr_init(scf_env%p_delta(i)%matrix, error=error)
              CALL cp_dbcsr_create(matrix=scf_env%p_delta(i)%matrix, &
                   name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
-                  dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-                  row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                  col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
                   nblks=0, nze=0, error=error)
              CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
              CALL cp_dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)

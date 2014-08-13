@@ -23,6 +23,8 @@ MODULE qs_scf_loop_utils
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                              broyden_mixing_nr,&
                                              direct_mixing_nr,&
@@ -49,11 +51,13 @@ MODULE qs_scf_loop_utils
   USE qs_scf_diagonalization,          ONLY: do_block_davidson_diag,&
                                              do_block_krylov_diag,&
                                              do_general_diag,&
+                                             do_general_diag_kp,&
                                              do_ot_diag,&
                                              do_roks_diag,&
                                              do_scf_diag_subspace,&
                                              do_special_diag
-  USE qs_scf_methods,                  ONLY: scf_env_density_mixing
+  USE qs_scf_methods,                  ONLY: scf_env_density_mixing,&
+                                             scf_env_density_mixing_kp
   USE qs_scf_output,                   ONLY: qs_scf_print_summary
   USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
                                              block_krylov_diag_method_nr,&
@@ -79,7 +83,8 @@ MODULE qs_scf_loop_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_loop_utils'
 
   PUBLIC :: qs_scf_set_loop_flags,&
-            qs_scf_new_mos, qs_scf_harris_e_correct, qs_scf_density_mixing,&
+            qs_scf_new_mos, qs_scf_new_mos_kp,&
+            qs_scf_harris_e_correct, qs_scf_density_mixing,&
             qs_scf_check_inner_exit, qs_scf_ks_updates,&
             qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
@@ -91,7 +96,6 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_env ...
 !> \param diis_step ...
-!> \param use_jacobi ...
 !> \param energy_only ...
 !> \param just_energy ...
 !> \param exit_inner_loop ...
@@ -99,14 +103,13 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_scf_set_loop_flags(scp_nddo,scf_control,scf_env,diis_step,&
-                      use_jacobi,energy_only,just_energy,exit_inner_loop,error)
+                      energy_only,just_energy,exit_inner_loop,error)
 
     LOGICAL                                  :: scp_nddo
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    LOGICAL                                  :: diis_step, use_jacobi, &
-                                                energy_only, just_energy, &
-                                                exit_inner_loop
+    LOGICAL                                  :: diis_step, energy_only, &
+                                                just_energy, exit_inner_loop
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags', &
@@ -131,7 +134,6 @@ CONTAINS
     ! Some flags needed to be set at the beginning of the loop
 
     diis_step = .FALSE.
-    use_jacobi = .FALSE.
     energy_only = .FALSE.
     just_energy = .FALSE.
 
@@ -150,18 +152,16 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param use_jacobi ...
 !> \param energy_only ...
 !> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE qs_scf_new_mos(qs_env,scf_env,scf_section,diis_step,use_jacobi,&
+  SUBROUTINE qs_scf_new_mos(qs_env,scf_env,scf_section,diis_step,&
                             energy_only,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    LOGICAL                                  :: diis_step, use_jacobi, &
-                                                energy_only
+    LOGICAL                                  :: diis_step, energy_only
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos', &
@@ -199,7 +199,7 @@ CONTAINS
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"unknown scf method: "//&
             cp_to_string(scf_env%method),error,failure)
-! Diagonlization in non orthonornmal case
+! Diagonlization in non orthonormal case
     CASE(general_diag_method_nr)
        IF (dft_control%roks) THEN
           CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
@@ -208,7 +208,7 @@ CONTAINS
        ELSE
           CALL do_general_diag(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
-                               diis_step,use_jacobi,error=error)
+                               diis_step,error=error)
           IF(scf_env%do_diag_sub) THEN
             skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
                    (scf_env%iter_count==1  .OR. scf_env%iter_delta>scf_env%subspace_env%eps_diag_sub )
@@ -218,7 +218,7 @@ CONTAINS
             END IF
           END IF
        END IF
-! Diagonlization in orthonornmal case
+! Diagonlization in orthonormal case
     CASE(special_diag_method_nr)
        IF (dft_control%roks) THEN
           CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
@@ -242,7 +242,7 @@ CONTAINS
                   scf_control, scf_section, check_moconv_only=.TRUE., error=error)
           END IF
           CALL do_general_diag(scf_env,mos,matrix_ks,&
-               matrix_s,scf_control,scf_section, diis_step,use_jacobi,error=error)
+               matrix_s,scf_control,scf_section, diis_step,error=error)
        ELSE
          CALL do_block_krylov_diag(scf_env,mos,matrix_ks, &
                                    scf_control, scf_section, error=error)
@@ -280,6 +280,75 @@ CONTAINS
     END SELECT
  
   END SUBROUTINE qs_scf_new_mos 
+
+! *****************************************************************************
+!> \brief Updates MOs and density matrix using diagonalization    
+!>        Kpoint code           
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param scf_section ...
+!> \param diis_step ...
+!> \param energy_only ...
+!> \param error ...
+! *****************************************************************************
+
+  SUBROUTINE qs_scf_new_mos_kp(qs_env,scf_env,scf_section,diis_step,energy_only,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL                                  :: diis_step, energy_only
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos_kp', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, has_unit_metric
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
+    TYPE(scf_control_type), POINTER          :: scf_control
+
+    failure=.FALSE.
+
+    NULLIFY(dft_control)
+
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,scf_control=scf_control,&
+                    kpoints=kpoints,error=error)
+    scf_env%iter_param = 0.0_dp
+
+    CALL cp_assert(.NOT.dft_control%roks,cp_failure_level,cp_assertion_failed,&
+         routineP,"KP code: ROKS method not available: ",error,failure)
+
+    SELECT CASE (scf_env%method)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"KP code: Unknown scf method: "//&
+               cp_to_string(scf_env%method),error,failure)
+       CASE(general_diag_method_nr)
+          ! Diagonlization in non orthonormal case
+          CALL get_kpoint_info(kpoints,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
+          CALL do_general_diag_kp(scf_env,matrix_ks,matrix_s,kpoints,&
+               scf_control,scf_section,diis_step,error=error)
+       CASE(special_diag_method_nr)
+          CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric,error=error)
+          CPPrecondition(has_unit_metric,cp_failure_level,routineP,error,failure)
+          ! Diagonlization in orthonormal case
+!         CALL do_special_diag(scf_env,mos,matrix_ks,&
+!                              scf_control,scf_section,diis_step,error)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"KP code: Scf method not available: "//&
+               cp_to_string(scf_env%method),error,failure)
+       CASE(ot_diag_method_nr,&
+            block_krylov_diag_method_nr,&
+            block_davidson_diag_method_nr,&
+            ot_method_nr)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"KP code: Scf method not available: "//&
+               cp_to_string(scf_env%method),error,failure)
+    END SELECT
+ 
+  END SUBROUTINE qs_scf_new_mos_kp 
 
 ! *****************************************************************************
 !> \brief the inner loop of scf, specific to using to the orbital transformation method
@@ -415,19 +484,21 @@ CONTAINS
 
  END SUBROUTINE qs_scf_harris_e_correct
 ! *****************************************************************************
-!> \brief Performs the requested denisty mixing if any needed
-!> \param scf_env ...
-!> \param rho ...
-!> \param para_env ...
-!> \param diis_step ...
-!> \param error ...
+!> \brief Performs the requested density mixing if any needed
+!> \param scf_env   Holds SCF environment information
+!> \param rho       All data for the electron density 
+!> \param para_env  Parallel environment
+!> \param diis_step Did we do a DIIS step?
+!> \param do_kpoints Is this a kpoint run?
+!> \param error     CP2K error handling variable
 ! *****************************************************************************
 
- SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step,error)
+ SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL                                  :: diis_step
+    LOGICAL, INTENT(IN)                      :: do_kpoints
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing', &
@@ -437,22 +508,44 @@ CONTAINS
 
     failure=.FALSE.
 
-    SELECT CASE(scf_env%mixing_method)
-    CASE(direct_mixing_nr)
-       CALL scf_env_density_mixing(scf_env%p_mix_new,&
-            scf_env%mixing_store, rho%rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
-            diis=diis_step, error=error)
-    CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
-              broyden_mixing_new_nr,multisecant_mixing_nr)
-       ! Compute the difference p_out-p_in
-       CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
-             delta= scf_env%iter_delta, error=error)
-    CASE(no_mixing_nr)
-    CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown scf mixing method: "//&
-            cp_to_string(scf_env%mixing_method),error,failure)
-    END SELECT
+    IF(do_kpoints) THEN
+       SELECT CASE(scf_env%mixing_method)
+       CASE(direct_mixing_nr)
+          CALL scf_env_density_mixing_kp(scf_env%p_mix_kp,&
+               scf_env%mixing_store, rho%rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
+               diis=diis_step, error=error)
+       CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+            broyden_mixing_new_nr,multisecant_mixing_nr)
+          ! Compute the difference p_out-p_in
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"KPoints not available with this mixing method: "//&
+               cp_to_string(scf_env%mixing_method),error,failure)
+          CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+               delta=scf_env%iter_delta, error=error)
+       CASE(no_mixing_nr)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown scf mixing method: "//&
+               cp_to_string(scf_env%mixing_method),error,failure)
+       END SELECT
+    ELSE
+       SELECT CASE(scf_env%mixing_method)
+       CASE(direct_mixing_nr)
+          CALL scf_env_density_mixing(scf_env%p_mix_new,&
+               scf_env%mixing_store, rho%rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
+               diis=diis_step, error=error)
+       CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+            broyden_mixing_new_nr,multisecant_mixing_nr)
+          ! Compute the difference p_out-p_in
+          CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+               delta=scf_env%iter_delta, error=error)
+       CASE(no_mixing_nr)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown scf mixing method: "//&
+               cp_to_string(scf_env%mixing_method),error,failure)
+       END SELECT
+    END IF
 
   END SUBROUTINE qs_scf_density_mixing
 
@@ -554,39 +647,71 @@ CONTAINS
 !> \param dft_control ...
 !> \param para_env ...
 !> \param diis_step ...
+!> \param do_kpoints ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_undo_mixing(scf_env,rho,dft_control,para_env,diis_step,error)
+  SUBROUTINE qs_scf_undo_mixing(scf_env,rho,dft_control,para_env,diis_step,do_kpoints,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL                                  :: diis_step
+    LOGICAL, INTENT(IN)                      :: do_kpoints
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_undo_mixing', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: ic, ispin, nc
+    LOGICAL                                  :: failure
 
+     failure = .FALSE.
      IF (scf_env%mixing_method>0) THEN
-        SELECT CASE(scf_env%mixing_method)
-        CASE(direct_mixing_nr)
-          CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_store,&
-                                      rho%rho_ao,para_env,scf_env%iter_delta,&
-                                      scf_env%iter_count,diis=diis_step,&
-                                      invert=.TRUE.,error=error)
-          DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
-          END DO
-        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
-             broyden_mixing_new_nr,multisecant_mixing_nr)
-          DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
-          END DO
-        END SELECT
+        IF(do_kpoints) THEN
+           nc = SIZE(scf_env%p_mix_kp,2)
+           SELECT CASE(scf_env%mixing_method)
+           CASE(direct_mixing_nr)
+             CALL scf_env_density_mixing_kp(scf_env%p_mix_kp,scf_env%mixing_store,&
+                                            rho%rho_ao_kp,para_env,scf_env%iter_delta,&
+                                            scf_env%iter_count,diis=diis_step,&
+                                            invert=.TRUE.,error=error)
+             DO ic=1,nc
+                DO ispin=1,dft_control%nspins
+                   CALL cp_dbcsr_copy(rho%rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
+                                      name=TRIM(cp_dbcsr_name(rho%rho_ao_kp(ispin,ic)%matrix)),error=error)
+                END DO
+             END DO
+           CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+                broyden_mixing_new_nr,multisecant_mixing_nr)
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"KPoints not available with this mixing method: "//&
+               cp_to_string(scf_env%mixing_method),error,failure)
+             DO ic=1,nc
+                DO ispin=1,dft_control%nspins
+                   CALL cp_dbcsr_copy(rho%rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho%rho_ao_kp(ispin,ic)%matrix)),error=error)
+                END DO
+             END DO
+           END SELECT
+        ELSE
+           SELECT CASE(scf_env%mixing_method)
+           CASE(direct_mixing_nr)
+             CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_store,&
+                                         rho%rho_ao,para_env,scf_env%iter_delta,&
+                                         scf_env%iter_count,diis=diis_step,&
+                                         invert=.TRUE.,error=error)
+             DO ispin=1,dft_control%nspins
+                CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
+             END DO
+           CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
+                broyden_mixing_new_nr,multisecant_mixing_nr)
+             DO ispin=1,dft_control%nspins
+                CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
+             END DO
+           END SELECT
+        END IF
      ENDIF
   END SUBROUTINE qs_scf_undo_mixing
 
@@ -660,7 +785,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, scp_nddo
+    LOGICAL                                  :: do_kpoints, failure, scp_nddo
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -675,7 +800,8 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,scf_env=scf_env, energy=energy,ks_env=ks_env,&
                     rho=rho, dft_control=dft_control,harris_env=harris_env,&
-                    scf_control=scf_control, para_env=para_env,error=error)
+                    scf_control=scf_control, para_env=para_env,&
+                    do_kpoints=do_kpoints, error=error)
 
     scp_nddo = dft_control%qs_control%se_control%scp
 
@@ -691,7 +817,7 @@ CONTAINS
 
     IF (harris_flag) energy%total = harris_env%harris_energy%Eharris
 
-    CALL qs_scf_undo_mixing (scf_env,rho,dft_control,para_env,diis_step,error)
+    CALL qs_scf_undo_mixing (scf_env,rho,dft_control,para_env,diis_step,do_kpoints,error)
 
     !   *** update rspace rho since the mo changed
     !   *** this might not always be needed (i.e. no post calculation / no forces )

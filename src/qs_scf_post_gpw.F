@@ -110,7 +110,7 @@ MODULE qs_scf_post_gpw
   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
-  USE qs_core_energies,                ONLY: calculate_ecore
+  USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -130,12 +130,12 @@ MODULE qs_scf_post_gpw
                                              qs_loc_env_init,&
                                              qs_loc_init,&
                                              retain_history
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                              make_mo_eig
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_occupation,&
-                                             write_mo_set
+                                             set_mo_occupation
   USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                              qs_moment_locop
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -207,7 +207,7 @@ CONTAINS
     LOGICAL :: check_write, compute_lumos, do_homo, do_mo_cubes, do_stm, &
       do_wannier_cubes, failure, has_homo, has_lumo, loc_explicit, &
       loc_print_explicit, my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo
-    REAL(dp)                                 :: e_kin, e_kinAtt
+    REAL(dp)                                 :: e_kin
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(admm_type), POINTER                 :: admm_env
@@ -289,14 +289,7 @@ CONTAINS
           CALL get_qs_env(qs_env,kinetic=kinetic_m,error=error)
           CPPrecondition(ASSOCIATED(kinetic_m),cp_failure_level,routineP,error,failure)
           CPPrecondition(ASSOCIATED(kinetic_m(1)%matrix),cp_failure_level,routineP,error,failure)
-          e_kin=0.0_dp
-          DO ispin=1,dft_control%nspins
-             CALL calculate_ecore(h=kinetic_m(1)%matrix,&
-                  p=rho%rho_ao(ispin)%matrix,&
-                  ecore=e_kinAtt,&
-                  error=error)
-             e_kin=e_kin+e_kinAtt
-          END DO
+          CALL calculate_ptrace(kinetic_m,rho%rho_ao,e_kin,dft_control%nspins,error)
           unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
                extension=".Log",error=error)
           IF (unit_nr>0) THEN

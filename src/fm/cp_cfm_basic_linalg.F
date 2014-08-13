@@ -16,6 +16,7 @@ MODULE cp_cfm_basic_linalg
                                              cp_cfm_get_info,&
                                              cp_cfm_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
@@ -28,7 +29,8 @@ MODULE cp_cfm_basic_linalg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
-  PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product,&
+  PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_gemm, cp_cfm_lu_decompose,&
+            cp_cfm_column_scale, cp_cfm_schur_product,&
             cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply
 CONTAINS
 
@@ -212,6 +214,96 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_add
+! *****************************************************************************
+!> \brief   Scale and add two BLACS matrices (a <- alpha*a + beta*b).
+!>          where b is a real matrix (adapted from cp_cfm_add)
+!> \param alpha ...
+!> \param matrix_a ...
+!> \param beta ...
+!> \param matrix_b ...
+!> \param error ...
+!> \date    01.08.2014
+!> \author  JGH
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE cp_cfm_add_fm(alpha,matrix_a,beta,matrix_b,error)
+    COMPLEX(KIND=dp), INTENT(IN)             :: alpha
+    TYPE(cp_cfm_type), POINTER               :: matrix_a
+    COMPLEX(KIND=dp), INTENT(IN)             :: beta
+    TYPE(cp_fm_type), POINTER                :: matrix_b
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_add_fm', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: handle, mypcol, myprow
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(a,b)
+
+    CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
+    myprow=matrix_a%matrix_struct%context%mepos(1)
+    mypcol=matrix_a%matrix_struct%context%mepos(2)
+
+    a => matrix_a%local_data
+
+    IF (beta==CMPLX(0.0_dp,0.0_dp,dp)) THEN
+
+       IF (alpha==CMPLX(0.0_dp,0.0_dp,dp)) THEN
+          a(:,:)=CMPLX(0.0_dp,0.0_dp,dp)
+       ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp,dp)) THEN
+          RETURN
+       ELSE
+          a(:,:) = alpha*a(:,:)
+       END IF
+
+    ELSE
+       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
+       CALL cp_assert(matrix_a%matrix_struct%context%group==&
+            matrix_b%matrix_struct%context%group,cp_failure_level,&
+            cp_assertion_failed,fromWhere=routineP,&
+            message="matrices must be in the same blacs context"//&
+CPSourceFileRef,&
+            error=error,failure=failure)
+
+       IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
+            matrix_b%matrix_struct,error=error)) THEN
+
+          b => matrix_b%local_data
+
+          IF (alpha == CMPLX(0.0_dp,0.0_dp,dp)) THEN
+             IF (beta == CMPLX(1.0_dp,0.0_dp,dp)) THEN
+                a(:,:) = b(:,:)
+             ELSE
+                a(:,:) = beta*b(:,:)
+             END IF
+          ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp,dp)) THEN
+             IF (beta == CMPLX(1.0_dp,0.0_dp,dp)) THEN
+                a(:,:) = a(:,:) + b(:,:)
+             ELSE
+                a(:,:) = a(:,:) + beta*b(:,:)
+             END IF
+          ELSE
+             a(:,:) = alpha*a(:,:) + beta*b(:,:)
+          END IF
+       ELSE
+#ifdef __SCALAPACK
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="to do (pdscal,pdcopy,pdaxpy)", error=error)
+#else
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+#endif
+       END IF
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_add_fm
 
 ! *****************************************************************************
 !> \brief   Computes the LU decomposition of a given matrix

@@ -51,10 +51,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Write symmetry information to output
-!> \param particle_set ...
-!> \param cell ...
-!> \param input_section ...
-!> \param error ...
+!> \param particle_set  Atom coordinates and types
+!> \param cell          Cell information
+!> \param input_section Input
+!> \param error   CP2K error handling
 !> \par History
 !> \author jgh
 ! *****************************************************************************
@@ -170,7 +170,7 @@ CONTAINS
         END DO
         weight = weight/massunit
 
-        CALL kp_sym_gen(crys_sym,coord,atype,cell%hmat,delta=eps_geo,unit=iw,error=error)
+        CALL kp_sym_gen(crys_sym,coord,atype,cell%hmat,delta=eps_geo,iounit=iw,error=error)
 
         CALL section_vals_val_get(section_vals=section,&
                         keyword_name="ROTATION_MATRICES",l_val=prmat,error=error)

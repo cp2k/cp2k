@@ -143,8 +143,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 iter_count, output_unit
     LOGICAL                                  :: diis_step, energy_only, &
-                                                exit_loop, failure, gapw, &
-                                                use_jacobi
+                                                exit_loop, failure, gapw
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -204,7 +203,6 @@ CONTAINS
 
     iter_count = 0
     diis_step = .FALSE.
-    use_jacobi = .FALSE.
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -243,7 +241,7 @@ CONTAINS
           scf_env%iter_count=iter_count
           CALL do_general_diag(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
-                               diis_step,use_jacobi,xas_env,error)
+                               diis_step,xas_env,error)
 
        END SELECT
 

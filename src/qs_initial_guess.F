@@ -61,6 +61,8 @@ MODULE qs_initial_guess
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
+  USE qs_mo_io,                        ONLY: read_mo_set,&
+                                             wfn_restart_file_name
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              make_basis_lowdin,&
                                              make_basis_simple,&
@@ -68,12 +70,10 @@ MODULE qs_initial_guess
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_restrict,&
-                                             read_mo_set,&
-                                             set_mo_occupation,&
-                                             wfn_restart_file_name
+                                             set_mo_occupation
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_scf_methods,                  ONLY: eigensolver,&
-                                             simple_eigensolver
+                                             eigensolver_simple
   USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
                                              block_krylov_diag_method_nr,&
                                              ot_diag_method_nr,&
@@ -104,12 +104,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief can use a variety of methods to come up with an initial
 !>      density matrix and optionally an initial wavefunction
-!> \param scf_env ...
-!> \param qs_env ...
-!> \param error ...
+!> \param scf_env  SCF environment information
+!> \param qs_env   QS environment
+!> \param error    CP2K error handling
 !> \par History
 !>      03.2006 moved here from qs_scf [Joost VandeVondele]
 !>      06.2007 allow to skip the initial guess [jgh]
+!>      08.2014 kpoints [JGH]
 !> \note
 !>      badly needs to be split in subroutines each doing one of the possible
 !>      schemes
@@ -125,7 +126,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, filename
-    INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, &
+    INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, &
       icol, id_nr, ikind, irow, iseed(4), ispin, istart_col, istart_row, &
       istat, j, last_read, n, n_cols, n_rows, nao, natom, natoms, natoms_tmp, &
       nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, output_unit, &
@@ -133,10 +134,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, &
                                                 nelec_kind, sort_kind
-    LOGICAL                                  :: did_guess, do_std_diag, &
-                                                exist, failure, &
-                                                has_unit_metric, &
-                                                natom_mismatch, ofgpw
+    LOGICAL :: did_guess, do_kpoints, do_std_diag, exist, failure, &
+      has_unit_metric, natom_mismatch, ofgpw
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, maxocc, occ, &
@@ -152,6 +151,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: h_core_sparse, p_rmpv, &
                                                 s_sparse
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: denmat
     TYPE(cp_dbcsr_type)                      :: mo_dbcsr, mo_tmp_dbcsr
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work1
@@ -187,7 +188,7 @@ CONTAINS
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
-         has_unit_metric=has_unit_metric, error=error)
+         has_unit_metric=has_unit_metric, do_kpoints=do_kpoints, error=error)
 
     nspin=dft_control%nspins
     p_rmpv => qs_env%rho%rho_ao
@@ -291,7 +292,7 @@ CPSourceFileRef,&
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            natom_mismatch=natom_mismatch, error=error)
+            natom_mismatch=natom_mismatch, kpoints=qs_env%kpoints, error=error)
 
        IF (natom_mismatch) THEN
          density_guess = safe_density_guess
@@ -343,7 +344,7 @@ CPSourceFileRef,&
              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
              CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
                   id_nr=j,multiplicity=dft_control%multiplicity,&
-                  dft_section=dft_section, error=error)
+                  dft_section=dft_section, kpoints=qs_env%kpoints, error=error)
 
              DO ispin=1,nspin
                 IF (scf_control%level_shift /= 0.0_dp) THEN
@@ -434,7 +435,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        ! molecular orbitals (MOs)
 
        IF (has_unit_metric) THEN
-          CALL simple_eigensolver(matrix_ks=work1(ispin)%matrix,&
+          CALL eigensolver_simple(matrix_ks=work1(ispin)%matrix,&
                                   mo_set=mo_array(ispin)%mo_set,&
                                   work=work2,&
                                   do_level_shift=.FALSE.,&
@@ -951,6 +952,23 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        did_guess = .TRUE.
     END IF
+
+    IF(do_kpoints) THEN
+       IF (density_guess == restart_guess) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,CPSourceFileRef)
+       ELSE
+          ! copy gamma point density matrix guess
+          p_rmpv => qs_env%rho%rho_ao
+          denmat => qs_env%rho%rho_ao_kp
+          DO ispin = 1,qs_env%dft_control%nspins
+             DO ic=1,SIZE(denmat,2)
+                CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)
+             END DO
+             CALL cp_dbcsr_copy(denmat(ispin,1)%matrix,p_rmpv(ispin)%matrix,error=error)
+          END DO
+       END IF
+    END IF
+
     IF (density_guess == no_guess) THEN
        did_guess = .TRUE.
     END IF
@@ -976,7 +994,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 !> \param output_unit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_block_dm(matrix_p,matrix_s, particle_set, atomic_kind_set, &
+  SUBROUTINE calculate_atomic_block_dm(matrix_p, matrix_s, particle_set, atomic_kind_set, &
                                        ispin, nspin, nelectron_spin, output_unit, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
     TYPE(particle_type), DIMENSION(:), &

@@ -246,7 +246,7 @@ CONTAINS
           
        ELSE
           NULLIFY(element)
-              CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
+          CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
        END IF
        
     IF (PRESENT(name)) THEN

@@ -7,6 +7,7 @@
 !> \brief methods of the rho structure (defined in qs_rho_types)
 !> \par History
 !>      08.2002 created [fawzi]
+!>      08.2014 kpoints [JGH]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_rho_methods
@@ -17,13 +18,16 @@ MODULE qs_rho_methods
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
        cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, dbcsr_type_symmetric
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE lri_environment_methods,         ONLY: calculate_lri_densities
   USE lri_environment_types,           ONLY: lri_density_type,&
                                              lri_environment_type
@@ -61,7 +65,8 @@ MODULE qs_rho_methods
   PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, duplicate_rho_type,&
             diff_rho_type
 
-!***
+! *****************************************************************************
+
 CONTAINS
 
 ! *****************************************************************************
@@ -98,14 +103,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: headline
-    INTEGER                                  :: handle, i, my_basis_set_id, &
+    INTEGER                                  :: handle, i, ic, &
+                                                my_basis_set_id, ncount, &
                                                 nspins, stat
-    LOGICAL                                  :: failure, my_gapw_xc, &
+    LOGICAL                                  :: dokp, failure, my_gapw_xc, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_s
+    TYPE(cp_dbcsr_type), POINTER             :: refmatrix, tmatrix
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -128,18 +138,29 @@ CONTAINS
       my_basis_set_id = use_orb_basis_set
     END IF
 
-    SELECT CASE (my_basis_set_id)
-    CASE (use_orb_basis_set)
-      CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
-           matrix_s=matrix_s, &
-           sab_orb=sab_orb,&
-           error=error)
-    CASE (use_aux_fit_basis_set)
-      CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
-           matrix_s_aux_fit=matrix_s,&
-           sab_aux_fit=sab_orb,&
-           error=error)
-    END SELECT
+    CALL get_qs_env(qs_env, kpoints=kpoints, do_kpoints=dokp, error=error)
+
+    IF(dokp) THEN
+       SELECT CASE (my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_qs_env(qs_env, sab_orb=sab_orb, error=error)
+         CALL get_kpoint_info(kpoints, matrix_s=matrixkp_s, error=error)
+       CASE (use_aux_fit_basis_set)
+         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       refmatrix => matrixkp_s(1,1)%matrix
+       CALL get_kpoint_info(kpoints, ncount=ncount, error=error)
+    ELSE
+       SELECT CASE (my_basis_set_id)
+       CASE (use_orb_basis_set)
+         CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb, error=error)
+       CASE (use_aux_fit_basis_set)
+         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s, sab_aux_fit=sab_orb, error=error)
+       END SELECT
+       refmatrix => matrix_s(1)%matrix
+    END IF
+
+    CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control, error=error)
 
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     nspins=dft_control%nspins
@@ -162,7 +183,7 @@ CONTAINS
           rho%id_nr=last_rho_id_nr
           rho%rebuild_each=5
           NULLIFY(rho%rho_r, rho%rho_g, rho%drho_r, rho%drho_g, rho%rho_ao, &
-                  rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
+                  rho%rho_ao_kp, rho%tot_rho_r, rho%tot_rho_g, rho%tau_r, rho%tau_g)
           ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (.not.failure) rho%tot_rho_r=0.0_dp
@@ -179,7 +200,9 @@ CONTAINS
             ! Create a new density matrix set
             CALL cp_dbcsr_allocate_matrix_set(rho%rho_ao,nspins,error=error)
             DO i=1,nspins
-               ALLOCATE(rho%rho_ao(i)%matrix)
+               ALLOCATE(rho%rho_ao(i)%matrix,STAT=stat)
+               CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+               tmatrix => rho%rho_ao(i)%matrix
                IF (nspins > 1) THEN
                   IF (i == 1) THEN
                      headline = "DENSITY MATRIX FOR ALPHA SPIN"
@@ -189,16 +212,39 @@ CONTAINS
                ELSE
                   headline = "DENSITY MATRIX"
                END IF
-               CALL cp_dbcsr_init(rho%rho_ao(i)%matrix, error=error)
-               CALL cp_dbcsr_create(matrix=rho%rho_ao(i)%matrix,&
-                    name=TRIM(headline),&
-                    dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-                    row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
-                    col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
+               CALL cp_dbcsr_init(tmatrix, error=error)
+               CALL cp_dbcsr_create(matrix=tmatrix, name=TRIM(headline),&
+                    dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                    row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                    col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
                     nblks=0, nze=0, error=error)
-               CALL cp_dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)
-               CALL cp_dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
+               CALL cp_dbcsr_alloc_block_from_nbl(tmatrix,sab_orb,error=error)
+               CALL cp_dbcsr_set(tmatrix,0.0_dp,error=error)
             END DO
+            ! kpoints
+            IF(dokp) THEN
+               IF (ASSOCIATED(rho%rho_ao_kp)) THEN
+                  CALL cp_dbcsr_deallocate_matrix_set(rho%rho_ao_kp,error=error)
+               END IF
+               ! Create a new density matrix set
+               CALL cp_dbcsr_allocate_matrix_set(rho%rho_ao_kp,nspins,ncount,error=error)
+               DO i=1,nspins
+                  DO ic=1,ncount
+                     ALLOCATE(rho%rho_ao_kp(i,ic)%matrix,STAT=stat)
+                     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+                     tmatrix => rho%rho_ao_kp(i,ic)%matrix
+                     headline = "DENSITY MATRIX (lattice vector)"
+                     CALL cp_dbcsr_init(tmatrix, error=error)
+                     CALL cp_dbcsr_create(matrix=tmatrix, name=TRIM(headline),&
+                          dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                          row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                          col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                          nblks=0, nze=0, error=error)
+                     CALL cp_dbcsr_alloc_block_from_nbl(tmatrix,sab_orb,error=error)
+                     CALL cp_dbcsr_set(tmatrix,0.0_dp,error=error)
+                  END DO
+               END DO
+            END IF
          END IF
        END IF
     END IF
@@ -561,15 +607,13 @@ END SUBROUTINE qs_rho_update_rho
 
     IF (.NOT. failure) THEN
       NULLIFY(rho_output%rho_ao, rho_output%rho_g, rho_output%rho_r, &
-              rho_output%drho_g, rho_output%drho_r, &
+              rho_output%drho_g, rho_output%drho_r, rho_output%rho_ao_kp, &
               rho_output%tau_g, rho_output%tau_r, rho_output%tot_rho_r, &
               rho_output%tot_rho_g)
 
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
-        !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-         CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
-        !DO i = 1, SIZE(rho_input%rho_ao)
+        CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         DO i = 1, nspins
            ALLOCATE(rho_output%rho_ao(i)%matrix)
            CALL cp_dbcsr_init(rho_output%rho_ao(i)%matrix, error=error)
@@ -801,15 +845,13 @@ END SUBROUTINE qs_rho_update_rho
 
     IF (.NOT. failure) THEN
       NULLIFY(rho_output%rho_ao, rho_output%rho_g, rho_output%rho_r, &
-              rho_output%drho_g, rho_output%drho_r, &
+              rho_output%drho_g, rho_output%drho_r, rho_output%rho_ao_kp, &
               rho_output%tau_g, rho_output%tau_r, rho_output%tot_rho_r, &
               rho_output%tot_rho_g)
 
       ! rho_ao
       IF (ASSOCIATED(rho_input1%rho_ao) .AND. ASSOCIATED(rho_input2%rho_ao)) THEN
-        !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-         CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
-        !DO i = 1, SIZE(rho_input%rho_ao)
+        CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         DO i = 1, nspins
            CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input1%rho_ao(i)%matrix, &
                 name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &
@@ -1024,7 +1066,7 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
         IF (.NOT. ASSOCIATED(rho_output%rho_ao)) THEN
-           CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
           DO i = 1, nspins
              CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
                   name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &

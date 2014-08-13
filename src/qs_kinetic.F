@@ -29,6 +29,8 @@ MODULE qs_kinetic
                                              cp_dbcsr_type,&
                                              dbcsr_distribution_obj
   USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE orbital_pointers,                ONLY: ncoset
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -64,15 +66,16 @@ MODULE qs_kinetic
 CONTAINS
 
 ! *****************************************************************************
-
 !> \brief   Calculation of the kinetic energy matrix over Cartesian Gaussian functions.
 !> \param   qs_env the QS environment
-!> \param   matrix_t The kinetic energy matrix to be calculated
+!> \param   matrix_t The kinetic energy matrix to be calculated (optional)
+!> \param   matrixkp_t The kinetic energy matrices to be calculated (kpoints,optional)
 !> \param   matrix_name The name of the matrix (i.e. for output)
 !> \param   basis_set_id basis set to be used
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
+!> \param   matrixkp_p density matrices for kpoint force calculation (optional)
 !> \param   eps_filter Filter final matrix (optional)
 !> \param   error for error handling
 !> \date    11.10.2010
@@ -80,38 +83,46 @@ CONTAINS
 !>          Ported from qs_overlap, replaces code in build_core_hamiltonian
 !>          Refactoring [07.2014] JGH
 !>          Simplify options and use new kinetic energy integral routine
+!>          kpoints [08.2014] JGH
 !> \author  JGH
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_kinetic_matrix(qs_env,matrix_t,matrix_name,&
-             basis_set_id,sab_nl,calculate_forces,matrix_p,eps_filter,error)
+  SUBROUTINE build_kinetic_matrix(qs_env,matrix_t,matrixkp_t,matrix_name,&
+             basis_set_id,sab_nl,calculate_forces,matrix_p,matrixkp_p,eps_filter,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_t
+      OPTIONAL, POINTER                      :: matrix_t
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: matrixkp_t
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
     INTEGER, INTENT(IN)                      :: basis_set_id
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrixkp_p
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_filter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_kinetic_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, inode, irow, iset, &
-      istat, jatom, jkind, jset, last_jatom, ldsab, natom, ncoa, ncob, nkind, &
-      nseta, nsetb, sgfa, sgfb
+    INTEGER :: atom_a, atom_b, handle, iatom, ic, icol, ikind, inode, irow, &
+      iset, istat, jatom, jkind, jset, ldsab, natom, ncoa, ncob, ncount, &
+      nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
+                                                index_to_cell
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_forces, do_symmetric, &
-                                                failure, found, new_atom_b, &
-                                                trans, use_virial
+                                                dokp, failure, found, trans, &
+                                                use_virial
     REAL(KIND=dp)                            :: f0, ff, rab2, tab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: kab, pab, qab
@@ -128,6 +139,7 @@ CONTAINS
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(qs_force_type), DIMENSION(:), &
@@ -137,6 +149,19 @@ CONTAINS
      failure = .FALSE.
 
      CALL timeset(routineN,handle)
+
+     ! test for matrices (kpoints or standard gamma point)
+     IF (PRESENT(matrix_t)) THEN
+        dokp = .FALSE.
+     ELSEIF (PRESENT(matrixkp_t)) THEN
+        dokp = .TRUE.
+        CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+        CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,&
+                             cell_to_index=cell_to_index,error=error)
+        ncount = SIZE(index_to_cell,2)
+     ELSE
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END IF
 
      NULLIFY (atomic_kind_set, p_block)
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
@@ -154,16 +179,26 @@ CONTAINS
      CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,error,failure)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
-     CALL cp_dbcsr_allocate_matrix_set(matrix_t,1,error=error)
-     CALL create_sab_matrix(qs_env, matrix_t, matrix_name, basis_set_id, basis_set_id, &
-                            sab_nl, do_symmetric, error)
+     IF(dokp) THEN
+        CALL cp_dbcsr_allocate_matrix_set(matrixkp_t,1,ncount,error=error)
+        CALL create_sab_matrix(qs_env, matrixkp_t, matrix_name, basis_set_id, basis_set_id, &
+                               sab_nl, do_symmetric, error)
+     ELSE
+        CALL cp_dbcsr_allocate_matrix_set(matrix_t,1,error=error)
+        CALL create_sab_matrix(qs_env, matrix_t, matrix_name, basis_set_id, basis_set_id, &
+                               sab_nl, do_symmetric, error)
+     END IF
 
      IF (do_forces) THEN
         ! if forces -> maybe virial too
         CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
         ! we need density matrix for forces
-        CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
+        IF(dokp) THEN
+           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,error,failure)
+        ELSE
+           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
+        END IF
      END IF
 
      ! *** Allocate work storage ***
@@ -184,7 +219,7 @@ CONTAINS
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
         CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
-                               iatom=iatom,jatom=jatom,r=rab)
+                               iatom=iatom,jatom=jatom,r=rab,cell=cell)
         atom_a = atom_of_kind(iatom)
         atom_b = atom_of_kind(jatom)
         basis_set_a => basis_set_list(ikind)%gto_basis_set
@@ -214,42 +249,49 @@ CONTAINS
         scon_b       =>  basis_set_b%scon
         zetb         =>  basis_set_b%zet
 
-        IF(inode==1) last_jatom = 0
-        IF (jatom /= last_jatom) THEN
-          new_atom_b = .TRUE.
-          last_jatom = jatom
-        ELSE
-          new_atom_b = .FALSE.
+        IF(dokp) THEN
+           ic = cell_to_index(cell(1),cell(2),cell(3))
+           CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
         END IF
 
-        IF (new_atom_b) THEN
-          IF( do_symmetric ) THEN
-            IF (iatom <= jatom) THEN
-              irow = iatom
-              icol = jatom
-            ELSE
-              irow = jatom
-              icol = iatom
-            END IF
-            f0 = 2.0_dp
-            IF (iatom==jatom) f0 = 1.0_dp
-            ff = 2.0_dp
-          ELSE
+        IF( do_symmetric ) THEN
+          IF (iatom <= jatom) THEN
             irow = iatom
             icol = jatom
-            f0 = 1.0_dp
-            ff = 1.0_dp
+          ELSE
+            irow = jatom
+            icol = iatom
           END IF
-          NULLIFY (k_block)
-          CALL cp_dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
-               row=irow,col=icol,BLOCK=k_block,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,error,failure)
-          IF (do_forces) THEN
-             NULLIFY (p_block)
-             CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
-                  block=p_block,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,error,failure)
-          END IF
+          f0 = 2.0_dp
+          IF (iatom==jatom) f0 = 1.0_dp
+          ff = 2.0_dp
+        ELSE
+          irow = iatom
+          icol = jatom
+          f0 = 1.0_dp
+          ff = 1.0_dp
+        END IF
+        NULLIFY (k_block)
+        IF(dokp) THEN
+           CALL cp_dbcsr_get_block_p(matrix=matrixkp_t(1,ic)%matrix,&
+                row=irow,col=icol,BLOCK=k_block,found=found)
+           CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           IF (do_forces) THEN
+              NULLIFY (p_block)
+              CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(ic)%matrix,&
+                   row=irow,col=icol,block=p_block,found=found)
+              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           END IF
+        ELSE
+           CALL cp_dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
+                row=irow,col=icol,BLOCK=k_block,found=found)
+           CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           IF (do_forces) THEN
+              NULLIFY (p_block)
+              CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
+                   block=p_block,found=found)
+              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           END IF
         END IF
 
         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -302,9 +344,18 @@ CONTAINS
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
-     CALL cp_dbcsr_finalize(matrix_t(1)%matrix, error=error)
-     IF (PRESENT(eps_filter)) THEN
-        CALL cp_dbcsr_filter(matrix_t(1)%matrix, eps_filter, error=error)
+     IF(dokp) THEN
+        DO ic=1,ncount
+           CALL cp_dbcsr_finalize(matrixkp_t(1,ic)%matrix, error=error)
+           IF (PRESENT(eps_filter)) THEN
+              CALL cp_dbcsr_filter(matrixkp_t(1,ic)%matrix, eps_filter, error=error)
+           END IF
+        END DO
+     ELSE
+        CALL cp_dbcsr_finalize(matrix_t(1)%matrix, error=error)
+        IF (PRESENT(eps_filter)) THEN
+           CALL cp_dbcsr_filter(matrix_t(1)%matrix, eps_filter, error=error)
+        END IF
      END IF
 
      ! Release work storage

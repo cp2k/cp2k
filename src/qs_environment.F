@@ -55,6 +55,7 @@ MODULE qs_environment
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
   USE cp_subsys_types,                 ONLY: cp_subsys_create,&
@@ -111,6 +112,12 @@ MODULE qs_environment
                                              section_vals_val_get
   USE kg_environment,                  ONLY: kg_env_create
   USE kinds,                           ONLY: dp
+  USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
+                                             kpoint_initialize,&
+                                             kpoint_initialize_mos
+  USE kpoint_types,                    ONLY: kpoint_type,&
+                                             read_kpoint_section,&
+                                             write_kpoint_info
   USE lri_environment_types,           ONLY: lri_basis_init,&
                                              lri_env_create,&
                                              lri_environment_type
@@ -245,7 +252,7 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, method_id, &
                                                 natom, nkind
-    LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, failure, harris_flag, &
+    LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, do_kp, failure, harris_flag, &
       mp2_present, my_qmmm, my_qmmm_multipole, my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
@@ -258,6 +265,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: my_subsys
     TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
@@ -270,13 +278,13 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
-      et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
-      kind_section, mp2_section
+      dft_section, et_coupling_section, harris_section, hfx_ri_section, &
+      hfx_section, kind_section, kpoint_section, mp2_section
 
     failure = .FALSE.
-    NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
+    NULLIFY(my_subsys,molecule_kind_set,molecule_set,atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
-         cell_section, harris_section, kind_section, ga_env)
+         cell_section,harris_section,kind_section,kpoint_section,dft_section,ga_env)
     para_env=>qs_env%para_env
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
        subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
@@ -373,6 +381,22 @@ CONTAINS
     IF (.NOT.PRESENT(cell))        CALL cell_release(my_cell,error=error)
     IF (.NOT.PRESENT(cell_ref))    CALL cell_release(my_cell_ref,error=error)
     IF (.NOT.PRESENT(subsys)) CALL cp_subsys_release(my_subsys,error=error)
+
+    ! kpoints
+    CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+    kpoint_section => section_vals_get_subs_vals(qs_env%input,"DFT%KPOINTS",error=error)
+    CALL read_kpoint_section(kpoints,kpoint_section,error)
+    particle_set => my_subsys%particles%els
+    CALL kpoint_initialize(kpoints, particle_set, qs_env%cell, error)
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    CALL write_kpoint_info(kpoints,dft_section,error)
+    kpoints%para_env => para_env
+    CALL cp_para_env_retain(para_env, error)
+    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kp,error=error)
+    IF(do_kp) THEN
+       CALL kpoint_env_initialize(kpoints, error)
+       CALL kpoint_initialize_mos(kpoints, qs_env%mos, error)
+    END IF
 
     do_hfx =.FALSE.
     hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)

@@ -29,11 +29,11 @@ MODULE qs_scf_wfn_mix
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_orthonormality
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              duplicate_mo_set,&
-                                             mo_set_p_type,&
-                                             write_mo_set
+                                             mo_set_p_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              special_diag_method_nr
   USE timings,                         ONLY: timeset,&

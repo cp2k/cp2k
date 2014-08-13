@@ -11,7 +11,9 @@
 !> \author Joost VandeVondele (2003-09)
 ! *****************************************************************************
 MODULE cp_cfm_diag
-  USE cp_cfm_types,                    ONLY: cp_cfm_type
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose
+  USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
+                                             cp_cfm_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -138,5 +140,49 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_heevd
+
+! *****************************************************************************
+!> \brief General Eigenvalue Problem  AX = BXE
+!>        Single option version: Cholesky decomposition of B
+!> \param amatrix ...
+!> \param bmatrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \param work ...
+!> \param error ...
+! *****************************************************************************
+ SUBROUTINE cp_cfm_geeig(amatrix,bmatrix,eigenvectors,eigenvalues,work,error)
+
+    TYPE(cp_cfm_type), POINTER               :: amatrix, bmatrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
+    TYPE(cp_cfm_type), POINTER               :: work
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, n
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    CALL cp_cfm_get_info(amatrix,nrow_global=n,error=error)
+    ! Cholesky decompose S=LL(T)
+    CALL cp_cfm_cholesky_decompose(bmatrix,error=error)
+    ! Invert to get L^(-1)
+!   CALL cp_fm_triangular_invert(bmatrix,error=error)
+!   ! Reduce to get L^(-1) * H * L^(-T)
+!   CALL cp_fm_cholesky_reduce(amatrix,bmatrix,itype=2,error=error)
+!   ! Diagonalize
+!   CALL choose_eigv_solver(matrix=amatrix,eigenvectors=work,eigenvalues=eigenvalues,error=error)
+!   ! Restore vectors C = L^(-1) * C*
+!   CALL cp_fm_cholesky_restore(work,n,bmatrix,eigenvectors,"MULTIPLY",error=error)
+    STOP
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_geeig
 
 END MODULE cp_cfm_diag

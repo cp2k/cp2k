@@ -65,8 +65,9 @@ MODULE qs_scf_methods
             eigensolver,&
             eigensolver_dbcsr,&
             eigensolver_symm,&
-            scf_env_density_mixing,&
-            simple_eigensolver
+            eigensolver_simple,&
+            scf_env_density_mixing_kp,&
+            scf_env_density_mixing
 
   INTERFACE combine_ks_matrices
     MODULE PROCEDURE combine_ks_matrices_1,&
@@ -91,8 +92,8 @@ CONTAINS
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store, rho_ao, para_env, iter_delta,&
-                                    iter_count,diis,invert,error)
+  SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store,rho_ao,para_env,&
+             iter_delta,iter_count,diis,invert,error)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_mix_new
     TYPE(mixing_storage_type), POINTER       :: mixing_store
@@ -151,6 +152,86 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE scf_env_density_mixing
+
+! *****************************************************************************
+!> \brief perform (if requested) a density mixing
+!> \param p_mix_new    New density matrices
+!> \param mixing_store ...
+!> \param rho_ao       Density environment
+!> \param para_env ...
+!> \param iter_delta ...
+!> \param iter_count ...
+!> \param diis ...
+!> \param invert       Invert mixing
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi] 
+!>      08.2014 adapted for kpoints [JGH]
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE scf_env_density_mixing_kp(p_mix_new,mixing_store,rho_ao,para_env,&
+             iter_delta,iter_count,diis,invert,error)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_mix_new
+    TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
+    INTEGER, INTENT(IN)                      :: iter_count
+    LOGICAL, INTENT(in), OPTIONAL            :: diis, invert
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing_kp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ic, ispin
+    LOGICAL                                  :: failure, my_diis, my_invert
+    REAL(KIND=dp)                            :: my_p_mix, tmp
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    my_diis=.FALSE.
+    IF (PRESENT(diis)) my_diis=diis
+    my_invert=.FALSE.
+    IF (PRESENT(invert)) my_invert=invert
+    my_p_mix = mixing_store%alpha
+    IF (my_diis .OR. iter_count<mixing_store%nskip_mixing) THEN
+        my_p_mix = 1.0_dp
+    END IF
+
+    iter_delta = 0.0_dp
+    IF (.NOT.failure) THEN
+       CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
+       DO ic=1,SIZE(p_mix_new,2)
+          DO ispin=1,SIZE(p_mix_new,1)
+             IF (my_invert) THEN
+                CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
+                IF (my_p_mix/=1.0_dp) THEN
+                   CALL cp_dbcsr_add(matrix_a=p_mix_new(ispin,ic)%matrix,&
+                        alpha_scalar=1.0_dp/my_p_mix,&
+                        matrix_b=rho_ao(ispin,ic)%matrix,&
+                        beta_scalar=(my_p_mix-1.0_dp)/my_p_mix,&
+                        error=error)
+                END IF
+             ELSE
+                CALL cp_sm_mix(m1=p_mix_new(ispin,ic)%matrix,&
+                     m2=rho_ao(ispin,ic)%matrix,&
+                     p_mix=my_p_mix,&
+                     delta=tmp,&
+                     para_env=para_env,&
+                     error=error)
+                iter_delta=MAX(iter_delta,tmp)
+             END IF
+          END DO
+       END DO
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE scf_env_density_mixing_kp
 
 ! *****************************************************************************
 !> \brief   Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
@@ -395,7 +476,7 @@ CONTAINS
 !> \param jacobi_threshold ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,do_level_shift,&
+  SUBROUTINE eigensolver_simple(matrix_ks,mo_set,work,do_level_shift,&
                                 level_shift,use_jacobi,jacobi_threshold,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_ks
@@ -407,7 +488,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'simple_eigensolver', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_simple', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, imo, nao, &
@@ -459,7 +540,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE simple_eigensolver
+  END SUBROUTINE eigensolver_simple
 
 ! *****************************************************************************
 !> \brief Perform a mixing of the given matrixes into the first matrix

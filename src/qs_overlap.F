@@ -10,6 +10,7 @@
 !>      JGH: upgraded to unique routine for overlaps
 !>      JGH: Add specific routine for 'forces only'
 !>           Major refactoring for new overlap routines
+!>      JGH: Kpoints
 !> \author Matthias Krack (03.09.2001,25.06.2003)
 ! *****************************************************************************
 MODULE qs_overlap
@@ -33,6 +34,8 @@ MODULE qs_overlap
        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE orbital_pointers,                ONLY: indco,&
                                              ncoset
   USE orbital_symbols,                 ONLY: cgf_symbol
@@ -70,6 +73,11 @@ MODULE qs_overlap
       1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,&
       1,1,1,1,1,1,1/)
 
+  INTERFACE create_sab_matrix
+     MODULE PROCEDURE create_sab_matrix_1d, create_sab_matrix_2d
+  END INTERFACE
+
+
 ! *** Public subroutines ***
 
   PUBLIC :: build_overlap_matrix, build_overlap_force, create_sab_matrix
@@ -80,14 +88,16 @@ CONTAINS
 
 !> \brief   Calculation of the overlap matrix over Cartesian Gaussian functions.
 !> \param   qs_env the QS env
-!> \param   matrix_s The overlap matrix to be calculated
-!> \param   nderivative Derivative with respect to basis origin
+!> \param   matrix_s The overlap matrix to be calculated (optional)
+!> \param   matrixkp_s The overlap matrices to be calculated (kpoints, optional)
 !> \param   matrix_name The name of the overlap matrix (i.e. for output)
+!> \param   nderivative Derivative with respect to basis origin
 !> \param   basis_set_id_a basis set to be used for bra in <a|b>
 !> \param   basis_set_id_b basis set to be used for ket in <a|b>
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
+!> \param   matrixkp_p density matrices for force calculation (kpoints,optional)
 !> \param   error CP2K error reporting 
 !> \date    11.03.2002
 !> \par     History
@@ -97,41 +107,47 @@ CONTAINS
 !>          put into its corresponding env outside of this routine
 !>          [Manuel Guidon]
 !>          Generalized for derivatives and force calculations [JHU]
+!>          Kpoints, returns overlap matrices in real space index form
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_overlap_matrix(qs_env,matrix_s,nderivative,matrix_name,&
-     basis_set_id_a, basis_set_id_b, sab_nl, calculate_forces, matrix_p, error)
+  SUBROUTINE build_overlap_matrix(qs_env, matrix_s, matrixkp_s, matrix_name,&
+     nderivative, basis_set_id_a, basis_set_id_b, sab_nl, calculate_forces,&
+     matrix_p, matrixkp_p, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    INTEGER, INTENT(IN), OPTIONAL            :: nderivative
+      OPTIONAL, POINTER                      :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: matrixkp_s
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
+    INTEGER, INTENT(IN), OPTIONAL            :: nderivative
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrixkp_p
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
       routineP = moduleN//':'//routineN
-    INTEGER, DIMENSION(1:56), PARAMETER :: ndod = (/0,1,1,1,0,0,0,0,0,0,1,1,1,&
-      1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,&
-      1,1,1,1,1,1,1/)
 
-    INTEGER :: atom_a, atom_b, handle, i, iatom, icol, ikind, inode, irow, &
-      iset, istat, jatom, jkind, jset, last_jatom, ldsab, maxder, n1, n2, &
-      natom, ncoa, ncob, nder, nkind, nseta, nsetb, sgfa, sgfb
+    INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, inode, &
+      irow, iset, istat, jatom, jkind, jset, ldsab, maxder, maxs, n1, n2, &
+      natom, ncoa, ncob, ncount, nder, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
+                                                index_to_cell
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_forces, do_symmetric, &
-                                                failure, found, new_atom_b, &
-                                                trans, use_virial
+                                                dokp, failure, found, trans, &
+                                                use_virial
     REAL(KIND=dp)                            :: dab, f, f0, ff, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: owork, pmat
@@ -150,6 +166,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: basis_set_list_a, &
                                                 basis_set_list_b
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(qs_force_type), DIMENSION(:), &
@@ -160,7 +177,20 @@ CONTAINS
 
      CALL timeset(routineN,handle)
 
-     NULLIFY (atomic_kind_set, p_block)
+     ! test for matrices (kpoints or standard gamma point)
+     IF (PRESENT(matrix_s)) THEN
+        dokp = .FALSE.
+     ELSEIF (PRESENT(matrixkp_s)) THEN
+        dokp = .TRUE.
+        CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+        CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,&
+                             cell_to_index=cell_to_index,error=error)
+        ncount = SIZE(index_to_cell,2)
+     ELSE
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END IF
+
+     NULLIFY (atomic_kind_set)
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
                      dbcsr_dist=dbcsr_dist,error=error)
 
@@ -190,9 +220,16 @@ CONTAINS
        CPPrecondition(basis_set_id_a == basis_set_id_b,cp_failure_level,routineP,error,failure)
      END IF
 
-     CALL cp_dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
-     CALL create_sab_matrix(qs_env, matrix_s, matrix_name, basis_set_id_a, basis_set_id_b, &
-                            sab_nl, do_symmetric, error)
+     IF(dokp) THEN
+        CALL cp_dbcsr_allocate_matrix_set(matrixkp_s,maxder,ncount,error=error)
+        CALL create_sab_matrix(qs_env, matrixkp_s, matrix_name, basis_set_id_a, basis_set_id_b, &
+                               sab_nl, do_symmetric, error)
+     ELSE
+        CALL cp_dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
+        CALL create_sab_matrix(qs_env, matrix_s, matrix_name, basis_set_id_a, basis_set_id_b, &
+                               sab_nl, do_symmetric, error)
+     END IF
+     maxs = maxder
 
      IF (do_forces) THEN
         CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
@@ -202,7 +239,11 @@ CONTAINS
      ldsab = get_memory_usage(atomic_kind_set,basis_set_id_a,basis_set_id_b)
      IF (do_forces) THEN
         ! we need density matrix for forces
-        CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
+        IF(dokp) THEN
+           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,error,failure)
+        ELSE
+           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
+        END IF
         nder = MAX(nder,1)
         ALLOCATE (pmat(ldsab,ldsab),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -210,10 +251,10 @@ CONTAINS
      maxder = ncoset(nder)
      ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     maxder = SIZE(matrix_s)
-     ALLOCATE (sint(maxder),STAT=istat)
+
+     ALLOCATE (sint(maxs),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     DO i=1,maxder
+     DO i=1,maxs
        NULLIFY (sint(i)%block)
      END DO
 
@@ -225,7 +266,7 @@ CONTAINS
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
         CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
-                               iatom=iatom,jatom=jatom,r=rab)
+                               iatom=iatom,jatom=jatom,r=rab,cell=cell)
         basis_set_a => basis_set_list_a(ikind)%gto_basis_set
         IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
         basis_set_b => basis_set_list_b(jkind)%gto_basis_set
@@ -255,48 +296,51 @@ CONTAINS
         scon_b       =>  basis_set_b%scon
         zetb         =>  basis_set_b%zet
 
-        IF(inode==1) last_jatom = 0
-
-        IF (jatom /= last_jatom) THEN
-          new_atom_b = .TRUE.
-          last_jatom = jatom
-        ELSE
-          new_atom_b = .FALSE.
+        IF(dokp) THEN
+           ic = cell_to_index(cell(1),cell(2),cell(3))
+           CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
         END IF
 
-        IF (new_atom_b) THEN
-          IF( do_symmetric ) THEN
-            IF (iatom <= jatom) THEN
-              irow = iatom
-              icol = jatom
-            ELSE
-              irow = jatom
-              icol = iatom
-            END IF
-            IF (iatom==jatom) THEN
-               f0 = 1.0_dp
-            ELSE
-               f0 = 2.0_dp
-            END IF
-            ff = 2.0_dp
-          ELSE
+        IF( do_symmetric ) THEN
+          IF (iatom <= jatom) THEN
             irow = iatom
             icol = jatom
-            f0 = 1.0_dp
-            ff = 1.0_dp
+          ELSE
+            irow = jatom
+            icol = iatom
           END IF
-          DO i=1,SIZE(matrix_s)
-             NULLIFY (sint(i)%block)
-             CALL cp_dbcsr_get_block_p(matrix=matrix_s(i)%matrix,&
-                  row=irow,col=icol,BLOCK=sint(i)%block,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,error,failure)
-          END DO
-          IF (do_forces) THEN
-             NULLIFY (p_block)
-             CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
-                  block=p_block,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,error,failure)
-          END IF
+          f0 = 2.0_dp
+          ff = 2.0_dp
+          IF (iatom==jatom) f0 = 1.0_dp
+        ELSE
+          irow = iatom
+          icol = jatom
+          f0 = 1.0_dp
+          ff = 1.0_dp
+        END IF
+        DO i=1,maxs
+           NULLIFY (sint(i)%block)
+           IF(dokp) THEN
+              CALL cp_dbcsr_get_block_p(matrix=matrixkp_s(i,ic)%matrix,&
+                   row=irow,col=icol,BLOCK=sint(i)%block,found=found)
+              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           ELSE
+              CALL cp_dbcsr_get_block_p(matrix=matrix_s(i)%matrix,&
+                   row=irow,col=icol,BLOCK=sint(i)%block,found=found)
+              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           END IF
+        END DO
+        IF (do_forces) THEN
+           NULLIFY (p_block)
+           IF(dokp) THEN
+              CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(ic)%matrix,&
+                   row=irow,col=icol,block=p_block,found=found)
+              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           ELSE
+              CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
+                   block=p_block,found=found)
+              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           END IF
         END IF
         trans = do_symmetric .AND. (iatom > jatom)
 
@@ -348,7 +392,7 @@ CONTAINS
                END IF
             END IF
             ! Contraction
-            DO i=1,SIZE(matrix_s)
+            DO i=1,maxs
                f = 1.0_dp 
                IF (ndod(i) == 1 .AND. trans) f = -1.0_dp
                CALL contraction(oint(:,:,i),owork,ca=scon_a(:,sgfa:),na=n1,ma=nsgfa(iset),&
@@ -363,16 +407,26 @@ CONTAINS
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
-     DO i = 1,SIZE(matrix_s)
-        CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
-        CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
-             qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
-     ENDDO
+     IF(dokp) THEN
+        DO i = 1,maxs
+           DO ic=1,ncount
+              CALL cp_dbcsr_finalize(matrixkp_s(i,ic)%matrix, error=error)
+              CALL cp_dbcsr_filter(matrixkp_s(i,ic)%matrix, &
+                   qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
+           ENDDO
+        ENDDO
+     ELSE
+        DO i = 1,maxs
+           CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
+           CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
+                qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
+        ENDDO
+     END IF
 
      ! *** Release work storage ***
      DEALLOCATE (atom_of_kind,STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     DO i=1,maxder
+     DO i=1,maxs
         NULLIFY (sint(i)%block)
      END DO
      DEALLOCATE (sint,STAT=istat)
@@ -614,7 +668,7 @@ CONTAINS
 !> \param symmetric      Is symmetry used in the neighbor list?
 !> \param error          CP2K error reporting
 ! *****************************************************************************
-  SUBROUTINE create_sab_matrix(qs_env, matrix_s, matrix_name,&
+  SUBROUTINE create_sab_matrix_1d(qs_env, matrix_s, matrix_name,&
      basis_set_id_a, basis_set_id_b, sab_nl, symmetric, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -627,7 +681,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: symmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_1d', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: cgfsym
@@ -708,8 +762,122 @@ CONTAINS
      CALL array_release (row_blk_sizes)
      CALL array_release (col_blk_sizes)
 
-  END SUBROUTINE create_sab_matrix
+  END SUBROUTINE create_sab_matrix_1d
+! *****************************************************************************
+
+! *****************************************************************************
+!> \brief Setup the structure of a sparse matrix based on the overlap 
+!>        neighbor list, 2d version
+!> \param qs_env         The QS environment
+!> \param matrix_s       Matrices to be constructed
+!> \param matrix_name    Matrix base name
+!> \param basis_set_id_a Basis set used for <a|
+!> \param basis_set_id_b Basis set used for |b>
+!> \param sab_nl         Overlap neighbor list
+!> \param symmetric      Is symmetry used in the neighbor list?
+!> \param error          CP2K error reporting
+! *****************************************************************************
+  SUBROUTINE create_sab_matrix_2d(qs_env, matrix_s, matrix_name,&
+     basis_set_id_a, basis_set_id_b, sab_nl, symmetric, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_s
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
+    INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_nl
+    LOGICAL, INTENT(IN)                      :: symmetric
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_2d', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=12)                        :: cgfsym
+    CHARACTER(LEN=32)                        :: symmetry_string
+    CHARACTER(LEN=default_string_length)     :: mname, name
+    INTEGER                                  :: i1, i2, istat, maxs1, maxs2, &
+                                                natom
+    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
+    LOGICAL                                  :: failure
+    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    failure = .FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,dbcsr_dist=dbcsr_dist,error=error)
+
+    natom = SIZE(particle_set)
+
+    IF (PRESENT(matrix_name)) THEN
+      mname = matrix_name
+    ELSE
+      mname = "DUMMY"
+    END IF
+
+    maxs1 = SIZE(matrix_s,1)
+    maxs2 = SIZE(matrix_s,2)
+
+    ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_particle_set(particle_set=particle_set,nsgf=rbs,&
+                          basis_set_id=basis_set_id_a,error=error)
+    CALL get_particle_set(particle_set=particle_set,nsgf=cbs,&
+                          basis_set_id=basis_set_id_b,error=error)
+
+    ! prepare for allocation
+    CALL array_nullify (row_blk_sizes)
+    CALL array_nullify (col_blk_sizes)
+    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
+    IF (symmetric) THEN
+       symmetry_string = dbcsr_type_symmetric
+    ELSE
+       symmetry_string = dbcsr_type_no_symmetry
+    END IF
+
+    DO i2=1,maxs2
+       DO i1=1,maxs1
+          IF (symmetric) THEN
+             IF(ndod(i1)==1) THEN
+                ! odd derivatives are anti-symmetric
+                symmetry_string = dbcsr_type_antisymmetric
+             ELSE
+                symmetry_string = dbcsr_type_symmetric
+             END IF
+          ELSE
+             symmetry_string = dbcsr_type_no_symmetry
+          END IF
+          cgfsym = cgf_symbol(1,indco(1:3,i1))
+          IF(i1==1) THEN
+             name = mname
+          ELSE
+             name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE "//TRIM(mname)//&
+                 " W.R.T. THE NUCLEAR COORDINATES"
+          END IF
+          CALL compress(name)
+          CALL uppercase(name)
+          ALLOCATE(matrix_s(i1,i2)%matrix, STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL cp_dbcsr_init(matrix_s(i1,i2)%matrix,error=error)
+          CALL cp_dbcsr_create(matrix=matrix_s(i1,i2)%matrix, &
+               name=TRIM(name), &
+               dist=dbcsr_dist, matrix_type=symmetry_string,&
+               row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+               nblks=0, nze=0, error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i1,i2)%matrix,sab_nl,error)
+       END DO
+    END DO
+
+    CALL array_release (row_blk_sizes)
+    CALL array_release (col_blk_sizes)
+
+  END SUBROUTINE create_sab_matrix_2d
 ! *****************************************************************************
 
 END MODULE qs_overlap
+
 

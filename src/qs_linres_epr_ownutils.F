@@ -52,7 +52,7 @@ MODULE qs_linres_epr_ownutils
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE qs_core_energies,                ONLY: calculate_ecore
+  USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -257,10 +257,8 @@ CONTAINS
                     kinetic=kinetic,rho=rho,para_env=para_env,error=error)
 
     DO ispin=1,dft_control%nspins
-       CALL calculate_ecore(h=kinetic(1)%matrix,&
-                            p=rho%rho_ao(ispin)%matrix,&
-                            ecore=epr_g_zke_temp(ispin),&
-                            error=error)
+       CALL calculate_ptrace(kinetic(1)%matrix,rho%rho_ao(ispin)%matrix,&
+                             ecore=epr_g_zke_temp(ispin),error=error)
     END DO
 
     epr_env%g_zke = epr_env%g_zke_factor * ( epr_g_zke_temp(1) - epr_g_zke_temp(2) )

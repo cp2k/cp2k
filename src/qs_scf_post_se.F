@@ -79,11 +79,11 @@ MODULE qs_scf_post_se
                                              read_loc_section,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_occupation,&
-                                             write_mo_set
+                                             set_mo_occupation
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type

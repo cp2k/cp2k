@@ -5,13 +5,11 @@
 
 ! *****************************************************************************
 !> \brief K-points and crystal symmetry routines
-!> \par History
 !> \author jgh
 ! *****************************************************************************
 MODULE k290
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: default_output_unit
   USE mathlib,                         ONLY: invmat
   USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
@@ -115,9 +113,9 @@ MODULE k290
 CONTAINS
 
 ! *****************************************************************************
-!> \brief ...
-!> \param csym ...
-!> \param error ...
+!> \brief Release the CSYM type
+!> \param csym  The CSYM type
+!> \param error CP2K error handling
 ! *****************************************************************************
   SUBROUTINE release_csym_type(csym,error)
     TYPE(csym_type), POINTER                 :: csym
@@ -157,10 +155,13 @@ CONTAINS
 !> \param stress ...
 !> \param symm ...
 !> \param delta ...
-!> \param unit ...
+!> \param wkpoint ...
+!> \param xkpoint ...
+!> \param iounit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kp_sym_gen(csym,coor,types,hmat,nk,shift,stress,symm,delta,unit,error)
+  SUBROUTINE kp_sym_gen(csym,coor,types,hmat,nk,shift,stress,symm,delta,&
+                        wkpoint,xkpoint,iounit,error)
     TYPE(csym_type), POINTER                 :: csym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: coor
@@ -170,17 +171,22 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: shift(3), stress(3,3)
     LOGICAL, INTENT(IN), OPTIONAL            :: symm
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: delta
-    INTEGER, INTENT(IN), OPTIONAL            :: unit
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: wkpoint
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: xkpoint
+    INTEGER, INTENT(IN), OPTIONAL            :: iounit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kp_sym_gen', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, isos, n, nat, nhash, &
-                                                nkk, nsp
+    INTEGER                                  :: handle, ik, isos, isum, n, &
+                                                nat, nhash, nkk, nkpts, nsp
     INTEGER, ALLOCATABLE                     :: f0(:,:), includ(:), isc(:), &
                                                 list(:), lrot(:,:), lwght(:)
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: wsum
     REAL(KIND=dp), ALLOCATABLE               :: rlist(:,:), rx(:,:), &
                                                 tvec(:,:), wvkl(:,:)
 
@@ -266,10 +272,10 @@ CONTAINS
     ALLOCATE (rlist(3,nkk),STAT=isos)
     CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
 
-    IF ( PRESENT(unit) ) THEN
-       csym%punit = unit
+    IF ( PRESENT(iounit) ) THEN
+       csym%punit = iounit
     ELSE
-       csym%punit = default_output_unit
+       csym%punit = -1
     END IF
     IF ( PRESENT(delta) ) THEN
        csym%delta = delta
@@ -282,6 +288,24 @@ CONTAINS
          rx,tvec,csym%ty,isc,f0,csym%ntvec,csym%wvk0,csym%ihg,csym%ihc,csym%isy,&
          csym%li,csym%nc,csym%indpg,csym%ib,csym%v,csym%r,csym%origin,csym%xb,&
          wvkl,lwght,lrot,nhash,includ,list,rlist,csym%delta,error)
+    IF ( PRESENT(xkpoint) ) THEN
+       !..return kpoints and weights
+       CPPrecondition(PRESENT(wkpoint),cp_failure_level,routineP,error,failure)
+       isum=0
+       nkpts=0
+       DO ik=1,nkk
+          IF(lwght(ik) == 0) EXIT
+          nkpts=ik
+          isum = isum + lwght(nkpts)
+       END DO
+       wsum=REAL(isum,KIND=dp)
+       ALLOCATE (xkpoint(3,nkpts),wkpoint(nkpts),STAT=isos)
+       CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
+       DO ik=1,nkpts
+          wkpoint(ik) = REAL(lwght(ik),KIND=dp)/wsum
+          xkpoint(1:3,ik) = wvkl(1:3,ik)
+       END DO
+    END IF
     !..deallocate intermediate arrays
     DEALLOCATE (rx,tvec,isc,f0,wvkl,lwght,lrot,includ,list,rlist,STAT=isos)
     CPPostcondition(isos==0,cp_failure_level,routineP,error,failure)
@@ -307,6 +331,7 @@ CONTAINS
     REAL(KIND=dp)                            :: vs, vv0(3)
 
     unit = csym%punit
+    IF(unit < 0) RETURN
     plevel = csym%plevel
     indpg=csym%indpg
 
@@ -593,9 +618,9 @@ CONTAINS
        !----------------------------------------------------------------------------!
        !   GENERATE THE BRAVAIS LATTICE
        !----------------------------------------------------------------------------!
-       WRITE (iout,'(/,1X,20("-"),A,20("-"),/,A)') &
-            ' The (unstrained) bravais lattice ', &
-            ' (used for generating the largest possible mesh in the B.Z.)'
+       IF(iout>0) WRITE (iout,'(/,1X,20("-"),A,20("-"),/,A)') &
+                      ' The (unstrained) bravais lattice ', &
+                      ' (used for generating the largest possible mesh in the B.Z.)'
        !----------------------------------------------------------------------------!
        CALL group1(iout,a01,a02,a03,1,ty,x0,b01,b02,b03,ihg0,ihc0,isy0,li0, &
             nc0,indpg0,ib0,ntvec0,v0,f00,xb0,r0,tvec0,origin0,rx,isc,delta,error)
@@ -604,25 +629,26 @@ CONTAINS
        !   (cubic/hexagonal) will apply to the crystal as well as the Bravais
        !   lattice.
        !----------------------------------------------------------------------------!
-       WRITE (iout,'(/,1X,19("*"),A,25("*"))') &
+       IF(iout>0) THEN
+          WRITE (iout,'(/,1X,19("*"),A,25("*"))') &
             ' Generation of special points '
-       !   Parameter Q of Monkhorst and Pack, generalized for 3 axes B1,2,3
-       WRITE (iout,'(A,/,1X,3I5)') &
+          !   Parameter Q of Monkhorst and Pack, generalized for 3 axes B1,2,3
+          WRITE (iout,'(A,/,1X,3I5)') &
             ' Monkhorst-Pack parameters (generalized) IQ1,IQ2,IQ3:', iq1, iq2, &
             iq3
-       !   WVK0 is the shift of the whole mesh (see Macdonald)
-       WRITE (iout,'(A,/,1X,3F10.5)') &
+          !   WVK0 is the shift of the whole mesh (see Macdonald)
+          WRITE (iout,'(A,/,1X,3F10.5)') &
             ' constant vector shift (MacDonald) of this mesh:', wvk0
-       IF (ABS(istriz)/=1) THEN
-          WRITE (iout,'(" invalid switch for symmetrization",I10)') istriz
-          WRITE (*,'(" invalid switch for symmetrization",I10)') istriz
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END IF
-       WRITE (iout,'(" symmetrization switch: ",I3)',ADVANCE="NO") istriz
-       IF (istriz==1) THEN
-          WRITE (iout,'(" (symmetrization of Monkhorst-Pack mesh)")')
-       ELSE
-          WRITE (iout,'(" (no symmetrization of Monkhorst-Pack mesh)")')
+          IF (ABS(istriz)/=1) THEN
+             WRITE (iout,'(" invalid switch for symmetrization",I10)') istriz
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END IF
+          WRITE (iout,'(" symmetrization switch: ",I3)',ADVANCE="NO") istriz
+          IF (istriz==1) THEN
+             WRITE (iout,'(" (symmetrization of Monkhorst-Pack mesh)")')
+          ELSE
+             WRITE (iout,'(" (no symmetrization of Monkhorst-Pack mesh)")')
+          END IF
        END IF
        !   Set to 0.
        DO i = 1, nkpoint
@@ -636,7 +662,7 @@ CONTAINS
           !     Due to non-use of primitive cell, the crystal has more
           !     rotations than Bravais lattice.
           !     We use only the rotations for Bravais lattices
-          IF (ntvec==1) THEN
+          IF (ntvec==1 .AND. iout>0) THEN
              WRITE (iout,*) ' K290| Number of rotations for bravais lattice', &
                   nc0
              WRITE (iout,*) ' K290| Number of rotations for crystal lattice', &
@@ -648,12 +674,14 @@ CONTAINS
           DO i = 1, nc0
              ib(i) = ib0(i)
           END DO
-          WRITE (iout,'(/,1X,20("!"),"WARNING",20("!"))')
-          WRITE (iout,'(A)') &
-               ' K290| The crystal has more symmetry than the bravais lattice'
-          WRITE (iout,'(A)') ' K290| Because this is not a primitive cell'
-          WRITE (iout,'(A)') ' K290| Use only symmetry from bravais lattice'
-          WRITE (iout,'(1X,20("!"),"WARNING",20("!"),/)')
+          IF(iout>0) THEN
+             WRITE (iout,'(/,1X,20("!"),"WARNING",20("!"))')
+             WRITE (iout,'(A)') &
+                  ' K290| The crystal has more symmetry than the bravais lattice'
+             WRITE (iout,'(A)') ' K290| Because this is not a primitive cell'
+             WRITE (iout,'(A)') ' K290| Use only symmetry from bravais lattice'
+             WRITE (iout,'(1X,20("!"),"WARNING",20("!"),/)')
+          END IF
        END IF
        CALL sppt2(iout,iq1,iq2,iq3,wvk0,nkpoint,a01,a02,a03,b01,b02,b03, &
             invadd,nc,ib,r,ntot,wvkl,lwght,lrot,nc0,ib0,istriz,nhash,includ, &
@@ -661,10 +689,10 @@ CONTAINS
        !----------------------------------------------------------------------------!
        !      Check on error signals
        !----------------------------------------------------------------------------!
-       WRITE (iout,'(/,1X,I5," Special points generated")') ntot
+       IF(iout>0) WRITE (iout,'(/,1X,I5," Special points generated")') ntot
        IF (ntot/=0) THEN
           IF (ntot<0) THEN
-             WRITE (iout,'(A,I5,/,A,/,A)') ' Dimension nkpoint =', nkpoint, &
+             IF(iout>0) WRITE (iout,'(A,I5,/,A,/,A)') ' Dimension nkpoint =', nkpoint, &
                   ' insufficient for accommodating all the special points', &
                   ' what follows is an incomplete list'
              ntot = iabs(ntot)
@@ -676,7 +704,7 @@ CONTAINS
           DO i = 1, ntot
              iswght = iswght + lwght(i)
           END DO
-          WRITE (iout,'(8X,A,T33,A,4X,A)') 'WAVEVECTOR K', 'WEIGHT', &
+          IF(iout>0) WRITE (iout,'(8X,A,T33,A,4X,A)') 'WAVEVECTOR K', 'WEIGHT', &
                'UNFOLDING ROTATIONS'
           !   Set near-zeroes equal to zero:
           DO l = 1, ntot
@@ -698,13 +726,15 @@ CONTAINS
                 END DO
              END IF
              lmax = lwght(l)
-             WRITE (iout,fmt='(1X,I5,3F8.4,I8,T42,12I3)') l, &
-                  (wvkl(i,l),i=1,3), lwght(l), (lrot(i,l),i=1,MIN(lmax,12))
-             DO j = 13, lmax, 12
-                WRITE (iout,fmt='(T42,12I3)') (lrot(i,l),i=j,MIN(lmax,j-1+12))
-             END DO
+             IF(iout>0) THEN
+                WRITE (iout,fmt='(1X,I5,3F8.4,I8,T42,12I3)') l, &
+                     (wvkl(i,l),i=1,3), lwght(l), (lrot(i,l),i=1,MIN(lmax,12))
+                DO j = 13, lmax, 12
+                   WRITE (iout,fmt='(T42,12I3)') (lrot(i,l),i=j,MIN(lmax,j-1+12))
+                END DO
+             END IF
           END DO
-          WRITE (iout,'(24X,"TOTAL:",I8)') iswght
+          IF(iout>0) WRITE (iout,'(24X,"TOTAL:",I8)') iswght
        END IF
     END IF
   END SUBROUTINE k290prg

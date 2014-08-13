@@ -34,6 +34,7 @@ MODULE qs_wf_history_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             cp_fm_pool_type,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -67,22 +68,29 @@ MODULE qs_wf_history_methods
                                              RECIPROCALSPACE,&
                                              pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_env_reorthogonalize_vectors,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
-  USE qs_matrix_pools,                 ONLY: mpools_get
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             qs_matrix_pools_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             make_basis_cholesky,&
+                                             make_basis_lowdin,&
+                                             make_basis_simple,&
+                                             make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                             qs_scf_env_type
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              qs_wf_snapshot_p_type,&
                                              qs_wf_snapshot_type,&
                                              wfi_get_snapshot,&
                                              wfs_release
+  USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -97,7 +105,8 @@ MODULE qs_wf_history_methods
   PUBLIC :: wfi_create, wfi_update,&
             wfi_extrapolate, wfi_get_method_label,&
             wfs_duplicate_snapshot,&
-            wfi_change_memory_depth
+            wfi_change_memory_depth,&
+            reorthogonalize_vectors
 
 CONTAINS
 
@@ -730,7 +739,7 @@ END FUNCTION wfi_get_method_label
           DO ispin=1,SIZE(mos)
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                   nmo=nmo)
-             CALL qs_env_reorthogonalize_vectors(qs_env,&
+             CALL reorthogonalize_vectors(qs_env,&
                   v_matrix=mo_coeff,&
                   n_col=nmo, error=error)
              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
@@ -793,7 +802,7 @@ END FUNCTION wfi_get_method_label
                      matrix_a=mo_coeff,&
                      beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
                      error=error)
-                CALL qs_env_reorthogonalize_vectors(qs_env,&
+                CALL reorthogonalize_vectors(qs_env,&
                      v_matrix=mo_coeff,&
                      n_col=nmo, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
@@ -883,7 +892,7 @@ END FUNCTION wfi_get_method_label
                 CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff,error=error)
                 CALL cp_fm_release(csc,error=error)
                 CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix,error=error)
-                CALL qs_env_reorthogonalize_vectors(qs_env,&
+                CALL reorthogonalize_vectors(qs_env,&
                      v_matrix=mo_coeff,&
                      n_col=k, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
@@ -942,7 +951,7 @@ END FUNCTION wfi_get_method_label
 
              CALL cp_fm_release(csc,error=error)
              CALL cp_fm_release(fm_tmp,error=error)
-             CALL qs_env_reorthogonalize_vectors(qs_env,&
+             CALL reorthogonalize_vectors(qs_env,&
                   v_matrix=mo_coeff,&
                   n_col=k, error=error)
              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
@@ -1018,7 +1027,7 @@ END FUNCTION wfi_get_method_label
           END DO
           CALL cp_fm_release(csc,error=error)
           CALL cp_fm_release(fm_tmp,error=error)
-          CALL qs_env_reorthogonalize_vectors(qs_env,&
+          CALL reorthogonalize_vectors(qs_env,&
                                               v_matrix=mo_coeff,&
                                               n_col=k,&
                                               error=error)
@@ -1185,5 +1194,84 @@ SUBROUTINE wfi_change_memory_depth(wf_history,memory_depth,error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE wfi_change_memory_depth
+! *****************************************************************************
+!> \brief reorthogonalizes the mos
+!> \param qs_env the qs_env in which to orthogonalize
+!> \param v_matrix ...
+!> \param n_col number of column of v to orthogonalize
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \param v the vectors to orthogonalize UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
+  SUBROUTINE reorthogonalize_vectors(qs_env, v_matrix, n_col,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_fm_type), POINTER                :: v_matrix
+    INTEGER, INTENT(in), OPTIONAL            :: n_col
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reorthogonalize_vectors', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, my_n_col
+    LOGICAL                                  :: failure, has_unit_metric, &
+                                                ortho_contains_cholesky, &
+                                                smearing_is_used
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
+
+    failure=.FALSE.
+    NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
+    CALL timeset(routineN,handle)
+
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+
+       CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
+       IF (PRESENT(n_col)) my_n_col=n_col
+       CALL get_qs_env(qs_env,mpools=mpools,&
+            scf_env=scf_env,&
+            scf_control=scf_control,&
+            matrix_s=matrix_s,&
+            error=error)
+       CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
+            error=error)
+       IF (ASSOCIATED(scf_env)) THEN
+          ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
+               (scf_env%cholesky_method>0 ).AND.&
+               ASSOCIATED(scf_env%ortho)
+       ELSE
+          ortho_contains_cholesky=.FALSE.
+       END IF
+
+       CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
+       smearing_is_used = .FALSE.
+       IF (qs_env%dft_control%smear) THEN
+           smearing_is_used = .TRUE.
+       END IF
+
+
+       IF (has_unit_metric) THEN
+          CALL make_basis_simple(v_matrix,my_n_col,error=error)
+       ELSE IF (smearing_is_used) THEN
+          CALL make_basis_lowdin(vmatrix=v_matrix,ncol=my_n_col,&
+                 matrix_s=matrix_s(1)%matrix,error=error)
+       ELSE IF (ortho_contains_cholesky) THEN
+          CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
+               ortho=scf_env%ortho,error=error)
+       ELSE
+          CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix ,error=error)
+       END IF
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE reorthogonalize_vectors
 
 END MODULE qs_wf_history_methods

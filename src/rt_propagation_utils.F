@@ -46,11 +46,11 @@ MODULE  rt_propagation_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_mo_io,                        ONLY: read_mo_set,&
+                                             read_rt_mos_from_restart
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             read_mo_set,&
-                                             read_rt_mos_from_restart
+                                             mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE rt_propagation_types,            ONLY: get_rtp,&

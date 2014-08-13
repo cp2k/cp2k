@@ -18,13 +18,19 @@ MODULE cp_fm_diag
                                              cp_blacs_gridinit
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
+                                             cp_fm_triangular_multiply,&
+                                             cp_fm_triangular_invert,&
                                              cp_fm_upper_to_full
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
+                                             cp_fm_get_info,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -66,6 +72,7 @@ MODULE cp_fm_diag
             cp_fm_syevd,&
             cp_fm_syevr,&
             cp_fm_syevx,&
+            cp_fm_geeig,&
             diag_init
 
 CONTAINS
@@ -142,7 +149,7 @@ CONTAINS
 !>               Works currently only for cp_fm_syevd with scalapack.
 !>               Other solvers will end the program regardless of PRESENT(info).
 ! *****************************************************************************
-  SUBROUTINE choose_eigv_solver(matrix,eigenvectors,eigenvalues, info, error)
+  SUBROUTINE choose_eigv_solver(matrix,eigenvectors,eigenvalues,info,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
@@ -1413,5 +1420,54 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_block_jacobi
+
+! *****************************************************************************
+!> \brief General Eigenvalue Problem  AX = BXE
+!>        Single option version: Cholesky decomposition of B
+!> \param amatrix ...
+!> \param bmatrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \param work ...
+!> \param error ...
+! *****************************************************************************
+ SUBROUTINE cp_fm_geeig(amatrix,bmatrix,eigenvectors,eigenvalues,work,error)
+
+    TYPE(cp_fm_type), POINTER                :: amatrix, bmatrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
+    TYPE(cp_fm_type), POINTER                :: work
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, nao, nmo
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    CALL cp_fm_get_info(amatrix,nrow_global=nao,error=error)
+    nmo = SIZE(eigenvalues)
+    ! Cholesky decompose S=U(T)U
+    CALL cp_fm_cholesky_decompose(bmatrix,error=error)
+    ! Invert to get U^(-1)
+    CALL cp_fm_triangular_invert(bmatrix,error=error)
+    ! Reduce to get U^(-T) * H * U^(-1)
+    CALL cp_fm_triangular_multiply(bmatrix,amatrix,side="R",&
+     transpose_tr=.FALSE., invert_tr=.FALSE., uplo_tr="U",unit_diag_tr=.FALSE., &
+     alpha=1.0_dp,error=error)
+    CALL cp_fm_triangular_multiply(bmatrix,amatrix,side="L",&
+     transpose_tr=.TRUE., invert_tr=.FALSE., uplo_tr="U",unit_diag_tr=.FALSE., &
+     alpha=1.0_dp,error=error)
+    ! Diagonalize
+    CALL choose_eigv_solver(matrix=amatrix,eigenvectors=work,eigenvalues=eigenvalues,error=error)
+    ! Restore vectors C = L^(-1) * C*
+    CALL cp_fm_cholesky_restore(work,nmo,bmatrix,eigenvectors,"MULTIPLY",error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_fm_geeig
 
 END MODULE cp_fm_diag

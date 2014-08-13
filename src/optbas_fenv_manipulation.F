@@ -49,10 +49,10 @@ MODULE optbas_fenv_manipulation
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_matrix_pools,                 ONLY: mpools_get
+  USE qs_mo_io,                        ONLY: read_mo_set
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: init_mo_set,&
-                                             mo_set_p_type,&
-                                             read_mo_set
+                                             mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho

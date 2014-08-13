@@ -34,6 +34,8 @@ MODULE scptb_ks_matrix
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE linear_systems,                  ONLY: solve_system
   USE mathconstants,                   ONLY: dfac,&
                                              fourpi,&
@@ -108,19 +110,22 @@ CONTAINS
 !> \param ks_env ...
 !> \param qs_env ...
 !> \param ks_matrix ...
+!> \param ks_matrixkp ...
 !> \param rho ...
 !> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_scptb_ks_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,error)
+  SUBROUTINE build_scptb_ks_matrix (ks_env,qs_env,ks_matrix,ks_matrixkp,&
+             rho,energy,calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      OPTIONAL, POINTER                      :: ks_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: ks_matrixkp
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -129,9 +134,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_scptb_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, handle, iatom, ikind, ispin, istat, lmaxscp, natom, &
-      natom_kind, nkind, nspins, output_unit
-    LOGICAL                                  :: do_es, do_scp, failure
+    INTEGER :: atom_a, handle, iatom, ic, ikind, ispin, istat, lmaxscp, &
+      natom, natom_kind, nkind, nspins, output_unit
+    LOGICAL                                  :: do_es, do_kp, do_scp, failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
@@ -142,10 +147,13 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 mo_derivs
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_h
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
@@ -159,6 +167,17 @@ CONTAINS
     NULLIFY(dft_control, logger, scf_section)
     NULLIFY(matrix_p, particle_set)
 
+    IF(PRESENT(ks_matrixkp)) THEN
+      do_kp = .TRUE.
+      CPPrecondition(SIZE(ks_matrixkp,1)>0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(SIZE(ks_matrixkp,2)>0,cp_failure_level,routineP,error,failure)
+    ELSE IF(PRESENT(ks_matrix)) THEN
+      do_kp = .FALSE.
+      CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+    ELSE
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
+
     logger => cp_error_get_logger(error)
 
     failure=.FALSE.
@@ -170,14 +189,11 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
            dft_control=dft_control,&
            atomic_kind_set=atomic_kind_set,&
-           matrix_h=matrix_h,&
            para_env=para_env,error=error)
 
       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
       nspins=dft_control%nspins
-      CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-      CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
       do_es = .FALSE.
       do_scp = .FALSE.
@@ -195,12 +211,26 @@ CONTAINS
       ! SCP requires self-consistent charge method
       IF(do_scp) do_es = .TRUE.
 
-      DO ispin=1,nspins
-        ! copy the core matrix into the fock matrix
-         CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
-      END DO
+      ! copy the core matrix into the fock matrix
+      IF(do_kp) THEN
+         CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+         CALL get_kpoint_info(kpoints,matrix_h=matrixkp_h,error=error)
+         CPPrecondition(ASSOCIATED(matrixkp_h),cp_failure_level,routineP,error,failure)
+         DO ispin=1,nspins
+            DO ic=1,SIZE(matrixkp_h,2)
+               CALL cp_dbcsr_copy(ks_matrixkp(ispin,ic)%matrix,matrixkp_h(1,ic)%matrix,error=error)
+            END DO
+         END DO
+      ELSE
+         CALL get_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
+         CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
+         DO ispin=1,nspins
+            CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+         END DO
+      END IF
 
       IF (do_es) THEN
+         CPPrecondition(.NOT.do_kp,cp_failure_level,routineP,error,failure)
          ! Mulliken charges
          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,matrix_s=matrix_s,error=error)
          matrix_p => rho%rho_ao
@@ -263,7 +293,7 @@ CONTAINS
       END IF
       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
            "PRINT%DETAILED_ENERGY", error=error)
-       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
+      ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
          DO ispin=1,SIZE(mo_derivs)

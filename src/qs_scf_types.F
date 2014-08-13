@@ -118,6 +118,7 @@ TYPE qs_scf_env_type
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
    TYPE(krylov_space_type), POINTER :: krylov_space
    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
+   TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: p_mix_kp
    TYPE(cp_dbcsr_type),  POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
@@ -184,6 +185,7 @@ CONTAINS
        NULLIFY (scf_env%ortho_dbcsr)
        NULLIFY (scf_env%ortho_m1)
        NULLIFY (scf_env%p_mix_new)
+       NULLIFY (scf_env%p_mix_kp)
        NULLIFY (scf_env%ot_preconditioner)
        NULLIFY (scf_env%qs_ot_env)
        NULLIFY (scf_env%scf_diis_buffer)
@@ -270,6 +272,9 @@ CONTAINS
        IF (ASSOCIATED(scf_env%p_delta)) THEN
           CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
        END IF
+       IF (ASSOCIATED(scf_env%p_mix_kp)) THEN
+          CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_kp,error=error)
+       END IF
     END IF
 
     CALL timestop(handle)
@@ -309,26 +314,36 @@ CONTAINS
           CALL cp_fm_release(scf_env%ortho,error=error)
           CALL cp_fm_release(scf_env%ortho_m1,error=error)
           IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+             ! we should not end up here, and give back using the pools
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) 
              CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr,error=error)
           END IF
           IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+             ! we should not end up here, and give back using the pools
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
              CALL cp_dbcsr_deallocate_matrix(scf_env%buf1_dbcsr,error=error)
           END IF
           IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+             ! we should not end up here, and give back using the pools
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
              CALL cp_dbcsr_deallocate_matrix(scf_env%buf2_dbcsr,error=error)
           END IF
           CALL cp_fm_release(scf_env%s_half,error=error)
           CALL cp_fm_release(scf_env%s_minus_one,error=error)
           IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+             ! we should not end up here, and give back using the pools
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) 
              CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
           END IF
           IF (ASSOCIATED(scf_env%p_delta)) THEN
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools
+             ! we should not end up here, and give back using the pools
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
              CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
+          END IF
+          IF (ASSOCIATED(scf_env%p_mix_kp)) THEN
+             ! we should not end up here, and give back using the pools
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
+             CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_kp,error=error)
           END IF
           IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
              DO i=1,SIZE(scf_env%ot_preconditioner)

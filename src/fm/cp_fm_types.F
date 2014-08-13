@@ -80,6 +80,7 @@ MODULE cp_fm_types
             cp_fm_vectorsnorm,&  ! compute the norm of the column-vectors
             cp_fm_to_fm_submat,&  ! copy (parts of) a fm to a fm
             cp_fm_to_fm_triangular,&
+            cp_fm_copy_general,&
             cp_fm_write_unformatted,&  ! writes a full matrix to an open unit
             cp_fm_read_unformatted,&  ! reads a full matrix from an open unit
             cp_fm_setup,&  ! allows to set flags for fms
@@ -1447,48 +1448,7 @@ CPSourceFileRef,&
                source%local_data(1,1),1,destination%local_data(1,1),1)
        ENDIF
     ELSE
-      CALL cp_assert(source%matrix_struct%nrow_global==&
-           destination%matrix_struct%nrow_global,&
-           cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy between full matrixes of different sizes"//&
-CPSourceFileRef,&
-           error=error)
-      CALL cp_assert(source%matrix_struct%ncol_global==&
-           destination%matrix_struct%ncol_global,&
-           cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef,&
-           error=error)
-#ifdef __SCALAPACK
-
-      IF(source%use_sp.AND.destination%use_sp) THEN
-         CALL pscopy(source%matrix_struct%nrow_global*&
-              source%matrix_struct%ncol_global,&
-              source%local_data_sp(1,1),1,1,source%matrix_struct%descriptor,1,&
-              destination%local_data_sp(1,1),1,1,destination%matrix_struct%descriptor,1)
-      ELSEIF(source%use_sp.AND..NOT.destination%use_sp) THEN
-         CALL pdcopy(source%matrix_struct%nrow_global*&
-              source%matrix_struct%ncol_global,&
-              REAL(source%local_data_sp,dp),1,1,source%matrix_struct%descriptor,1,&
-              destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
-      ELSEIF(.NOT.source%use_sp.AND.destination%use_sp) THEN
-         CALL pscopy(source%matrix_struct%nrow_global*&
-              source%matrix_struct%ncol_global,&
-              REAL(source%local_data,sp),1,1,source%matrix_struct%descriptor,1,&
-              destination%local_data_sp(1,1),1,1,destination%matrix_struct%descriptor,1)
-      ELSE
-         CALL pdcopy(source%matrix_struct%nrow_global*&
-              source%matrix_struct%ncol_global,&
-              source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
-              destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
-      ENDIF
-
-
-#else
       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-#endif
     END IF
 
     CALL timestop(handle)
@@ -1678,6 +1638,119 @@ CPSourceFileRef,&
 
     CALL timestop(handle)
   END SUBROUTINE cp_fm_to_fm_submat
+
+! *****************************************************************************
+!> \brief General copy of a fm matrix to another fm matrix.
+!>        The two matrices can have different contexts.
+!>        Matrices have to have the same global shape.
+!>
+!>        Summary of distribution routines for dense matrices
+!>        The following will copy A(iA:iA+M-1,jA:jA+N-1) to B(iB:iB+M-1,jB:jB+N-1):
+!>
+!>        call pdgemr2d(M,N,Aloc,iA,jA,descA,Bloc,iB,jB,descB,context)
+!>
+!>        Here A and B are global matrices, Aloc, and Bloc, are local matrices, 
+!>        and context is a process grid that covers all parts of either A or B. 
+!>        If a whole global matrix is to be distributed, use the call:
+!>
+!>        call pdgemr2d(M,N,A,1,1,descA,Bloc,1,1,descB,context)
+!>
+!>        A process that is not a part of the context of A should set descA(2) 
+!>        to -1, and similarly for B.
+!>
+!> \param source          input fm matrix
+!> \param destination     output fm matrix
+!> \param global_context  process grid that covers all parts of either A or B.
+!> \param error           CP2K error handling type
+! *****************************************************************************
+  SUBROUTINE cp_fm_copy_general(source,destination,global_context,error)
+
+    TYPE(cp_fm_type), POINTER                :: source, destination
+    INTEGER, INTENT(IN)                      :: global_context
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_copy_general', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, debug
+    INTEGER                                  :: handle
+#if defined(__SCALAPACK)
+    INTEGER                                  :: sdat, ddat, m, n
+    INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    debug = debug_this_module
+
+    IF (.NOT. cp2k_is_parallel) THEN
+       CALL cp_fm_to_fm(source,destination,error)
+    ELSE
+#ifdef __SCALAPACK
+       m = 1
+       n = 1
+       sdat = 0
+       ddat = 0
+       IF(ASSOCIATED(source)) THEN
+          desca = source%matrix_struct%descriptor
+          IF(source%use_sp) THEN
+             sdat=-1
+          ELSE
+             sdat=1
+          END IF
+          m = source%matrix_struct%nrow_global
+          n = source%matrix_struct%ncol_global
+       ELSE
+          desca = -1
+       END IF
+       IF(ASSOCIATED(destination)) THEN
+          descb = destination%matrix_struct%descriptor
+          IF(destination%use_sp) THEN
+             ddat=-1
+          ELSE
+             ddat=1
+          END IF
+          m = destination%matrix_struct%nrow_global
+          n = destination%matrix_struct%ncol_global
+       ELSE
+          descb = -1
+       END IF
+
+       IF(sdat*ddat == 1) THEN
+          CALL cp_assert(source%matrix_struct%nrow_global==&
+               destination%matrix_struct%nrow_global,&
+               cp_failure_level,&
+               cp_assertion_failed, routineP, &
+               "cannot copy between full matrixes of different sizes"//&
+CPSourceFileRef,&
+               error=error)
+          CALL cp_assert(source%matrix_struct%ncol_global==&
+               destination%matrix_struct%ncol_global,&
+               cp_failure_level,&
+               cp_assertion_failed, routineP, &
+               "cannot copy between full matrixes of differen sizes"//&
+CPSourceFileRef,&
+               error=error)
+       END IF
+
+       IF(sdat <= 0 .AND. ddat <= 0) THEN
+          CALL psgemr2d(m,n,source%local_data_sp,1,1,desca,&
+                        destination%local_data_sp,1,1,descb,global_context)
+       ELSEIF(sdat >= 0 .AND. ddat >= 0) THEN
+          CALL pdgemr2d(m,n,source%local_data,1,1,desca,&
+                        destination%local_data,1,1,descb,global_context)
+       ELSE
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+#else
+       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+#endif
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_fm_copy_general
 
 ! *****************************************************************************
 !> \brief ...

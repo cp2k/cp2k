@@ -89,11 +89,11 @@ MODULE xas_methods
                                              set_loc_wfn_lists
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_set,&
-                                             write_mo_set
+                                             set_mo_set
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rRc_xyz_ao
