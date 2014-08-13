@@ -410,7 +410,6 @@ CPSourceFileRef,&
       POINTER                                :: ao_ao_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     TYPE(cp_fm_type), POINTER                :: fmlocal
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
