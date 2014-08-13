@@ -955,7 +955,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     IF(do_kpoints) THEN
        IF (density_guess == restart_guess) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,CPSourceFileRef)
+          CALL cp_assert(.FALSE.,cp_failure_level,&
+               cp_assertion_failed,routineP,CPSourceFileRef)
        ELSE
           ! copy gamma point density matrix guess
           p_rmpv => qs_env%rho%rho_ao
