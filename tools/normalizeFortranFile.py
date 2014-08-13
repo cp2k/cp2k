@@ -55,7 +55,7 @@ def parseRoutine(inFile):
     startRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?:subroutine|function)",re.IGNORECASE)
     endRe=re.compile(r" *end (?:subroutine|function)",re.IGNORECASE)
     startRoutineRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?",re.IGNORECASE)#$
-    typeBeginRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)",
+    typeBeginRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)[,( ]",
                            re.IGNORECASE)
     typeRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",re.IGNORECASE)#$
     attributeRe=re.compile(r" *, *(?P<attribute>[a-zA-Z_0-9]+) *(?:\( *(?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *",re.IGNORECASE)
