@@ -100,7 +100,7 @@ MODULE f77_interface
                                              meta_env_type
   USE metadynamics_utils,              ONLY: metadyn_read
   USE mixed_main,                      ONLY: mixed_create_force_env
-  USE physcon,                         ONLY: init_physcon
+  USE periodic_table,                  ONLY: init_periodic_table
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                              pw_cuda_init
   USE qmmm_create,                     ONLY: qmmm_create_force_env
@@ -289,7 +289,7 @@ CONTAINS
        ENDIF
 
        !   *** Initialize mathematical constants ***
-       CALL init_physcon()
+       CALL init_periodic_table()
 
        !   *** init the bibliography ***
        CALL add_all_references()

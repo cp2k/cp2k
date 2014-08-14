@@ -58,6 +58,7 @@
 !>      - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
 !>      - Updated to CODATA 2006. (26.03.2008,AK)
 !>      - Updated to CODATA 2010. (10.12.2012,MK)
+!>      - Turned constants into Fortran parameters (2014, Ole Schuett)
 !> \author Matthias Krack (MK)
 ! *****************************************************************************
 MODULE physcon
@@ -65,58 +66,27 @@ MODULE physcon
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE periodic_table,                  ONLY: init_periodic_table
 
   IMPLICIT NONE
 
   PRIVATE
-
-  INTEGER, PARAMETER :: maxmom = 3
-
-  REAL(KIND = dp) :: a_bohr,a_fine,a_mass,angstrom,atm,bar,bohr,boltzmann,&
-                     c_light,debye,e_charge,e_gfactor,e_mass,evolt,&
-                     femtoseconds,h_bar,h_planck,hertz,joule,kcalmol,kelvin,&
-                     kjmol,massunit,mu_perm,n_avogadro,newton,p_mass,pascal,&
-                     permittivity,picoseconds,rydberg,seconds,vibfac,wavenumbers
-
-  REAL(KIND = dp), DIMENSION(maxmom) :: esu
 
   PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann,&
             debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar,&
             hertz, joule, kcalmol, kelvin, kjmol, massunit, mu_perm, n_avogadro, newton,&
             p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers
 
-  PUBLIC :: init_physcon,&
-            write_physcon
+  PUBLIC :: write_physcon
 
-CONTAINS
-
-! *****************************************************************************
-!> \brief  Initialize all basic physical constants used by CP2K using
-!>         the recommended fundamental constants of physics and chemistry
-!>         based on the CODATA adjustments
-!> \date    14.11.2000
-!> \par History
-!>      - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-!>      - Updated to CODATA 2006. (26.03.2008,AK)
-!>      - Updated to CODATA 2010. (10.12.2012,MK)
-!> \author  JGH
-!> \version 1.1
-! *****************************************************************************
-  SUBROUTINE init_physcon()
-
-    INTEGER                                  :: i
-
-! Exact constants
-! Speed of light in vacuum [m/s]
-
-    c_light = 299792458.0_dp
+    ! Exact constants
+    ! Speed of light in vacuum [m/s]
+    REAL(KIND=dp), PARAMETER :: c_light = 299792458.0_dp
 
     ! Magnetic constant or permeability of vacuum [N/A**2]
-    mu_perm = 4.0_dp*pi*1.0E-7_dp
+    REAL(KIND=dp), PARAMETER :: mu_perm = 4.0_dp*pi*1.0E-7_dp
 
     ! Electric constant or permittivity of vacuum [F/m]
-    permittivity = 1.0_dp/(mu_perm*c_light**2)
+    REAL(KIND=dp), PARAMETER :: permittivity = 1.0_dp/(mu_perm*c_light**2)
 
 #define CODATA_DEFAULT_VERSION 2006
 
@@ -133,41 +103,41 @@ CONTAINS
     ! and chemistry based on the 1998 adjustment
 
     ! Planck constant [J*s]
-    h_planck = 6.62606876E-34_dp
-    h_bar = h_planck/(2.0_dp*pi)
+    REAL(KIND=dp), PARAMETER :: h_planck = 6.62606876E-34_dp
+    REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
 
     ! Elementary charge [C]
-    e_charge = 1.602176462E-19_dp
+    REAL(KIND=dp), PARAMETER :: e_charge = 1.602176462E-19_dp
 
     ! Electron mass [kg]
-    e_mass = 9.10938188E-31_dp
+    REAL(KIND=dp), PARAMETER :: e_mass = 9.10938188E-31_dp
 
     ! Proton mass [kg]
-    p_mass = 1.67262158Eâ27_dp
+    REAL(KIND=dp), PARAMETER :: p_mass = 1.67262158E-27_dp
 
     ! Electron g factor [ ]
-    e_gfactor = -2.0023193043718_dp
+    REAL(KIND=dp), PARAMETER :: e_gfactor = -2.0023193043718_dp
 
     ! Fine-structure constant
 !MK a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
-    a_fine = 7.297352533E-3_dp
+    REAL(KIND=dp), PARAMETER :: a_fine = 7.297352533E-3_dp
 
     ! Rydberg constant [1/m]
 !MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
-    rydberg = 10973731.568549_dp
+    REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568549_dp
 
     ! Avogadro constant [1/mol]
-    n_avogadro = 6.02214199E+23_dp
+    REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214199E+23_dp
 
     ! Boltzmann constant [J/K]
-    boltzmann = 1.3806503E-23_dp
+    REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806503E-23_dp
 
     ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
-    a_mass = 1.66053873E-27_dp
+    REAL(KIND=dp), PARAMETER :: a_mass = 1.66053873E-27_dp
 
     ! Bohr radius [m]
 !MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
-    a_bohr = 0.5291772083E-10_dp
+    REAL(KIND=dp), PARAMETER :: a_bohr = 0.5291772083E-10_dp
 #endif
 
 #if CODATA_VERSION == 2006
@@ -175,41 +145,41 @@ CONTAINS
     ! and chemistry based on the 2006 adjustment
 
     ! Planck constant [J*s]
-    h_planck = 6.62606896E-34_dp
-    h_bar = h_planck/(2.0_dp*pi)
+    REAL(KIND=dp), PARAMETER :: h_planck = 6.62606896E-34_dp
+    REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
 
     ! Elementary charge [C]
-    e_charge = 1.602176487E-19_dp
+    REAL(KIND=dp), PARAMETER :: e_charge = 1.602176487E-19_dp
 
     ! Electron mass [kg]
-    e_mass = 9.10938215E-31_dp
+    REAL(KIND=dp), PARAMETER :: e_mass = 9.10938215E-31_dp
 
     ! Proton mass [kg]
-    p_mass = 1.672621637E-27_dp
+    REAL(KIND=dp), PARAMETER :: p_mass = 1.672621637E-27_dp
 
     ! Electron g factor [ ]
-    e_gfactor = -2.0023193043622_dp
+    REAL(KIND=dp), PARAMETER :: e_gfactor = -2.0023193043622_dp
 
     ! Fine-structure constant
 !MK a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
-    a_fine = 7.2973525376E-3_dp
+    REAL(KIND=dp), PARAMETER :: a_fine = 7.2973525376E-3_dp
 
     ! Rydberg constant [1/m]
 !MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
-    rydberg = 10973731.568527_dp
+    REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568527_dp
 
     ! Avogadro constant [1/mol]
-    n_avogadro = 6.02214179E+23_dp
+    REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214179E+23_dp
 
     ! Boltzmann constant [J/K]
-    boltzmann = 1.3806504E-23_dp
+    REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806504E-23_dp
 
     ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
-    a_mass = 1.660538782E-27_dp
+    REAL(KIND=dp), PARAMETER :: a_mass = 1.660538782E-27_dp
 
     ! Bohr radius [m]
 !MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
-    a_bohr = 0.52917720859E-10_dp
+    REAL(KIND=dp), PARAMETER :: a_bohr = 0.52917720859E-10_dp
 #endif
 
 #if CODATA_VERSION == 2010
@@ -217,112 +187,109 @@ CONTAINS
     ! and chemistry based on the 2010 adjustment
 
     ! Planck constant [J*s]
-    h_planck = 6.62606957E-34_dp
-    h_bar = h_planck/(2.0_dp*pi)
+    REAL(KIND=dp), PARAMETER :: h_planck = 6.62606957E-34_dp
+    REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
 
     ! Elementary charge [C]
-    e_charge = 1.602176565E-19_dp
+    REAL(KIND=dp), PARAMETER :: e_charge = 1.602176565E-19_dp
 
     ! Electron mass [kg]
-    e_mass = 9.10938291E-31_dp
+    REAL(KIND=dp), PARAMETER :: e_mass = 9.10938291E-31_dp
 
     ! Proton mass [kg]
-    p_mass = 1.672621777E-27_dp
+    REAL(KIND=dp), PARAMETER :: p_mass = 1.672621777E-27_dp
 
     ! Electron g factor [ ]
-    e_gfactor = -2.00231930436153_dp
+    REAL(KIND=dp), PARAMETER :: e_gfactor = -2.00231930436153_dp
 
     ! Fine-structure constant
 !MK a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
-    a_fine = 7.2973525698E-3_dp
+    REAL(KIND=dp), PARAMETER :: a_fine = 7.2973525698E-3_dp
 
     ! Rydberg constant [1/m]
 !MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
-    rydberg = 10973731.568539_dp
+    REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568539_dp
 
     ! Avogadro constant [1/mol]
-    n_avogadro = 6.02214129E+23_dp
+    REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214129E+23_dp
 
     ! Boltzmann constant [J/K]
-    boltzmann = 1.3806488E-23_dp
+    REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806488E-23_dp
 
     ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
-    a_mass = 1.660538921E-27_dp
+    REAL(KIND=dp), PARAMETER :: a_mass = 1.660538921E-27_dp
 
     ! Bohr radius [m]
 !MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
-    a_bohr = 0.52917721092E-10_dp
+    REAL(KIND=dp), PARAMETER :: a_bohr = 0.52917721092E-10_dp
 #endif
 
     ! Conversion factors
 
     ! [u] -> [a.u.]
-    massunit = a_mass/e_mass
+    REAL(KIND=dp), PARAMETER :: massunit = a_mass/e_mass
 
     ! [Bohr] -> [Angstrom]
-    angstrom = 1.0E+10_dp*a_bohr
+    REAL(KIND=dp), PARAMETER :: angstrom = 1.0E+10_dp*a_bohr
 
     ! [Angstrom] -> [Bohr]
-    bohr = 1.0_dp/angstrom
+    REAL(KIND=dp), PARAMETER :: bohr = 1.0_dp/angstrom
 
     ! [a.u.] -> [s]
-    seconds = 1.0_dp/(4.0_dp*pi*rydberg*c_light)
+    REAL(KIND=dp), PARAMETER :: seconds = 1.0_dp/(4.0_dp*pi*rydberg*c_light)
 
     ! [a.u.] -> [fs]
-    femtoseconds = 1.0E+15_dp*seconds
+    REAL(KIND=dp), PARAMETER :: femtoseconds = 1.0E+15_dp*seconds
 
     ! [a.u.] -> [ps]
-    picoseconds = 1.0E+12_dp*seconds
+    REAL(KIND=dp), PARAMETER :: picoseconds = 1.0E+12_dp*seconds
 
     ! [a.u.] -> [J]
-    joule = 2.0_dp*rydberg*h_planck*c_light
+    REAL(KIND=dp), PARAMETER :: joule = 2.0_dp*rydberg*h_planck*c_light
 
     ! [a.u.] -> [N]
-    newton = joule/a_bohr
+    REAL(KIND=dp), PARAMETER :: newton = joule/a_bohr
 
     ! [a.u.] -> [K]
-    kelvin = joule/boltzmann
+    REAL(KIND=dp), PARAMETER :: kelvin = joule/boltzmann
 
     ! [a.u.] -> [kJ/mol]
-    kjmol = 0.001_dp*joule*n_avogadro
+    REAL(KIND=dp), PARAMETER :: kjmol = 0.001_dp*joule*n_avogadro
 
     ! [a.u.] -> [kcal/mol]
-    kcalmol = kjmol/4.184_dp
+    REAL(KIND=dp), PARAMETER :: kcalmol = kjmol/4.184_dp
 
     ! [a.u.] -> [Pa]
-    pascal = joule/a_bohr**3
+    REAL(KIND=dp), PARAMETER :: pascal = joule/a_bohr**3
 
     ! [a.u.] -> [bar]
-    bar = pascal/1.0E+5_dp
+    REAL(KIND=dp), PARAMETER :: bar = pascal/1.0E+5_dp
 
     ! [a.u.] -> [atm]
-    atm = pascal/1.013250E+5_dp
+    REAL(KIND=dp), PARAMETER :: atm = pascal/1.013250E+5_dp
 
     ! [a.u.] -> [eV]
-    evolt = joule/e_charge
+    REAL(KIND=dp), PARAMETER :: evolt = joule/e_charge
 
     ! [a.u.] -> [Hz]
-    hertz = joule/h_planck
+    REAL(KIND=dp), PARAMETER :: hertz = joule/h_planck
 
     ! [a.u./Bohr**2] -> [1/cm] (wave numbers)
-    vibfac = 5.0_dp*SQRT(kjmol)/(pi*a_bohr*c_light)
+    REAL(KIND=dp), PARAMETER :: vibfac = 5.0_dp*SQRT(kjmol)/(pi*a_bohr*c_light)
 
     ! [a.u.] -> [1/cm] (wave numbers)
-    wavenumbers = 0.02_dp*rydberg
+    REAL(KIND=dp), PARAMETER :: wavenumbers = 0.02_dp*rydberg
 
     ! [a.u.] -> [esu] (electrostatic units)
-    esu(1) = 1.0E+21_dp*a_bohr*c_light*e_charge
-    DO i=2,maxmom
-      esu(i) = esu(i-1)/bohr
-    END DO
+    REAL(KIND=dp), PARAMETER :: esu_1  = 1.0E+21_dp*a_bohr*c_light*e_charge
+    !REAL(KIND=dp), PARAMETER :: esu_2  = esu_1/bohr
+    !REAL(KIND=dp), PARAMETER :: esu_3  = esu_2/bohr
+    !REAL(KIND=dp), PARAMETER :: esu(3) = (/ esu_1, esu_2, esu_3 /)
 
     ! [a.u.] -> [debye] (electrostatic units)
-    Debye = esu(1)
+    REAL(KIND=dp), PARAMETER :: debye = esu_1
 
-    ! Initialize the periodic table
-    CALL init_periodic_table()
-
-  END SUBROUTINE init_physcon
+ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Write all basic physical constants used by CP2K to a logical

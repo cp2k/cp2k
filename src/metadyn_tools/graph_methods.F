@@ -26,10 +26,10 @@ MODULE graph_methods
                                              point_pbc
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-  USE periodic_table,                  ONLY: nelem,&
+  USE periodic_table,                  ONLY: init_periodic_table,&
+                                             nelem,&
                                              ptable
-  USE physcon,                         ONLY: bohr,&
-                                             init_physcon
+  USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: uppercase
 
   IMPLICIT NONE
@@ -594,7 +594,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rho, rhot
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: xat
 
-    CALL init_physcon
+    CALL init_periodic_table()
     IF (ndw .GT. 3) THEN
        WRITE(*,*)
        WRITE(*,*) 'ERROR: GAUSSIAN format can only handle FES on 3 CV !'
