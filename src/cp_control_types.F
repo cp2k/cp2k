@@ -68,6 +68,7 @@ MODULE cp_control_types
      LOGICAL                              :: orthogonal_basis
      LOGICAL                              :: dispersion
      LOGICAL                              :: hb_sr_damp
+     REAL(KIND = dp)                      :: hb_sr_para
      REAL(KIND = dp)                      :: eps_disp
      LOGICAL                              :: do_ewald
      CHARACTER(LEN=default_path_length)   :: sk_file_path

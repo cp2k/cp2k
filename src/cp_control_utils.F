@@ -897,6 +897,8 @@ CPSourceFileRef,&
             c_val=qs_control%dftb_control%sk_file_path,error=error)
        CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_NAME",&
             c_val=qs_control%dftb_control%sk_file_list,error=error)
+       CALL section_vals_val_get(dftb_parameter,"HB_SR_PARAM",&
+            r_val=qs_control%dftb_control%hb_sr_para,error=error)
        CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var,&
             error=error)
        ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=stat)

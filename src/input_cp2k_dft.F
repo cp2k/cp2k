@@ -3249,6 +3249,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="HB_SR_PARAM",&
+            description="Uses a modified version for the GAMMA within the SCC-DFTB scheme, "//&
+            "specifically tuned for hydrogen bonds. Specify the exponent used in the exponential.",&
+            usage="HB_SR_PARAM {real}",default_r_val=4.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
   END SUBROUTINE create_dftb_parameter_section
 

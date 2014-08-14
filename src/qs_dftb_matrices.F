@@ -117,8 +117,8 @@ CONTAINS
                                                 use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, erepij, f0, f1, &
-                                                foab, fow, ga, gb, s_cut, &
-                                                urep_cut
+                                                foab, fow, ga, gb, hb_para, &
+                                                s_cut, urep_cut
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
     REAL(KIND=dp), DIMENSION(2)              :: surr
@@ -478,13 +478,18 @@ CONTAINS
                hb_sr_damp = is_hydrogen(particle_set(iatom)%atomic_kind).NEQV.&
                             is_hydrogen(particle_set(jatom)%atomic_kind)
             END IF
+            IF (hb_sr_damp) THEN
+               hb_para = dftb_control%hb_sr_para
+            ELSE
+               hb_para = 0.0_dp
+            END IF
             ga = eta_a(0)
             gb = eta_b(0)
-            gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb,hb_sr_damp)
+            gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb,hb_para)
             IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
                drp = dr + ddr
                drm = dr - ddr
-               dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_sr_damp)-gamma_rab_sr(drm,ga,gb,hb_sr_damp))/ddr
+               dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_para)-gamma_rab_sr(drm,ga,gb,hb_para))/ddr
                DO i=1,3
                   CPPrecondition(ASSOCIATED(dgblocks(i+1)%block),cp_failure_level,routineP,error,failure)
                   IF ( irow == iatom ) THEN
@@ -1837,17 +1842,17 @@ CONTAINS
 !> \param r ...
 !> \param ga ...
 !> \param gb ...
-!> \param sr_damp ...
+!> \param hb_para ...
 !> \retval gamma ...
 !> \par Literature
 !>         Elstner et al, PRB 58 (1998) 7260
 !> \par History
 !>      10.2008 Axel Kohlmeyer - adding sr_damp
+!>      08.2014 JGH - adding flexible exponent for damping
 !> \version 1.1
 ! *****************************************************************************
-  FUNCTION gamma_rab_sr(r,ga,gb,sr_damp) RESULT(gamma)
-    REAL(dp), INTENT(in)                     :: r, ga, gb
-    LOGICAL, INTENT(in)                      :: sr_damp
+  FUNCTION gamma_rab_sr(r,ga,gb,hb_para) RESULT(gamma)
+    REAL(dp), INTENT(in)                     :: r, ga, gb, hb_para
     REAL(dp)                                 :: gamma
 
     REAL(dp)                                 :: a, b, fac, g_sum
@@ -1880,8 +1885,8 @@ CONTAINS
     ! functional form from Hu H. et al., J. Phys. Chem. A 2007, 111, 5685-5691
     ! according to Elstner M, Theor. Chem. Acc. 2006, 116, 316-325,
     ! this should only be applied to a-b pairs involving hydrogen.
-    IF (sr_damp) THEN
-      gamma = gamma * EXP(-(0.5_dp*(ga+gb))**4 * r*r)
+    IF (hb_para > 0.0_dp) THEN
+      gamma = gamma * EXP(-(0.5_dp*(ga+gb))**hb_para *r*r)
     END IF
   END FUNCTION gamma_rab_sr
 

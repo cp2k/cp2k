@@ -1,0 +1,70 @@
+#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../scc/oo.spl
+#CPQA INCLUDE ../scc/oh.spl
+#CPQA INCLUDE ../scc/ho.spl
+#CPQA INCLUDE ../scc/hh.spl
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        HB_SR_GAMMA        T
+        SELF_CONSISTENT    T
+        DO_EWALD           T
+        DISPERSION         T
+        &PARAMETER
+          HB_SR_PARAM      4.0
+          PARAM_FILE_PATH  ../scc
+          PARAM_FILE_NAME  scc_parameter
+          UFF_FORCE_FIELD  ../uff_table
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      SCF_GUESS CORE
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
+      MAX_SCF  20
+      &PRINT
+        &RESTART OFF
+        &END
+        &RESTART_HISTORY OFF
+        &END
+      &END
+    &END SCF
+    &POISSON
+      &EWALD
+       EWALD_TYPE SPME
+       GMAX 25
+       O_SPLINE 5
+      &END EWALD
+    &END POISSON
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+    &END CELL
+    &COORD
+    O                  -4.583   5.333   1.560   H2O
+    H                  -3.777   5.331   0.943   H2O
+    H                  -5.081   4.589   1.176   H2O
+    O                  -0.083   4.218   0.070   H2O
+    H                  -0.431   3.397   0.609   H2O
+    H                   0.377   3.756  -0.688   H2O
+    O                  -1.488   2.692   4.125   H2O
+    H                  -2.465   2.433   3.916   H2O
+    H                  -1.268   2.145   4.952   H2O
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT h2o_hb_corr
+  RUN_TYPE DEBUG
+  PRINT_LEVEL LOW
+&END GLOBAL
+&DEBUG
+DX 0.001
+&END

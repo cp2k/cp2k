@@ -39,3 +39,6 @@ h2o_md.inp          1
 h2o_emd.inp         1 
 h2o_rtp.inp         1
 c2h2_emd_mix.inp                  1     5e-11
+# HB correction parameter
+h2o_hb_corr_1.inp     1
+h2o_hb_corr_2.inp     1
