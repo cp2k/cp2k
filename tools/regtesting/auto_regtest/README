@@ -2,107 +2,257 @@
 # CP2K automated regtester README file
 # Developed by Matthias Krack (2012), Marko Misic (2013)
 # Readme written by Marko Misic (PRACE Summer of HPC, July-August 2013)
+# Updated by Fiona Reid (EPCC, August 2014)
 # -----------------------------------------------------------------------------
 
 ===============================================================================
 Files included in the automated regression tester suite
 ===============================================================================
 
-Here is the short description of the files needed to set up automated
-regression tester at the new test site:
+Here is a short description of the files required to set up the automated
+regression tester at a new test site:
 
-  addressbook.dat  - contains SVN usernames and e-mail addresses of 
+  addressbook.dat  - contains the SVN usernames and e-mail addresses of 
                      the developers of CP2K 
-  cp2k_page_update.sh - script that updates main page that aggregates results 
-                        from all regression testers listed in 
+  cp2k_page_update.sh - script that updates the main page that aggregates 
+                        results from all the regression testers listed in 
                         cp2k_regtesters_list.conf file  
-  cp2k_regtester.conf.template - template configuration file for 
-                                 regtester script
-  cp2k_regtester.sh - script that performs actual testing, localy or remotely
   cp2k_regtesters_list.conf - configuration file for page updater
+  cp2k_regtester.sh - script that performs actual testing, locally or remotely
+  cp2k_regtester.conf.template - template configuration file for the 
+                                 regtester script cp2k_regtester.sh
   cp2k_svn_update.sh - helper script to perform SVN update on those systems
-                       that do not have SVN installed on the backnodes
-  cp2k_update_checker.conf.template - template configuration file for
-                                      update checker script
+                       that do not have SVN installed on the backnodes. Uses
+		       the same configuration file are the cp2k_regtester.sh
+		       script
   cp2k_update_checker.sh - main script that spins forever & process results
+  cp2k_update_checker.conf.template - template configuration file for the 
+                                      update checker script 
+				      cp2k_update_checker.sh
   README - this file
   regtest-main-template.html - html template file for front page
   regtest-template.html - html template file for detailed page for each 
                           regression tester
   setup_environment.sh - helper script to set up all environment variables 
-  regplot.par - grace (plotting tool) configuration file
+  regplot.par - grace (plotting tool) configuration file - required for 
+  	        generating the .png file with xmgrace. 
   regplot.dat - (optional) file that contains testing history
+
 
 ===============================================================================
 Installing the automated regression tester
 ===============================================================================
 
-Automated regression testing is supported both localy or remotely. Local and 
+Automated regression testing is supported both locally and remotely. Local and 
 remote testing do not differ a lot, and changes should be made only to 
 configuration files in order to support it. Depending on the remote system
-software (mainly batch system/job scheduler), small changes should be made in 
-regtester script.
+software (mainly the batch system/job scheduler), small changes should be made 
+in the regtester script, cp2k_regtester.sh. 
 
-Script and configurations file template are well-documented and commented,
-especially at those lines that need to be changed.
+The script and configuration file templates are well-documented and commented,
+especially around the lines that need to be changed.
 
-Installation steps follow:
+When installing the automated tester on a new machine the following directory 
+paths are particularly important. 
 
-1) Acquire automated regression tester files
+Update checker directory - normally located on your webserver machine, contains
+       	       		   the scripts used to run the update checker, page
+			   updater etc. This directory will also normally 
+			   contain a separate sub-directory for each version
+			   of CP2K to be tested. 
+Regtester directory - 	   normally located on your test machine, contains all 
+	  	    	   the regtester scripts and final output from the 
+			   regtester inside subdirectories for each version 
+			   tested. 
+CP2K directory - 	   For each version of CP2K being tested you need a 
+     	       		   separate directory (see below). This directory 
+			   contains the cp2k source, the batch script (and 
+			   output) required to run this version of CP2K along 
+			   with a conf/ directory containing the configuration
+			   file used by the regtester. 
+
+
+The main installation steps are as follows:
+
+1) Acquire the automated regression tester files
   
-   You can find it in regtesting directory of CP2K's tools directory
+   You can find these in the regtesting/auto-regtest directory of CP2K's 
+   tools directory
 
-2) Make sure you have working webserver and grace tool installed there
+2) Make sure you have a working webserver and ensure the Grace plotting tool 
+   is installed on that system. 
 
    You can obtain Grace from: http://plasma-gate.weizmann.ac.il/Grace/
    or as package in numerous repositories.
 
-3) Make sure you have a copy of CP2K that is configured and tested
-   with do_regtest localy. Automated regression tester is written
-   to use configuration files for do_regtest script, so make sure
-   they are present in conf/ directory relative to do_regtest script.
+3) Make sure you have a copy of CP2K that has been configured and tested
+   with do_regtest locally (see below re. suggested directory structure on 
+   the test machine). The automated regression tester is written
+   to use configuration files for the do_regtest script, so make sure
+   they are present in the conf/ directory relative to the do_regtest 
+   script. 
 
-4) Setup all the paths in configuration files using the given templates
+4) Setup all the paths in the configuration files using the given templates. 
 
-   Automated regression tester requires you to set up a specific directory 
-   structure to store files generated during regression testing.
+   The automated regression tester requires you to set up a specific directory 
+   structure to store files generated during regression testing. A suggested
+   directory structure and details of the important files is provided below. 
 
-   cp2k_update_checker script:
-   You need separate directories for regression tester and its configuration
-   files, reports, and your website. First, set up or find the path to www 
-   directory that webserver uses to serve web pages. Next, create the directory
-   for your regression tester. That folder should contain all the files that
-   are not supposed to be visible in www. In the end, create a directory 
-   (usually in regtester directory) to serve as a temporary directory that is 
-   copied to www directory.
-    
-   cp2k_regtester:
+   You will need a separate checkout of CP2K for each version you wish to test.  
+   This is so that each version can be checked out and compiled/tested 
+   independently. A suggested structure on your test machine for an SOPT build 
+   of CP2K could be as follows:
+
+   $HOME/cp2k_test					Top level directory for all CP2K versions on test machine
+   $HOME/cp2k_test/cp2k_sopt 				Top level directory for the SOPT build
+   $HOME/cp2k_test/cp2k_sopt/basis_sets			From CP2K svn 
+   $HOME/cp2k_test/cp2k_sopt/conf			Contains configuration file for the SOPT version
+   $HOME/cp2k_test/cp2k_sopt/conf/regtest.sopt.conf	Configuration file used by both scripts:
+	      	       	      	   	  		$HOME/regtest/phi-sopt/cp2k_svn_update.sh and  
+							$HOME/regtest/phi-sopt/cp2k_regtester.sh 
+   $HOME/cp2k_test/cp2k_sopt/cp2k			From CP2K svn
+   $HOME/cp2k_test/cp2k_sopt/do_regtest			From cp2k/tools/regtesting
+   $HOME/cp2k_test/cp2k_sopt/LAST-*			Directory containing last test results
+   $HOME/cp2k_test/cp2k_sopt/potentials			From CP2K svn
+   $HOME/cp2k_test/cp2k_sopt/regtest.sopt.sh		Batch script for SOPT version
+   $HOME/cp2k_test/cp2k_sopt/regtest_sopt_slurm.err	Batch script error output 
+   $HOME/cp2k_test/cp2k_sopt/regtest_sopt_slurm.out	Batch script stdout output
+   $HOME/cp2k_test/cp2k_sopt/TEST-*			Test output directory
+
+   In addition to the files mentioned above you will also need to create a
+   directory on the test system called the regtester directory. This directory 
+   contains all the scripts required to run the regression tester on the test
+   machine. It also contains the output that will be transferred back to 
+   your webserver machine. As before, you will need to have separate directories 
+   for each version of CP2K that you wish to test. A suggested structure for 
+   an SOPT build of CP2K is as follows:
+
+   $HOME/regtest				Top level regtester directory containing a subdirectory for 
+   						each version of CP2K that you wish to test.
+   $HOME/regtest/phi-sopt			Directory containing the SOPT scripts and 
+   						final results for the web page. 
+   $HOME/regtest/phi-sopt/www			Directory into which the test results are 
+   						copied prior to being zipped and transferred
+						back to the webserver. 
+   $HOME/regtest/phi-sopt/cp2k_regtester.conf	Configuration file used the by cp2k_regtester.sh script
+   $HOME/regtest/phi-sopt/cp2k_regtester.desc	Description of machine being used for testing [optional]
+   $HOME/regtest/phi-sopt/cp2k_regtester.sh	Script used to invoke the regtester. This script does several things:
+						1. Runs the setup_environment.sh script - usually redundant on 
+						machines which require batch scripts to run the tests. 
+						2. Runs cp2k_svn_update.sh which uses $HOME/cp2k_test/cp2k_sopt/conf/
+						regtest.sopt.conf) to get latest CP2K from SVN
+						3. Submits regtest.sopt.sh to the batch system to run the tests 
+   $HOME/regtest/phi-sopt/cp2k_svn_update.sh	Gets latest CP2K source from the SVN
+   $HOME/regtest/phi-sopt/setup_environment.sh	Normally used to set up paths etc. Often redundant if batch system
+   						is used. 
+
+
+
+   cp2k_update_checker.sh script:
+   This script is normally executed on your webserver machine. On this machine 
+   you will need separate directories for the regression tester and its 
+   configuration files, reports, and your website. First, set up or find the 
+   path to the www directory that webserver uses to serve web pages (wwwdir). 
+   Next, create the directory for your regression tester (regtestdir). That folder 
+   should contain all the files that are not supposed to be visible in www.
+   Finally, create a directory (usually under the regtester directory) to serve 
+   as a temporary directory that is copied to www directory (wwwtestdir).
+   
+   Sample directory paths on your webserver machine for an SOPT build of CP2K 
+   might be:
+
+   $HOME/regtest/remote-testing			Top level directory containing the main driver scripts for the
+   	      				       	regression tester. Referred to as the update checker directory. 
+						This directory must contain the following files:
+						cp2k_update_checker.sh
+						cp2k_page_update.sh 
+						cp2k_regtesters.list.conf
+						Any other scripts and directories that may be required. E.g. on
+						some machines it makes sense to create a wrapper script which 
+						launches cp2k_update_checker.sh on multiple test machines 
+						(see the cp2k_master_script.sh on EPCCs cp2k-www machine for 
+						instance). 
+
+   $PATH_TO_WEBPAGE/phi/sopt	 		Directory that contains the live webpage with test results, 
+   	    					referred to as $wwwdir in various scripts. PATH_TO_WEBPAGE is 
+						the full path to wherever your webpages need to live. 
+   $HOME/regtest/remote-testing/phi-sopt/www    Results from test machine get copied back to this directory. 
+   						Referred to as $wwwtestdir in various scripts. 
+   						Post processing (creating of the PNG file/HTML file) is done on 
+						the webserver insdie $wwwtestdir after which the final data gets 
+						copied to the $wwwdir path. 
+   $HOME/regtest/remote-testing/phi-sopt/cp2k_update_checker.conf  Contains the configuration file used by
+   								   cp2k_update_checker.sh for the SOPT test
+				 
+   cp2k_regtester.sh script:
    This script is usually located on the remote machine that runs the tests.
-   Find the location of your local instance of CP2K and configure cp2kdir. 
-   Create a directory for regtester files. Create subdirectory to store results.
-   Content of that directory is used to produce a tarball containg files needed
-   by update checker to produce a report.If you want to set up local automated 
-   regression testing, former two directories can be the same as for the update checker.
+   Find the location of your local instance of CP2K and configure cp2kdir
+   accordingly. Create a directory for the regtester files (this is the regtester 
+   directory, see above for details and a suggested structure). Create a
+   subdirectory to the store results for this machine and CP2K version, (e.g.
+   $HOME/regtest/phi-sopt described above). The content of that directory is 
+   used to produce a tarball containing files needed by the update checker script 
+   to produce a report. If you want to set up local automated regression testing, 
+   then the former two directories can be the same as for the update checker.
+   
+   The cp2k_regtester.sh script needs to be modified to work with the batch system
+   used on your particular test machine. Please see the do_regression_test_remote 
+   function in this script for details. You may also need to change the two lines 
+   which append the error and stdout to the ${reglog} file depending on the
+   output that your batch system creates.
+
+   If using a batch script to run the regression tests then this should be located 
+   on the test machine under the $cp2k_test/cp2k_sopt/ directory. The batch script 
+   should contain any environment settings, paths to compilers, modules etc required 
+   to build CP2K on your test machine. A sample batch file to launch the SOPT version
+   of CP2K on a machine using SLURM could be as follows: 
+
+-------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH -J regtest_sopt
+#SBATCH -D /home/h018/cp2ktest/cp2k_test/cp2k_sopt
+#SBATCH -o /home/h018/cp2ktest/cp2k_test/cp2k_sopt/regtest_sopt_slurm.out
+#SBATCH -e /home/h018/cp2ktest/cp2k_test/cp2k_sopt/regtest_sopt_slurm.err
+#SBATCH --partition=phi
+#SBATCH --nodelist=phi
+#SBATCH --ntasks=1
+
+# Set up the paths etc for compiler and MPI libraries on Phi
+source /opt/intel/composer_xe_2013_sp1.2.144/bin/compilervars.sh intel64
+source /opt/intel/impi/4.1.3.048/intel64/bin/mpivars.sh 
+ulimit -s unlimited 
+
+# Run the regtest
+> regtest_sopt_slurm.out
+> regtest_sopt_slurm.err
+./do_regtest -config conf/regtest.sopt.conf -nosvn -noemptycheck
+-------------------------------------------------------------------------
 
 5) Set up other options in configuration files
 
-   Especially, make sure that test command and copy command are set properly. If 
-   you use remote machine for testing, make sure that you set up passworldless
-   authentication for remote script execution.
+   Especially, make sure that test_command and copy_command are set properly in 
+   the cp2k_update_checker.conf file for your build. 
 
-   Configuration files are passed to scripts as a command line argument, but
+   If you use a remote machine for testing, make sure that you have set up 
+   passworldless authentication for remote script execution. I.e. you should 
+   be able to login from your webserver to your test machine without a password.
+
+   The configuration files are passed to scripts as a command line argument, but
    usually they should be in the same directory.
 
-6) Copy regtest-template.html to www directory and rename it to regtest.html.
-   It needs to be there for the first time, update checker will check for its
-   existence to see if webserver storage is available or not.
+6) Copy regtest-template.html to the live www directory (i.e. $wwwdir) and 
+   rename it to regtest.html. It needs to be there for the first time, update 
+   checker will check for its existence to see if webserver storage is available 
+   or not.
 
-7) Copy addressbook.dat to update checker directory
+7) Copy addressbook.dat to the update checker directory, i.e to 
+   $HOME/regtest/remote-testing
 
-8) Copy svn update & setup environment script to regtester directory
+8) Copy the svn update & setup environment script to your regtester directory on
+   the test machine. 
 
 9) Change setup environment accordingly, so that you can compile and execute
-   CP2K on remote host. If you use batch system on the remote host, make
+   CP2K on remote host. If you use a batch system on the remote host, make
    sure that you can compile and execute CP2K on backend nodes. You might need
    to write another script to call setup environment and call do_regtest when
    submitting the job to job scheduler.
@@ -110,23 +260,27 @@ Installation steps follow:
 10) Copy regplot.par (and optionally regplot.dat you obtained from another regtester)
     to temporary www directory in your update checker directory.
 
-11) Copy page update script and regtester list to update checker directory
+11) Copy the page update script and regtester list to update checker directory
 
-12) Copy html templates to the same directory where page update script is
+12) Copy the html templates to the same directory where page update script is, 
+    usually your update checker directory. 
 
-13) Edit page update script and regtester list to define regtesters and their
+13) Edit the page update script and regtester list to define regtesters and their
     locations that will be used to aggregate results.
 
-14) Run update checker with configuration file as a command line option. 
+14) Run the update checker script with configuration file as a command line option. 
+    E.g. on your webserver you can execute for example:
+    $HOME/regtest/remote-testing/cp2k_update_checker.sh $HOME/regtest/remote-testing/phi-sopt/cp2k_update_checker.conf
+
     Make sure that it can run when you disconnect from the shell, either by running 
-    it with screen utility or adding it to your machine boot sequence and starting it 
-    as a background process. Repeat this with each regtester/configuration you 
-    would like to test.
+    it with the screen utility or adding it to your machine boot sequence and starting 
+    it as a background process. Repeat this with each regtester/configuration you 
+    would like to test. 
 
-15) Run page update script in the same way
+15) Run the page update script in the same way
 
-16) You should have set up you automated regression tester by now. 
-    If it does not work, check the next section of this readme or
+16) You should have set up your automated regression tester by now. 
+    If it does not work, check the next section of this Readme or
     go through the steps again.
 
     Each script is very well commented, so it should not be too hard to figure out 
@@ -134,11 +288,54 @@ Installation steps follow:
 
     Good luck!
 
+
 ===============================================================================
 Testing the automated regression tester
 ===============================================================================
 
-Regression tester could be tested in a simple way, just by enabling the testing
+The regression tester can be tested in a simple way, just by enabling the testing
 lines in do_regression_test_local function in regtester script and setting
-testing flag to local. That way you can check if everything works well before
+testing flag to local. This way you can check if everything works well before
 you start to use do_regtest script.
+
+Some additional hints and tips for getting the tester working are as follows:
+
+Tip 1. Before running anything on the webserver machine make sure that you can run 
+the tester locally on the test system using a configuration file. From your 
+$HOME/cp2k_test/cp2k_sopt directory, execute:
+
+./do_regtest -config conf/regtest.sopt.conf -nosvn -noemptycheck 
+
+This should build and run the regression tests creating a LAST-* directory and
+TEST-* directory. 
+
+Tip 2. Once you have ./do_regtest working, make sure that the cp2k_regtester.sh 
+script is working properly. You can run this directly from your test machine as 
+follows:
+
+$HOME/regtest/phi-sopt/cp2k_regtester.sh $HOME/regtest/phi-sopt/cp2k_regtester.conf tarball.tar.bz2 NO
+
+This will perform an SVN update, rebuild CP2K and run all the tests so will take a 
+little while (typically 30-45 minutes for an SOPT build + test), please be patient! 
+If you don't think anything is happening try "ps -ef | grep yourusername" on your 
+test machine or qstat/squeue or similar to check the queues for running jobs. 
+
+If successful then you should get a tarball.tar.bz2 file in the 
+$HOME/regtest/phi-sopt/www directory. You can also check the batchscript output in 
+$HOME/cp2k_test/cp2k_sopt/regtest_sopt_slurm.out to see how the job is progressing and 
+if it has completed all the tests. 
+
+Tip 3. If all looks okay at step Tip 2 you can try launching the cp2k_update_checker.sh script
+on your webserver as detailed in step 14.  
+
+If  everything is working okay then the tests should only run when CP2K changes. 
+If the tests run repeatedly without the CP2K source changing you've most likely set 
+emptycheck="NO" in your conf/regtest.sopt.conf configuration file, this needs to 
+be set to "YES".  
+
+Tip 4. If you want to force a regtest once the scripts are running on your webserver 
+then you can touch the file FORCE_AUTO_REGTEST e.g. 
+
+touch $HOME/regtest/remote-testing/phi-sopt/www/FORCE_AUTO_REGTEST will force the SOPT 
+test to be re-run on the phi machine next time the update checker script tests whether 
+there's anything to do. 
