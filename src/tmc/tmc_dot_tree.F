@@ -436,11 +436,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief interfaces the change of color for subtree elements
 !>        on the basis of the element status
-!> \param tree_element ...
+!> \param tree_element the actual global element
 !> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param new_element the actual global element UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_dot_color(tree_element, tmc_params, error)
@@ -486,11 +485,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief interfaces the change of color for global tree  node
 !>        on the basis of the element status
-!> \param gt_tree_element ...
+!> \param gt_tree_element the actual global element
 !> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param new_element the actual global element UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_global_tree_dot_color(gt_tree_element, tmc_params, error)

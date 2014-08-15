@@ -607,9 +607,8 @@ CONTAINS
 !> \brief low level calculation of the b97 exchange-correlation functional for lsd
 !> \param rhoa alpha spin density
 !> \param rhob beta spin desnity
-!> \param norm_drhoa ,norm_drhob,norm_drho: || grad rhoa |||,| grad rhoa ||,
-!>        || grad (rhoa+rhob) ||
-!> \param norm_drhob ...
+!> \param norm_drhoa || grad rhoa ||
+!> \param norm_drhob || grad rhoa ||
 !> \param e_0 adds to it the local value of the functional
 !> \param e_ra derivative of the functional with respect to ra
 !> \param e_rb derivative of the functional with respect to rb
@@ -634,7 +633,6 @@ CONTAINS
 !> \param scale_x_in derivative of the functional with respect to x_in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param norm_drhoa ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE b97_lsd_calc(rhoa, rhob, norm_drhoa, norm_drhob,&

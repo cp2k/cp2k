@@ -110,8 +110,6 @@ CONTAINS
 !>        see module cp_error_handling
 !> \param compute_virial should the virial be computed... if so virial_xc must be present
 !> \param virial_xc for calculating the GGA part of the stress
-!> \param vxc will contain the resulting xc potential, has to be
-!>        already allocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,xc_section,&
@@ -843,8 +841,6 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !>        when with lda a functional needs norm_drho)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param gradient_f returns true if any of the functionals is gradient
-!>        corrected UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 !> \note
 !>      if any of the functionals is gradient corrected the full gradient is
@@ -926,12 +922,11 @@ END SUBROUTINE xc_rho_set_and_dset_create
 !> \param rhob ...
 !> \param rho_cutoff the vaule at whch the cutoff function must go to 0
 !> \param rho_smooth_cutoff_range range of the smoothing
-!> \param e_0 ...
+!> \param e_0 value of e_0, if given it is assumed that pot is the derivative
+!>        wrt. to rho, and needs the dsmooth*e_0 contribution
 !> \param e_0_scale_factor ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_ 0: value of e_0, if given it is assumed that pot is the derivative
-!>        wrt. to rho, and needs the dsmooth*e_0 contribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE smooth_cutoff(pot,rho,rhoa,rhob,rho_cutoff,&
@@ -2014,7 +2009,7 @@ END FUNCTION xc_exc_calc
 !> \param v_xc ...
 !> \param deriv_set object containing the potentials
 !> \param rho_set object containing the density at which the derivatives were calculated
-!> \param rho1_set ...
+!> \param rho1_set object containing the density with which to fold
 !> \param pw_pool the pool for the grids
 !> \param xc_section ...
 !> \param gapw ...
@@ -2023,8 +2018,6 @@ END FUNCTION xc_exc_calc
 !>        on a closed shell sistem it should be -1, defaults to 1)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param rho 1_set : object containing the density with which to fold UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param v_rspace_new will contain the new potential. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note
 !>      The old version of this routine was smarter: it handled split_desc(1)
 !>      and split_desc(2) separatly, thus the code automatically handled all

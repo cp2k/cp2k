@@ -229,13 +229,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief prints out the TMC restart files with all last configurations and 
 !>        counters etc.
-!> \param tmc_env ...
+!> \param tmc_env the tmc environment, storing result lists and counters an in 
+!>        temperatures
 !> \param job_counts the counters for counting the submitted different job types
 !> \param timings ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmv_env the tmc environment, storing result lists and counters an in 
-!>        temperatures UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE print_restart_file(tmc_env, job_counts, timings, error)
@@ -308,14 +307,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads the TMC restart file with all last configurations and 
 !>        counters etc.
-!> \param tmc_env ...
+!> \param tmc_env the tmc environment, storing result lists and counters an in 
+!>        temperatures
 !> \param job_counts the counters for counting the submitted different job types
 !> \param timings ...
 !> \param file_name the restart file name
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmv_env the tmc environment, storing result lists and counters an in 
-!>        temperatures UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE read_restart_file(tmc_env, job_counts, timings, file_name, error)
@@ -476,12 +474,11 @@ CONTAINS
 !> \param tmc_params TMC environment parameters
 !> \param temp_index ...
 !> \param accepted ...
-!> \param file_name ...
+!> \param file_name file name will be extended by type of file (pos, cell,...)
 !> \param conf_nr Markov chain element number
 !> \param conf_info whole header line
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param filename file name will be extended by type of file (pos, cell,...) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE write_element_in_file(elem, tmc_params, temp_index, accepted, file_name, conf_nr, &

@@ -889,7 +889,6 @@ CONTAINS
 !> \param cell ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param force_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 01.2013
 ! *****************************************************************************
   SUBROUTINE get_atom_kinds_and_cell(env_id, atoms, cell, error)
@@ -992,7 +991,6 @@ CONTAINS
 !> \param env_id the ID of the related force environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param comm the master-worker communicator UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 10.2013
 ! *****************************************************************************
   SUBROUTINE remove_intermediate_info_comm(env_id, error)

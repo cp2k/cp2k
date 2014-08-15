@@ -162,10 +162,6 @@ CONTAINS
 !> \param order ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param grad_deriv degree of the derivative that should be evalated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param iparset the parameter set that should be used (93,120,147,407) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE xgga_eval(functional,lsd,rho_set,deriv_set,order,error)

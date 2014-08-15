@@ -387,11 +387,10 @@ MODULE xc_xwpbe
 !> \param rho , ndrho: density and norm of the density gradient
 !> \param ndrho ...
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
-!> \param sx0 ...
+!> \param sx0 scaling factor
 !> \param order degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
-!> \param sx 0: scaling factor UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -1017,11 +1016,10 @@ MODULE xc_xwpbe
 !> \param rho , ndrho: density and norm of the density gradient
 !> \param ndrho ...
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
-!> \param sx0 ...
+!> \param sx0 scaling factor
 !> \param order degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
-!> \param sx 0: scaling factor UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon

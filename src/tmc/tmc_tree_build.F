@@ -172,12 +172,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates an elements of the subtree element structure 
-!> \param tmc_params ...
+!> \param tmc_params structure for storing all (global) parameters
 !> \param next_el ...
 !> \param nr_dim ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_env_prarams structure for storing all (global) parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE allocate_new_sub_tree_node(tmc_params, next_el, nr_dim, error)
@@ -241,11 +240,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocates an elements of the subtree element structure 
-!> \param tmc_params ...
+!> \param tmc_params structure for storing all (global) parameters
 !> \param tree_elem ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_env_prarams structure for storing all (global) parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE deallocate_sub_tree_node(tmc_params, tree_elem, error)
@@ -457,13 +455,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief distributes the initial energy to all subtree (if no restart) and 
 !>        call analysis for this element (write trajectory...)
-!> \param gt_tree_ptr ...
-!> \param tmc_env ...
+!> \param gt_tree_ptr global tree head (initial configuration)
+!> \param tmc_env master environment for restart 
+!>        (if restart the subtree heads are not equal), result counts and lists
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param gt_tree_ptr_orig global tree head (initial configuration) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param tmc_m_env master environment for restart 
-!>        (if restart the subtree heads are not equal), result counts and lists UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE finalize_init(gt_tree_ptr, tmc_env, error)
@@ -1730,7 +1726,6 @@ CONTAINS
 !> \param tmc_env TMC environment structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param global_tree pointer to one global tree element UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 01.2013
 ! *****************************************************************************
   SUBROUTINE finalize_trees(tmc_env, error)

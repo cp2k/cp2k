@@ -384,11 +384,11 @@ END SUBROUTINE xc_functional_get_info
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is requested (but to simplify
 !>        the code all the derivatives might be calculated, you should ignore
+!>        them when adding derivatives of various functionals they might contain
+!>        the derivative of just one functional)
 !> \param ifunc_name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param them when adding derivatives of various functionals they might contain
-!>        the derivative of just one functional) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author fawzi

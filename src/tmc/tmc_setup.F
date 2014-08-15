@@ -96,7 +96,6 @@ CONTAINS
 !> \param globenv the global environment for the simulation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param force_env the force environment for the simulation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE do_tmc (input_declaration, root_section, para_env, globenv, error )
@@ -493,10 +492,9 @@ CONTAINS
 !> \param input global environment
 !> \param ana_list ...
 !> \param elem ...
-!> \param tmc_env ...
+!> \param tmc_env TMC analysis environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_ana TMC analysis environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 03.2013
 ! *****************************************************************************
   SUBROUTINE tmc_read_ana_files_input(input_declaration, input, ana_list, elem, tmc_env, error)
@@ -607,7 +605,6 @@ CONTAINS
 !> \param tmc_env structure for storing all the tmc parameters
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_section points to the tmc subsection in the input file UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE tmc_preread_input(input,tmc_env, error)
@@ -734,11 +731,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read the tmc subsection from the input file
-!> \param input ...
+!> \param input points to the tmc subsection in the input file
 !> \param tmc_env structure for storing all the tmc parameters
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_section points to the tmc subsection in the input file UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE tmc_read_input(input,tmc_env, error)
@@ -1088,10 +1084,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief prints the most important parameters used for TMC
-!> \param tmc_env ...
+!> \param tmc_env tructure with parameters for TMC
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_enc structure with parameters for TMC UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE tmc_print_params(tmc_env, error)

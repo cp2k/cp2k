@@ -369,10 +369,9 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \brief check acceptance of energy calculated element and related childs,
 !>        when ready 
 !> \param tree_elem actual tree element with calculated energy
-!> \param tmc_env ...
+!> \param tmc_env TMC environment parameters
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_params TMC environment parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE check_acceptance_of_depending_subtree_nodes(tree_elem, tmc_env, error)
@@ -455,10 +454,9 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \brief checking the elements and change the status
 !> \param act_elem actual tree element (new configuration)
 !> \param parent_elem parent tree element (old configuration)
-!> \param tmc_env ...
+!> \param tmc_env TMC environment parameters
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_params TMC environment parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE check_and_change_status_of_subtree_elem(act_elem, parent_elem, tmc_env, error)
@@ -934,11 +932,10 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 ! *****************************************************************************
 !> \brief checks if element is ready for accaptance probability update
 !>        checks status and the amount of already received intermediate energies
-!> \param elem ...
+!> \param elem sub tree element to update
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param ready return value
-!> \param tree_elem sub tree element to update UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION ready_for_update_acc_prob(elem, error) RESULT(ready)

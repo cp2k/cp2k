@@ -301,29 +301,26 @@ CONTAINS
 !>        radius, the other for the full coulomb interaction. In the end, the code
 !>        for the lsd part will be called and the lda part is obtained via spin
 !>        scaling relations
-!> \param rho ...
-!> \param norm_drho ...
-!> \param laplace_rho ...
-!> \param tau ...
-!> \param e_0 ...
-!> \param e_rho ...
-!> \param e_ndrho ...
-!> \param e_tau ...
-!> \param e_laplace_rho ...
+!> \param rho grid values
+!> \param norm_drho grid values
+!> \param laplace_rho grid values
+!> \param tau grid values
+!> \param e_0 energies and derivatives
+!> \param e_rho energies and derivatives
+!> \param e_ndrho energies and derivatives
+!> \param e_tau energies and derivatives
+!> \param e_laplace_rho energies and derivatives
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param npoints size of the grids
-!> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
+!> \param epsilon_rho cutoffs
+!> \param epsilon_norm_drho cutoffs
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
 !> \param gamma paramter from original publication, usually set to 1
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_x energies and derivatives UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param epsilon_rho, epsilon_norm_drho cutoffs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho,norm_drho,laplace_rho,tau grid values UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon
@@ -570,29 +567,26 @@ CONTAINS
 !> \brief Precalculates which branch of the code has to be taken
 !>        There are two main branches, one for a truncated potential and a cutoff
 !>        radius, the other for the full coulomb interaction
-!> \param rho ...
-!> \param norm_drho ...
-!> \param laplace_rho ...
-!> \param tau ...
-!> \param e_0 ...
-!> \param e_rho ...
-!> \param e_ndrho ...
-!> \param e_tau ...
-!> \param e_laplace_rho ...
+!> \param rho grid values
+!> \param norm_drho grid values
+!> \param laplace_rho grid values
+!> \param tau grid values
+!> \param e_0 energies and derivatives
+!> \param e_rho energies and derivatives
+!> \param e_ndrho energies and derivatives
+!> \param e_tau energies and derivatives
+!> \param e_laplace_rho energies and derivatives
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
 !> \param npoints size of the grids
-!> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
+!> \param epsilon_rho cutoffs
+!> \param epsilon_norm_drho cutoffs
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
 !> \param gamma paramter from original publication, usually set to 1
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_x energies and derivatives UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param epsilon_rho, epsilon_norm_drho cutoffs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho,norm_drho,laplace_rho,tau grid values UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>        12.2008 created [mguidon]
 !> \author mguidon

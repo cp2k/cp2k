@@ -437,7 +437,6 @@ CONTAINS
 !> \param tmc_params TMC parameters with sub box size and cell
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param subbox_size size of the sub box UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval inside ...
 !> \author Mandes 11.2012
 ! *****************************************************************************
@@ -653,7 +652,6 @@ CONTAINS
 !> \param rng_stream random number stream
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param mass atom mass UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE vel_change(vel, atom_kind, phi, temp, rnd_sign_change, rng_stream, &

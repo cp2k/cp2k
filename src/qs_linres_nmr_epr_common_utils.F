@@ -44,6 +44,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Given the current density on the PW grid in reciprcal space
 !>       (obtained by FFT), calculate the integral
+!>         \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r') 
+!>       which in reciprcal space reads  (for G/=0) 
+!>          i G/|G|^2 x J(G)
 !> \param cell ...
 !> \param pw_pool ...
 !> \param rho_gspace ...
@@ -58,10 +61,6 @@ CONTAINS
 !> \param my_chi ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \param pw_pool ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \param rho_gspace ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \author MI
-!>         \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r') UNKNOWN_DOXYGEN_COMMENT
-!>       which in reciprcal space reads  (for G/=0) UNKNOWN_DOXYGEN_COMMENT
-!>          i G/|G|^2 x J(G) UNKNOWN_DOXYGEN_COMMENT
 !> \author MI
 !> \note
 !>      The G=0 component is not comnputed here, but can be evaluated

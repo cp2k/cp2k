@@ -882,7 +882,6 @@ CONTAINS
 !> \param hz grid spacing, used for integrating eharthree
 !> \param mpi_group ...
 !> \param error ...
-!> \param ehartree hartree energy of the potential UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date October 2006
 !> \author S. Goedecker, L. Genovese
 !> \note   As transform lengths most products of the prime factors 2,3,5 are allowed.
@@ -1541,7 +1540,6 @@ CONTAINS
 !> \param zw Work array (input)
 !> \param zmpi2 Work array for multiprocessor manipulation (output)
 !> \param cosinarr Array of the phases needed for unpacking
-!> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date February 2006
 !> \author S. Goedecker, L. Genovese
 !> \note
@@ -1617,9 +1615,8 @@ CONTAINS
 !> \param nproc ...
 !> \param nd3 Dimensions of the kernel
 !> \param zmpi2 Work array for multiprocessor manipulation (output)
-!> \param zw Work array (input)
+!> \param zw Work array (inout)
 !> \param cosinarr Array of the phases needed for packing
-!> \param zw Work array (output) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date February 2006
 !> \author S. Goedecker, L. Genovese
 !> \note
@@ -1696,7 +1693,6 @@ CONTAINS
 !> \param error ...
 !> \param ! ...
 !> \param ehartree hartree energy of the potential
-!> \param zf& ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date February 2006
 !> \author S. Goedecker, L. Genovese
 !> \note As transform lengths

@@ -123,10 +123,9 @@ CONTAINS
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
-!> \param xb88_params ...
+!> \param xb88_params input parameters (scaling)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param xb 88_params: input parameters (scaling) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -267,7 +266,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief evaluates the becke 88 exchange functional for lda
-!> \param rho ...
+!> \param rho the density where you want to evaluate the functional
 !> \param rho_1_3 ...
 !> \param norm_drho ...
 !> \param e_0 ...
@@ -289,9 +288,6 @@ CONTAINS
 !> \param sx scaling-parameter for exchange
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param deriv_set place where to store the functional derivatives (they are
-!>        added to the derivatives) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_set the density where you want to evaluate the functional UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -690,7 +686,6 @@ CONTAINS
 !> \param xb88_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param sx scaling-parameter for exchange UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -883,10 +878,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief low level calculation of the becke 88 exchange functional for lsd
 !> \param rho_spin alpha or beta spin density
-!> \param rho_1_3_spin ...
+!> \param rho_1_3_spin rho_spin**(1./3.)
 !> \param norm_drho_spin || grad rho_spin ||
-!> \param e_0 ...
-!> \param e_rho_spin ...
+!> \param e_0 adds to it the local value of the functional
+!> \param e_rho_spin e_*_spin: derivative of the functional wrt. to the variables
+!>        named where the * is. Everything wrt. to the spin of the arguments.
 !> \param e_ndrho_spin ...
 !> \param e_rho_rho_spin ...
 !> \param e_ndrho_rho_spin ...
@@ -902,10 +898,6 @@ CONTAINS
 !> \param sx scaling-parameter for exchange
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_ 0: adds to it the local value of the functional UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param e_ *_spin: derivative of the functional wrt. to the variables
-!>        named where the * is. Everything wrt. to the spin of the arguments. UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_ 1_3_spin: rho_spin**(1./3.) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2004 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]

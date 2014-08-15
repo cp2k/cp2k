@@ -456,7 +456,6 @@ CONTAINS
 !> \param kp_dist       kpoints distribution on groups
 !> \param index_to_cell given a real space index, returns a cell triple
 !> \param cell_to_index given a cell triple, returns the real space index
-!> \param ncount        number of real space matrices
 !> \param sab_nl        neighbourlist that defines real space matrices
 !> \param matrix_ks     Kohn-Sham matrices (spin,rs index)
 !> \param matrix_s      Overlap matrices (spin,rs index)
@@ -464,6 +463,7 @@ CONTAINS
 !> \param matrix_vhxc   Potential matrices (spin,rs index)
 !> \param matrix_h      Core matrices (spin,rs index)
 !> \param error         CP2K error handling
+!> \param ncount        number of real space matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&

@@ -38,10 +38,9 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param max_deriv ...
+!> \param max_deriv implemented derivative of the xc functional 
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param maximum implemented derivative of the xc functional UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Joost
 ! *****************************************************************************
   SUBROUTINE optx_lda_info(reference,shortform, needs, max_deriv, error)
@@ -73,10 +72,9 @@ CONTAINS
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
 !>        true (does not set the unneeded components to false)
-!> \param max_deriv ...
+!> \param max_deriv implemented derivative of the xc functional
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param maximum implemented derivative of the xc functional UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Joost
 ! *****************************************************************************
   SUBROUTINE optx_lsd_info(reference,shortform, needs, max_deriv, error)
@@ -264,7 +262,7 @@ CONTAINS
 !> \brief optx exchange functional
 !> \param rho the full density
 !> \param norm_drho the norm of the gradient of the full density
-!> \param e_0 ...
+!> \param e_0 the value of the functional in that point
 !> \param e_rho the derivative of the functional wrt. rho
 !> \param e_ndrho the derivative of the functional wrt. norm_drho
 !> \param epsilon_rho the cutoff on rho
@@ -273,7 +271,6 @@ CONTAINS
 !> \param sx scaling-parameter for exchange
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_ 0: the value of the functional in that point UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost VandeVondele
@@ -328,7 +325,7 @@ CONTAINS
 !> \brief optx exchange functional
 !> \param rho the *spin* density
 !> \param norm_drho the norm of the gradient of the *spin* density
-!> \param e_0 ...
+!> \param e_0 the value of the functional in that point
 !> \param e_rho the derivative of the functional wrt. rho
 !> \param e_ndrho the derivative of the functional wrt. norm_drho
 !> \param epsilon_rho the cutoff on rho
@@ -337,7 +334,6 @@ CONTAINS
 !> \param sx scaling parameter for exchange
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_ 0: the value of the functional in that point UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost VandeVondele

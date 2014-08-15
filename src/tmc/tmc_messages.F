@@ -110,11 +110,12 @@ CONTAINS
 !>        type. Send first info message with task type and message sizes and
 !>        then the int and real messages. The same for receiving
 !> \param msg_type defines the message types, see message tags definition
-!> \param send_recv ...
-!> \param dest ...
+!> \param send_recv 1= send, 0= receive
+!> \param dest defines the target or source of message 
+!>              (-1=braodcast, 0= master, 1... working group)
 !> \param para_env defines the mpi communicator
 !> \param tmc_params stuct with parameters (global settings)
-!> \param elem ...
+!> \param elem a subtree element from which info are readed or written in
 !> \param elem_array ...
 !> \param list_elem ...
 !> \param result_count ...
@@ -122,11 +123,6 @@ CONTAINS
 !> \param success ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param T_ind: (optinal) given because not in tree structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param dest: defines the target or source of message 
-!>              (-1=braodcast, 0= master, 1... working group) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param elem: a subtree element from which info are readed or written in UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param send_recv: 1= send, 0= receive UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE tmc_message(msg_type, send_recv, dest, para_env, tmc_params, &
@@ -524,11 +520,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
 !> \param msg_type the status tag 
-!> \param tmc_params ...
+!> \param tmc_params to send the cell properties
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_parms to send the cell properties UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 07.2013
 ! *****************************************************************************
   SUBROUTINE create_worker_init_message(msg_type, tmc_params, m_send, error)
@@ -584,11 +579,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
 !> \param msg_type the status tag 
-!> \param tmc_params ...
+!> \param tmc_params to send the cell properties
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_parms to send the cell properties UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 07.2013
 ! *****************************************************************************
   SUBROUTINE read_worker_init_message(msg_type, tmc_params, m_send, error)
@@ -642,11 +636,10 @@ CONTAINS
 !> \param elem the intial tree element with initial coordinates and energy 
 !>        (using the approximated potential)
 !> \param result_count ...
-!> \param tmc_params ...
+!> \param tmc_params to send the cell properties
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param tmc_parms to send the cell properties UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_start_conf_message(msg_type, elem, result_count, &
@@ -1609,7 +1602,6 @@ CONTAINS
 !> \param tmc_params stuct with parameters (global settings)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param elem tree element with new coordinates  UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE create_analysis_request_message(list_elem, m_send, &

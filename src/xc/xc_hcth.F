@@ -175,7 +175,7 @@ CONTAINS
 !> \param iparset the parameter set that should be used (93,120,147,407)
 !> \param rho the density
 !> \param norm_drho the norm of the gradient of the density
-!> \param e_0 ...
+!> \param e_0 the value of the functional in that point
 !> \param e_rho the derivative of the functional wrt. rho
 !> \param e_ndrho the derivative of the functional wrt. norm_drho
 !> \param epsilon_rho the cutoff on rho
@@ -183,7 +183,6 @@ CONTAINS
 !> \param npoints ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_ 0: the value of the functional in that point UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi (copying from the routine of Matthias Krack in functionals.F)
 !> \note
 !>     Literature:- F. A. Hamprecht, A. J. Cohen, D. J. Tozer, and N. C. Handy,

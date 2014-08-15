@@ -173,10 +173,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a derivative set
-!> \param derivative_set ...
+!> \param derivative_set the set to release
 !> \param error variable to control error logging, stopping,...
 !>                  see module cp_error_handling
-!> \param set the set to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE xc_dset_release(derivative_set, error)
 

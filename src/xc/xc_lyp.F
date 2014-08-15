@@ -263,7 +263,7 @@ END SUBROUTINE lyp_lda_eval
 
 ! *****************************************************************************
 !> \brief evaluates the lyp correlation functional for lda
-!> \param rho ...
+!> \param rho the density where you want to evaluate the functional
 !> \param rho_1_3 ...
 !> \param norm_drho ...
 !> \param e_0 ...
@@ -284,9 +284,6 @@ END SUBROUTINE lyp_lda_eval
 !> \param sc scaling-parameter for correlation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param deriv_set place where to store the functional derivatives (they are
-!>        added to the derivatives) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_set the density where you want to evaluate the functional UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2003 created [fawzi]
 !>      01.2007 added scaling [Manuel Guidon]
@@ -935,13 +932,14 @@ END SUBROUTINE lyp_lsd_eval
 
 ! *****************************************************************************
 !> \brief low level calculation of the becke 88 exchange functional for lsd
-!> \param rhoa ...
-!> \param rhob ...
-!> \param norm_drho ...
-!> \param norm_drhoa ...
-!> \param norm_drhob ...
-!> \param e_0 ...
-!> \param e_ra ...
+!> \param rhoa alpha spin density
+!> \param rhob beta spin density
+!> \param norm_drho || grad rhoa + grad rhob ||
+!> \param norm_drhoa || grad rhoa ||
+!> \param norm_drhob || grad rhob ||
+!> \param e_0 adds to it the local value of the functional
+!> \param e_ra e_*: derivative of the functional wrt. to the variables
+!>        named where the * is.
 !> \param e_rb ...
 !> \param e_ndra_ra ...
 !> \param e_ndra_rb ...
@@ -965,12 +963,6 @@ END SUBROUTINE lyp_lsd_eval
 !> \param sc scaling parameter for correlation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param e_ 0: adds to it the local value of the functional UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param e_ *_spin: derivative of the functional wrt. to the variables
-!>        named where the * is. Everything wrt. to the spin of the arguments. UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param norm_drho_spin || grad rho_spin || UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_ 1_3_spin: rho_spin**(1./3.) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_spin alpha or beta spin density UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2004 created [fawzi]
 !> \author fawzi
