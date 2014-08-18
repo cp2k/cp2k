@@ -249,6 +249,10 @@ CONTAINS
          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
          NULLIFY(kpoint%wkp)
        END IF
+       IF(ASSOCIATED(kpoint%kp_dist)) THEN
+         DEALLOCATE(kpoint%kp_dist,STAT=ierr)
+         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       ENDIF
 
        CALL mpools_release(kpoint%mpools, error=error)
        CALL cp_blacs_env_release(kpoint%blacs_env,error=error)
