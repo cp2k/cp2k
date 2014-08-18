@@ -142,25 +142,25 @@ MODULE kpoint_types
      REAL(KIND=dp)                           :: eps_geo
      INTEGER                                 :: parallel_group_size
      INTEGER                                 :: nkp
-     REAL(KIND=dp), DIMENSION(:,:), POINTER  :: xkp
-     REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp
+     REAL(KIND=dp), DIMENSION(:,:), POINTER  :: xkp => Null()
+     REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp => Null()
      ! parallel environment
-     TYPE(cp_para_env_type), POINTER         :: para_env
-     TYPE(cp_para_cart_type), POINTER        :: cart
-     TYPE(cp_para_env_type), POINTER         :: para_env_full,&
-                                                para_env_kp,&
-                                                para_env_inter_kp
+     TYPE(cp_para_env_type), POINTER         :: para_env => Null()
+     TYPE(cp_para_cart_type), POINTER        :: cart => Null()
+     TYPE(cp_para_env_type), POINTER         :: para_env_full => Null(),&
+                                                para_env_kp => Null(),&
+                                                para_env_inter_kp => Null()
      LOGICAL                                 :: iogrp
      INTEGER                                 :: nkp_groups
-     INTEGER, DIMENSION(:,:), POINTER        :: kp_dist
+     INTEGER, DIMENSION(:,:), POINTER        :: kp_dist => Null()
      INTEGER, DIMENSION(2)                   :: kp_range
-     TYPE(cp_blacs_env_type), POINTER        :: blacs_env
+     TYPE(cp_blacs_env_type), POINTER        :: blacs_env => Null()
      ! operators
-     TYPE(opmat_type), POINTER               :: opmats
+     TYPE(opmat_type), POINTER               :: opmats => Null()
      ! environment
      TYPE(kpoint_env_p_type), DIMENSION(:),&
-       POINTER                               :: kp_env
-     TYPE(qs_matrix_pools_type), POINTER     :: mpools
+       POINTER                               :: kp_env => Null()
+     TYPE(qs_matrix_pools_type), POINTER     :: mpools => Null()
   END TYPE kpoint_type
 
 ! *****************************************************************************  
