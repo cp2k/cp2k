@@ -708,6 +708,7 @@ CONTAINS
                    EXIT
                 END IF
              ELSE IF (parser%input_line(parser%icol:parser%icol) == '"') THEN
+                ! identify quotes and preserve them through-out the execution..
                 parser%first_separator = .TRUE.
                 parser%icol1 = parser%icol + 1
                 parser%icol2 = parser%icol + INDEX(parser%input_line(parser%icol1:),'"')
@@ -718,8 +719,8 @@ CONTAINS
                         "Unmatched quotation mark found"//TRIM(parser_location(parser,error=error)),&
                         error,failure)
                 ELSE
-                   parser%icol = parser%icol2
-                   parser%icol2 = parser%icol2 - 1
+                   parser%icol1 = parser%icol1 - 1
+                   parser%icol  = parser%icol2
                    RETURN
                 END IF
              ELSE
