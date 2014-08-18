@@ -67,15 +67,21 @@ MODULE cp_control_types
      LOGICAL                              :: self_consistent
      LOGICAL                              :: orthogonal_basis
      LOGICAL                              :: dispersion
+     INTEGER                              :: dispersion_type
+     LOGICAL                              :: dftb3_diagonal
      LOGICAL                              :: hb_sr_damp
      REAL(KIND = dp)                      :: hb_sr_para
      REAL(KIND = dp)                      :: eps_disp
+     REAL(KIND = dp)                      :: epscn
+     REAL(KIND = dp)                      :: rcdisp
+     REAL(KIND = dp), DIMENSION(3)        :: sd3
      LOGICAL                              :: do_ewald
      CHARACTER(LEN=default_path_length)   :: sk_file_path
      CHARACTER(LEN=default_path_length)   :: sk_file_list
      CHARACTER(LEN=default_string_length),&
           DIMENSION(:,:), POINTER         :: sk_pair_list
      CHARACTER(LEN=default_path_length)   :: uff_force_field
+     CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
   END TYPE dftb_control_type
 
 ! *****************************************************************************
@@ -108,6 +114,12 @@ MODULE cp_control_types
      INTEGER               :: max_multipole
      INTEGER               :: ga_ncells
      REAL(KIND = dp)       :: delta
+     ! Dispersion pair potential
+     LOGICAL               :: dispersion
+     REAL(KIND = dp)                      :: rcdisp
+     REAL(KIND = dp)                      :: epscn
+     REAL(KIND = dp), DIMENSION(3)        :: sd3
+     CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
      ! Parameters controlling the evaluation of the integrals
      REAL(KIND = dp)       :: cutoff_lrc, taper_lrc, range_lrc
      REAL(KIND = dp)       :: cutoff_cou, taper_cou, range_cou

@@ -42,3 +42,10 @@ c2h2_emd_mix.inp                  1     5e-11
 # HB correction parameter
 h2o_hb_corr_1.inp     1
 h2o_hb_corr_2.inp     1
+# Dispersion
+h2o_disp1.inp         1
+h2o_disp2.inp         1
+h2o_disp3.inp         1
+# DFTB3
+h2o-6.inp           1
+h2o-7.inp           1

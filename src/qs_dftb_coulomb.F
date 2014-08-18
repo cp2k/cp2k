@@ -66,6 +66,7 @@ MODULE qs_dftb_coulomb
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
+  USE qs_dftb3_methods,                ONLY: build_dftb3_diagonal
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -392,6 +393,12 @@ CONTAINS
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF ( qs_env%dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
+       ! Diagonal 3rd order correction (DFTB3)
+       CALL build_dftb3_diagonal(qs_env,ks_matrix,rho,mcharge,energy,&
+               calculate_forces,just_energy,error)
+    END IF
 
     CALL timestop(handle)
 

@@ -889,4 +889,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_pdgemm  =1,&
                                               do_dbcsr   =2
 
+  ! Dispersion DFTB
+  INTEGER, PARAMETER, PUBLIC               :: dispersion_uff=100,&
+                                              dispersion_d3 =200
+
 END MODULE input_constants

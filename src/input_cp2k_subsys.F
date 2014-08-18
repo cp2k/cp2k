@@ -1426,6 +1426,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DFTB3_PARAM",&
+            description="The third order parameter (derivative of hardness) used in "//&
+            "diagonal DFTB3 correction.",&
+            usage="DFTB3_PARAM 0.2", default_r_val=0.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        ! Logicals
        CALL keyword_create(keyword, name="SE_P_ORBITALS_ON_H",&

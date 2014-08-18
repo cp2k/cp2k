@@ -299,6 +299,8 @@ CONTAINS
        IF ( dft_control%qs_control%se_control%scp ) THEN
           CALL scp_nddo_dispersion (qs_env,calc_forces,error)
        END IF
+       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
+       CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
        ! GA option
        CALL se_ga_initialize ( qs_env, error )
     ELSEIF ( dft_control%qs_control%dftb ) THEN

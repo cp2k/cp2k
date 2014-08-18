@@ -1,0 +1,35 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PM3
+      &SE
+         DISPERSION                   T
+         DISPERSION_RADIUS           15.
+         COORDINATION_CUTOFF         1.e-4
+         D3_SCALING                  1.0 1.2 1.4
+         DISPERSION_PARAMETER_FILE   ../dftd3.dat
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+    &END CELL
+    &COORD
+       O     0.000000     0.000000     0.000000    H2O1
+       H     0.000000     0.000000     1.000000    H2O1
+       H     0.942809     0.000000    -0.333333    H2O1
+       O    -1.617979    -0.948062    -2.341650    H2O2
+       H    -2.529195    -1.296822    -2.122437    H2O2
+       H    -1.534288    -0.833088    -3.331486    H2O2
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT 2h2o
+  RUN_TYPE ENERGY
+&END GLOBAL

@@ -150,6 +150,7 @@ MODULE atomic_kind_types
      CHARACTER(LEN=2)                       :: element_symbol
      REAL(KIND = dp)                        :: mass
      REAL(KIND = dp)                        :: alpha_scp, I_scp
+     REAL(KIND = dp)                        :: dudq_dftb3
      INTEGER                                :: kind_number,&
                                                natom,&
                                                number_of_grid_points
@@ -261,6 +262,7 @@ CONTAINS
        atomic_kind_set(ikind)%mass = 0.0_dp
        atomic_kind_set(ikind)%alpha_scp = 0.0_dp
        atomic_kind_set(ikind)%I_scp = 0.0_dp
+       atomic_kind_set(ikind)%dudq_dftb3 = 0.0_dp
        atomic_kind_set(ikind)%kind_number = 0
        atomic_kind_set(ikind)%natom = 0
        atomic_kind_set(ikind)%number_of_grid_points = 0
@@ -454,6 +456,7 @@ CONTAINS
 !> \param core_charge ...
 !> \param alpha_scp ...
 !> \param I_scp ...
+!> \param dftb3_param ...
 !> \param core_charge_radius ...
 !> \param ncgf ...
 !> \param nsgf ...
@@ -514,7 +517,7 @@ CONTAINS
        aux_basis_set, ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, scp_basis_set, geminal_basis_set, &
        lri_basis_set, &
        element_symbol, name, mass, kind_number, natom, atom_list, &
-       alpha_core_charge, ccore_charge, core_charge, alpha_scp, I_scp, &
+       alpha_core_charge, ccore_charge, core_charge, alpha_scp, I_scp, dftb3_param,&
        core_charge_radius, ncgf, nsgf, rcov, rvdw, z, zeff, qeff, apol, cpol, mm_radius, &
        soft_basis_set, elec_conf, hard_basis_set, paw_proj_set, softb, &
        paw_atom,qm_atom, hard_radius, hard0_radius, max_rad_local, &
@@ -555,10 +558,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: mass
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_list
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
-                                                ccore_charge, core_charge, &
-                                                alpha_scp, I_scp, &
-                                                core_charge_radius
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: alpha_core_charge, ccore_charge, &
+      core_charge, alpha_scp, I_scp, dftb3_param, core_charge_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov, rvdw
     INTEGER, INTENT(OUT), OPTIONAL           :: z
@@ -651,6 +652,7 @@ CONTAINS
        IF (PRESENT(mass)) mass = atomic_kind%mass
        IF (PRESENT(alpha_scp)) alpha_scp = atomic_kind%alpha_scp
        IF (PRESENT(I_scp)) I_scp = atomic_kind%I_scp
+       IF (PRESENT(dftb3_param)) dftb3_param = atomic_kind%dudq_dftb3
        IF (PRESENT(kind_number)) kind_number = atomic_kind%kind_number
        IF (PRESENT(natom)) natom = atomic_kind%natom
        IF (PRESENT(atom_list)) atom_list => atomic_kind%atom_list
@@ -2245,6 +2247,10 @@ CONTAINS
             keyword_name="GHOST",l_val=atomic_kind%ghost,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="NO_OPTIMIZE",l_val=atomic_kind%no_optimize,error=error)
+
+       ! DFTB3 param
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="DFTB3_PARAM",r_val=atomic_kind%dudq_dftb3,error=error)
 
        ! Read the BS subsection of the current atomic kind, if enabled
        NULLIFY(bs_section)

@@ -26,6 +26,7 @@ MODULE qs_dftb_parameters
                                              parser_release
   USE external_potential_types,        ONLY: set_potential
   USE f77_blas
+  USE input_constants,                 ONLY: dispersion_uff
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -602,38 +603,40 @@ CPSourceFileRef,&
     DEALLOCATE(sk_files,STAT=istat)
     CPPostcondition(istat==0,cp_fatal_level,routineP,error,failure)
 
-    ! read dispersion parameters
+    ! read dispersion parameters (UFF type)
     IF ( dftb_control%dispersion ) THEN
 
-      file_name = TRIM(dftb_control%sk_file_path)//"/"//&
-                  TRIM(dftb_control%uff_force_field)
-      DO ikind = 1, nkind
-        atomic_kind_a => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind_a,dftb_parameter=dftb_atom_a,&
-                             name=iname)
-        m = LEN_TRIM(iname)
-        NULLIFY(parser)
-        CALL parser_create(parser,file_name,para_env=para_env,error=error)
-        found = .FALSE.
-        DO
-          at_end = .FALSE.
-          CALL parser_get_next_line(parser,1,at_end,error=error)
-          IF ( at_end ) EXIT
-          CALL parser_get_object(parser,name_a,error=error)
-          IF ( name_a(1:m) == TRIM(iname) ) THEN
-            CALL parser_get_object(parser,rb,error=error)
-            CALL parser_get_object(parser,rb,error=error)
-            CALL parser_get_object(parser,ra,error=error)
-            CALL parser_get_object(parser,da,error=error)
-            found = .TRUE.
-            ra = ra/angstrom
-            da = da/kcalmol
-            CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,name=iname,xi=ra,di=da,error=error)
-            EXIT
-          END IF
+      IF ( dftb_control%dispersion_type == dispersion_uff ) THEN
+        file_name = TRIM(dftb_control%sk_file_path)//"/"//&
+                    TRIM(dftb_control%uff_force_field)
+        DO ikind = 1, nkind
+          atomic_kind_a => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind_a,dftb_parameter=dftb_atom_a,&
+                               name=iname)
+          m = LEN_TRIM(iname)
+          NULLIFY(parser)
+          CALL parser_create(parser,file_name,para_env=para_env,error=error)
+          found = .FALSE.
+          DO
+            at_end = .FALSE.
+            CALL parser_get_next_line(parser,1,at_end,error=error)
+            IF ( at_end ) EXIT
+            CALL parser_get_object(parser,name_a,error=error)
+            IF ( name_a(1:m) == TRIM(iname) ) THEN
+              CALL parser_get_object(parser,rb,error=error)
+              CALL parser_get_object(parser,rb,error=error)
+              CALL parser_get_object(parser,ra,error=error)
+              CALL parser_get_object(parser,da,error=error)
+              found = .TRUE.
+              ra = ra/angstrom
+              da = da/kcalmol
+              CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,name=iname,xi=ra,di=da,error=error)
+              EXIT
+            END IF
+          END DO
+          CALL parser_release(parser,error=error)
         END DO
-        CALL parser_release(parser,error=error)
-      END DO
+      END IF
 
     END IF
 
@@ -673,33 +676,45 @@ CPSourceFileRef,&
                   zeff=zeff,zeff_correction=0.0_dp)
     END DO
 
-    ! setup dispersion parameters
-    IF ( dftb_control%dispersion ) THEN
-      eps_disp = dftb_control%eps_disp
+    ! setup DFTB3 parameters
+    IF ( dftb_control%dftb3_diagonal ) THEN
       DO ikind = 1, nkind
         atomic_kind_a => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind_a,dftb3_param=db)
         CALL get_atomic_kind(atomic_kind=atomic_kind_a,dftb_parameter=dftb_atom_a)
-        CALL get_dftb_atom_param(dftb_parameter=dftb_atom_a,xi=ra,di=da,error=error)
-        rcdisp = 0._dp
-        DO jkind = 1, nkind
-          atomic_kind_b => atomic_kind_set(jkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind_b,dftb_parameter=dftb_atom_b)
-          CALL get_dftb_atom_param(dftb_parameter=dftb_atom_b,xi=rb,di=db,error=error)
-          xij = SQRT(ra*rb)
-          dij = SQRT(da*db)
-          dftb_potential(ikind,jkind)%xij  = xij
-          dftb_potential(ikind,jkind)%dij  = dij
-          dftb_potential(ikind,jkind)%x0ij = xij*(0.5_dp**(1.0_dp/6.0_dp))
-          dftb_potential(ikind,jkind)%a    = dij*396.0_dp/25.0_dp
-          dftb_potential(ikind,jkind)%b    = &
-                dij/(xij**5)*672.0_dp*2.0_dp**(5.0_dp/6.0_dp)/25.0_dp
-          dftb_potential(ikind,jkind)%c    = &
-                -dij/(xij**10)*2.0_dp**(2.0_dp/3.0_dp)*552.0_dp/25.0_dp
-          rmax6 = ((8._dp*pi*dij/eps_disp)*xij**6)**0.25_dp
-          rcdisp = MAX(rcdisp,rmax6*0.5_dp)
-        END DO
-        CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,rcdisp=rcdisp,error=error)
+        CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,dudq=db,error=error)
       END DO
+    END IF
+
+    ! setup dispersion parameters (UFF type)
+    IF ( dftb_control%dispersion ) THEN
+      IF ( dftb_control%dispersion_type == dispersion_uff ) THEN
+        eps_disp = dftb_control%eps_disp
+        DO ikind = 1, nkind
+          atomic_kind_a => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind_a,dftb_parameter=dftb_atom_a)
+          CALL get_dftb_atom_param(dftb_parameter=dftb_atom_a,xi=ra,di=da,error=error)
+          rcdisp = 0._dp
+          DO jkind = 1, nkind
+            atomic_kind_b => atomic_kind_set(jkind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind_b,dftb_parameter=dftb_atom_b)
+            CALL get_dftb_atom_param(dftb_parameter=dftb_atom_b,xi=rb,di=db,error=error)
+            xij = SQRT(ra*rb)
+            dij = SQRT(da*db)
+            dftb_potential(ikind,jkind)%xij  = xij
+            dftb_potential(ikind,jkind)%dij  = dij
+            dftb_potential(ikind,jkind)%x0ij = xij*(0.5_dp**(1.0_dp/6.0_dp))
+            dftb_potential(ikind,jkind)%a    = dij*396.0_dp/25.0_dp
+            dftb_potential(ikind,jkind)%b    = &
+                  dij/(xij**5)*672.0_dp*2.0_dp**(5.0_dp/6.0_dp)/25.0_dp
+            dftb_potential(ikind,jkind)%c    = &
+                  -dij/(xij**10)*2.0_dp**(2.0_dp/3.0_dp)*552.0_dp/25.0_dp
+            rmax6 = ((8._dp*pi*dij/eps_disp)*xij**6)**0.25_dp
+            rcdisp = MAX(rcdisp,rmax6*0.5_dp)
+          END DO
+          CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,rcdisp=rcdisp,error=error)
+        END DO
+      END IF
     END IF
 
     RETURN

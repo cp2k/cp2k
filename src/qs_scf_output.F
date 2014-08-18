@@ -340,12 +340,18 @@ CONTAINS
             "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
             "Electronic energy [eV]:                        ",&
                                               (energy%core+0.5_dp*energy%hartree)*evolt
+         IF (energy%dispersion /= 0.0_dp)&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
+               "Dispersion energy [eV]:                     ",energy%dispersion*evolt
        ELSEIF (dft_control%qs_control%dftb) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Core Hamiltonian energy:                       ",energy%core,&
             "Repulsive potential energy:                    ",energy%repulsive,&
             "Electronic energy:                             ",energy%hartree,&
             "Dispersion energy:                             ",energy%dispersion
+         IF (energy%dftb3 /= 0.0_dp)&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
+               "DFTB3 3rd order energy:                     ",energy%dftb3
        ELSEIF (dft_control%qs_control%scptb) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Repulsive pair potential energy:               ",energy%repulsive,&

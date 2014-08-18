@@ -860,6 +860,20 @@ CPSourceFileRef,&
                error=error,failure=failure)
        END SELECT
 
+       ! dispersion pair potentials
+       CALL section_vals_val_get(se_section,"DISPERSION",&
+            l_val=qs_control%se_control%dispersion,error=error)
+       CALL section_vals_val_get(se_section,"DISPERSION_RADIUS",&
+            r_val=qs_control%se_control%rcdisp,error=error)
+       CALL section_vals_val_get(se_section,"COORDINATION_CUTOFF",&
+            r_val=qs_control%se_control%epscn,error=error)
+       CALL section_vals_val_get(se_section,"D3_SCALING",r_vals=scal,error=error)
+            qs_control%se_control%sd3(1) = scal(1)
+            qs_control%se_control%sd3(2) = scal(2)
+            qs_control%se_control%sd3(3) = scal(3)
+       CALL section_vals_val_get(se_section,"DISPERSION_PARAMETER_FILE",&
+            c_val=qs_control%se_control%dispersion_parameter_file,error=error)
+
        ! Stop the execution for non-implemented features
        IF (qs_control%se_control%periodic_type==do_se_lr_ewald_r3) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -887,6 +901,8 @@ CPSourceFileRef,&
             l_val=qs_control%dftb_control%self_consistent,error=error)
        CALL section_vals_val_get(dftb_section,"DISPERSION",&
             l_val=qs_control%dftb_control%dispersion,error=error)
+       CALL section_vals_val_get(dftb_section,"DIAGONAL_DFTB3",&
+            l_val=qs_control%dftb_control%dftb3_diagonal,error=error)
        CALL section_vals_val_get(dftb_section,"HB_SR_GAMMA",&
             l_val=qs_control%dftb_control%hb_sr_damp,error=error)
        CALL section_vals_val_get(dftb_section,"EPS_DISP",&
@@ -908,8 +924,22 @@ CPSourceFileRef,&
                c_vals=clist,error=error)
           qs_control%dftb_control%sk_pair_list(1:3,k) = clist(1:3)
        END DO
+       ! Dispersion type
+       CALL section_vals_val_get(dftb_parameter,"DISPERSION_TYPE",&
+            i_val=qs_control%dftb_control%dispersion_type,error=error)
        CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
             c_val=qs_control%dftb_control%uff_force_field,error=error)
+       ! D3 Dispersion
+       CALL section_vals_val_get(dftb_parameter,"DISPERSION_RADIUS",&
+            r_val=qs_control%dftb_control%rcdisp,error=error)
+       CALL section_vals_val_get(dftb_parameter,"COORDINATION_CUTOFF",&
+            r_val=qs_control%dftb_control%epscn,error=error)
+       CALL section_vals_val_get(dftb_parameter,"D3_SCALING",r_vals=scal,error=error)
+            qs_control%dftb_control%sd3(1) = scal(1)
+            qs_control%dftb_control%sd3(2) = scal(2)
+            qs_control%dftb_control%sd3(3) = scal(3)
+       CALL section_vals_val_get(dftb_parameter,"DISPERSION_PARAMETER_FILE",&
+            c_val=qs_control%dftb_control%dispersion_parameter_file,error=error)
 
        IF (qs_control%dftb_control%dispersion)      CALL cite_reference(Zhechkov2005)
        IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)

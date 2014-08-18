@@ -1,0 +1,177 @@
+#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../uff_table
+#CPQA INCLUDE ../scc/oo.spl
+#CPQA INCLUDE ../scc/oh.spl
+#CPQA INCLUDE ../scc/ho.spl
+#CPQA INCLUDE ../scc/hh.spl
+&FORCE_EVAL
+  &DFT
+    SUBCELLS 10.0
+    &QS
+      METHOD DFTB
+      &DFTB
+         DIAGONAL_DFTB3     T
+         SELF_CONSISTENT    T
+         DO_EWALD           T
+         DISPERSION         T
+         HB_SR_GAMMA        T
+         &PARAMETER
+            PARAM_FILE_PATH  ../scc
+            PARAM_FILE_NAME  scc_parameter
+            HB_SR_PARAM       4.85
+            DISPERSION_TYPE  D3
+            DISPERSION_PARAMETER_FILE ../dftd3.dat
+            D3_SCALING  1.0 1.5 1.5
+         &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF  20
+      EPS_SCF  1.E-6
+      &OUTER_SCF
+         MAX_SCF  5
+         EPS_SCF  1.E-6
+      &END
+      &OT
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_SINGLE_INVERSE
+      &END
+    &END SCF
+    &POISSON
+      &EWALD
+       EWALD_TYPE SPME
+       GMAX 25
+      &END EWALD
+    &END POISSON
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+    &END CELL
+    &COORD
+    O                  -4.583   5.333   1.560   H2O
+    H                  -3.777   5.331   0.943   H2O
+    H                  -5.081   4.589   1.176   H2O
+    O                  -0.083   4.218   0.070   H2O
+    H                  -0.431   3.397   0.609   H2O
+    H                   0.377   3.756  -0.688   H2O
+    O                  -1.488   2.692   4.125   H2O
+    H                  -2.465   2.433   3.916   H2O
+    H                  -1.268   2.145   4.952   H2O
+    O                  -2.461  -2.548  -6.136   H2O
+    H                  -1.892  -2.241  -6.921   H2O
+    H                  -1.970  -3.321  -5.773   H2O
+    O                   4.032   0.161   2.183   H2O
+    H                   4.272  -0.052   1.232   H2O
+    H                   4.044  -0.760   2.641   H2O
+    O                   2.950  -3.497  -1.006   H2O
+    H                   2.599  -3.901  -0.129   H2O
+    H                   3.193  -4.283  -1.533   H2O
+    O                  -2.890  -4.797  -2.735   H2O
+    H                  -2.810  -5.706  -2.297   H2O
+    H                  -2.437  -4.128  -2.039   H2O
+    O                  -0.553   0.922  -3.731   H2O
+    H                  -0.163   1.552  -3.085   H2O
+    H                  -1.376   0.544  -3.469   H2O
+    O                   4.179   4.017   4.278   H2O
+    H                   3.275   3.832   3.876   H2O
+    H                   4.658   4.492   3.572   H2O
+    O                   5.739   1.425   3.944   H2O
+    H                   5.125   2.066   4.346   H2O
+    H                   5.173   1.181   3.097   H2O
+    O                   0.988  -0.760  -5.445   H2O
+    H                   1.640  -1.372  -4.989   H2O
+    H                   0.546  -0.220  -4.762   H2O
+    O                  -0.748   1.985   1.249   H2O
+    H                  -0.001   1.490   1.540   H2O
+    H                  -1.160   2.255   2.109   H2O
+    O                   4.127  -0.234  -3.149   H2O
+    H                   5.022  -0.436  -3.428   H2O
+    H                   3.540  -0.918  -3.601   H2O
+    O                  -2.473   2.768  -1.395   H2O
+    H                  -1.533   2.719  -1.214   H2O
+    H                  -2.702   1.808  -1.479   H2O
+    O                  -0.124  -2.116   2.404   H2O
+    H                   0.612  -2.593   2.010   H2O
+    H                   0.265  -1.498   3.089   H2O
+    O                   0.728   2.823  -2.190   H2O
+    H                   0.646   3.694  -2.685   H2O
+    H                   1.688   2.705  -1.947   H2O
+    O                   4.256  -5.427  -2.644   H2O
+    H                   5.222  -5.046  -2.479   H2O
+    H                   4.174  -5.628  -3.593   H2O
+    O                  -3.178  -0.508  -4.227   H2O
+    H                  -2.762  -1.221  -4.818   H2O
+    H                  -3.603   0.073  -4.956   H2O
+    O                  -1.449   5.300  -4.805   H2O
+    H                  -1.397   4.470  -5.317   H2O
+    H                  -2.102   5.091  -4.067   H2O
+    O                   3.354   2.192  -1.755   H2O
+    H                   3.407   1.433  -2.405   H2O
+    H                   3.971   2.958  -2.196   H2O
+    O                   1.773  -4.018   1.769   H2O
+    H                   1.121  -4.532   1.201   H2O
+    H                   1.975  -4.529   2.618   H2O
+    O                   1.526   1.384   2.712   H2O
+    H                   2.317   1.070   2.251   H2O
+    H                   1.353   0.657   3.364   H2O
+    O                   2.711  -2.398  -4.253   H2O
+    H                   2.202  -3.257  -4.120   H2O
+    H                   3.305  -2.610  -5.099   H2O
+    O                   6.933   0.093  -1.393   H2O
+    H                   6.160  -0.137  -0.795   H2O
+    H                   6.748  -0.394  -2.229   H2O
+    O                  -5.605  -2.549   3.151   H2O
+    H                  -4.756  -2.503   3.616   H2O
+    H                  -5.473  -3.187   2.378   H2O
+    O                   0.821  -4.406   6.516   H2O
+    H                   0.847  -3.675   7.225   H2O
+    H                  -0.014  -4.240   5.988   H2O
+    O                   1.577   3.933   3.762   H2O
+    H                   1.221   2.975   3.640   H2O
+    H                   1.367   4.126   4.659   H2O
+    O                  -2.111  -3.741  -0.219   H2O
+    H                  -1.378  -4.425  -0.036   H2O
+    H                  -1.825  -2.775   0.003   H2O
+    O                   0.926  -1.961  -2.063   H2O
+    H                   0.149  -1.821  -1.402   H2O
+    H                   1.725  -2.303  -1.536   H2O
+    O                   4.531  -1.030  -0.547   H2O
+    H                   4.290  -1.980  -0.581   H2O
+    H                   4.292  -0.597  -1.390   H2O
+    O                  -0.740  -1.262  -0.029   H2O
+    H                  -1.272  -0.422  -0.099   H2O
+    H                  -0.403  -1.349   0.873   H2O
+    O                   3.655   3.021   0.988   H2O
+    H                   2.706   3.053   1.282   H2O
+    H                   3.542   2.615   0.020   H2O
+    &END COORD
+  &END SUBSYS
+  STRESS_TENSOR ANALYTICAL
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT h2o-7
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 2
+    TIMESTEP 0.48
+    TEMPERATURE 330.0
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON [wavenumber_t] 2000
+        MTS 2
+      &END NOSE
+    &END
+    &BAROSTAT
+      PRESSURE 1.0
+      TIMECON 300
+    &END BAROSTAT
+  &END MD
+&END MOTION

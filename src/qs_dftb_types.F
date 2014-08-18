@@ -39,6 +39,7 @@ MODULE qs_dftb_types
     REAL(KIND=dp)                          :: cutoff     !cutoff radius for f matrix
     REAL(KIND=dp)                          :: xi,di      !London parameter
     REAL(KIND=dp)                          :: rcdisp     !cutoff radius for vdW
+    REAL(KIND=dp)                          :: dudq       !DFTB3 hardness derivative
   END TYPE qs_dftb_atom_type
 
 ! *****************************************************************************

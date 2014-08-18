@@ -256,6 +256,7 @@ CONTAINS
                          energy%core_overlap +&
                          0.5_dp*energy%hartree + &
                          energy%qmmm_el +&
+                         energy%dispersion +&
                          energy%mulliken
 !      WRITE ( *, * ) ' AFTER TOTAL', energy%total
 

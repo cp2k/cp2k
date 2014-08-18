@@ -720,7 +720,7 @@ CONTAINS
        END IF
 
        energy%total = energy%core + energy%hartree + energy%qmmm_el + &
-                      energy%repulsive + energy%dispersion
+                      energy%repulsive + energy%dispersion + energy%dftb3
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
           extension=".scfLog",error=error)
@@ -730,8 +730,12 @@ CONTAINS
                "Zeroth order Hamiltonian energy:               ",energy%core,&
                "Charge fluctuation energy:                     ",energy%hartree,&
                "London dispersion energy:                      ",energy%dispersion
+          IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
+             WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
+                  "DFTB3 3rd Order Energy Correction              ",energy%dftb3
+          END IF
           IF (qs_env%qmmm) THEN
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+             WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
                   "QM/MM Electrostatic energy:                    ",energy%qmmm_el
           END IF
        END IF

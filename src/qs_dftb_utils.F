@@ -70,6 +70,7 @@ CONTAINS
     dftb_parameter % xi = 0.0_dp
     dftb_parameter % di = 0.0_dp
     dftb_parameter % rcdisp = 0.0_dp
+    dftb_parameter % dudq = 0.0_dp
 
   END SUBROUTINE allocate_dftb_atom_param
 
@@ -113,10 +114,11 @@ CONTAINS
 !> \param xi ...
 !> \param di ...
 !> \param rcdisp ...
+!> \param dudq ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
-    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,error)
+    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,dudq,error)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     CHARACTER(LEN=default_string_length), &
@@ -126,7 +128,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff
     INTEGER, INTENT(OUT), OPTIONAL           :: natorb, lmax
     REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself, occupation, eta
-    REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, rcdisp
+    REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, &
+                                                rcdisp, dudq
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -152,6 +155,7 @@ CONTAINS
     IF (PRESENT(xi)) xi = dftb_parameter%xi
     IF (PRESENT(di)) di = dftb_parameter%di
     IF (PRESENT(rcdisp)) rcdisp = dftb_parameter%rcdisp
+    IF (PRESENT(dudq)) dudq = dftb_parameter%dudq
 
   END SUBROUTINE get_dftb_atom_param
 
@@ -173,10 +177,11 @@ CONTAINS
 !> \param xi ...
 !> \param di ...
 !> \param rcdisp ...
+!> \param dudq ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
-    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,error)
+    lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,dudq,error)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     CHARACTER(LEN=default_string_length), &
@@ -186,7 +191,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
     INTEGER, INTENT(IN), OPTIONAL            :: natorb, lmax
     REAL(KIND=dp), DIMENSION(0:3), OPTIONAL  :: skself, occupation, eta
-    REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, rcdisp
+    REAL(KIND=dp), OPTIONAL                  :: energy, cutoff, xi, di, &
+                                                rcdisp, dudq
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dftb_atom_param', &
@@ -211,6 +217,7 @@ CONTAINS
     IF (PRESENT(xi)) dftb_parameter%xi = xi
     IF (PRESENT(di)) dftb_parameter%di = di
     IF (PRESENT(rcdisp)) dftb_parameter%rcdisp = rcdisp
+    IF (PRESENT(dudq)) dftb_parameter%dudq = dudq
 
   END SUBROUTINE set_dftb_atom_param
 

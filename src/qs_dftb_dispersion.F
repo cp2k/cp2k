@@ -16,12 +16,16 @@ MODULE qs_dftb_dispersion
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: dispersion_d3,&
+                                             dispersion_uff
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                              qs_dftb_pairpot_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+  USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -63,6 +67,52 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dftb_dispersion', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(qs_energy_type), POINTER            :: energy
+
+    failure = .FALSE.
+    CALL get_qs_env(qs_env=qs_env,&
+                    energy=energy,&
+                    dft_control=dft_control,error=error)
+
+    energy%dispersion = 0._dp
+
+    dftb_control => dft_control%qs_control%dftb_control
+    IF ( dftb_control%dispersion ) THEN
+       SELECT CASE (dftb_control%dispersion_type)
+          CASE (dispersion_uff)
+             CALL calculate_dispersion_uff(qs_env,para_env,calculate_forces,error)
+          CASE (dispersion_d3)
+             CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
+             CALL calculate_dispersion_pairpot(qs_env,dispersion_env,&
+                  energy%dispersion,calculate_forces,error)
+          CASE DEFAULT
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    END IF
+
+  END SUBROUTINE calculate_dftb_dispersion
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE calculate_dispersion_uff(qs_env,para_env,calculate_forces,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_uff', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, atom_b, handle, &
@@ -224,7 +274,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE calculate_dftb_dispersion
+  END SUBROUTINE calculate_dispersion_uff
 
 END MODULE qs_dftb_dispersion
 

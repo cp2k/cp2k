@@ -68,3 +68,7 @@ zn_1w_debug.inp                   3     3e-13
 H2O-32.inp                        3     8e-13
 # Test for new option relax_multiplicity
 O2-UKS-MNDO-relax_multip.inp 3
+# dispersion
+2h2o_disp1.inp
+2h2o_disp2.inp
+2h2o_disp3.inp

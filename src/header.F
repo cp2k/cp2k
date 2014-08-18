@@ -186,7 +186,7 @@ CONTAINS
          ' #    #  #     #  #      #     # #          #    #     #  ',&
          '  #### #  #####  #       ######  #          #    ######   ',&
          '                                                          ', &
-         '                        Version 0.1                       ', &
+         '                        Version 0.2                       ', &
          '                   J. Hutter and T. Heine                 ', &
          '                                                          '
   END SUBROUTINE dftb_header
