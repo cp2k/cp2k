@@ -1108,6 +1108,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: upper_sym_1
+    CHARACTER(LEN=default_string_length)     :: atmname_upper
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: keyword
     INTEGER                                  :: handle, i, i_rep, iatom, &
@@ -1152,7 +1153,9 @@ CONTAINS
        !Let's look if an external mass has been defined..
        user_defined = .FALSE.
        DO i= 1, SIZE(keyword)
-          IF (id2str(atom_info%id_atmname(iatom))==keyword(i).AND.mass(i)/=HUGE(0.0_dp)) THEN
+          atmname_upper = id2str(atom_info%id_atmname(iatom))
+          CALL uppercase(atmname_upper)
+          IF (TRIM(atmname_upper)==TRIM(keyword(i)) .AND. mass(i)/=HUGE(0.0_dp)) THEN
              atom_info%atm_mass(iatom) = mass(i)
              user_defined = .TRUE.
              EXIT

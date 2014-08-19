@@ -3,3 +3,5 @@
 # Update of atomic weights 
 quartz_cg.inp
 quartz_sc.inp
+# bugfix input parsing of MASS
+flibe.inp

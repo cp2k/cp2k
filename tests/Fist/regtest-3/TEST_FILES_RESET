@@ -229,3 +229,5 @@ ace_ala_nme.inp
 ace_ala_nme-ambconn.inp
 #improvement of bfgs and curvy steps
 ace_ala_nme-amber.inp
+# bugfix input parsing of MASS
+flibe_nopol.inp
