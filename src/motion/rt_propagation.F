@@ -142,7 +142,7 @@ CONTAINS
     CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
 
     IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn)&
-        CALL rt_initialize_rho_from_ks(qs_env,qs_env%rtp,error=error)
+        CALL rt_initialize_rho_from_ks(qs_env,qs_env%rtp,rtp_control,error=error)
  
     ! Hmm, not really like to initialize with the structure of S but I reckon it is
     ! done everywhere like this

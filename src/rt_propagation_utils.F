@@ -13,7 +13,8 @@ MODULE  rt_propagation_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             rtp_control_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_release, cp_dbcsr_add, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
@@ -499,16 +500,19 @@ MODULE  rt_propagation_utils
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: C_mat, rho_new, S_der, SinvB, &
                                                 SinvH
-    TYPE(cp_dbcsr_type), POINTER             :: S_inv, tmp
+    TYPE(cp_dbcsr_type), POINTER             :: S_inv, S_minus_half, tmp, tmp2
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
-    CALL timeset(routineN,handle)
+    rtp_control=>qs_env%dft_control%rtp_control
 
     NULLIFY(rtp,particle_set,atomic_kind_set)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,particle_set=particle_set,&
@@ -531,15 +535,28 @@ MODULE  rt_propagation_utils
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(tmp,error=error)
     CALL cp_dbcsr_create(tmp,template=SinvB(1)%matrix,error=error)
+    NULLIFY(tmp2)
+    ALLOCATE(tmp2,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(tmp2,error=error)
+    CALL cp_dbcsr_create(tmp2,template=SinvB(1)%matrix,error=error)
 
-    CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+    CALL get_rtp(rtp=rtp,rho_new=rho_new,S_minus_half=S_minus_half,error=error)
 
     DO ispin=1,SIZE(SinvH)
        re=2*ispin-1
        im=2*ispin
-
-       CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,rho_new(re)%matrix,zero,tmp,&
-            filter_eps=rtp%filter_eps,error=error)
+       IF(rtp_control%orthonormal) THEN
+          CALL cp_dbcsr_multiply("N","N",one,S_minus_half,rho_new(re)%matrix,zero,tmp,&
+               filter_eps=rtp%filter_eps,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,tmp2,&
+               filter_eps=rtp%filter_eps,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,tmp2,zero,tmp,&
+               filter_eps=rtp%filter_eps,error=error)
+       ELSE
+          CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,rho_new(re)%matrix,zero,tmp,&
+               filter_eps=rtp%filter_eps,error=error)
+       ENDIF
        CALL cp_dbcsr_multiply("N","N",-one,SinvB(ispin)%matrix,rho_new(im)%matrix,one,tmp,filter_eps=rtp%filter_eps,error=error)
 
        CALL compute_forces(force,tmp,S_der,rho_new(im)%matrix,C_mat,kind_of,atom_of_kind,error)
@@ -552,6 +569,7 @@ MODULE  rt_propagation_utils
     END DO
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

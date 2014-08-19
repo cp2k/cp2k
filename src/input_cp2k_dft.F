@@ -7634,6 +7634,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ORTHONORMAL",&
+            description="Performs rtp in the orthonormal basis, currently only works with density propagation",&
+            usage="CALCULATE_IDEMPOTENCY",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MCWEENY_MAX_ITER",&
             description="Determines the maximum amount of McWeeny steps used after each converged"//&
             " step in density propagation",&

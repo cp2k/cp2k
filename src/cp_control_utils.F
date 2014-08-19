@@ -1795,6 +1795,8 @@ CPSourceFileRef,&
       l_val=dft_control%rtp_control%linear_scaling,error=error)
     CALL section_vals_val_get(rtp_section,"CALCULATE_IDEMPOTENCY",&
       l_val=dft_control%rtp_control%calc_idempotency,error=error)
+    CALL section_vals_val_get(rtp_section,"ORTHONORMAL",&
+      l_val=dft_control%rtp_control%orthonormal,error=error)
     CALL section_vals_val_get(rtp_section,"MCWEENY_MAX_ITER",&
       i_val=dft_control%rtp_control%mcweeny_max_iter,error=error)
     CALL section_vals_val_get(rtp_section,"MCWEENY_EPS",&

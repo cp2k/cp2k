@@ -91,6 +91,8 @@ MODULE rt_propagation_types
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: exp_H_new
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: propagator_matrix
     TYPE(cp_dbcsr_type),POINTER                 :: S_inv
+    TYPE(cp_dbcsr_type),POINTER                 :: S_half
+    TYPE(cp_dbcsr_type),POINTER                 :: S_minus_half
     TYPE(cp_dbcsr_type),POINTER                 :: B_mat
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: C_mat
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: S_der
@@ -272,6 +274,16 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(rtp%S_inv,error=error)
     CALL cp_dbcsr_create(rtp%S_inv,template=template,matrix_type="S",error=error)
+    NULLIFY(rtp%S_half)
+    ALLOCATE(rtp%S_half,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(rtp%S_half,error=error)
+    CALL cp_dbcsr_create(rtp%S_half,template=template,matrix_type="S",error=error)
+    NULLIFY(rtp%S_minus_half)
+    ALLOCATE(rtp%S_minus_half,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(rtp%S_minus_half,error=error)
+    CALL cp_dbcsr_create(rtp%S_minus_half,template=template,matrix_type="S",error=error)
     NULLIFY(rtp%B_mat)
     NULLIFY(rtp%C_mat)
     NULLIFY(rtp%S_der)
@@ -339,7 +351,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,rho_old,rho_next,rho_new,mos,mos_new,mos_old,mos_next,&
-                     S_inv,B_mat,C_mat,propagator_matrix,&
+                     S_inv,S_half,S_minus_half,B_mat,C_mat,propagator_matrix,&
                      S_der,dt,nsteps,SinvH,SinvB,admm_mos,rtp_hfx,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -349,7 +361,8 @@ CONTAINS
     TYPE(rtp_mos_type), OPTIONAL, POINTER    :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: S_inv, B_mat
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: S_inv, S_half, S_minus_half, &
+                                                B_mat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
                                                 S_der
@@ -384,6 +397,8 @@ CONTAINS
     IF (PRESENT(admm_mos))admm_mos=>rtp%mos%admm
 
     IF(PRESENT(S_inv))S_inv=>rtp%S_inv
+    IF(PRESENT(S_half))S_half=>rtp%S_half
+    IF(PRESENT(S_minus_half))S_minus_half=>rtp%S_minus_half
     IF(PRESENT(B_mat))B_mat=>rtp%B_mat
     IF(PRESENT(C_mat))C_mat=>rtp%C_mat
     IF(PRESENT(SinvH))SinvH=>rtp%SinvH
@@ -441,6 +456,8 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL cp_dbcsr_deallocate_matrix(rtp%S_inv,error)
+    CALL cp_dbcsr_deallocate_matrix(rtp%S_half,error)
+    CALL cp_dbcsr_deallocate_matrix(rtp%S_minus_half,error)
     IF(ASSOCIATED(rtp%B_mat))&
          CALL cp_dbcsr_deallocate_matrix(rtp%B_mat,error)
     IF(ASSOCIATED(rtp%C_mat))&

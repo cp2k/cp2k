@@ -437,10 +437,11 @@ CONTAINS
 !> \author Samuel Andermatt (03.14)
 ! *****************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_ks(qs_env,rtp,error)
+   SUBROUTINE rt_initialize_rho_from_ks(qs_env,rtp,rtp_control,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
@@ -455,16 +456,8 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
 
     CALL get_qs_env(qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
-    CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
+    CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,error=error)
     !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
-    NULLIFY(S_half)
-    ALLOCATE(S_half)
-    CALL cp_dbcsr_init(S_half,error=error)
-    CALL cp_dbcsr_create(S_half,template=matrix_s(1)%matrix,error=error)
-    NULLIFY(S_minus_half)
-    ALLOCATE(S_minus_half)
-    CALL cp_dbcsr_init(S_minus_half,error=error)
-    CALL cp_dbcsr_create(S_minus_half,template=matrix_s(1)%matrix,error=error)
     CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
          rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
     NULLIFY(tmp)
@@ -485,15 +478,18 @@ CONTAINS
        CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
             nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
             max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
-       IF (SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
+       IF(SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
+       IF(rtp_control%orthonormal) THEN
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps/100,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps/100,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(im)%matrix,zero,tmp,filter_eps=rtp%filter_eps/100,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(im)%matrix,filter_eps=rtp%filter_eps/100,error=error)
+       ENDIF
        CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
     END DO
 
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-    CALL cp_dbcsr_deallocate_matrix(s_half,error=error)
-    CALL cp_dbcsr_deallocate_matrix(s_minus_half,error=error)
-
    END SUBROUTINE rt_initialize_rho_from_ks
 
 END MODULE rt_propagator_init

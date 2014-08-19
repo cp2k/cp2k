@@ -55,6 +55,7 @@ MODULE cp_control_types
      LOGICAL                              :: periodic
      LOGICAL                              :: linear_scaling
      LOGICAL                              :: calc_idempotency
+     LOGICAL                              :: orthonormal
      INTEGER                              :: mcweeny_max_iter
      REAL(dp)                             :: mcweeny_eps
      INTEGER, DIMENSION(3)                :: delta_pulse_direction
