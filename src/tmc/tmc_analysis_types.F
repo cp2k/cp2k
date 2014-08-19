@@ -94,6 +94,7 @@ MODULE tmc_analysis_types
     REAL(KIND=dp)                                 :: step_lenght
     TYPE(atom_pairs_type), DIMENSION(:), POINTER  :: pairs
     REAL(KIND=dp), DIMENSION(:,:), POINTER        :: g_r
+    REAL(KIND=dp)                                 :: sum_box_scale(3)
   END TYPE pair_correl_type
 
   TYPE atom_pairs_type
@@ -336,6 +337,7 @@ CONTAINS
     ana_pair_correl%conf_counter = 0
     ana_pair_correl%nr_bins = nr_bins
     ana_pair_correl%step_lenght = -1.0_dp
+    ana_pair_correl%sum_box_scale = 0.0_dp
     ! still the initialization routine has to be called
   END SUBROUTINE tmc_ana_pair_correl_create
 

@@ -1178,6 +1178,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ind, j, pair_ind
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dist
+    REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)
@@ -1215,7 +1216,9 @@ CONTAINS
       END DO second_elem_loop
     END DO first_elem_loop
     ana_env%pair_correl%conf_counter = ana_env%pair_correl%conf_counter + weight
-
+    CALL get_cell(cell=ana_env%cell, abc=cell_size)
+    ana_env%pair_correl%sum_box_scale = ana_env%pair_correl%sum_box_scale + &
+                                (elem%box_scale(:) * weight)
     ! end the timing
     CALL timestop(handle)
   END SUBROUTINE calc_paircorrelation
@@ -1238,7 +1241,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: bin, file_ptr, handle, pair
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: vol, voldr
+    REAL(KIND=dp)                            :: aver_box_scale(3), vol, voldr
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
     failure = .FALSE.
@@ -1249,8 +1252,11 @@ CONTAINS
     ! start the timing
     CALL timeset(routineN,handle)
 
-    CALL get_cell(cell=ana_env%cell, abc=cell_size)    
-    vol = cell_size(1)*cell_size(2)*cell_size(3)
+    CALL get_cell(cell=ana_env%cell, abc=cell_size)
+    aver_box_scale(:) = ana_env%pair_correl%sum_box_scale(:) / ana_env%pair_correl%conf_counter
+    vol = (cell_size(1)*aver_box_scale(1))*&
+          (cell_size(2)*aver_box_scale(2))*&
+          (cell_size(3)*aver_box_scale(3))
 
     DO pair=1, SIZE(ana_env%pair_correl%pairs)
       file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
@@ -1273,10 +1279,9 @@ CONTAINS
       DO bin=1, ana_env%pair_correl%nr_bins
         voldr = 4.0/3.0* PI* ana_env%pair_correl%step_lenght**3 * &
                   (REAL(bin,KIND=dp)**3-REAL(bin-1,KIND=dp)**3)
-        WRITE(file_ptr,*) (bin-0.5)*ana_env%pair_correl%step_lenght*au2a , &
-                    ana_env%pair_correl%g_r(pair,bin)/&
-                    ((ana_env%pair_correl%pairs(pair)%pair_count/vol)*&
-                    voldr*ana_env%pair_correl%conf_counter)
+      WRITE(file_ptr,*) (bin-0.5)*ana_env%pair_correl%step_lenght*au2a , &
+                    (ana_env%pair_correl%g_r(pair,bin)/ana_env%pair_correl%conf_counter)/&
+                    (voldr*ana_env%pair_correl%pairs(pair)%pair_count/vol)
       END DO
       CALL close_file(unit_number=file_ptr)
 
@@ -1284,9 +1289,8 @@ CONTAINS
         WRITE(*,*)"TMC|ANALYSIS_G_R_"//&
           TRIM(ana_env%pair_correl%pairs(pair)%f_n)//"_"//&
           TRIM(ana_env%pair_correl%pairs(pair)%s_n)//"_X= ",&
-          SUM(ana_env%pair_correl%g_r(pair,:)/&
-             ((ana_env%pair_correl%pairs(pair)%pair_count/vol)*&
-              voldr*ana_env%pair_correl%conf_counter))
+          SUM(ana_env%pair_correl%g_r(pair,:)/ana_env%pair_correl%conf_counter/&
+             voldr*ana_env%pair_correl%pairs(pair)%pair_count/vol)
     END DO
 
     ! end the timing
