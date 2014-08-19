@@ -140,8 +140,10 @@ CONTAINS
 !> \param col_blk_size ...
 !> \param[in] nblks           (optional) number of blocks
 !> \param[in] nze             (optional) number of elements
-!> \param data_type ...
-!> \param data_memory_type ...
+!> \param[in] data_type       type of data from 'rRcC' for single/double
+!>                            precision real/complex, default is 'R'
+!> \param[in] data_memory_type     (optional) allocate indices and data using
+!>                            special memory
 !> \param[in] index_memory_type     (optional) allocate indices using
 !>                            special memory
 !> \param[in] reuse           (optional) reuses an existing matrix, default
@@ -151,10 +153,6 @@ CONTAINS
 !> \param[in] replication_type     replication to be used for this matrix;
 !>                                 default is dbcsr_repl_none
 !> \param[in,out] error       cp2k error
-!> \param[in] data_type       type of data from [rRcC] for single/double
-!>                            precision real/complex, default is 'R' UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] memory_type     (optional) allocate indices and data using
-!>                            special memory UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par The matrix itself is allocated, as well as the essential parts of
 !>      the index. When passed the nze argument, the data is also allocated
 !>      to that size.
@@ -1282,10 +1280,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Checks whether a point is within bounds
-!> \param row ...
-!> \param column ...
+!> \param[in] row point to check
+!> \param[in] column point to check
 !> \param[in] limits         limits (low_row, high_row, low_col, high_col)
-!> \param[in] row, column    point to check UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval within_limits     whether the point is within the bounds
 ! *****************************************************************************
 
@@ -1339,12 +1336,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocates and destroys a work matrix.
 !> \param m ...
-!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param keepdata    do not deallocate data UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param keepfinal   do not destroy the final, non-work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param keepfinaldata       do not destroy the data in the final,
-!>                            non-work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] wm          work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_destroy_all(m)
     TYPE(dbcsr_type), INTENT(INOUT)          :: m
@@ -1379,12 +1370,11 @@ CONTAINS
 !> \brief Adds a coordinate (or other data) into a work matrix's row_i and
 !>        col_i arrays and returns its position.
 !> \param[in,out] matrix      work matrix
-!> \param row ...
-!> \param col ...
+!> \param[in] row row data to add
+!> \param[in] col col data to add
 !> \param[in] blk   (optional) block pointer to add
 !> \param[out] index          (optional) saved position
 !> \param error     cp2k error
-!> \param[in] row,col         row, col data to add UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note  Uses the matrix%lastblk to keep track of the current position.
 ! *****************************************************************************
   SUBROUTINE add_work_coordinate(matrix, row, col, blk, index, error)
@@ -1846,11 +1836,6 @@ CONTAINS
 !> \param max_row_count ...
 !> \param sort_data ...
 !> \param[in,out] error       error
-!> \param[in,out] additions_per_row     number of blocks and data to add for
-!>                                      every row UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] additions_total          total number of blocks and data to add UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] blk_p          block sizes of data to add UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] wm          work matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE merge_index (new_row_p, new_col_i, new_blk_p,&
        blk_d, old_row_p, old_col_i, old_blk_p,&

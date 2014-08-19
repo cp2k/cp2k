@@ -215,8 +215,6 @@ CONTAINS
 !> \param box_scale scaling factors for each direction
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param vec a vector, which will be folded (pbc) in the cell UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param vol returns the cell volume UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE get_cell_scaling(cell, scaled_hmat, box_scale, error)
@@ -470,14 +468,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief assuming an (exponential) decreasing function, this function 
 !>        extrapolate the converged value
-!> \param v1 ...
-!> \param v2 ...
-!> \param v3 ...
+!> \param v1 function values
+!> \param v2 function values
+!> \param v3 function values
 !> \param extrapolate extrapolated final value (result)
 !> \param res_err error of the result
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param v1,v2,v3 function values UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE three_point_extrapolate(v1,v2,v3, extrapolate, res_err, error)
@@ -548,26 +545,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates the probability of acceptance for given intervals of the 
 !>        exact energy 
-!> \param E_n_mu ...
-!> \param E_n_sigma ...
-!> \param E_o_mu ...
-!> \param E_o_sigma ...
-!> \param E_classical_diff ... the difference in approximated energies for the 
+!> \param E_n_mu energy distribution of new configuration
+!> \param E_n_sigma energy distribution of new configuration
+!> \param E_o_mu energy distribution of old configuration
+!> \param E_o_sigma energy distribution of old configuration
+!> \param E_classical_diff the difference in approximated energies for the 
 !>        old and new configuration (E_o-E_n)
-!> \param prior_mu ...
-!> \param prior_sigma ...
+!> \param prior_mu energy distribution of the already converged
+!>         energies
+!> \param prior_sigma energy distribution of the already converged
+!>         energies
 !> \param p ... the random number, the criteria has to be smaller than this
 !> \param beta ...
 !> \param N ... the numbers of steps of the integration
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param prob ... return probability of acceptance
-!> \param E_n_mu,E_n_sigma ... energy distribution of new configuration 
-!>        (calculated from SCF energy) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param E_o_mu,E_o_sigma ... energy distribution of old configuration 
-!>        (calculated from SCF energy) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param prior_mu,prior_sigma ... energy distribution of the already converged
-!>         energies UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_prob(E_n_mu,E_n_sigma,E_o_mu,E_o_sigma,E_classical_diff,&

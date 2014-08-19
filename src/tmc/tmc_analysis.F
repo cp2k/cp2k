@@ -83,7 +83,6 @@ CONTAINS
 !> \param tmc_ana TMC analysis environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param input global environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE tmc_read_ana_input(tmc_ana_section, tmc_ana, error)
@@ -689,8 +688,6 @@ CONTAINS
 !> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param elem temporary element for writing in 
-!>        (need the correct dimension in pos) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 03.2013
 ! *****************************************************************************
   SUBROUTINE analyze_file_configurations(start_id, end_id, dir_ind, &

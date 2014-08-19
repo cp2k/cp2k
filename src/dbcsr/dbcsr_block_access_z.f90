@@ -741,11 +741,11 @@
 ! *****************************************************************************
 !> \brief Sets a pointer, possibly using the buffers.
 !> \param[in] matrix           Matrix to use
-!> \param pointer_any ...
-!> \param row ...
-!> \param col ...
-!> \param rsize ...
-!> \param csize ...
+!> \param pointer_any The pointer to set
+!> \param row Row of block to point to
+!> \param col Column of block to point to
+!> \param rsize Row size of block to point to
+!> \param csize Column size of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
 !> \param[in] buffer_tr        Whether buffer should be transposed
@@ -753,9 +753,6 @@
 !>                                 contiguous
 !> \param[in] read_only        (optional) User promise not to change data
 !> \param[in,out] error        error
-!> \param[in,out] pointer      The pointer to set UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row, col         Row and column of block to point to UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] rsize, csize     Row and column sizes of block to point to UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_2d_z (&
        matrix, pointer_any, row, col,&

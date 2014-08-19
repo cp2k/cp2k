@@ -101,9 +101,7 @@
 !> \param[in] area       data area
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[in] coersion   force datatype UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval DATA ...
+!> \retval DATA pointer to data
 !> \par Calling
 !>      This routine can be called explicitly.
 ! *****************************************************************************
@@ -148,9 +146,7 @@
 !> \param[in] area       data area
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[in] coersion   force datatype UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval DATA ...
+!> \retval DATA pointer to data
 !> \par Calling
 !>      This routine can be called explicitly.
 ! *****************************************************************************
@@ -200,10 +196,9 @@
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
-!> \param DATA ...
+!> \param[out] DATA pointer to data
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE get_data_c (area, DATA, lb, ub)
     TYPE(dbcsr_data_obj), INTENT(IN)  :: area
@@ -244,10 +239,9 @@
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
-!> \param DATA ...
+!> \param[out] DATA pointer to data
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE get_data_2d_c (area, DATA, lb, ub)
     TYPE(dbcsr_data_obj), INTENT(IN)            :: area
@@ -294,10 +288,7 @@
 ! *****************************************************************************
 !> \brief Returns the entire data for a matrix.
 !> \param matrix ...
-!> \param DATA ...
-!> \param[in] area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] coersion   force datatype UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] data      pointer to data UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[out] DATA pointer to data
 !> \par Warning
 !>      This routine should only be used within DBCSR code.
 ! *****************************************************************************

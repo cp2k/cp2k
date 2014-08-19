@@ -410,9 +410,8 @@
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
-!> \param rows ...
-!> \param columns ...
-!> \param[in] rows, columns   input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_transpose_copy_d(extent_out, extent_in,&
        rows, columns)
@@ -433,9 +432,8 @@
 !> \brief Copy a block
 !> \param[out] extent_out     output matrix in the form of a 2-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
-!> \param rows ...
-!> \param columns ...
-!> \param[in] rows, columns   input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_copy_2d1d_d(extent_out, extent_in,&
        rows, columns)
@@ -455,9 +453,8 @@
 !> \brief Copy a block
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
-!> \param rows ...
-!> \param columns ...
-!> \param[in] rows, columns   input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_copy_1d1d_d(extent_out, extent_in,&
        rows, columns)
@@ -477,9 +474,8 @@
 !> \brief Copy a block
 !> \param[out] extent_out     output matrix in the form of a 2-d array
 !> \param[in] extent_in       input matrix in the form of a 2-d array
-!> \param rows ...
-!> \param columns ...
-!> \param[in] rows, columns   input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_copy_2d2d_d(extent_out, extent_in,&
        rows, columns)
@@ -500,9 +496,8 @@
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 2-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
-!> \param rows ...
-!> \param columns ...
-!> \param[in] rows, columns   input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_transpose_copy_2d1d_d(extent_out, extent_in,&
        rows, columns)
@@ -522,9 +517,8 @@
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 2-d array
-!> \param rows ...
-!> \param columns ...
-!> \param[in] rows, columns   input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_copy_1d2d_d(extent_out, extent_in,&
        rows, columns)
@@ -545,9 +539,8 @@
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 2-d array
-!> \param rows ...
-!> \param columns ...
-!> \param[in] rows, columns   input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_transpose_copy_1d2d_d(extent_out, extent_in,&
        rows, columns)
@@ -567,10 +560,8 @@
 ! *****************************************************************************
 !> \brief In-place block transpose.
 !> \param[in,out] extent      Matrix in the form of a 1-d array
-!> \param rows ...
-!> \param columns ...
-!> \param error     cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] rows, columns   Input matrix size UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] rows input matrix size
+!> \param[in] columns input matrix size
 ! *****************************************************************************
   PURE SUBROUTINE block_transpose_inplace_d(extent, rows, columns)
     INTEGER, INTENT(IN)                      :: rows, columns

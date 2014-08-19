@@ -78,15 +78,13 @@
 
 ! *****************************************************************************
 !> \brief traces a product of DBCSR matrices
-!> \param matrix_a ...
-!> \param matrix_b ...
+!> \param[in] matrix_a DBCSR matrices
+!> \param[in] matrix_b DBCSR matrices
 !> \param[out] trace             the trace of the product of the matrices
 !> \param[in] trans_a            (optional) is matrix_a transposed or not?
 !> \param[in] trans_b            (optional) is matrix_b transposed or not?
-!>
 !> \param local_sum ...
 !> \param error ...
-!> \param[in] matrix_a,matrix_b  DBCSR matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_trace_ab_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b

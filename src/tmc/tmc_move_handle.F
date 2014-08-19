@@ -69,7 +69,6 @@ CONTAINS
 !> \param tmc_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param move_types pointer to the structure which should be deallocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 10.2013
 ! *****************************************************************************
   SUBROUTINE read_init_move_types(tmc_params, tmc_section, error)
@@ -452,7 +451,6 @@ CONTAINS
 !> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param move_types pointer to the structure which should be deallocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 !> \note deallocating the module variables
 ! *****************************************************************************
@@ -483,7 +481,6 @@ CONTAINS
 !> \param tmc_params ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param move_types pointer to the structure which should be deallocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE print_move_types(init, file_io, tmc_params, error)
@@ -891,11 +888,10 @@ error)
 !> \param prob_opt ...
 !> \param mv_counter move counter for actual performed moves of certain types
 !> \param acc_counter counters of acceptance for these moves
-!> \param subbox_counter ...
-!> \param subbox_acc_counter ...
+!> \param subbox_counter same for sub box moves
+!> \param subbox_acc_counter same for sub box moves
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param subbox_counter, subbox_acc_counter same for sub box moves UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE add_mv_prob(move_types, prob_opt, mv_counter, acc_counter, &

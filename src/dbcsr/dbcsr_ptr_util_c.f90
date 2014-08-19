@@ -6,8 +6,9 @@
 ! *****************************************************************************
 !> \brief Returns a pointer with different bounds.
 !> \param[in] original   original data pointer
+!> \param[in] lb lower and upper bound for the new pointer view
+!> \param[in] ub lower and upper bound for the new pointer view
 !> \param[out] view      new pointer
-!> \param[in] lb, ub     lower and upper bound for the new pointer view UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   FUNCTION pointer_view_c (original, lb, ub) RESULT (view)
     COMPLEX(kind=real_4), DIMENSION(:), POINTER :: original, view
@@ -213,10 +214,9 @@
 ! *****************************************************************************
 !> \brief Allocates memory
 !> \param[out] mem        memory to allocate
-!> \param sizes ...
+!> \param[in] sizes length of elements to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
-!> \param[in] n           length of elements to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mem_alloc_c_2d (mem, sizes, mem_type, error)
     COMPLEX(kind=real_4), DIMENSION(:,:), POINTER      :: mem
@@ -253,7 +253,6 @@
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
-!> \param[in] n           length of elements to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mem_dealloc_c (mem, mem_type, error)
     COMPLEX(kind=real_4), DIMENSION(:), POINTER        :: mem
@@ -285,7 +284,6 @@
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
-!> \param[in] n           length of elements to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE mem_dealloc_c_2d (mem, mem_type, error)
     COMPLEX(kind=real_4), DIMENSION(:,:), POINTER      :: mem

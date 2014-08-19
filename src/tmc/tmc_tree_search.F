@@ -390,11 +390,10 @@ CONTAINS
 !> \brief get the changed element of the actual global tree element and its 
 !>        related last accepted parent
 !> \param gt_act_elem actual global tree element
-!> \param elem1 ...
-!> \param elem2 ...
+!> \param elem1 two subtree elements which should be compared
+!> \param elem2 two subtree elements which should be compared
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param elem1, elem2 two subtree elements which should be compared UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE get_subtree_elements_to_check(gt_act_elem, elem1, elem2, error)
