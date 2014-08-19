@@ -301,3 +301,5 @@ H2O-ls-rtp-bch.inp
 wfn_mix_loc-1.inp
 # Numerics
 H2-emd-efield.inp
+# Improved numerics
+emd-KG.inp

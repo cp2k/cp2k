@@ -28,7 +28,7 @@ MODULE rt_propagation_methods
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_type
+       cp_dbcsr_transposed, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -626,6 +626,11 @@ CONTAINS
              CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix,PS(im)%matrix,&
                   PSP(re)%matrix,PSP(im)%matrix,3.0_dp,P(re)%matrix,P(im)%matrix,&
                   filter_eps=eps,error=error)
+             !make sure P is exactly hermitian
+             CALL cp_dbcsr_transposed(tmp(re)%matrix,P(re)%matrix,error=error)
+             CALL cp_dbcsr_add(P(re)%matrix,tmp(re)%matrix,one/2,one/2,error=error)
+             CALL cp_dbcsr_transposed(tmp(im)%matrix,P(im)%matrix,error=error)
+             CALL cp_dbcsr_add(P(im)%matrix,tmp(im)%matrix,one/2,-one/2,error=error)
           ELSE
               EXIT
           END IF
