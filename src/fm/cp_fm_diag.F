@@ -1089,11 +1089,7 @@ CONTAINS
 
     ! Compute the eigenvectors and eigenvalues
 
-#if defined (__ELPA)
-    CALL cp_fm_elpa(matrix,work,eigenvalues,error=error)
-#else
-    CALL cp_fm_syevd(matrix,work,eigenvalues,error=error)
-#endif
+    CALL choose_eigv_solver(matrix,work,eigenvalues,error=error)
 
 #if defined(__SCALAPACK)
     nrow_block = work%matrix_struct%nrow_block
