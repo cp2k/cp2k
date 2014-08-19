@@ -203,6 +203,7 @@ CONTAINS
     kpoint%nkp = 0
 
     NULLIFY(kpoint%xkp,kpoint%wkp)
+    NULLIFY(kpoint%kp_dist)
 
     NULLIFY(kpoint%para_env)
     NULLIFY(kpoint%cart)
