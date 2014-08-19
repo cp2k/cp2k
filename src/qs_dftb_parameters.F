@@ -622,6 +622,8 @@ CPSourceFileRef,&
             CALL parser_get_next_line(parser,1,at_end,error=error)
             IF ( at_end ) EXIT
             CALL parser_get_object(parser,name_a,error=error)
+            ! parser is no longer removing leading quotes
+            IF(name_a(1:1) == '"') name_a(1:m) = name_a(2:m+1)
             IF ( name_a(1:m) == TRIM(iname) ) THEN
               CALL parser_get_object(parser,rb,error=error)
               CALL parser_get_object(parser,rb,error=error)
