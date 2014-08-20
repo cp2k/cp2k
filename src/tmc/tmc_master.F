@@ -193,7 +193,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'send_analysis_tasks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, wg
+    INTEGER                                  :: dest, stat, wg
     LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: list_tmp
 
@@ -207,7 +207,8 @@ CONTAINS
       IF(.NOT.ASSOCIATED(ana_list)) EXIT wg_loop
       IF(.NOT.ana_worker_info(wg)%busy) THEN
         stat = TMC_STAT_ANALYSIS_REQUEST
-        CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=wg, &
+        dest = wg
+        CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest, &
                para_env=para_env, tmc_params=tmc_env%params, &
                list_elem=ana_list, error=error)
         IF(.NOT.ASSOCIATED(ana_list%next)) THEN
