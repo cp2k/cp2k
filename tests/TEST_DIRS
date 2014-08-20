@@ -3,6 +3,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-rtp
+QS/regtest-ls-rtp
 QS/regtest-dft-vdw-corr
 Fist/regtest-7-1
 QS/regtest-dm-ls-scf

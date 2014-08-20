@@ -34,12 +34,4 @@ H2O-delta-01.inp 1
 H2O-delta-02.inp 1
 H2O-delta-03.inp 1
 H2O-delta-04.inp 1
-H2O-ls-emd.inp 1
-H2O-ls-rtp-bch.inp 1
-H2O-ls-rtp.inp 1
-H2O-ls-emd-scf-restart.inp 1
-H2O-ls-emd-mcweeny.inp 1
-emd-KG.inp                        1     2e-10
 H2O_rtp_dbcsr_gemm.inp 2
-H2plus-ls-rtp.inp 1
-H2O-ls-ortho-emd.inp 1
