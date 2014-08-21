@@ -7,4 +7,5 @@ TMC_ana_dip_cl.inp
 TMC_ana_deviation.inp
 TMC_ana_start_with_exist_traj.inp
 TMC_ana_restart.inp
-
+# due to the normalization correction of the g(r) calculation
+TMC_ana_G_R.inp

@@ -13,3 +13,5 @@ TMC_ana_all.inp
 TMC_ana_restart.inp
 # due to the completition of the restart file writing and reading
 TMC_ana_restart.inp
+# due to corrections to the nomalization of g(r)
+TMC_ana_G_R.inp
