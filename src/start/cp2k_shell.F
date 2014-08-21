@@ -72,7 +72,7 @@ PROGRAM cp2k_shell
   TYPE(cp_error_type)                      :: error
   TYPE(cp_para_env_type), POINTER          :: para_env
   TYPE(cp_logger_type), POINTER            :: logger
-  CHARACTER(LEN=default_path_length)       :: cmdStr
+  CHARACTER(LEN=default_path_length)       :: cmdStr, inp_filename, out_filename
   CHARACTER(LEN=default_string_length)     :: cmd,units
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
   REAL(KIND=dp)                            :: e_pot,err
@@ -82,7 +82,7 @@ PROGRAM cp2k_shell
   INTEGER, SAVE                            :: eof_stat
   TYPE(section_type), POINTER              :: input_declaration
 
-  CHARACTER(LEN=default_string_length), DIMENSION(35) :: helpMsg
+  CHARACTER(LEN=default_string_length), DIMENSION(37) :: helpMsg
 
   helpMsg=(/ &
   ll('Commands'),&
@@ -92,7 +92,9 @@ PROGRAM cp2k_shell
   ll(' All commands are case insensitive.'),&
   ll(' '),&
   ll(' INFO: returns some information about cp2k.'),&
-  ll(' LOAD filename: loads the filename, returns the env_id, or -1 in case of error'),&
+  ll(' LOAD inp-filename [out-filename]: loads the filename, returns the env_id, or -1 in case of error'),&
+  ll('   out-filename is optional and defaults to <inp-filename>.out'),&
+  ll('   use "__STD_OUT__" for printing to the screen'),&
   ll(' BG_LOAD filename: loads the filename, without returning the env_id'),&
   ll(' LAST_ENV_ID: returns the env_id of the last environment loaded'),&
   ll(' DESTROY [env_id]: destroys the given environment (last and default env'),&
@@ -213,6 +215,7 @@ PROGRAM cp2k_shell
         IF (ierr/=0) last_env_id=-1
         IF (last_env_id<=0) failure=.TRUE.
      CASE('LOAD')
+        ! find beginning of inp-filename
         shift=shift2+1
         CALL my_assert(shift<=LEN(cmdStr),'load without file',failure)
         IF (failure) GOTO 10
@@ -222,11 +225,22 @@ PROGRAM cp2k_shell
            IF (shift>=LEN(cmdStr)) EXIT
         END DO
         CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',failure)
-        IF (failure) GOTO 10
+
+        ! find end of inp-filename
+        shift2 = shift+1
+        DO WHILE(shift2 < LEN(cmdStr))
+           shift2 = shift2+1
+           IF (cmdStr(shift2:shift2)==' ') EXIT
+        END DO
+        inp_filename = TRIM(cmdStr(shift:shift2))
+        out_filename = TRIM(inp_filename)//'.out'
+        IF(shift2 < LEN(cmdStr) .AND. LEN_TRIM(cmdStr(shift2:)) > 0) &
+           out_filename = ADJUSTL(cmdStr(shift2:))
+
         CALL create_force_env(new_env_id=last_env_id,&
              input_declaration=input_declaration,&
-             input_path=cmdStr(shift:LEN_TRIM(cmdStr)),&
-             output_path=cmdStr(shift:LEN_TRIM(cmdStr))//'.out',&
+             input_path=inp_filename,&
+             output_path=out_filename,&
              owns_out_unit=.TRUE.,ierr=ierr)
         IF (ierr/=0) last_env_id=-1
         IF (para_env%source==para_env%mepos) THEN
