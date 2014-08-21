@@ -1451,16 +1451,14 @@ CONTAINS
     ! Invert to get U^(-1)
     CALL cp_fm_triangular_invert(bmatrix,error=error)
     ! Reduce to get U^(-T) * H * U^(-1)
-    CALL cp_fm_triangular_multiply(bmatrix,amatrix,side="R",&
-     transpose_tr=.FALSE., invert_tr=.FALSE., uplo_tr="U",unit_diag_tr=.FALSE., &
-     alpha=1.0_dp,error=error)
-    CALL cp_fm_triangular_multiply(bmatrix,amatrix,side="L",&
-     transpose_tr=.TRUE., invert_tr=.FALSE., uplo_tr="U",unit_diag_tr=.FALSE., &
-     alpha=1.0_dp,error=error)
+    CALL cp_fm_triangular_multiply(bmatrix,amatrix,side="R",error=error)
+    CALL cp_fm_triangular_multiply(bmatrix,amatrix,transpose_tr=.TRUE.,error=error)
     ! Diagonalize
-    CALL choose_eigv_solver(matrix=amatrix,eigenvectors=work,eigenvalues=eigenvalues,error=error)
-    ! Restore vectors C = L^(-1) * C*
-    CALL cp_fm_cholesky_restore(work,nmo,bmatrix,eigenvectors,"MULTIPLY",error=error)
+    CALL choose_eigv_solver(matrix=amatrix,eigenvectors=work,&
+                            eigenvalues=eigenvalues,error=error)
+    ! Restore vectors C = U^(-1) * C*
+    CALL cp_fm_triangular_multiply(bmatrix,work,error=error)
+    CALL cp_fm_to_fm(work,eigenvectors,nmo)
 
     CALL timestop(handle)
 

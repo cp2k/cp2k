@@ -16,6 +16,7 @@ MODULE cp_cfm_types
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: cp2k_is_parallel
@@ -32,10 +33,14 @@ MODULE cp_cfm_types
   INTEGER,SAVE,PRIVATE :: last_cfm_id_nr=0
 
   PUBLIC :: cp_cfm_type, cp_cfm_p_type
-  PUBLIC :: cp_cfm_create, cp_cfm_release,&
-            cp_cfm_set_all,&
-            cp_cfm_get_info, cp_cfm_get_element, cp_cfm_to_cfm
-!***
+  PUBLIC :: cp_cfm_create, cp_cfm_release
+  PUBLIC :: cp_cfm_set_all, cp_cfm_get_info, cp_cfm_get_element
+  PUBLIC :: cp_cfm_to_cfm, cp_cfm_to_fm
+
+  INTERFACE cp_cfm_to_cfm
+    MODULE PROCEDURE cp_cfm_to_cfm_matrix, &  ! a full matrix
+                     cp_cfm_to_cfm_columns    ! just a number of columns
+  END INTERFACE
 
 ! *****************************************************************************
 !> \brief represent a complex full matrix
@@ -523,11 +528,11 @@ CPSourceFileRef,&
 !> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_to_cfm(source,destination,error)
+  SUBROUTINE cp_cfm_to_cfm_matrix(source,destination,error)
     TYPE(cp_cfm_type), POINTER               :: source, destination
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npcol, nprow
@@ -572,5 +577,117 @@ CPSourceFileRef,&
       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
    END IF
-  END SUBROUTINE cp_cfm_to_cfm
+  END SUBROUTINE cp_cfm_to_cfm_matrix
+
+! *****************************************************************************
+!> \brief copy just a subset of columns of a cfm to a cfm
+!> \param msource ...
+!> \param mtarget ...
+!> \param ncol ...
+!> \param source_start ...
+!> \param target_start ...
+! *****************************************************************************
+  SUBROUTINE cp_cfm_to_cfm_columns(msource,mtarget,ncol,source_start,&
+                                   target_start)
+
+    TYPE(cp_cfm_type), POINTER               :: msource, mtarget
+    INTEGER, INTENT(IN)                      :: ncol
+    INTEGER, INTENT(IN), OPTIONAL            :: source_start, target_start
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_columns', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, n, ss, ts
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a, b
+#if defined(__SCALAPACK)
+    INTEGER                                  :: i
+    INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
+
+    CALL timeset(routineN,handle)
+
+    ss = 1
+    ts = 1
+
+    IF (PRESENT(source_start)) ss = source_start
+    IF (PRESENT(target_start)) ts = target_start
+
+    n = msource%matrix_struct%nrow_global
+
+    a => msource%local_data
+    b => mtarget%local_data
+
+#if defined(__SCALAPACK)
+    desca(:) = msource%matrix_struct%descriptor(:)
+    descb(:) = mtarget%matrix_struct%descriptor(:)
+    DO i=0,ncol-1
+      CALL pzcopy(n,a(1,1),1,ss+i,desca,1,b(1,1),1,ts+i,descb,1)
+    END DO
+#else
+    CALL zcopy(ncol*n,a(1,ss),1,b(1,ts),1)
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_to_cfm_columns
+
+! *****************************************************************************
+!> \brief copy real and imaginary parts of a cfm to fm
+!>        works only for absolutely equivalent structures
+!> \param msource ...
+!> \param mtargetr ...
+!> \param mtargeti ...
+! *****************************************************************************
+  SUBROUTINE cp_cfm_to_fm(msource,mtargetr,mtargeti,error)
+
+    TYPE(cp_cfm_type), POINTER               :: msource
+    TYPE(cp_fm_type), POINTER                :: mtargetr, mtargeti
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_to_fm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, n, ss, ts
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: br, bi
+#if defined(__SCALAPACK)
+    INTEGER                                  :: i
+    INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
+
+    CALL timeset(routineN,handle)
+
+    a => msource%local_data
+    br => mtargetr%local_data
+    bi => mtargeti%local_data
+
+    ! This routine is only for equivalent structures
+    CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
+         mtargetr%matrix_struct,error=error),cp_failure_level,&
+         cp_assertion_failed, routineP, &
+         "internal error, local_data has different sizes"//&
+CPSourceFileRef,&
+         error=error)
+    CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
+         mtargeti%matrix_struct,error=error),cp_failure_level,&
+         cp_assertion_failed, routineP, &
+         "internal error, local_data has different sizes"//&
+CPSourceFileRef,&
+         error=error)
+    CALL cp_assert(SIZE(a,1)==SIZE(br,1).AND.SIZE(a,2)==SIZE(br,2)&
+         .AND.SIZE(a,1)==SIZE(bi,1).AND.SIZE(a,2)==SIZE(bi,2),cp_failure_level,&
+         cp_assertion_failed, routineP, &
+         "internal error, local_data has different sizes"//&
+CPSourceFileRef,&
+         error=error)
+
+    br = REAL(a)
+    bi = AIMAG(a)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_to_fm
+
 END MODULE cp_cfm_types

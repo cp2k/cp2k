@@ -14,8 +14,10 @@ MODULE qs_scf_diagonalization
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_fm
+  USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
+                                             cp_cfm_to_fm,&
                                              cp_cfm_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
@@ -341,15 +343,15 @@ CONTAINS
                                                 use_real_wfn
     REAL(kind=dp), DIMENSION(:), POINTER     :: eigenvalues
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: xkp
-    TYPE(cp_cfm_type), POINTER               :: cksmat, csmat
+    TYPE(cp_cfm_type), POINTER               :: cksmat, cmos, csmat, cwork
     TYPE(cp_dbcsr_type), POINTER             :: cmatrix, rmatrix, tmpmat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fmwork
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_ao_fm_pools
-    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
-    TYPE(cp_fm_type), POINTER                :: fmlocal, mo_coeff, rksmat, &
-                                                rsmat
+    TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, mo_struct
+    TYPE(cp_fm_type), POINTER                :: fmlocal, imos, mo_coeff, &
+                                                rksmat, rmos, rsmat
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
@@ -412,6 +414,11 @@ CONTAINS
     ELSE
        CALL cp_cfm_create(cksmat,matrix_struct,error=error)
        CALL cp_cfm_create(csmat,matrix_struct,error=error)
+       CALL cp_cfm_create(cwork,matrix_struct,error=error)
+       kp => kpoints%kp_env(1)%kpoint_env
+       CALL get_mo_set(kp%mos(1,1)%mo_set,mo_coeff=mo_coeff)
+       CALL cp_fm_get_info(mo_coeff,matrix_struct=mo_struct,error=error)
+       CALL cp_cfm_create(cmos,mo_struct,error=error)
     END IF
 
     DO ikpgr = 1,kplocal
@@ -471,13 +478,18 @@ CONTAINS
           END DO
           ! Each kpoint group has now information on a kpoint to be diagonalized
           ! General eigensolver Hermite or Symmetric
+          kp => kpoints%kp_env(ikpgr)%kpoint_env
           IF(use_real_wfn) THEN
-             kp => kpoints%kp_env(ikpgr)%kpoint_env
              CALL get_mo_set(kp%mos(1,ispin)%mo_set,mo_coeff=mo_coeff,eigenvalues=eigenvalues)
              CALL cp_fm_geeig(rksmat,rsmat,mo_coeff,eigenvalues,fmlocal,error)
           ELSE
-!            CALL cp_cfm_geeig(cksamt,csmat,eigenvectors,eigenvalues,work,error)
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             CALL get_mo_set(kp%mos(1,ispin)%mo_set,mo_coeff=rmos,eigenvalues=eigenvalues)
+             CALL get_mo_set(kp%mos(2,ispin)%mo_set,mo_coeff=imos)
+             CALL cp_cfm_geeig(cksmat,csmat,cmos,eigenvalues,cwork,error)
+             ! copy eigenvalues to imag set (keep them in sync)
+             kp%mos(2,ispin)%mo_set%eigenvalues=eigenvalues
+             ! split real and imaginary part of mos
+             CALL cp_cfm_to_fm(cmos,rmos,imos,error)
           END IF
        END DO
     END DO
@@ -499,6 +511,8 @@ CONTAINS
     ELSE
        CALL cp_cfm_release(cksmat,error=error)
        CALL cp_cfm_release(csmat,error=error)
+       CALL cp_cfm_release(cwork,error=error)
+       CALL cp_cfm_release(cmos,error=error)
     END IF
     CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal, error=error)
 

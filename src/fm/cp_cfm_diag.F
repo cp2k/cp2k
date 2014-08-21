@@ -11,8 +11,11 @@
 !> \author Joost VandeVondele (2003-09)
 ! *****************************************************************************
 MODULE cp_cfm_diag
-  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
+                                             cp_cfm_triangular_invert,&
+                                             cp_cfm_triangular_multiply
   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
+                                             cp_cfm_to_cfm,&
                                              cp_cfm_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
@@ -28,7 +31,7 @@ MODULE cp_cfm_diag
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
-PUBLIC :: cp_cfm_heevd
+PUBLIC :: cp_cfm_heevd, cp_cfm_geeig
 
 CONTAINS
 
@@ -161,25 +164,34 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, n
+    INTEGER                                  :: handle, istat, nao, nmo
     LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    CALL cp_cfm_get_info(amatrix,nrow_global=n,error=error)
-    ! Cholesky decompose S=LL(T)
+    CALL cp_cfm_get_info(amatrix,nrow_global=nao,error=error)
+    ALLOCATE (evals(nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ! Cholesky decompose S=U(T)U
     CALL cp_cfm_cholesky_decompose(bmatrix,error=error)
-    ! Invert to get L^(-1)
-!   CALL cp_fm_triangular_invert(bmatrix,error=error)
-!   ! Reduce to get L^(-1) * H * L^(-T)
-!   CALL cp_fm_cholesky_reduce(amatrix,bmatrix,itype=2,error=error)
-!   ! Diagonalize
-!   CALL choose_eigv_solver(matrix=amatrix,eigenvectors=work,eigenvalues=eigenvalues,error=error)
-!   ! Restore vectors C = L^(-1) * C*
-!   CALL cp_fm_cholesky_restore(work,n,bmatrix,eigenvectors,"MULTIPLY",error=error)
-    STOP
+    ! Invert to get U^(-1)
+    CALL cp_cfm_triangular_invert(bmatrix,error=error)
+    ! Reduce to get U^(-T) * H * U^(-1)
+    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,side="R",error=error)
+    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,transpose_tr=.TRUE.,error=error)
+    ! Diagonalize
+    CALL cp_cfm_heevd(matrix=amatrix,eigenvectors=work,eigenvalues=evals,error=error)
+    ! Restore vectors C = U^(-1) * C*
+    CALL cp_cfm_triangular_multiply(bmatrix,work,error=error)
+    nmo = SIZE(eigenvalues)
+    CALL cp_cfm_to_cfm(work,eigenvectors,nmo)
+    eigenvalues(1:nmo) = evals(1:nmo)
+
+    DEALLOCATE (evals,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 

@@ -31,7 +31,11 @@ MODULE cp_cfm_basic_linalg
 
   PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_gemm, cp_cfm_lu_decompose,&
             cp_cfm_column_scale, cp_cfm_schur_product,&
-            cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply
+            cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply,&
+            cp_cfm_triangular_invert
+
+! *****************************************************************************
+
 CONTAINS
 
 ! *****************************************************************************
@@ -768,4 +772,56 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   CALL timestop(handle)
   END SUBROUTINE cp_cfm_triangular_multiply
+
+! *****************************************************************************
+!> \brief inverts a triangular matrix
+!> \param matrix_a ...
+!> \param uplo_tr ...
+!> \param error ...
+!> \author MI
+! *****************************************************************************
+  SUBROUTINE cp_cfm_triangular_invert(matrix_a,uplo_tr,error)
+
+    TYPE(cp_cfm_type), POINTER               :: matrix_a
+    CHARACTER, INTENT(IN), OPTIONAL          :: uplo_tr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_triangular_invert', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: unit_diag, uplo
+    INTEGER                                  :: handle, info, ncol_global
+    LOGICAL                                  :: failure
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    unit_diag='N'
+    uplo='U'
+    IF(PRESENT(uplo_tr)) uplo=uplo_tr
+
+    ncol_global =matrix_a%matrix_struct%ncol_global
+
+    a => matrix_a%local_data
+
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix_a%matrix_struct%descriptor(:)
+
+    CALL pztrtri( uplo, unit_diag, ncol_global, a(1,1), 1, 1, desca, info )
+
+#else
+    CALL ztrtri( uplo, unit_diag, ncol_global, a(1,1), ncol_global, info )
+#endif
+
+
+    CALL timestop(handle)
+  END SUBROUTINE cp_cfm_triangular_invert
+
 END MODULE cp_cfm_basic_linalg
