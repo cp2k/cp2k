@@ -648,10 +648,10 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_to_fm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: br, bi
+    INTEGER                                  :: handle
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bi, br
 
     CALL timeset(routineN,handle)
 
