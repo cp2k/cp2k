@@ -500,7 +500,8 @@ MODULE  rt_propagation_utils
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: C_mat, rho_new, S_der, SinvB, &
                                                 SinvH
-    TYPE(cp_dbcsr_type), POINTER             :: S_inv, S_minus_half, tmp, tmp2
+    TYPE(cp_dbcsr_type), POINTER             :: S_inv, S_minus_half, tmp, &
+                                                tmp2, tmp3
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -540,6 +541,11 @@ MODULE  rt_propagation_utils
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(tmp2,error=error)
     CALL cp_dbcsr_create(tmp2,template=SinvB(1)%matrix,error=error)
+    NULLIFY(tmp3)
+    ALLOCATE(tmp3,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(tmp3,error=error)
+    CALL cp_dbcsr_create(tmp3,template=SinvB(1)%matrix,error=error)
 
     CALL get_rtp(rtp=rtp,rho_new=rho_new,S_minus_half=S_minus_half,error=error)
 
@@ -547,17 +553,24 @@ MODULE  rt_propagation_utils
        re=2*ispin-1
        im=2*ispin
        IF(rtp_control%orthonormal) THEN
-          CALL cp_dbcsr_multiply("N","N",one,S_minus_half,rho_new(re)%matrix,zero,tmp,&
+          CALL cp_dbcsr_multiply("N","N",one,S_minus_half,SinvH(ispin)%matrix,zero,tmp2,&
                filter_eps=rtp%filter_eps,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,tmp2,&
+          CALL cp_dbcsr_multiply("N","N",one,tmp2,rho_new(re)%matrix,zero,tmp3,&
                filter_eps=rtp%filter_eps,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,tmp2,zero,tmp,&
+          CALL cp_dbcsr_multiply("N","N",one,tmp3,S_minus_half,zero,tmp,&
+               filter_eps=rtp%filter_eps,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,S_minus_half,SinvB(ispin)%matrix,zero,tmp2,&
+               filter_eps=rtp%filter_eps,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp2,rho_new(im)%matrix,zero,tmp3,&
+               filter_eps=rtp%filter_eps,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp3,S_minus_half,one,tmp,&
                filter_eps=rtp%filter_eps,error=error)
        ELSE
           CALL cp_dbcsr_multiply("N","N",one,SinvH(ispin)%matrix,rho_new(re)%matrix,zero,tmp,&
                filter_eps=rtp%filter_eps,error=error)
+          CALL cp_dbcsr_multiply("N","N",-one,SinvB(ispin)%matrix,rho_new(im)%matrix,one,tmp,&
+               filter_eps=rtp%filter_eps,error=error)
        ENDIF
-       CALL cp_dbcsr_multiply("N","N",-one,SinvB(ispin)%matrix,rho_new(im)%matrix,one,tmp,filter_eps=rtp%filter_eps,error=error)
 
        CALL compute_forces(force,tmp,S_der,rho_new(im)%matrix,C_mat,kind_of,atom_of_kind,error)
 
@@ -570,6 +583,7 @@ MODULE  rt_propagation_utils
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
     CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
+    CALL cp_dbcsr_deallocate_matrix(tmp3,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
