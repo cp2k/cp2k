@@ -247,3 +247,6 @@ h2o_emd.inp
 c2h2_emd_mix.inp
 # correct wrong reference
 h2o_disp1.inp
+# correct input of B3 parameters
+h2o-6.inp
+h2o-7.inp

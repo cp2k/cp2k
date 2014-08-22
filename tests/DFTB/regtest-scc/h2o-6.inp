@@ -149,6 +149,12 @@
     H                   2.706   3.053   1.282   H2O
     H                   3.542   2.615   0.020   H2O
     &END COORD
+    &KIND O
+       DFTB3_PARAM   -0.14
+    &END
+    &KIND H
+       DFTB3_PARAM   -0.05
+    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
