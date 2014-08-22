@@ -931,7 +931,7 @@ CPSourceFileRef,&
              kp => kpoint%kp_env(ik)%kpoint_env
              DO ic=1,nc
                 CALL cp_fm_copy_general(kp%pmat(ic,ispin)%matrix,fmwork(ic)%matrix,&
-                                        kpoint%para_env%group,error)
+                                        kpoint%blacs_env_all%group,error)
              END DO
           ELSE
              ! collect from all processes

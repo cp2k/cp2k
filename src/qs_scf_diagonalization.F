@@ -333,9 +333,9 @@ CONTAINS
     COMPLEX(KIND=dp) :: cone = CMPLX(1.0_dp,0.0_dp,KIND=dp), &
       czero = CMPLX(0.0_dp,0.0_dp,KIND=dp), &
       ione = CMPLX(0.0_dp,1.0_dp,KIND=dp)
-    INTEGER                                  :: ik, ikp, ikpgr, ispin, &
-                                                kplocal, nkp, nkp_groups, &
-                                                nspin, stat
+    INTEGER                                  :: bcntxt, ik, ikp, ikpgr, &
+                                                ispin, kplocal, nkp, &
+                                                nkp_groups, nspin, stat
     INTEGER, DIMENSION(2)                    :: kp_range
     INTEGER, DIMENSION(:, :), POINTER        :: kp_dist
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
@@ -421,6 +421,9 @@ CONTAINS
        CALL cp_cfm_create(cmos,mo_struct,error=error)
     END IF
 
+    ! global blacs context (=groupid)
+    bcntxt = kpoints%blacs_env_all%group
+
     DO ikpgr = 1,kplocal
        DO ispin=1,nspin
           DO ikp = 1,nkp_groups
@@ -457,22 +460,22 @@ CONTAINS
                 ! we need still to change the blacs environment
                 ! fmwork -> fmlocal -> rksmat
                 IF(use_real_wfn) THEN
-                   CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,kpoints%para_env%group,error)
-                   CALL cp_fm_copy_general(fmwork(3)%matrix,rsmat,kpoints%para_env%group,error)
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,rsmat,bcntxt,error)
                 ELSE
                    ! Hermitian ??????
-                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmlocal,kpoints%para_env%group,error)
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmlocal,bcntxt,error)
                    CALL cp_cfm_add_fm(czero,cksmat,cone,fmlocal,error)
-                   CALL cp_fm_copy_general(fmwork(2)%matrix,fmlocal,kpoints%para_env%group,error)
+                   CALL cp_fm_copy_general(fmwork(2)%matrix,fmlocal,bcntxt,error)
                    CALL cp_cfm_add_fm(cone,cksmat,ione,fmlocal,error)
-                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmlocal,kpoints%para_env%group,error)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmlocal,bcntxt,error)
                    CALL cp_cfm_add_fm(czero,csmat,cone,fmlocal,error)
-                   CALL cp_fm_copy_general(fmwork(4)%matrix,fmlocal,kpoints%para_env%group,error)
+                   CALL cp_fm_copy_general(fmwork(4)%matrix,fmlocal,bcntxt,error)
                    CALL cp_cfm_add_fm(cone,csmat,ione,fmlocal,error)
                 END IF
              ELSE
                 ! this requires more complex reshuffling of data
-                ! CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,kpoints%para_env%group,error)
+                ! CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,bcntxt,error)
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END IF
           END DO

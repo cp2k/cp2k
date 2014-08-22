@@ -146,6 +146,7 @@ MODULE kpoint_types
      REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp => Null()
      ! parallel environment
      TYPE(cp_para_env_type), POINTER         :: para_env => Null()
+     TYPE(cp_blacs_env_type), POINTER        :: blacs_env_all => Null()
      TYPE(cp_para_cart_type), POINTER        :: cart => Null()
      TYPE(cp_para_env_type), POINTER         :: para_env_full => Null(),&
                                                 para_env_kp => Null(),&
@@ -206,6 +207,7 @@ CONTAINS
     NULLIFY(kpoint%kp_dist)
 
     NULLIFY(kpoint%para_env)
+    NULLIFY(kpoint%blacs_env_all)
     NULLIFY(kpoint%cart)
     NULLIFY(kpoint%para_env_full,kpoint%para_env_kp,kpoint%para_env_inter_kp)
     NULLIFY(kpoint%blacs_env)
@@ -257,6 +259,7 @@ CONTAINS
 
        CALL mpools_release(kpoint%mpools, error=error)
        CALL cp_blacs_env_release(kpoint%blacs_env,error=error)
+       CALL cp_blacs_env_release(kpoint%blacs_env_all,error=error)
 
        CALL cp_cart_release(kpoint%cart,error=error)
        CALL cp_para_env_release(kpoint%para_env,error=error)
@@ -299,6 +302,7 @@ CONTAINS
 !> \param xkp           kpoint coordinates
 !> \param wkp           kpoint weights
 !> \param para_env      'global' parallel environment
+!> \param blacs_env_all BLACS env for the total environment
 !> \param cart          2d distribution of the processors for the kpoints,
 !>        a column work together on the same kpoint
 !> \param para_env_full the global para env that contains all the kpoints,
@@ -325,7 +329,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&
       full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp,&
-      para_env, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
+      para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
       kp_env, mpools, iogrp, nkp_groups, kp_dist, index_to_cell, cell_to_index, ncount, sab_nl,&
       matrix_ks, matrix_s, matrix_t, matrix_vhxc, matrix_h,&
       error)
@@ -345,6 +349,8 @@ CONTAINS
       POINTER                                :: wkp
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                :: blacs_env_all
     TYPE(cp_para_cart_type), OPTIONAL, &
       POINTER                                :: cart
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -399,6 +405,7 @@ CONTAINS
     IF(PRESENT(para_env_full)) para_env_full => kpoint%para_env_full
     IF(PRESENT(para_env_kp)) para_env_kp => kpoint%para_env_kp
     IF(PRESENT(para_env_inter_kp)) para_env_inter_kp => kpoint%para_env_inter_kp
+    IF(PRESENT(blacs_env_all)) blacs_env_all => kpoint%blacs_env_all
     IF(PRESENT(blacs_env)) blacs_env => kpoint%blacs_env
 
     IF(PRESENT(iogrp)) iogrp = kpoint%iogrp
@@ -447,6 +454,7 @@ CONTAINS
 !> \param xkp           kpoint coordinates
 !> \param wkp           kpoint weights
 !> \param para_env      'global' parallel environment
+!> \param blacs_env_all BLACS env for the total environment
 !> \param cart          2d distribution of the processors for the kpoints,
 !>        a column work together on the same kpoint
 !> \param para_env_full the global para env that contains all the kpoints,
@@ -472,7 +480,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&
       full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp,&
-      para_env, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
+      para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
       kp_env, mpools, iogrp, nkp_groups, kp_dist, index_to_cell, cell_to_index, sab_nl,&
       matrix_ks, matrix_s, matrix_t, matrix_vhxc, matrix_h,&
       error)
@@ -492,6 +500,8 @@ CONTAINS
       POINTER                                :: wkp
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                :: blacs_env_all
     TYPE(cp_para_cart_type), OPTIONAL, &
       POINTER                                :: cart
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -545,6 +555,7 @@ CONTAINS
     IF(PRESENT(para_env_full)) kpoint%para_env_full => para_env_full
     IF(PRESENT(para_env_kp)) kpoint%para_env_kp => para_env_kp
     IF(PRESENT(para_env_inter_kp)) kpoint%para_env_inter_kp => para_env_inter_kp
+    IF(PRESENT(blacs_env_all)) kpoint%blacs_env_all => blacs_env_all
     IF(PRESENT(blacs_env)) kpoint%blacs_env => blacs_env
 
     IF(PRESENT(iogrp)) kpoint%iogrp = iogrp

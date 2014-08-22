@@ -35,6 +35,8 @@ MODULE qs_environment
                                              get_cell,&
                                              read_cell,&
                                              write_cell
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
+                                             cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
                                              dftb_control_type,&
@@ -261,6 +263,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: my_subsys
     TYPE(ga_environment_type), POINTER       :: ga_env
@@ -392,6 +395,9 @@ CONTAINS
     CALL write_kpoint_info(kpoints,dft_section,error)
     kpoints%para_env => para_env
     CALL cp_para_env_retain(para_env, error)
+    CALL get_qs_env(qs_env=qs_env,blacs_env=blacs_env,error=error)
+    kpoints%blacs_env_all => blacs_env
+    CALL cp_blacs_env_retain(blacs_env, error)
     CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kp,error=error)
     IF(do_kp) THEN
        CALL kpoint_env_initialize(kpoints, error)
