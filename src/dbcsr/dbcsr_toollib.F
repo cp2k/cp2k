@@ -67,9 +67,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Swaps two integers
-!> \param a ...
-!> \param b ...
-!> \param[in,out] a,b         Integers to swap UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param a Integers to swap
+!> \param b Integers to swap
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE iswap(a, b)
     INTEGER, INTENT(INOUT)                   :: a, b
@@ -84,9 +83,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Swaps two logicals
-!> \param a ...
-!> \param b ...
-!> \param[in,out] a,b         Logicals to swap UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param a Logicals to swap
+!> \param b Logicals to swap
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE bswap(a, b)
     LOGICAL, INTENT(INOUT)                   :: a, b

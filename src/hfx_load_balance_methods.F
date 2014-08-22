@@ -89,9 +89,9 @@ MODULE hfx_load_balance_methods
 !> \param particle_set , atomic_kind_set, para_env
 !> \param max_set Maximum number of set to be considered
 !> \param para_env para_env
-!> \param coeffs_set ...
-!> \param coeffs_kind ...
-!> \param is_assoc_atomic_block_global ...
+!> \param coeffs_set screening functions
+!> \param coeffs_kind screening functions
+!> \param is_assoc_atomic_block_global KS-matrix sparsity
 !> \param do_periodic flag for periodicity
 !> \param load_balance_parameter Paramters for Monte-Carlo routines
 !> \param kind_of helper array for mapping
@@ -99,7 +99,7 @@ MODULE hfx_load_balance_methods
 !> \param pmax_set Initial screening matrix
 !> \param pmax_atom ...
 !> \param i_thread Process ID of current Thread
-!> \param n_threads ...
+!> \param n_threads Total Number of Threads
 !> \param cell cell
 !> \param do_p_screening Flag for initial p screening
 !> \param map_atom_to_kind_atom ...
@@ -109,10 +109,6 @@ MODULE hfx_load_balance_methods
 !> \param use_virial ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param coeffs_set, coeffs_kind: screening functions UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param is_assoc_atomic_kind KS-matrix sparsity UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param n_thread Total Number of Threads UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param potential_parameter short/longrange screening information UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 new parallel scheme [Manuel Guidon]
@@ -1958,7 +1954,6 @@ END SUBROUTINE hfx_permute_binning
 !> \param do_randomize ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param para_env para_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2009 created from a hack by Joost [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2043,10 +2038,9 @@ END SUBROUTINE hfx_permute_binning
 !>        a symmetric upper triangle NxN matrix
 !>        The compiler should inline this function, therefore it appears in
 !>        several modules
-!> \param i ...
-!> \param j ...
+!> \param i 2d index
+!> \param j 2d index
 !> \param N matrix size
-!> \param i,j 2d index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

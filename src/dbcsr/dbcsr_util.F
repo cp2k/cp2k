@@ -336,11 +336,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copies row and column block sizes from another matrix.
-!> \param dst ...
-!> \param src ...
-!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] matrix      target matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] meta            source matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in,out] dst      target matrix 
+!> \param[in] src          source matrix 
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy_block_sizes(dst, src)
     TYPE(dbcsr_type), INTENT(INOUT)          :: dst
@@ -362,12 +359,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates explicit sizes for all data blocks.
 !> \param[out] sizes          sizes of all data blocks
-!> \param row_p ...
-!> \param col_i ...
-!> \param rbs ...
-!> \param cbs ...
-!> \param[in] rbs, cbs        row block sizes and column block sizes UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row_p, col_i    index structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] row_p index structure
+!> \param[in] col_i index structure
+!> \param[in] rbs row block sizes
+!> \param[in] cbs column block sizes
 ! *****************************************************************************
   SUBROUTINE dbcsr_calc_block_sizes(sizes, row_p, col_i, rbs, cbs)
     INTEGER, DIMENSION(*), INTENT(OUT)       :: sizes
@@ -540,8 +535,7 @@ CONTAINS
 !> \param[in] local           (optional) no global communication
 !> \param[in] pos             (optional) position-dependent checksum
 !> \param[in,out] error       cp2k error
-!> \param[out] chksum         calculated checksum UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval checksum ...
+!> \retval checksum calculated checksum
 ! *****************************************************************************
   FUNCTION dbcsr_checksum(matrix, local, pos, error) RESULT(checksum)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix

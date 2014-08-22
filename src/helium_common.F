@@ -249,10 +249,9 @@ MODULE helium_common
 !> \brief  Calculate the point equidistant from two other points a and b
 !>         within the helium box - 3D version
 !> \param    helium - helium environment for which
-!> \param a ...
-!> \param b ...
+!> \param a vectors for which to find the mean within the He box
+!> \param b vectors for which to find the mean within the He box
 !> \param c ...
-!> \param    a, b   - vectors for which to find the mean within the He box UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      2009-10-02 renamed, originally was helium_boxmean [lwalewski]
 !>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]

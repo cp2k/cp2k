@@ -274,8 +274,16 @@ MODULE dbcsr_mm_cannon
 ! *****************************************************************************
 !> \brief Performs a multiplication of two dbcsr_type matrices,
 !>        as  C := alpha * op( A ) * op( B ) + beta * C.
-!> \param transa ...
-!> \param transb ...
+!> \param[in] transa specifies the form of op( A ) to be used in
+!>                            the matrix multiplication
+!>                            transa = 'N' or 'n',  op( A ) = A.
+!>                            transa = 'T' or 't',  op( A ) = transpose(A).
+!>                            transa = 'C' or 'c',  op( A ) = transpose(conjg(A)).
+!> \param[in] transb specifies the form of op( B ) to be used in
+!>                            the matrix multiplication
+!>                            transb = 'N' or 'n',  op( B ) = B.
+!>                            transb = 'T' or 't',  op( B ) = transpose(B).
+!>                            transb = 'C' or 'c',  op( B ) = transpose(conjg(B)).
 !> \param[in] alpha           scaling of product
 !> \param[in] matrix_a        left BCSR matrix
 !> \param[in] matrix_b        right BCSR matrix
@@ -294,11 +302,6 @@ MODULE dbcsr_mm_cannon
 !> \param[in] filter_eps      Filtering of the matrix
 !> \param[in,out] error       error
 !> \param[out] flop           (optional) effective flop
-!> \param[in] transa, transb  specifies the form of op( A or B ) to be used in
-!>                            the matrix multiplication
-!>                            transx = 'N' or 'n',  op( X ) = X.
-!>                            transx = 'T' or 't',  op( X ) = transpose(X).
-!>                            transx = 'C' or 'c',  op( X ) = transpose(conjg(X)). UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Matrices m_a and m_b are multiplied into the m_c product matrix. If the
 !>      dist2d parameter is not specified, then a new distribution_2d is
 !>      determined for it.
@@ -1073,7 +1076,7 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Makes column-based and row-based images of a matrix.
-!> \param ism ...
+!> \param[in] ism input symmetric matrix
 !> \param[in,out] ums         normalied matrices
 !> \param[in] target_imgdist  image distribution to normalize to
 !> \param[in] desymmetrize    (optional) desymmetrize a symmetric matrix
@@ -1083,7 +1086,6 @@ MODULE dbcsr_mm_cannon
 !> \param[in] no_copy_data    (optional) try to not merge data at the end
 !> \param[in] scale_value     (optional) scale with this value
 !> \param[in,out] error       cp2k error
-!> \param[in] sm    input symmetric matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE make_images(ism, ums, target_imgdist, desymmetrize, predistribute,&
        data_memory_type, index_memory_type, no_copy_data, scale_value, error)
@@ -1788,13 +1790,12 @@ MODULE dbcsr_mm_cannon
 !>
 !> \param[in] left_set             set of imaged left matrices
 !> \param[in] right_set            set of imaged right matrices
-!> \param product_matrix ...
+!> \param[out] product_matrix      DBCSR product matrix 
 !> \param[in,out] error            cp2k error
 !> \param[in] retain_sparsity      (optional) retain the sparsity of the
 !>                                 existing product matrix; default is no
 !> \param filter_eps ...
 !> \param[out] flop                (optional) effective flop
-!> \param[out] product             DBCSR product matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cannon_multiply_low(left_set, right_set, product_matrix,&
        error, retain_sparsity, &
@@ -3250,9 +3251,8 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Switches pointers between two matrix sets
-!> \param set1p ...
-!> \param set2p ...
-!> \param[in,out] set1p, set2p UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in,out] set1p ...
+!> \param[in,out] set2p ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_switch_sets (set1p, set2p)
     TYPE(dbcsr_2d_array_type), POINTER       :: set1p, set2p

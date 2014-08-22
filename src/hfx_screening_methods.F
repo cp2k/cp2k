@@ -52,26 +52,21 @@ MODULE hfx_screening_methods
 !> \brief calculates max values of two-electron integrals in a quartet/shell
 !>      w.r.t. different zetas using the library lib_int
 !> \param lib ...
-!> \param ra ...
-!> \param rb ...
-!> \param zeta ...
-!> \param zetb ...
-!> \param la_min ...
-!> \param la_max ...
-!> \param lb_min ...
-!> \param lb_max ...
-!> \param npgfa ...
-!> \param npgfb ...
+!> \param ra position
+!> \param rb position
+!> \param zeta zeta
+!> \param zetb zeta
+!> \param la_min angular momentum
+!> \param la_max angular momentum
+!> \param lb_min angular momentum
+!> \param lb_max angular momentum
+!> \param npgfa number of primitive cartesian gaussian in actual shell
+!> \param npgfb number of primitive cartesian gaussian in actual shell
 !> \param max_val schwarz screening value
 !> \param potential_parameter contains info for libint
 !> \param tmp_R_1 pgf_based screening coefficients
 !> \param rab2 Squared Distance of centers ab
 !> \param p_work ...
-!> \param i_thread thread id of the current task UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param l angular momentum UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param npgf number of primitive cartesian gaussian in actual shell UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param r position UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param z zeta UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>     03.2007 created [Manuel Guidon]
 !>     02.2009 refactored [Manuel Guidon]
@@ -666,8 +661,6 @@ MODULE hfx_screening_methods
 !> \param n_threads ...
 !> \param i_thread Thread ID of current task
 !> \param error ...
-!> \param lib structure to libint UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param potential_parameter contains infos on potential UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>     02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -917,10 +910,9 @@ END SUBROUTINE calc_pair_dist_radii
 !>        a symmetric upper triangle NxN matrix
 !>        The compiler should inline this function, therefore it appears in
 !>        several modules
-!> \param i ...
-!> \param j ...
+!> \param i 2d index
+!> \param j 2d index
 !> \param N matrix size
-!> \param i,j 2d index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

@@ -839,13 +839,12 @@ CONTAINS
 !> \brief Calculation of the components of the dipole operator in the velocity form
 !>      The elements of the  sparse matrices are the integrals in the
 !>      basis functions
-!> \param op ...
+!> \param op matrix representation of the p operator
+!>               calculated in terms of the contracted basis functions
 !> \param qs_env enviroment for the lists and the basis sets
 !> \param minimum_image take into account only the first neighbors in the lists
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param op_sm matrix representation of the p operator
-!>               calculated in terms of the contracted basis functions UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 created [MI]
 !> \author MI
@@ -1124,7 +1123,8 @@ CONTAINS
 !>      sufficiently localized
 !>      The elements of the  sparse matrices are the integrals in the
 !>      basis functions
-!> \param op ...
+!> \param op matrix representation of the p operator
+!>               calculated in terms of the contracted basis functions
 !> \param qs_env enviroment for the lists and the basis sets
 !> \param rc reference vector position
 !> \param order maximum order of the momentum, for the doipole order = 1
@@ -1132,8 +1132,6 @@ CONTAINS
 !> \param soft ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param op_sm matrix representation of the p operator
-!>               calculated in terms of the contracted basis functions UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI
@@ -1401,7 +1399,8 @@ CONTAINS
 !>
 !>     The same holds for the derivative with respect to the electronic position r
 !>     taking into account that [\mu|op|d(\nu)/dR] = -[\mu|op|d(\nu)/dr]
-!> \param op ...
+!> \param op matrix representation of the p operator
+!>               calculated in terms of the contracted basis functions
 !> \param op_der ...
 !> \param qs_env enviroment for the lists and the basis sets
 !> \param rc reference vector position
@@ -1410,8 +1409,6 @@ CONTAINS
 !> \param soft ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param op_sm matrix representation of the p operator
-!>               calculated in terms of the contracted basis functions UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI

@@ -76,8 +76,6 @@ CONTAINS
 !>              Harris functional is driven on top of the QS SCF-cycle.
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \param rho The frozen input density, in general the sum of
-!>             the atomic densities UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

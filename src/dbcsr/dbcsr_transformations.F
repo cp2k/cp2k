@@ -316,7 +316,6 @@ CONTAINS
 !> \param[out] desm           desymmetrized matrix
 !> \param untransposed_data ...
 !> \param[in,out] error       cp2k error
-!> \param[in] transpose_data  (optional) make all data blocks be non-transposed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_desymmetrize_deep(sm, desm, untransposed_data, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: sm
@@ -1007,16 +1006,13 @@ CONTAINS
 !> \param[in] matrix                 dense matrix
 !> \param[in,out] undense_matrix     matrix to make undense
 !> \param[in] distribution    distribution of non-dense rows and columns
-!> \param row_blk_offsets ...
-!> \param col_blk_offsets ...
-!> \param row_blk_sizes ...
-!> \param col_blk_sizes ...
-!> \param row_map ...
-!> \param col_map ...
+!> \param[in] row_blk_offsets non-dense row block offsets
+!> \param[in] col_blk_offsets non-dense column block offsets
+!> \param[in] row_blk_sizes non-dense row block sizes
+!> \param[in] col_blk_sizes non-dense column block sizes
+!> \param[in] row_map mapping from non-dense rows
+!> \param[in] col_map mapping from non-dense columns
 !> \param error ...
-!> \param[in] row_blk_offsets, col_blk_offsets   non-dense row and column block offsets UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row_blk_sizes, col_blk_sizes       non-dense row and column block sizes UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row_map, col_map   mapping from non-dense rows/columns UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_undense (matrix, undense_matrix, distribution,&
@@ -1162,8 +1158,8 @@ CONTAINS
 !> \brief Shuffles the data from blocked to standard dense form
 !> \param[in] matrix                 Existing blocked matrix
 !> \param[in,out] dense_data         Dense data
-!> \param nfullrows ...
-!> \param nfullcols ...
+!> \param[in] nfullrows size of new data
+!> \param[in] nfullcols size of new data
 !> \param und_row_blk_offsets ...
 !> \param und_col_blk_offsets ...
 !> \param dense_row_blk_offsets ...
@@ -1176,7 +1172,6 @@ CONTAINS
 !> \param[in] join_cols           (optional) make columns dense, default is
 !>                                yes
 !> \param[in] make_tr             (optional) make the dense blocks transposed
-!> \param[in] nfullrows, nfullcols    size of new data UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_dense_data (matrix, dense_data, nfullrows, nfullcols,&
@@ -2348,21 +2343,23 @@ CONTAINS
 !>        This routine should be used with dbcsr_binary_read in the module 
 !>        dbcsr_io.F 
 !>
-!> \param dblk ...
-!> \param row_p ...
-!> \param col_i ...
-!> \param blk_p ...
-!> \param proc_nblks ...
-!> \param proc_darea_sizes ...
+!> \param[in] dblk data blocks of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] row_p row_p of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] col_i col_i of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] blk_p blk_p of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] proc_nblks 1D array holding nblks
+!>    of those nodes of the mp environment, that created the file, 
+!>    whose contents have been read by the current node of the present mp environment
+!> \param[in] proc_darea_sizes 1D array holding data_area_size
+!>    of those nodes of the mp environment, that created the file, 
+!>    whose contents have been read by the current node of the present mp environment
 !> \param[in,out] new_matrix   redistributed matrix 
 !> 
 !> \param error ...
-!> \param[in] dblk, row_p, col_i, blk_p   data blocks, row_p, col_i and blk_p
-!>    of the DBCSR matrix that the current node possesses after reading the 
-!>    data file  UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] proc_nblks, proc_darea_sizes   1D arrays holding nblks and data_
-!>    area_size of those nodes of the mp environment, that created the file, 
-!>    whose contents have been read by the current node of the present mp environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
 ! *****************************************************************************

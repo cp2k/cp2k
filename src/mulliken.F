@@ -186,8 +186,6 @@ CONTAINS
 !> \param charges_deriv derivate wrt the corresponding charge entry
 !> \param energy ...
 !> \param order_p ...
-!> \param energ y UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param output : UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2004 created [Joost VandeVondele]
 !>      02.2005 added more general form [Joost VandeVondele]
@@ -404,7 +402,6 @@ END SUBROUTINE rf_deriv_check
 !> \param scr unit for output
 !> \param title ...
 !> \param error ...
-!> \param ionode true if scr is connected, and output is needed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
 ! *****************************************************************************

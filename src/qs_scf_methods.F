@@ -545,16 +545,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Perform a mixing of the given matrixes into the first matrix
 !>      m1 = m2 + p_mix (m1-m2)
-!> \param m1 ...
-!> \param m2 ...
+!> \param m1 first (new) matrix, is modified
+!> \param m2 the second (old) matrix
 !> \param p_mix how much m1 is conserved (0: none, 1: all)
 !> \param delta maximum norm of m1-m2
 !> \param para_env ...
 !> \param m3 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param m 1: first (new) matrix, is modified UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param m 2: the second (old) matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      02.2003 rewamped [fawzi]
 !> \author fawzi

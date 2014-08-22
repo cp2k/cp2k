@@ -464,11 +464,6 @@ MODULE mp2_ri_libint
 !> \param Lai ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribute_fock_matrix Flag that indicates whether to communicate the
-!>        new fock matrix or not UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param energy UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param geometry_did_change flag that indicates we have to recalc integrals UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param irep Index for the HFX replica UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2013 created [Mauro Del Ben]
 !> \author Mauro Del Ben

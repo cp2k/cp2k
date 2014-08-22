@@ -2734,7 +2734,6 @@ CONTAINS
 !> \param print_level ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param section the section to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_dipoles_section(print_key,label,print_level,error)

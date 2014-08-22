@@ -161,8 +161,7 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief set the default mpi reordering method
-!> \param mapping_method ...
-!> \param mpi_mapping_method the selected method UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param mapping_method the selected method
 !> \author Christiane Pousa Ribeiro
 ! *****************************************************************************
  SUBROUTINE init_f77_default(mapping_method)
@@ -405,7 +404,6 @@ CONTAINS
 !> \param id_nr ...
 !> \param error ...
 !> \param old_dir ...
-!> \param work_dir directory in whic to run (defaults to the actual directory) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
@@ -1034,8 +1032,6 @@ CPSourceFileRef,&
 !> \param env_id id of the force_env
 !> \param n_atom ...
 !> \param ierr will return a number different from 0 if there was an error
-!> \param n_el number of positions (3*natom) just to check UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param new_pos the array with the new positions UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date   22.11.2010 (MK)
 !> \author fawzi
 ! *****************************************************************************
@@ -1067,8 +1063,6 @@ CPSourceFileRef,&
 !> \param env_id id of the force_env
 !> \param n_particle ...
 !> \param ierr will return a number different from 0 if there was an error
-!> \param n_el number of positions (3*nparticle) just to check UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param new_pos the array with the new positions UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Matthias Krack
 !>
 ! *****************************************************************************
@@ -1141,11 +1135,9 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief gets a result from CP2K that is a real 1D array
 !> \param env_id id of the force_env
-!> \param description ...
+!> \param description the tag of the result
 !> \param N ...
 !> \param ierr will return a number different from 0 if there was an error
-!> \param description, the tag of the result UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param result will contain the result UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE get_result_r1(env_id, description, N, RESULT, res_exist, ierr)
@@ -1623,8 +1615,6 @@ CPSourceFileRef,&
 !> \param dt timestep
 !> \param shake_tol tolerance for shake
 !> \param ierr ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)

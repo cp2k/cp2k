@@ -698,11 +698,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sets a pointer, possibly using the buffers.
 !> \param[in] matrix           Matrix to use
-!> \param pointer_any ...
-!> \param row ...
-!> \param col ...
-!> \param rsize ...
-!> \param csize ...
+!> \param[in,out] pointer_any The pointer to set
+!> \param[in] row Row of block to point to
+!> \param[in] col Column of block to point to
+!> \param[in] rsize Row sizes of block to point to
+!> \param[in] csize Column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
 !> \param[in] buffer_tr        Whether buffer should be transposed
@@ -710,9 +710,6 @@ CONTAINS
 !>                                 contiguous
 !> \param[in] read_only        (optional) User promise not to change data
 !> \param[in,out] error        error
-!> \param[in,out] pointer      The pointer to set UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row, col         Row and column of block to point to UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] rsize, csize     Row and column sizes of block to point to UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_any (matrix, pointer_any, row, col,&
        rsize, csize, main_tr, base_offset, buffer_tr, contiguous_pointers,&

@@ -90,8 +90,6 @@ CONTAINS
 !> \param globenv The global environment from which the para_env is extracted
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \param harris_force The harris force type in which all necessary informations
-!>                      are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -474,8 +472,6 @@ CONTAINS
 !> \param globenv The global environment from which the para_env is extracted
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \param harris_force The harris force type in which all necessary informations
-!>                      are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

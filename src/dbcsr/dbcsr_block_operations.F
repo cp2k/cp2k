@@ -366,9 +366,6 @@ CONTAINS
 !>                       not given explicity)
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
 !> \param error ...
-!> \param[in] source_lb  (optional) lower bound of source UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] src        source data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -454,10 +451,6 @@ CONTAINS
 !>                       not given explicity)
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
 !> \param error ...
-!> \param[in] scale      (optional) scale data UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] source_lb  (optional) lower bound of source UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] src        source data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -551,10 +544,6 @@ CONTAINS
 !>                       not given explicity)
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
 !> \param error ...
-!> \param[in] scale      (optional) scale data UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] source_lb  (optional) lower bound of source UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] src        source data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -1111,13 +1100,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Clears a data area
 !> \param[in,out] area   area with encapsulated data
-!> \param lb ...
-!> \param ub ...
+!> \param[in] lb (optional) lower bound for clearing
+!> \param[in] ub (optional) lower bound for clearing
 !> \param[in] value      (optional) value to use for clearing
-!> \param lb2 ...
-!> \param ub2 ...
-!> \param[in] lb, lb2    (optional) lower bound for clearing UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] ub, ub2    (optional) upper bound for clearing UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] lb2 (optional) upper bound for clearing
+!> \param[in] ub2 (optional) upper bound for clearing
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_clear0 (area, lb, ub, value, lb2, ub2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1366,12 +1353,11 @@ CONTAINS
 !> \param[in] dst_r_lb   first row in target
 !> \param[in] dst_c_lb   first column in target
 !> \param[in] src_r_lb   first_row in source
-!> \param src_c_lb ...
+!> \param[in] src_c_lb   first column in target 
 !> \param[in] nrow       number of rows to copy
 !> \param[in] ncol       number of columns to copy
 !> \param[in] dst_offset offset in target
 !> \param[in] src_offset offset in source
-!> \param[in] src_r_lb   first column in target UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE block_partial_copy_a(dst, dst_rs, dst_cs, dst_tr,&
        src, src_rs, src_cs, src_tr,&

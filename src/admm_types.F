@@ -143,8 +143,6 @@ MODULE admm_types
 !> \param para_env The parallel env
 !> \param admm_env The ADMM env
 !> \param error ...
-!>
-!> \param para_env The parallel env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon

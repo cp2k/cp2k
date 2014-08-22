@@ -274,8 +274,6 @@ CONTAINS
 !>                            and column
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
-!> \param[out] processor      (optional) returns the processor on which this
-!>                            block resides UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   PURE SUBROUTINE get_block_index_type(matrix, row, column, stored_row,&
        stored_column, transpose, found, block_number, data_offset)
@@ -312,8 +310,6 @@ CONTAINS
 !>                            and column
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
-!> \param[out] processor      (optional) returns the processor on which this
-!>                            block resides UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   PURE SUBROUTINE get_block_index_obj(matrix, row, column, stored_row,&
        stored_column, transpose, found, block_number, data_offset)
@@ -479,8 +475,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Transposes a distribution
 !> \param[out] dist_tr        transposed distribution
-!> \param dist_normal ...
-!> \param[in] dist2d          current distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] dist_normal current distribution
 ! *****************************************************************************
   SUBROUTINE dbcsr_transpose_distribution(dist_tr, dist_normal)
     TYPE(dbcsr_distribution_obj), &
@@ -505,8 +500,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Transposes a distribution but keeps the same mp_env
 !> \param[out] dist_tr        transposed distribution
-!> \param dist_normal ...
-!> \param[in] dist2d          current distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] dist_normal current distribution
 ! *****************************************************************************
   SUBROUTINE dbcsr_transpose_dims(dist_tr, dist_normal)
     TYPE(dbcsr_distribution_obj), &
@@ -1017,13 +1011,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the intersections of blocks
 !> \param[out] ints           intersections of blocks
-!> \param numints ...
+!> \param[in] numints        maximum number of expected intersections 
 !> \param[out] n_src_dsts     offset and number intersections belonging
 !>                            to source blocks
 !> \param[in] src_sizes       sizes of source blocks
 !> \param[in] dst_sizes       sizes of target blocks
 !> \param[in,out] error       error
-!> \param[in] num_ints        maximum number of expected intersections UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par ints output format
 !>      The ints array should be up to twice as large as the number of
 !>      intersecting blocks. Each entry is comprised of the target
@@ -1159,9 +1152,8 @@ CONTAINS
 !>
 !> \param[out] block_distribution       block distribution to bins
 !> \param[out] block_size       sizes of blocks
-!> \param nelements ...
+!> \param[in] nelements number of elements to bin
 !> \param[in] nbins             number of bins
-!> \param[in] elements          number of elements to bin UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Term clarification
 !>      An example: blocks are atom blocks and bins are process rows/colums.
 ! *****************************************************************************
@@ -1845,13 +1837,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes a 1-D distribution dense.
-!> \param nbins ...
+!> \param[in] nbins Number of bins in the main distribution
 !> \param[in] old_dist         Current distribution
 !> \param[out] dense_dist      Dense distribution
 !> \param[out] dist_map        Map from current to dense distribution
 !> \param[in] nsubdist         Number of bins in the subdistribution
 !> \param[in] subdist          Subdistribution
-!> \param[in] bins             Number of bins in the main distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_1dist_dense (nbins, old_dist, dense_dist, dist_map, nsubdist, subdist)
     INTEGER, INTENT(IN)                      :: nbins
@@ -2082,13 +2073,12 @@ CONTAINS
 !> \brief Determines local virtual elements
 !>        Analogous to the local_rows
 !> \param[out] local_virtual_elements    enumerated local virtual elements
-!> \param nlve ...
+!> \param[out] nlve                      number of local virtual elements  
 !> \param[in] grid_distribution          distribution of elements to bins
 !> \param[in] image_distribution         distribution into images of all
 !>                                       elements
 !> \param[in] local_grid                 local grid
 !> \param[in] local_image                local image
-!> \param[out] nvle                      number of local virtual elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note virtual_local_elements should be large enough to accomodate
 !>       all possible data
 !> \note Used for making matrices dense/undense
@@ -2127,13 +2117,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Points to local virtual elements.
 !> \param[out] global_virtual_elements   enumerated local virtual elements
-!> \param nlve ...
+!> \param[out] nlve                      number of local virtual elements 
 !> \param[in] grid_distribution          distribution of elements to bins
 !> \param[in] image_distribution         distribution into images of all
 !>                                       elements
 !> \param[in] local_grid                 local grid
 !> \param[in] local_image                local image
-!> \param[out] nvle                      number of local virtual elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par The output global_virtual_elements is 0 when the element is
 !>      not local.  Otherwise, it is the (local) element's sequential order.
 !> \note Inverse of find_local_virtual_elements.
@@ -2184,10 +2173,9 @@ CONTAINS
 !> resulting array can be used as a lookup index for any of the local
 !> element arrays.  The distribution itself tells into which array to
 !> look.
-!> \param local_elements ...
+!> \param[out] local_elements local virtual elements
 !> \param[in] bin_distribution           distribution of elements to bins
 !> \param[in] nbins                      number of bins
-!> \param[out] locall_virtual_elements   local virtual elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE find_all_local_elements (local_elements, &
        bin_distribution, nbins)
@@ -2214,10 +2202,9 @@ CONTAINS
 !> resulting array can be used as a lookup index for any of the local
 !> element arrays.  The distribution itself tells into which array to
 !> look.
-!> \param global_elements ...
+!> \param[out] global_elements   enumerated local elements
 !> \param[in] bin_distribution           distribution of elements to bins
 !> \param[in] nbins                      number of bins
-!> \param[out] global_virtual_elements   enumerated local elements UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   PURE SUBROUTINE map_all_local_elements (global_elements, &
        bin_distribution, nbins)
@@ -2241,9 +2228,8 @@ CONTAINS
 !> \brief Determines mapping from local to global rows
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_rows        local elements for specified row
-!> \param local_prow ...
+!> \param[in] local_prow find local elemnts for this local row
 !> \param[in,out] error         error
-!> \param[in] local_bin         find local elemnts for this local row UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_prow, error)
     TYPE(dbcsr_distribution_obj), &
@@ -2297,9 +2283,8 @@ CONTAINS
 !> \brief Determines mapping from local to global columnss
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_cols        local elements for specified column
-!> \param local_pcol ...
+!> \param[in] local_pcol         find local elemnts for this local column 
 !> \param[in,out] error         error
-!> \param[in] local_bin         find local elemnts for this local column UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_pcol, error)
     TYPE(dbcsr_distribution_obj), &
@@ -2479,10 +2464,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from local to global virtual process rows
 !> \param[in] imgdist           image distribution
-!> \param local_vrows ...
+!> \param[out] local_vrows       local rows 
 !> \param[in] local_vprow       the local virtual process row
 !> \param[in,out] error         error
-!> \param[out] local_rows       local rows UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_vrows (imgdist, local_vrows, local_vprow, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2537,10 +2521,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from local to global virtual process columnss
 !> \param[in] imgdist           image distribution
-!> \param local_vcols ...
+!> \param[out] local_vcols       local columnss 
 !> \param[in] local_vpcol       the local virtual process column
 !> \param[in,out] error         error
-!> \param[out] local_cols       local columnss UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_local_vcols (imgdist, local_vcols, local_vpcol, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2595,9 +2578,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from global to virtual local rows
 !> \param[in] imgdist           mapping for this image distribution
-!> \param vrow_map ...
+!> \param[in] vrow_map           mapping to local rows
 !> \param[in,out] error         error
-!> \param[in] row_map           mapping to local rows UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_global_vrow_map (imgdist, vrow_map, error)
     TYPE(dbcsr_imagedistribution_obj), &
@@ -2635,9 +2617,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines mapping from global to virtual local columnss
 !> \param[in] imgdist           mapping for this image distribution
-!> \param vcol_map ...
+!> \param[in] vcol_map           mapping to local columnss 
 !> \param[in,out] error         error
-!> \param[in] col_map           mapping to local columnss UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_global_vcol_map (imgdist, vcol_map, error)
     TYPE(dbcsr_imagedistribution_obj), &

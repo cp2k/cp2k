@@ -1049,7 +1049,6 @@ CONTAINS
 !> \param iatom index of the excited atom
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param iter iteration of the xas calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI
@@ -1178,9 +1177,6 @@ CONTAINS
 !> \param length ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param ionode logical assigning the i/o node UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param spectrum temporary variable contaning the spectrum for the actual atom UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param xas_rootfname root of the filename where the spectrum is written UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI
@@ -1270,9 +1266,6 @@ CONTAINS
 !> \param iatom index of the atom that has been excited
 !> \param append_cube ...
 !> \param error ...
-!> \param ionod e UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param iter iteration step (e.g. along an md) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param qs_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2005 created [MI]
 !> \author MI
@@ -1354,7 +1347,6 @@ CONTAINS
 !> \param nstate ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param spectrum temporary variable contaning the spectrum for the actual atom UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 created [MI]
 !> \author MI
@@ -1462,7 +1454,6 @@ CONTAINS
 !> \param nstate ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param spectrum temporary variable contaning the spectrum for the actual atom UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2005 created [MI]
 !> \author MI

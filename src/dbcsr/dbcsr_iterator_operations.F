@@ -313,7 +313,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Stops up an iterator
 !> \param[out] iterator   the iterator
-!> \param[in] matrix      DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_iterator_stop (iterator)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator

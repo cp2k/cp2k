@@ -153,14 +153,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief prolongates a function from a coarse grid into a fine one
-!> \param pw_coarse_in ...
-!> \param pw_fine_out ...
+!> \param pw_coarse_in the coarse grid
+!> \param pw_fine_out the fine grid
 !> \param coarse_pool ...
 !> \param param_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param pw_coarse_out the coarse grid UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param pw_fine_in the fine grid UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 !> \note
 !>      extremely slow (but correct) version

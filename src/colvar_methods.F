@@ -116,8 +116,6 @@ CONTAINS
 !> \param para_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param extended_lagrange if the extended lagrangian formalismus should
-!>        be used UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2004 created [alessandro laio and fawzi mohamed]
 !> \author teo
@@ -1490,11 +1488,10 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-!> \param icolvar ...
+!> \param icolvar the collective variable to evaluate
 !> \param force_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param colvar the collective variable to evaluate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Alessandro Laio and fawzi
 !> \note
 !>      The torsion that generally is defined without the continuity problem

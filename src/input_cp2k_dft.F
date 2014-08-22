@@ -2330,7 +2330,6 @@ CONTAINS
 !> \param print_key ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param section the section to create UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_molecular_states_section(print_key,error)

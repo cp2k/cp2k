@@ -189,8 +189,6 @@ MODULE dbcsr_data_methods_low
 !> \param[in,out] area        internal structure holding array pointers
 !> \param[in] sizes           sizes to allocate to
 !> \param[in,out] error       error
-!> \param[in] data_type       selects which array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] memory_type     type of memory to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE internal_data_allocate (area, sizes, error)
     TYPE(dbcsr_data_area_type), &
@@ -263,9 +261,6 @@ MODULE dbcsr_data_methods_low
 !> \brief Allocates pointers in the data type
 !> \param[in,out] area        internal structure holding array pointers
 !> \param[in,out] error       error
-!> \param[in] data_type       selects which array to allocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] memory_type     type of memory to deallocate UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] sizes           sizes to allocate to UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE internal_data_deallocate (area, error)
     TYPE(dbcsr_data_area_type), &
@@ -514,11 +509,10 @@ MODULE dbcsr_data_methods_low
 !> Assumes that no memory will be lost when repointing the pointer in the data
 !> area and that the area is initialized.
 !> \param[in,out] area         data area to repoint
-!> \param rsize ...
-!> \param csize ...
+!> \param[in] rsize size of data area to point to
+!> \param[in] csize size of data area to point to
 !> \param[in] pointee          data area to point to
 !> \param[in] source_lb        (optional) point to this offset in pointee
-!> \param[in] rsize, csize     size of data area to point to UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE set_data_area_area (area, rsize, csize, pointee, source_lb)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1041,10 +1035,9 @@ MODULE dbcsr_data_methods_low
 !> \brief Returns the allocated data size
 !> \param[in] area       data area to query for size, should be 2-D
 !> \param[out] row_size  row size
-!> \param col_size ...
+!> \param[out] col_size  column size 
 !> \param[out] valid     whether the data is actually allocated
 !> \param[in,out] error  error
-!> \param[out] row_size  column size UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_get_sizes_2 (area, row_size, col_size, valid, error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -1307,10 +1300,9 @@ MODULE dbcsr_data_methods_low
   END FUNCTION dbcsr_scalar_add
 
 ! *****************************************************************************
-!> \brief Returns an encapsulated scalar as a negation of the given
+!> \brief ...
 !> \param s1 ...
 !> \param s2 ...
-!> \param[in] v                    given value UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval s_product ...
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_multiply (s1, s2) RESULT (s_product)
@@ -1360,8 +1352,7 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Fills all data and precision types from the set one
-!> \param scalar ...
-!> \param[in,out] scalara         data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in,out] scalar         data area
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE dbcsr_scalar_fill_all (scalar)
     TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: scalar
@@ -1488,8 +1479,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Sets the referenced size of the data area
 !> \param[in,out] data_area  area for which to set referenced data size
-!> \param referenced_size ...
-!> \param[in]                set referenced data size to this value UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] referenced_size     set referenced data size to this value  
 ! *****************************************************************************
   PURE SUBROUTINE dbcsr_data_set_size_referenced (data_area, referenced_size)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: data_area

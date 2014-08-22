@@ -104,15 +104,14 @@ CONTAINS
 !> \brief allocates and initializes the perturbation environment (no setup)
 !> \param p_env the environment to initialize
 !> \param qs_env the qs_environment for the system
-!> \param kpp1_env ...
+!> \param kpp1_env the environment that builds the second order
+!>        perturbation kernel
 !> \param p1_option ...
 !> \param psi0d ...
 !> \param orthogonal_orbitals if the orbitals are orthogonal
 !> \param linres_control ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param kpp 1_env: the environment that builds the second order
-!>        perturbation kernel. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -439,13 +438,11 @@ END SUBROUTINE p_env_did_change
 !>      Recalculates the quantities S_psi0 and m_epsilon.
 !> \param p_env the perturbation environment to set
 !> \param qs_env ...
-!> \param psi0 ...
-!> \param Hrho_psi0d ...
+!> \param psi0 the value of psi0, if not given defaults to the qs_env mos
+!> \param Hrho_psi0d is given, then the partial result Hrho_psi0d is stored in
+!>        that vector
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param Hrho_psi 0d: is given, then the partial result Hrho_psi0d is stored in
-!>        that vector UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param psi 0: the value of psi0, if not given defaults to the qs_env mos UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -794,14 +791,12 @@ END SUBROUTINE p_env_did_change
 !>      with kpp1 evaluated with p=qs_env%rho%rho_ao, p1=p1
 !> \param p_env the perturbation environment
 !> \param qs_env the qs_env that is perturbed by this p_env
-!> \param p1 ...
+!> \param p1 direction in which evaluate the second derivative
 !> \param res place where to store the result
 !> \param alpha scale factor of the result (defaults to 1.0)
 !> \param beta scale factor of the old values (defaults to 0.0)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param p 1: direction in which evaluate the second derivative UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param v values of the coeffs of the correcting orbitals UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      02.09.2002 adapted for new qs_p_env_type (TC)
 !>      03.2003 extended for p1 not taken from v (TC)

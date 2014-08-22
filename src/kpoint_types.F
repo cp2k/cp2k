@@ -468,7 +468,6 @@ CONTAINS
 !> \param matrix_vhxc   Potential matrices (spin,rs index)
 !> \param matrix_h      Core matrices (spin,rs index)
 !> \param error         CP2K error handling
-!> \param ncount        number of real space matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&

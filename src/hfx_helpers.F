@@ -62,8 +62,6 @@ MODULE hfx_helpers
 !> \brief - Auxiliary function for creating periodic neighbor cells
 !> \param m ...
 !> \param perd ...
-!> \param shell shell for which we need the next, stored as number of shifts
-!>               in each direction UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon

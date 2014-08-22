@@ -91,10 +91,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp1_env ...
+!> \param kpp1_env the environement to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param kpp 1_env: the environement to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -164,10 +163,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp1_env ...
+!> \param kpp1_env the environement to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param kpp 1_env: the environement to retain UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -192,7 +190,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes the content of the kpp1_env to the given output unit
-!> \param kpp1_env ...
+!> \param kpp1_env the kpp1_env to output
 !> \param particles ...
 !> \param unit_nr the unit where to output
 !> \param long_description if a long description should be written
@@ -201,7 +199,6 @@ CONTAINS
 !>        (defaults to false, i.e. global)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param kpp 1_env: the kpp1_env to output UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi

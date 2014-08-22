@@ -335,10 +335,6 @@ END SUBROUTINE mpools_create
 !>        of the pools containing only a subset of mos (OPTIONAL)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param ncol_block number of cols of a block for for the block cyclic
-!>        distribution of the elements in parallel UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param nrow_block number of rows of a block for for the block cyclic
-!>        distribution of the elements in parallel UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !>      04.2005 added pools for a subset of mos [MI]

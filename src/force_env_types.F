@@ -570,8 +570,7 @@ CONTAINS
 !> \param force_env the force_env you what information about
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param natom the number of atoms UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval n_atom ...
+!> \retval n_atom the number of atoms
 !> \date   22.11.2010 updated (MK)
 !> \author fawzi
 ! *****************************************************************************
@@ -603,8 +602,7 @@ CONTAINS
 !> \param force_env the force_env you what information about
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param nparticles the number of particles UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval n_particle ...
+!> \retval n_particle the number of particles
 !> \date   22.11.2010 (MK)
 !> \author Matthias Krack
 ! *****************************************************************************
@@ -921,8 +919,6 @@ CPSourceFileRef,&
 !> \param nforce_eval ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param force_env the force_env you what information about UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param natom the numer of atoms UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)

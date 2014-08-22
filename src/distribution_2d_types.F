@@ -336,11 +336,10 @@ END SUBROUTINE distribution_2d_release
 ! *****************************************************************************
 !> \brief build the arrays with the prow/pcol of the processor that owns that index
 !>      (-1 if no processor owns it)
-!> \param distribution_2d ...
+!> \param distribution_2d the distribution for which you want to build the global
+!>        distribution
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 2d: the distribution for which you want to build the global
-!>        distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
@@ -517,11 +516,10 @@ END SUBROUTINE distribution_2d_build_gdist
 
 ! *****************************************************************************
 !> \brief deletes the global distribution
-!> \param distribution_2d ...
+!> \param distribution_2d the distribution from which you want to remove
+!>        the global distribution
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 2d: the distribution from which you want to remove
-!>        the global distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author fawzi
@@ -555,7 +553,7 @@ END SUBROUTINE distribution_2d_destroy_gdist
 
 ! *****************************************************************************
 !> \brief writes out the given distribution
-!> \param distribution_2d ...
+!> \param distribution_2d the distribution to write out
 !> \param unit_nr the unit to write to
 !> \param local if the unit is local to to each processor (otherwise
 !>        only the processor with logger%para_env%source==
@@ -564,7 +562,6 @@ END SUBROUTINE distribution_2d_destroy_gdist
 !>        defaults to false
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param distribution_ 2d: the distribution to write out UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2003 adapted qs_distribution_2d_create write done by Matthias[fawzi]
 !> \author Fawzi Mohamed
@@ -750,7 +747,7 @@ END SUBROUTINE distribution_2d_write
 
 ! *****************************************************************************
 !> \brief returns various attributes about the distribution_2d
-!> \param distribution_2d ...
+!> \param distribution_2d the object you want info about
 !> \param row_distribution ...
 !> \param col_distribution ...
 !> \param n_row_distribution ...
@@ -769,7 +766,6 @@ END SUBROUTINE distribution_2d_write
 !>        see module cp_error_handling
 !>      see distribution_2d_type attributes for a description of the other
 !>      arguments
-!> \param distribution_ 2d: the object you want info about UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed

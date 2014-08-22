@@ -175,16 +175,14 @@ MODULE dbcsr_mm_multrec
 !>
 !>
 !> \param this ...
-!> \param left ...
-!> \param right ...
+!> \param[in] left left DBCSR matrix
+!> \param[in] right right DBCSR matrix
 !> \param[in,out] product     resulting DBCSR product matrix
-!> \param keep_sparsity ...
+!> \param[in] keep_sparsity (optional) retain the sparsity of the
+!>                                 existing product matrix, default is no
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 !> \param row_max_epss ...
 !> \param error ...
-!> \param[in] left, right     left and right DBCSR matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] retain_sparsity      (optional) retain the sparsity of the
-!>                                 existing product matrix, default is no UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_init(this, left, right, product, &
        keep_sparsity, eps, row_max_epss, error)
@@ -383,19 +381,13 @@ MODULE dbcsr_mm_multrec
 !> </ul>
 !>
 !> \param this ...
-!> \param left ...
-!> \param right ...
+!> \param[in] left left DBCSR matrix
+!> \param[in] right right DBCSR matrix
 !> \param[out] flop           (optional) number of effective double-precision
 !>                            floating point operations performed
 !> \param[in] a_norms         (optional) norms of left-matrix blocks
 !> \param[in] b_norms         (optional) norms of right-matrix blocks
 !> \param error ...
-!> \param[in] eps             (optional) on-the-fly filtering epsilon UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] left, right     left and right DBCSR matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] product     resulting DBCSR product matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] retain_sparsity      (optional) retain the sparsity of the
-!>                                 existing product matrix, default is no UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row_max_epss  (optional) on-the-fly filtering epsilon per block UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_multiply(this, left, right, flop,&
        a_norms, b_norms, error)
@@ -498,11 +490,6 @@ MODULE dbcsr_mm_multrec
 !>
 !> \param this ...
 !> \param error ...
-!> \param[in] eps             (optional) on-the-fly filtering epsilon UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] left, right     left and right DBCSR matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] product     resulting DBCSR product matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] retain_sparsity      (optional) retain the sparsity of the
-!>                                 existing product matrix, default is no UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_finalize(this, error)
     TYPE(dbcsr_mm_multrec_type), &

@@ -688,9 +688,6 @@ CONTAINS
 !> \param qs_env The QS environment of matter
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \param rho The PW-Grid onto which the density is collocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_g The realspace-grid onto which the density is collocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_r The G-space-grid onto which the density is collocated UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

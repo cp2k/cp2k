@@ -230,7 +230,6 @@ END SUBROUTINE qs_env_setup
 !> \param qs_env the environment to update
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param para_env the mpi environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed

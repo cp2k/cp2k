@@ -54,13 +54,6 @@ CONTAINS
 !> \param idir ...
 !> \param my_chi ...
 !> \param error ...
-!> \param cell ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param error ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param funcG_times_rho ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param idir ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param my_chi ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param pw_pool ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_gspace ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author MI
 !> \note
 !>      The G=0 component is not comnputed here, but can be evaluated

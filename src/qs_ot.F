@@ -934,9 +934,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the rotation matrix rot_mat_u that is associated to a given
 !>      rot_mat_x using rot_mat_u=exp(rot_mat_x)
-!> \param qs_ot_env ...
+!> \param qs_ot_env a valid qs_ot_env
 !> \param error ...
-!> \param a valid qs_ot_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2004 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -1007,10 +1006,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the derivative fields with respect to rot_mat_x
-!> \param qs_ot_env ...
+!> \param qs_ot_env valid qs_ot_env. In particular qs_ot_generate_rotation has to be called before
+!>                        and the rot_mat_dedu matrix has to be up to date
 !> \param error ...
-!> \param valid qs_ot_env. In particular qs_ot_generate_rotation has to be called before
-!>                        and the rot_mat_dedu matrix has to be up to date UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2004 created [ Joost VandeVondele ]
 ! *****************************************************************************

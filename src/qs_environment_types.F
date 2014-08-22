@@ -1698,8 +1698,6 @@ CONTAINS
 !> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param blacs_env the blacs env for the qs_env (for full matrixes,
-!>        it must be coerent with the para_env) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed

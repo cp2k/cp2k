@@ -251,16 +251,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Prints the elements of a matrix.
 !> \param matrix ...
-!> \param rows ...
-!> \param cols ...
+!> \param rows the logical (possibly detransposed) matrix
+!>                            size, not the stored size
+!> \param cols the logical (possibly detransposed) matrix
+!>                            size, not the stored size
 !> \param r_offset ...
 !> \param c_offset ...
 !> \param iunit ...
 !> \param[in] tr    (optional) specifies whether the elements are stored
 !>                  transposed
 !> \param variable_name ...
-!> \param[in] rows,columns    is the logical (possibly detransposed) matrix
-!>                            size, not the stored size. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
 
   SUBROUTINE dbcsr_printmat_matlab_d(matrix, rows, cols, r_offset, c_offset, iunit, tr, variable_name)
@@ -504,14 +504,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Prints the elements of a matrix.
 !> \param matrix ...
-!> \param rows ...
-!> \param cols ...
+!> \param rows the logical (possibly detransposed) matrix
+!>                            size, not the stored size
+!> \param cols the logical (possibly detransposed) matrix
+!>                            size, not the stored size
 !> \param iunit ...
 !> \param title ...
 !> \param[in] tr    (optional) specifies whether the elements are stored
 !>                  transposed
-!> \param[in] rows,columns    is the logical (possibly detransposed) matrix
-!>                            size, not the stored size. UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE printmat_s(matrix, rows, cols, iunit, title, tr)
     REAL(KIND=real_4), DIMENSION(:), &

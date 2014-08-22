@@ -285,7 +285,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a packed vector as
 !>        c (packed column) = A (dbscr) * b (packed column)
-!> \param matrix_a ...
+!> \param[in] matrix_a DBCSR matrix
 !> \param[in]  pkd_b       packed vector b
 !> \param a_row_beg ...
 !> \param a_row_end ...
@@ -293,7 +293,6 @@ CONTAINS
 !> \param[out] pkd_c       packed vector c
 !>
 !> \param error ...
-!> \param[in]  matrix      DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
@@ -360,14 +359,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a replicated array
 !>        c = alpha_scalar * A (dbscr) * b + c
-!> \param matrix_a ...
+!> \param[in] matrix_a DBSCR matrxx
 !> \param[in]  vec_b        vectors b
 !> \param[inout] vec_c      vectors c
 !> \param[in]  ncol         nbr of columns
 !> \param[in]  alpha        alpha
 !>
 !> \param error ...
-!> \param[in]  matrix       DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_local_d(matrix_a, vec_b, vec_c, ncol, alpha, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
@@ -526,14 +524,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a fm matrix
 !> \param[in]  matrix         DBCSR matrix
-!> \param fm_in ...
-!> \param fm_out ...
+!> \param fm_in full matrix
+!> \param fm_out full matrix
 !> \param[in]  ncol           nbr of columns
 !> \param[in]  alpha          alpha
 !> \param[in]  beta           beta
 !>
 !> \param error ...
-!> \param[]    fm_in, fm_out  fm matrices UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_sm_fm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -1532,11 +1529,9 @@ CONTAINS
 !> \param[in] fm              the cpk full matrix
 !> \param[in] threshold       the threshold for determining sparsity
 !> \param[in] distribution    the distribution to use for the new matrix
-!> \param row_blk_size ...
-!> \param col_blk_size ...
+!> \param[in] row_blk_size sizes of row blocks
+!> \param[in] col_blk_size sizes of column blocks
 !> \param[in,out] error       cp2k error
-!> \param[in] col_blk_sizes   sizes of column blocks UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row_blk_sizes   sizes of row blocks UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_from_fm(matrix, fm, threshold, distribution, row_blk_size,&
        col_blk_size, error)
@@ -1966,8 +1961,6 @@ CONTAINS
 !> \param[in] keep_sparsity   (optional) retains the sparsity of the input
 !>                            matrix
 !> \param error ...
-!> \param[in] alpha           (optional) scaling of FM UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] beta            (optional) scaling of existing SM UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    2010
 !> \par History
 !>          2010  copied from copy_dbcsr_to_fm
@@ -2402,10 +2395,9 @@ CONTAINS
   END SUBROUTINE copy_dbcsr_to_cfm
 ! *****************************************************************************
 !> \brief   Copy a DBCSR_BLACS matrix to a BLACS matrix 
-!> \param bc_mat ...
+!> \param bc_mat DBCSR matrix
 !> \param[out] fm             full matrix
 !> \param error ...
-!> \param[in] matrix          DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE copy_dbcsr_to_fm_bc(bc_mat, fm, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: bc_mat

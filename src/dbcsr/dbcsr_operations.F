@@ -413,13 +413,12 @@ MODULE dbcsr_operations
 !> \param[in] matrix ...
 !> \param[in] max_iter            maximum iteration
 !> \param[in] eps                 convergence parameter
-!> \param min_eig ...
-!> \param max_eig ...
+!> \param[out] min_eig approximation to the extremal eigenvalues
+!> \param[out] max_eig approximation to the extremal eigenvalues
 !> \param[out] approx_norm_2      approximation of the 2 norm (1 < max_iter < 10)
 !> \param[out] converged          true if the iteration converged
 !> \param[inout] error ...
 !>
-!> \param[out] min_eig, max_eig   approximation to the extremal eigenvalues UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_lanczos(matrix, max_iter, eps, min_eig, max_eig, &
        approx_norm_2, converged, error)

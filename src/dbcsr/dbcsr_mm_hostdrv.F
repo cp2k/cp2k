@@ -155,21 +155,13 @@ CONTAINS
 !> \brief Calls the various drivers that process the stack.
 !>
 !> \param this ...
-!> \param left ...
-!> \param right ...
+!> \param[in] left Left-matrix data 
+!> \param[in] right Right-matrix data
 !> \param[in] params           Stack of GEMM parameters
 !> \param stack_size ...
 !> \param stack_descr ...
 !> \param success ...
 !> \param error ...
-!> \param[in] ab%left   Left-matrix data UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] ab%right  Right-matrix data UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] lastblk          Number of blocks in product UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] n                Number of parameters UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] this%data_area  Data for results UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] zero_first   Zero product data area starting from this
-!>                             element UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] zero_last    Zero product data area up to this element UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_process(this, left, right, params, stack_size, &
        stack_descr, success, error)

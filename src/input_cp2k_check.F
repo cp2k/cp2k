@@ -1156,7 +1156,6 @@ CPSourceFileRef,&
 !> \param r_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param input_file the input file to initialize UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author teo - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
   SUBROUTINE handle_defaults_restart(r_section,error)

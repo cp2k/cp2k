@@ -502,7 +502,6 @@ CPSourceFileRef,&
 !> \param logger ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param qs_env the qs_env in which the qs_env lives UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE qs_scf_post_efg(input, logger, error)
     TYPE(section_vals_type), POINTER         :: input

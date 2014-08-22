@@ -136,7 +136,6 @@ CONTAINS
 !> \param print_loc_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param ionode logical that indicates the node responsable for the i/o UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -532,9 +531,6 @@ CONTAINS
 !> \param ispin spin 1 or 2
 !> \param print_loc_section ...
 !> \param error ...
-!> \param ionode i/o proc. should write the output if required
-!>       error: UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param localized_wfn_control control parameter for a localization calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2005 created [MI]
 ! *****************************************************************************
@@ -906,9 +902,6 @@ CONTAINS
 !> \param state0 ...
 !> \param file_position ...
 !> \param error ...
-!> \param ionod e UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ispi n UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param qs_en v UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2005 created [MI]
 !> \author MI
@@ -1046,7 +1039,6 @@ CONTAINS
 !> \param ispin ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param qs_env the qs_env in which the qs_env lives UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE print_wannier_centers(qs_loc_env, print_key, center, logger, ispin, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -1111,7 +1103,6 @@ CONTAINS
 !> \param unit_conv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param qs_env the qs_env in which the qs_env lives UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, unit_conv, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env

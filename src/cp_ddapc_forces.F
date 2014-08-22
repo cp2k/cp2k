@@ -358,10 +358,8 @@ CONTAINS
 !> \param uv derivate of energy wrt the corresponding charge entry
 !> \param charges current value of the charges (one number for each gaussian used)
 !>
-!> \param energy_res ...
+!> \param energy_res energy due to the restraint
 !> \param error ...
-!> \param energy energy due to the restraint UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param order_p value of the restraint (i.e. charge of the group) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      02.2006 [Joost VandeVondele]
 !>               modified [Teo]

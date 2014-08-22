@@ -395,11 +395,10 @@ CONTAINS
   END SUBROUTINE lri_density_create
 
 ! *****************************************************************************
-!> \brief releases the given lri_env
-!> \param lri_density ...
+!> \brief releases the given lri_density
+!> \param lri_density the lri_density to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param lri_env the lri environment to release UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE lri_density_release(lri_density, error)
     TYPE(lri_density_type), POINTER          :: lri_density

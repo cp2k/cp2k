@@ -768,15 +768,14 @@ END SUBROUTINE qs_rho_update_rho
 !> \brief Creates a qs_rho_type, which is equivalent to
 !>      alpha*rho_input1 - beta*rho_input2
 !> \param alpha & beta: Multiplier for the rho input structures
-!> \param rho_input1 ...
+!> \param rho_input1 The rho input structure
 !> \param beta ...
-!> \param rho_input2 ...
+!> \param rho_input2 The rho input structure
 !> \param rho_output The difference rho structure
 !> \param qs_env The QS environment from which the auxilliary PW basis-set
 !>                pool is taken
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \param rho_input 1 & rho_input2: The rho input structure UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

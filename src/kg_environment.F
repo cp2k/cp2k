@@ -242,16 +242,12 @@ CONTAINS
 !> \brief subsets, depending on parameter values
 !> \param kg_env ...
 !> \param qs_env ...
-!> \param sab_orb ...
+!> \param sab_orb the return type, a neighborlist 
 !> \param sac_kin ...
-!> \param molecular ...
-!> \param subset_of_mol ...
-!> \param current_subset ...
+!> \param molecular if false, the full neighborlist is build
+!> \param subset_of_mol the molecular subsets
+!> \param current_subset the subset of which the neighborlist is to be build
 !> \param error ...
-!> \param current_subset: the subset of which the neighborlist is to be build UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param molecular: if false, the full neighborlist is build UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param sab_orb: the return type, a neighborlist UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param subset: the molecular subsets UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
@@ -400,10 +396,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Removes all replicated pairs from a 2d integer buffer array
-!> \param pairs_buffer ...
-!> \param n ...
-!> \param n: number of pairs (in), number of disjunct pairs (out) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param pairs_buffer: the array, assumed to have the shape (2,:) UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param pairs_buffer the array, assumed to have the shape (2,:)
+!> \param n number of pairs (in), number of disjunct pairs (out)
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel

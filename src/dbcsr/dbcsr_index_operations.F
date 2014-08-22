@@ -399,13 +399,12 @@ CONTAINS
 !> \brief Adds data to the index. Incleases the index size when neccessary.
 !> \param[in,out] matrix      bcsr matrix
 !> \param[in] slot  which index array to add (e.g., dbcsr_slot_row_blk_sizes)
-!> \param DATA ...
+!> \param[in] DATA  (optional) array holding the index data to add to the index
+!>                  array 
 !> \param[in] reservation     (optional) only reserve space for subsequent
 !>                            array
 !> \param[in] extra (optional) reserve extra space for later additions
 !> \param error ...
-!> \param[in] data  (optional) array holding the index data to add to the index
-!>                  array UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_addto_index_array(matrix, slot, DATA, reservation, extra, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
@@ -980,9 +979,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes the index for a dense matrix
-!> \param row_p ...
-!> \param col_i ...
-!> \param blk_p ...
+!> \param[out] row_p Storage for new index
+!> \param[out] col_i Storage for new index
+!> \param[out] blk_p Storage for new index
 !> \param[in] nblkrows_total                  Total blocked rows
 !> \param[in] nblkcols_total                  Total blocked columns
 !> \param[in] myblkrows                       List of blocked rows in my
@@ -994,9 +993,6 @@ CONTAINS
 !> \param[in,out] meta                        Metadata updates for new index
 !> \param[in] make_tr                         Dense blocks are transposed
 !> \param error ...
-!> \param[in,out] distribution                Distribution for matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] matrix                      Matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] row_p, col_i, blk_p            Storage for new index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_dense_index (row_p, col_i, blk_p,&
@@ -1079,16 +1075,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes a blocked index from a dense matrix
-!> \param row_p ...
-!> \param col_i ...
-!> \param blk_p ...
+!> \param[out] row_p Storage for new index
+!> \param[out] col_i Storage for new index
+!> \param[out] blk_p Storage for new index
 !> \param[in] distribution     Blocked distribution
 !> \param local_row_offsets ...
 !> \param local_col_offsets ...
 !> \param[in,out] meta         Metadata updates for new index
-!> \param[in] col_blk_offsets  Column block offsets UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row_blk_offsets  Row block offsets UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] row_p, col_i, blk_p            Storage for new index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_undense_index (&
@@ -1149,13 +1142,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Merges two indices
-!> \param new_row_i ...
-!> \param new_col_i ...
-!> \param new_blk_p ...
+!> \param[in,out] new_row_i merged result
+!> \param[in,out] new_col_i merged result
+!> \param[in,out] new_blk_p merged result
 !> \param[in] new_size                  size of merged index
-!> \param old_row_i ...
-!> \param old_col_i ...
-!> \param old_blk_p ...
+!> \param[in,out] old_row_i current index
+!> \param[in,out] old_col_i current index
+!> \param[in,out] old_blk_p current index
 !> \param[in] old_size                  size of current index
 !> \param[in] add_ip                    index to add into the current index
 !> \param[in] add_size                  size of index to add into the current
@@ -1170,8 +1163,6 @@ CONTAINS
 !> \param[out] added_nblks              (optional) actual number of new
 !>                                      elements
 !> \param[in,out] error                 error
-!> \param[in,out] new_row_i, new_col_i, new_blk_p      merged result UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in,out] old_row_i, old_col_i, old_blk_p      current index UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Added sizes
 !>      added_size_offset and added_sizes can be optionally
 !>      specified. This is meant for cases where the added blocks may
@@ -1343,7 +1334,6 @@ CONTAINS
 !> \brief Converts BCSR global row index to local row index.
 !> \param[in,out] matrix       matrix for which to make canonical index
 !> \param[in,out] error        error
-!> \param[in] prow             Use this process row UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_index_local_row (matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix

@@ -218,7 +218,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes a DBCSR matrix but does not create it.
 !> \param[out] matrix         uninitialized matrix
-!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_type (matrix)
     TYPE(dbcsr_type), INTENT(OUT)            :: matrix
@@ -251,7 +250,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes a DBCSR matrix but does not allocate any memory.
 !> \param[out] matrix         uninitialized matrix
-!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_obj (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -371,8 +369,7 @@ CONTAINS
 !> \brief Releases a reference for a DBCSR matrix
 !>
 !> If there are no references left, the matrix is destroyed.
-!> \param matrix ...
-!> \param[in,out] set    DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in,out] matrix DBCSR matrix
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dbcsr_release (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -400,9 +397,8 @@ CONTAINS
 !> \brief Releases a reference for a DBCSR matrix
 !>
 !> If there are no references left, the matrix is destroyed.
-!> \param matrix ...
+!> \param[in,out] matrix DBCSR matrix
 !> \param error ...
-!> \param[in,out] set    DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_release_p (matrix,error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
@@ -947,11 +943,10 @@ CONTAINS
 !> \brief Creates new distribution
 !> \param[out] dist           distribution
 !> \param[in] mp_env          multiprocessing environment
-!> \param row_dist ...
-!> \param col_dist ...
+!> \param row_dist row distribution
+!> \param col_dist column distribution
 !> \param local_rows ...
 !> \param local_cols ...
-!> \param[in] row_dist, col_dist        row and column distributions UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_new(dist, mp_env, row_dist, col_dist,&
        local_rows, local_cols)
@@ -1046,7 +1041,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Marks another use of the distribution
 !> \param dist ...
-!> \param[in,out] mp_env      multiprocessor environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_hold(dist)
     TYPE(dbcsr_distribution_obj), &
@@ -1060,7 +1054,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Releases and potentially destrops a distribution
 !> \param dist ...
-!> \param[in,out] mp_env         multiprocessor environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_release(dist)
     TYPE(dbcsr_distribution_obj), &
@@ -1780,15 +1773,15 @@ CONTAINS
 !> \param[out] nfullrows_total ...
 !> \param[out] nfullcols_total ...
 !> \param[out] nblkrows_local ...
-!> \param nblkcols_local ...
+!> \param[out] nblkcols_local ...
 !> \param[out] nfullrows_local ...
-!> \param nfullcols_local ...
-!> \param my_prow ...
-!> \param my_pcol ...
-!> \param local_rows ...
-!> \param local_cols ...
-!> \param proc_row_dist ...
-!> \param proc_col_dist ...
+!> \param[out] nfullcols_local ...
+!> \param[out] my_prow ...
+!> \param[out] my_pcol ...
+!> \param[out] local_rows ...
+!> \param[out] local_cols ...
+!> \param[out] proc_row_dist ...
+!> \param[out] proc_col_dist ...
 !> \param[out] row_blk_size ...
 !> \param[out] col_blk_size ...
 !> \param[out] row_blk_offset ...
@@ -1799,12 +1792,6 @@ CONTAINS
 !> \param[out] matrix_type    matrix type (regular, symmetric, see
 !>                            dbcsr_types.F for values)
 !> \param[out] data_type      data type (single/double precision real/complex)
-!> \param[in,out] error       cp2k error UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] local_rows, local_cols UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] my_prow, my_pcol UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] nblkrows_local UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] nfullrows_local UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[out] proc_row_dist, proc_col_dist UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total,&
        nfullrows_total, nfullcols_total,&
@@ -1989,8 +1976,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the data area
 !> \param matrix     matrix from which to get data
-!> \param area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval data_area ...
+!> \retval data_area data area
 ! *****************************************************************************
   FUNCTION dbcsr_data_area (matrix) RESULT (data_area)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
@@ -2074,9 +2060,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the data type stored in the matrix
 !> \param matrix              query this matrix
-!> \param data_type           repl_type (see dbcsr_types.F for possible
-!>                            values) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \retval repl_type ...
+!> \retval repl_type repl_type (see dbcsr_types.F for possible
+!>                            values)
 ! *****************************************************************************
 
   PURE FUNCTION dbcsr_get_replication_type (matrix) RESULT (repl_type)
@@ -2137,8 +2122,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the type of memory used for data in the matrix
 !> \param[in] matrix           query this matrix
-!> \param[out] same_as_actual  (optional) whether the data actually uses the
-!>                             declared memory type UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval memory_type         memory type used for data
 !> \note It returns the declared data type, not the actually used type
 ! *****************************************************************************
@@ -2292,7 +2275,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the number of blocks in the matrix
 !> \param matrix     matrix from which to get data
-!> \param area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval num_blocks ...
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_num_blocks (matrix) RESULT (num_blocks)
@@ -2305,7 +2287,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the number of non-zero elements in the matrix
 !> \param matrix     matrix from which to get data
-!> \param area       data area UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \retval num_nze ...
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_nze (matrix) RESULT (num_nze)
@@ -2715,7 +2696,6 @@ CONTAINS
 !> \brief Releases all matrices in a 1-d arrray.
 !> \param[in,out] marray      matrix array
 !> \param error ...
-!> \param[in] source          input matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_destroy_1d_array(marray, error)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: marray
@@ -2740,7 +2720,6 @@ CONTAINS
 !> \brief Releases all matrices in 2-d arrray.
 !> \param[in,out] marray      matrix array
 !> \param error ...
-!> \param[in] source          input matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_destroy_2d_array(marray,error)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: marray
@@ -2814,8 +2793,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Destroys a DBCSR distribution for a matrix multiplication based on
 !>        the right matrix
-!> \param imgdist ...
-!> \param[inout] imgdist_product        product distribution repetition UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param imgdist product distribution repetition
 ! *****************************************************************************
   SUBROUTINE dbcsr_destroy_image_dist(imgdist)
     TYPE(dbcsr_imagedistribution_type), &

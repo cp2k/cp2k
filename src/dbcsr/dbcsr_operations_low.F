@@ -429,7 +429,6 @@ CONTAINS
 !> \param[in] alpha_matrix      (optional) a list of matrices
 !> \param[in] side              (optional) ?
 !> \param[in,out] error         error
-!> \param[in] scale type        corresponds to scalar, vector, matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_scale_mat_any(matrix_a, alpha_matrix, side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -1134,12 +1133,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Hadamard product
 !>    C = A . B (C needs to be different from A and B)
-!> \param matrix_a ...
-!> \param matrix_b ...
+!> \param[in] matrix_a DBCSR matrix
+!> \param[in] matrix_b DBCSR matrix
 !> \param[in,out] matrix_c        DBCSR matrix
 !> \param b_assume_value ...
 !> \param error ...
-!> \param[in] matrix_a, matrix_b  DBCSR matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c,&
     b_assume_value, error)
@@ -2648,14 +2646,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief filter a dbcsr matrix
-!> \param matrix ...
+!> \param[inout] matrix the matrix
 !> \param[in] eps          the threshold
 !> \param[in] method       how the matrix is filtered
 !> \param[in] use_absolute ?
 !> \param[in] filter_diag  NYI
 !> \param[in] quick        (optional) filter just the index (no data copying)
 !> \param[error] error     error
-!> \param[inout] matrix_a  the matrix UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_filter_anytype(matrix, eps, method,&
        use_absolute, filter_diag, quick, error)
@@ -2812,7 +2809,6 @@ CONTAINS
 !> \param norm_scalar ...
 !> \param norm_vector ...
 !> \param error ...
-!> \param[out] norm UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_norm_anytype(matrix, which_norm, norm_scalar, norm_vector, error)
 
@@ -3396,13 +3392,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief check if a block is not in the limits
-!> \param row ...
-!> \param col ...
-!> \param block_row_limits ...
-!> \param block_column_limits ...
-!> \param[in] block_row_limits, block_column_limits
-!> UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] row, col UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param[in] row ...
+!> \param[in] col ...
+!> \param[in] block_row_limits ...
+!> \param[in] block_column_limits ...
 ! *****************************************************************************
   FUNCTION dbcsr_block_in_limits(row, col, block_row_limits, block_column_limits)
     INTEGER, INTENT(in)                      :: row, col

@@ -109,7 +109,6 @@ MODULE hfx_compression_methods
 !> \param max_val_memory ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param nints number of int_8 values to be compressed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -209,7 +208,6 @@ MODULE hfx_compression_methods
 !> \param nbits number of bits with which the values have been stored
 !> \param memory_usage ...
 !> \param use_disk_storage ...
-!> \param nints number of int_8 values to be decompressed UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -437,8 +435,6 @@ MODULE hfx_compression_methods
 !> \param pmax_entry multiplication factor for values
 !> \param memory_usage ...
 !> \param use_disk_storage ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon

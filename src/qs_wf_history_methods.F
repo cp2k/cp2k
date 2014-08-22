@@ -1197,11 +1197,10 @@ END SUBROUTINE wfi_change_memory_depth
 ! *****************************************************************************
 !> \brief reorthogonalizes the mos
 !> \param qs_env the qs_env in which to orthogonalize
-!> \param v_matrix ...
+!> \param v_matrix the vectors to orthogonalize
 !> \param n_col number of column of v to orthogonalize
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param v the vectors to orthogonalize UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author Fawzi Mohamed
