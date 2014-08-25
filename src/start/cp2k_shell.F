@@ -40,7 +40,7 @@ PROGRAM cp2k_shell
   USE f77_interface,                   ONLY: &
        calc_energy_force, calc_force, create_force_env, destroy_force_env, &
        finalize_cp2k, get_energy, get_force, get_natom, get_pos, init_cp2k, &
-       set_pos
+       set_pos, set_cell, get_cell, get_stress_tensor
   USE input_constants,                 ONLY: id_development_version
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_section_types,             ONLY: section_release,&
@@ -77,12 +77,13 @@ PROGRAM cp2k_shell
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
   REAL(KIND=dp)                            :: e_pot,err
   REAL(KIND=dp)                            :: e_fact,pos_fact
+  REAL(KIND=dp), DIMENSION(3,3)            :: cell, stress_tensor
 
   LOGICAL, SAVE                            :: did_init = .FALSE.
   INTEGER, SAVE                            :: eof_stat
   TYPE(section_type), POINTER              :: input_declaration
 
-  CHARACTER(LEN=default_string_length), DIMENSION(37) :: helpMsg
+  CHARACTER(LEN=default_string_length), DIMENSION(40) :: helpMsg
 
   helpMsg=(/ &
   ll('Commands'),&
@@ -103,6 +104,9 @@ PROGRAM cp2k_shell
   ll(' SET_POS [env_id]: sets the positions of the atoms, should be followed'),&
   ll('   by natom*3 (on a line) and then all the positions. Returns the max'),&
   ll('   change of the coordinates (useful to avoid extra calculations).'),&
+  ll(' SET_CELL [env_id]: sets the cell, should be followed by 9 numbers'),&
+  ll(' GET_CELL [env_id]: gets the cell vectors'),&
+  ll(' GET_STRESS [env_id]: gets the stress tensor of the last calculation on env_id'),&
   ll(' GET_POS [env_id]: gets the positions of the atoms, returns'),&
   ll('   natom*3 (on a line) and then all the positions then "* END" '),&
   ll('   (alone on a line)'),&
@@ -225,6 +229,7 @@ PROGRAM cp2k_shell
            IF (shift>=LEN(cmdStr)) EXIT
         END DO
         CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',failure)
+        IF (failure) GOTO 10
 
         ! find end of inp-filename
         shift2 = shift+1
@@ -311,6 +316,37 @@ PROGRAM cp2k_shell
            WRITE (sout,'(ES22.13)') err*pos_fact
         END IF
         IF (stat/=0) CALL mp_abort('setpos failed dealloc')
+     CASE('SETCELL','SET_CELL')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        IF (failure) GOTO 10
+        IF (para_env%mepos==para_env%source) THEN
+           READ (*,*,iostat=iostat) cell
+           IF (iostat/=0) CALL mp_abort('setcell read')
+        END IF
+        CALL mp_bcast(cell,para_env%source,para_env%group)
+        CALL set_cell(env_id, new_cell=cell, ierr=ierr)
+        CALL my_assert(ierr==0,'set_cell error',failure)
+     CASE('GETCELL','GET_CELL')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        CALL get_cell(env_id,cell=cell,ierr=ierr)
+        CALL my_assert(ierr==0,cmd//' failed get_cell',failure)
+        IF (para_env%mepos==para_env%source) THEN
+           WRITE (sout,'(9ES22.13)',iostat=iostat) cell
+           IF (iostat/=0) CALL mp_abort(cmd//' write get_cell')
+           CALL m_flush(sout)
+        END IF
+     CASE('GETSTRESS','GET_STRESS')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        CALL get_stress_tensor(env_id,stress_tensor=stress_tensor,ierr=ierr)
+        CALL my_assert(ierr==0,cmd//' failed get_stress_tensor',failure)
+        IF (para_env%mepos==para_env%source) THEN
+           WRITE (sout,'(9ES22.13)',iostat=iostat) stress_tensor
+           IF (iostat/=0) CALL mp_abort(cmd//' write get_stress')
+           CALL m_flush(sout)
+        END IF
      CASE('GETPOS','GET_POS')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)

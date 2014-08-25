@@ -101,6 +101,7 @@ MODULE f77_interface
   USE metadynamics_utils,              ONLY: metadyn_read
   USE mixed_main,                      ONLY: mixed_create_force_env
   USE periodic_table,                  ONLY: init_periodic_table
+  USE physcon,                         ONLY: pascal
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                              pw_cuda_init
   USE qmmm_create,                     ONLY: qmmm_create_force_env
@@ -116,6 +117,7 @@ MODULE f77_interface
                                              timeset,&
                                              timestop
   USE timings_types,                   ONLY: timer_env_type
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -152,11 +154,11 @@ MODULE f77_interface
   PUBLIC :: init_f77_default
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
-            get_force, calc_energy_force, get_energy,&
+            get_force, calc_energy_force, get_energy, get_stress_tensor,&
             calc_energy, calc_force, check_input, get_natom, get_nparticle,&
             f_env_add_defaults, f_env_rm_defaults, f_env_type,&
             f_env_get_from_id,&
-            set_vel, do_shake, set_cell, get_result_r1
+            set_vel, do_shake, set_cell, get_cell, get_result_r1
 CONTAINS
 
 ! ****************************************************************************
@@ -1213,6 +1215,44 @@ CPSourceFileRef,&
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_force
+
+! *****************************************************************************
+!> \brief gets the stress tensor
+!> \param env_id id of the force_env
+!> \param stress_tensor the array where to write the stress tensor
+!> \param ierr will return a number different from 0 if there was an error
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE get_stress_tensor(env_id, stress_tensor, ierr)
+
+    INTEGER, INTENT(IN)                      :: env_id
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: stress_tensor
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_stress_tensor', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(virial_type), POINTER               :: virial
+
+    failure = .FALSE.
+    NULLIFY (f_env, virial, cell)
+    stress_tensor(:,:) = 0.0_dp
+
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       CALL force_env_get(f_env%force_env, virial=virial, cell=cell, error=error)
+       IF(virial%pv_availability) THEN
+          stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
+       ENDIF
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+
+  END SUBROUTINE get_stress_tensor
 
 ! *****************************************************************************
 !> \brief gets the positions of the particles
