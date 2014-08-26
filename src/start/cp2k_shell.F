@@ -35,7 +35,8 @@ PROGRAM cp2k_shell
                                              id_cp2k_version,&
                                              print_cp2k_license
   USE cp_files,                        ONLY: close_file,&
-                                             get_unit_number
+                                             get_unit_number,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_interface,                   ONLY: &
        calc_energy_force, calc_force, create_force_env, destroy_force_env, &
@@ -48,12 +49,9 @@ PROGRAM cp2k_shell
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_chdir,&
-                                             m_flush,&
-                                             m_getcwd,&
-                                             m_getlog,&
-                                             m_getpid,&
-                                             m_hostnm
+  USE machine,                         ONLY: &
+       default_output_unit, m_chdir, m_flush, m_getarg, m_getcwd, m_getlog, &
+       m_getpid, m_hostnm, m_iargc
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
   USE physcon,                         ONLY: angstrom,&
@@ -68,7 +66,7 @@ PROGRAM cp2k_shell
   INTEGER                                  :: ierr,i,iostat,shift,&
                                               shift2,env_id,last_env_id,&
                                               n_atom,stat,n_atom2,pid
-  INTEGER, PARAMETER                       :: sout=6 ! ,sin=5
+  INTEGER                                  :: sout
   TYPE(cp_error_type)                      :: error
   TYPE(cp_para_env_type), POINTER          :: para_env
   TYPE(cp_logger_type), POINTER            :: logger
@@ -128,6 +126,21 @@ PROGRAM cp2k_shell
   ll(' EXIT: Quit the shell'),&
   ll(' HELP: writes the present help') /)
 
+  sout = default_output_unit
+
+  IF(m_iargc()>0) THEN
+     CALL m_getarg(1, out_filename)
+     IF(m_iargc()>1 .OR. out_filename(:16) /= "--redirect-comm=") &
+       STOP "Usage: cp2k_shell [--redirect-comm=filename]"
+     ! Redirect shell-output away from stdout into a seperate file/pipe.
+     ! This is used e.g. by the ASE calculator.
+     CALL open_file(file_name=TRIM(out_filename(17:)), unit_number=sout,&
+                     file_position="ASIS",&
+                     file_status="OLD",&
+                     file_form="FORMATTED",&
+                     file_action="WRITE")
+  END IF
+
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
   IF (ierr/=0) CALL mp_abort('init_cp2k failure')
 
@@ -149,6 +162,7 @@ PROGRAM cp2k_shell
   DO
      IF (para_env%mepos==para_env%source) THEN
         WRITE (sout,'("* READY")')
+        CALL m_flush(sout)
      END IF
      CALL m_flush(sout)
      IF (para_env%mepos==para_env%source) THEN
