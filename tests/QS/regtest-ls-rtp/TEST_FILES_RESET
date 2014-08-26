@@ -1,2 +1,7 @@
 # Bugfix
 H2O-ls-ortho-emd.inp
+# Improved numerics
+H2O-ls-rtp-bch.inp
+emd-KG.inp
+H2O-ls-ortho-emd.inp
+

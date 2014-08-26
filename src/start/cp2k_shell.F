@@ -39,8 +39,8 @@ PROGRAM cp2k_shell
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_interface,                   ONLY: &
        calc_energy_force, calc_force, create_force_env, destroy_force_env, &
-       finalize_cp2k, get_energy, get_force, get_natom, get_pos, init_cp2k, &
-       set_pos, set_cell, get_cell, get_stress_tensor
+       finalize_cp2k, get_cell, get_energy, get_force, get_natom, get_pos, &
+       get_stress_tensor, init_cp2k, set_cell, set_pos
   USE input_constants,                 ONLY: id_development_version
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_section_types,             ONLY: section_release,&

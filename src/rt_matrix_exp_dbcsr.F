@@ -442,9 +442,9 @@ END SUBROUTINE
     DO i=1,20
        prefac=one/i
        CALL cp_dbcsr_multiply("N","N",-prefac,propagator,tmp2,zero,comm,&
-            filter_eps=filter_eps,error=error)
+            filter_eps=filter_eps/100,error=error)
        CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp,zero,comm2,&
-            filter_eps=filter_eps,error=error)
+            filter_eps=filter_eps/100,error=error)
        CALL cp_dbcsr_transposed(tmp,comm,error=error)
        CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
        CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
@@ -549,7 +549,7 @@ END SUBROUTINE
     DO i=1,20
        prefac=one/i
        CALL cp_complex_dbcsr_gemm_3("N", "N", prefac, propagator_re, propagator_im,&
-            tmp, tmp2, zero, comm, comm2, filter_eps=filter_eps, error=error)
+            tmp, tmp2, zero, comm, comm2, filter_eps=filter_eps/100, error=error)
        CALL cp_dbcsr_transposed(tmp,comm,error=error)
        CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
        CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
