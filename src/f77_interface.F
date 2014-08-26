@@ -101,7 +101,6 @@ MODULE f77_interface
   USE metadynamics_utils,              ONLY: metadyn_read
   USE mixed_main,                      ONLY: mixed_create_force_env
   USE periodic_table,                  ONLY: init_periodic_table
-  USE physcon,                         ONLY: pascal
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                              pw_cuda_init
   USE qmmm_create,                     ONLY: qmmm_create_force_env
@@ -1247,7 +1246,7 @@ CPSourceFileRef,&
     IF (.NOT.failure) THEN
        CALL force_env_get(f_env%force_env, virial=virial, cell=cell, error=error)
        IF(virial%pv_availability) THEN
-          stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
+          stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth
        ENDIF
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
