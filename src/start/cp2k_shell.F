@@ -83,7 +83,7 @@ PROGRAM cp2k_shell
   INTEGER, SAVE                            :: eof_stat
   TYPE(section_type), POINTER              :: input_declaration
 
-  CHARACTER(LEN=default_string_length), DIMENSION(40) :: helpMsg
+  CHARACTER(LEN=default_string_length), DIMENSION(41) :: helpMsg
 
   helpMsg=(/ &
   ll('Commands'),&
@@ -125,6 +125,7 @@ PROGRAM cp2k_shell
   ll(' PERMISSIVE: stops only on serious errors'),&
   ll(' UNITS: returns the units used for energy and position'),&
   ll(' UNITS_EV_A: sets the units to electron volt (energy)  and Angstrom (positions)'),&
+  ll(' EXIT: Quit the shell'),&
   ll(' HELP: writes the present help') /)
 
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
@@ -495,6 +496,10 @@ PROGRAM cp2k_shell
            CALL m_getcwd(cmdStr)
            WRITE (sout,'(a)')TRIM(cmdStr)
         END IF
+     CASE('EXIT')
+        WRITE(sout,'(a)',iostat=iostat) '* EXIT'
+        ! ignoring iostat on purpose
+        EXIT
      CASE default
         CALL my_assert(.FALSE.,'unknown command '//cmd,failure)
      END SELECT
