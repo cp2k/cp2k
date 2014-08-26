@@ -98,10 +98,12 @@ CONTAINS
        CALL keyword_create(keyword,name="_SECTION_PARAMETERS_",&
             description="Shortcut for the most common functional combinations.",&
             usage="&xc_functional BLYP",&
-            enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","PBE","TPSS","HCTH120","OLYP","BEEFVDW","NO_SHORTCUT","NONE"),&
-            enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pbe,&
+            enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","LDA","PBE","TPSS","HCTH120","OLYP","BEEFVDW","NO_SHORTCUT","NONE"),&
+            enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pade,xc_funct_pbe,&
             xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_beefvdw,xc_funct_no_shortcut,xc_none/),&
-            default_i_val=xc_funct_no_shortcut,lone_keyword_i_val=xc_funct_no_shortcut,&
+            enum_desc=s2a("B3LYP","PBE0","BLYP","BP","PADE","Alias for PADE","PBE","TPSS","HCTH120","OLYP","BEEFVDW","NO_SHORTCUT","NONE"),&
+            default_i_val=xc_funct_no_shortcut,&
+            lone_keyword_i_val=xc_funct_no_shortcut,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
