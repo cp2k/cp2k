@@ -249,10 +249,10 @@ CONTAINS
              ENDIF
              IF(rtp_control%mcweeny_max_iter>0) THEN
                 IF(rtp_control%orthonormal) THEN
-                   CALL purify_mcweeny_complex_orth(rho_new,s_mat,rtp%filter_eps,&
+                   CALL purify_mcweeny_complex_orth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
                         rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
                 ELSE
-                   CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,&
+                   CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
                         rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
                 ENDIF
              ELSE
@@ -271,12 +271,12 @@ CONTAINS
                    CALL cp_dbcsr_create(PSP(re)%matrix,template=rho_new(re)%matrix,error=error)
                    CALL cp_dbcsr_create(PSP(im)%matrix,template=rho_new(im)%matrix,error=error)
                    CALL cp_dbcsr_multiply("N","N",one,rho_new(re)%matrix,s_mat(1)%matrix,zero,&
-                        PS(re)%matrix,filter_eps=rtp%filter_eps,error=error)
+                        PS(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
                    CALL cp_dbcsr_multiply("N","N",one,rho_new(im)%matrix,s_mat(1)%matrix,zero,&
-                        PS(im)%matrix,filter_eps=rtp%filter_eps,error=error)
+                        PS(im)%matrix,filter_eps=rtp%filter_eps_small,error=error)
                    CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
                         rho_new(re)%matrix,rho_new(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
-                        filter_eps=rtp%filter_eps,error=error)
+                        filter_eps=rtp%filter_eps_small,error=error)
                 END DO
                 !PSP works here as a work matrix to calculate the idempotency
                 CALL cp_dbcsr_add(PSP(re)%matrix,rho_new(re)%matrix,one,-one,error=error)
@@ -594,11 +594,11 @@ CONTAINS
 !> \author Samuel Andermatt (04.14)
 ! *****************************************************************************
 
-  SUBROUTINE purify_mcweeny_complex_nonorth(P,s_mat,eps,max_iter,threshold,error)
+  SUBROUTINE purify_mcweeny_complex_nonorth(P,s_mat,eps,eps_small,max_iter,threshold,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: P, s_mat
-    REAL(KIND=dp)                            :: eps
+    REAL(KIND=dp)                            :: eps, eps_small
     INTEGER                                  :: max_iter
     REAL(KIND=dp)                            :: threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -632,12 +632,12 @@ CONTAINS
        im=2*ispin
        DO i=1,max_iter
           CALL cp_dbcsr_multiply("N", "N", one, P(re)%matrix,s_mat(1)%matrix,&
-               zero, PS(re)%matrix, filter_eps=eps/100,error=error)
+               zero, PS(re)%matrix, filter_eps=eps_small,error=error)
           CALL cp_dbcsr_multiply("N", "N", one, P(im)%matrix,s_mat(1)%matrix,&
-               zero, PS(im)%matrix, filter_eps=eps/100,error=error)
+               zero, PS(im)%matrix, filter_eps=eps_small,error=error)
           CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
                P(re)%matrix,P(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
-               filter_eps=eps/100,error=error)
+               filter_eps=eps_small,error=error)
           CALL cp_dbcsr_copy(tmp(re)%matrix,PSP(re)%matrix,error=error)
           CALL cp_dbcsr_copy(tmp(im)%matrix,PSP(im)%matrix,error=error)
           CALL cp_dbcsr_add(tmp(re)%matrix,P(re)%matrix,1.0_dp,-1.0_dp,error=error)
@@ -648,7 +648,7 @@ CONTAINS
              CALL cp_dbcsr_copy(P(im)%matrix,PSP(im)%matrix,error=error)
              CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix,PS(im)%matrix,&
                   PSP(re)%matrix,PSP(im)%matrix,3.0_dp,P(re)%matrix,P(im)%matrix,&
-                  filter_eps=eps/100,error=error)
+                  filter_eps=eps_small,error=error)
              CALL cp_dbcsr_filter(P(re)%matrix,eps,error=error)
              CALL cp_dbcsr_filter(P(im)%matrix,eps,error=error)
              !make sure P is exactly hermitian
@@ -685,11 +685,11 @@ CONTAINS
 !> \author Samuel Andermatt (04.14)
 ! *****************************************************************************
 
-  SUBROUTINE purify_mcweeny_complex_orth(P,s_mat,eps,max_iter,threshold,error)
+  SUBROUTINE purify_mcweeny_complex_orth(P,s_mat,eps,eps_small,max_iter,threshold,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: P, s_mat
-    REAL(KIND=dp)                            :: eps
+    REAL(KIND=dp)                            :: eps, eps_small
     INTEGER                                  :: max_iter
     REAL(KIND=dp)                            :: threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -720,7 +720,7 @@ CONTAINS
        DO i=1,max_iter
           CALL cp_complex_dbcsr_gemm_3("N","N",one,P(re)%matrix,P(im)%matrix,&
                P(re)%matrix,P(im)%matrix,zero,PP(re)%matrix,PP(im)%matrix,&
-               filter_eps=eps/100,error=error)
+               filter_eps=eps_small,error=error)
           CALL cp_dbcsr_copy(tmp(re)%matrix,PP(re)%matrix,error=error)
           CALL cp_dbcsr_copy(tmp(im)%matrix,PP(im)%matrix,error=error)
           CALL cp_dbcsr_add(tmp(re)%matrix,P(re)%matrix,1.0_dp,-1.0_dp,error=error)
@@ -733,7 +733,7 @@ CONTAINS
              CALL cp_dbcsr_copy(P(im)%matrix,PP(im)%matrix,error=error)            
              CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, tmp(re)%matrix,tmp(im)%matrix,&
                   PP(re)%matrix,PP(im)%matrix,3.0_dp,P(re)%matrix,P(im)%matrix,&
-                  filter_eps=eps/100,error=error)
+                  filter_eps=eps_small,error=error)
              CALL cp_dbcsr_filter(P(re)%matrix,eps,error=error)
              CALL cp_dbcsr_filter(P(im)%matrix,eps,error=error)
              !make sure P is exactly hermitian

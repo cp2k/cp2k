@@ -391,10 +391,11 @@ END SUBROUTINE
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
 
-   SUBROUTINE bch_expansion_imaginary_propagator(propagator,density_re,density_im,filter_eps,eps_exp,error)
+   SUBROUTINE bch_expansion_imaginary_propagator(propagator,density_re,density_im,filter_eps,filter_eps_small,eps_exp,error)
     TYPE(cp_dbcsr_type), POINTER             :: propagator, density_re, &
                                                 density_im
-    REAL(KIND=dp)                            :: filter_eps, eps_exp
+    REAL(KIND=dp)                            :: filter_eps, filter_eps_small, &
+                                                eps_exp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -442,9 +443,9 @@ END SUBROUTINE
     DO i=1,20
        prefac=one/i
        CALL cp_dbcsr_multiply("N","N",-prefac,propagator,tmp2,zero,comm,&
-            filter_eps=filter_eps/100,error=error)
+            filter_eps=filter_eps_small,error=error)
        CALL cp_dbcsr_multiply("N","N",prefac,propagator,tmp,zero,comm2,&
-            filter_eps=filter_eps/100,error=error)
+            filter_eps=filter_eps_small,error=error)
        CALL cp_dbcsr_transposed(tmp,comm,error=error)
        CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
        CALL cp_dbcsr_add(comm,tmp,one,one,error=error)
@@ -497,10 +498,12 @@ END SUBROUTINE
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
 
-   SUBROUTINE bch_expansion_complex_propagator(propagator_re,propagator_im,density_re,density_im,filter_eps,eps_exp,error)
+   SUBROUTINE bch_expansion_complex_propagator(propagator_re,propagator_im,density_re,density_im,filter_eps,&
+              filter_eps_small,eps_exp,error)
     TYPE(cp_dbcsr_type), POINTER             :: propagator_re, propagator_im, &
                                                 density_re, density_im
-    REAL(KIND=dp)                            :: filter_eps, eps_exp
+    REAL(KIND=dp)                            :: filter_eps, filter_eps_small, &
+                                                eps_exp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -549,7 +552,7 @@ END SUBROUTINE
     DO i=1,20
        prefac=one/i
        CALL cp_complex_dbcsr_gemm_3("N", "N", prefac, propagator_re, propagator_im,&
-            tmp, tmp2, zero, comm, comm2, filter_eps=filter_eps/100, error=error)
+            tmp, tmp2, zero, comm, comm2, filter_eps=filter_eps_small, error=error)
        CALL cp_dbcsr_transposed(tmp,comm,error=error)
        CALL cp_dbcsr_transposed(tmp2,comm2,error=error)
        CALL cp_dbcsr_add(comm,tmp,one,one,error=error)

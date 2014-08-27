@@ -1799,6 +1799,8 @@ CPSourceFileRef,&
       l_val=dft_control%rtp_control%orthonormal,error=error)
     CALL section_vals_val_get(rtp_section,"MCWEENY_MAX_ITER",&
       i_val=dft_control%rtp_control%mcweeny_max_iter,error=error)
+    CALL section_vals_val_get(rtp_section,"ACCURACY_REFINEMENT",&
+      i_val=dft_control%rtp_control%acc_ref,error=error)
     CALL section_vals_val_get(rtp_section,"MCWEENY_EPS",&
       r_val=dft_control%rtp_control%mcweeny_eps,error=error)
     CALL section_vals_val_get(rtp_section,"DELTA_PULSE_SCALE",&

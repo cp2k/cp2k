@@ -57,6 +57,7 @@ MODULE cp_control_types
      LOGICAL                              :: calc_idempotency
      LOGICAL                              :: orthonormal
      INTEGER                              :: mcweeny_max_iter
+     INTEGER                              :: acc_ref
      REAL(dp)                             :: mcweeny_eps
      INTEGER, DIMENSION(3)                :: delta_pulse_direction
      REAL(KIND=dp)                        :: delta_pulse_scale

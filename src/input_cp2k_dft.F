@@ -7635,7 +7635,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ORTHONORMAL",&
             description="Performs rtp in the orthonormal basis, currently only works with density propagation",&
-            usage="CALCULATE_IDEMPOTENCY",&
+            usage="ORTHONORMAL",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7644,6 +7644,14 @@ CONTAINS
             description="Determines the maximum amount of McWeeny steps used after each converged"//&
             " step in density propagation",&
             usage="MCWEENY_MAX_ITER 2",default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ACCURACY_REFINEMENT",&
+            description="If using density propagation some parts should be calculated with a higher accuracy than the rest"//&
+            " to reduce numerical noise. This factor determines by how much the filtering threshold is"//&
+            " reduced for these calculations.",&
+            usage="ACCURACY_REFINEMENT",default_i_val=100,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

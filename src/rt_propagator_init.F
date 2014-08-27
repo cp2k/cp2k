@@ -481,10 +481,10 @@ CONTAINS
             max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
        IF(SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
        IF(rtp_control%orthonormal) THEN
-          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps/100,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps/100,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(im)%matrix,zero,tmp,filter_eps=rtp%filter_eps/100,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(im)%matrix,filter_eps=rtp%filter_eps/100,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(im)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(im)%matrix,filter_eps=rtp%filter_eps_small,error=error)
        ENDIF
        CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
     END DO

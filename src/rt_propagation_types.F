@@ -105,6 +105,7 @@ MODULE rt_propagation_types
     REAL(KIND=dp)                               :: dt
     REAL(KIND=dp)                               :: delta_iter
     REAL(KIND=dp)                               :: filter_eps
+    REAL(KIND=dp)                               :: filter_eps_small
     LOGICAL                                     :: do_hfx
     TYPE(rtp_hfx_type),POINTER                  :: rtp_hfx
     INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
