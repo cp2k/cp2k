@@ -386,6 +386,7 @@ END SUBROUTINE
 !> \param density_re Real part of the density matrix
 !> \param density_im Imaginary part of the density matrix
 !> \param filter_eps The filtering threshold for all matrices
+!> \param filter_eps_small ...
 !> \param eps_exp The accuracy of the exponential
 !> \param error The cp2k error type
 !> \author Samuel Andermatt (02.2014)
@@ -493,6 +494,7 @@ END SUBROUTINE
 !> \param density_re Real part of the density matrix
 !> \param density_im Imaginary part of the density matrix
 !> \param filter_eps The filtering threshold for all matrices
+!> \param filter_eps_small ...
 !> \param eps_exp The accuracy of the exponential
 !> \param error The cp2k error type
 !> \author Samuel Andermatt (02.2014)
