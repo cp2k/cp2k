@@ -321,10 +321,8 @@
 
 ! *****************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
-!> \param encapsulated_scalar ...
-!> \param value ...
-!> \params[in] encapsulated_scalar          encapsulated scalar
-!> \params[out] value                       value of the scalar
+!> \param[in] encapsulated_scalar          encapsulated scalar
+!> \param[out] value                       value of the scalar
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE dbcsr_scalar_get_value_[nametype1] (encapsulated_scalar, value)
     TYPE(dbcsr_scalar_type), INTENT(IN) :: encapsulated_scalar
