@@ -47,7 +47,11 @@ do
     fi
 
 # Copy the final modified source file on top of the original file
+diff $file $file.new >/dev/null
+if [ $? == 1 ]
+then
     cp $file.new $file
+fi
 
 # Remove any uneeded output files 
     rm -f $file.tmp $file.preprocessed $file.new 
