@@ -97,10 +97,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaStreamWaitEvent.
-!> \param stream ...
-!> \param event ...
+!> \param[in] stream stream
+!> \param[in] event event
 !> \author  Ole Schuett
-!> Because of fortran cyrcular dependency restriction this can not go into acc_stream.F
+!> \remarks Because of fortran circular dependency restriction this can not go into acc_stream.F
 ! *****************************************************************************
 SUBROUTINE acc_stream_wait_event(stream, event)
     TYPE(acc_stream_type), INTENT(IN) :: stream
@@ -123,8 +123,8 @@ END SUBROUTINE acc_stream_wait_event
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventRecord.
-!> \param this ...
-!> \param stream ...
+!> \param[in] this event
+!> \param[in] stream stream
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_record(this, stream)
@@ -148,7 +148,7 @@ END SUBROUTINE acc_event_record
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventCreate.
-!> \param this ...
+!> \param[in,out] this event
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_create(this)
@@ -169,7 +169,7 @@ END SUBROUTINE acc_event_create
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventDestroy.
-!> \param this ...
+!> \param[in,out] this event
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_destroy(this)
@@ -190,8 +190,8 @@ END SUBROUTINE acc_event_destroy
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaEventQuery.
-!> \param this ...
-!> \retval res ...
+!> \param[in] this event
+!> \retval res true if event has occured, false otherwise
 !> \author  Ole Schuett
 ! *****************************************************************************
 FUNCTION acc_event_query(this) RESULT(res)
@@ -212,8 +212,8 @@ END FUNCTION acc_event_query
 
 
 ! *****************************************************************************
-!> \brief Fortran-wrapper for cudaEventSynchronize,.
-!> \param this ...
+!> \brief Fortran-wrapper for cudaEventSynchronize.
+!> \param[in] this event
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_event_synchronize(this)

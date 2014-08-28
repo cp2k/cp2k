@@ -1,5 +1,8 @@
 ! *****************************************************************************
 !> \brief Transfers 1D fortran-array from host to cuda devmem.
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
 !> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE host2dev_i8_1D(this, hostmem, stream)
@@ -17,6 +20,9 @@
 
 ! *****************************************************************************
 !> \brief Transfers 2D fortran-array from host to cuda devmem.
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
 !> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE host2dev_i8_2D(this, hostmem, stream)
@@ -34,6 +40,9 @@
 
 ! *****************************************************************************
 !> \brief Transfers cuda devmem to 1D fortran-array.
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
 !> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE dev2host_i8_1D(this, hostmem, stream)

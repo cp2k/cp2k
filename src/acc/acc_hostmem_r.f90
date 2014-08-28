@@ -6,6 +6,7 @@
 
 ! *****************************************************************************
 !> \brief Allocates 1D fortan-array as cuda host-pinned memory.
+!> \param host_mem pointer to array
 !> \param n size given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
@@ -26,6 +27,7 @@
 
 ! *****************************************************************************
 !> \brief Allocates 2D fortan-array as cuda host-pinned memory.
+!> \param host_mem pointer to array
 !> \param n1,n2 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
@@ -46,6 +48,7 @@ SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
 
 ! *****************************************************************************
 !> \brief Allocates 3D fortan-array as cuda host-pinned memory.
+!> \param host_mem pointer to array
 !> \param n1,n2,n3 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
@@ -67,7 +70,8 @@ SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
 
 ! *****************************************************************************
 !> \brief Allocates 4D fortan-array as cuda host-pinned memory.
-!> \param n1,..,n4 sizes given in terms of item-count (not bytes!)
+!> \param host_mem pointer to array
+!> \param n1,n2,n3,n4 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
@@ -89,6 +93,7 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 
 ! *****************************************************************************
 !> \brief Deallocates a 1D fortan-array, which is cuda host-pinned memory.
+!> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_hostmem_dealloc_r (host_mem)
@@ -113,6 +118,7 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 
 ! *****************************************************************************
 !> \brief Deallocates a 2D fortan-array, which is cuda host-pinned memory.
+!> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_hostmem_dealloc_r_2D (host_mem)
@@ -137,6 +143,7 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 
 ! *****************************************************************************
 !> \brief Deallocates a 3D fortan-array, which is cuda host-pinned memory.
+!> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_hostmem_dealloc_r_3D (host_mem)
@@ -161,6 +168,7 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 
 ! *****************************************************************************
 !> \brief Deallocates a 4D fortan-array, which is cuda host-pinned memory.
+!> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_hostmem_dealloc_r_4D (host_mem)

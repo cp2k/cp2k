@@ -1,8 +1,8 @@
 ! *****************************************************************************
 !> \brief Transfers 1D fortran-array from host to cuda devmem.
-!> \param this ...
-!> \param hostmem ...
-!> \param stream ...
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
 !> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE host2dev_[nametype]_1D(this, hostmem, stream)
@@ -20,9 +20,9 @@
 
 ! *****************************************************************************
 !> \brief Transfers 2D fortran-array from host to cuda devmem.
-!> \param this ...
-!> \param hostmem ...
-!> \param stream ...
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
 !> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE host2dev_[nametype]_2D(this, hostmem, stream)
@@ -40,9 +40,9 @@
 
 ! *****************************************************************************
 !> \brief Transfers cuda devmem to 1D fortran-array.
-!> \param this ...
-!> \param hostmem ...
-!> \param stream ...
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
 !> \author  Ole Schuett
 ! *****************************************************************************
  SUBROUTINE dev2host_[nametype]_1D(this, hostmem, stream)

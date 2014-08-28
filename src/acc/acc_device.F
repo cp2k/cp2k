@@ -40,8 +40,8 @@ MODULE acc_device
 CONTAINS
 
 ! *****************************************************************************
-!> \brief ...
-!> \retval n ...
+!> \brief Get number of accelerator devices
+!> \retval n number of accelerator devices
 ! *****************************************************************************
   FUNCTION acc_get_ndevices() RESULT(n)
     INTEGER                                  :: n
@@ -59,8 +59,8 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief ...
-!> \param dev_id ...
+!> \brief Set active accelerator device
+!> \param dev_id device ID
 ! *****************************************************************************
   SUBROUTINE acc_set_active_device(dev_id)
     INTEGER :: dev_id
