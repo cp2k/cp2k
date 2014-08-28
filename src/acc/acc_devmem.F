@@ -167,8 +167,8 @@ CONTAINS
 !> \param[in,out] this device memory
 !> \param[in] stream on which zeroing and memcopying is performed
 !> \param[in] requested_size_in_bytes requested size in bytes
-!> \param[in] (optional) nocopy if after growin old content should NOT be copied over. Default: false.
-!> \param[in] (optional) zero_pad if after growing the new memory should be zeroed. Default: false.
+!> \param[in] nocopy (optional) if after growin old content should NOT be copied over. Default: false. 
+!> \param[in] zero_pad (optional) if after growing the new memory should be zeroed. Default: false. 
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_devmem_ensure_size_bytes(this, stream, requested_size_in_bytes, nocopy, zero_pad)
@@ -363,8 +363,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sets entries in given devmem to zero, asynchronously.
 !> \param[in,out] this device memory
-!> \param[in] (optional) first_byte begin of region to zero, defaults to 1 if not given.
-!> \param[in] (optional) last_byte end of region to zero, defaults to size if not given.
+!> \param[in] first_byte (optional) begin of region to zero, defaults to 1 if not given. 
+!> \param[in] last_byte (optional) end of region to zero, defaults to size if not given. 
 !> \param[in] stream stream on which zeroing is performed.
 !> \author  Ole Schuett
 ! *****************************************************************************

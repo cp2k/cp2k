@@ -97,10 +97,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Fortran-wrapper for cudaStreamWaitEvent.
+!>        Because of fortran circular dependency restriction this can not go into acc_stream.F
 !> \param[in] stream stream
 !> \param[in] event event
 !> \author  Ole Schuett
-!> \remarks Because of fortran circular dependency restriction this can not go into acc_stream.F
 ! *****************************************************************************
 SUBROUTINE acc_stream_wait_event(stream, event)
     TYPE(acc_stream_type), INTENT(IN) :: stream
