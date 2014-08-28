@@ -93,34 +93,44 @@ CONTAINS
        CALL keyword_create(keyword, name="RUN_TYPE",&
             description="Type of run that you want to perform "//&
                 "[ENERGY,BASIS_OPTIMIZATION,PSEUDOPOTENTIAL_OPTIMIZATION,,...] ",&
-            usage="RUN_TYPE ENERGY",&
+            usage="RUN_TYPE (NONE|ENERGY|BASIS_OPTIMIZATION|PSEUDOPOTENTIAL_OPTIMIZATION)",&
             default_i_val=atom_energy_run,&
             enum_c_vals=s2a("NONE","ENERGY","BASIS_OPTIMIZATION","PSEUDOPOTENTIAL_OPTIMIZATION"),&
             enum_i_vals=(/atom_no_run, atom_energy_run, atom_basis_run, atom_pseudo_run/),&
+            enum_desc=s2a("Perform no run",&
+                          "Perform energy optimization",&
+                          "Perform basis optimization",&
+                          "Perform pseudopotential optimization"),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="COULOMB_INTEGRALS",&
             description="Method to calculate Coulomb integrals",&
-            usage="COULOMB_INTEGRALS analytic",&
+            usage="COULOMB_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)",&
             default_i_val=do_numeric,&
             enum_c_vals=(/"ANALYTIC                 ",&
                           "SEMI_ANALYTIC            ",&
                           "NUMERIC                  "/),&
             enum_i_vals= (/ do_analytic, do_semi_analytic, do_numeric /),&
+            enum_desc=s2a("Use analytical method",&
+                          "Use semi-analytical method",&
+                          "Use numerical method"),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EXCHANGE_INTEGRALS",&
             description="Method to calculate Exchange integrals",&
-            usage="EXCHANGE_INTEGRALS analytic",&
+            usage="EXCHANGE_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)",&
             default_i_val=do_numeric,&
             enum_c_vals=(/"ANALYTIC                 ",&
                           "SEMI_ANALYTIC            ",&
                           "NUMERIC                  "/),&
             enum_i_vals= (/ do_analytic, do_semi_analytic, do_numeric /),&
+            enum_desc=s2a("Use analytical method",&
+                          "Use semi-analytical method",&
+                          "Use numerical method"),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -427,7 +437,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="BASIS_TYPE",&
             description="Basis set type",&
-            usage="BASIS_TYPE GAUSSIAN",&
+            usage="BASIS_TYPE (GAUSSIAN|GEOMETRICAL_GTO|CONTRACTED_GTO|SLATER|NUMERICAL)",&
             default_i_val=gaussian,&
             enum_c_vals=(/"GAUSSIAN                 ",&
                           "GEOMETRICAL_GTO          ",&
@@ -435,6 +445,11 @@ CONTAINS
                           "SLATER                   ",&
                           "NUMERICAL                "/),&
             enum_i_vals= (/ gaussian, geometrical_gto, contracted_gto, slater, numerical /),&
+            enum_desc=s2a("Gaussian type orbitals",&
+                          "Geometrical Gaussian type orbitals",&
+                          "Contracted Gaussian type orbitals",&
+                          "Slater-type orbitals",&
+                          "Numerical basis type"),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -533,9 +548,12 @@ CONTAINS
 
        CALL keyword_create(keyword, name="QUADRATURE",&
             description="Algorithm to construct the atomic radial grids",&
-            usage="QUADRATURE GC_SIMPLE",&
+            usage="QUADRATURE (GC_SIMPLE|GC_TRANSFORMED|GC_LOG)",&
             enum_c_vals=s2a("GC_SIMPLE","GC_TRANSFORMED","GC_LOG"),&
             enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
+            enum_desc=s2a("Gauss-Chebyshev quadrature",&
+                          "Transformed Gauss-Chebyshev quadrature",&
+                          "Logarithmic transformed Gauss-Chebyshev quadrature"),&
             default_i_val=do_gapw_log, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -592,7 +610,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="METHOD_TYPE",&
             description="Type of electronic structure method to be used",&
-            usage="METHOD_TYPE KOHN-SHAM",&
+            usage="METHOD_TYPE (KOHN-SHAM|RKS|UKS|HARTREE-FOCK|RHF|UHF|ROHF)",&
             default_i_val=do_rks_atom,&
             enum_c_vals=(/"KOHN-SHAM                ",&
                           "RKS                      ",&
@@ -603,13 +621,20 @@ CONTAINS
                           "ROHF                     "/),&
             enum_i_vals= (/ do_rks_atom, do_rks_atom, do_uks_atom, do_rhf_atom, &
                             do_rhf_atom, do_uhf_atom, do_rohf_atom /),&
+            enum_desc=s2a("Kohn-Sham electronic structure method",&
+                          "Restricted Kohn-Sham electronic structure method",&
+                          "Unrestricted Kohn-Sham electronic structure method",&
+                          "Hartree-Fock electronic structure method",&
+                          "Restricted Hartree-Fock electronic structure method",&
+                          "Unrestricted Hartree-Fock electronic structure method",&
+                          "Restricted open-shell Hartree-Fock electronic structure method"),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RELATIVISTIC",&
             description="Type of scalar relativistic method to be used",&
-            usage="RELATIVISTIC DKH(2)",&
+            usage="RELATIVISTIC (OFF|ZORA(MP)|scZORA(MP)|DKH(0)|DKH(1)|DKH(2)|DKH(3)|DKH(4)|(DKH(5))",&
             default_i_val=do_nonrel_atom,&
             enum_c_vals=(/"OFF                      ",&
                           "ZORA(MP)                 ",&
@@ -622,6 +647,15 @@ CONTAINS
                           "DKH(5)                   "/),&
             enum_i_vals= (/ do_nonrel_atom, do_zoramp_atom, do_sczoramp_atom, do_dkh0_atom,&
             do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom /),&
+            enum_desc=s2a("Use no scalar relativistic method",&
+                          "Use ZORA method with atomic model potential",&
+                          "Use scaled ZORA method with atomic model potential",&
+                          "Use Douglas-Kroll-Hess Hamiltonian of order 0",&
+                          "Use Douglas-Kroll-Hess Hamiltonian of order 1",&
+                          "Use Douglas-Kroll-Hess Hamiltonian of order 2",&
+                          "Use Douglas-Kroll-Hess Hamiltonian of order 3",&
+                          "Use Douglas-Kroll-Hess Hamiltonian of order 4",&
+                          "Use Douglas-Kroll-Hess Hamiltonian of order 5"),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

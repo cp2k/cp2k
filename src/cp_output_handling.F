@@ -259,14 +259,17 @@ CONTAINS
        END IF
        CALL keyword_create(keyword, name="ADD_LAST",&
             description="If the last iteration should be added, and if it "//&
-            "should be marked symbolically (with l) or with the iteration "//&
-            "number."//&
+            "should be marked symbolically (with lowercase letter l) or with "//&
+            "the iteration number. "//&
             "Not every iteration level is able to identify the last iteration "//&
             "early enough to be able to output. When this keyword is activated "//&
             "all iteration levels are checked for the last iteration step.",&
-            usage="ADD_LAST NUMERIC",&
+            usage="ADD_LAST (NO|NUMERIC|SYMBOLIC)",&
             enum_c_vals=s2a("no","numeric","symbolic"),&
             enum_i_vals=(/add_last_no, add_last_numeric, add_last_symbolic/),&
+            enum_desc=s2a("Do not mark last iteration specifically",&
+                            "Mark last iteration with its iteration number",&
+                            "Mark last iteration with lowercase letter l"),&
             default_i_val=my_add_last,supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

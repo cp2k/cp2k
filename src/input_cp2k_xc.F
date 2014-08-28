@@ -890,9 +890,12 @@ CONTAINS
        CALL keyword_create(keyword, name="POTENTIAL_TYPE",&
             variants=s2a("DISPERSION_FUNCTIONAL"),&
             description="Type of dispersion/vdW functional or potential to use",&
-            usage="POTENTIAL_TYPE PAIR_POTENTIAL",&
+            usage="POTENTIAL_TYPE (NONE|PAIR_POTENTIAL|NON_LOCAL)",&
             enum_c_vals=s2a("NONE","PAIR_POTENTIAL","NON_LOCAL"),&
             enum_i_vals=(/ xc_vdw_fun_none, xc_vdw_fun_pairpot, xc_vdw_fun_nonloc /),&
+            enum_desc=s2a("No dispersion/van der Waals functional",&
+                          "Pair potential van der Waals density functional",&
+                          "Nonlocal van der Waals density functional"),&
             default_i_val=xc_vdw_fun_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -908,12 +911,13 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="TYPE",&
-            description="Type of potential:<ul><li>DFTD2 &rarr; Grimme D2 method</li>"//&
-                                              "<li>DFTD3 &rarr; Grimme D3 method</li></ul>",&
+            description="Type of potential",&
             citations=(/grimme2006,grimme2010/),&
-            usage="TYPE DFTD2", &
+            usage="TYPE (DFTD2|DFTD3)", &
             enum_c_vals=s2a("DFTD2","DFTD3"),&
             enum_i_vals=(/ vdw_pairpot_dftd2, vdw_pairpot_dftd3 /),&
+            enum_desc=s2a("Grimme D2 method",&
+                            "Grimme D3 method"),&
             default_i_val=vdw_pairpot_dftd3, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1028,6 +1032,9 @@ CONTAINS
             usage="TYPE DRSLL", &
             enum_c_vals=s2a("DRSLL","LMKLL","RVV10"),&
             enum_i_vals=(/ vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10 /),&
+            enum_desc=s2a("Dion-Rydberg-Schroeder-Langreth-Lundqvist nonlocal van der Waals density functional",&
+                          "Lee-Murray-Kong-Lundqvist-Langreth nonlocal van der Waals density functional",&
+                          "Revised Vydrov-van Voorhis nonlocal van der Waals density functional"),&
             citations=(/Tran2013/),&
             default_i_val=vdw_nl_DRSLL, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -1123,10 +1130,16 @@ CONTAINS
 
        CALL keyword_create(keyword, name="FUNCTIONAL_ROUTINE",&
             description="Select the code for xc calculation",&
-            usage="FUNCTIONAL_ROUTINE NEW", default_i_val=xc_new_f_routine,&
+            usage="FUNCTIONAL_ROUTINE (NEW|OLD|TEST_LSD|DEBUG)",&
+            default_i_val=xc_new_f_routine,&
             enum_c_vals=s2a("NEW","OLD","TEST_LSD","DEBUG"),&
             enum_i_vals=(/ xc_new_f_routine, xc_old_f_routine, &
-            xc_test_lsd_f_routine, xc_debug_new_routine/),error=error)
+            xc_test_lsd_f_routine, xc_debug_new_routine/),&
+            enum_desc=s2a("Use new code for exchange-correlation functional calculation",&
+                          "Use old code for exchange-correlation functional calculation",&
+                          "Use test local-spin-density approximation code for exchange-correlation functional calculation",&
+                          "Use debug new code for exchange-correlation functional calculation"),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

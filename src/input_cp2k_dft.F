@@ -2713,9 +2713,9 @@ CONTAINS
             usage="QUADRATURE GC_SIMPLE",&
             enum_c_vals=s2a("GC_SIMPLE","GC_TRANSFORMED","GC_LOG"),&
             enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
-            enum_desc=s2a("Gauss-Chebyshev",&
-                          "Trans_Gauss-Chebyshev",&
-                          "LogTrans-Gauss-Chebyshev"),&
+            enum_desc=s2a("Gauss-Chebyshev quadrature",&
+                          "Transformed Gauss-Chebyshev quadrature",&
+                          "Logarithmic transformed Gauss-Chebyshev quadrature"),&
             default_i_val=do_gapw_log, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
