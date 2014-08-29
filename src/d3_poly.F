@@ -59,7 +59,6 @@ MODULE d3_poly
     INTEGER, SAVE, DIMENSION(cached_dim2,cached_dim2) :: a_mono_mult2
     INTEGER, SAVE, DIMENSION(cached_dim3,cached_dim3) :: a_mono_mult3
     INTEGER, SAVE, DIMENSION(4,cached_dim3) :: a_mono_mult3a
-!$OMP THREADPRIVATE(module_initialized,a_mono_exp2,a_mono_exp3,a_reduce_idx3,a_deriv_idx3,a_mono_mult2,a_mono_mult3,a_mono_mult3a)
 
 CONTAINS
 
@@ -73,6 +72,9 @@ SUBROUTINE init_d3_poly_module()
     INTEGER, DIMENSION(3)                    :: monoRes3
 
     IF (module_initialized) RETURN
+    !$OMP BARRIER !all threads need to see the old value of module_initialized
+
+    !$OMP MASTER
     ii=1
     DO grad=0,max_grad2
         DO i=grad,0,-1
@@ -135,6 +137,8 @@ SUBROUTINE init_d3_poly_module()
        END DO
     END DO
     module_initialized=.TRUE.
+    !$OMP END MASTER
+    !$OMP BARRIER
 END SUBROUTINE
 
 ! *****************************************************************************

@@ -92,23 +92,35 @@ MODULE dbcsr_mm_sched
 
   ! *****************************************************************************
   TYPE stats_type
-    INTEGER(kind=int_8)   :: cpu_num_stacks = 0
-    INTEGER(kind=int_8)   :: acc_num_stacks = 0
-    INTEGER(kind=int_8)   :: acc_flop = 0
-    INTEGER(kind=int_8)   :: cpu_flop = 0
+    INTEGER(kind=int_8)                              :: cpu_num_stacks = 0
+    INTEGER(kind=int_8)                              :: acc_num_stacks = 0
+    INTEGER(kind=int_8)                              :: acc_flop = 0
+    INTEGER(kind=int_8)                              :: cpu_flop = 0
+    INTEGER(kind=int_8), DIMENSION(:,:), ALLOCATABLE :: num_mnk_stacks
+    ! ensure that array-elements are on different cache lines
+    INTEGER(kind=int_4), DIMENSION(64)               :: padding
   END TYPE stats_type
 
 ! *****************************************************************************
 !>  Statistics Counter
 ! *****************************************************************************
-  ! Threadprivate counters to collect statistics
-  TYPE(stats_type), SAVE :: stats
-  !$OMP THREADPRIVATE(stats)
-
-  INTEGER(kind=int_8), DIMENSION(:,:), POINTER, SAVE :: stats_num_mnk_stacks
-  !$OMP THREADPRIVATE(stats_num_mnk_stacks)
+  ! Counters for each thread to collect statistics
+  TYPE(stats_type), DIMENSION(:), ALLOCATABLE, TARGET, SAVE :: stats_per_thread
 
   CONTAINS
+
+
+! *****************************************************************************
+!> \brief Initialize a stats_type
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE stats_init(stats)
+    TYPE(stats_type), INTENT(INOUT)          :: stats
+
+    ALLOCATE(stats%num_mnk_stacks(1,5))
+    stats%num_mnk_stacks(1,:) = 0 ! entry for the default stack
+  END SUBROUTINE stats_init
 
 
 ! *****************************************************************************
@@ -124,13 +136,14 @@ MODULE dbcsr_mm_sched
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
 
-    ! reset statistics counter
-    stats = stats_type()
-    ALLOCATE(stats_num_mnk_stacks(1,5))
-    stats_num_mnk_stacks(1,:) = 0 ! entry for the default stack
+    !$OMP MASTER
+    ALLOCATE(stats_per_thread(0:nthreads-1))
+    !$OMP END MASTER
 
+    !$OMP BARRIER
+
+    CALL stats_init(stats_per_thread(ithread))
     CALL dbcsr_mm_accdrv_lib_init(error)
-
 
   END SUBROUTINE dbcsr_mm_sched_lib_init
 
@@ -146,20 +159,20 @@ MODULE dbcsr_mm_sched
     INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    TYPE(stats_type), SAVE                   :: report
+    TYPE(stats_type)                         :: report
 
    CALL dbcsr_mm_accdrv_lib_finalize(output_unit, error)
 
    ! Collect and output statistics ---------------------------------------------
 
-   CALL stats_collect_from_threads(report, error)
-   !$OMP BARRIER
-
    !$OMP MASTER
+      CALL stats_init(report)
+      CALL stats_collect_from_threads(report, error)
       CALL stats_collect_from_ranks(report, group, error)
       CALL stats_print_report(report, output_unit, error)
+      DEALLOCATE(stats_per_thread)
    !$OMP END MASTER
-   DEALLOCATE(stats_num_mnk_stacks)
+
   END SUBROUTINE dbcsr_mm_sched_lib_finalize
 
 
@@ -334,11 +347,16 @@ MODULE dbcsr_mm_sched
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: sp, stacked_datasize
+    INTEGER                                  :: ithread, sp, stacked_datasize
     INTEGER(kind=int_8)                      :: flop_per_entry, total_flop
     LOGICAL                                  :: success
+    TYPE(stats_type), POINTER                :: mystats
 
     IF(stack_fillcount <= 0) CALL mp_abort("dbcsr_mm_sched_process: got empty stack")
+
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    mystats => stats_per_thread(ithread)
 
     CALL ensure_product_wm_cleared(this)
 
@@ -393,10 +411,11 @@ MODULE dbcsr_mm_sched
 
          IF(success) THEN
             ! update statistics
-            stats%acc_num_stacks = stats%acc_num_stacks + 1
-            stats%acc_flop = stats%acc_flop + total_flop
-            CALL stats_add(m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
-                     stacksize_acc=INT(stack_fillcount,kind=int_8))
+            mystats%acc_num_stacks = mystats%acc_num_stacks + 1
+            mystats%acc_flop        = mystats%acc_flop      + total_flop
+            CALL stats_add(mystats,&
+                           m=stack_descr%m, n=stack_descr%n, k=stack_descr%k,&
+                           stacksize_acc=INT(stack_fillcount,kind=int_8))
             RETURN
          ELSE
             this%avoid_accdrv = accdrv_avoid_after_busy
@@ -417,10 +436,11 @@ MODULE dbcsr_mm_sched
 
      IF(success) THEN
         ! update statistics
-        stats%cpu_num_stacks = stats%cpu_num_stacks + 1
-        stats%cpu_flop = stats%cpu_flop + total_flop
-        CALL stats_add(m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
-                 stacksize_cpu=INT(stack_fillcount,kind=int_8))
+        mystats%cpu_num_stacks = mystats%cpu_num_stacks + 1
+        mystats%cpu_flop       = mystats%cpu_flop       + total_flop
+        CALL stats_add(mystats,&
+                       m=stack_descr%m, n=stack_descr%n, k=stack_descr%k,&
+                       stacksize_cpu=INT(stack_fillcount,kind=int_8))
         RETURN
      ENDIF
 
@@ -439,46 +459,49 @@ MODULE dbcsr_mm_sched
 !> \param stacksize_acc ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE stats_add(m,n,k, stacksize_cpu, stacksize_acc)
+ SUBROUTINE stats_add(stats, m,n,k, stacksize_cpu, stacksize_acc)
+    TYPE(stats_type), INTENT(INOUT)          :: stats
     INTEGER, INTENT(IN)                      :: m, n, k
     INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_acc
 
     INTEGER                                  :: i, s
-    INTEGER(kind=int_8), DIMENSION(:, :), &
-      POINTER                                :: tmp
+    INTEGER(kind=int_8), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tmp
 
-   DO i=1, SIZE(stats_num_mnk_stacks, 1)
-       IF(stats_num_mnk_stacks(i,1)==m .AND. &
-          stats_num_mnk_stacks(i,2)==n .AND. &
-          stats_num_mnk_stacks(i,3)==k) THEN
-            IF(PRESENT(stacksize_cpu))&
-              stats_num_mnk_stacks(i,4) = stats_num_mnk_stacks(i,4) + stacksize_cpu
-            IF(PRESENT(stacksize_acc))&
-              stats_num_mnk_stacks(i,5) = stats_num_mnk_stacks(i,5) + stacksize_acc
-            RETURN
-       ENDIF
-   END DO
+    DO i=1, SIZE(stats%num_mnk_stacks, 1)
+        IF(stats%num_mnk_stacks(i,1)==m .AND. &
+           stats%num_mnk_stacks(i,2)==n .AND. &
+           stats%num_mnk_stacks(i,3)==k) THEN
+             IF(PRESENT(stacksize_cpu))&
+               stats%num_mnk_stacks(i,4) = stats%num_mnk_stacks(i,4) + stacksize_cpu
+             IF(PRESENT(stacksize_acc))&
+               stats%num_mnk_stacks(i,5) = stats%num_mnk_stacks(i,5) + stacksize_acc
+             RETURN
+        ENDIF
+    END DO
 
-   !not found, ok lets grow the list
-   s = SIZE(stats_num_mnk_stacks, 1)
-   tmp => stats_num_mnk_stacks
-   ALLOCATE(stats_num_mnk_stacks(s+1, 5))
-   stats_num_mnk_stacks(1:s,:) = tmp(:,:)
-   stats_num_mnk_stacks(s+1,1) = m
-   stats_num_mnk_stacks(s+1,2) = n
-   stats_num_mnk_stacks(s+1,3) = k
-   stats_num_mnk_stacks(s+1,4:5) = 0
-   IF(PRESENT(stacksize_cpu))&
-     stats_num_mnk_stacks(s+1,4) = stacksize_cpu
-   IF(PRESENT(stacksize_acc))&
-     stats_num_mnk_stacks(s+1,5) = stacksize_acc
-   DEALLOCATE(tmp)
+    !not found, ok lets grow the list
+    s = SIZE(stats%num_mnk_stacks, 1)
+    ALLOCATE(tmp(s,5))
+    tmp(:,:) = stats%num_mnk_stacks(:,:)
+    DEALLOCATE(stats%num_mnk_stacks)
+    ALLOCATE(stats%num_mnk_stacks(s+1, 5))
+    stats%num_mnk_stacks(1:s,:) = tmp(:,:)
+    stats%num_mnk_stacks(s+1,1) = m
+    stats%num_mnk_stacks(s+1,2) = n
+    stats%num_mnk_stacks(s+1,3) = k
+    stats%num_mnk_stacks(s+1,4:5) = 0
+    IF(PRESENT(stacksize_cpu))&
+      stats%num_mnk_stacks(s+1,4) = stacksize_cpu
+    IF(PRESENT(stacksize_acc))&
+      stats%num_mnk_stacks(s+1,5) = stacksize_acc
+    DEALLOCATE(tmp)
  END SUBROUTINE stats_add
 
 
 ! *****************************************************************************
-!> \brief Collects statistics from all OpenMP-threads
-!> \param report ...
+!> \brief Collects statistics from all OpenMP-threads into report
+!> \param report...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
@@ -486,34 +509,31 @@ MODULE dbcsr_mm_sched
     TYPE(stats_type), INTENT(INOUT)          :: report
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: i, ithread, j, nthreads
-    INTEGER(kind=int_8), DIMENSION(:, :), &
-      POINTER, SAVE                          :: handover
+    INTEGER                                  :: i, j, nthreads
+    TYPE(stats_type), POINTER                :: istats
 
-   nthreads = 1; ithread = 0
-   !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+    !$OMP MASTER
 
-   !$OMP CRITICAL
-   report%cpu_num_stacks = report%cpu_num_stacks + stats%cpu_num_stacks
-   report%acc_num_stacks = report%acc_num_stacks + stats%acc_num_stacks
-   report%acc_flop = report%acc_flop + stats%acc_flop
-   report%cpu_flop = report%cpu_flop + stats%cpu_flop
-   !$OMP END CRITICAL
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS()
 
-   DO i=1, nthreads-1
-     !$OMP BARRIER
-     IF(ithread==i) handover => stats_num_mnk_stacks
-     !$OMP BARRIER
-     IF(ithread==0) THEN
-       DO j=1, SIZE(handover, 1)
-         CALL stats_add(m=INT(handover(j,1), kind=int_4),&
-                        n=INT(handover(j,2), kind=int_4),&
-                        k=INT(handover(j,3), kind=int_4),&
-                        stacksize_cpu=handover(j,4),&
-                        stacksize_acc=handover(j,5))
+    DO i=0, nthreads-1
+       istats => stats_per_thread(i)
+       report%cpu_num_stacks = report%cpu_num_stacks + istats%cpu_num_stacks
+       report%acc_num_stacks = report%acc_num_stacks + istats%acc_num_stacks
+       report%acc_flop       = report%acc_flop       + istats%acc_flop
+       report%cpu_flop       = report%cpu_flop       + istats%cpu_flop
+
+       DO j=1, SIZE(istats%num_mnk_stacks, 1)
+         CALL stats_add(report,&
+                        m=INT(istats%num_mnk_stacks(j,1), kind=int_4),&
+                        n=INT(istats%num_mnk_stacks(j,2), kind=int_4),&
+                        k=INT(istats%num_mnk_stacks(j,3), kind=int_4),&
+                        stacksize_cpu=istats%num_mnk_stacks(j,4),&
+                        stacksize_acc=istats%num_mnk_stacks(j,5))
        END DO
-     END IF
-   END DO
+    END DO
+    !$OMP END MASTER
   END SUBROUTINE stats_collect_from_threads
 
 
@@ -534,6 +554,8 @@ MODULE dbcsr_mm_sched
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: mnk_collected
     INTEGER, DIMENSION(3)                    :: mnk
 
+    !$OMP MASTER
+
     CALL mp_environ(nranks, myrank, group)
 
     CALL mp_sum(report%acc_flop, group)
@@ -542,7 +564,7 @@ MODULE dbcsr_mm_sched
     CALL mp_sum(report%acc_num_stacks, group)
 
     ! array mnk_collected is used as a logical-array, allows to use minloc
-    ALLOCATE(mnk_collected(SIZE(stats_num_mnk_stacks,1)))
+    ALLOCATE(mnk_collected(SIZE(report%num_mnk_stacks,1)))
     mnk_collected = 0 ! init all to false
 
     ! broadcast stats of all mnk-combinations, which occured on any mpi rank
@@ -555,19 +577,19 @@ MODULE dbcsr_mm_sched
 
       IF(sending_rank == myrank) THEN
         i = MINLOC(mnk_collected, dim=1)
-        mnk = INT(stats_num_mnk_stacks(i,1:3), kind=int_4)
+        mnk = INT(report%num_mnk_stacks(i,1:3), kind=int_4)
       ENDIF
       CALL mp_bcast(msg=mnk, source=sending_rank, gid=group)
 
-      CALL stats_add(m=mnk(1), n=mnk(2), k=mnk(3), stacksize_cpu=0_int_8, stacksize_acc=0_int_8)
-      DO i=1, SIZE(stats_num_mnk_stacks, 1)
-         IF(ALL(stats_num_mnk_stacks(i,1:3)==mnk)) THEN
+      CALL stats_add(report, m=mnk(1), n=mnk(2), k=mnk(3), stacksize_cpu=0_int_8, stacksize_acc=0_int_8)
+      DO i=1, SIZE(report%num_mnk_stacks, 1)
+         IF(ALL(report%num_mnk_stacks(i,1:3)==mnk)) THEN
             IF(i<=SIZE(mnk_collected)) mnk_collected(i) = 1
-            CALL mp_sum(stats_num_mnk_stacks(i,4:5), group)
+            CALL mp_sum(report%num_mnk_stacks(i,4:5), group)
          END IF
       END DO
     END DO
-
+    !$OMP END MASTER
   END SUBROUTINE stats_collect_from_ranks
 
 
@@ -595,25 +617,25 @@ MODULE dbcsr_mm_sched
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " number of processed stacks",&
        report%cpu_num_stacks, report%acc_num_stacks, percent
 
-    percent = 100*REAL(stats_num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(1,4:5))))
+    percent = 100*REAL(report%num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(1,4:5))))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls inhomo. stacks",&
-       stats_num_mnk_stacks(1,4:5), percent
+       report%num_mnk_stacks(1,4:5), percent
 
-    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(:,4:5))))
+    percent = 100*REAL(SUM(report%num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,4:5))))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls total",&
-       SUM(stats_num_mnk_stacks(:,4)), SUM(stats_num_mnk_stacks(:,5)), percent
+       SUM(report%num_mnk_stacks(:,4)), SUM(report%num_mnk_stacks(:,5)), percent
 
     !sorting stat entries by flops per multiplication
-    ALLOCATE(sort_key(SIZE(stats_num_mnk_stacks,1)-1))
-    sort_key(:) = 2*PRODUCT(stats_num_mnk_stacks(2:,1:3), DIM=2)
+    ALLOCATE(sort_key(SIZE(report%num_mnk_stacks,1)-1))
+    sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)
     ALLOCATE(sort_idx(SIZE(sort_key)))
     CALL sort(sort_key, SIZE(sort_key), sort_idx)
 
     DO i=1, SIZE(sort_idx)
      j = sort_idx(i)+1
-     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(j,4:5))))
+     percent = 100*REAL(report%num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(j,4:5))))
      WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,1X,I20,T76,F5.1)") &
-       " flops",stats_num_mnk_stacks(j,1:3),stats_num_mnk_stacks(j,4:5)*2*PRODUCT(stats_num_mnk_stacks(j,1:3)), percent
+       " flops",report%num_mnk_stacks(j,1:3),report%num_mnk_stacks(j,4:5)*2*PRODUCT(report%num_mnk_stacks(j,1:3)), percent
     END DO
 
     percent = 100*REAL(report%acc_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%acc_flop))

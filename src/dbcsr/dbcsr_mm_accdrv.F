@@ -114,12 +114,14 @@ MODULE dbcsr_mm_accdrv
      TYPE(acc_stream_type)                  :: stream
   END TYPE stack_buffer_type
 
-  TYPE(stack_buffer_type), DIMENSION(:), POINTER               :: stack_buffers => Null()
-  !$OMP THREADPRIVATE(stack_buffers)
+  TYPE thread_private_type
+     TYPE(stack_buffer_type), DIMENSION(:), POINTER     :: stack_buffers => Null()
+     TYPE(dbcsr_memtype_type)                           :: memtype_cbuffer
+     ! ensure that array-elements are on different cache lines
+     INTEGER(kind=int_4), DIMENSION(64)                 :: padding
+  END TYPE thread_private_type
 
-  TYPE(dbcsr_memtype_type), SAVE, PRIVATE :: memtype_cbuffer
-  !$OMP THREADPRIVATE(memtype_cbuffer)
-
+  TYPE(thread_private_type), SAVE, DIMENSION(:), ALLOCATABLE, TARGET :: all_thread_privates
   TYPE(acc_stream_type), SAVE                            :: upload_stream
   TYPE(acc_stream_type), SAVE, DIMENSION(:), POINTER     :: posterior_streams => Null()
   TYPE(acc_stream_type), SAVE, DIMENSION(:), POINTER     :: priority_streams  => Null()
@@ -137,8 +139,15 @@ MODULE dbcsr_mm_accdrv
   SUBROUTINE dbcsr_mm_accdrv_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-!nothing todo
+    INTEGER                                  :: nthreads
 
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+
+    !$OMP MASTER
+    ALLOCATE(all_thread_privates(0:nthreads-1))
+    !$OMP END MASTER
+    !$OMP BARRIER
   END SUBROUTINE dbcsr_mm_accdrv_lib_init
 
 
@@ -152,17 +161,29 @@ MODULE dbcsr_mm_accdrv
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-   CALL deallocate_streams(error)
+    INTEGER                                  :: ithread
+    TYPE(thread_private_type), POINTER       :: thread_privates
 
-   IF(ASSOCIATED(stack_buffers)) &
-     CALL deallocate_stackbuffers(error)
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    thread_privates => all_thread_privates(ithread)
 
-   IF(ASSOCIATED(memtype_cbuffer%pool))&
-     CALL dbcsr_mempool_destruct(memtype_cbuffer%pool, error)
+    CALL deallocate_streams(error)
 
-   !How much memory is still allocated on the card?
-   !istat = dbcsr_acc_dev_mem_info(mem_free, mem_avail)
-   !WRITE (*,*) "after finalize acc mem: ",mem_free, mem_avail, istat
+    IF(ASSOCIATED(thread_privates%stack_buffers)) &
+      CALL deallocate_stackbuffers(error)
+
+    IF(ASSOCIATED(thread_privates%memtype_cbuffer%pool))&
+      CALL dbcsr_mempool_destruct(thread_privates%memtype_cbuffer%pool, error)
+
+    !$OMP BARRIER
+    !$OMP MASTER
+    DEALLOCATE(all_thread_privates)
+    !$OMP END MASTER
+
+    !How much memory is still allocated on the card?
+    !istat = dbcsr_acc_dev_mem_info(mem_free, mem_avail)
+    !WRITE (*,*) "after finalize acc mem: ",mem_free, mem_avail, istat
 
   END SUBROUTINE dbcsr_mm_accdrv_lib_finalize
 
@@ -189,11 +210,13 @@ MODULE dbcsr_mm_accdrv
     INTEGER                                  :: error_handler, i, ithread, &
                                                 nthreads
     TYPE(dbcsr_data_obj)                     :: c_area
+    TYPE(thread_private_type), POINTER       :: thread_privates
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+    thread_privates => all_thread_privates(ithread)
 
     ! Setup global data which is reused in between multiplications
     !------------------------------------------------------------------------
@@ -202,9 +225,9 @@ MODULE dbcsr_mm_accdrv
 
     !Each thread has its own memtype with its own mempool
     i = MOD(ithread, SIZE(priority_streams)) + 1
-    CALL dbcsr_memtype_setup(memtype_cbuffer,has_pool=.TRUE., acc_hostalloc=.TRUE.,&
+    CALL dbcsr_memtype_setup(thread_privates%memtype_cbuffer,has_pool=.TRUE., acc_hostalloc=.TRUE.,&
           acc_devalloc=.TRUE., acc_stream=priority_streams(i), error=error)
-    CALL dbcsr_mempool_ensure_capacity(memtype_cbuffer%pool, capacity=1)
+    CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=1)
 
     ! Setup things for this particular multipcation
     !------------------------------------------------------------------------
@@ -212,7 +235,7 @@ MODULE dbcsr_mm_accdrv
     c_area = this%product_wm%data_area
 
     CALL dbcsr_data_new(this%c_buffer, data_type=dbcsr_data_get_type(c_area), &
-          data_size=dbcsr_data_get_size(c_area), memory_type=memtype_cbuffer)
+          data_size=dbcsr_data_get_size(c_area), memory_type=thread_privates%memtype_cbuffer)
 
     CALL acc_devmem_setzero_bytes(this%c_buffer%d%acc_devmem,&
                 stream=this%c_buffer%d%memory_type%acc_stream)
@@ -333,9 +356,11 @@ MODULE dbcsr_mm_accdrv
                                                 my_total_buffers, nthreads
     INTEGER, SAVE                            :: curr_posterior_stream = 0, &
                                                 curr_priority_stream = 0
+    TYPE(thread_private_type), POINTER       :: thread_privates
 
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+    thread_privates => all_thread_privates(ithread)
 
     ! distribute total number of buffers approx. evenly among threads
     ! my_* variables hold number of buffers for current thread.
@@ -345,27 +370,27 @@ MODULE dbcsr_mm_accdrv
     this%nbuffers_phaseout = my_priority_buffers
     my_total_buffers = my_posterior_buffers + my_priority_buffers
 
-    IF(ASSOCIATED(stack_buffers)) THEN
-       IF(SIZE(stack_buffers)/=my_total_buffers) &
+    IF(ASSOCIATED(thread_privates%stack_buffers)) THEN
+       IF(SIZE(thread_privates%stack_buffers)/=my_total_buffers) &
           CALL deallocate_stackbuffers(error)
     ENDIF
 
-    IF(.NOT.ASSOCIATED(stack_buffers)) THEN
-       ALLOCATE(stack_buffers(my_total_buffers))
+    IF(.NOT.ASSOCIATED(thread_privates%stack_buffers)) THEN
+       ALLOCATE(thread_privates%stack_buffers(my_total_buffers))
        !Done with OMP CRITICAL because curr_*_stream are shared.
        !$omp critical(crit_setup_stackbuffers)
        DO i=1, my_total_buffers
-          CALL acc_devmem_allocate_bytes(stack_buffers(i)%devmem,&
+          CALL acc_devmem_allocate_bytes(thread_privates%stack_buffers(i)%devmem,&
                    int_4_size*dbcsr_ps_width*mm_stack_size)
-          CALL acc_hostmem_allocate(stack_buffers(i)%hostmem, dbcsr_ps_width, mm_stack_size)
-          CALL acc_event_create(stack_buffers(i)%ready)
-          CALL acc_event_create(stack_buffers(i)%calculated)
+          CALL acc_hostmem_allocate(thread_privates%stack_buffers(i)%hostmem, dbcsr_ps_width, mm_stack_size)
+          CALL acc_event_create(thread_privates%stack_buffers(i)%ready)
+          CALL acc_event_create(thread_privates%stack_buffers(i)%calculated)
           IF(i <= my_priority_buffers) THEN
              curr_priority_stream = MOD(curr_priority_stream, SIZE(priority_streams)) + 1
-             stack_buffers(i)%stream = priority_streams(curr_priority_stream)
+             thread_privates%stack_buffers(i)%stream = priority_streams(curr_priority_stream)
           ELSE
              curr_posterior_stream = MOD(curr_posterior_stream, SIZE(posterior_streams)) + 1
-             stack_buffers(i)%stream = posterior_streams(curr_posterior_stream)
+             thread_privates%stack_buffers(i)%stream = posterior_streams(curr_posterior_stream)
           ENDIF
        END DO
       !$omp end critical(crit_setup_stackbuffers)
@@ -381,7 +406,13 @@ MODULE dbcsr_mm_accdrv
  SUBROUTINE deallocate_stackbuffers(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: i
+    INTEGER                                  :: i, ithread
+    TYPE(stack_buffer_type), DIMENSION(:), &
+      POINTER                                :: stack_buffers
+
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    stack_buffers => all_thread_privates(ithread)%stack_buffers
 
    DO i=1, SIZE(stack_buffers)
       CALL acc_devmem_deallocate(stack_buffers(i)%devmem)
@@ -565,13 +596,20 @@ MODULE dbcsr_mm_accdrv
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle, error_handle2, &
-                                                flop_per_entry, i, &
+                                                flop_per_entry, i, ithread, &
                                                 stacked_datasize
     INTEGER, DIMENSION(:, :), POINTER        :: stackbuf_hostmem_cropped
     TYPE(dbcsr_data_area_type), POINTER      :: a_area, b_area, c_area
+    TYPE(stack_buffer_type), DIMENSION(:), &
+      POINTER                                :: stack_buffers
     TYPE(stack_buffer_type), POINTER         :: stackbuf
 
-    NULLIFY(stackbuf, stackbuf_hostmem_cropped)
+    NULLIFY(stackbuf, stackbuf_hostmem_cropped, stack_buffers)
+
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    stack_buffers => all_thread_privates(ithread)%stack_buffers
+
     DO i=1, SIZE(stack_buffers)
        IF(this%phase_out .AND. i > this%nbuffers_phaseout) EXIT
        IF(acc_event_query(stack_buffers(i)%calculated)) THEN

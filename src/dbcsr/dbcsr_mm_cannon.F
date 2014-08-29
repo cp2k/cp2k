@@ -145,6 +145,7 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_special_finalize,&
                                              dbcsr_work_create
   USE kinds,                           ONLY: dp,&
+                                             int_4,&
                                              int_8,&
                                              real_4,&
                                              real_4_size,&
@@ -169,13 +170,26 @@ MODULE dbcsr_mm_cannon
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
+  TYPE dbcsr_memtype_type_p
+     TYPE(dbcsr_memtype_type), POINTER :: p => Null()
+     ! ensure that array-elements are on different cache lines
+     INTEGER(kind=int_4), DIMENSION(64)    :: padding
+  END TYPE dbcsr_memtype_type_p
+
+  TYPE(dbcsr_memtype_type_p), DIMENSION(:), POINTER, SAVE :: memtype_product_wm => Null()
+
   INTEGER(KIND=int_8),          PRIVATE, SAVE  :: marketing_flops = 0
-  TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_product_wm
-  !$OMP THREADPRIVATE(memtype_product_wm)
+
   TYPE(dbcsr_memtype_type),     PRIVATE, SAVE  :: memtype_abpanel_1, memtype_abpanel_2,&
                                                   memtype_trsbuffer_1, memtype_trsbuffer_2
   TYPE(acc_stream_type), PRIVATE, SAVE         :: stream_1, stream_2
   ! ab-panels and streams are shared between all threads
+
+  TYPE dbcsr_mm_multrec_type_p
+    TYPE(dbcsr_mm_multrec_type), POINTER :: p => Null()
+    ! ensure that array-elements are on different cache lines
+    INTEGER(kind=int_4), DIMENSION(64)       :: padding
+  END TYPE dbcsr_mm_multrec_type_p
 
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
   PUBLIC :: dbcsr_mm_cannon_clear_mempools
@@ -191,15 +205,23 @@ MODULE dbcsr_mm_cannon
   SUBROUTINE dbcsr_mm_cannon_lib_init(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    INTEGER                                  :: ithread, nthreads
+
+    nthreads = 1; ithread = 0
+    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
+
     CALL dbcsr_mm_multrec_lib_init(error)
 
     !$OMP MASTER
     marketing_flops = 0
+    ALLOCATE(memtype_product_wm(0:nthreads-1))
     !$OMP END MASTER
+    !$OMP BARRIER
 
     ! Each thread has its own working-matrix and its own mempool
-    CALL dbcsr_memtype_setup(memtype_product_wm, has_pool=.TRUE., error=error)
-    CALL dbcsr_mempool_ensure_capacity(memtype_product_wm%pool, capacity=1)
+    ALLOCATE(memtype_product_wm(ithread)%p)
+    CALL dbcsr_memtype_setup(memtype_product_wm(ithread)%p, has_pool=.TRUE., error=error)
+    CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=1)
   END SUBROUTINE dbcsr_mm_cannon_lib_init
 
 
@@ -214,16 +236,22 @@ MODULE dbcsr_mm_cannon
     INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    INTEGER                                  :: ithread
     INTEGER(KIND=int_8)                      :: total_marketing_flops
 
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
+     ithread = 0
+     !$  ithread = omp_get_thread_num()
+
      ! Each thread has its own working-matrix and its own mempool
-     IF (ASSOCIATED(memtype_product_wm%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_product_wm%pool, error)
+     IF (ASSOCIATED(memtype_product_wm(ithread)%p%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_product_wm(ithread)%p%pool, error)
+     DEALLOCATE(memtype_product_wm(ithread)%p)
 
-
+     !$OMP BARRIER
      !$omp master
+     DEALLOCATE(memtype_product_wm)
 
      ! this could overflow
      total_marketing_flops=marketing_flops
@@ -254,10 +282,14 @@ MODULE dbcsr_mm_cannon
   SUBROUTINE dbcsr_mm_cannon_clear_mempools(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-! Each thread has its own working-matrix and its own mempool
+    INTEGER                                  :: ithread
 
-     IF (ASSOCIATED(memtype_product_wm%pool)) &
-        CALL dbcsr_mempool_clear(memtype_product_wm%pool, error)
+     ithread = 0
+     !$  ithread = omp_get_thread_num()
+
+     ! Each thread has its own working-matrix and its own mempool
+     IF (ASSOCIATED(memtype_product_wm(ithread)%p%pool)) &
+        CALL dbcsr_mempool_clear(memtype_product_wm(ithread)%p%pool, error)
 
      !$omp master
      IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
@@ -774,9 +806,11 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_add_wm_from_matrix(product_matrix, error=error)
 !$omp end parallel
     ELSE
-       !$omp parallel 
+       !$omp parallel
+       ithread = 0
+       !$ ithread = OMP_GET_THREAD_NUM ()
        CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., &
-               memory_type=memtype_product_wm, error=error)
+               memory_type=memtype_product_wm(ithread)%p, error=error)
        !$omp end parallel
     ENDIF
     product_matrix%m%nze = 0
@@ -1876,7 +1910,7 @@ MODULE dbcsr_mm_cannon
                                                 trs_stackbuf_comm
     TYPE(dbcsr_data_obj), TARGET             :: trs_stackbuf_1, trs_stackbuf_2
     TYPE(dbcsr_error_type)                   :: t_error
-    TYPE(dbcsr_mm_multrec_type), SAVE        :: multrec
+    TYPE(dbcsr_mm_multrec_type_p), DIMENSION(:), ALLOCATABLE :: multrec
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
     TYPE(mp_type_descriptor_type), &
@@ -1889,9 +1923,6 @@ MODULE dbcsr_mm_cannon
                                                 left_send_subtypes, &
                                                 right_recv_subtypes, &
                                                 right_send_subtypes
-
-!$OMP THREADPRIVATE (multrec)
-
 
 !   ---------------------------------------------------------------------------
 
@@ -1909,16 +1940,17 @@ MODULE dbcsr_mm_cannon
     otf_filtering = PRESENT (filter_eps)
 
 !$omp parallel default (none) &
-!$omp shared (nthreads, product_matrix, error)
+!$omp shared (multrec, nthreads, product_matrix, error)
 !$omp master
     nthreads = 1
-    !$ nthreads = OMP_GET_NUM_THREADS ()
+    !$  nthreads = OMP_GET_NUM_THREADS ()
     CALL dbcsr_assert (ASSOCIATED (product_matrix%m%wms),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Work matrices do not exist",__LINE__,error)
     CALL dbcsr_assert (SIZE (product_matrix%m%wms), "EQ", nthreads,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Work matrices not correctly sized.",__LINE__,error)
+    ALLOCATE(multrec(0:nthreads-1))
 !$omp end master
 !$omp end parallel
 
@@ -2313,11 +2345,15 @@ MODULE dbcsr_mm_cannon
 !$omp parallel &
 !$omp default (none) &
 !$omp shared (left_buffer_comm, right_buffer_comm, product_matrix,&
-!$omp         keep_sparsity, filter_eps, row_max_epss, &
+!$omp         keep_sparsity, filter_eps, row_max_epss, multrec, &
 !$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
 !$omp         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
+!$omp private(ithread),&
 !$omp firstprivate (error)
-    CALL dbcsr_mm_multrec_init(multrec,&
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    ALLOCATE(multrec(ithread)%p)
+    CALL dbcsr_mm_multrec_init(multrec(ithread)%p,&
          left_buffer_comm%mats(1, 1)%m,&
          right_buffer_comm%mats(1, 1)%m,&
          product_matrix%m,&
@@ -2724,7 +2760,7 @@ MODULE dbcsr_mm_cannon
 !$omp parallel default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, &
 !$omp         v_ki, &
-!$omp         product_matrix, &
+!$omp         product_matrix, multrec,&
 !$omp         filter_eps, right_norms, left_norms, row_max_epss, &
 !$omp         keep_sparsity, error, threads_finished, &
 !$omp         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
@@ -2742,9 +2778,9 @@ MODULE dbcsr_mm_cannon
                CALL dbcsr_error_set(routineN//"_multrec_master", error_handler4, t_error)
 
              IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) &
-                CALL dbcsr_mm_multrec_phaseout(multrec, t_error)
+                CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p, t_error)
 
-             CALL dbcsr_mm_multrec_multiply(multrec,&
+             CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p,&
                   left=left_buffer_calc%mats(1, v_ki+1)%m,&
                   right=right_buffer_calc%mats(v_ki+1, 1)%m,&
                   flop=flop_single,&
@@ -2753,8 +2789,10 @@ MODULE dbcsr_mm_cannon
 
              IF(ithread==0) CALL dbcsr_error_stop(error_handler4, t_error)
 
-             IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) &
-                CALL dbcsr_mm_multrec_finalize(multrec, t_error)
+             IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) THEN
+                CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p, t_error)
+                DEALLOCATE(multrec(ithread)%p)
+             ENDIF
 
 !$omp atomic
              threads_finished = threads_finished + 1
