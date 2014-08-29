@@ -806,12 +806,13 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_add_wm_from_matrix(product_matrix, error=error)
 !$omp end parallel
     ELSE
-       !$omp parallel
+!$omp parallel default(none) private(ithread) &
+!$omp shared(product_matrix, memtype_product_wm, error)
        ithread = 0
        !$ ithread = OMP_GET_THREAD_NUM ()
        CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., &
                memory_type=memtype_product_wm(ithread)%p, error=error)
-       !$omp end parallel
+!$omp end parallel
     ENDIF
     product_matrix%m%nze = 0
     product_matrix%m%row_p(:) = 0
