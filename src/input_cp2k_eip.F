@@ -65,7 +65,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="EIP", &
-            description="This section contains all information to run a EIP calculation.", &
+            description="This section contains all information to run an "//&
+            "Empirical Interatomic Potential (EIP) calculation.", &
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE., &
             error=error)
 
