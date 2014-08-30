@@ -51,7 +51,7 @@ MODULE d3_poly
 
 
 ! cached index -> monomial exponents
-    LOGICAL, SAVE, PRIVATE :: module_initialized=.FALSE.
+    LOGICAL, SAVE, VOLATILE :: module_initialized=.FALSE.
     INTEGER, SAVE, DIMENSION(2,cached_dim2) :: a_mono_exp2
     INTEGER, SAVE, DIMENSION(3,cached_dim3) :: a_mono_exp3
     INTEGER, SAVE, DIMENSION(cached_dim3)   :: a_reduce_idx3
@@ -72,73 +72,79 @@ SUBROUTINE init_d3_poly_module()
     INTEGER, DIMENSION(3)                    :: monoRes3
 
     IF (module_initialized) RETURN
-    !$OMP BARRIER !all threads need to see the old value of module_initialized
 
-    !$OMP MASTER
-    ii=1
-    DO grad=0,max_grad2
-        DO i=grad,0,-1
-            a_mono_exp2(1,ii)=i
-            a_mono_exp2(2,ii)=grad-i
-            ii=ii+1
-        END DO
-    END DO
-    ii=1
-    DO grad=0,max_grad3
-        DO i=grad,0,-1
-            DO j=grad-i,0,-1
-                a_mono_exp3(1,ii)=i
-                a_mono_exp3(2,ii)=j
-                a_mono_exp3(3,ii)=grad-i-j
-                ii=ii+1
-            END DO
-        END DO
-    END DO
-    DO ii=1,cached_dim3
-        subG=a_mono_exp3(2,ii)+a_mono_exp3(3,ii)
-        a_reduce_idx3(ii)=subG*(subG+1)/2+a_mono_exp3(3,ii)+1
-    END DO
-    DO ii=1,cached_dim3
-        IF (a_mono_exp3(1,ii)>0) THEN
-            a_deriv_idx3(1,ii)=mono_index3(a_mono_exp3(1,ii)-1,a_mono_exp3(2,ii),a_mono_exp3(3,ii))
-        ELSE
-            a_deriv_idx3(1,ii)=0
-        END IF
-        IF (a_mono_exp3(2,ii)>0) THEN
-            a_deriv_idx3(2,ii)=mono_index3(a_mono_exp3(1,ii),a_mono_exp3(2,ii)-1,a_mono_exp3(3,ii))
-        ELSE
-            a_deriv_idx3(2,ii)=0
-        END IF
-        IF (a_mono_exp3(3,ii)>0) THEN
-            a_deriv_idx3(3,ii)=mono_index3(a_mono_exp3(1,ii),a_mono_exp3(2,ii),a_mono_exp3(3,ii)-1)
-        ELSE
-            a_deriv_idx3(3,ii)=0
-        END IF
-    END DO
-    DO ii=1,cached_dim2
-        DO ij=ii,cached_dim2
-            monoRes2=a_mono_exp2(:,ii)+a_mono_exp2(:,ij)
-            a_mono_mult2(ii,ij)=mono_index2(monoRes2(1),monoRes2(2))+1
-            a_mono_mult2(ij,ii)=a_mono_mult2(ii,ij)
-        END DO
-    END DO
-    DO ii=1,cached_dim3
-        DO ij=ii,cached_dim3
-            monoRes3=a_mono_exp3(:,ii)+a_mono_exp3(:,ij)
-            a_mono_mult3(ii,ij)=mono_index3(monoRes3(1),monoRes3(2),monoRes3(3))+1
-            a_mono_mult3(ij,ii)=a_mono_mult3(ii,ij)
-        END DO
-    END DO
-    ii=1
-    DO i=1,cached_dim3
-       DO j=1,4
-          a_mono_mult3a(j,i)=a_mono_mult3(j,i)
-          ii=ii+1
+    ! The first arriving thread performs the initialization.
+    ! Other threads, which arrive while the initialization is ongoing, 
+    ! have to wait until it's finished. 
+    ! We can not predict how many threads will arrive during this time window.
+
+    !$OMP CRITICAL
+    IF (.NOT. module_initialized) THEN
+       ii=1
+       DO grad=0,max_grad2
+           DO i=grad,0,-1
+               a_mono_exp2(1,ii)=i
+               a_mono_exp2(2,ii)=grad-i
+               ii=ii+1
+           END DO
        END DO
-    END DO
-    module_initialized=.TRUE.
-    !$OMP END MASTER
-    !$OMP BARRIER
+       ii=1
+       DO grad=0,max_grad3
+           DO i=grad,0,-1
+               DO j=grad-i,0,-1
+                   a_mono_exp3(1,ii)=i
+                   a_mono_exp3(2,ii)=j
+                   a_mono_exp3(3,ii)=grad-i-j
+                   ii=ii+1
+               END DO
+           END DO
+       END DO
+       DO ii=1,cached_dim3
+           subG=a_mono_exp3(2,ii)+a_mono_exp3(3,ii)
+           a_reduce_idx3(ii)=subG*(subG+1)/2+a_mono_exp3(3,ii)+1
+       END DO
+       DO ii=1,cached_dim3
+           IF (a_mono_exp3(1,ii)>0) THEN
+               a_deriv_idx3(1,ii)=mono_index3(a_mono_exp3(1,ii)-1,a_mono_exp3(2,ii),a_mono_exp3(3,ii))
+           ELSE
+               a_deriv_idx3(1,ii)=0
+           END IF
+           IF (a_mono_exp3(2,ii)>0) THEN
+               a_deriv_idx3(2,ii)=mono_index3(a_mono_exp3(1,ii),a_mono_exp3(2,ii)-1,a_mono_exp3(3,ii))
+           ELSE
+               a_deriv_idx3(2,ii)=0
+           END IF
+           IF (a_mono_exp3(3,ii)>0) THEN
+               a_deriv_idx3(3,ii)=mono_index3(a_mono_exp3(1,ii),a_mono_exp3(2,ii),a_mono_exp3(3,ii)-1)
+           ELSE
+               a_deriv_idx3(3,ii)=0
+           END IF
+       END DO
+       DO ii=1,cached_dim2
+           DO ij=ii,cached_dim2
+               monoRes2=a_mono_exp2(:,ii)+a_mono_exp2(:,ij)
+               a_mono_mult2(ii,ij)=mono_index2(monoRes2(1),monoRes2(2))+1
+               a_mono_mult2(ij,ii)=a_mono_mult2(ii,ij)
+           END DO
+       END DO
+       DO ii=1,cached_dim3
+           DO ij=ii,cached_dim3
+               monoRes3=a_mono_exp3(:,ii)+a_mono_exp3(:,ij)
+               a_mono_mult3(ii,ij)=mono_index3(monoRes3(1),monoRes3(2),monoRes3(3))+1
+               a_mono_mult3(ij,ii)=a_mono_mult3(ii,ij)
+           END DO
+       END DO
+       ii=1
+       DO i=1,cached_dim3
+          DO j=1,4
+             a_mono_mult3a(j,i)=a_mono_mult3(j,i)
+             ii=ii+1
+          END DO
+       END DO
+       module_initialized=.TRUE.
+       !$OMP FLUSH
+    END IF
+    !$OMP END CRITICAL
 END SUBROUTINE
 
 ! *****************************************************************************
