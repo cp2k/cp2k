@@ -12,6 +12,7 @@ MODULE qs_ks_qmmm_methods
                                              cp_print_key_unit_nr
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
+  USE d3_poly,                         ONLY: init_d3_poly_module
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
@@ -132,6 +133,7 @@ CONTAINS
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
        IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
+          CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
           CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
           ALLOCATE(cube_info(SIZE(pools)), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

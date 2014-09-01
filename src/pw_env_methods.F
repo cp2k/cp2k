@@ -29,6 +29,7 @@ MODULE pw_env_methods
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info,&
                                              return_cube_max_iradius
+  USE d3_poly,                         ONLY: init_d3_poly_module
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
@@ -570,6 +571,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
 
+        CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
              radius(igrid_level))
