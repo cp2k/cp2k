@@ -120,7 +120,8 @@ MODULE qs_environment_types
                                              qs_energy_type
   USE qs_force_types,                  ONLY: deallocate_qs_force,&
                                              qs_force_type
-  USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_kind_types,                   ONLY: deallocate_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                              qs_ks_qmmm_release,&
                                              qs_ks_qmmm_retain
@@ -2151,6 +2152,9 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%kg_env)) THEN
             CALL kg_env_release(qs_env%kg_env, error)
+          END IF
+          IF (ASSOCIATED(qs_env%qs_kind_set)) THEN
+            CALL deallocate_qs_kind_set(qs_env%qs_kind_set, error)
           END IF
 
           ! dispersion
