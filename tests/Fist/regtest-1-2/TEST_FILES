@@ -11,7 +11,7 @@ deca_ala2_xyz.inp         2
 deca_ala2_xyz_pdb.inp     2
 deca_ala3.inp             2
 deca_ala_reftraj.inp      2
-deca_ala4.inp             2
+deca_ala4.inp                     2     2e-12
 deca_ala_reftraj2.inp             2     2e-12
 deca_ala_reftraj3.inp     2
 deca_ala5.inp             2
