@@ -1777,7 +1777,8 @@ MODULE mp2_optimize_ri_basis
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    
+    NULLIFY(lmax, lmin, npgf, nshell, l, n, zet, gcc)
+
     ! allocate the basis
     CALL allocate_gto_basis_set(gto_basis_set,error)
 

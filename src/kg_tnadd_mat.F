@@ -141,6 +141,8 @@ CONTAINS
 
 !$  INTEGER :: omp_get_thread_num, omp_get_max_threads
 
+    NULLIFY(matrix_kg)
+
     failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
