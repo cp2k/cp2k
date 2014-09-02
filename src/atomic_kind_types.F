@@ -61,8 +61,7 @@ MODULE atomic_kind_types
                                              projectors
   USE periodic_table,                  ONLY: get_ptable_info
   USE physcon,                         ONLY: bohr,&
-                                             evolt,&
-                                             massunit
+                                             evolt
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: deallocate_dftb_atom_param,&
                                              get_dftb_atom_param,&
@@ -2077,7 +2076,6 @@ CONTAINS
     kgpot_name = ""
     kgpot_type = ""
     z = -1
-    atomic_kind%mass=-1.0_dp
     zeff_correction = 0.0_dp
     dft_section => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
     CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
@@ -2150,7 +2148,7 @@ CONTAINS
             " and for the DEFAULT section but no match was found. Check your input file!",para_env)
     END IF
     ! Retrieve information on element
-    CALL get_ptable_info(atomic_kind%element_symbol, amass=atomic_kind%mass, ielement=z)
+    CALL get_ptable_info(atomic_kind%element_symbol, ielement=z)
 
     ! Normal parsing of the KIND section
     IF (k_rep>0) THEN
@@ -2180,12 +2178,6 @@ CONTAINS
        ENDIF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="CORE_CORRECTION",r_val=zeff_correction,error=error)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="MASS",n_rep_val=i,error=error)
-       IF (i>0) THEN
-          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="MASS",r_val=atomic_kind%mass,error=error)
-       END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="I_SCP",n_rep_val=i,error=error)
        IF (i>0) THEN
@@ -2432,8 +2424,6 @@ CONTAINS
        END IF ! section enabled
 
     END IF
-
-    atomic_kind%mass = atomic_kind%mass*massunit
 
     ! Allocate and initialise the orbital basis set data set structure
     CALL init_orbital_pointers(5) ! debug the SUN optimizer

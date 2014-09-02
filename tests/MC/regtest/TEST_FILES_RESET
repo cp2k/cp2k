@@ -63,3 +63,5 @@ MC_QS.inp
 canonical.inp
 #  
 canonical_bias.inp
+# MASS is now taken from psf file instead of periodic table
+MC_QS.inp

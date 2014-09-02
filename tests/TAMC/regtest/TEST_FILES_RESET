@@ -7,3 +7,5 @@ dimer.inp
 dimer.inp
 #  
 dimer.inp
+# MASS is now taken from psf file instead of periodic table
+dimer.inp
