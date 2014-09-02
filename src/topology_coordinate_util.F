@@ -9,8 +9,7 @@
 !>     jgh (23-05-2004) Last atom of molecule information added
 ! *****************************************************************************
 MODULE topology_coordinate_util
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -228,7 +227,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_2',handle2)
     NULLIFY(atomic_kind_set)
-    CALL allocate_atomic_kind_set(atomic_kind_set,topology%natom_type,error)
+    ALLOCATE(atomic_kind_set(topology%natom_type))
     CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------

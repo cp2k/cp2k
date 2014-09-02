@@ -61,6 +61,9 @@ MODULE qs_efield_berry
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -234,7 +237,6 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: kvec, rcc, ria
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: eigrmat, inv_mat
@@ -261,6 +263,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     NULLIFY ( dft_control, cell, particle_set )
@@ -270,6 +274,8 @@ CONTAINS
     CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
     NULLIFY ( matrix_s, mos )
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos,para_env=para_env, error=error)
+    NULLIFY ( qs_kind_set )
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, error=error)
 
     fieldpol=dft_control%period_efield%polarisation
     fieldpol=fieldpol/SQRT(DOT_PRODUCT(fieldpol,fieldpol))
@@ -292,8 +298,8 @@ CONTAINS
 
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
     DO ia = 1,SIZE(particle_set)
-       atomic_kind => particle_set(ia)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+       CALL get_atomic_kind(particle_set(ia)%atomic_kind, kind_number=ikind)
+       CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge)
        ria = particle_set(ia)%r
        ria = pbc(ria,cell)
        DO i = 1, 3
@@ -315,11 +321,8 @@ CONTAINS
        nkind=SIZE(atomic_kind_set)
        kkk=1
        DO ikind=1,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=atom_list,&
-               natom=natom,&
-               zeff=charge)
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind), zeff=charge)
           natom = SIZE(atom_list)
           DO iatom=1,natom
              DO idir=1,3
@@ -403,7 +406,7 @@ CONTAINS
        ALLOCATE (last_sgf(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
+       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf,last_sgf=last_sgf,&
             error=error)
        CALL cp_fm_get_info(dcos_full,ncol_local=ncol_local,nrow_local=nrow_local,&
             row_indices=row_indices, col_indices=col_indices, error=error)
@@ -647,9 +650,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(3)         :: cost, sint
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -663,21 +663,23 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all, sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set, particle_set, sab_orb, sab_all, cell)
+    NULLIFY (qs_kind_set, particle_set, sab_orb, sab_all, cell)
     CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          particle_set=particle_set,cell=cell,&
          sab_orb=sab_orb,sab_all=sab_all,matrix_s=matrix_s, error=error)
 
     CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
     CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=ldwork )
+    CALL get_qs_kind_set(qs_kind_set, maxco=ldwork )
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -694,7 +696,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
@@ -731,8 +733,7 @@ CONTAINS
     END IF
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+       CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
        IF (ASSOCIATED(basis_set_a)) THEN
           basis_set_list(ikind)%gto_basis_set => basis_set_a
        ELSE

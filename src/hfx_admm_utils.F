@@ -61,6 +61,7 @@ MODULE hfx_admm_utils
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -443,6 +444,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: rho_i, rho_j
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -456,7 +459,7 @@ CONTAINS
 
        CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
                        cell=cell, particle_set=particle_set, &
-                       atomic_kind_set=atomic_kind_set, error=error)
+                       atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, error=error)
 
        ! limit the blocksize by the number of orbitals
        CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
@@ -504,7 +507,7 @@ CONTAINS
 
                  iloc=iorb-iorb_block+1
                  CALL calculate_wavefunction(mo_coeff,iorb,rho_i(iloc),rho_g, &
-                          atomic_kind_set,cell,dft_control,particle_set, &
+                          atomic_kind_set,qs_kind_set, cell,dft_control,particle_set, &
                           pw_env,error=error)
 
              ENDDO
@@ -515,7 +518,7 @@ CONTAINS
 
                    jloc=jorb-jorb_block+1
                    CALL calculate_wavefunction(mo_coeff,jorb,rho_j(jloc),rho_g, &
-                            atomic_kind_set,cell,dft_control,particle_set, &
+                            atomic_kind_set,qs_kind_set, cell,dft_control,particle_set, &
                             pw_env,error=error)
 
                 ENDDO

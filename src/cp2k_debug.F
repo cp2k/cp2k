@@ -41,7 +41,7 @@ MODULE cp2k_debug
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE particle_types,                  ONLY: particle_type,&
-                                             write_qs_particle_coordinates
+                                             write_fist_particle_coordinates
   USE termination,                     ONLY: print_warning,&
                                              stop_program
   USE virial_types,                    ONLY: cp_virial,&
@@ -224,7 +224,8 @@ CONTAINS
           ! Debug forces (numerical vs analytical)
           CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
           particles => subsys%particles%els
-          CALL write_qs_particle_coordinates(particles,subsys_section,"DEBUG",error)
+          CALL write_fist_particle_coordinates(particles,subsys_section,&
+                                              charges=Null(),error=error)
           ! First evaluate energy and forces
           CALL force_env_calc_energy_force(force_env,&
                                            calc_force=.TRUE.,&
@@ -248,7 +249,8 @@ CONTAINS
                 std_value = particles(ip)%r(k)
                 DO j=1,2
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
-                   CALL write_qs_particle_coordinates(particles,subsys_section,"DEBUG",error)
+                   CALL write_fist_particle_coordinates(particles,subsys_section,&
+                                                        charges=Null(), error=error)
                    ! Compute energy
                    CALL force_env_calc_energy_force(force_env,&
                                                     calc_force=.FALSE.,&

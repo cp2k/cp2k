@@ -15,7 +15,6 @@ MODULE core_ppl
 
   USE ai_overlap_ppl,                  ONLY: ppl_integral
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
@@ -29,6 +28,9 @@ MODULE core_ppl
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -71,7 +73,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
@@ -81,6 +83,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL                                  :: use_virial
     INTEGER                                  :: nder
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -123,7 +127,6 @@ CONTAINS
                                                 rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
     REAL(KIND=dp), DIMENSION(nexp_max)       :: alpha_ppl
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
@@ -158,8 +161,8 @@ CONTAINS
 
     maxder = ncoset(nder)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            maxco=maxco,maxlgto=maxlgto,maxlppl=maxlppl,maxsgf=maxsgf,maxnset=maxnset)
+    CALL get_qs_kind_set(qs_kind_set, maxco=maxco,maxlgto=maxlgto,&
+                         maxsgf=maxsgf,maxnset=maxnset, maxlppl=maxlppl)
 
     maxl = MAX(maxlgto,maxlppl)
     CALL init_orbital_pointers(2*maxl+2*nder+1)
@@ -170,8 +173,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -187,8 +189,8 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &                                                                                      
 !$OMP SHARED  (nl_iterator, basis_set_list, calculate_forces, force, use_virial,&                             
-!$OMP          matrix_h, matrix_p,virial, atomic_kind_set, particle_set, sab_orb, sac_ppl, &                  
-!$OMP          nthread, ncoset, nkind, &                    
+!$OMP          matrix_h, matrix_p,virial, atomic_kind_set, qs_kind_set, particle_set,&
+!$OMP           sab_orb, sac_ppl, nthread, ncoset, nkind,&
 !$OMP          atom_of_kind, ldsab,  maxnset, maxder, &                                                       
 !$OMP          maxlgto, nder, maxco) &                                                                        
 !$OMP PRIVATE (ikind, jkind, inode, iatom, jatom, rab, basis_set_a, basis_set_b, atom_a, &                   
@@ -196,7 +198,7 @@ CONTAINS
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b,&                 
 !$OMP          zetb, last_iatom, last_jatom, new_atom_pair, dab, irow, icol, h_block, found, iset, ncoa, &                  
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &                       
-!$OMP          atomic_kind, gth_potential, alpha, cexp_ppl, lpotextended, &                                  
+!$OMP          gth_potential, alpha, cexp_ppl, lpotextended, &
 !$OMP          ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl, &                            
 !$OMP          nct_lpot, cval_ppl, cval_lpot, ap_iterator, rac, dac, rbc, dbc, &                             
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &                                   
@@ -329,8 +331,7 @@ CONTAINS
        ! loop over all kinds for pseudopotential  atoms
        DO kkind=1,nkind
 
-          atomic_kind => atomic_kind_set(kkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,gth_potential=gth_potential)
+          CALL get_qs_kind(qs_kind_set(kkind),gth_potential=gth_potential)
           IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
           CALL get_potential(potential=gth_potential,&
                alpha_ppl=alpha,cexp_ppl=cexp_ppl,&

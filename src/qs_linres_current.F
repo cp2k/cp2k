@@ -14,9 +14,6 @@
 ! *****************************************************************************
 MODULE qs_linres_current
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
@@ -90,6 +87,9 @@ MODULE qs_linres_current
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_linres_atom_current,          ONLY: calculate_jrho_atom,&
                                              calculate_jrho_atom_coeff,&
                                              calculate_jrho_atom_rad
@@ -227,6 +227,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: wf_r
     TYPE(pw_p_type), POINTER                 :: jrho_gspace, jrho_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: current_section
@@ -238,7 +240,7 @@ CONTAINS
             density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
             particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
             para_env,center_list,mo_coeff,psi_a_iB,&
-            psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all)
+            psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all, qs_kind_set)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -265,6 +267,7 @@ CONTAINS
                     subsys=subsys,&
                     sab_all=sab_all,&
                     particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
                     dbcsr_dist=dbcsr_dist,&
                     error=error)
 
@@ -295,7 +298,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     ALLOCATE (rbs(natom), STAT=istat)
@@ -656,9 +659,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: jpabt_a, jpabt_b, jpabt_c, &
                                                 jpabt_d, workt
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_type), POINTER             :: deltajp_a, deltajp_b, &
                                                 deltajp_c, deltajp_d, mat_a, &
@@ -680,6 +680,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -688,8 +691,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_gauge
 
     failure=.FALSE.
-    NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, rs_rho, &
-         atomic_kind_set, sab_orb, particle_set, rs_current, pw_env, &
+    NULLIFY(qs_kind, cell, dft_control, orb_basis_set, rs_rho, &
+         qs_kind_set, sab_orb, particle_set, rs_current, pw_env, &
          rs_descs, para_env, dist_ab, set_radius_a, set_radius_b, la_max, &
          la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, dist_ab, &
@@ -718,7 +721,7 @@ CONTAINS
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
@@ -762,7 +765,7 @@ CONTAINS
     nthread = 1
 
     !   *** Allocate work storage ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
          maxco=maxco,&
          maxsgf=maxsgf,&
          maxsgf_set=maxsgf_set)
@@ -777,7 +780,7 @@ CONTAINS
     my_soft=.FALSE.
     IF (PRESENT(soft_valid)) my_soft = soft_valid
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
     CALL reallocate(jpabt_a,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(jpabt_b,1,maxco,1,maxco,0,nthread-1)
@@ -797,9 +800,9 @@ CONTAINS
     maxpgf=0
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
+       qs_kind => qs_kind_set(ikind)
 
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+       CALL get_qs_kind(qs_kind=qs_kind,&
             orb_basis_set=orb_basis_set)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -855,8 +858,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -1078,7 +1081,7 @@ CONTAINS
           bcol = jatom
 
           IF (ikind .NE. ikind_old ) THEN
-             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+             CALL get_qs_kind(qs_kind_set(ikind),&
                   softb = my_soft, &
                   orb_basis_set=orb_basis_set)
 
@@ -1097,7 +1100,7 @@ CONTAINS
 
           IF (jkind .NE. jkind_old ) THEN
 
-             CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+             CALL get_qs_kind(qs_kind_set(jkind),&
                   softb = my_soft, &
                   orb_basis_set=orb_basis_set)
 
@@ -1453,14 +1456,14 @@ CONTAINS
                                                 kbox, natms
     REAL(dp)                                 :: offset(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ratom
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -1552,11 +1555,11 @@ CONTAINS
       DIMENSION(:, :)                        :: atms_pnt, ratom
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid_x, grid_y, grid_z
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
 !
 
@@ -1565,7 +1568,7 @@ CONTAINS
            error=error)
       !
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -1721,16 +1724,16 @@ CONTAINS
     REAL(kind=dp)                            :: box_center(3), &
                                                 box_center_wrap(3), &
                                                 box_size_guess, r(3)
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
       CALL timeset(routineN,handle)
 
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -1969,11 +1972,11 @@ CONTAINS
       DIMENSION(:, :)                        :: atms_pnt, ratom
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid_x, grid_y, grid_z
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
       CALL timeset(routineN,handle)
 
@@ -1983,7 +1986,7 @@ CONTAINS
            error=error)
       !
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -2278,6 +2281,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all, sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     !
@@ -2286,7 +2291,7 @@ CONTAINS
     NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&
             op_mom_der_ao,center_list,centers_set,psi0,psi_rxp,psi_D,psi_p1,psi_p2,&
             op_p_ao,psi1_p,psi1_rxp,psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,&
-            cell,psi0_order,particle_set)
+            cell,psi0_order,particle_set,qs_kind_set)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -2298,6 +2303,7 @@ CONTAINS
                     cell=cell,&
                     dbcsr_dist=dbcsr_dist,&
                     particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
                     sab_all=sab_all,&
                     sab_orb=sab_orb,&
                     error=error)
@@ -2338,7 +2344,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     ALLOCATE (rbs(natom), STAT=istat)
@@ -2740,6 +2746,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all, sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     !
@@ -2758,6 +2766,7 @@ CONTAINS
                     para_env=para_env,&
                     cell=cell,&
                     particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
                     sab_all=sab_all,&
                     sab_orb=sab_orb,&
                     dbcsr_dist=dbcsr_dist,&
@@ -2792,7 +2801,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     ALLOCATE (rbs(natom), STAT=istat)

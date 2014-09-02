@@ -16,8 +16,7 @@
 !> \author MI (04.2005)
 ! *****************************************************************************
 MODULE qs_loc_methods
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
   USE cell_methods,                    ONLY: cell_type,&
@@ -85,6 +84,7 @@ MODULE qs_loc_methods
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              localized_wfn_control_type,&
                                              qs_loc_env_new_type
@@ -315,6 +315,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -329,7 +331,8 @@ CONTAINS
     CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
     CALL cp_fm_set_all(opvec, 0.0_dp, error=error)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
+                  particle_set=particle_set,qs_kind_set=qs_kind_set,error=error)
 
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom), STAT=istat)
@@ -340,7 +343,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     !   construction of
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
          first_sgf=first_sgf,last_sgf=last_sgf,nsgf=nsgf,error=error)
 
     !   Copy the overlap sparse matrix in a full matrix
@@ -947,6 +950,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -989,11 +994,11 @@ CONTAINS
 
     DO istate = 1, nstates
        ivector = state_list(istate) - my_state0
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,cell=cell,&
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,cell=cell,&
             dft_control=dft_control,particle_set=particle_set,pw_env=pw_env,error=error)
 
-       CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set,&
-            cell, dft_control, particle_set, pw_env, error=error)
+       CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
+                  qs_kind_set, cell, dft_control, particle_set, pw_env, error=error)
 
        ! Formatting the middle part of the name
        ivector = state_list(istate)
@@ -1131,7 +1136,7 @@ CONTAINS
     natom = SIZE(qs_loc_env%particle_set)
     ntot =  natom + SIZE(center,2)
     CALL allocate_particle_set(particle_set, ntot,error)
-    CALL allocate_atomic_kind_set(atomic_kind_set,1,error)
+    ALLOCATE(atomic_kind_set(1))
     atomic_kind => atomic_kind_set(1)
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=0,&
          name="X",element_symbol="X",mass=0.0_dp)

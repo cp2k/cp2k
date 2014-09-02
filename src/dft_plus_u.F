@@ -14,11 +14,9 @@
 !> \version 1.0
 ! *****************************************************************************
 MODULE dft_plus_u
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE bibliography,                    ONLY: Dudarev1997,&
@@ -65,6 +63,10 @@ MODULE dft_plus_u
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type,&
+                                             set_qs_kind
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
@@ -241,7 +243,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: q_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v, &
@@ -253,6 +254,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
 
@@ -261,8 +264,8 @@ CONTAINS
     debug = .FALSE. ! Set to .TRUE. to print debug information
 
     NULLIFY (atom_list)
-    NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (first_sgf)
@@ -297,6 +300,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     energy=energy,&
                     matrix_s=matrix_s,&
@@ -328,9 +332,9 @@ CONTAINS
     ! Get the total number of atoms, contracted spherical Gaussian basis
     ! functions, and atomic kinds
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,&
-                             nsgf=nsgf)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+
 
     nkind = SIZE(atomic_kind_set)
 
@@ -338,7 +342,7 @@ CONTAINS
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
 
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf_atom,&
                           error=error)
 
@@ -470,16 +474,16 @@ CONTAINS
 
       DO ikind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
-
         ! Load the required atomic kind data
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind_set(ikind),&
                              atom_list=atom_list,&
+                             name=atomic_kind_name,&
+                             natom=natom_of_kind)
+
+        CALL get_qs_kind(qs_kind_set(ikind),&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              l_of_dft_plus_u=lu,&
-                             name=atomic_kind_name,&
-                             natom=natom_of_kind,&
                              nsgf=nsgf_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j,&
@@ -490,6 +494,7 @@ CONTAINS
                              eps_scf=eps_scf,&
                              max_scf=max_scf,&
                              smear=smear)
+
 
         ! Check, if the atoms of this atomic kind need a DFT+U correction
 
@@ -502,7 +507,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
@@ -937,7 +942,7 @@ CONTAINS
                                                 s_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
+    TYPE(atomic_kind_type), POINTER          :: kind_a
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v
@@ -946,6 +951,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
@@ -953,8 +960,8 @@ CONTAINS
     debug = .FALSE. ! Set to .TRUE. to print debug information
 
     NULLIFY (atom_list)
-    NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (first_sgf)
@@ -986,6 +993,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     energy=energy,&
                     particle_set=particle_set,&
@@ -1122,26 +1130,26 @@ CONTAINS
 
       DO ikind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
-
         ! Load the required atomic kind data
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind_set(ikind),&
                              atom_list=atom_list,&
-                             dft_plus_u_atom=dft_plus_u_atom,&
-                             l_of_dft_plus_u=lu,&
                              name=atomic_kind_name,&
-                             natom=natom_of_kind,&
-                             nsgf=nsgf_kind,&
-                             orb_basis_set=orb_basis_set,&
-                             u_minus_j=u_minus_j,&
-                             u_minus_j_target=u_minus_j_target,&
-                             u_ramping=u_ramping,&
-                             eps_u_ramping=eps_u_ramping,&
-                             orbitals=orbitals,&
-                             eps_scf=eps_scf,&
-                             max_scf=max_scf,&
-                             smear=smear)
+                             natom=natom_of_kind)
+
+        CALL get_qs_kind(qs_kind_set(ikind),&
+                         dft_plus_u_atom=dft_plus_u_atom,&
+                         l_of_dft_plus_u=lu,&
+                         nsgf=nsgf_kind,&
+                         orb_basis_set=orb_basis_set,&
+                         u_minus_j=u_minus_j,&
+                         u_minus_j_target=u_minus_j_target,&
+                         u_ramping=u_ramping,&
+                         eps_u_ramping=eps_u_ramping,&
+                         orbitals=orbitals,&
+                         eps_scf=eps_scf,&
+                         max_scf=max_scf,&
+                         smear=smear)
 
         ! Check, if the atoms of this atomic kind need a DFT+U correction
 
@@ -1154,7 +1162,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
@@ -1619,7 +1627,6 @@ CONTAINS
                                                 w_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
@@ -1629,13 +1636,15 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
 
     NULLIFY (atom_list)
-    NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (first_sgf)
@@ -1659,6 +1668,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     energy=energy,&
                     particle_set=particle_set,&
@@ -1699,9 +1709,8 @@ CONTAINS
     ! Get the total number of atoms, contracted spherical Gaussian basis
     ! functions, and atomic kinds
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,&
-                             nsgf=nsgf)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -1709,7 +1718,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
 
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf_atom,&
                           error=error)
 
@@ -1817,21 +1826,20 @@ CONTAINS
 
       DO ikind=1,nkind
 
-         atomic_kind => atomic_kind_set(ikind)
-
         ! Load the required atomic kind data
-
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind_set(ikind),&
                              atom_list=atom_list,&
-                             dft_plus_u_atom=dft_plus_u_atom,&
-                             l_of_dft_plus_u=lu,&
                              name=atomic_kind_name,&
-                             natom=natom_of_kind,&
-                             orb_basis_set=orb_basis_set,&
-                             u_minus_j=u_minus_j,&
-                             u_minus_j_target=u_minus_j_target,&
-                             u_ramping=u_ramping,&
-                             eps_u_ramping=eps_u_ramping)
+                             natom=natom_of_kind)
+
+        CALL get_qs_kind(qs_kind_set(ikind),&
+                         dft_plus_u_atom=dft_plus_u_atom,&
+                         l_of_dft_plus_u=lu,&
+                         orb_basis_set=orb_basis_set,&
+                         u_minus_j=u_minus_j,&
+                         u_minus_j_target=u_minus_j_target,&
+                         u_ramping=u_ramping,&
+                         eps_u_ramping=eps_u_ramping)
 
         ! Check, if this atom needs a DFT+U correction
 
@@ -1844,7 +1852,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&

@@ -27,6 +27,7 @@ MODULE qs_scf_output
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_magnitude,&
                                              calculate_orthonormality
@@ -141,11 +142,13 @@ CONTAINS
 !> \param last ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_write_mos(mos,atomic_kind_set,particle_set,dft_section,last,error)
+  SUBROUTINE qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,last,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -156,12 +159,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (SIZE(mos) > 1) THEN
-       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                          dft_section,spin="ALPHA",last=.FALSE.,error=error)
-       CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
+       CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                          dft_section,spin="BETA",last=.FALSE.,error=error)
     ELSE
-       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                          dft_section,last=.FALSE.,error=error)
     END IF
 

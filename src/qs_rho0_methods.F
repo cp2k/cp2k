@@ -11,8 +11,7 @@ MODULE qs_rho0_methods
                                              trace_r_AxB
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
@@ -41,6 +40,9 @@ MODULE qs_rho0_methods
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type,&
+                                             set_qs_kind
   USE qs_local_rho_types,              ONLY: allocate_rhoz,&
                                              calculate_rhoz,&
                                              local_rho_type,&
@@ -187,7 +189,7 @@ MODULE qs_rho0_methods
 ! *****************************************************************************
   SUBROUTINE calculate_rho0_atom(gapw_control,rho_atom_set, rho0_atom_set, &
                                  rho0_mp,a_list,g_atom,&
-                                 paw_atom,natom,ikind,atom_kind,harmonics,&
+                                 paw_atom,natom,ikind,qs_kind,harmonics,&
                                  rho0_h_tot,&
                                  error)
 
@@ -201,7 +203,7 @@ MODULE qs_rho0_methods
     TYPE(grid_atom_type), INTENT(IN)         :: g_atom
     LOGICAL, INTENT(IN)                      :: paw_atom
     INTEGER, INTENT(IN)                      :: natom, ikind
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     REAL(dp), INTENT(INOUT)                  :: rho0_h_tot
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -267,8 +269,8 @@ MODULE qs_rho0_methods
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             cpc_as=0._dp
             DO ispin = 1,nspins
-              CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_ah(:,:,ispin),atom_kind,error)
-              CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_as(:,:,ispin),atom_kind,error)
+              CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_ah(:,:,ispin),qs_kind,error)
+              CALL prj_scatter(cpc_s(ispin)%r_coef,cpc_as(:,:,ispin),qs_kind,error)
             END DO
          END IF
 
@@ -387,12 +389,13 @@ MODULE qs_rho0_methods
     REAL(KIND=dp)                            :: zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -405,8 +408,8 @@ MODULE qs_rho0_methods
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
+    NULLIFY(qs_kind_set)
     NULLIFY(atomic_kind_set)
-    NULLIFY(atom_kind)
     NULLIFY(dft_control)
     NULLIFY(harmonics)
     NULLIFY(orb_basis)
@@ -417,17 +420,18 @@ MODULE qs_rho0_methods
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
+                    atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,error=error)
 
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(atomic_kind_set)
     eps_Vrho0 = gapw_control%eps_Vrho0
 
 !   Initialize rhoz total to zero
 !   in gapw rhoz is calculated on local the lebedev grids
     total_rho_core_rspace = 0.0_dp
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
 !   Initialize the multipole and the compensation charge type
     CALL allocate_rho0_mpole(rho0_mpole,error=error)
@@ -448,17 +452,17 @@ MODULE qs_rho0_methods
     rho0_mpole%lmax_0 = 0
     rc_min = 100.0_dp
     maxnset = 0
-    DO ikind = 1,nkind
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                          orb_basis_set=orb_basis, &
-                          atom_list=atom_list,natom=nat, &
-                          harmonics=harmonics,&
-                          grid_atom=grid_atom,&
-                          ngrid_rad=nr,&
-                          paw_atom=paw_atom,zeff=zeff,&
-                          alpha_core_charge=alpha_core,&
-                          hard0_radius=rc_orb)
+    DO ikind=1, nkind
+      CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
+      CALL get_qs_kind(qs_kind_set(ikind),&
+                       orb_basis_set=orb_basis,&
+                       ngrid_rad=nr,&
+                       grid_atom=grid_atom,&
+                       harmonics=harmonics,&
+                       paw_atom=paw_atom,&
+                       hard0_radius=rc_orb,&
+                       zeff=zeff,&
+                       alpha_core_charge=alpha_core)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
                              maxl=maxl,&
@@ -473,8 +477,7 @@ MODULE qs_rho0_methods
         rho0_mpole%lmax0_kind(ikind) = 0
       END IF
 
-      CALL set_atomic_kind(atomic_kind=atom_kind,&
-                           lmax_rho0 = rho0_mpole%lmax0_kind(ikind))
+      CALL set_qs_kind(qs_kind_set(ikind), lmax_rho0 = rho0_mpole%lmax0_kind(ikind))
 
       IF(gapw_control%lrho1_eq_lrho0) harmonics%max_iso_not0 = &
            nsoset(rho0_mpole%lmax0_kind(ikind))
@@ -535,9 +538,7 @@ MODULE qs_rho0_methods
 !   and calculate the interaction radii
     max_rpgf0_s = 0.0_dp
     DO ikind = 1,nkind
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
-                           grid_atom=grid_atom)
+      CALL get_qs_kind(qs_kind_set(ikind),grid_atom=grid_atom)
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
       CALL interaction_radii_g0(rho0_mpole,ikind,eps_Vrho0,max_rpgf0_s)
     END DO

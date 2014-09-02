@@ -51,6 +51,7 @@ MODULE molecular_states
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -132,6 +133,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL cite_reference(Hunt2003)
 
@@ -327,6 +330,7 @@ CONTAINS
 
           CALL get_qs_env(qs_env=qs_env,&
                atomic_kind_set=atomic_kind_set,&
+               qs_kind_set=qs_kind_set,&
                cell=cell,&
                dft_control=dft_control,&
                particle_set=particle_set,&
@@ -336,7 +340,7 @@ CONTAINS
              IF (evals(i)<eval_range(1) .OR. evals(i)>eval_range(2)) CYCLE
 
              CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
-                  wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                  wf_g, atomic_kind_set, qs_kind_set, cell,dft_control,particle_set, &
                   pw_env, error = error )
 
              WRITE(filename,'(a9,I4.4,a1,I5.5,a4)')"MOLECULE_",imol,"_",i,tag

@@ -10,10 +10,8 @@
 !>      - adapted for nuclear attraction [jhu, 2009-02-24]
 ! *****************************************************************************
 MODULE core_ae
-
   USE ai_verfc,                        ONLY: verfc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
@@ -29,6 +27,9 @@ MODULE core_ae
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -71,7 +72,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ae, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
@@ -81,6 +82,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL                                  :: use_virial
     INTEGER                                  :: nder
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -117,7 +120,6 @@ CONTAINS
                                                 rpgfb, sphi_a, sphi_b, zeta, &
                                                 zetb
     TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
@@ -149,7 +151,7 @@ CONTAINS
 
     maxder = ncoset(nder)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set,&
             maxco=maxco,maxlgto=maxl,maxsgf=maxsgf,maxnset=maxnset)
 
     CALL init_orbital_pointers(maxl+nder+1)
@@ -171,8 +173,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -278,8 +279,7 @@ CONTAINS
        ! loop over all kinds for pseudopotential  atoms
        hab = 0._dp
        DO kkind=1,nkind
-          atomic_kind => atomic_kind_set(kkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,all_potential=all_potential)
+          CALL get_qs_kind(qs_kind_set(kkind),all_potential=all_potential)
           IF (.NOT.ASSOCIATED(all_potential)) CYCLE
           CALL get_potential(potential=all_potential,&
                              alpha_core_charge=alpha_c,zeff=zeta_c,&

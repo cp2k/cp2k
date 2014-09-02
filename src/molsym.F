@@ -1475,7 +1475,7 @@ CONTAINS
 !> \param coord ...
 !> \param atype ...
 !> \param element ...
-!> \param zeff ...
+!> \param z ...
 !> \param weight ...
 !> \param iw ...
 !> \param plevel ...
@@ -1484,14 +1484,15 @@ CONTAINS
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE print_symmetry(sym,coord,atype,element,zeff,weight,iw,plevel,error)
+  SUBROUTINE print_symmetry(sym,coord,atype,element,z,weight,iw,plevel,error)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: coord
     INTEGER, DIMENSION(:), INTENT(in)        :: atype
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: element
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: zeff, weight
+    INTEGER, DIMENSION(:), INTENT(in)        :: z
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: weight
     INTEGER, INTENT(IN)                      :: iw, plevel
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1517,7 +1518,7 @@ CONTAINS
 
     IF ( MOD(plevel,10) == 1 ) THEN
       ! Print the Cartesian coordinates of the standard orientation
-      CALL write_coordinates(coord,atype,element,zeff,weight,iw,error)
+      CALL write_coordinates(coord,atype,element,z,weight,iw,error)
 
       WRITE (iw,"(/,T3,A,(T41,10I4))") "Group Number:      1   Group Members:",&
         (sym%symequ_list(iequatom),iequatom=sym%llequatom(1),sym%ulequatom(1))
@@ -1841,20 +1842,21 @@ CONTAINS
 !> \param coord ...
 !> \param atype ...
 !> \param element ...
-!> \param zeff ...
+!> \param z ...
 !> \param weight ...
 !> \param iw ...
 !> \param error ...
 !> \date    08.05.2008
 !> \author  JGH
 ! *****************************************************************************
-  SUBROUTINE write_coordinates(coord,atype,element,zeff,weight,iw,error)
+  SUBROUTINE write_coordinates(coord,atype,element,z,weight,iw,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: coord
     INTEGER, DIMENSION(:), INTENT(in)        :: atype
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: element
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: zeff, weight
+    INTEGER, DIMENSION(:), INTENT(in)        :: z
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: weight
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1865,13 +1867,13 @@ CONTAINS
       WRITE (UNIT=iw,FMT="(/,T2,A)")&
         "Atomic Coordinates [Bohr] in Standard Orientation"
       WRITE (UNIT=iw,&
-           FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
-        "Atom  Kind  Element","X","Y","Z","  Z(eff)","  Mass"
+           FMT="(/,T3,A,7X,2(A1,11X),A1,6X,A10,4X,A4,/)")&
+        "Atom  Kind  Element","X","Y","Z","Atomic-No.","Mass"
 
       natom = SIZE(coord,2)
       DO iatom=1,natom
-        WRITE (UNIT=iw,FMT="(T2,I5,1X,I4,3X,A2,5X,3F12.6,4X,F6.2,2X,F11.4)")&
-          iatom,atype(iatom),element(iatom),coord(1:3,iatom),zeff(iatom),weight(iatom)
+        WRITE (UNIT=iw,FMT="(T2,I5,1X,I4,3X,A2,5X,3F12.6,4X,I4,2X,F11.4)")&
+          iatom,atype(iatom),element(iatom),coord(1:3,iatom),z(iatom),weight(iatom)
       END DO
 
     END IF

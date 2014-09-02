@@ -29,6 +29,7 @@ MODULE qs_scf_wfn_mix
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_orthonormality
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
@@ -65,7 +66,7 @@ CONTAINS
 !> \param marked_states ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
+  SUBROUTINE wfn_mix(mos, particle_set, dft_section, atomic_kind_set, qs_kind_set,&
                     unoccupied_orbs, scf_env, matrix_s, output_unit, marked_states,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -75,6 +76,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -204,7 +207,7 @@ CONTAINS
                                    error=error)
        END DO
        CALL write_mo_set(mos_new,particle_set,dft_section=dft_section, &
-                         atomic_kind_set=atomic_kind_set,error=error)
+                         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,error=error)
 
        DO ispin=1,SIZE(mos_new)
           CALL deallocate_mo_set(mos_new(ispin)%mo_set,error)

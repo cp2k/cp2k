@@ -43,6 +43,8 @@ MODULE molecule_kind_types
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -858,18 +860,20 @@ CONTAINS
 !> \author  MI
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,charge_x_mol)
+  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,qs_kind_set,charge_x_mol)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: charge_x_mol
 
     CHARACTER(len=*), PARAMETER :: routineN = 'num_ao_el_per_molecule', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, imol, my_charge, n_ao, &
-                                                natom, nelectron, nmol_kind, &
-                                                nsgf
+    INTEGER                                  :: iatom, ikind, imol, &
+                                                my_charge, n_ao, natom, &
+                                                nelectron, nmol_kind, nsgf
     REAL(KIND=dp)                            :: zeff, zeff_correction
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -895,10 +899,11 @@ CONTAINS
       END IF
       DO iatom=1,natom
         atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             all_potential=all_potential,&
-                             gth_potential=gth_potential,&
-                             orb_basis_set=orb_basis_set)
+        CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+        CALL get_qs_kind(qs_kind_set(ikind),&
+                         orb_basis_set=orb_basis_set,&
+                         all_potential=all_potential,&
+                         gth_potential=gth_potential)
         IF (ASSOCIATED(all_potential)) THEN
            CALL get_potential(potential=all_potential,zeff=zeff,&
                 zeff_correction=zeff_correction)

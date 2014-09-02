@@ -60,6 +60,8 @@ MODULE qs_integrate_potential_single
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE realspace_grid_types,            ONLY: &
        pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs_grid_release, &
@@ -125,7 +127,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -134,6 +135,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
@@ -153,6 +156,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
@@ -166,11 +170,8 @@ CONTAINS
 
     DO ikind=1,SIZE(atomic_kind_set)
 
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            natom=natom_of_kind,atom_list=atom_list,&
-                            scptb_parameter=scptb_kind)
+       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
+       CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
        CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
        IF (.NOT.defined) CYCLE
 
@@ -294,7 +295,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -304,6 +304,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
@@ -322,6 +324,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
@@ -334,12 +337,8 @@ CONTAINS
 
     DO ikind=1,SIZE(atomic_kind_set)
 
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            natom=natom_of_kind,&
-                            atom_list=atom_list,&
-                            gth_potential=gth_potential)
+       CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom_of_kind,atom_list=atom_list)
+       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
 
        IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
        CALL get_potential(potential=gth_potential,alpha_ppl=alpha,nexp_ppl=lppl,cexp_ppl=cexp_ppl)
@@ -495,7 +494,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval_nlcc, hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -505,6 +503,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
@@ -523,6 +523,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
@@ -535,12 +536,8 @@ CONTAINS
 
    DO ikind=1,SIZE(atomic_kind_set)
 
-      atomic_kind => atomic_kind_set(ikind)
-
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom,&
-                           atom_list=atom_list,&
-                           gth_potential=gth_potential)
+      CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom,atom_list=atom_list)
+      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
 
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,nlcc_present=nlcc,nexp_nlcc=nexp_nlcc,&
@@ -707,7 +704,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -716,6 +712,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
@@ -750,6 +748,7 @@ CONTAINS
 
         CALL get_qs_env(qs_env=qs_env,&
              atomic_kind_set=atomic_kind_set,&
+             qs_kind_set=qs_kind_set,&
              cell=cell,&
              dft_control=dft_control,&
              particle_set=particle_set,&
@@ -767,14 +766,10 @@ CONTAINS
 
         DO ikind=1,SIZE(atomic_kind_set)
 
-           atomic_kind => atomic_kind_set(ikind)
-
-           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                natom=natom_of_kind,&
-                paw_atom=paw_atom, &
-                atom_list=atom_list,&
-                alpha_core_charge=alpha_core_charge,&
-                ccore_charge=ccore_charge)
+           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
+           CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
+                            alpha_core_charge=alpha_core_charge,&
+                            ccore_charge=ccore_charge)
 
            IF(paw_atom) THEN
                 force(ikind)%rho_core(:,:) =  0.0_dp
@@ -894,7 +889,6 @@ CONTAINS
                                                 work_f, work_i, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -903,6 +897,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -912,7 +908,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind, atomic_kind_set, atom_list, cell, dft_control,&
+    NULLIFY(atomic_kind_set, qs_kind_set, atom_list, cell, dft_control,&
             first_sgfa, gridlevel_info, hab, la_max, la_min, lri_basis_set,&
             npgfa, nsgf_seta, pab, para_env, particle_set, pw_env, rpgfa, &
             rs_descs, rs_grid, rs_v, virial, set_radius_a, sphi_a,  work_f,&
@@ -934,6 +930,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
          nkind=nkind,&
@@ -962,12 +959,8 @@ CONTAINS
 
     DO ikind=1,nkind
 
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            natom=natom_of_kind,&
-            atom_list=atom_list,&
-            lri_basis_set=lri_basis_set)
+       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
+       CALL get_qs_kind(qs_kind_set(ikind), lri_basis_set=lri_basis_set)
        CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
             first_sgf=first_sgfa,&
             lmax=la_max,&

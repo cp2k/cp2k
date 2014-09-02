@@ -37,6 +37,7 @@ MODULE qs_kinetic
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integral_utils,               ONLY: basis_set_list_setup,&
                                              get_memory_usage
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              get_neighbor_list_set_p,&
                                              neighbor_list_iterate,&
@@ -144,6 +145,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
      failure = .FALSE.
@@ -163,9 +166,9 @@ CONTAINS
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END IF
 
-     NULLIFY (atomic_kind_set, p_block)
+     NULLIFY (atomic_kind_set, qs_kind_set, p_block)
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
-                     dbcsr_dist=dbcsr_dist,error=error)
+                     qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist,error=error)
      nkind = SIZE(atomic_kind_set)
 
      ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -202,7 +205,7 @@ CONTAINS
      END IF
 
      ! *** Allocate work storage ***
-     ldsab = get_memory_usage(atomic_kind_set,basis_set_id)
+     ldsab = get_memory_usage(qs_kind_set,basis_set_id)
      ALLOCATE (kab(ldsab,ldsab),qab(ldsab,ldsab),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      IF (do_forces) THEN
@@ -213,7 +216,7 @@ CONTAINS
      ! prepare basis set
      ALLOCATE (basis_set_list(nkind),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL basis_set_list_setup(basis_set_list,basis_set_id,atomic_kind_set)
+     CALL basis_set_list_setup(basis_set_list,basis_set_id,qs_kind_set)
 
      ! Iterate of neighbor list
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)

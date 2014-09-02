@@ -72,9 +72,7 @@
 !> \author Matthias Krack (14.09.2000,21.03.02)
 ! *****************************************************************************
 MODULE qs_core_hamiltonian
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
@@ -110,6 +108,9 @@ MODULE qs_core_hamiltonian
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_kinetic,                      ONLY: build_kinetic_matrix
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
@@ -180,6 +181,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
@@ -195,6 +198,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (force)
     NULLIFY (matrix_h)
     NULLIFY (matrix_s)
@@ -227,6 +231,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     matrix_h=matrix_h,&
                     kinetic=matrix_t,&
                     matrix_s=matrix_s,&
@@ -385,7 +390,7 @@ CONTAINS
        ! relativistic atomic correction to kinetic energy
        IF(qs_env%rel_control%rel_method /= rel_none)THEN
           IF(qs_env%rel_control%rel_transformation == rel_trans_atom)THEN
-             CALL build_atomic_relmat(matrix_h, atomic_kind_set, particle_set, error)
+             CALL build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set, particle_set, error)
           END IF
        END IF
     END IF
@@ -398,9 +403,9 @@ CONTAINS
        qs_env%dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             gth_potential_present=gth_potential_present,&
-                             all_potential_present=all_potential_present)
+    CALL get_qs_kind_set(qs_kind_set,&
+                         gth_potential_present=gth_potential_present,&
+                         all_potential_present=all_potential_present)
     ppl_present = ASSOCIATED(sac_ppl)
 
     IF (calculate_forces) THEN
@@ -420,26 +425,26 @@ CONTAINS
     IF (ppl_present) THEN
       IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
         CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
       END IF
     END IF
 
     ! *** compute the nuclear attraction contribution to the core hamiltonian ***
     IF (all_potential_present) THEN
       CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ae, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, error)
     END IF
 
     ! *** compute the ppnl contribution to the core hamiltonian ***
     eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
     CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
     ! *** GAPW one-center-expansion (oce) matrices
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
       eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
       IF (ASSOCIATED(sap_oce)) &
-         CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,&
+         CALL build_oce_matrices(oce%intac,calculate_forces,nder,qs_kind_set,particle_set,&
               sap_oce,eps_fit,error)
     END IF
 
@@ -453,7 +458,7 @@ CONTAINS
     IF (kgpot) THEN
        CALL get_qs_env(qs_env=qs_env,kg_env=kg_env,dbcsr_dist=dbcsr_dist,error=error)
        CALL build_tnadd_mat(kg_env, matrix_p, force, virial, calculate_forces, use_virial,&
-                    atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
@@ -485,11 +490,13 @@ CONTAINS
 !> \param particle_set ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, particle_set, error)
+  SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set, particle_set, error)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -502,7 +509,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, reltmat
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     failure = .FALSE.
@@ -510,15 +516,14 @@ CONTAINS
     ALLOCATE (kind_of(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     CALL cp_dbcsr_iterator_start(iter,matrix_h(1)%matrix)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
        IF (iatom==jatom) THEN
           ikind = kind_of(iatom)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,reltmat=reltmat)
+          CALL get_qs_kind(qs_kind_set(ikind),reltmat=reltmat)
           hblock = hblock + reltmat
        END IF
     END DO

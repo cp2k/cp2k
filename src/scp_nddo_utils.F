@@ -16,6 +16,8 @@ MODULE scp_nddo_utils
                                              cp_dbcsr_set_diag,&
                                              cp_dbcsr_type
   USE kinds,                           ONLY: dp
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
 #include "./common/cp_common_uses.f90"
@@ -41,11 +43,13 @@ CONTAINS
 !> \param escp ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE evaluate_scp_force( atomic_kind_set, pscp, &
+  SUBROUTINE evaluate_scp_force( atomic_kind_set, qs_kind_set, pscp, &
        ks_scp, ascp_diag, energy_only, escp, error )
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_dbcsr_type), POINTER             :: pscp, ks_scp
     REAL(dp), POINTER                        :: ascp_diag( : )
     LOGICAL, INTENT(IN)                      :: energy_only
@@ -66,7 +70,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
     REAL(KIND=dp), POINTER                   :: ks_block( :, : ), &
                                                 p_block( :, : )
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(semi_empirical_type), POINTER       :: se_kind
 
@@ -79,8 +82,8 @@ CONTAINS
 !    WRITE ( *, * ) 'XXXXXXXXX'
 !    CALL cp_dbcsr_print ( ks_scp, matlab_format=.TRUE., error=error )
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,scp_se_parameter=se_kind, atom_list=atom_list)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list)
+       CALL get_qs_kind(qs_kind_set(ikind),scp_se_parameter=se_kind)
        CALL get_se_param(se_kind, ass=ass, app=app, asp=asp, natorb=natorb)
        IF (natorb>4) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &

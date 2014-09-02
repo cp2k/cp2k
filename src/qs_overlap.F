@@ -46,6 +46,7 @@ MODULE qs_overlap
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integral_utils,               ONLY: basis_set_list_setup,&
                                              get_memory_usage
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              get_neighbor_list_set_p,&
                                              neighbor_list_iterate,&
@@ -171,6 +172,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
      failure = .FALSE.
@@ -192,13 +195,13 @@ CONTAINS
 
      NULLIFY (atomic_kind_set)
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
-                     dbcsr_dist=dbcsr_dist,error=error)
+                     qs_kind_set=qs_kind_set,dbcsr_dist=dbcsr_dist,error=error)
 
-     nkind = SIZE(atomic_kind_set)
+     nkind = SIZE(qs_kind_set)
 
      ALLOCATE (atom_of_kind(natom),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+     CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
      IF (PRESENT(calculate_forces)) THEN
        do_forces = calculate_forces
@@ -236,7 +239,7 @@ CONTAINS
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      END IF
 
-     ldsab = get_memory_usage(atomic_kind_set,basis_set_id_a,basis_set_id_b)
+     ldsab = get_memory_usage(qs_kind_set,basis_set_id_a,basis_set_id_b)
      IF (do_forces) THEN
         ! we need density matrix for forces
         IF(dokp) THEN
@@ -260,8 +263,8 @@ CONTAINS
 
      ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL basis_set_list_setup(basis_set_list_a,basis_set_id_a,atomic_kind_set)
-     CALL basis_set_list_setup(basis_set_list_b,basis_set_id_b,atomic_kind_set)
+     CALL basis_set_list_setup(basis_set_list_a,basis_set_id_a,qs_kind_set)
+     CALL basis_set_list_setup(basis_set_list_b,basis_set_id_b,qs_kind_set)
 
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
@@ -500,24 +503,24 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, rpgfa, rpgfb, &
                                                 scon_a, scon_b, zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list_a, &
                                                 basis_set_list_b
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
      failure = .FALSE.
 
      CALL timeset(routineN,handle)
 
-     NULLIFY (atomic_kind_set)
-     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+     NULLIFY (qs_kind_set)
+     CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
 
-     nkind = SIZE(atomic_kind_set)
+     nkind = SIZE(qs_kind_set)
      nder = 1
 
      ! check for symmetry
@@ -528,7 +531,7 @@ CONTAINS
      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
      ! *** Allocate work storage ***
-     ldsab = get_memory_usage(atomic_kind_set,basis_set_id_a,basis_set_id_b)
+     ldsab = get_memory_usage(qs_kind_set,basis_set_id_a,basis_set_id_b)
      ALLOCATE (sab(ldsab,ldsab),pab(ldsab,ldsab),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      ALLOCATE (drab(ldsab,ldsab,3),STAT=istat)
@@ -537,8 +540,8 @@ CONTAINS
      ! set up basis sets
      ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL basis_set_list_setup(basis_set_list_a,basis_set_id_a,atomic_kind_set)
-     CALL basis_set_list_setup(basis_set_list_b,basis_set_id_b,atomic_kind_set)
+     CALL basis_set_list_setup(basis_set_list_a,basis_set_id_a,qs_kind_set)
+     CALL basis_set_list_setup(basis_set_list_b,basis_set_id_b,qs_kind_set)
 
      ! Loop over neighbor list
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
@@ -694,10 +697,13 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
      failure = .FALSE.
 
-     CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,dbcsr_dist=dbcsr_dist,error=error)
+     CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
+                     qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist,error=error)
 
      natom = SIZE(particle_set)
 
@@ -712,9 +718,9 @@ CONTAINS
      ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-     CALL get_particle_set(particle_set=particle_set,nsgf=rbs,&
+     CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,&
                            basis_set_id=basis_set_id_a,error=error)
-     CALL get_particle_set(particle_set=particle_set,nsgf=cbs,&
+     CALL get_particle_set(particle_set, qs_kind_set, nsgf=cbs,&
                            basis_set_id=basis_set_id_b,error=error)
 
      ! prepare for allocation
@@ -804,10 +810,13 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,dbcsr_dist=dbcsr_dist,error=error)
+    CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist,error=error)
 
     natom = SIZE(particle_set)
 
@@ -823,9 +832,9 @@ CONTAINS
     ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set=particle_set,nsgf=rbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,&
                           basis_set_id=basis_set_id_a,error=error)
-    CALL get_particle_set(particle_set=particle_set,nsgf=cbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=cbs,&
                           basis_set_id=basis_set_id_b,error=error)
 
     ! prepare for allocation

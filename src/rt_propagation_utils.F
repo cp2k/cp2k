@@ -10,7 +10,6 @@
 
 MODULE  rt_propagation_utils
 
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type,&
@@ -47,6 +46,7 @@ MODULE  rt_propagation_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_mo_io,                        ONLY: read_mo_set,&
                                              read_rt_mos_from_restart
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
@@ -258,12 +258,15 @@ MODULE  rt_propagation_utils
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
-    NULLIFY(atomic_kind_set,mo_array,particle_set)
+    NULLIFY(atomic_kind_set,qs_kind_set,mo_array,particle_set)
 
-    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env,qs_kind_set=qs_kind_set,&
+         atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, &
          input=input,rtp=rtp,dft_control=dft_control,&
          error=error)
@@ -273,12 +276,9 @@ MODULE  rt_propagation_utils
     p_rmpv => qs_env%rho%rho_ao
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-
-
     SELECT CASE(dft_control%rtp_control%initial_wfn)
     CASE(use_restart_wfn)
-       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
+       CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
             error=error)
        DO ispin=1,nspin
@@ -305,7 +305,7 @@ MODULE  rt_propagation_utils
        ENDIF
     CASE(use_rt_restart)
        CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
-       CALL read_rt_mos_from_restart(mo_array,mos_old,atomic_kind_set,particle_set,qs_env%para_env,&
+       CALL read_rt_mos_from_restart(mo_array,mos_old,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
             id_nr,dft_control%multiplicity,dft_section, error)
        DO ispin=1,nspin
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&

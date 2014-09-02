@@ -39,6 +39,8 @@ MODULE kg_environment
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              get_iterator_info,&
                                              neighbor_list_iterate,&
@@ -274,7 +276,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -285,6 +286,8 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
     CALL timeset(routineN, handle)
@@ -296,6 +299,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     distribution_2d=distribution_2d,&
                     molecule_set=molecule_set,&
@@ -320,17 +324,16 @@ CONTAINS
 
     IF (PRESENT(subset_of_mol)) THEN
       CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
-                     atomic_kind_set,molecule_set,molecule_only,kg=.FALSE.,&
+                     atomic_kind_set,qs_kind_set,molecule_set,molecule_only,kg=.FALSE.,&
                      dftb=.FALSE.,particle_set=particle_set,error=error)
     ELSE
       CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
-                     atomic_kind_set,molecule_set,molecule_only,kg=.TRUE.,&
+                     atomic_kind_set,qs_kind_set,molecule_set,molecule_only,kg=.TRUE.,&
                      dftb=.FALSE.,particle_set=particle_set,error=error)
     END IF
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom2d(ikind)%list)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom2d(ikind)%list)
     END DO
 
     IF (PRESENT(sab_orb)) THEN
@@ -362,9 +365,8 @@ CONTAINS
 
     IF (PRESENT(sac_kin)) THEN
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
           tpot_present(ikind) = .FALSE.
-          CALL get_atomic_kind(atomic_kind=atomic_kind,tnadd_potential=tnadd_potential)
+          CALL get_qs_kind(qs_kind_set(ikind),tnadd_potential=tnadd_potential)
           IF (ASSOCIATED(tnadd_potential)) THEN
              CALL get_potential(potential=tnadd_potential,radius=tpot_radius(ikind))
              tpot_present(ikind) = .TRUE.

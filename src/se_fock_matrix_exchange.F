@@ -13,7 +13,6 @@
 ! *****************************************************************************
 MODULE se_fock_matrix_exchange
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
@@ -30,6 +29,8 @@ MODULE se_fock_matrix_exchange
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -105,7 +106,6 @@ CONTAINS
                                                 p_block_a, p_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -117,6 +117,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
@@ -152,7 +154,8 @@ CONTAINS
             do_ewald_r3=.FALSE., do_ewald_gks=.FALSE., integral_screening=integral_screening,&
             max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
-       CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
+       CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,&
+             atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
 
        nkind = SIZE(atomic_kind_set)
        IF(calculate_forces) THEN
@@ -167,8 +170,7 @@ CONTAINS
      ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+        CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a)
         se_kind_list(ikind)%se_param => se_kind_a
         CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
         se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -317,13 +319,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_p_type), &
@@ -345,15 +348,15 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
 
-       CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,atomic_kind_set=atomic_kind_set,error=error)
+       CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,&
+         atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
 
        nkind = SIZE(atomic_kind_set)
 
      ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
         se_kind_list(ikind)%se_param => se_kind_a
         CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
         se_defined(ikind) = (defined .AND. natorb_a >= 1)

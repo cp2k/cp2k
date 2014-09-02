@@ -67,6 +67,7 @@ MODULE qs_scf_post_se
                                              pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_loc_methods,                  ONLY: qs_loc_driver
@@ -593,12 +594,15 @@ CPSourceFileRef,&
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: print_key
 
     NULLIFY(particle_set)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     local_particles=local_particles,&
                     particle_set=particle_set,&
                     scp_env=scp_env,&
@@ -622,7 +626,7 @@ CPSourceFileRef,&
        IF (print_it) print_level = 3
        CALL mulliken_population_analysis(qs_env,unit_nr,print_level,error)
        IF ( scp_nddo ) &
-       CALL multipoles(atomic_kind_set,particle_set,&
+       CALL multipoles(atomic_kind_set,qs_kind_set,particle_set,&
          rho%rho_ao,pscp,matrix_s(1)%matrix,para_env,unit_nr,"DFT%PRINT%MULLIKEN",error=error)
 
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
@@ -894,6 +898,8 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
@@ -910,7 +916,8 @@ CPSourceFileRef,&
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
-            mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
+            mos=mos,atomic_kind_set=atomic_kind_set,&
+            qs_kind_set=qs_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,&
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
@@ -918,12 +925,12 @@ CPSourceFileRef,&
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        IF (dft_control%nspins == 2) THEN
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                            dft_section,spin="ALPHA",last=.TRUE.,error=error)
-         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
+         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                            dft_section,spin="BETA",last=.TRUE.,error=error)
        ELSE
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                            dft_section,last=.TRUE.,error=error)
        END IF
 

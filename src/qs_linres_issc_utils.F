@@ -63,6 +63,7 @@ MODULE qs_linres_issc_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_fermi_contact,                ONLY: build_fermi_contact_matrix
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_linres_methods,               ONLY: linres_solver
   USE qs_linres_types,                 ONLY: get_issc_env,&
                                              issc_env_create,&
@@ -842,6 +843,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: issc_section, lr_section
 
 !
@@ -853,7 +856,7 @@ CONTAINS
     NULLIFY(linres_control)
     NULLIFY(logger,issc_section)
     NULLIFY(tmp_fm_struct)
-    NULLIFY(particle_set)
+    NULLIFY(particle_set, qs_kind_set)
     NULLIFY(sab_orb)
 
     logger => cp_error_get_logger(error)
@@ -884,6 +887,7 @@ CONTAINS
                     mos=mos,&
                     sab_orb=sab_orb,&
                     particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
                     dbcsr_dist=dbcsr_dist,&
                     error=error)
     !
@@ -987,7 +991,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     ALLOCATE (rbs(natom), STAT=istat)

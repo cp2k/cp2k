@@ -35,6 +35,7 @@ MODULE qmmm_util
                                              qs_subsys
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env
+  USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -438,7 +439,11 @@ CONTAINS
       POINTER                                :: particles_core, &
                                                 particles_extended, &
                                                 particles_mm, particles_qm
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
+
+    NULLIFY(qs_kind_set)
 
     SELECT CASE(force_env%in_use)
 
@@ -480,7 +485,10 @@ CONTAINS
           particles_core => subsys_core%particles%els
           subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                               "SUBSYS",error=error)
-          CALL write_qs_particle_coordinates(particles_core,subsys_section,"QM/MM core calc first QM, then MM (0 charges)",error)
+          CALL get_qs_env(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
+                          qs_kind_set=qs_kind_set,error=error)
+          CALL write_qs_particle_coordinates(particles_core,qs_kind_set,subsys_section,&
+                                             "QM/MM core calc first QM, then MM (0 charges)",error)
           CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
                             subsys=subsys_core,cell=cell_core,error=error)
           particles_core => subsys_core%particles%els
@@ -528,6 +536,8 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
 
     SELECT CASE(force_env%in_use)
@@ -535,7 +545,7 @@ CONTAINS
        failure         = .FALSE.
        logger => cp_error_get_logger(error)
        NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
-               subsys_section, qm_cell, mm_cell)
+               subsys_section, qm_cell, mm_cell, qs_kind_set)
 
        CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -648,7 +658,10 @@ CONTAINS
 
        subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "SUBSYS",error=error)
-       CALL write_qs_particle_coordinates(particles_qm,subsys_section,"QM/MM first QM, then MM (0 charges)",error)
+
+       CALL get_qs_env(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
+                       qs_kind_set=qs_kind_set,error=error)
+       CALL write_qs_particle_coordinates(particles_qm,qs_kind_set,subsys_section,"QM/MM first QM, then MM (0 charges)",error)
        ALLOCATE(charges(SIZE(particles_mm)))
        charges = 0.0_dp
        CALL write_fist_particle_coordinates(particles_mm,subsys_section,charges,error)

@@ -7,7 +7,6 @@
 !> \brief Calculate the saop potential
 ! *****************************************************************************
 MODULE xc_pot_saop
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
@@ -59,6 +58,8 @@ MODULE xc_pot_saop
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                              local_rho_set_release,&
@@ -549,7 +550,6 @@ CONTAINS
       POINTER                                :: drho_h, drho_s, vxg
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: mo_eigenvalues
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -561,6 +561,8 @@ CONTAINS
     TYPE(local_rho_type), POINTER            :: local_rho_set
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho_structure
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: dr_h, dr_s, r_h, r_s
@@ -583,7 +585,7 @@ CONTAINS
 
     NULLIFY(weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
             vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
-            atom_kind, atomic_kind_set,  deriv_set, deriv, atomic_grid, &
+            atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, &
             harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
             r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, &
             mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, &
@@ -596,6 +598,7 @@ CONTAINS
                             rho=rho_structure, &
                             mos=molecular_orbitals, &
                             atomic_kind_set=atomic_kind_set, &
+                            qs_kind_set=qs_kind_set, &
                             rho_atom_set=rho_atom_set,error=error)
 
     xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC",error=error)
@@ -646,12 +649,10 @@ CONTAINS
     CALL allocate_rho_atom_internals(qs_env, local_rho_set%rho_atom_set,error=error)
 
     DO ikind=1, SIZE(atomic_kind_set)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
 
-       atom_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
-                            natom=natom, paw_atom=paw_atom,&
+       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
                             harmonics=harmonics, grid_atom=atomic_grid)
-
        IF(.NOT. paw_atom) CYCLE
 
        nr = atomic_grid%nr
@@ -1029,14 +1030,13 @@ CONTAINS
           END IF
 
           rho_atom => rho_atom_set(iatom)
-          atom_kind => atomic_kind_set(ikind)
           SELECT CASE (oe_corr)
           CASE(oe_lb)
-             CALL gaVxcgb_noGC(vxc_LB_h,vxc_LB_s,atom_kind,rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_LB_h,vxc_LB_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
           CASE (oe_gllb)
-             CALL gaVxcgb_noGC(vxc_GLLB_h,vxc_GLLB_s,atom_kind,rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_GLLB_h,vxc_GLLB_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
           CASE (oe_saop)
-             CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,atom_kind,rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
           CASE default
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT

@@ -65,6 +65,7 @@ MODULE almo_scf_special
                                              set_qs_env
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -399,6 +400,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: input
 
@@ -419,6 +422,7 @@ CONTAINS
                     input=input,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     has_unit_metric=has_unit_metric,&
                     para_env=para_env,&
@@ -451,12 +455,12 @@ CONTAINS
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
           CALL calculate_mopac_dm(qs_env%rho%rho_ao(ispin)%matrix,&
                matrix_s(1)%matrix, has_unit_metric, &
-               dft_control,particle_set, atomic_kind_set,&
+               dft_control,particle_set, atomic_kind_set, qs_kind_set,&
                ispin, nspin, nelectron_spin(ispin),&
                para_env, error)
        ELSE
           CALL calculate_atomic_block_dm(qs_env%rho%rho_ao(ispin)%matrix,&
-               matrix_s(1)%matrix, particle_set, atomic_kind_set, &
+               matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
                ispin, nspin, nelectron_spin(ispin), unit_nr, error)
        ENDIF
 

@@ -69,6 +69,7 @@ MODULE mp2
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_matrix_pools,                 ONLY: mpools_create,&
                                              mpools_rebuild_fm_pools,&
                                              mpools_release,&
@@ -153,6 +154,8 @@ MODULE mp2
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: my_mpools
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -167,6 +170,7 @@ MODULE mp2
     CALL cite_reference(DelBen2012)
 
     CALL get_qs_env(qs_env=qs_env, input=input, atomic_kind_set=atomic_kind_set, &
+                  qs_kind_set=qs_kind_set,&
                   particle_set=particle_set, para_env=para_env,   &
                   energy=energy, rho=rho, mos=mos, scf_env=scf_env,&
                   matrix_ks=matrix_ks, matrix_s=matrix_s, matrix_ks_aux_fit=matrix_ks_aux,&
@@ -237,12 +241,11 @@ MODULE mp2
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
     nkind = SIZE(atomic_kind_set,1)
 
 
-    CALL hfx_create_basis_types(basis_parameter,basis_info, atomic_kind_set, do_admm=.FALSE., error=error)
+    CALL hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm=.FALSE., error=error)
 
     dimen=0
     max_nset=0

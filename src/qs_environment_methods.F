@@ -11,9 +11,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_environment_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type,&
@@ -59,6 +57,9 @@ MODULE qs_environment_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
@@ -127,6 +128,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
@@ -134,10 +137,11 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
+    NULLIFY(qs_kind_set, atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
          distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    qs_kind_set=qs_kind_set,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     molecule_kind_set=molecule_kind_set,&
@@ -146,6 +150,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
                     scf_control=scf_control,&
                     para_env=para_env,&
                     error=error)
+    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -180,8 +185,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
        ! If we use auxiliary density matrix methods rebuild fm_pools
        IF( qs_env%dft_control%do_admm ) THEN
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                  nsgf=n_ao_aux_fit,&
+         CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao_aux_fit,&
                                   basis_set_id=use_aux_fit_basis_set)
          CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
               blacs_env=qs_env%blacs_env, para_env=para_env,&
@@ -191,7 +195,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
        ! create 2d distribution
 
        CALL distribute_molecules_2d(cell=qs_env%cell,&
-                                    particle_kind_set=atomic_kind_set,&
+                                    atomic_kind_set=atomic_kind_set,&
+                                    qs_kind_set=qs_kind_set,&
                                     particle_set=particle_set,&
                                     molecule_kind_set=molecule_kind_set,&
                                     molecule_set=molecule_set,&
@@ -657,17 +662,15 @@ END SUBROUTINE qs_env_rebuild_pw_env
 
     INTEGER                                  :: ikind
     LOGICAL                                  :: nlcc_present
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     nlcc=.FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    DO ikind=1,SIZE(atomic_kind_set)
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind, gth_potential=gth_potential)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+    DO ikind=1,SIZE(qs_kind_set)
+      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,nlcc_present=nlcc_present)
       nlcc=nlcc.OR.nlcc_present

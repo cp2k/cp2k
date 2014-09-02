@@ -63,6 +63,7 @@ MODULE xas_tp_scf
                                              qs_environment_type
   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
                                              self_consistency_check
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -407,12 +408,14 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(preconditioner_type), POINTER       :: local_preconditioner
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks)
+    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks, qs_kind_set)
     NULLIFY(cell,particle_set,local_preconditioner,vecbuffer,vecbuffer2)
     NULLIFY(dft_control,loc_section,mos,mo_coeff,eigenvalues)
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
@@ -425,7 +428,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          cell=cell,dft_control=dft_control,&
          matrix_ks=matrix_ks, matrix_s=matrix_s,mos=mos,&
-         particle_set=particle_set,error=error)
+         particle_set=particle_set,qs_kind_set=qs_kind_set,error=error)
 
     ! Some elements from the xas_env
     CALL get_xas_env(xas_env=xas_env,&
@@ -447,8 +450,7 @@ CONTAINS
     natom=SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf,&
-         error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, error=error)
     ALLOCATE(centers_wfn(3,nexc_search),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     centers_wfn=0.0_dp

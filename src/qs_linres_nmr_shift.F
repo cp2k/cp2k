@@ -60,6 +60,8 @@ MODULE qs_linres_nmr_shift
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_linres_nmr_epr_common_utils,  ONLY: mult_G_ov_G2_grid
   USE qs_linres_op,                    ONLY: fac_vecp,&
                                              set_vecp,&
@@ -296,7 +298,6 @@ CONTAINS
                                                 chemical_shift_nics_loc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -308,13 +309,15 @@ CONTAINS
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     !
     failure =.FALSE.
-    NULLIFY(atomic_kind_set,cell,dft_control,para_env,particle_set,&
+    NULLIFY(atomic_kind_set,qs_kind_set,cell,dft_control,para_env,particle_set,&
             chemical_shift_loc,chemical_shift_nics_loc,jrho1_atom_set,&
-            jrho1_atom,r_nics,jrho_h_grid,jrho_s_grid,atom_kind,&
+            jrho1_atom,r_nics,jrho_h_grid,jrho_s_grid,&
             atom_list,grid_atom,harmonics,logger)
     !
     logger => cp_error_get_logger(error)
@@ -322,6 +325,7 @@ CONTAINS
     !
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     para_env=para_env,&
@@ -365,14 +369,15 @@ CONTAINS
     ! Per each JA, loop over the points where the shift needs to be computed
     DO ikind = 1,nkind
 
-       NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
-       atom_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atom_kind,&
+       NULLIFY(atom_list,grid_atom,harmonics)
+       CALL get_atomic_kind(atomic_kind_set(ikind),&
                             atom_list=atom_list,&
-                            natom=natom,&
-                            paw_atom=paw_atom,&
-                            harmonics=harmonics,&
-                            grid_atom=grid_atom)
+                            natom=natom)
+
+       CALL get_qs_kind(qs_kind_set(ikind),&
+                        paw_atom=paw_atom,&
+                        harmonics=harmonics,&
+                        grid_atom=grid_atom)
        !
        na = grid_atom%ng_sphere
        nr = grid_atom%nr

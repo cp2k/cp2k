@@ -21,6 +21,8 @@ MODULE qs_linres_types
   USE kinds,                           ONLY: dp
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
@@ -1488,7 +1490,6 @@ CONTAINS
                                                 natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     CALL timeset(routineN,handle)
 
@@ -1500,8 +1501,7 @@ CONTAINS
        CALL deallocate_jrho_atom_set(jrho1_atom_set,error=error)
     END IF
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom = natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom = natom)
 
     CALL allocate_jrho_atom_set(jrho1_atom_set,natom,error=error)
 
@@ -1509,9 +1509,7 @@ CONTAINS
 
     DO ikind = 1,nkind
 
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            atom_list=atom_list,natom=nat)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
 
        DO iat = 1,nat
           iatom = atom_list(iat)
@@ -1585,16 +1583,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param nablavks_atom_set ...
-!> \param atomic_kind_set ...
 !> \param nspins ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,nspins,error)
+  SUBROUTINE init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,qs_kind_set,nspins,error)
 
     TYPE(nablavks_atom_type), DIMENSION(:), &
       POINTER                                :: nablavks_atom_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1606,7 +1605,6 @@ CONTAINS
       maxso, na, nat, natom, nkind, nr, nset, nsotot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
@@ -1615,27 +1613,24 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
 
     IF(ASSOCIATED(nablavks_atom_set)) THEN
       CALL deallocate_nablavks_atom_set(nablavks_atom_set,error=error)
     END IF
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom = natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
     CALL allocate_nablavks_atom_set(nablavks_atom_set,natom,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
     DO ikind = 1,nkind
-
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            orb_basis_set=orb_basis_set, &
-                            atom_list=atom_list,natom=nat, &
-                            harmonics=harmonics,&
-                            grid_atom=grid_atom)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind),&
+                        orb_basis_set=orb_basis_set, &
+                        harmonics=harmonics,&
+                        grid_atom=grid_atom)
 
        na = grid_atom%ng_sphere
        nr = grid_atom%nr

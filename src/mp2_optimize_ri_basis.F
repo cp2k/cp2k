@@ -13,8 +13,7 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2_optimize_ri_basis
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
                                              deallocate_gto_basis_set,&
                                              gto_basis_set_type
@@ -48,6 +47,8 @@ MODULE mp2_optimize_ri_basis
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -161,6 +162,8 @@ MODULE mp2_optimize_ri_basis
     TYPE(hfx_basis_info_type)                :: RI_basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_S0, RI_basis_parameter
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -360,7 +363,7 @@ MODULE mp2_optimize_ri_basis
     CALL init_transf(nkind,ndof,basis_set_RI,RI_basis_parameter,lower_B,max_dev,max_rel_dev)
 
     ! get the atomic kind set for writing the basis
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
 
     ! Calculate RI-MO-ERI's
     CALL calc_energy_func(Emp2,Emp2_AA,Emp2_BB,Emp2_AB,Emp2_RI,DRI,DI,&
@@ -477,9 +480,9 @@ MODULE mp2_optimize_ri_basis
                                        (1,ishell=1,RI_basis_parameter(ikind)%nshell(iset))
             DO ipgf=1,RI_basis_parameter(ikind)%npgf(iset)
               WRITE(unit_nr,'(T3,10F16.10)') RI_basis_parameter(ikind)%zet(ipgf,iset),&
-                                             (atomic_kind_set(ikind)%ri_aux_basis_set%&
+                                             (qs_kind_set(ikind)%ri_aux_basis_set%&
                                              gcc(ipgf,ishell,iset),&
-                                             ishell=1,atomic_kind_set(ikind)%ri_aux_basis_set%nshell(iset))
+                                             ishell=1,qs_kind_set(ikind)%ri_aux_basis_set%nshell(iset))
             END DO                            
           END DO
           WRITE(unit_nr,*)
@@ -1347,10 +1350,10 @@ MODULE mp2_optimize_ri_basis
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: gcc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: max_rel_dev, max_rel_dev_prev
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: atom_kind
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -1359,9 +1362,9 @@ MODULE mp2_optimize_ri_basis
     external_num_of_func=.FALSE.
     IF(ALLOCATED(mp2_env%ri_opt_param%RI_nset_per_l)) external_num_of_func=.TRUE.
 
-    NULLIFY(atomic_kind_set)
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, error=error)
-    nkind = SIZE(atomic_kind_set,1) 
+    NULLIFY(qs_kind_set)
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, error=error)
+    nkind = SIZE(qs_kind_set,1) 
 
     ALLOCATE(basis_was_assoc(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1376,15 +1379,15 @@ MODULE mp2_optimize_ri_basis
 
     DO ikind = 1, nkind
       NULLIFY(atom_kind)
-      atom_kind => atomic_kind_set(ikind)
+      atom_kind => qs_kind_set(ikind)
 
       ! save info if the basis was or not associated
-      basis_was_assoc(ikind)=ASSOCIATED(atomic_kind_set(ikind)%ri_aux_basis_set)
+      basis_was_assoc(ikind)=ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set)
 
       ! skip the generation of the initial guess if the RI basis is 
       ! provided in input
-      IF(ASSOCIATED(atomic_kind_set(ikind)%ri_aux_basis_set)) THEN
-        CALL get_atomic_kind(atomic_kind=atom_kind,ri_aux_basis_set=orb_basis_a)
+      IF(ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set)) THEN
+        CALL get_qs_kind(qs_kind=atom_kind,ri_aux_basis_set=orb_basis_a)
         nseta = orb_basis_a%nset
         la_max => orb_basis_a%lmax
         la_min => orb_basis_a%lmin
@@ -1477,14 +1480,14 @@ MODULE mp2_optimize_ri_basis
         DEALLOCATE(RI_num_sgf_per_l)
 
         ! deallocate the old basis before moving on
-        CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%ri_aux_basis_set,error)
+        CALL deallocate_gto_basis_set(qs_kind_set(ikind)%ri_aux_basis_set,error)
 
         ! IF(qs_env%para_env%mepos==0) THEN
         ! END IF
 
       ELSE
  
-        CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis_a)
+        CALL get_qs_kind(qs_kind=atom_kind,orb_basis_set=orb_basis_a)
 
         sphi_a => orb_basis_a%sphi
         nseta = orb_basis_a%nset
@@ -1707,8 +1710,8 @@ MODULE mp2_optimize_ri_basis
       END IF ! RI basis not associated
 
       ! create the new basis
-      NULLIFY(atomic_kind_set(ikind)%ri_aux_basis_set)
-      CALL create_ri_basis(qs_env,atomic_kind_set(ikind)%ri_aux_basis_set,&
+      NULLIFY(qs_kind_set(ikind)%ri_aux_basis_set)
+      CALL create_ri_basis(qs_env,qs_kind_set(ikind)%ri_aux_basis_set,&
                            RI_nset,RI_l_expo,RI_exponents,error)
       DEALLOCATE(RI_exponents)
       DEALLOCATE(RI_l_expo)

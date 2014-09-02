@@ -24,6 +24,8 @@ MODULE mulliken
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -406,7 +408,7 @@ END SUBROUTINE rf_deriv_check
 !>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
-                                scr,title,error)
+                                qs_kind_set, scr,title,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -414,6 +416,8 @@ END SUBROUTINE rf_deriv_check
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -433,7 +437,7 @@ END SUBROUTINE rf_deriv_check
     ALLOCATE(charges(nblock,nspin))
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
 
-    CALL print_atomic_charges(particle_set,scr,title,electronic_charges=charges)
+    CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
 
     DEALLOCATE(charges)
 
@@ -515,10 +519,12 @@ END SUBROUTINE rf_deriv_check
 !> \param quadrupole ...
 !> \param para_env ...
 ! *****************************************************************************
-  SUBROUTINE compute_multipoles(atomic_kind_set,particle_set,&
+  SUBROUTINE compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
                                 p_matrix,pscp,s_matrix,charge,dipole,quadrupole,para_env)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -530,14 +536,11 @@ END SUBROUTINE rf_deriv_check
       POINTER                                :: quadrupole
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    INTEGER                                  :: blk, iatom, iblock_col, &
-                                                iblock_row, indi, indj, &
-                                                ispin, jint, natorb_a, &
-                                                nblock, nspin, size_1c_int
+    INTEGER :: blk, iatom, iblock_col, iblock_row, ikind, indi, indj, ispin, &
+      jint, natorb_a, nblock, nspin, size_1c_int
     LOGICAL                                  :: defined, found
     REAL(kind=dp)                            :: fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pscp_block, s_block
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
@@ -561,8 +564,8 @@ END SUBROUTINE rf_deriv_check
 
           iatom=iblock_row
 
-          atomic_kind => particle_set(iatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
           CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
@@ -618,11 +621,13 @@ END SUBROUTINE rf_deriv_check
 !> \param title ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE multipoles_a(atomic_kind_set,particle_set,&
+  SUBROUTINE multipoles_a(atomic_kind_set,qs_kind_set,particle_set,&
                           p_matrix,pscp,s_matrix,para_env,scr,title,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -652,10 +657,11 @@ END SUBROUTINE rf_deriv_check
     ALLOCATE(dipole(3,nblock))
     ALLOCATE(quadrupole(3,3,nblock))
 
-    CALL compute_multipoles(atomic_kind_set,particle_set,&
+    CALL compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
                             p_matrix,pscp,s_matrix,charge,dipole,quadrupole,para_env)
 
-    CALL print_multipoles(particle_set,scr,title,charge=charge,dipole=dipole,quadrupole=quadrupole)
+    CALL print_multipoles(particle_set,qs_kind_set,scr,title,charge=charge,&
+                          dipole=dipole,quadrupole=quadrupole)
 
     DEALLOCATE(charge)
     DEALLOCATE(dipole)
@@ -678,12 +684,14 @@ END SUBROUTINE rf_deriv_check
 !> \param mquadrupole ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE multipoles_b(atomic_kind_set,particle_set,&
+  SUBROUTINE multipoles_b(atomic_kind_set,qs_kind_set,particle_set,&
                           p_matrix,pscp,s_matrix,para_env,&
                           mcharge,mdipole,mquadrupole,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -703,7 +711,7 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    CALL compute_multipoles(atomic_kind_set,particle_set,&
+    CALL compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
                             p_matrix,pscp,s_matrix,mcharge,mdipole,mquadrupole,para_env)
 
     CALL timestop(handle)

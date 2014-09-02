@@ -7,10 +7,6 @@
 !> \brief Utility routines for qs_scf
 ! *****************************************************************************
 MODULE qs_scf_initialization
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_release, cp_create_bl_distribution, &
@@ -72,6 +68,10 @@ MODULE qs_scf_initialization
   USE qs_gspace_mixing,                ONLY: mixing_allocate,&
                                              mixing_init
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type,&
+                                             set_qs_kind
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -878,9 +878,6 @@ CONTAINS
     LOGICAL :: dft_plus_u_atom, do_kpoints, failure, init_u_ramping_each_scf, &
       my_transition_potential, s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
@@ -888,12 +885,15 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(scf_control, atomic_kind_set, matrix_h, matrix_s, matrix_ks, &
+    NULLIFY(scf_control, qs_kind_set, matrix_h, matrix_s, matrix_ks, &
          dft_control, mos, rho)
     failure=.FALSE.
     my_transition_potential = .FALSE.
@@ -913,13 +913,13 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
          dft_control=dft_control,&
-         atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          mos=mos,matrix_ks=matrix_ks, rho=rho,&
          matrix_h=matrix_h,matrix_s=matrix_s,&
          nelectron_total=scf_env%nelectron,&
          error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set)
 
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".scfLog",error=error)
@@ -974,15 +974,15 @@ CONTAINS
                            scf_control%eps_eigval,ndep,error=error)
         END IF
       END IF
-      DO ikind=1,SIZE(atomic_kind_set)
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+      DO ikind=1,SIZE(qs_kind_set)
+        qs_kind => qs_kind_set(ikind)
+        CALL get_qs_kind(qs_kind=qs_kind,&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              u_ramping=u_ramping,&
                              init_u_ramping_each_scf=init_u_ramping_each_scf)
         IF (dft_plus_u_atom.AND.(u_ramping /= 0.0_dp)) THEN
            IF (init_u_ramping_each_scf) THEN
-              CALL set_atomic_kind(atomic_kind=atomic_kind,&
+              CALL set_qs_kind(qs_kind=qs_kind,&
                                    u_minus_j=0.0_dp)
            END IF
         END IF

@@ -5,7 +5,8 @@
 MODULE optbas_fenv_manipulation
   USE admm_types,                      ONLY: admm_env_create,&
                                              admm_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: gto_basis_set_type,&
                                              init_orb_basis_set
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -46,6 +47,7 @@ MODULE optbas_fenv_manipulation
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_matrix_pools,                 ONLY: mpools_get
@@ -165,7 +167,7 @@ CONTAINS
     LOGICAL                                  :: natom_mismatch
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind
+      POINTER                                :: atomic_kind_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
@@ -174,13 +176,16 @@ CONTAINS
       POINTER                                :: mos, mos_aux_fit
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     mos=mos,nelectron_spin=nelectron_spin,&
                     mos_aux_fit=mos_aux_fit,&
-                    atomic_kind_set=atomic_kind,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     scf_control=scf_control,&
                    particle_set=particle_set,&
 !                   matrix_s=matrix_s,&
@@ -200,7 +205,7 @@ CONTAINS
        END IF
     END DO
  
-    CALL read_mo_set(mos,atomic_kind,particle_set,qs_env%para_env,&
+    CALL read_mo_set(mos,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
       id_nr=0,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
       natom_mismatch=natom_mismatch,error=error)
    
@@ -389,24 +394,27 @@ CONTAINS
     CHARACTER(default_string_length)         :: elem
     INTEGER                                  :: ibasis, ikind, jkind
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind
+      POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind,dft_control=dft_control,error=error)
-    DO ikind=1,SIZE(atomic_kind)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,error=error)
+    DO ikind=1,SIZE(qs_kind_set)
        DO jkind=1,opt_bas%nkind
-           elem=atomic_kind(ikind)%name
+           CALL get_atomic_kind(atomic_kind_set(ikind), name=elem)
            CALL uppercase(elem)
            IF(elem==opt_bas%kind_basis(jkind)%element)THEN
               ibasis=opt_bas%combination(bas_id,jkind)
-              CALL transfer_data_to_gto(atomic_kind(ikind)%aux_fit_basis_set,&
+              CALL transfer_data_to_gto(qs_kind_set(ikind)%aux_fit_basis_set,&
                                         opt_bas%kind_basis(jkind)%flex_basis(ibasis),error)
-              CALL init_orb_basis_set(atomic_kind(ikind)%aux_fit_basis_set,error)
+              CALL init_orb_basis_set(qs_kind_set(ikind)%aux_fit_basis_set,error)
            END IF
        END DO
     END DO
 
-    CALL init_interaction_radii(dft_control%qs_control,atomic_kind,error)
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,qs_kind_set,error)
 
    END SUBROUTINE update_basis_set
 

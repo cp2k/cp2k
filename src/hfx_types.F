@@ -60,6 +60,9 @@ MODULE hfx_types
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset,&
                                              nso
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE string_utilities,                ONLY: compress
   USE t_c_g0,                          ONLY: free_C0
   USE timings,                         ONLY: timeset,&
@@ -446,7 +449,7 @@ MODULE hfx_types
 !> \param para_env ...
 !> \param hfx_section input section
 !> \param natom , max_set: quantities that define some array sizes
-!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
 !> \param dft_control ...
 !> \param cell ...
 !> \param error variable to control error logging, stopping,...
@@ -458,7 +461,7 @@ MODULE hfx_types
 !>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
 !>        unknown at invocation time
 ! *****************************************************************************
-  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, &
+  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, qs_kind_set, &
                         dft_control, cell, error)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
@@ -466,6 +469,8 @@ MODULE hfx_types
     INTEGER, INTENT(IN)                      :: natom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -481,7 +486,6 @@ MODULE hfx_types
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: exist, failure, logic_val
     REAL(dp)                                 :: real_val
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
@@ -603,7 +607,7 @@ MODULE hfx_types
         ! at least 1 atom per block, and avoid overly large blocks
         actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
 
-        CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, atomic_kind_set,&
+        CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, qs_kind_set,&
                         dft_control%do_admm, error) 
 
 !!**************************************************************************************************
@@ -717,7 +721,7 @@ MODULE hfx_types
           actual_x_data%periodic_parameter%R_max_stress = 1.0_dp
         END IF
 
-        nkind = SIZE(atomic_kind_set,1)
+        nkind = SIZE(qs_kind_set,1)
         max_set=actual_x_data%basis_info%max_set
 
         !! ** This guy is allocated on the master thread only
@@ -755,16 +759,10 @@ MODULE hfx_types
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             i = 1
             DO ikind=1,nkind
-              NULLIFY(atom_kind)
-              atom_kind => atomic_kind_set(ikind)
-              CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                   natom=natom_a)
+              CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
               nseta=actual_x_data%basis_parameter(ikind)%nset
               DO jkind=ikind,nkind
-                NULLIFY(atom_kind)
-                atom_kind => atomic_kind_set(jkind)
-                CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                     natom=natom_b)
+                CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                 nsetb=actual_x_data%basis_parameter(jkind)%nset
                 ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -781,16 +779,10 @@ MODULE hfx_types
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               i = 1
               DO ikind=1,nkind
-                NULLIFY(atom_kind)
-                atom_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                     natom=natom_a)
+                CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
                 nseta=actual_x_data%basis_parameter(ikind)%nset
                 DO jkind=ikind,nkind
-                  NULLIFY(atom_kind)
-                  atom_kind => atomic_kind_set(jkind)
-                  CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                       natom=natom_b)
+                  CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                   nsetb=actual_x_data%basis_parameter(jkind)%nset
                   ALLOCATE(actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -807,8 +799,7 @@ MODULE hfx_types
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (atom2kind(nkind),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                   kind_of=kind_of)
+          CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
           atom2kind = 0
           DO iatom=1,natom
@@ -940,18 +931,18 @@ MODULE hfx_types
 !> \brief - This routine allocates and initializes the basis_info and basis_parameter types
 !> \param basis_parameter ...
 !> \param basis_info ...
-!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
 !> \param do_admm ...
 !> \param error ...
 !> \par History
 !>      07.2011 refactored
 ! *****************************************************************************
-  SUBROUTINE hfx_create_basis_types(basis_parameter,basis_info, atomic_kind_set, do_admm, error)
+  SUBROUTINE hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm, error)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_basis_info_type)                :: basis_info
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     LOGICAL                                  :: do_admm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -966,7 +957,6 @@ MODULE hfx_types
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
 
     CALL timeset(routineN,handle)
@@ -974,29 +964,25 @@ MODULE hfx_types
     failure = .FALSE.
 
     !! BASIS parameter
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     ALLOCATE(basis_parameter(nkind), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     max_set = 0
     DO ikind = 1,nkind
-        NULLIFY(atom_kind)
-        atom_kind => atomic_kind_set(ikind)
         IF( .NOT. do_admm ) THEN
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               orb_basis_set=orb_basis_a)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                   maxsgf=basis_info%max_sgf,&
-                                   maxnset=basis_info%max_set,&
-                                   maxlgto=basis_info%max_am)
+          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_a)
+          CALL get_qs_kind_set(qs_kind_set,&
+                               maxsgf=basis_info%max_sgf,&
+                               maxnset=basis_info%max_set,&
+                               maxlgto=basis_info%max_am)
 
         ELSE
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               aux_fit_basis_set=orb_basis_a)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                   maxsgf=basis_info%max_sgf,&
-                                   maxnset=basis_info%max_set,&
-                                   maxlgto=basis_info%max_am,&
-                                   basis_set_id=use_aux_fit_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), aux_fit_basis_set=orb_basis_a)
+          CALL get_qs_kind_set(qs_kind_set,&
+                               maxsgf=basis_info%max_sgf,&
+                               maxnset=basis_info%max_set,&
+                               maxlgto=basis_info%max_am,&
+                               basis_set_id=use_aux_fit_basis_set)
         END IF
         IF (basis_info%max_set<max_set) STOP "UNEXPECTED MAX_SET"
         max_set = MAX(max_set,basis_info%max_set)

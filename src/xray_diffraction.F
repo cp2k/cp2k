@@ -55,6 +55,8 @@ MODULE xray_diffraction
   USE qs_collocate_density,            ONLY: collocate_pgf_product_gspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
@@ -561,7 +563,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: delta_cpc, pab, work, zet
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -569,6 +570,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(pw_p_type)                          :: rho_elec_gspace
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: cpc_h, cpc_s
@@ -586,8 +589,8 @@ CONTAINS
       CALL timeset(routineN,handle)
 
       NULLIFY (atom_list)
-      NULLIFY (atomic_kind)
       NULLIFY (atomic_kind_set)
+      NULLIFY (qs_kind_set)
       NULLIFY (cell)
       NULLIFY (cpc_h)
       NULLIFY (cpc_s)
@@ -607,6 +610,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env,&
                       atomic_kind_set=atomic_kind_set,&
+                      qs_kind_set=qs_kind_set,&
                       cell=cell,&
                       dft_control=dft_control,&
                       particle_set=particle_set,&
@@ -663,11 +667,11 @@ CONTAINS
 
       DO ikind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
-
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind_set(ikind),&
                              atom_list=atom_list,&
-                             natom=natom,&
+                             natom=natom)
+
+       CALL get_qs_kind(qs_kind_set(ikind),&
                              orb_basis_set=orb_basis_set,&
                              paw_proj_set=paw_proj,&
                              paw_atom=paw_atom)

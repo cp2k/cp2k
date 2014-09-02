@@ -14,6 +14,8 @@ MODULE atomic_charges
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -42,11 +44,13 @@ CONTAINS
 !> \note
 !>      charges are computed per spin in the LSD case
 ! *****************************************************************************
-  SUBROUTINE print_atomic_charges(particle_set, scr, title, electronic_charges,&
+  SUBROUTINE print_atomic_charges(particle_set, qs_kind_set, scr, title, electronic_charges,&
                                   atomic_charges)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: electronic_charges
@@ -56,7 +60,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: handle, iatom, natom, nspin
+    INTEGER                                  :: handle, iatom, ikind, natom, &
+                                                nspin
     REAL(KIND=dp)                            :: total_charge, zeff
 
     CALL timeset(routineN,handle)
@@ -89,7 +94,8 @@ CONTAINS
        WRITE(scr,'(A)') ""
        DO iatom=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             element_symbol=element_symbol, zeff=zeff)
+                             element_symbol=element_symbol, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
 
           SELECT CASE (nspin)
           CASE(0)
@@ -131,10 +137,12 @@ CONTAINS
 !> \param dipole ...
 !> \param quadrupole ...
 ! *****************************************************************************
-  SUBROUTINE print_multipoles(particle_set, scr, title, charge, dipole, quadrupole)
+  SUBROUTINE print_multipoles(particle_set, qs_kind_set, scr, title, charge, dipole, quadrupole)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: charge
@@ -146,7 +154,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: handle, i, iatom, natom
+    INTEGER                                  :: handle, i, iatom, ikind, natom
     REAL(KIND=dp)                            :: zeff
 
     CALL timeset(routineN,handle)
@@ -162,7 +170,8 @@ CONTAINS
 
        DO iatom=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             element_symbol=element_symbol, zeff=zeff)
+                             element_symbol=element_symbol, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
 
           WRITE(scr,'(a,i5)') ' iatom= ',iatom
           WRITE(scr,'(a,a2)') ' element_symbol= ',element_symbol

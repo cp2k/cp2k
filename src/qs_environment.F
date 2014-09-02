@@ -19,10 +19,7 @@ MODULE qs_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: &
-       atomic_kind_type, check_atomic_kind_set, get_atomic_kind, &
-       get_atomic_kind_set, init_atomic_kind_set, init_gapw_basis_set, &
-       read_atomic_kind_set, write_atomic_kind_set, write_gto_basis_sets
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE basis_set_types,                 ONLY: copy_gto_basis_set,&
                                              gto_basis_set_type
   USE bibliography,                    ONLY: Iannuzzi2006,&
@@ -168,6 +165,10 @@ MODULE qs_environment
                                              write_pgf_orb_radii,&
                                              write_ppl_radii,&
                                              write_ppnl_radii
+  USE qs_kind_types,                   ONLY: &
+       check_qs_kind_set, create_qs_kind_set, get_qs_kind, get_qs_kind_set, &
+       init_gapw_basis_set, init_qs_kind_set, qs_kind_type, set_qs_kind, &
+       write_gto_basis_sets, write_qs_kind_set
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -261,7 +262,6 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -346,8 +346,9 @@ CONTAINS
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     IF (PRESENT(subsys)) THEN
        my_subsys => subsys
-       CALL read_atomic_kind_set(my_subsys%atomic_kinds%els,kind_section,para_env,&
-            force_env_section,error)
+       CALL create_qs_kind_set(qs_env%qs_kind_set, &
+                               my_subsys%atomic_kinds%els,&
+                               kind_section, para_env, force_env_section, error)
     ELSE
        CALL cp_subsys_create(my_subsys,para_env=para_env,error=error)
 
@@ -360,12 +361,9 @@ CONTAINS
             my_subsys%colvar_p,my_subsys%gci, root_section, para_env, &
             force_env_section=force_env_section, subsys_section=subsys_section,&
             use_motion_section=use_motion_section, error=error)
-
-       CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
-            force_env_section,error)
-
-       CALL num_ao_el_per_molecule(molecule_kind_set)
-
+       CALL create_qs_kind_set(qs_env%qs_kind_set, atomic_kind_set, &
+                               kind_section, para_env, force_env_section, error)
+       CALL num_ao_el_per_molecule(molecule_kind_set, qs_env%qs_kind_set)
        CALL particle_list_create(particles,els_ptr=particle_set,error=error)
        CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
        CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
@@ -413,7 +411,7 @@ CONTAINS
       atomic_kind_set => my_subsys%atomic_kinds%els
       natom=SIZE(particle_set)
       CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                      qs_env%dft_control, qs_env%cell, error=error)
+                      qs_env%qs_kind_set, qs_env%dft_control, qs_env%cell, error=error)
       hfx_ri_section => section_vals_get_subs_vals(hfx_section,"HFX_RI",error=error)
       CALL section_vals_get(hfx_ri_section,explicit=do_hfx_ri,error=error)
       IF (do_hfx_ri) THEN
@@ -436,7 +434,7 @@ CONTAINS
          atomic_kind_set => my_subsys%atomic_kinds%els
          natom=SIZE(particle_set)
          CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                         qs_env%dft_control, qs_env%cell, error=error)
+                         qs_env%qs_kind_set, qs_env%dft_control, qs_env%cell, error=error)
        END IF
     END IF
 
@@ -460,11 +458,10 @@ CONTAINS
        ALLOCATE(lri_env%orb_basis(nkind),lri_env%ri_basis(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
           NULLIFY(orb_basis_set,lri_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               orb_basis_set=orb_basis_set,&
-                               lri_basis_set=lri_basis_set)
+          CALL get_qs_kind(qs_env%qs_kind_set(ikind),&
+                           orb_basis_set=orb_basis_set,&
+                           lri_basis_set=lri_basis_set)
           NULLIFY(lri_env%orb_basis(ikind)%gto_basis_set)
           NULLIFY(lri_env%ri_basis(ikind)%gto_basis_set)
           IF (ASSOCIATED(orb_basis_set)) THEN
@@ -497,10 +494,9 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
           nkind = SIZE(atomic_kind_set)
           DO ikind=1,nkind
-             atomic_kind => atomic_kind_set(ikind)
              NULLIFY(rtmat)
-             CALL calculate_atomic_relkin (atomic_kind,rel_control,rtmat,error)
-             IF(ASSOCIATED(rtmat)) atomic_kind%reltmat => rtmat
+             CALL calculate_atomic_relkin(atomic_kind_set(ikind),qs_env%qs_kind_set(ikind),rel_control,rtmat,error)
+             IF(ASSOCIATED(rtmat)) CALL set_qs_kind(qs_env%qs_kind_set(ikind), reltmat=rtmat)
           END DO
        END IF
     END IF
@@ -576,6 +572,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -623,6 +621,7 @@ CONTAINS
 
     particle_set => subsys%particles%els
     atomic_kind_set => subsys%atomic_kinds%els
+    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, error=error)
     molecule_set => subsys%molecules_new%els
     molecule_kind_set => subsys%molecule_kinds_new%els
 
@@ -683,7 +682,7 @@ CONTAINS
     IF ( dft_control%qs_control%method == "DFTB" ) THEN
        NULLIFY (ewald_env,ewald_pw,dftb_potential)
        dftb_control => dft_control%qs_control%dftb_control
-       CALL qs_dftb_param_init (atomic_kind_set,dftb_control,dftb_potential,&
+       CALL qs_dftb_param_init (atomic_kind_set,qs_kind_set,dftb_control,dftb_potential,&
             subsys_section=subsys_section,para_env=para_env,error=error)
        CALL set_qs_env(qs_env,dftb_potential=dftb_potential,error=error)
        ! check for Ewald
@@ -702,7 +701,7 @@ CONTAINS
     ELSE IF ( dft_control%qs_control%method == "SCPTB" ) THEN
        scptb_control => dft_control%qs_control%scptb_control
        print_section => section_vals_get_subs_vals(subsys_section,"PRINT",error=error)
-       CALL scptb_parameter_init(atomic_kind_set,scptb_control,print_section,para_env,error)
+       CALL scptb_parameter_init(atomic_kind_set,qs_kind_set,scptb_control,print_section,para_env,error)
        ! check for Ewald
        IF ( scptb_control%do_ewald ) THEN
           CALL ewald_env_create(ewald_env,para_env,error=error)
@@ -719,16 +718,14 @@ CONTAINS
     END IF
 
     ! DFT+U
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             dft_plus_u_atom_present=dft_control%dft_plus_u)
+    CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
 
     !   *** Check basis and fill in missing parts ***
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
+    CALL check_qs_kind_set(qs_kind_set,dft_control,para_env,&
          subsys_section=subsys_section,error=error)
 
     !   *** Check that no all-electron potential is present if GPW or GAPW_XC
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         all_potential_present=all_potential_present)
+    CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
     IF ( (dft_control%qs_control%method == "GPW") .OR. &
          (dft_control%qs_control%method == "GAPW_XC") .OR. &
          (dft_control%qs_control%method == "OFGPW") ) THEN
@@ -741,8 +738,7 @@ CONTAINS
 
     !   *** Initialize the spherical harmonics and ***
     !   *** the orbital transformation matrices    ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         maxlgto=maxlgto,maxlppl=maxlppl,maxlppnl=maxlppnl)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl)
 
     lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
     IF(lmax_sphere .LT.0) THEN
@@ -750,8 +746,7 @@ CONTAINS
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
     END IF
     IF(dft_control%qs_control%method == "LRIGPW".OR.dft_control%qs_control%lri_optbas) THEN
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            maxlgto=maxlgto_lri,basis_set_id=use_lri_basis_set)
+       CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto_lri,basis_set_id=use_lri_basis_set)
        !take maxlgto from lri basis if larger (usually) 
        maxlgto = MAX(maxlgto,maxlgto_lri)
     END IF
@@ -765,39 +760,38 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
             "GLOBAL%PRINT/SPHERICAL_HARMONICS",error=error)
 
-    !   *** Initialise the atomic kind set ***
-    CALL init_atomic_kind_set(atomic_kind_set,para_env,qs_env%input,error=error)
+    !   *** Initialise the qs_kind_set ***
+    CALL init_qs_kind_set(qs_kind_set,error)
 
     !   *** Initialise GAPW soft basis and projectors
     IF(dft_control%qs_control%method == "GAPW" .OR. &
          dft_control%qs_control%method == "GAPW_XC")  THEN
        qs_control => dft_control%qs_control
        gapw_control => dft_control%qs_control%gapw_control
-       CALL init_gapw_basis_set(atomic_kind_set,qs_control,qs_env%input,error)
+       CALL init_gapw_basis_set(qs_kind_set,qs_control,qs_env%input,error)
     ENDIF
 
     !   *** Initialize the pretabulation for the calculation of the   ***
     !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         maxlgto=maxlgto)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
     maxl = MAX(3*maxlgto + 1,0)
     CALL init_md_ftable(maxl)
 
     !   *** Initialize the atomic interaction radii ***
-    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,error)
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,qs_kind_set,error)
 
-    CALL write_pgf_orb_radii("orb",atomic_kind_set,subsys_section,error)
-    CALL write_geminal_radii(atomic_kind_set,subsys_section,error)
-    CALL write_pgf_orb_radii("aux",atomic_kind_set,subsys_section,error)
-    CALL write_pgf_orb_radii("lri",atomic_kind_set,subsys_section,error)
-    CALL write_core_charge_radii(atomic_kind_set,subsys_section,error)
-    CALL write_ppl_radii(atomic_kind_set,subsys_section,error)
-    CALL write_ppnl_radii(atomic_kind_set,subsys_section,error)
-    CALL write_paw_radii(atomic_kind_set,subsys_section,error)
+    CALL write_pgf_orb_radii("orb",atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_geminal_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_pgf_orb_radii("aux",atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_pgf_orb_radii("lri",atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_core_charge_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_ppl_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_ppnl_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
+    CALL write_paw_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
 
 
     !   *** Distribute molecules and atoms using the new data structures ***
-    CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
+    CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set,&
                                  particle_set=particle_set,&
                                  local_particles=local_particles,&
                                  molecule_kind_set=molecule_kind_set,&
@@ -922,7 +916,7 @@ CONTAINS
              do_method_pm6,do_method_mndod,do_method_pnnl)
           ! Neighbor lists have to be MAX(interaction range, orbital range)
           ! set new kind radius
-          CALL init_se_nlradius(se_control,atomic_kind_set,subsys_section,error)
+          CALL init_se_nlradius(se_control,atomic_kind_set,qs_kind_set,subsys_section,error)
        END SELECT
        ! Initialize to zero the max multipole to treat in the EWALD scheme..
        se_control%max_multipole = do_multipole_none
@@ -960,7 +954,7 @@ CONTAINS
           CALL ewald_env_release(ewald_env,error=error)
           CALL ewald_pw_release(ewald_pw,error=error)
           ! Handle the residual integral part 1/R^3
-          CALL semi_empirical_expns3_setup(atomic_kind_set, se_control,&
+          CALL semi_empirical_expns3_setup(qs_kind_set, se_control,&
                dft_control%qs_control%method_id,error)
        END IF
        ! Taper function
@@ -989,7 +983,7 @@ CONTAINS
       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
         NULLIFY(pp_section)
         pp_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%PAIR_POTENTIAL",error=error)
-        CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,pp_section,para_env,error)
+        CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,pp_section,para_env,error)
       ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
         NULLIFY(nl_section)
         nl_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%NON_LOCAL",error=error)
@@ -1020,7 +1014,7 @@ CONTAINS
          dispersion_env%exp_pre = 0._dp
          dispersion_env%scaling = 0._dp
          dispersion_env%parameter_file_name = scptb_control%dispersion_parameter_file
-         CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,para_env=para_env,error=error)
+         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env,error=error)
       ELSE
          dispersion_env%type = xc_vdw_fun_none
       END IF
@@ -1049,7 +1043,7 @@ CONTAINS
          dispersion_env%exp_pre = 0._dp
          dispersion_env%scaling = 0._dp
          dispersion_env%parameter_file_name = dftb_control%dispersion_parameter_file
-         CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,para_env=para_env,error=error)
+         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env,error=error)
       ELSE
          dispersion_env%type = xc_vdw_fun_none
       END IF
@@ -1078,7 +1072,7 @@ CONTAINS
          dispersion_env%exp_pre = 0._dp
          dispersion_env%scaling = 0._dp
          dispersion_env%parameter_file_name = se_control%dispersion_parameter_file
-         CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,para_env=para_env,error=error)
+         CALL qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,para_env=para_env,error=error)
       ELSE
          dispersion_env%type = xc_vdw_fun_none
       END IF
@@ -1086,7 +1080,7 @@ CONTAINS
     END IF
 
     !   *** Allocate the MO data types ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, nsgf=n_ao, nelectron=nelectron)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron)
 
     ! the total number of electrons
     nelectron = nelectron - dft_control%charge
@@ -1298,10 +1292,8 @@ CONTAINS
 
     ! If we use auxiliary density matrix methods , set mo_set_aux_fit
     IF( dft_control%do_admm ) THEN
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             nsgf=n_ao_aux_fit,&
-                             nelectron=nelectron,&
-                             basis_set_id=use_aux_fit_basis_set)
+      CALL get_qs_kind_set(qs_kind_set, nelectron=nelectron, nsgf=n_ao_aux_fit, &
+                           basis_set_id=use_aux_fit_basis_set)
       ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -1345,19 +1337,19 @@ CONTAINS
     END IF
 
     ! Print the unnormalized basis set information (input data)
-    CALL write_gto_basis_sets(atomic_kind_set,subsys_section,error=error)
+    CALL write_gto_basis_sets(qs_kind_set,subsys_section,error=error)
 
     ! Print the atomic kind set
-    CALL write_atomic_kind_set(atomic_kind_set,subsys_section,error)
+    CALL write_qs_kind_set(qs_kind_set,subsys_section,error)
 
     ! Print the molecule kind set
     CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
     ! Print the total number of kinds, atoms, basis functions etc.
-    CALL write_total_numbers(atomic_kind_set,particle_set,qs_env%input,error)
+    CALL write_total_numbers(atomic_kind_set, qs_kind_set,particle_set,qs_env%input,error)
 
     ! Print the atomic coordinates
-    CALL write_qs_particle_coordinates(particle_set,subsys_section,label="QUICKSTEP",error=error)
+    CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section,label="QUICKSTEP",error=error)
 
     ! Print the interatomic distances
     CALL write_particle_distances(particle_set,cell,subsys_section,error)
@@ -1397,10 +1389,12 @@ CONTAINS
 !> \param error ...
 !> \author Creation (06.10.2000)
 ! *****************************************************************************
-  SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,force_env_section,error)
+  SUBROUTINE write_total_numbers(atomic_kind_set,qs_kind_set,particle_set,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1422,17 +1416,17 @@ CONTAINS
 
     IF (output_unit>0) THEN
        natom = SIZE(particle_set)
-       nkind = SIZE(atomic_kind_set)
+       nkind = SIZE(qs_kind_set)
 
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                maxlgto=maxlgto,&
-                                maxlppl=maxlppl,&
-                                maxlppnl=maxlppnl,&
-                                ncgf=ncgf,&
-                                npgf=npgf,&
-                                nset=nset,&
-                                nsgf=nsgf,&
-                                nshell=nshell)
+       CALL get_qs_kind_set(qs_kind_set,&
+                            maxlgto=maxlgto,&
+                            ncgf=ncgf,&
+                            npgf=npgf,&
+                            nset=nset,&
+                            nsgf=nsgf,&
+                            nshell=nshell,&
+                            maxlppl=maxlppl,&
+                            maxlppnl=maxlppnl)
 
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "TOTAL NUMBERS AND MAXIMUM NUMBERS"

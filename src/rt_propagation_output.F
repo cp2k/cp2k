@@ -9,9 +9,7 @@
 ! *****************************************************************************
 
 MODULE rt_propagation_output
-
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
@@ -47,6 +45,8 @@ MODULE rt_propagation_output
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
@@ -98,6 +98,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
@@ -107,11 +109,10 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
-         atomic_kind_set=atomic_kind_set,error=error)
+         atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-         nelectron=n_electrons)
+    CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
     n_electrons = n_electrons - qs_env%dft_control%charge
 
     tot_rho_r = accurate_sum(rho%tot_rho_r)
@@ -174,7 +175,8 @@ CONTAINS
              CALL make_moment(qs_env,error)
              CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
              dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
+             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
+                            dft_section,atomic_kind_set,qs_kind_set,error)
           END IF
        ELSE
           IF (rtp%linear_scaling) THEN
@@ -185,7 +187,8 @@ CONTAINS
              CALL write_available_results(qs_env=qs_env,error=error)
              CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
              dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
+             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
+                               dft_section,atomic_kind_set,qs_kind_set,error)
           ENDIF
        END IF
     END IF

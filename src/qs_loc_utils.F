@@ -12,9 +12,6 @@ MODULE qs_loc_utils
 
   USE ai_moments,                      ONLY: contract_cossin,&
                                              cossin
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
@@ -66,6 +63,9 @@ MODULE qs_loc_utils
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              localized_wfn_control_create,&
                                              localized_wfn_control_release,&
@@ -746,9 +746,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cosab, rpgfa, rpgfb, sinab, &
                                                 sphi_a, sphi_b, work, zeta, &
                                                 zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_cos, op_sin
     TYPE(cell_type), POINTER                 :: cell
@@ -764,24 +761,27 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (qs_kind, qs_kind_set)
     NULLIFY ( cell, op_sm_set , orb_basis_set, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (cosab, sinab, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
                     particle_set=particle_set, sab_orb=sab_orb,&
                     error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab))
@@ -821,8 +821,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE

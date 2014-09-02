@@ -11,7 +11,6 @@
 ! *****************************************************************************
 MODULE scp_coeff_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
@@ -26,6 +25,9 @@ MODULE scp_coeff_types
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
@@ -84,16 +86,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param aux_coeff_set ...
-!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
 !> \param distribution ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE aux_coeff_set_create(aux_coeff_set,atomic_kind_set,&
+  SUBROUTINE aux_coeff_set_create(aux_coeff_set,qs_kind_set,&
        distribution, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: distribution
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -103,12 +105,12 @@ CONTAINS
 
     INTEGER                                  :: ikind, n_els, nkind, stat
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     failure=.FALSE.
 
-    NULLIFY(atomic_kind,aux_basis_set)
+    NULLIFY(qs_kind,aux_basis_set)
     ALLOCATE(aux_coeff_set, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -117,7 +119,7 @@ CONTAINS
        aux_coeff_set%ref_count=1
        NULLIFY(aux_coeff_set%distribution, aux_coeff_set%coeffs_of_kind)
        !    set coeffs_of_kind
-       nkind=SIZE(atomic_kind_set)
+       nkind=SIZE(qs_kind_set)
        IF (PRESENT(distribution)) THEN
           IF (ASSOCIATED(distribution)) THEN
              ALLOCATE(aux_coeff_set%coeffs_of_kind(nkind), stat=stat)
@@ -125,8 +127,8 @@ CONTAINS
              aux_coeff_set%distribution_method=aux_coeff_distributed
              DO ikind=1,nkind
                 NULLIFY(aux_coeff_set%coeffs_of_kind(ikind)%coeffs)
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
+                qs_kind => qs_kind_set(ikind)
+                CALL get_qs_kind(qs_kind,aux_basis_set=aux_basis_set)
                 n_els = distribution%n_el(ikind)
                 IF ((.NOT.ASSOCIATED(aux_basis_set)).OR.(n_els ==0)) CYCLE
                 CALL aux_coeff_create(aux_coeff_set%coeffs_of_kind(ikind)%coeffs,&
@@ -401,7 +403,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rep_coeff ...
-!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
 !> \param local_particles ...
 !> \param aux_coeff_set ...
 !> \param para_env ...
@@ -409,12 +411,13 @@ CONTAINS
 !> \param copy_in ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_replicated_coeff ( rep_coeff, atomic_kind_set, &
+  SUBROUTINE create_replicated_coeff ( rep_coeff, atomic_kind_set, qs_kind_set, &
                                       local_particles, aux_coeff_set, para_env, &
                                       copy_type_id, copy_in, error )
 
     REAL(dp), DIMENSION(:, :), POINTER       :: rep_coeff
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(qs_kind_type), POINTER              :: qs_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -439,14 +442,14 @@ CONTAINS
 
 ! Ensuring a blank canvas
   IF ( ASSOCIATED ( rep_coeff ) ) THEN
-   CALL deallocate_replicated_coeff ( rep_coeff, atomic_kind_set, local_particles, &
+   CALL deallocate_replicated_coeff ( rep_coeff, qs_kind_set, local_particles, &
                                       aux_coeff_set, copy_type_id, .FALSE., error )
 
   END IF
 
 ! Getting dimensions of the replicated coeff array
-  CALL get_atomic_kind_set ( atomic_kind_set, maxgtops=maxgtops,  &
-                             basis_set_id=use_aux_basis_set, natom=natoms )
+  CALL get_atomic_kind_set(atomic_kind_set, natom=natoms)
+  CALL get_qs_kind_set ( qs_kind_set, maxgtops=maxgtops, basis_set_id=use_aux_basis_set)
 
 ! Allocating the pointer: MAXGTOPS is the maximum number of spherical orbitals in a set * number of sets
   ALLOCATE(rep_coeff ( natoms, maxgtops ), stat=stat)
@@ -454,7 +457,7 @@ CONTAINS
 ! Zero
   rep_coeff = 0._dp
   IF ( my_copy_in ) THEN
-    DO ikind = 1, SIZE ( atomic_kind_set )
+    DO ikind = 1, SIZE ( qs_kind_set )
       local_coeffs=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
       IF (.NOT. ASSOCIATED ( local_coeffs ) ) CYCLE
   ! Get the number of particles of ikind ( local )
@@ -488,18 +491,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rep_coeff ...
-!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
 !> \param local_particles ...
 !> \param aux_coeff_set ...
 !> \param copy_type_id ...
 !> \param copy_out ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE deallocate_replicated_coeff ( rep_coeff, atomic_kind_set, local_particles, &
+  SUBROUTINE deallocate_replicated_coeff ( rep_coeff, qs_kind_set, local_particles, &
                                            aux_coeff_set, copy_type_id, copy_out, error )
 
     REAL(dp), DIMENSION(:, :), POINTER       :: rep_coeff
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(qs_kind_type), POINTER              :: qs_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     INTEGER, INTENT(IN)                      :: copy_type_id
@@ -524,7 +527,7 @@ CONTAINS
   CPPrecondition(ASSOCIATED(rep_coeff),cp_failure_level,routineN,error,failure)
   IF ( .NOT. failure ) THEN
     IF ( my_copy_out ) THEN
-      DO ikind = 1, SIZE ( atomic_kind_set )
+      DO ikind = 1, SIZE ( qs_kind_set )
         local_coeffs=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
         IF (.NOT. ASSOCIATED ( local_coeffs ) ) CYCLE
   ! Get the number of particles of ikind ( local )

@@ -67,6 +67,9 @@ MODULE qs_pdos
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
@@ -133,12 +136,14 @@ CONTAINS
 !> \author  MI
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE calculate_projected_dos(mo_set,atomic_kind_set,particle_set,qs_env,&
+  SUBROUTINE calculate_projected_dos(mo_set,atomic_kind_set,qs_kind_set,particle_set,qs_env,&
                                  dft_section,ispin,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -157,12 +162,11 @@ CONTAINS
                                                 my_pos, spin(2)
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: ldos_index, r_ldos_index
-    INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, in_x, in_y, in_z, &
-      ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, &
-      kind_number, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, &
-      n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, &
-      np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit, &
-      stat
+    INTEGER :: handle, homo, i, iatom, ikind, il, ildos, im, imo, in_x, in_y, &
+      in_z, ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, &
+      k, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, &
+      n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, np_tot, &
+      npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: firstrow
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: bo, l
@@ -178,7 +182,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pdos_array
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -212,7 +215,7 @@ CONTAINS
     spin(2)="BETA"
     IF ((.NOT.should_output)) RETURN
 
-    NULLIFY (atomic_kind, context, s_matrix, orb_basis_set, para_env, pdos_array)
+    NULLIFY (context, s_matrix, orb_basis_set, para_env, pdos_array)
     NULLIFY (eigenvalues,fm_struct_tmp,matrix_work,matrix_shalf,mo_coeff,vecbuffer)
     NULLIFY (ldos_section,list,cell,pw_env,auxbas_pw_pool,mo_virt,evals_virt)
     NULLIFY (occupation_numbers, ldos_p, r_ldos_p,dft_control,occupation_numbers )
@@ -225,8 +228,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          matrix_s=s_matrix,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-           natom=natom, nsgf=nsgf, maxlgto=maxlgto)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, maxlgto=maxlgto)
     nkind = SIZE(atomic_kind_set)
 
     CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo,&
@@ -571,10 +574,8 @@ CONTAINS
       DO iatom = 1,natom
           firstrow(iatom)=irow
           NULLIFY(orb_basis_set)
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-               kind_number=kind_number,&
-               orb_basis_set=orb_basis_set)
-
+          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                           nset=nset,&
                           nshell=nshell,&
@@ -586,8 +587,8 @@ CONTAINS
                  lshell = l(ishell,iset)
                  DO iso=1,nso(lshell)
                    lcomponent = nsoset(lshell-1)+iso
-                   pdos_array(lcomponent,kind_number,imo) = &
-                        pdos_array(lcomponent,kind_number,imo) +&
+                   pdos_array(lcomponent,ikind,imo) = &
+                        pdos_array(lcomponent,ikind,imo) +&
                         vecbuffer(1,irow) * vecbuffer(1,irow)
                    irow = irow + 1
                  END DO  ! iso
@@ -599,8 +600,8 @@ CONTAINS
               DO ishell=1,nshell(iset)
                  lshell = l(ishell,iset)
                  DO iso=1,nso(lshell)
-                   pdos_array(lshell,kind_number,imo) = &
-                        pdos_array(lshell,kind_number,imo) +&
+                   pdos_array(lshell,ikind,imo) = &
+                        pdos_array(lshell,ikind,imo) +&
                         vecbuffer(1,irow) * vecbuffer(1,irow)
                    irow = irow + 1
                  END DO  ! iso
@@ -616,9 +617,8 @@ CONTAINS
 
           irow=firstrow(iatom)
           NULLIFY(orb_basis_set)
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-               kind_number=kind_number,&
-               orb_basis_set=orb_basis_set)
+          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
 
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                           nset=nset,&
@@ -664,11 +664,11 @@ CONTAINS
 
            IF(imo>nmo) THEN
              CALL calculate_wavefunction(mo_virt,imo-nmo,&
-                    wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                    wf_r, wf_g, atomic_kind_set, qs_kind_set,cell,dft_control,particle_set, &
                   pw_env, error = error )
            ELSE
              CALL calculate_wavefunction(mo_coeff,imo,&
-                   wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                   wf_r, wf_g, atomic_kind_set,qs_kind_set,cell,dft_control,particle_set, &
                   pw_env, error = error )
            END IF
            r_ldos_p(ildos)%ldos%pdos_array(imo)  = 0.0_dp
@@ -697,23 +697,21 @@ CONTAINS
       my_pos = "REWIND"
     END IF
     my_act = "WRITE"
-    DO kind_number = 1,nkind
+    DO ikind = 1,nkind
 
-      NULLIFY(atomic_kind, orb_basis_set)
-      atomic_kind => atomic_kind_set(kind_number)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-           orb_basis_set=orb_basis_set,name=kind_name)
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-           maxl=maxl)
+      NULLIFY(orb_basis_set)
+      CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name)
+      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set, maxl=maxl)
 
       ! basis none has no associated maxl, and no pdos
       IF (maxl<0) CYCLE
 
       IF(PRESENT(ispin)) THEN
-        my_mittle =TRIM(spin(ispin))//"_k"//TRIM(ADJUSTL(cp_to_string(kind_number)))
+        my_mittle =TRIM(spin(ispin))//"_k"//TRIM(ADJUSTL(cp_to_string(ikind)))
         my_spin = ispin
       ELSE
-        my_mittle ="k"//TRIM(ADJUSTL(cp_to_string(kind_number)))
+        my_mittle ="k"//TRIM(ADJUSTL(cp_to_string(ikind)))
         my_spin = 1
       END IF
 
@@ -751,7 +749,7 @@ CONTAINS
             ((TRIM(tmp_str(0,il,im)),im=-il,il),il=0,maxl)
           DO imo = 1,nmo+nvirt
             WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
-              (pdos_array(lshell,kind_number,imo),lshell=1,nsoset(maxl))
+              (pdos_array(lshell,ikind,imo),lshell=1,nsoset(maxl))
           END DO
           DEALLOCATE(tmp_str,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -761,7 +759,7 @@ CONTAINS
             (TRIM(l_sym(il)),il=0,maxl)
           DO imo = 1,nmo+nvirt
             WRITE (UNIT=iw,FMT=fmtstr1) imo,eigenvalues(imo),occupation_numbers(imo),&
-              (pdos_array(lshell,kind_number,imo),lshell=0,maxl)
+              (pdos_array(lshell,ikind,imo),lshell=0,maxl)
           END DO
         END IF
       END IF

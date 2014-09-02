@@ -94,6 +94,7 @@ MODULE qs_scf
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_io,                        ONLY: write_mo_set
@@ -267,6 +268,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -279,7 +282,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
-            scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
+            scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section, para_env)
 
@@ -299,6 +302,7 @@ CONTAINS
                     ks_env=ks_env, &
                     harris_env=harris_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos,&
                     input=input, dft_control=dft_control, scf_control=scf_control,&
                     do_kpoints=do_kpoints,&
@@ -400,7 +404,7 @@ CONTAINS
           END IF
 
           ! another heavy weight print object, print controlled by dft_section
-          CALL qs_scf_write_mos(mos,atomic_kind_set,particle_set,dft_section,.FALSE.,error)
+          CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,.FALSE.,error)
           
           CALL qs_scf_harris_e_correct(qs_env,harris_env,para_env,scf_env,energy,harris_section,&
                                        harris_flag,error)
@@ -439,7 +443,7 @@ CONTAINS
 
           ! Write WaveFunction restart file
           CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
-                            atomic_kind_set=atomic_kind_set,&
+                            atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                             kpoints=qs_env%kpoints,error=error)
 
           ! Exit if we have finished with the SCF inner loop

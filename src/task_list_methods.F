@@ -11,8 +11,6 @@
 ! *****************************************************************************
 MODULE task_list_methods
   USE ao_util,                         ONLY: exp_radius_very_extended
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
@@ -48,6 +46,8 @@ MODULE task_list_methods
                                              pw_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -138,9 +138,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -157,6 +154,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -179,7 +179,7 @@ CONTAINS
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            dft_control=dft_control,&
@@ -187,7 +187,7 @@ CONTAINS
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            dft_control=dft_control,&
@@ -206,19 +206,19 @@ CONTAINS
     cube_info=>pw_env%cube_info
 
     ! find maximum numbers
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natoms = SIZE( particle_set )
     maxset=0
     maxpgf=0
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
+       qs_kind => qs_kind_set(ikind)
        SELECT CASE (my_basis_set_id)
        CASE (use_orb_basis_set)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+         CALL get_qs_kind(qs_kind=qs_kind,&
               softb = my_soft, &
               orb_basis_set=orb_basis_set)
        CASE (use_aux_fit_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+          CALL get_qs_kind(qs_kind=qs_kind,&
               softb = my_soft, &
               aux_fit_basis_set=orb_basis_set,&
               basis_set_id=my_basis_set_id)
@@ -246,12 +246,12 @@ CONTAINS
 
     ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
+      qs_kind => qs_kind_set(ikind)
       SELECT CASE (my_basis_set_id)
       CASE (use_orb_basis_set)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+        CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
       CASE (use_aux_fit_basis_set)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,&
+        CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,&
              aux_fit_basis_set=basis_set_a,basis_set_id=my_basis_set_id)
       END SELECT
       IF (ASSOCIATED(basis_set_a)) THEN

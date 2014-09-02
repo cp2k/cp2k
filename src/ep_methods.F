@@ -122,6 +122,8 @@ MODULE ep_methods
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type,&
                                              zero_qs_force
+  USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -394,6 +396,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_environment_type), POINTER       :: sub_qs_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_p_projection_p_type), &
       DIMENSION(:), POINTER                  :: sub_proj
@@ -406,7 +410,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     ep_env => ep_envs_get_ep_env(ep_env_id)
-    NULLIFY(particle_set)
+    NULLIFY(particle_set, qs_kind_set)
     CALL cp_error_init(error)
     CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -483,8 +487,8 @@ CONTAINS
             stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
        NULLIFY(full_mos)
-       CALL get_qs_env(ep_env%main_qs_env,mos=full_mos,&
-            particle_set=particle_set,mpools=mpools,error=new_error)
+       CALL get_qs_env(ep_env%main_qs_env,mos=full_mos, particle_set=particle_set,&
+                       qs_kind_set=qs_kind_set, mpools=mpools,error=new_error)
        DO ispin=1,ep_env%nspins
           CALL get_mo_set(full_mos(ispin)%mo_set,nao=ep_env%full_nao(ispin),&
                nmo=ep_env%full_nmo(ispin))
@@ -599,7 +603,7 @@ CONTAINS
              ep_env%at2sub(iat)=imol
           END DO
           CALL p_proj_create(sub_proj(imol)%projection, atoms=atoms,&
-               particle_set=particle_set, error=error)
+               particle_set=particle_set,qs_kind_set=qs_kind_set, error=error)
        END DO
        DEALLOCATE(atoms,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -1426,8 +1430,6 @@ CONTAINS
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, &
                                                 uniform_occupation
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1437,6 +1439,8 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
 !                                                my_transition_potential, &
@@ -1445,7 +1449,7 @@ CONTAINS
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, dft_control, mos, &
          ks_env)
-    NULLIFY(atomic_kind_set, mo_coeff)
+    NULLIFY(qs_kind_set, mo_coeff)
     logger => cp_error_get_logger(error)
     failure=.FALSE.
 
@@ -1457,10 +1461,9 @@ CONTAINS
          mos=mos,&
          matrix_ks=matrix_ks,&
          ks_env=ks_env,&
-         atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          matrix_s=matrix_s,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         gth_potential_present=gth_potential_present)
+    CALL get_qs_kind_set(qs_kind_set, gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
          error=error)
 

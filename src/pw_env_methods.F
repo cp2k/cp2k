@@ -14,8 +14,6 @@
 ! *****************************************************************************
 MODULE pw_env_methods
   USE ao_util,                         ONLY: exp_radius
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
@@ -74,6 +72,8 @@ MODULE pw_env_methods
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
@@ -188,8 +188,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                                                 rel_cutoff, zet0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -202,6 +200,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_input_type)          :: input_settings
@@ -224,7 +224,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
 !
   failure=.FALSE.
-  NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, atomic_kind_set, &
+  NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, qs_kind_set, &
        pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
        mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
        vdw_grid, super_ref_grid, my_cell, rs_grids)
@@ -282,7 +282,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   IF (.NOT.failure) THEN
      NULLIFY(dispersion_env)
      CALL get_qs_env(qs_env=qs_env,&
-          dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
+          dft_control=dft_control,qs_kind_set=qs_kind_set,&
           cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
           dispersion_env=dispersion_env,&
           error=error)
@@ -709,11 +709,11 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
                                                 max_rpgf0_s, maxradius, zet0, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
 
 ! a very small safety factor might be needed for roundoff issues
@@ -723,9 +723,9 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(dft_control, atomic_kind_set, rho0_mpole)
+    NULLIFY(dft_control, qs_kind_set, rho0_mpole)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                     dft_control=dft_control, error=error)
 
     IF(dft_control%qs_control%gapw) THEN
@@ -735,7 +735,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
     END IF
 
     ngrid_level=SIZE(radius)
-    nkind=SIZE(atomic_kind_set)
+    nkind=SIZE(qs_kind_set)
 
     ! Find the grid level suitable for rho0_soft
     IF(dft_control%qs_control%gapw) THEN
@@ -760,7 +760,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        ! Seemingly others (e.g. gapw soft basis set) are not needed?
        DO ibasis_set_type=1,5
           DO ikind=1,nkind
-            atomic_kind => atomic_kind_set(ikind)
+            qs_kind => qs_kind_set(ikind)
 
             IF (dft_control%qs_control%dftb) CYCLE
 
@@ -768,8 +768,8 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              ! right now, the core is mapped on the auxiliary basis,
              ! this should, at a give point be changed
              ! so that also for the core a multigrid is used
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 alpha_core_charge=alpha,ccore_charge=core_charge)
+             CALL get_qs_kind(qs_kind_set(ikind),&
+                        alpha_core_charge=alpha,ccore_charge=core_charge)
 
              IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
                maxradius=MAX(maxradius,exp_radius( 0, alpha, &
@@ -784,22 +784,22 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              !
              SELECT CASE (ibasis_set_type)
              CASE (1)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     orb_basis_set=orb_basis_set)
              CASE (2)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     aux_fit_basis_set=orb_basis_set)
              CASE (3)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     aux_basis_set=orb_basis_set)
              CASE (4)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     ri_aux_basis_set=orb_basis_set)
              CASE (5)
                ! for lri basis set optimization, do not take radius of lri basis
                ! set since GPW, not LRIGPW density is distributed on the grid 
                IF(dft_control%qs_control%lri_optbas) CYCLE
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     lri_basis_set=orb_basis_set)
              END SELECT
 
@@ -809,23 +809,23 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
                                     npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
 
              DO jkind=1,nkind
-                atomic_kind => atomic_kind_set(jkind)
+                qs_kind => qs_kind_set(jkind)
 
                 SELECT CASE (ibasis_set_type)
                 CASE (1)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        orb_basis_set=orb_basis_set)
                 CASE (2)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        aux_fit_basis_set=orb_basis_set)
                 CASE (3)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        aux_basis_set=orb_basis_set)
                 CASE (4)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        ri_aux_basis_set=orb_basis_set)
                 CASE (5)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                     lri_basis_set=orb_basis_set)
                 END SELECT
 

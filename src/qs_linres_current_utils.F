@@ -78,6 +78,7 @@ MODULE qs_linres_current_utils
                                              pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_linres_methods,               ONLY: linres_read_restart,&
                                              linres_solver,&
                                              linres_write_restart
@@ -174,6 +175,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(section_vals_type), POINTER         :: current_section, lr_section, &
                                                 print_key
@@ -206,6 +209,7 @@ CONTAINS
                     linres_control=linres_control,&
                     sab_orb=sab_orb,&
                     particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
                     dbcsr_dist=dbcsr_dist,&
                     para_env=para_env,error=error)
 
@@ -249,7 +253,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (last_sgf(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL get_particle_set(particle_set=particle_set,&
+       CALL get_particle_set(particle_set, qs_kind_set,&
             first_sgf=first_sgf,&
             last_sgf=last_sgf,error=error)
        ALLOCATE (rbs(natom), STAT=istat)
@@ -653,6 +657,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -662,7 +668,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control,&
+    NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control,&
             logger, mos, mpools, current_section, particle_set, mo_coeff,&
             auxbas_pw_pool, pw_env, jrho1_atom_set, common_center, tmp_fm_struct,&
             para_env, qs_loc_env,localized_wfn_control)
@@ -670,6 +676,7 @@ CONTAINS
     !
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     linres_control=linres_control,&
@@ -1368,7 +1375,7 @@ CONTAINS
              first_sgf(natom),last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     current_env%basisfun_center = 0.0_dp
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     !Build 3 arrays where for each contracted basis function

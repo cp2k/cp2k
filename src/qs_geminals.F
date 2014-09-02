@@ -45,6 +45,9 @@ MODULE qs_geminals
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE ri_environment_types,            ONLY: get_ri_env,&
                                              ri_environment_type,&
@@ -109,7 +112,6 @@ MODULE qs_geminals
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ivmat, jvmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_a, atomic_kind_b
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
@@ -117,6 +119,9 @@ MODULE qs_geminals
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind_a, qs_kind_b
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(semi_empirical_si_type), POINTER    :: store_int
     TYPE(virial_type), POINTER               :: virial
@@ -124,10 +129,11 @@ MODULE qs_geminals
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,particle_set,local_particles,ri_env)
+    NULLIFY(atomic_kind_set,qs_kind_set,particle_set,local_particles,ri_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     local_particles=local_particles,&
                     hfx_ri_env=ri_env,&
@@ -142,7 +148,7 @@ MODULE qs_geminals
 
     CALL ri_vector_set(rirvec, 0._dp, error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
     IF ( calculate_force .OR. calculate_virial ) THEN
       nder = 1
@@ -154,8 +160,8 @@ MODULE qs_geminals
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,&
-                             maxlgem=maxlgem)
+    CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
+    CALL get_qs_kind_set(qs_kind_set, maxlgem=maxlgem)
 
     ml = MAXVAL(maxlgem)
     CALL init_orbital_pointers(2*ml+nder)
@@ -163,9 +169,9 @@ MODULE qs_geminals
     ehfx1 = 0._dp
 
     DO ikind=1,nkind
-       atomic_kind_a => atomic_kind_set(ikind)
+       qs_kind_a => qs_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind_a,geminal_basis_set=geminal_basis_set)
+       CALL get_qs_kind(qs_kind=qs_kind_a,geminal_basis_set=geminal_basis_set)
 
        IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
        CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,ngeminals=nga)
@@ -176,11 +182,10 @@ MODULE qs_geminals
        ivmat => rixvec%vector(ikind)%vmat
 
        DO jkind=1,nkind
-          atomic_kind_b => atomic_kind_set(jkind)
+          qs_kind_b => qs_kind_set(jkind)
           NULLIFY(geminal_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind_b,&
-                          atom_list=atom_list,&
-                          geminal_basis_set=geminal_basis_set)
+          CALL get_atomic_kind(atomic_kind_set(jkind), atom_list=atom_list)
+          CALL get_qs_kind(qs_kind=qs_kind_b, geminal_basis_set=geminal_basis_set)
 
           IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
           CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,ngeminals=ngb)
@@ -204,7 +209,7 @@ MODULE qs_geminals
                   IF (MODULO(iatom + jatom,2) /= 0) CYCLE
                 END IF
 
-                CALL gemgem_integral_atom(nga,ngb,nd,intab,atomic_kind_a,ri,atomic_kind_b,rj,nder,&
+                CALL gemgem_integral_atom(nga,ngb,nd,intab,qs_kind_a,ri,qs_kind_b,rj,nder,&
                                           store_int,eps_screening,error)
 
                 IF ( iatom==jatom) THEN
@@ -312,8 +317,6 @@ MODULE qs_geminals
                                                 p_block1, p_block2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_a, atomic_kind_b, &
-                                                atomic_kind_c
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_p
@@ -326,6 +329,10 @@ MODULE qs_geminals
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind_a, qs_kind_b, &
+                                                qs_kind_c
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
@@ -335,11 +342,12 @@ MODULE qs_geminals
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,particle_set,local_particles,rho,matrix_ks,ri_env,force,virial)
+    NULLIFY(qs_kind_set,particle_set,local_particles,rho,matrix_ks,ri_env,force,virial)
     NULLIFY(matrix_ks,matrix_p)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     local_particles=local_particles,&
                     rho=rho,&
@@ -360,7 +368,7 @@ MODULE qs_geminals
     matrix_p => rho%rho_ao
     nspins = SIZE(matrix_p)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
     IF ( calculate_force .OR. calculate_virial ) THEN
       nder = 1
@@ -372,11 +380,8 @@ MODULE qs_geminals
 
     ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxlgto=maxlgto,&
-                             maxlgem=maxlgem,&
-                             kind_of=kind_of,&
-                             atom_of_kind=atom_of_kind)
+    CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlgem=maxlgem)
 
     ml = MAXVAL(maxlgem)
     CALL init_orbital_pointers(2*maxlgto+ml+nder)
@@ -407,25 +412,24 @@ MODULE qs_geminals
        fij = 2._dp
        IF ( iatom==jatom ) fij=1._dp
 
-       atomic_kind_a => atomic_kind_set(ikind)
+       qs_kind_a => qs_kind_set(ikind)
        NULLIFY(orb_basis_set_a)
-       CALL get_atomic_kind(atomic_kind=atomic_kind_a,orb_basis_set=orb_basis_set_a)
+       CALL get_qs_kind(qs_kind_a,orb_basis_set=orb_basis_set_a)
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set_a,nsgf=na)
 
-       atomic_kind_b => atomic_kind_set(jkind)
+       qs_kind_b => qs_kind_set(jkind)
        NULLIFY(orb_basis_set_b)
-       CALL get_atomic_kind(atomic_kind=atomic_kind_b,orb_basis_set=orb_basis_set_b)
+       CALL get_qs_kind(qs_kind_b,orb_basis_set=orb_basis_set_b)
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set_b,nsgf=nb)
 
        ri = particle_set(iatom)%r
        rj = particle_set(jatom)%r
 
        DO kkind=1,nkind
-          atomic_kind_c => atomic_kind_set(kkind)
+          qs_kind_c => qs_kind_set(kkind)
           NULLIFY(geminal_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind_c,&
-                               atom_list=atom_list,&
-                               geminal_basis_set=geminal_basis_set)
+          CALL get_atomic_kind(atomic_kind_set(kkind), atom_list=atom_list)
+          CALL get_qs_kind(qs_kind_c, geminal_basis_set=geminal_basis_set)
           IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
           CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,ngeminals=ngem)
 
@@ -437,8 +441,8 @@ MODULE qs_geminals
              atom_c = atom_of_kind(katom)
              rk = particle_set(katom)%r
 
-             CALL gemgau_integral_atom(na,nb,ngem,nd,intabc,atomic_kind_a,ri,atomic_kind_b,rj,&
-                  atomic_kind_c,rk,nder,store_int,eps_screening,error)
+             CALL gemgau_integral_atom(na,nb,ngem,nd,intabc,qs_kind_a,ri,qs_kind_b,rj,&
+                  qs_kind_c,rk,nder,store_int,eps_screening,error)
 
              DO i=1,ngem
                 kdvec(i,1) = SUM(intabc(1:na,1:nb,i,1)*p_block1(1:na,1:nb))
@@ -537,22 +541,25 @@ MODULE qs_geminals
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ivmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind_a
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(semi_empirical_si_type), POINTER    :: store_int
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,particle_set,local_particles,ri_env)
+    NULLIFY(atomic_kind_set,qs_kind_set,particle_set,local_particles,ri_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     hfx_ri_env=ri_env,&
                     particle_set=particle_set,&
                     local_particles=local_particles,&
@@ -563,17 +570,17 @@ MODULE qs_geminals
 
     CALL ri_vector_set(rirvec, 0._dp, error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+    CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
     DO ikind=1,nkind
-       atomic_kind_a => atomic_kind_set(ikind)
+       qs_kind_a => qs_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind_a,geminal_basis_set=geminal_basis_set)
+       CALL get_qs_kind(qs_kind=qs_kind_a,geminal_basis_set=geminal_basis_set)
 
        IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
        CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,ngeminals=nga)
@@ -594,7 +601,7 @@ MODULE qs_geminals
           ivec(1:nga) = ivmat(1:nga,atom_a)
 
           IF (store_int%memory_parameter%do_all_on_the_fly) THEN
-             CALL gemgem_integral_atom_calc(intab,atomic_kind_a,ri,atomic_kind_a,ri,0,error)
+             CALL gemgem_integral_atom_calc(intab,qs_kind_a,ri,qs_kind_a,ri,0,error)
              CALL invmat(intab(1:nga,1:nga,1),info,error)
              CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
              ivec(1:nga) = MATMUL(intab(1:nga,1:nga,1),ivec(1:nga))
@@ -614,7 +621,7 @@ MODULE qs_geminals
                    buffer_overflow = .FALSE.
                 END IF
 
-                CALL gemgem_integral_atom_calc(intab,atomic_kind_a,ri,atomic_kind_a,ri,0,error)
+                CALL gemgem_integral_atom_calc(intab,qs_kind_a,ri,qs_kind_a,ri,0,error)
                 CALL invmat(intab(1:nga,1:nga,1),info,error)
                 CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
@@ -651,7 +658,7 @@ MODULE qs_geminals
 
                 ELSE
 
-                   CALL gemgem_integral_atom_calc(intab,atomic_kind_a,ri,atomic_kind_a,ri,0,error)
+                   CALL gemgem_integral_atom_calc(intab,qs_kind_a,ri,qs_kind_a,ri,0,error)
                    CALL invmat(intab(1:nga,1:nga,1),info,error)
                    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
@@ -718,19 +725,22 @@ MODULE qs_geminals
       POINTER                                :: zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(ri_environment_type), POINTER       :: ri_env
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,particle_set,local_particles,ri_env)
+    NULLIFY(qs_kind_set,particle_set,local_particles,ri_env)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    qs_kind_set=qs_kind_set,&
                     atomic_kind_set=atomic_kind_set,&
                     hfx_ri_env=ri_env,&
                     particle_set=particle_set,&
@@ -745,14 +755,14 @@ MODULE qs_geminals
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+    CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
     charge = 0._dp
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
+       qs_kind => qs_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,geminal_basis_set=geminal_basis_set)
+       CALL get_qs_kind(qs_kind=qs_kind,geminal_basis_set=geminal_basis_set)
 
        IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
        CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,nset=nseta,npgf=npgfa,&
@@ -816,14 +826,14 @@ MODULE qs_geminals
 !> \par History
 !> \author J. Hutter
 ! *****************************************************************************
-  SUBROUTINE gemgem_integral_atom(nga,ngb,nd,intab,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,&
+  SUBROUTINE gemgem_integral_atom(nga,ngb,nd,intab,qs_kind_a,ra,qs_kind_b,rb,nderivative,&
                                   store_int,eps_screening,error)
     INTEGER, INTENT(IN)                      :: nga, ngb, nd
     REAL(KIND=dp), DIMENSION(nga, ngb, nd), &
       INTENT(OUT)                            :: intab
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
+    TYPE(qs_kind_type), POINTER              :: qs_kind_a
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_b
+    TYPE(qs_kind_type), POINTER              :: qs_kind_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rb
     INTEGER, INTENT(IN)                      :: nderivative
     TYPE(semi_empirical_si_type), POINTER    :: store_int
@@ -840,7 +850,7 @@ MODULE qs_geminals
 
     failure = .FALSE.
     IF (store_int%memory_parameter%do_all_on_the_fly .OR. nderivative > 0) THEN
-       CALL gemgem_integral_atom_calc(intab,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,error)
+       CALL gemgem_integral_atom_calc(intab,qs_kind_a,ra,qs_kind_b,rb,nderivative,error)
     ELSE
        CPPostcondition(store_int%compress,cp_failure_level,routineP,error,failure)
        CPPostcondition(.NOT.store_int%memory_parameter%do_disk_storage,cp_failure_level,routineP,error,failure)
@@ -858,7 +868,7 @@ MODULE qs_geminals
              buffer_overflow = .FALSE.
           END IF
 
-          CALL gemgem_integral_atom_calc(intab,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,error)
+          CALL gemgem_integral_atom_calc(intab,qs_kind_a,ra,qs_kind_b,rb,nderivative,error)
 
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
@@ -916,7 +926,7 @@ MODULE qs_geminals
                 buffer_start = buffer_start + buffer_size
              END DO
           ELSE
-             CALL gemgem_integral_atom_calc(intab,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,error)
+             CALL gemgem_integral_atom_calc(intab,qs_kind_a,ra,qs_kind_b,rb,nderivative,error)
           END IF
 
        END IF
@@ -926,19 +936,19 @@ MODULE qs_geminals
 ! *****************************************************************************
 !> \brief ...
 !> \param intab ...
-!> \param atomic_kind_a ...
+!> \param qs_kind_a ...
 !> \param ra ...
-!> \param atomic_kind_b ...
+!> \param qs_kind_b ...
 !> \param rb ...
 !> \param nderivative ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE gemgem_integral_atom_calc(intab,atomic_kind_a,ra,atomic_kind_b,rb,nderivative,error)
+  SUBROUTINE gemgem_integral_atom_calc(intab,qs_kind_a,ra,qs_kind_b,rb,nderivative,error)
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: intab
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
+    TYPE(qs_kind_type), POINTER              :: qs_kind_a
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_b
+    TYPE(qs_kind_type), POINTER              :: qs_kind_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rb
     INTEGER, INTENT(IN)                      :: nderivative
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -968,8 +978,8 @@ MODULE qs_geminals
                                                 geminal_basis_set_b
 
     failure = .FALSE.
-    CALL get_atomic_kind(atomic_kind=atomic_kind_a,geminal_basis_set=geminal_basis_set_a)
-    CALL get_atomic_kind(atomic_kind=atomic_kind_b,geminal_basis_set=geminal_basis_set_b)
+    CALL get_qs_kind(qs_kind=qs_kind_a,geminal_basis_set=geminal_basis_set_a)
+    CALL get_qs_kind(qs_kind=qs_kind_b,geminal_basis_set=geminal_basis_set_b)
 
     CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set_a,&
          nset=nseta,npgf=npgfa,lmax=lrmaxa,lmin=lrmina,ls=lsa,nshell=nshella,&
@@ -1102,17 +1112,17 @@ MODULE qs_geminals
 !> \par History
 !> \author J. Hutter
 ! *****************************************************************************
-  SUBROUTINE gemgau_integral_atom(na,nb,ngem,nd,intabc,atomic_kind_a,ra,atomic_kind_b,rb,&
-             atomic_kind_c,rc,nderivative,store_int,eps_screening,error)
+  SUBROUTINE gemgau_integral_atom(na,nb,ngem,nd,intabc,qs_kind_a,ra,qs_kind_b,rb,&
+             qs_kind_c,rc,nderivative,store_int,eps_screening,error)
     INTEGER, INTENT(IN)                      :: na, nb, ngem, nd
     REAL(KIND=dp), &
       DIMENSION(na, nb, ngem, nd), &
       INTENT(OUT)                            :: intabc
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
+    TYPE(qs_kind_type), POINTER              :: qs_kind_a
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_b
+    TYPE(qs_kind_type), POINTER              :: qs_kind_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rb
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_c
+    TYPE(qs_kind_type), POINTER              :: qs_kind_c
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rc
     INTEGER, INTENT(IN)                      :: nderivative
     TYPE(semi_empirical_si_type), POINTER    :: store_int
@@ -1129,8 +1139,8 @@ MODULE qs_geminals
 
     failure = .FALSE.
     IF (store_int%memory_parameter%do_all_on_the_fly .OR. nderivative > 0) THEN
-       CALL gemgau_integral_atom_calc(intabc,atomic_kind_a,ra,atomic_kind_b,rb,&
-                                      atomic_kind_c,rc,nderivative,error)
+       CALL gemgau_integral_atom_calc(intabc,qs_kind_a,ra,qs_kind_b,rb,&
+                                      qs_kind_c,rc,nderivative,error)
     ELSE
        CPPostcondition(store_int%compress,cp_failure_level,routineP,error,failure)
        CPPostcondition(.NOT.store_int%memory_parameter%do_disk_storage,cp_failure_level,routineP,error,failure)
@@ -1148,8 +1158,8 @@ MODULE qs_geminals
              buffer_overflow = .FALSE.
           END IF
 
-          CALL gemgau_integral_atom_calc(intabc,atomic_kind_a,ra,atomic_kind_b,rb,&
-                                         atomic_kind_c,rc,nderivative,error)
+          CALL gemgau_integral_atom_calc(intabc,qs_kind_a,ra,qs_kind_b,rb,&
+                                         qs_kind_c,rc,nderivative,error)
 
           ! Store integrals if we did not go overflow
           IF (.NOT.buffer_overflow) THEN
@@ -1211,8 +1221,8 @@ MODULE qs_geminals
                 buffer_start = buffer_start + buffer_size
              END DO
           ELSE
-             CALL gemgau_integral_atom_calc(intabc,atomic_kind_a,ra,atomic_kind_b,rb,&
-                                            atomic_kind_c,rc,nderivative,error)
+             CALL gemgau_integral_atom_calc(intabc,qs_kind_a,ra,qs_kind_b,rb,&
+                                            qs_kind_c,rc,nderivative,error)
           END IF
 
        END IF
@@ -1225,24 +1235,24 @@ MODULE qs_geminals
 ! *****************************************************************************
 !> \brief ...
 !> \param intabc ...
-!> \param atomic_kind_a ...
+!> \param qs_kind_a ...
 !> \param ra ...
-!> \param atomic_kind_b ...
+!> \param qs_kind_b ...
 !> \param rb ...
-!> \param atomic_kind_c ...
+!> \param qs_kind_c ...
 !> \param rc ...
 !> \param nderivative ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE gemgau_integral_atom_calc(intabc,atomic_kind_a,ra,atomic_kind_b,rb,&
-                                  atomic_kind_c,rc,nderivative,error)
+  SUBROUTINE gemgau_integral_atom_calc(intabc,qs_kind_a,ra,qs_kind_b,rb,&
+                                  qs_kind_c,rc,nderivative,error)
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       INTENT(OUT)                            :: intabc
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_a
+    TYPE(qs_kind_type), POINTER              :: qs_kind_a
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_b
+    TYPE(qs_kind_type), POINTER              :: qs_kind_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rb
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_c
+    TYPE(qs_kind_type), POINTER              :: qs_kind_c
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rc
     INTEGER, INTENT(IN)                      :: nderivative
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1284,9 +1294,9 @@ MODULE qs_geminals
     nder = 1
     IF ( nderivative==1 ) nder=7
 
-    CALL get_atomic_kind(atomic_kind=atomic_kind_a,orb_basis_set=orb_basis_set_a)
-    CALL get_atomic_kind(atomic_kind=atomic_kind_b,orb_basis_set=orb_basis_set_b)
-    CALL get_atomic_kind(atomic_kind=atomic_kind_c,geminal_basis_set=geminal_basis_set_c)
+    CALL get_qs_kind(qs_kind=qs_kind_a,orb_basis_set=orb_basis_set_a)
+    CALL get_qs_kind(qs_kind=qs_kind_b,orb_basis_set=orb_basis_set_b)
+    CALL get_qs_kind(qs_kind=qs_kind_c,geminal_basis_set=geminal_basis_set_c)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis_set_a,nset=nseta,npgf=npgfa,&
          nsgf=na,nco_sum=ncosa,&

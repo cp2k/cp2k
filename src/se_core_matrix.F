@@ -37,6 +37,8 @@ MODULE se_core_matrix
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -104,7 +106,6 @@ CONTAINS
                                                 pabmat, pamat, s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: diagmat_h, diagmat_p
@@ -118,6 +119,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
@@ -129,7 +132,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-     NULLIFY ( rho,force,atomic_kind_set,sab_orb,&
+     NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,&
                diagmat_h,diagmat_p,particle_set, matrix_p )
 
      ! calculate overlap matrix
@@ -160,6 +163,7 @@ CONTAINS
                      matrix_h=matrix_h,&
                      matrix_s=matrix_s,&
                      atomic_kind_set=atomic_kind_set,&
+                     qs_kind_set=qs_kind_set,&
                      dft_control=dft_control,error=error)
 
      IF(calculate_forces) THEN
@@ -225,8 +229,8 @@ CONTAINS
 
      econst   = 0.0_dp
      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom,se_parameter=se_kind_a)
+        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
         CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a,&
              beta=beta_a,uss=uss,upp=upp,udd=udd,uff=uff,eisol=eisol,eheat=eheat,&
              nr=nr_a,sto_exponents=sto_exponents_a)

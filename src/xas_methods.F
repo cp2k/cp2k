@@ -77,6 +77,8 @@ MODULE xas_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
                                              qs_print_cubes
   USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
@@ -187,6 +189,8 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -246,8 +250,8 @@ CONTAINS
     END IF
 
 !   Initialize the type of calculation
-    NULLIFY(atomic_kind_set, scf_control, mos, para_env, particle_set)
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+    NULLIFY(atomic_kind_set, qs_kind_set, scf_control, mos, para_env, particle_set)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
          cell = cell, scf_control=scf_control,&
          matrix_ks=matrix_ks,mos=mos, para_env=para_env, &
          particle_set=particle_set ,error=error)
@@ -505,7 +509,7 @@ CONTAINS
 
 !   *** Write last wavefunction to screen ***
         DO ispin=1,dft_control%nspins
-           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,&
+           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                              dft_section,error=error)
         ENDDO
 
@@ -636,6 +640,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -651,12 +657,13 @@ CONTAINS
 
     IF(.NOT. failure) THEN
 
-      NULLIFY( atomic_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
+      NULLIFY( atomic_kind_set, qs_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
       NULLIFY( para_env, particle_set, scf_env)
       NULLIFY(qs_loc_env)
       NULLIFY(sab_orb)
       CALL get_qs_env(qs_env=qs_env, &
                 atomic_kind_set=atomic_kind_set, &
+                qs_kind_set=qs_kind_set, &
                 dft_control = dft_control, &
                 scf_control = scf_control, &
                 mpools=mpools,&
@@ -875,7 +882,7 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE (last_sgf(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         CALL get_particle_set(particle_set=particle_set,&
+         CALL get_particle_set(particle_set, qs_kind_set,&
               first_sgf=first_sgf,&
               last_sgf=last_sgf,error=error)
          ALLOCATE (rbs(natom), STAT=istat)
@@ -972,8 +979,8 @@ CONTAINS
         iatom = xas_env%exc_atoms(iat)
         NULLIFY(atomic_kind)
         atomic_kind =>  particle_set(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-             kind_number=ikind,zeff=zatom)
+        CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=ikind)
+        CALL get_qs_kind(qs_kind_set(ikind), zeff=zatom)
         ihavethis = .FALSE.
         DO ik = 1,nk
           IF(ikind==kind_type_tmp(ik)) THEN
@@ -1018,9 +1025,8 @@ CONTAINS
         xas_env%my_gto_basis(ik)%gto_basis_set%norm_type = 2
         CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set,error=error)
 
-        atomic_kind => atomic_kind_set(kind_type_tmp(ik))
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-             orb_basis_set=orb_basis_set)
+        ikind = kind_type_tmp(ik)
+        CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
 
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_gto)
         CALL get_gto_basis_set(gto_basis_set=xas_env%my_gto_basis(ik)%gto_basis_set,nsgf=nsgf_sto)
@@ -1673,18 +1679,21 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     NULLIFY(cell,mos,particle_set)
     NULLIFY(atom_of_state,centers_wfn,mykind_of_kind,state_of_atom)
-    NULLIFY(stogto_overlap,type_of_state,max_overlap)
+    NULLIFY(stogto_overlap,type_of_state,max_overlap, qs_kind_set)
     NULLIFY(state_of_mytype,type_of_state,sto_state_overlap)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CALL get_qs_env(qs_env=qs_env, cell=cell, mos=mos, particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env=qs_env, cell=cell, mos=mos, particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set, error=error)
 
     ! The Berry operator can be used only for periodic systems
     ! If an isolated system is used the periodicity is overimposed
@@ -1706,7 +1715,7 @@ CONTAINS
 
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf,error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf,error=error)
     ALLOCATE (sto_state_overlap(nexc_search),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (max_overlap(natom),STAT=istat)

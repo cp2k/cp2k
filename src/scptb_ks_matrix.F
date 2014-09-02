@@ -74,6 +74,8 @@ MODULE scptb_ks_matrix
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_scp_rspace
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -143,7 +145,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dmcharge
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 mo_derivs
@@ -158,6 +159,8 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -189,6 +192,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
            dft_control=dft_control,&
            atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            para_env=para_env,error=error)
 
       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
@@ -199,8 +203,8 @@ CONTAINS
       do_scp = .FALSE.
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind,scptb_parameter=scptb_kind)
+        CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom_kind)
+        CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
         CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp)
         IF(lmaxscp > 0) do_scp = .TRUE.
         IF(lmaxscp >= 0) do_es = .TRUE.
@@ -249,11 +253,11 @@ CONTAINS
          END IF
          nkind = SIZE(atomic_kind_set)
          DO ikind=1,nkind
-            atomic_kind => atomic_kind_set(ikind)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom_kind,scptb_parameter=scptb_kind)
+            CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom_kind)
+            CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
             CALL get_scptb_parameter(scptb_kind,zeff=zeff)
             DO iatom=1,natom_kind
-              atom_a = atomic_kind%atom_list(iatom)
+              atom_a = atomic_kind_set(ikind)%atom_list(iatom)
               mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
             END DO
          END DO
@@ -357,7 +361,6 @@ CONTAINS
                                                 sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -376,13 +379,15 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,virial=virial,&
          energy=energy,para_env=para_env,particle_set=particle_set,cell=cell,error=error)
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
          local_particles=local_particles,natom=natom,error=error)
 
     scptb_control => dft_control%qs_control%scptb_control
@@ -437,9 +442,7 @@ CONTAINS
             ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-            CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                     kind_of=kind_of,&
-                                     atom_of_kind=atom_of_kind)
+            CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
             gmcharge(:,2)=gmcharge(:,2)*mcharge(:)
             gmcharge(:,3)=gmcharge(:,3)*mcharge(:)
@@ -529,13 +532,11 @@ CONTAINS
              dr2 = SUM(rij(:)**2)
              dr = SQRT(dr2)
              IF (dr > 1.e-10) THEN
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+                CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
                 CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp,ag=alpha)
                 IF (lmaxscp < 0) CYCLE
                 noa = (alpha/pi)**1.5_dp
-                atomic_kind => atomic_kind_set(jkind)
-                CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind)
+                CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind)
                 CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp,ag=beta)
                 IF (lmaxscp < 0) CYCLE
                 eta = alpha*beta/(alpha+beta)
@@ -664,17 +665,15 @@ CONTAINS
          END IF
          nkind = SIZE(atomic_kind_set)
          DO ikind=1,nkind
-           atomic_kind => atomic_kind_set(ikind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nai,atom_list=atomi_list,&
-                scptb_parameter=scptb_kind)
+           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nai,atom_list=atomi_list)
+           CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
            CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
            IF (.NOT.defined) CYCLE
            IF (lmaxscp < 0) CYCLE
            noa = (alpha/pi)**1.5_dp
            DO jkind=1,ikind
-             atomic_kind => atomic_kind_set(jkind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,natom=naj,atom_list=atomj_list,&
-                  scptb_parameter=scptb_kind)
+             CALL get_atomic_kind(atomic_kind_set(jkind),natom=naj,atom_list=atomj_list)
+             CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind)
              CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
              eta = alpha*beta/(alpha+beta)
              f0 = 2.0_dp*SQRT(pi**5/(alpha+beta))/(alpha*beta)
@@ -833,7 +832,6 @@ CONTAINS
       DIMENSION(ndiis+1, ndiis+1)            :: bdiis
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
@@ -842,6 +840,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scp_vector_p_type), &
       DIMENSION(ndiis)                       :: cres, cval
     TYPE(scp_vector_type), POINTER           :: cp, cpol, cself, cvec, cw
@@ -863,13 +863,13 @@ CONTAINS
     NULLIFY(cvec,cpol,cself,cp,cw)
 
     ! Create scp vectors
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
     nkind = SIZE(atomic_kind_set)
     ALLOCATE(nbasis(nkind),natoms(nkind),lscp(nkind),zeta(nkind),adef(nkind),stat=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
+       CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
        CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
        IF(defined) THEN
          norb = (lmaxscp+1)**2
@@ -893,8 +893,8 @@ CONTAINS
     CALL scp_set_charge(cvec,charges,adef,natoms,atomic_kind_set)
     DO ikind=1,nkind
        IF(adef(ikind)) THEN
-         atomic_kind => atomic_kind_set(ikind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,scptb_parameter=scptb_kind)
+         CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+         CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
          CALL get_scptb_parameter(scptb_kind,pol=pol)
          alpha = zeta(ikind)
          DO iat=1,natoms(ikind)
@@ -1162,7 +1162,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cii, cij, coi, coj
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atkindi, atkindj, atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
@@ -1175,6 +1174,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
@@ -1210,33 +1211,29 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,scp_pot%pw,error=error)
     ELSE
        ! direct sum
-       NULLIFY(atomic_kind_set,particle_set,cell)
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+       NULLIFY(atomic_kind_set,qs_kind_set,particle_set,cell)
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                        particle_set=particle_set,cell=cell,error=error)
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nai,atom_list=atomi_list,&
-               scptb_parameter=scptb_kind)
+          CALL get_atomic_kind(atomic_kind_set(ikind),natom=nai,atom_list=atomi_list)
+          CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
           CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
           IF (.NOT.defined) CYCLE
           IF (lmaxscp < 0) CYCLE
           li = lmaxscp
           ni = (li+1)**2
-          atkindi => atomic_kind
           coi => cout%vector(ikind)%vmat
           cii => cin%vector(ikind)%vmat
           CALL calc_norm(normi,li,alpha)
           DO jkind=1,ikind
-             atomic_kind => atomic_kind_set(jkind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,natom=naj,atom_list=atomj_list,&
-                  scptb_parameter=scptb_kind)
+             CALL get_atomic_kind(atomic_kind_set(jkind), natom=naj,atom_list=atomj_list)
+             CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind)
              CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
              IF (.NOT.defined) CYCLE
              IF (lmaxscp < 0) CYCLE
              lj = lmaxscp
              nj = (lj+1)**2
-             atkindj => atomic_kind
              coj => cout%vector(jkind)%vmat
              cij => cin%vector(jkind)%vmat
              ALLOCATE (aintegral(ni,nj),STAT=istat)
@@ -1247,9 +1244,9 @@ CONTAINS
              END IF
              CALL calc_norm(normj,lj,beta)
              DO iatom=1,nai
-                ia = atkindi%atom_list(iatom)
+                ia = atomic_kind_set(ikind)%atom_list(iatom)
                 DO jatom=1,naj
-                   ja = atkindj%atom_list(jatom)
+                   ja = atomic_kind_set(jkind)%atom_list(jatom)
                    IF(ikind==jkind .AND. jatom > iatom) CYCLE
                    rij = particle_set(ia)%r - particle_set(ja)%r
                    rij = pbc(rij,cell)

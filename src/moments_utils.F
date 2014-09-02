@@ -29,6 +29,8 @@ MODULE moments_utils
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -72,7 +74,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_reference_point', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ia, iatom, ikind
+    INTEGER                                  :: akind, ia, iatom, ikind
     LOGICAL                                  :: do_molecule, failure
     REAL(dp)                                 :: charge, mass, mass_low, mtot, &
                                                 ztot
@@ -83,12 +85,15 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     CPPostcondition(PRESENT(ifirst).EQV.PRESENT(ilast),cp_failure_level,routineP,error,failure)
-    NULLIFY ( cell, particle_set, local_particles, para_env )
+    NULLIFY ( cell, particle_set, qs_kind_set, local_particles, para_env )
     IF (PRESENT(qs_env)) THEN
        CALL get_qs_env ( qs_env, cell=cell, particle_set=particle_set, &
+            qs_kind_set=qs_kind_set,&
             local_particles=local_particles, para_env=para_env, error=error)
     END IF
     IF (PRESENT(fist_env)) THEN
@@ -164,7 +169,8 @@ CONTAINS
              ria = particle_set(iatom)%r
              ria = pbc(ria-center,cell)+center
              atomic_kind => particle_set(iatom)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+             CALL get_atomic_kind(atomic_kind, kind_number=akind )
+             CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
              rpoint(:) = rpoint(:) + charge*ria(:)
              IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
              ztot = ztot + charge
@@ -176,7 +182,8 @@ CONTAINS
                 ria = particle_set(iatom)%r
                 ria = pbc(ria,cell)
                 atomic_kind => particle_set(iatom)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+                CALL get_atomic_kind(atomic_kind, kind_number=akind )
+                CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
                 rpoint(:) = rpoint(:) + charge*ria(:)
                 IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
                 ztot = ztot + charge

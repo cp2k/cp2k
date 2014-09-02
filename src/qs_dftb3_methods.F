@@ -10,7 +10,6 @@
 MODULE qs_dftb3_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
@@ -34,6 +33,8 @@ MODULE qs_dftb3_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -89,7 +90,6 @@ CONTAINS
                                                 pblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -101,6 +101,8 @@ CONTAINS
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -112,12 +114,11 @@ CONTAINS
     END IF
 
     ! Energy
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
     eb3 = 0.0_dp
     CALL get_qs_env(qs_env=qs_env,local_particles=local_particles,error=error)
     DO ikind=1,SIZE(local_particles%n_el)
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind)
+       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
        CALL get_dftb_atom_param(dftb_kind,dudq=ua)
        DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -153,13 +154,11 @@ CONTAINS
           !
           ikind  = kind_of(iatom)
           atom_i = atom_of_kind(iatom)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=ui)
           jkind  = kind_of(jatom)
           atom_j = atom_of_kind(jatom)
-          atomic_kind => atomic_kind_set(jkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
           !
           gmij = 0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
@@ -207,12 +206,10 @@ CONTAINS
           CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, blk)
           !
           ikind  = kind_of(iatom)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=ui)
           jkind  = kind_of(jatom)
-          atomic_kind => atomic_kind_set(jkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
           gmij = 0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
           !

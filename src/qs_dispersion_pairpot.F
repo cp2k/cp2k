@@ -11,8 +11,7 @@ MODULE qs_dispersion_pairpot
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
+                                             get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init,&
                                              atprop_type
   USE bibliography,                    ONLY: cite_reference,&
@@ -58,6 +57,9 @@ MODULE qs_dispersion_pairpot
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type,&
+                                             set_qs_kind
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -98,9 +100,11 @@ CONTAINS
 !> \param para_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,pp_section,para_env,error)
+  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,pp_section,para_env,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: pp_section
@@ -121,7 +125,6 @@ CONTAINS
     LOGICAL                                  :: at_end, failure, found, &
                                                 is_available
     REAL(KIND=dp)                            :: dum
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
 
@@ -195,8 +198,7 @@ CONTAINS
 
     nkind  = SIZE(atomic_kind_set)
     DO ikind = 1, nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind,element_symbol=symbol,z=elem)
+       CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol,z=elem)
        ALLOCATE(disp,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        SELECT CASE (vdw_type)
@@ -312,7 +314,7 @@ CONTAINS
             "through an external file! "//&
  CPSourceFileRef,&
             error=error,failure=failure)
-       CALL set_atomic_kind(atomic_kind,dispersion=disp,error=error)
+       CALL set_qs_kind(qs_kind_set(ikind),dispersion=disp,error=error)
     END DO
 
     CALL timestop(handle)
@@ -616,7 +618,6 @@ CONTAINS
       POINTER                                :: atstr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -632,6 +633,8 @@ CONTAINS
     TYPE(qs_atom_dispersion_type), POINTER   :: disp_a, disp_b, disp_c
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -642,9 +645,9 @@ CONTAINS
 
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
 
-       NULLIFY (atomic_kind_set,sab_cn,sab_vdw)
+       NULLIFY (atomic_kind_set,qs_kind_set,sab_cn,sab_vdw)
 
-       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
             cell=cell, virial=virial, para_env=para_env, atprop=atprop, error=error)
 
        debugx = dispersion_env%verbose
@@ -693,8 +696,7 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,force=force,error=error)
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-               atom_of_kind=atom_of_kind,kind_of=kind_of)
+          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
           IF (use_virial .AND. debugall) THEN
             dvirial = virial%pv_virial
@@ -702,15 +704,14 @@ CONTAINS
        ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. dispersion_env%doabc ) THEN
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-               atom_of_kind=atom_of_kind,kind_of=kind_of)
+          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
        END IF
 
        ALLOCATE (dodisp(nkind),ghost(nkind),atomnumber(nkind),c6d2(nkind),radd2(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind, z=za, dispersion=disp_a, ghost=ghost_a)
+          CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
           dodisp(ikind)=disp_a%defined
           ghost(ikind)=ghost_a
           atomnumber(ikind)=za
@@ -856,8 +857,7 @@ CONTAINS
             ! first use the default values
             DO iatom=1,natom
               ikind=kind_of(iatom)
-              atomic_kind => atomic_kind_set(ikind)
-              CALL get_atomic_kind(atomic_kind,z=za)
+              CALL get_atomic_kind(atomic_kind_set(ikind),z=za)
               cnumfix(iatom) = dispersion_env%cn(za)
             END DO
             ! now check for changes from default
@@ -867,8 +867,7 @@ CONTAINS
                 cnum=dispersion_env%cnkind(i)%cnum
                 CPPrecondition(ikind <= nkind,cp_failure_level,routineP,error,failure)
                 CPPrecondition(ikind > 0,cp_failure_level,routineP,error,failure)
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind,natom=na,atom_list=atom_list)
+                CALL get_atomic_kind(atomic_kind_set(ikind), natom=na,atom_list=atom_list)
                 DO ia=1,na
                   iatom=atom_list(ia)
                   cnumfix(iatom) = cnum
@@ -1267,8 +1266,7 @@ CONTAINS
              cnkind = 0._dp
              ! first use the default values
              DO ikind=1,nkind
-               atomic_kind => atomic_kind_set(ikind)
-               CALL get_atomic_kind(atomic_kind,z=za)
+               CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
                cnkind(ikind) = dispersion_env%cn(za)
              END DO
              ! now check for changes from default
@@ -1279,12 +1277,12 @@ CONTAINS
                END DO
              END IF
              DO ikind=1,nkind
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind=atomic_kind, natom=na, z=za, dispersion=disp_a, ghost=ghost_a)
+                CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, z=za)
+                CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
                 IF (.NOT.disp_a%defined .OR. ghost_a) CYCLE
                 DO jkind=1,nkind
-                   atomic_kind => atomic_kind_set(jkind)
-                   CALL get_atomic_kind(atomic_kind=atomic_kind, natom=nb, z=zb, dispersion=disp_b, ghost=ghost_b)
+                   CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
+                   CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b)
                    IF (.NOT.disp_b%defined .OR. ghost_b) CYCLE
                    CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                       cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
@@ -1293,8 +1291,8 @@ CONTAINS
                    elrc8 = elrc8 - s8*twopi*REAL(na*nb,KIND=dp)*c8/(5._dp*rcut**5*cell%deth)
                    IF (dispersion_env%doabc) THEN
                       DO kkind=1,nkind
-                         atomic_kind => atomic_kind_set(kkind)
-                         CALL get_atomic_kind(atomic_kind=atomic_kind, natom=nc, z=zc, dispersion=disp_c, ghost=ghost_c)
+                         CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
+                         CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c)
                          IF (.NOT.disp_c%defined .OR. ghost_c) CYCLE
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                             cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)

@@ -13,10 +13,8 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_atom_current
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
@@ -41,6 +39,9 @@ MODULE qs_linres_atom_current
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_linres_op,                    ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
@@ -129,7 +130,6 @@ CONTAINS
     TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mat_a, mat_b, mat_c, mat_d
     TYPE(cp_logger_type), POINTER            :: logger
@@ -147,6 +147,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: a_block, b_block, c_block, &
                                                 d_block, jp2_RARnu, jp_RARnu
@@ -154,13 +156,14 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     failure =.FALSE.
-    NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_all,&
+    NULLIFY(atom_list,atomic_kind_set,qs_kind_set,dft_control,orb_basis_set,sab_all,&
             jrho1_atom_set,oce,a_block,b_block,c_block,&
             d_block,jp_RARnu,jp2_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
             C_coeff_ss_b,para_env,zero_coeff,tmp_coeff)
     !
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     oce=oce,&
                     sab_all=sab_all,&
@@ -176,7 +179,7 @@ CONTAINS
     !
     CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
     !
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxsgf=max_nsgf,&
                              maxgtops=max_gau)
 
@@ -196,7 +199,7 @@ CONTAINS
     mat_d => mat_jp_riii
     !
     ! Density-like matrices
-    nkind  = SIZE(atomic_kind_set)
+    nkind  = SIZE(qs_kind_set)
     natom  = SIZE(jrho1_atom_set)
     nspins = dft_control%nspins
     !
@@ -210,12 +213,11 @@ CONTAINS
     !
     ! Reset CJC coefficients and local density arrays
     DO ikind = 1 ,nkind
-       NULLIFY(atomic_kind, atom_list)
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+       NULLIFY(atom_list)
+       CALL get_atomic_kind(atomic_kind_set(ikind),&
                             atom_list=atom_list,&
-                            natom=nat,&
-                            paw_atom=paw_atom)
+                            natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
        !
        ! Quick cycle if needed.
        IF(.NOT. paw_atom) CYCLE
@@ -242,8 +244,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -294,11 +295,8 @@ CONTAINS
        !
        ! Loop over atoms
        DO kkind = 1,nkind
-
-          atomic_kind => atomic_kind_set(kkind)
-
           NULLIFY(paw_proj)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+          CALL get_qs_kind(qs_kind_set(kkind),&
                                orb_basis_set=orb_basis_set,&
                                hard_radius=hard_radius_c,&
                                paw_proj_set=paw_proj,&
@@ -453,11 +451,11 @@ CONTAINS
     ! parallel sum up
     nbr_dbl = 0.0_dp
     DO ikind = 1 ,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            orb_basis_set=orb_basis_set,&
+       CALL get_atomic_kind(atomic_kind_set(ikind),&
                             atom_list=atom_list,&
-                            natom=nat,&
+                            natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind),&
+                            orb_basis_set=orb_basis_set,&
                             paw_proj_set=paw_proj,&
                             paw_atom=paw_atom)
 
@@ -598,7 +596,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz_asym
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
@@ -608,6 +605,8 @@ CONTAINS
       POINTER                                :: jrho1_atom_set
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
 !
 !
@@ -615,7 +614,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     failure =.FALSE.
-    NULLIFY(atomic_kind_set,dft_control,para_env,&
+    NULLIFY(atomic_kind_set,qs_kind_set,dft_control,para_env,&
             coeff,Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,&
             Fr_a_h_iii,Fr_a_s_iii,Fr_b_h,Fr_b_s,Fr_b_h_ii,&
             Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,jrho1_atom_set,&
@@ -623,11 +622,12 @@ CONTAINS
     !
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     para_env=para_env,&
                     error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,maxlgto=maxlgto)
 
     !
     CALL get_current_env(current_env=current_env,&
@@ -635,7 +635,7 @@ CONTAINS
                      error=error)
     !
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     nspins = dft_control%nspins
     !
     natom_tot = SIZE(jrho1_atom_set,1)
@@ -645,14 +645,14 @@ CONTAINS
 
     !
     DO ikind = 1,nkind
-       NULLIFY(atom_kind,atom_list,grid_atom,harmonics,orb_basis_set,&
+       NULLIFY(atom_list,grid_atom,harmonics,orb_basis_set,&
                lmax,lmin,npgf,zet,grid_atom,harmonics,my_CG,my_CG_dxyz_asym)
        !
-       atom_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atom_kind,&
+       CALL get_atomic_kind(atomic_kind_set(ikind),&
                             atom_list=atom_list,&
+                            natom=natom)
+       CALL get_qs_kind(qs_kind_set(ikind),&
                             grid_atom=grid_atom,&
-                            natom=natom,&
                             paw_proj_set=paw_proj,&
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
@@ -1383,7 +1383,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ratom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1394,15 +1393,18 @@ CONTAINS
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
 
     NULLIFY(para_env, dft_control)
     NULLIFY(jrho1_atom_set, grid_atom, harmonics)
-    NULLIFY(atomic_kind_set, atom_kind, atom_list)
+    NULLIFY(atomic_kind_set, qs_kind_set, atom_list)
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     cell=cell,&
                     para_env=para_env,error=error)
@@ -1415,7 +1417,7 @@ CONTAINS
     IF(current_env%gauge.EQ.current_gauge_atom) do_igaim = .TRUE.
 
     gapw = dft_control%qs_control%gapw
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     nspins = dft_control%nspins
 
     natm_tot = SIZE(particle_set)
@@ -1424,12 +1426,14 @@ CONTAINS
 
     IF (gapw) THEN
        DO ikind = 1,nkind
-          NULLIFY (atom_kind,atom_list,grid_atom,harmonics)
-          atom_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                               harmonics=harmonics,grid_atom=grid_atom,&
-                               natom=natom, hard_radius=hard_radius,&
-                               paw_atom=paw_atom)
+          NULLIFY (atom_list,grid_atom,harmonics)
+          CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind),&
+                           grid_atom=grid_atom,&
+                           harmonics=harmonics,&
+                           hard_radius=hard_radius,&
+                           paw_atom=paw_atom)
+
           IF (.NOT.paw_atom) CYCLE
 
           ! Distribute the atoms of this kind

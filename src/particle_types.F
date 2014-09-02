@@ -53,6 +53,8 @@ MODULE particle_types
   USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE string_utilities,                ONLY: uppercase
@@ -192,11 +194,13 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_particle_set(particle_set,first_sgf,last_sgf,nsgf,&
+  SUBROUTINE get_particle_set(particle_set,qs_kind_set,first_sgf,last_sgf,nsgf,&
                               basis_set_id,basis,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER, DIMENSION(:), INTENT(INOUT), &
       OPTIONAL                               :: first_sgf, last_sgf, nsgf
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
@@ -228,14 +232,13 @@ CONTAINS
     IF (PRESENT(first_sgf).OR.PRESENT(last_sgf).OR.PRESENT(nsgf)) THEN
       isgf = 0
       DO iparticle=1,nparticle
+        CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
         IF (PRESENT(basis)) THEN
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,kind_number=ikind)
           CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set,nsgf=ns)
         ELSEIF (PRESENT(basis_set_id)) THEN
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=ns,&
-                             basis_set_id=basis_set_id)
+          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns, basis_set_id=basis_set_id)
         ELSE
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=ns)
+          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns)
         END IF
         IF (PRESENT(nsgf)) nsgf(iparticle) = ns
         IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
@@ -659,10 +662,12 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_qs_particle_coordinates(particle_set,subsys_section,label,error)
+  SUBROUTINE write_qs_particle_coordinates(particle_set,qs_kind_set,subsys_section,label,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -700,8 +705,8 @@ CONTAINS
                              kind_number=ikind,&
                              element_symbol=element_symbol,&
                              mass=mass,&
-                             z=z,&
-                             zeff=zeff)
+                             z=z)
+        CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
         WRITE (UNIT=iw,&
                FMT="(T2,I7,1X,I5,1X,A2,1X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
           iatom,ikind,element_symbol,z,&

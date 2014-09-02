@@ -64,6 +64,8 @@ MODULE qs_electric_field_gradient
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -114,7 +116,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -129,13 +130,15 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 interp_section
 
-    NULLIFY(atomic_kind_set, dft_control, para_env, particle_set, rho, &
+    NULLIFY(atomic_kind_set, qs_kind_set, dft_control, para_env, particle_set, rho, &
          rho_atom_set, input, dft_section, interp_section)
 
     CALL timeset(routineN,handle)
@@ -148,7 +151,8 @@ CONTAINS
     f2 = SQRT(5._dp/fourpi)
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-                    rho=rho,atomic_kind_set=atomic_kind_set,&
+                    rho=rho,qs_kind_set=qs_kind_set,&
+                    atomic_kind_set=atomic_kind_set,&
                     rho_atom_set=rho_atom_set,pw_env=pw_env,&
                     particle_set=particle_set,para_env=para_env,&
                     input=input,error=error)
@@ -302,13 +306,12 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2rs%pw,error=error)
     END IF
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
     DO ikind = 1,nkind
-      atomic_kind => atomic_kind_set(ikind)
       NULLIFY(grid_atom,atom_list)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,grid_atom=grid_atom,&
-                           atom_list=atom_list,natom=natomkind,paw_atom=paw_atom)
+      CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=natomkind)
+      CALL get_qs_kind(qs_kind_set(ikind),grid_atom=grid_atom,paw_atom=paw_atom)
       DO iat = 1,natomkind
         iatom = atom_list(iat)
         ra = particle_set(iatom)%r
@@ -342,7 +345,7 @@ CONTAINS
       END DO
 
       IF( paw_atom) THEN
-        CALL vlimit_atom(para_env,vh0,rho_atom_set,atomic_kind,&
+        CALL vlimit_atom(para_env,vh0,rho_atom_set,qs_kind_set(ikind),&
                          atom_list,grid_atom,natomkind,nspins,error)
         DO iat = 1,natomkind
           iatom = atom_list(iat)
@@ -375,7 +378,7 @@ CONTAINS
       efg_pw(:,:,:) = efg_pw(:,:,:)*efg_units
       DO iatom=1,natom
         IF (unit_nr > 0) THEN
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+          CALL get_atomic_kind(particle_set(iatom)%atomic_kind,&
                             element_symbol=element_symbol)
           WRITE (UNIT=unit_nr,FMT="(T2,I5,T8,A,T12,A,T15,6F11.5)")&
            iatom, element_symbol,"PW",((efg_pw(i,j,iatom),i=1,j),j=1,3)
@@ -397,7 +400,7 @@ CONTAINS
 
     DO iatom=1,natom
       IF (unit_nr > 0) THEN
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+        CALL get_atomic_kind(particle_set(iatom)%atomic_kind,&
                             element_symbol=element_symbol)
           WRITE (UNIT=unit_nr,FMT="(T2,I5,T8,A,T12,A,3(T39,3F14.7,/))")&
            iatom, element_symbol,"EFG Tensor",(efg_tensor(i,:,iatom),i=1,3)
@@ -445,14 +448,14 @@ CONTAINS
 !> \param para_env ...
 !> \param vlimit ...
 !> \param rho_atom_set ...
-!> \param atom_kind ...
+!> \param qs_kind ...
 !> \param atom_list ...
 !> \param grid_atom ...
 !> \param natom ...
 !> \param nspins ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE vlimit_atom(para_env,vlimit,rho_atom_set,atom_kind,&
+  SUBROUTINE vlimit_atom(para_env,vlimit,rho_atom_set,qs_kind,&
                          atom_list,grid_atom,natom,nspins,error)
 
   ! calculate : Limit(r->0) V_hartree(r)/r^2
@@ -462,7 +465,7 @@ CONTAINS
       INTENT(inout)                          :: vlimit
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
@@ -494,7 +497,7 @@ CONTAINS
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,coeff)
 
-    CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
+    CALL get_qs_kind(qs_kind=qs_kind, orb_basis_set=orb_basis,&
                          paw_proj_set=paw_proj,harmonics=harmonics)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&

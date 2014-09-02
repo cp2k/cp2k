@@ -26,6 +26,9 @@ MODULE qs_ks_atom
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -117,7 +120,6 @@ CONTAINS
     TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_h, mat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -132,6 +134,8 @@ CONTAINS
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
     TYPE(rho_atom_type), POINTER             :: rho_at
@@ -141,7 +145,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
+    NULLIFY(qs_kind_set,atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
     NULLIFY(mat_h, mat_p ,orb_basis)
 
     my_tddft = .FALSE.
@@ -155,6 +159,7 @@ CONTAINS
     nspins = qs_env%dft_control%nspins
 
     CALL get_qs_env(qs_env=qs_env,&
+           qs_kind_set=qs_kind_set,&
            atomic_kind_set=atomic_kind_set,&
            force=force,&
            oce=oce, &
@@ -169,8 +174,8 @@ CONTAINS
 
     eps_cpc = qs_env%dft_control%qs_control%gapw_control%eps_cpc
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxsgf=max_nsgf,&
-                             maxgtops=max_gau,natom=natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set,maxsgf=max_nsgf,maxgtops=max_gau)
 
     ALLOCATE (C_int_h(max_gau*max_nsgf),C_int_s(max_gau*max_nsgf),coc(max_gau*max_gau),&
               a_matrix(max_gau,max_gau),p_matrix(max_nsgf,max_nsgf),STAT=istat)
@@ -188,8 +193,7 @@ CONTAINS
       ALLOCATE (atom_of_kind(natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
            "atom_of_kind",natom*int_size)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               atom_of_kind=atom_of_kind)
+      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
       ALLOCATE(dCPC_h(max_gau,max_gau),STAT=istat)
       ALLOCATE(dCPC_s(max_gau,max_gau),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
@@ -203,15 +207,14 @@ CONTAINS
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
 
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     ! Collect the local potential contributions from all the processors
     mepos = para_env%mepos
     num_pe = para_env%num_pe
     DO ikind = 1,nkind
-       NULLIFY(atomic_kind,atom_list)
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,atom_list=atom_list,&
-            paw_atom=paw_atom, natom=nat)
+       NULLIFY(atom_list)
+       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list, natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
        IF(paw_atom) THEN
          ! gather the atomic block integrals in a more compressed format
          bo = get_limit( nat, num_pe, mepos )
@@ -219,9 +222,9 @@ CONTAINS
             iatom = atom_list(iat)
             DO ispin = 1,nspins
               CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
-                              rho_atom(iatom)%cpc_h(ispin)%r_coef,atomic_kind,error)
+                              rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_kind_set(ikind),error)
               CALL prj_gather(rho_atom(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
-                              rho_atom(iatom)%cpc_s(ispin)%r_coef,atomic_kind,error)
+                              rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_kind_set(ikind),error)
             END DO
          END DO
          ! broadcast the CPC arrays to all processors (replicated data)
@@ -242,8 +245,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
            "basis_set_list",nkind)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -282,12 +284,7 @@ CONTAINS
        END DO
 
        DO kkind=1,nkind
-
-         atomic_kind => atomic_kind_set(kkind)
-
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                              orb_basis_set=orb_basis,&
-                              paw_atom=paw_atom)
+         CALL get_qs_kind(qs_kind_set(kkind), orb_basis_set=orb_basis, paw_atom=paw_atom)
 
          IF(.NOT. paw_atom)  CYCLE
 

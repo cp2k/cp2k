@@ -33,6 +33,8 @@ MODULE qs_core_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -230,7 +232,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: deab, rab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(neighbor_list_iterator_p_type), &
@@ -242,14 +243,16 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (cell)
     NULLIFY (energy)
     NULLIFY (atprop)
@@ -263,6 +266,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     particle_set=particle_set,&
                     energy=energy,&
@@ -288,7 +292,7 @@ CONTAINS
     IF (calculate_forces) THEN
        ALLOCATE (atom_of_kind(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
     END IF
 
     atenergy = .FALSE.
@@ -300,8 +304,7 @@ CONTAINS
     END IF
 
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+      CALL get_qs_kind(qs_kind_set(ikind),&
                            alpha_core_charge=alpha(ikind),&
                            core_charge_radius=radius(ikind),&
                            zeff=zeff(ikind))
@@ -387,26 +390,25 @@ CONTAINS
                                                 ecore_self, es, zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,energy=energy,error=error)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,energy=energy,error=error)
 
     ecore_self = 0.0_dp
 
     DO ikind=1,SIZE(atomic_kind_set)
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom, zeff=zeff,&
-                           alpha_core_charge=alpha_core_charge)
+      CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+      CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
       ecore_self = ecore_self - REAL(natom,dp)*zeff**2*SQRT(alpha_core_charge)
     END DO
 
@@ -424,10 +426,8 @@ CONTAINS
         CALL atprop_array_init(qs_env%atprop%ateself,natom,error)
 
         DO ikind=1,SIZE(atomic_kind_set)
-           atomic_kind => atomic_kind_set(ikind)
            nparticle_local = local_particles%n_el(ikind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                zeff=zeff,alpha_core_charge=alpha_core_charge)
+           CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff,alpha_core_charge=alpha_core_charge)
            es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
            DO iparticle_local = 1, nparticle_local
               iatom = local_particles%list(ikind)%array(iparticle_local)

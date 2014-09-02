@@ -11,9 +11,7 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2_ri_libint
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
@@ -63,6 +61,9 @@ MODULE mp2_ri_libint
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
   USE termination,                     ONLY: stop_program
@@ -203,19 +204,19 @@ MODULE mp2_ri_libint
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: atom_kind
 
     failure = .FALSE.
 
     NULLIFY(RI_basis_parameter)
 
-    NULLIFY(atomic_kind_set)
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, error=error)
+    NULLIFY(qs_kind_set)
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, error=error)
 
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     ALLOCATE(RI_basis_parameter(nkind), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(basis_S0(nkind), STAT=stat)
@@ -223,11 +224,11 @@ MODULE mp2_ri_libint
     max_set = 0
     DO ikind = 1,nkind
       NULLIFY(atom_kind)
-      atom_kind => atomic_kind_set(ikind)
-      IF(.NOT.(ASSOCIATED(atomic_kind_set(ikind)%ri_aux_basis_set))) THEN
+      atom_kind => qs_kind_set(ikind)
+      IF(.NOT.(ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set))) THEN
         CALL stop_program(routineN,moduleN,__LINE__,"Initial RI auxiliary basis not specified.")
       END IF
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
+      CALL get_qs_kind(qs_kind=atom_kind,&
                            ri_aux_basis_set=orb_basis_a)
       ! here we reset the initial RI basis such that we can
       ! work with non-normalized auxiliary basis functions
@@ -235,7 +236,7 @@ MODULE mp2_ri_libint
       orb_basis_a%norm_type = 1
       CALL init_aux_basis_set(orb_basis_a,error)
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                                maxsgf=RI_basis_info%max_sgf,&
                                maxnset=RI_basis_info%max_set,&
                                maxlgto=RI_basis_info%max_am,&
@@ -588,6 +589,8 @@ MODULE mp2_ri_libint
       DIMENSION(:)                           :: set_list_kl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
 
@@ -597,10 +600,11 @@ MODULE mp2_ri_libint
 
     logger => cp_error_get_logger(error)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set, cell=cell, error=error)
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     l_max = 0
     DO ikind=1,nkind
       l_max = MAX(l_max,MAXVAL(qs_env%x_data(1,1)%basis_parameter(ikind)%lmax))
@@ -690,7 +694,7 @@ MODULE mp2_ri_libint
 
     max_set = MAX(basis_info%max_set,RI_basis_info%max_set)
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     error=error)
 
@@ -699,8 +703,7 @@ MODULE mp2_ri_libint
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
     !! precompute maximum nco and allocate scratch
     ncos_max=0

@@ -27,7 +27,6 @@
 ! *****************************************************************************
 MODULE qs_integrate_potential_product
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
@@ -59,6 +58,9 @@ MODULE qs_integrate_potential_product
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_release,&
@@ -176,7 +178,6 @@ CONTAINS
       POINTER                                :: hadbt, hdabt
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ddv
@@ -192,6 +193,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -257,6 +260,7 @@ CONTAINS
     ! get all the general information on the system we are working on
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
@@ -283,15 +287,14 @@ CONTAINS
     ! transform the potential on the rs_multigrids
     CALL potential_pw2rs(rs_v,v_rspace,pw_env,error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     IF (calculate_forces) THEN
        ALLOCATE (atom_of_kind(natom),STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            atom_of_kind=atom_of_kind)
+       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
     END IF
 
     map_consistent=dft_control%qs_control%map_consistent
@@ -303,7 +306,7 @@ CONTAINS
 
     pab_required = PRESENT(p) .AND. (calculate_forces .OR. .NOT. map_consistent)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
          maxco=maxco,&
          maxsgf_set=maxsgf_set,&
          basis_set_id=my_basis_set_id)
@@ -366,14 +369,13 @@ CONTAINS
     maxset=0
     maxpgf=0
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
        SELECT CASE (my_basis_set_id)
        CASE (use_orb_basis_set)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+         CALL get_qs_kind(qs_kind_set(ikind),&
               softb = my_gapw, &
               orb_basis_set=orb_basis_set)
        CASE (use_aux_fit_basis_set)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+         CALL get_qs_kind(qs_kind_set(ikind),&
               softb = my_gapw, &
               aux_fit_basis_set=orb_basis_set,&
               basis_set_id=my_basis_set_id)
@@ -400,7 +402,7 @@ CONTAINS
 !$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,ddv,deltap,use_virial), &
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
-!$omp shared(gridlevel_info,task_list,failure,block_touched,nthread), &
+!$omp shared(gridlevel_info,task_list,failure,block_touched,nthread,qs_kind_set), &
 !$omp private(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
 !$omp private(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &
 !$omp private(brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
@@ -469,11 +471,11 @@ CONTAINS
           IF (ikind .NE. ikind_old ) THEN
              SELECT CASE (my_basis_set_id)
              CASE (use_orb_basis_set)
-               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+               CALL get_qs_kind(qs_kind_set(ikind),&
                     softb = my_gapw, &
                     orb_basis_set=orb_basis_set)
              CASE (use_aux_fit_basis_set)
-               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+               CALL get_qs_kind(qs_kind_set(ikind),&
                     softb = my_gapw, &
                     aux_fit_basis_set=orb_basis_set,&
                     basis_set_id = my_basis_set_id)
@@ -495,11 +497,11 @@ CONTAINS
           IF (jkind .NE. jkind_old ) THEN
              SELECT CASE (my_basis_set_id)
              CASE (use_orb_basis_set)
-               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+               CALL get_qs_kind(qs_kind_set(jkind),&
                     softb = my_gapw, &
                     orb_basis_set=orb_basis_set)
              CASE (use_aux_fit_basis_set)
-               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+               CALL get_qs_kind(qs_kind_set(jkind),&
                     softb = my_gapw, &
                     aux_fit_basis_set=orb_basis_set,&
                     basis_set_id=my_basis_set_id)

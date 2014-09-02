@@ -360,7 +360,7 @@ CONTAINS
     REAL(KIND=dp)                            :: cosphi, drih, drix, drji, &
                                                 h_max_dist, rab2_max, rih(3), &
                                                 rih1(3), rih2(3), rix(3), &
-                                                rji(3), zeff
+                                                rji(3)
 
     siep_Phi_ij = 0.0_dp
     count_h=0
@@ -377,7 +377,7 @@ CONTAINS
 
     DO iatom=1,natom
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                          element_symbol=element_symbol, zeff=zeff)
+                          element_symbol=element_symbol)
        IF(element_symbol /= "H" ) CYCLE
        rih(:)= pbc(r_last_update_pbc(iparticle)%r(:),r_last_update_pbc(iatom)%r(:),cell)
        drih = SQRT(DOT_PRODUCT(rih,rih))
@@ -465,7 +465,7 @@ CONTAINS
                                                 index_h2, natom
     REAL(KIND=dp)                            :: cosphi, dphi, drih, drix, &
                                                 drji, h_max_dist, Phi_ij, &
-                                                rab2_max, zeff
+                                                rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: dcosdrh, dcosdri, dcosdrj, &
                                                 drh, dri, drj, rih, rih1, &
                                                 rih2, rix, rix_hat, rji, &
@@ -486,7 +486,7 @@ CONTAINS
 
     DO iatom=1,natom
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                          element_symbol=element_symbol, zeff=zeff)
+                          element_symbol=element_symbol)
        IF(element_symbol /= "H" ) CYCLE
        rih(:)= pbc(r_last_update_pbc(iparticle)%r(:),r_last_update_pbc(iatom)%r(:),cell)
        drih = SQRT(DOT_PRODUCT(rih,rih))

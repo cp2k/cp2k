@@ -59,6 +59,9 @@ MODULE qs_mo_io
   USE physcon,                         ONLY: evolt
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              duplicate_mo_set,&
                                              mo_set_p_type,&
@@ -101,7 +104,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,&
-                                     kpoints,atomic_kind_set,error)
+                                     kpoints,atomic_kind_set,qs_kind_set,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -110,7 +113,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     TYPE(atomic_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
@@ -158,7 +163,8 @@ CONTAINS
                   extension=".wfn", file_status="REPLACE", file_action="WRITE",&
                   do_backup=.TRUE., file_form="UNFORMATTED", error=error)
 
-             CALL write_mo_set_low(mo_array, particle_set=particle_set, ires=ires, error=error)
+             CALL write_mo_set_low(mo_array, particle_set=particle_set, &
+                                   qs_kind_set=qs_kind_set,ires=ires, error=error)
 
              IF(write_kp) CALL write_mos_kp(kpoints, ires=ires, error=error)
 
@@ -265,7 +271,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_rt_mos_to_restart(mo_array,rt_mos,particle_set,dft_section,&
-                                     atomic_kind_set,error)
+                                     atomic_kind_set,qs_kind_set,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -275,7 +281,9 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(atomic_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_mos_to_restart', &
@@ -306,7 +314,8 @@ CONTAINS
                   extension=".rtpwfn", file_status="REPLACE", file_action="WRITE",&
                   do_backup=.TRUE., file_form="UNFORMATTED", error=error)
 
-             CALL write_mo_set_low(mo_array, rt_mos=rt_mos, particle_set=particle_set, ires=ires, error=error)
+             CALL write_mo_set_low(mo_array, rt_mos=rt_mos, qs_kind_set=qs_kind_set,&
+                                   particle_set=particle_set, ires=ires, error=error)
              CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)), error=error)
           END IF
        END DO
@@ -324,10 +333,12 @@ CONTAINS
 !> \param rt_mos ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_low(mo_array, particle_set, ires, rt_mos, error)
+  SUBROUTINE write_mo_set_low(mo_array, qs_kind_set, particle_set, ires, rt_mos, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER                                  :: ires
@@ -338,8 +349,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, imat, iset, ishell, ispin, istat, lmax, lshell, &
-      max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin
+    INTEGER :: handle, iatom, ikind, imat, iset, ishell, ispin, istat, lmax, &
+      lshell, max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
@@ -359,7 +370,8 @@ CONTAINS
 
        DO iatom=1,natom
           NULLIFY(orb_basis_set,dftb_parameter)
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind),&
                orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
           IF (ASSOCIATED(orb_basis_set)) THEN
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -396,7 +408,8 @@ CPSourceFileRef,&
 
        DO iatom=1,natom
           NULLIFY(orb_basis_set,dftb_parameter)
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind),&
                orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
           IF (ASSOCIATED(orb_basis_set)) THEN
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -570,13 +583,15 @@ CPSourceFileRef,&
 !> \param kpoints ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
+  SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,qs_kind_set,particle_set,&
        para_env,id_nr,multiplicity,dft_section,natom_mismatch,kpoints,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -622,8 +637,8 @@ CPSourceFileRef,&
 
     END IF
 
-    CALL read_mos_restart_low (mo_array,para_env=para_env, particle_set=particle_set,&
-         natom=natom,&
+    CALL read_mos_restart_low (mo_array,para_env=para_env, qs_kind_set=qs_kind_set,&
+         particle_set=particle_set, natom=natom,&
          rst_unit=restart_unit, multiplicity=multiplicity, natom_mismatch=natom_mismatch, &
          error=error)
     IF (PRESENT(natom_mismatch)) THEN
@@ -646,8 +661,8 @@ CPSourceFileRef,&
     IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     DO ispin = 1,nspin
-      CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,4,&
-                        dft_section,error=error)
+      CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,qs_kind_set,&
+                        particle_set,4,dft_section,error=error)
     END DO
 
     CALL timestop(handle)
@@ -665,8 +680,8 @@ CPSourceFileRef,&
 !> \param dft_section ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_rt_mos_from_restart(mo_array,rt_mos,atomic_kind_set,particle_set,&
-       para_env,id_nr,multiplicity,dft_section,error)
+  SUBROUTINE read_rt_mos_from_restart(mo_array,rt_mos,atomic_kind_set,qs_kind_set, &
+                 particle_set,para_env,id_nr,multiplicity,dft_section,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -674,6 +689,8 @@ CPSourceFileRef,&
       POINTER                                :: rt_mos
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -718,15 +735,15 @@ CPSourceFileRef,&
     END IF
 
     CALL read_mos_restart_low (mo_array, rt_mos=rt_mos,para_env= para_env,&
-         particle_set=particle_set, natom=natom,&
+         particle_set=particle_set, qs_kind_set=qs_kind_set, natom=natom,&
          rst_unit=restart_unit, multiplicity=multiplicity, error=error)
 
     ! Close restart file
     IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     DO ispin = 1,nspin
-      CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,4,&
-                        dft_section,error=error)
+      CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,qs_kind_set, &
+                        particle_set,4,dft_section,error=error)
     END DO
 
     CALL timestop(handle)
@@ -847,12 +864,14 @@ CPSourceFileRef,&
 !>      12.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE read_mos_restart_low (mos,  para_env, particle_set, natom, rst_unit, &
+  SUBROUTINE read_mos_restart_low (mos,  para_env, qs_kind_set, particle_set, natom, rst_unit, &
         multiplicity, rt_mos, natom_mismatch, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: natom, rst_unit
@@ -865,10 +884,10 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, homo, homo_read, i, iatom, imat, irow, iset, iset_read, &
-      ishell, ishell_read, iso, ispin, istat, lfomo_read, lmax, lshell, &
-      my_mult, nao, nao_read, natom_read, nelectron, nelectron_read, nmo, &
-      nmo_read, nnshell, nset, nset_max, nshell_max, nspin, nspin_read, &
+    INTEGER :: group, homo, homo_read, i, iatom, ikind, imat, irow, iset, &
+      iset_read, ishell, ishell_read, iso, ispin, istat, lfomo_read, lmax, &
+      lshell, my_mult, nao, nao_read, natom_read, nelectron, nelectron_read, &
+      nmo, nmo_read, nnshell, nset, nset_max, nshell_max, nspin, nspin_read, &
       offset_read, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
@@ -1062,7 +1081,8 @@ CPSourceFileRef,&
                irow=1
                DO iatom=1,natom
                   NULLIFY(orb_basis_set,dftb_parameter,l,nshell)
-                  CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                  CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+                  CALL get_qs_kind(qs_kind_set(ikind),&
                        orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
                   IF (ASSOCIATED(orb_basis_set)) THEN
                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -1245,12 +1265,14 @@ CPSourceFileRef,&
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
+  SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,qs_kind_set,particle_set,&
        before,dft_section,spin,last,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: before
@@ -1272,9 +1294,9 @@ CPSourceFileRef,&
     CHARACTER(LEN=27)                        :: fmtstr4
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: bsgf_symbol
-    INTEGER :: after, first_mo, from, iatom, icgf, ico, icol, imo, irow, &
-      iset, isgf, ishell, iso, istat, iw, jcol, last_mo, left, lmax, lshell, &
-      natom, ncgf, ncol, ncol_global, nrow_global, nset, nsgf, right, &
+    INTEGER :: after, first_mo, from, iatom, icgf, ico, icol, ikind, imo, &
+      irow, iset, isgf, ishell, iso, istat, iw, jcol, last_mo, left, lmax, &
+      lshell, natom, ncgf, ncol, ncol_global, nrow_global, nset, nsgf, right, &
       scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: mo_index_range, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
@@ -1335,10 +1357,8 @@ CPSourceFileRef,&
 
     IF (iw > 0) THEN
 
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            natom=natom,&
-            ncgf=ncgf,&
-            nsgf=nsgf)
+       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
        ! Definition of the variable formats
 
@@ -1388,7 +1408,8 @@ CPSourceFileRef,&
              isgf = 1
              DO iatom=1,natom
                 NULLIFY (orb_basis_set,dftb_parameter)
-                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+                CALL get_qs_kind(qs_kind_set(ikind),&
                      orb_basis_set=orb_basis_set,&
                      dftb_parameter=dftb_parameter)
                 IF (ASSOCIATED(orb_basis_set)) THEN
@@ -1495,8 +1516,9 @@ CPSourceFileRef,&
                 IF (iatom /= 1) WRITE (UNIT=iw,FMT="(A)") ""
 
                 NULLIFY(orb_basis_set,dftb_parameter)
-                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                     element_symbol=element_symbol,&
+                CALL get_atomic_kind(particle_set(iatom)%atomic_kind,&
+                          element_symbol=element_symbol, kind_number=ikind)
+                CALL get_qs_kind(qs_kind_set(ikind),&
                      orb_basis_set=orb_basis_set,&
                      dftb_parameter=dftb_parameter)
 

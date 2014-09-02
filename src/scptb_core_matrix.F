@@ -13,7 +13,6 @@
 ! *****************************************************************************
 MODULE scptb_core_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_allocate_matrix_set,&
@@ -36,6 +35,8 @@ MODULE scptb_core_matrix
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_kinetic,                      ONLY: build_kinetic_matrix
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
@@ -93,7 +94,6 @@ CONTAINS
                                                 s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 matrix_t, matrix_w
@@ -107,6 +107,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scptb_parameter_p_type), &
       DIMENSION(:), POINTER                  :: scptb_kind_param
@@ -118,10 +120,11 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY ( rho,force,atomic_kind_set,sab_orb,matrix_p )
+    NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,matrix_p )
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     matrix_h=matrix_h,&
                     kinetic=matrix_t,&
                     matrix_s=matrix_s,&
@@ -217,8 +220,7 @@ CONTAINS
     umt = 0._dp
     hmt = 0._dp
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind_a)
+       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a)
        scptb_kind_param(ikind)%scptb_param => scptb_kind_a
        CALL get_scptb_parameter(scptb_kind_a,defined=defined)
        scptb_defined(ikind)=defined
@@ -379,9 +381,6 @@ CONTAINS
       DIMENSION(:, :)                        :: hmt, kk, umt
     REAL(KIND=dp), DIMENSION(3)              :: rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, s_block
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: gamma_s
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -395,6 +394,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scptb_parameter_p_type), &
       DIMENSION(:), POINTER                  :: scptb_kind_param
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a
@@ -405,10 +406,10 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (atomic_kind_set,sab_orb)
+    NULLIFY (qs_kind_set,sab_orb)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     kpoints=kpoints,&
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
@@ -421,7 +422,7 @@ CONTAINS
                          matrix_s=matrix_s,&
                          matrix_t=matrix_t,error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
     ncount = SIZE(index_to_cell,2)
 
@@ -479,8 +480,7 @@ CONTAINS
     umt = 0._dp
     hmt = 0._dp
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind_a)
+       CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind_a)
        scptb_kind_param(ikind)%scptb_param => scptb_kind_a
        CALL get_scptb_parameter(scptb_kind_a,defined=defined)
        scptb_defined(ikind)=defined

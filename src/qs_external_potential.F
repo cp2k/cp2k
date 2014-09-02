@@ -33,6 +33,8 @@ MODULE qs_external_potential
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -134,13 +136,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: dfunc, r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: ext_pot_section, input
 
     failure=.FALSE.
@@ -151,6 +154,7 @@ CONTAINS
 
        CALL get_qs_env(qs_env=qs_env,&
                        atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
                        energy=energy,&
                        particle_set=particle_set,&
                        input=input,&
@@ -161,11 +165,8 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
 
        DO ikind=1,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=list,&
-               natom=natom,&
-               zeff=zeff)
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list,natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
 
           natom = SIZE(list)
           DO iatom=1,natom

@@ -11,7 +11,6 @@
 ! *****************************************************************************
 MODULE scptb_core_interactions
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init
   USE cell_types,                      ONLY: cell_type
@@ -25,6 +24,8 @@ MODULE scptb_core_interactions
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -76,7 +77,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -89,6 +89,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scptb_parameter_p_type), &
       DIMENSION(:), POINTER                  :: scptb_kind_param
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a, scptb_kind_b
@@ -115,7 +117,8 @@ CONTAINS
     END IF
 
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env=qs_env,sab_core=sab_core,atomic_kind_set=atomic_kind_set,error=error)
+       CALL get_qs_env(qs_env=qs_env,sab_core=sab_core, atomic_kind_set=atomic_kind_set,&
+                      qs_kind_set=qs_kind_set,error=error)
 
        nkind = SIZE(atomic_kind_set)
        ! Possibly compute forces
@@ -124,14 +127,13 @@ CONTAINS
           natom = SIZE (particle_set)
           ALLOCATE (atom_of_kind(natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+          CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
        ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,scptb_parameter=scptb_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a)
           scptb_kind_param(ikind)%scptb_param => scptb_kind_a
           CALL get_scptb_parameter(scptb_kind_a,defined=defined)
           scptb_defined(ikind)=defined

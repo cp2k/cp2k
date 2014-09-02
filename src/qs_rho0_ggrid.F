@@ -54,6 +54,8 @@ MODULE qs_rho0_ggrid
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
@@ -93,11 +95,9 @@ MODULE qs_rho0_ggrid
 !> \param tot_rs_int ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE put_rho0_on_grid(qs_env, atom_set, rho0, tot_rs_int, error)
+  SUBROUTINE put_rho0_on_grid(qs_env, rho0, tot_rs_int, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0
     REAL(dp), INTENT(OUT)                    :: tot_rs_int
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -106,14 +106,15 @@ MODULE qs_rho0_ggrid
       routineP = moduleN//':'//routineN
 
     INTEGER :: auxbas_grid, dir, handle, iat, iatom, igrid, ikind, istat, &
-      ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, nkind, npme, tp(3)
+      ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, npme, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, paw_atom
     REAL(KIND=dp)                            :: eps_rho_rspace, rpgf0, zet0
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm_c
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
@@ -127,6 +128,8 @@ MODULE qs_rho0_ggrid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: descs
     TYPE(realspace_grid_desc_type), POINTER  :: desc
@@ -137,11 +140,13 @@ MODULE qs_rho0_ggrid
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(atom_kind,atom_list,cores,pab,Qlm_c)
+    NULLIFY(atomic_kind_set,qs_kind_set,cores,pab,Qlm_c)
 
     NULLIFY(dft_control,pw_env,particle_set,para_env,cell,rho0_s_gs,rho0_s_rs)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     para_env=para_env,&
                     pw_env=pw_env,cell=cell,error=error)
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -189,11 +194,9 @@ MODULE qs_rho0_ggrid
     IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "pab",dp_size*nch_max)
 
-    nkind=SIZE(atom_set,1)
-
-    DO ikind = 1,nkind
-      atom_kind => atom_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,natom=nat,paw_atom=paw_atom)
+    DO ikind = 1,SIZE(atomic_kind_set)
+      CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=nat)
+      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
 
       IF(.NOT. paw_atom .AND. dft_control%qs_control%gapw_control%nopaw_as_gpw) CYCLE
 
@@ -408,7 +411,6 @@ MODULE qs_rho0_ggrid
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
@@ -426,6 +428,8 @@ MODULE qs_rho0_ggrid
     TYPE(pw_pool_type), POINTER              :: pw_aux, pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
@@ -443,7 +447,7 @@ MODULE qs_rho0_ggrid
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
+    NULLIFY(atomic_kind_set,qs_kind_set,dft_control,para_env,particle_set)
     NULLIFY(cell, force, pw_env, rho0_mpole, rho_atom_set)
 
     my_tddft = .FALSE.
@@ -451,6 +455,7 @@ MODULE qs_rho0_ggrid
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     para_env=para_env,&
@@ -573,12 +578,12 @@ MODULE qs_rho0_ggrid
     grid_distributed = rs_v%desc%distributed
 
     DO ikind = 1,SIZE(atomic_kind_set,1)
-      atom_kind => atomic_kind_set(ikind)
       NULLIFY(orb_basis_set,atom_list,harmonics)
-      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                           natom=nat,paw_atom=paw_atom,&
-                           orb_basis_set=orb_basis_set,&
-                           harmonics=harmonics)
+      CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list, natom=nat)
+      CALL get_qs_kind(qs_kind_set(ikind),&
+                       paw_atom=paw_atom,&
+                       orb_basis_set=orb_basis_set,&
+                       harmonics=harmonics)
 
       IF(.NOT. paw_atom) CYCLE
 

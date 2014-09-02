@@ -9,8 +9,7 @@
 !>     Teodor Laino 09.2006 - Major rewriting with linear scaling routines
 ! *****************************************************************************
 MODULE topology_generate_util
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
   USE cell_methods,                    ONLY: pbc
@@ -710,7 +709,7 @@ CONTAINS
        CALL timeset(TRIM(routineN)//"_2",handle2)
        ! Initialize fake particle_set and atomic_kinds to generate the bond list
        ! using the neighboring list routine
-       CALL allocate_atomic_kind_set(atomic_kind_set,1,error)
+       ALLOCATE(atomic_kind_set(1))
        CALL allocate_particle_set(particle_set,natom,error)
        !
        my_maxrad = MAXVAL(radius)*2.0_dp

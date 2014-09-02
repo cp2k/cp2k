@@ -212,7 +212,7 @@ CONTAINS
     CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
     ! Distribute molecules and atoms using the new data structures ***
-    CALL distribute_molecules_1d ( particle_kind_set=atomic_kind_set,&
+    CALL distribute_molecules_1d (atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,&
          local_particles=local_particles,&
          molecule_kind_set=molecule_kind_set,&

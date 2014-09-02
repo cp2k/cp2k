@@ -33,7 +33,10 @@ MODULE qs_loc_molecules
   USE moments_utils,                   ONLY: get_reference_point
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: debye
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
 #include "./common/cp_common_uses.f90"
 
@@ -74,9 +77,9 @@ CONTAINS
 
     COMPLEX(KIND=dp)                         :: zeta
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
-    INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, istate, &
-      j, local_location, natom, natom_loc, natom_max, nkind, nmol, nstate, &
-      output_unit, reference, stat
+    INTEGER :: akind, counter, first_atom, i, iatom, ikind, imol, imol_now, &
+      istate, j, local_location, natom, natom_loc, natom_max, nkind, nmol, &
+      nstate, output_unit, reference, stat
     INTEGER, POINTER                         :: wfc_to_atom_map( : )
     LOGICAL                                  :: do_berry, failure, ghost
     REAL(KIND=dp)                            :: charge_tot, dipole(3), dr(3), &
@@ -95,6 +98,8 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
@@ -113,6 +118,7 @@ CONTAINS
        CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%REF_POINT",r_vals=ref_point,error=error)
        CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%PERIODIC",l_val=do_berry,error=error)
     END IF
+    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, error=error)
     particle_set => qs_loc_env%particle_set
     para_env     => qs_loc_env%para_env
     local_molecules => qs_loc_env%local_molecules
@@ -269,9 +275,10 @@ CONTAINS
              DO iatom=1,natom
                 i=first_atom+iatom-1
                 atomic_kind=>particle_set(i)%atomic_kind
-                CALL get_atomic_kind(atomic_kind,ghost=ghost)
+                CALL get_atomic_kind(atomic_kind, kind_number=akind)
+                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
                 IF (.NOT.ghost) THEN
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=zeff)
+                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
                    charge_set(imol_now)=charge_set(imol_now)+zeff
                 END IF
              END DO
@@ -289,9 +296,10 @@ CONTAINS
              DO iatom=1,natom
                 i=first_atom+iatom-1
                 atomic_kind=>particle_set(i)%atomic_kind
-                CALL get_atomic_kind(atomic_kind,ghost=ghost)
+                CALL get_atomic_kind(atomic_kind, kind_number=akind)
+                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
                 IF (.NOT.ghost) THEN
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=zeff)
+                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
                    ria = pbc(particle_set(i)%r,cell)
                    DO j = 1, 3
                       gvec  = twopi*cell%h_inv(j,:)
@@ -322,9 +330,10 @@ CONTAINS
              DO iatom=1,natom
                 i=first_atom+iatom-1
                 atomic_kind=>particle_set(i)%atomic_kind
-                CALL get_atomic_kind(atomic_kind,ghost=ghost)
+                CALL get_atomic_kind(atomic_kind, kind_number=akind)
+                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
                 IF (.NOT.ghost) THEN
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=zeff)
+                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
                    ria = pbc(particle_set(i)%r,cell) - rcc
                    dipole=dipole + zeff*(ria-rcc)
                    charge_set(imol_now)=charge_set(imol_now)+zeff

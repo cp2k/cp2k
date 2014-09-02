@@ -28,6 +28,8 @@ MODULE scptb_utils
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast
+  USE qs_kind_types,                   ONLY: qs_kind_type,&
+                                             set_qs_kind
   USE scptb_parameters,                ONLY: scptb_default_parameter
   USE scptb_types,                     ONLY: allocate_scptb_parameter,&
                                              scptb_parameter_type,&
@@ -62,10 +64,12 @@ CONTAINS
 !> \param para_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scptb_parameter_init(atomic_kind_set,scptb_control,print_section,para_env,error)
+  SUBROUTINE scptb_parameter_init(atomic_kind_set,qs_kind_set,scptb_control,print_section,para_env,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scptb_control_type), INTENT(INOUT)  :: scptb_control
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -82,7 +86,6 @@ CONTAINS
     LOGICAL                                  :: failure, print_info
     REAL(KIND=dp)                            :: a, c, d, eff, r, rmax, rmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     TYPE(sto_basis_set_type), POINTER        :: sto_basis
@@ -110,8 +113,7 @@ CONTAINS
 
     nkind  = SIZE(atomic_kind_set)
     DO ikind = 1, nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,name=iname)
+      CALL get_atomic_kind(atomic_kind_set(ikind), name=iname)
       CALL uppercase(iname)
       NULLIFY(scptb_parameter)
       CALL allocate_scptb_parameter(scptb_parameter,error)
@@ -135,7 +137,7 @@ CONTAINS
       !initialization
 
       IF (scptb_parameter%defined) THEN
-         CALL set_potential(potential=atomic_kind%all_potential,zeff=scptb_parameter%zeff,&
+         CALL set_potential(potential=qs_kind_set(ikind)%all_potential,zeff=scptb_parameter%zeff,&
               zeff_correction=0.0_dp)
          ! basis set
          NULLIFY(sto_basis)
@@ -167,13 +169,13 @@ CONTAINS
          IF (nshell > 0) THEN
             CALL set_sto_basis_set(sto_basis,name=scptb_parameter%atomname,&
                  nshell=nshell,symbol=symbol,nq=nq,lq=lq,zet=zet)
-            CALL create_gto_from_sto_basis(sto_basis,atomic_kind%orb_basis_set,&
-                 scptb_control%sto_ng,error=error)
+            CALL create_gto_from_sto_basis(sto_basis, qs_kind_set(ikind)%orb_basis_set,&
+                                           scptb_control%sto_ng,error=error)
          END IF
 
          DEALLOCATE (nq,lq,zet,symbol,STAT=stat)
          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-         
+
          CALL deallocate_sto_basis_set (sto_basis,error)
          !throw away the STO basis set, since from now on we use the GTO
 
@@ -204,7 +206,7 @@ CONTAINS
 
       END IF
 
-      atomic_kind%scptb_parameter => scptb_parameter
+      CALL set_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_parameter)
 
     END DO
 

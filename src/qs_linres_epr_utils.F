@@ -43,6 +43,7 @@ MODULE qs_linres_epr_utils
                                              pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_linres_types,                 ONLY: deallocate_nablavks_atom_set,&
                                              epr_env_create,&
                                              epr_env_type,&
@@ -104,6 +105,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: lr_section
@@ -112,7 +115,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
+    NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, mos, mpools, particle_set)
     NULLIFY(auxbas_pw_pool, pw_env)
     NULLIFY(nablavks_atom_set)
@@ -142,6 +145,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     linres_control=linres_control,&
@@ -182,8 +186,7 @@ CONTAINS
     !
     ! Initialize local current density if GAPW calculation
     IF(gapw) THEN
-       CALL init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,&
-                   nspins,error=error)
+       CALL init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,qs_kind_set,nspins,error=error)
        CALL set_epr_env(epr_env=epr_env,&
                         nablavks_atom_set=nablavks_atom_set,&
                         error=error)

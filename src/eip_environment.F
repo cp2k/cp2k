@@ -14,8 +14,7 @@ MODULE eip_environment
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             write_atomic_kind_set
+                                             get_atomic_kind
   USE cell_methods,                    ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
@@ -51,8 +50,8 @@ MODULE eip_environment
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
+                                             write_fist_particle_coordinates,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates,&
                                              write_structure_data
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -235,18 +234,13 @@ CONTAINS
     molecule_kind_set => subsys%molecule_kinds_new%els
     molecule_set => subsys%molecules_new%els
 
-!   *** Print the atomic kind set ***
-    CALL write_atomic_kind_set(atomic_kind_set, subsys_section, &
-                               error=error)
-
 !   *** Print the molecule kind set ***
     CALL write_molecule_kind_set(molecule_kind_set, subsys_section, &
                                  error=error)
 
 !   *** Print the atomic coordinates
-    CALL write_qs_particle_coordinates(particle_set, &
-                                       subsys_section=subsys_section, &
-                                       label="EIP",error=error)
+    CALL write_fist_particle_coordinates(particle_set,subsys_section, &
+                                         charges=Null(), error=error)
     CALL write_particle_distances(particle_set, cell=cell, &
                                   subsys_section=subsys_section, &
                                   error=error)
@@ -255,7 +249,7 @@ CONTAINS
                               error=error)
 
 !   *** Distribute molecules and atoms using the new data structures ***
-    CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set, &
+    CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set, &
                                  particle_set=particle_set, &
                                  local_particles=local_particles, &
                                  molecule_kind_set=molecule_kind_set, &

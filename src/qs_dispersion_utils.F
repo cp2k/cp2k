@@ -32,6 +32,8 @@ MODULE qs_dispersion_utils
                                              qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -167,9 +169,10 @@ MODULE qs_dispersion_utils
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: dft_section
 
     failure=.FALSE.
@@ -195,11 +198,11 @@ MODULE qs_dispersion_utils
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
-             CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,error=error)
+             CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
              nkind  = SIZE(atomic_kind_set)
              DO ikind = 1, nkind
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind,element_symbol=symbol,dispersion=disp)
+                CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol)
+                CALL get_qs_kind(qs_kind_set(ikind),dispersion=disp)
                 IF ( disp%defined ) THEN
                    WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
                         "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
