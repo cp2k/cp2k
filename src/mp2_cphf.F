@@ -237,6 +237,7 @@ MODULE mp2_cphf
     END IF
 
     ! create work array
+    NULLIFY(mat_mu_nu)
     CALL cp_dbcsr_allocate_matrix_set(mat_mu_nu, dft_control%nspins, error)
     DO ispin=1,dft_control%nspins
       ALLOCATE(mat_mu_nu(ispin)%matrix)

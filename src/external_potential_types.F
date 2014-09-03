@@ -1359,7 +1359,7 @@ CONTAINS
     line2 = ""
     symbol2 = ""
     apname2 = ""
-    NULLIFY(parser)
+    NULLIFY(parser,alpha,cval)
     failure = .FALSE.
 
     potential%name = potential_name

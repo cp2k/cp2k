@@ -151,6 +151,7 @@ CONTAINS
           CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
           IF (ASSOCIATED(qs_env%mp2_env)) THEN
              ! create the MP2 energy weighted density matrix
+             NULLIFY(matrix_w_mp2)
              CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins,error=error)
              DO ispin=1,dft_control%nspins
                 ALLOCATE(matrix_w_mp2(ispin)%matrix,STAT=stat)
