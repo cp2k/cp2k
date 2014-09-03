@@ -136,6 +136,7 @@ CONTAINS
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
        CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, error=error)
        IF(do_kpoints) THEN
+          CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
        ELSE
           CALL get_qs_env(qs_env=qs_env, matrix_w=matrix_w, matrix_s=matrix_s, &
                dft_control=dft_control, error=error)

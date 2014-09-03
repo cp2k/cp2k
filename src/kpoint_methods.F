@@ -961,8 +961,9 @@ CPSourceFileRef,&
              END IF
              icell = cell_to_index(cell(1),cell(2),cell(3))
              arg = REAL(cell(1),dp)*xkp(1,ik)+REAL(cell(2),dp)*xkp(2,ik)+REAL(cell(3),dp)*xkp(3,ik) 
-             coskl = COS(twopi*arg)
-             sinkl = fc*SIN(twopi*arg)
+             coskl = wkp(ik)*COS(twopi*arg)
+             sinkl = wkp(ik)*fc*SIN(twopi*arg)
+
 
              CALL cp_dbcsr_get_block_p(matrix=denmat(ispin,icell)%matrix,row=irow,col=icol,&
                                        block=dblock,found=found)

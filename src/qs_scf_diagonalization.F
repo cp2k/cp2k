@@ -25,7 +25,7 @@ MODULE qs_scf_diagonalization
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_desymmetrize, &
        cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_type_no_symmetry, dbcsr_type_symmetric
+       dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -391,14 +391,14 @@ CONTAINS
     CALL cp_dbcsr_init(rmatrix,error=error)
     CALL cp_dbcsr_init(cmatrix,error=error)
     CALL cp_dbcsr_init(tmpmat,error=error)
-    CALL cp_dbcsr_create(rmatrix,template=matrix_ks(1,1)%matrix,error=error)
-    CALL cp_dbcsr_create(cmatrix,template=matrix_ks(1,1)%matrix,error=error)
+    CALL cp_dbcsr_create(rmatrix,template=matrix_ks(1,1)%matrix,&
+         matrix_type=dbcsr_type_symmetric,error=error)
+    CALL cp_dbcsr_create(cmatrix,template=matrix_ks(1,1)%matrix,&
+         matrix_type=dbcsr_type_antisymmetric,error=error)
     CALL cp_dbcsr_create(tmpmat,template=matrix_ks(1,1)%matrix,&
          matrix_type=dbcsr_type_no_symmetry,error=error)
-
-    ! init all blocks !?
-    CALL cp_dbcsr_copy(rmatrix, matrix_ks(1,1)%matrix, error=error)
-    CALL cp_dbcsr_copy(cmatrix, matrix_ks(1,1)%matrix, error=error)
+    CALL cp_dbcsr_alloc_block_from_nbl(rmatrix,sab_nl,error)
+    CALL cp_dbcsr_alloc_block_from_nbl(cmatrix,sab_nl,error)
 
     fmwork => scf_env%scf_work1
 
