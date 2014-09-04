@@ -317,7 +317,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,lcolv,&
+  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lci,lg3x3,lg4x6,lcolv,&
        first_atom,last_atom,first_shell,last_shell)
 
     TYPE(molecule_type), POINTER             :: molecule
@@ -325,6 +325,7 @@ CONTAINS
       POINTER                                :: molecule_kind
     TYPE(local_molecule_type), OPTIONAL, &
       POINTER                                :: lmi
+    TYPE(local_constraint_type), OPTIONAL, POINTER :: lci
     TYPE(local_g3x3_constraint_type), &
       OPTIONAL, POINTER                      :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
@@ -345,6 +346,7 @@ CONTAINS
       IF (PRESENT(last_shell)) last_shell = molecule%last_shell
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
+      IF (PRESENT(lci))           lci           => molecule%lci
       IF ( PRESENT ( lcolv ) ) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lcolv => molecule%lci%lcolv
