@@ -87,13 +87,13 @@ CONTAINS
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
+    TYPE(local_constraint_type), POINTER     :: lci
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(local_constraint_type), POINTER :: lci 
 
     NULLIFY(fixd_list)
     nkind = SIZE ( molecule_kind_set )
@@ -239,13 +239,13 @@ CONTAINS
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
+    TYPE(local_constraint_type), POINTER     :: lci
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(local_constraint_type), POINTER :: lci 
 
     pv = 0.0_dp
     nkind = SIZE ( molecule_kind_set )

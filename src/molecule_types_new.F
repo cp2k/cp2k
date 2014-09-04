@@ -325,7 +325,8 @@ CONTAINS
       POINTER                                :: molecule_kind
     TYPE(local_molecule_type), OPTIONAL, &
       POINTER                                :: lmi
-    TYPE(local_constraint_type), OPTIONAL, POINTER :: lci
+    TYPE(local_constraint_type), OPTIONAL, &
+      POINTER                                :: lci
     TYPE(local_g3x3_constraint_type), &
       OPTIONAL, POINTER                      :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
