@@ -69,6 +69,7 @@ CONTAINS
 !> \param atoms the atoms that are part of the projection group.
 !> \param particle_set the particle set from where to extract the indexes
 !>        of the ao
+!> \param qs_kind_set ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
