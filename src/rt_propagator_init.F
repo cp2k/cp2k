@@ -22,8 +22,10 @@ MODULE rt_propagator_init
                                              cp_fm_upper_to_full
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
@@ -44,8 +46,7 @@ MODULE rt_propagator_init
   USE rt_make_propagators,             ONLY: compute_exponential,&
                                              compute_exponential_sparse,&
                                              propagate_arnoldi
-  USE rt_matrix_exp,                   ONLY: backtransform_matrix,&
-                                             get_nsquare_norder
+  USE rt_matrix_exp,                   ONLY: get_nsquare_norder
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
                                              calc_update_rho,&
                                              calc_update_rho_sparse,&
@@ -394,6 +395,55 @@ CONTAINS
 
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief Is still left from diagonalization, should be removed later but is
+!>  still needed for the guess for the padé/Taylor method
+!> \param Eval ...
+!> \param eigenvec ...
+!> \param matrix ...
+!> \param error ...
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
+
+    REAL(dp), DIMENSION(:)                   :: Eval
+    TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, j, l, ncol_local, &
+                                                ndim, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    TYPE(cp_fm_type), POINTER                :: tmp
+
+    CALL timeset(routineN,handle)
+    CALL cp_fm_create(tmp,&
+         matrix_struct=matrix%matrix_struct,&
+         name="TMP_BT",&
+         error=error)
+    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
+         row_indices=row_indices,col_indices=col_indices,error=error)
+
+    ndim=matrix%matrix_struct%nrow_global
+
+    CALL cp_fm_set_all(tmp,zero,zero,error)
+    DO i=1,ncol_local
+       l=col_indices(i)
+       DO j=1,nrow_local
+          tmp%local_data(j,i)=eigenvec%local_data(j,i)*Eval(l)
+       END DO
+    END DO
+    CALL cp_gemm("N","T",ndim,ndim,ndim,one,tmp,eigenvec,zero,&
+         matrix ,error)
+
+    CALL cp_fm_release(tmp,error)
+    CALL timestop(handle)
+
+  END SUBROUTINE backtransform_matrix
 
 ! *****************************************************************************
 !> \brief computs all matrices needed to initialize emd (S_derivs, SinvH,

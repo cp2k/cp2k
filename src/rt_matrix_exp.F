@@ -52,7 +52,6 @@ MODULE rt_matrix_exp
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_matrix_exp'
 
   PUBLIC :: taylor_only_imaginary,&
-            backtransform_matrix,&
             taylor_full_complex,&
             exp_pade_full_complex,&
             exp_pade_only_imaginary,&
@@ -61,58 +60,6 @@ MODULE rt_matrix_exp
 
 CONTAINS
 
-  ! *****************************************************************************
-  !> \brief Is still left from diagonalization, should be removed later but is
-  !>  still needed for the guess for the padé/Taylor method
-  !> \author Florian Schiffmann (02.09)
-  ! *****************************************************************************
-
-! *****************************************************************************
-!> \brief ...
-!> \param Eval ...
-!> \param eigenvec ...
-!> \param matrix ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
-
-    REAL(dp), DIMENSION(:)                   :: Eval
-    TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    INTEGER                                  :: handle, i, j, l, ncol_local, &
-                                                ndim, nrow_local
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    TYPE(cp_fm_type), POINTER                :: tmp
-
-    CALL timeset(routineN,handle)
-    CALL cp_fm_create(tmp,&
-         matrix_struct=matrix%matrix_struct,&
-         name="TMP_BT",&
-         error=error)
-    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
-         row_indices=row_indices,col_indices=col_indices,error=error)
-
-    ndim=matrix%matrix_struct%nrow_global
-
-    CALL cp_fm_set_all(tmp,zero,zero,error)
-    DO i=1,ncol_local
-       l=col_indices(i)
-       DO j=1,nrow_local
-          tmp%local_data(j,i)=eigenvec%local_data(j,i)*Eval(l)
-       END DO
-    END DO
-    CALL cp_gemm("N","T",ndim,ndim,ndim,one,tmp,eigenvec,zero,&
-         matrix ,error)
-
-    CALL cp_fm_release(tmp,error)
-    CALL timestop(handle)
-
-  END SUBROUTINE backtransform_matrix
 
 ! *****************************************************************************
 !> \brief specialized subroutine for purely imaginary matrix exponentials
