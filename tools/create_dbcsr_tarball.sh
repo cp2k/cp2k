@@ -3,7 +3,7 @@
 #set -x
 
 TMPDIR=`mktemp -d`
-REV=`./get_revision_number ../ | sed -e "s/://"`
+REV=`./build_utils/get_revision_number ../ | sed -e "s/://"`
 OUTNAME=libdbcsr_$REV
 OUTDIR=$TMPDIR/$OUTNAME
 
@@ -49,11 +49,8 @@ rsync -axq \
    ../src/mpiwrap/ $OUTDIR/src/mpiwrap
 
 
-mkdir $OUTDIR/tools
-cp -a ../tools/makedep.py  $OUTDIR/tools/
-cp -a ../tools/discover_programs.py  $OUTDIR/tools/
-cp -a ../tools/get_arch_code  $OUTDIR/tools/
-cp -a ../tools/get_revision_number  $OUTDIR/tools/
+mkdir -p $OUTDIR/tools/build_utils
+rsync -axq --exclude=".*" ../tools/build_utils/  $OUTDIR/tools/build_utils/
 
 mkdir $OUTDIR/tools/dbcsr_test/
 rsync -axq --exclude=".*" ../tools/dbcsr_test/  $OUTDIR/tools/dbcsr_test/

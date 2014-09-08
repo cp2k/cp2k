@@ -12,7 +12,7 @@ SHELL = /bin/sh
 # also works fine
 #
 CP2KHOME     := $(abspath $(PWD)/..)
-ARCH         := $(shell $(CP2KHOME)/tools/get_arch_code)
+ARCH         := $(shell $(CP2KHOME)/tools/build_utils/get_arch_code)
 export VERSION=sopt
 
 MAKEFILE     := $(CP2KHOME)/makefiles/Makefile
@@ -26,7 +26,7 @@ INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
 EXEDIR       := $(MAINEXEDIR)/$(ARCH)
-REVISION     := $(shell $(CP2KHOME)/tools/get_revision_number $(SRCDIR))
+REVISION     := $(shell $(CP2KHOME)/tools/build_utils/get_revision_number $(SRCDIR))
 
 
 # Discover programs =========================================================
@@ -260,7 +260,7 @@ doxygen: doxygen/clean
 	@echo "<html><body>Sorry, the Doxygen documentation is currently being updated. Please try again in a few minutes.</body></html>" > $(DOXYGENDIR)/html/index.html
 	cp $(ALL_SRC_FILES) $(DOXYGENDIR)
 	@for i in $(DOXYGENDIR)/*.F ; do mv $${i}  $${i%%.*}.f90; done ;
-	@cat $(CP2KHOME)/doc/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
+	@cat $(CP2KHOME)/doc/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/build_utils/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
 	cd $(DOXYGENDIR); doxygen ./Doxyfile
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
