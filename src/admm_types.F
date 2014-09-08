@@ -12,6 +12,7 @@
 MODULE admm_types
   USE bibliography,                    ONLY: Guidon2010,&
                                              cite_reference
+  USE cp_control_types,                ONLY: admm_control_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -21,12 +22,10 @@ MODULE admm_types
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_admm_block_density_matrix
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+  USE input_constants,                 ONLY: do_admm_basis_projection,&
+                                             do_admm_blocked_projection
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -34,8 +33,7 @@ MODULE admm_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: admm_env_create, admm_env_release, admm_type,&
-            admm_create_block_list
+  PUBLIC :: admm_env_create, admm_env_release, admm_type
 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
@@ -46,10 +44,6 @@ MODULE admm_types
 
   TYPE eigvals_p_type
     TYPE(eigvals_type), POINTER              :: eigvals
-  END TYPE
-
-  TYPE admm_block
-    INTEGER, DIMENSION(:), POINTER            :: list
   END TYPE
 
 
@@ -78,57 +72,52 @@ MODULE admm_types
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-
   TYPE admm_type
-    TYPE(cp_fm_type), POINTER                :: S_inv, S
-    TYPE(cp_fm_type), POINTER                :: Q
-    TYPE(cp_fm_type), POINTER                :: A
-    TYPE(cp_fm_type), POINTER                :: B
-    TYPE(cp_fm_type), POINTER                :: work_orb_orb, work_orb_orb2
-    TYPE(cp_fm_type), POINTER                :: work_aux_orb, work_aux_orb2
+    TYPE(cp_fm_type), POINTER                :: S_inv => Null(),&
+                                                S => Null(),&
+                                                Q => Null(),&
+                                                A => Null(),&
+                                                B => Null(),&
+                                                work_orb_orb => Null(),&
+                                                work_orb_orb2 => Null(),&
+                                                work_aux_orb => Null(),&
+                                                work_aux_orb2 => Null(),&
+                                                work_aux_aux => Null(),&
+                                                work_aux_aux2 => Null(),&
+                                                work_aux_aux3 => Null()
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: lambda, lambda_inv
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: lambda_inv_sqrt
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: R, R_purify
-    TYPE(cp_fm_type), POINTER                :: work_aux_aux, work_aux_aux2, work_aux_aux3
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: work_orb_nmo
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: work_nmo_nmo1
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: R_schur_R_t
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: work_nmo_nmo2
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: work_aux_nmo
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: work_aux_nmo2
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: H, H_corr
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs_tmp
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: K
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: M, M_purify, P_to_be_purified
-    INTEGER                                  :: nao_orb, nao_aux_fit, nmo(2)
+      POINTER                                :: lambda => Null(),&
+                                                lambda_inv => Null(),&
+                                                lambda_inv_sqrt => Null(),&
+                                                R => Null(),&
+                                                R_purify => Null(),&
+                                                work_orb_nmo => Null(),&
+                                                work_nmo_nmo1 => Null(),&
+                                                R_schur_R_t => Null(),&
+                                                work_nmo_nmo2 => Null(),&
+                                                work_aux_nmo => Null(),&
+                                                work_aux_nmo2 => Null(),&
+                                                H => Null(),&
+                                                H_corr => Null(),&
+                                                mo_derivs_tmp => Null(),&
+                                                K => Null(),&
+                                                M => Null(),&
+                                                M_purify => Null(),&
+                                                P_to_be_purified => Null(),&
+                                                lambda_inv2 => Null(),&
+                                                C_hat => Null(),&
+                                                P_tilde => Null(),&
+                                                ks_to_be_merged => Null()
     TYPE(eigvals_p_type), DIMENSION(:), &
-      POINTER                                :: eigvals_lambda, eigvals_P_to_be_purified
-    TYPE(section_vals_type), POINTER         :: xc_section_primary
-    TYPE(section_vals_type), POINTER         :: xc_section_aux
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: lambda_inv2, C_hat, P_tilde
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: ks_to_be_merged
-    INTEGER                                  :: method_id
+      POINTER                                :: eigvals_lambda => Null(),&
+                                                eigvals_P_to_be_purified => Null()
+    TYPE(section_vals_type), POINTER         :: xc_section_primary => Null(),&
+                                                xc_section_aux => Null()
+    INTEGER                                  :: nao_orb, nao_aux_fit, nmo(2)
     INTEGER                                  :: purification_method
-    INTEGER                                  :: block_purification_method
-    INTEGER                                  :: block_projection_method
-    TYPE(admm_block), DIMENSION(:), &
-      POINTER                                :: blocks
-    INTEGER, DIMENSION(:,:), POINTER         :: block_map
+    LOGICAL                                  :: block_dm  = .FALSE.
+    LOGICAL                                  :: block_fit = .FALSE.
+    INTEGER, DIMENSION(:,:), POINTER         :: block_map => Null()
   END TYPE
 
 
@@ -147,20 +136,21 @@ MODULE admm_types
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-
-  SUBROUTINE admm_env_create(mos, mos_aux_fit, para_env, admm_env, error)
+  SUBROUTINE admm_env_create(admm_env, admm_control, mos, mos_aux_fit, para_env, natoms, error)
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(admm_control_type), POINTER         :: admm_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(admm_type), POINTER                 :: admm_env
+    INTEGER, INTENT(IN)                      :: natoms
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istat, nao_aux_fit, &
-                                                nao_orb, nmo, nspins
-    LOGICAL                                  :: failure
+    INTEGER                                  :: i, iatom, iblock, ispin, j, &
+                                                jatom, nao_aux_fit, nao_orb, &
+                                                nmo, nspins
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_aux_aux, fm_struct_aux_nmo, &
       fm_struct_aux_orb, fm_struct_nmo_nmo, fm_struct_orb_aux, &
       fm_struct_orb_nmo, fm_struct_orb_orb
@@ -168,8 +158,8 @@ MODULE admm_types
 
     CALL cite_reference(Guidon2010)
 
-    ALLOCATE(admm_env, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(admm_env)
+
     nspins = SIZE(mos)
     CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff, nmo=nmo, nao=nao_orb)
     CALL get_mo_set(mos_aux_fit(1)%mo_set,nao=nao_aux_fit)
@@ -215,54 +205,30 @@ MODULE admm_types
     CALL cp_fm_create(admm_env%work_aux_aux2,fm_struct_aux_aux,name="work_aux_aux2",error=error)
     CALL cp_fm_create(admm_env%work_aux_aux3,fm_struct_aux_aux,name="work_aux_aux3",error=error)
 
-    ALLOCATE(admm_env%lambda_inv(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%lambda(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%lambda_inv_sqrt(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%R(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%R_purify(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%work_orb_nmo(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%work_nmo_nmo1(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%R_schur_R_t(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%work_nmo_nmo2(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%eigvals_lambda(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%eigvals_P_to_be_purified(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%H(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%K(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%M(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%M_purify(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%P_to_be_purified(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%work_aux_nmo(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%work_aux_nmo2(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%mo_derivs_tmp(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%H_corr(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%ks_to_be_merged(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%lambda_inv2(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%C_hat(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(admm_env%P_tilde(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(admm_env%lambda_inv(nspins))
+    ALLOCATE(admm_env%lambda(nspins))
+    ALLOCATE(admm_env%lambda_inv_sqrt(nspins))
+    ALLOCATE(admm_env%R(nspins))
+    ALLOCATE(admm_env%R_purify(nspins))
+    ALLOCATE(admm_env%work_orb_nmo(nspins))
+    ALLOCATE(admm_env%work_nmo_nmo1(nspins))
+    ALLOCATE(admm_env%R_schur_R_t(nspins))
+    ALLOCATE(admm_env%work_nmo_nmo2(nspins))
+    ALLOCATE(admm_env%eigvals_lambda(nspins))
+    ALLOCATE(admm_env%eigvals_P_to_be_purified(nspins))
+    ALLOCATE(admm_env%H(nspins))
+    ALLOCATE(admm_env%K(nspins))
+    ALLOCATE(admm_env%M(nspins))
+    ALLOCATE(admm_env%M_purify(nspins))
+    ALLOCATE(admm_env%P_to_be_purified(nspins))
+    ALLOCATE(admm_env%work_aux_nmo(nspins))
+    ALLOCATE(admm_env%work_aux_nmo2(nspins))
+    ALLOCATE(admm_env%mo_derivs_tmp(nspins))
+    ALLOCATE(admm_env%H_corr(nspins))
+    ALLOCATE(admm_env%ks_to_be_merged(nspins))
+    ALLOCATE(admm_env%lambda_inv2(nspins))
+    ALLOCATE(admm_env%C_hat(nspins))
+    ALLOCATE(admm_env%P_tilde(nspins))
 
     DO ispin = 1,nspins
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo)
@@ -311,14 +277,10 @@ MODULE admm_types
 
       CALL cp_fm_create(admm_env%ks_to_be_merged(ispin)%matrix,fm_struct_orb_orb,name="KS_to_be_merged ",error=error)
 
-      ALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals, STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals, STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals%data(nmo), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(nao_aux_fit), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals)
+      ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals)
+      ALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals%data(nmo))
+      ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(nao_aux_fit))
       admm_env%eigvals_lambda(ispin)%eigvals%data = 0.0_dp
       admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data = 0.0_dp
       CALL cp_fm_struct_release(fm_struct_aux_nmo,error=error)
@@ -330,6 +292,27 @@ MODULE admm_types
     CALL cp_fm_struct_release(fm_struct_aux_orb,error=error)
     CALL cp_fm_struct_release(fm_struct_orb_aux,error=error)
     CALL cp_fm_struct_release(fm_struct_orb_orb,error=error)
+
+    ! copy settings from admm_control
+    admm_env%purification_method = admm_control%purification_method
+    admm_env%block_dm  = admm_control%method /= do_admm_basis_projection
+    admm_env%block_fit = admm_control%method == do_admm_blocked_projection
+
+
+    IF(admm_control%method /= do_admm_basis_projection) THEN
+       ! create block map
+       ALLOCATE(admm_env%block_map(natoms,natoms))
+       admm_env%block_map(:,:) = 0
+       DO iblock = 1, SIZE(admm_control%blocks)
+         DO i = 1,SIZE(admm_control%blocks(iblock)%list)
+           iatom = admm_control%blocks(iblock)%list(i)
+           DO j = 1,SIZE(admm_control%blocks(iblock)%list)
+             jatom = admm_control%blocks(iblock)%list(j)
+             admm_env%block_map(iatom,jatom) = 1
+           END DO
+         END DO
+       END DO
+     ENDIF
   END SUBROUTINE admm_env_create
 
 
@@ -350,8 +333,7 @@ MODULE admm_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: ispin
 
     CALL cp_fm_release(admm_env%S, error=error)
     CALL cp_fm_release(admm_env%S_inv, error=error)
@@ -389,141 +371,49 @@ MODULE admm_types
       CALL cp_fm_release(admm_env%mo_derivs_tmp(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%ks_to_be_merged(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix, error=error)
-      DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals%data,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals%data)
+      DEALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data)
+      DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals)
+      DEALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals)
     END DO
-    DEALLOCATE(admm_env%eigvals_lambda,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%eigvals_P_to_be_purified,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%lambda,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%lambda_inv,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%lambda_inv_sqrt,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%R,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%R_purify,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%M,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%M_purify,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%P_to_be_purified,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%H,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%H_corr,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%K,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%work_orb_nmo,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%work_nmo_nmo1,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%R_schur_R_t,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%work_nmo_nmo2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%work_aux_nmo,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%work_aux_nmo2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%mo_derivs_tmp,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%ks_to_be_merged,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%lambda_inv2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%C_hat,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(admm_env%P_tilde,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env%eigvals_lambda)
+    DEALLOCATE(admm_env%eigvals_P_to_be_purified)
+    DEALLOCATE(admm_env%lambda)
+    DEALLOCATE(admm_env%lambda_inv)
+    DEALLOCATE(admm_env%lambda_inv_sqrt)
+    DEALLOCATE(admm_env%R)
+    DEALLOCATE(admm_env%R_purify)
+    DEALLOCATE(admm_env%M)
+    DEALLOCATE(admm_env%M_purify)
+    DEALLOCATE(admm_env%P_to_be_purified)
+    DEALLOCATE(admm_env%H)
+    DEALLOCATE(admm_env%H_corr)
+    DEALLOCATE(admm_env%K)
+    DEALLOCATE(admm_env%work_orb_nmo)
+    DEALLOCATE(admm_env%work_nmo_nmo1)
+    DEALLOCATE(admm_env%R_schur_R_t)
+    DEALLOCATE(admm_env%work_nmo_nmo2)
+    DEALLOCATE(admm_env%work_aux_nmo)
+    DEALLOCATE(admm_env%work_aux_nmo2)
+    DEALLOCATE(admm_env%mo_derivs_tmp)
+    DEALLOCATE(admm_env%ks_to_be_merged)
+    DEALLOCATE(admm_env%lambda_inv2)
+    DEALLOCATE(admm_env%C_hat)
+    DEALLOCATE(admm_env%P_tilde)
 
-    IF( admm_env%method_id == do_admm_block_density_matrix) THEN
-      DEALLOCATE(admm_env%block_map, STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    
+    IF(ASSOCIATED(admm_env%block_map)) &
+      DEALLOCATE(admm_env%block_map)
+
     IF(ASSOCIATED(admm_env%xc_section_primary))&
        CALL section_vals_release(admm_env%xc_section_primary,error)
     IF(ASSOCIATED(admm_env%xc_section_aux))&
        CALL section_vals_release(admm_env%xc_section_aux,error)
 
-    DEALLOCATE(admm_env, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env)
 
   END SUBROUTINE admm_env_release
 
 
-! *****************************************************************************
-!> \brief ...
-!> \param admm_block_section ...
-!> \param admm_env ...
-!> \param natom ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE admm_create_block_list(admm_block_section, admm_env, natom, error)
-    TYPE(section_vals_type), POINTER         :: admm_block_section
-    TYPE(admm_type), POINTER                 :: admm_env
-    INTEGER                                  :: natom
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_create_block_list', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iatom, irep, j, jatom, &
-                                                list_size, n_rep, stat
-    INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
-    TYPE(section_vals_type), POINTER         :: list_section
-
-    NULLIFY(list_section)
-    list_section => section_vals_get_subs_vals(admm_block_section,"BLOCK",error=error)
-    CALL section_vals_get(list_section,n_repetition=n_rep,error=error)
-
-    ALLOCATE(admm_env%blocks(n_rep), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DO irep = 1, n_rep
-      CALL section_vals_val_get(list_section,"LIST", i_rep_section=irep, &
-                   i_vals=tmplist, error=error)
-      list_size = SIZE(tmplist)
-      ALLOCATE(admm_env%blocks(irep)%list(list_size), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      admm_env%blocks(irep)%list = tmplist
-    END DO
-
-    ALLOCATE(admm_env%block_map(natom,natom), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    admm_env%block_map = 0
-    DO irep = 1,n_rep
-      DO i = 1,SIZE(admm_env%blocks(irep)%list)
-        iatom = admm_env%blocks(irep)%list(i)
-        DO j = 1,SIZE(admm_env%blocks(irep)%list)
-          jatom = admm_env%blocks(irep)%list(j)
-          admm_env%block_map(iatom,jatom) = 1
-        END DO
-      END DO
-    END DO
-
-    DO irep = 1, n_rep
-      DEALLOCATE(admm_env%blocks(irep)%list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END DO
-    DEALLOCATE(admm_env%blocks, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-
-  END SUBROUTINE admm_create_block_list
 
 END MODULE admm_types
 

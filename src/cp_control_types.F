@@ -241,11 +241,15 @@ MODULE cp_control_types
 ! *****************************************************************************
 ! \brief some parameters useful for auxiliary density matrix method
 ! *****************************************************************************
+  TYPE admm_block_type
+    INTEGER, DIMENSION(:), ALLOCATABLE :: list
+  END TYPE admm_block_type
+
   TYPE admm_control_type
-    INTEGER                         :: method_id
     INTEGER                         :: purification_method
-    INTEGER                         :: block_projection_method
-    INTEGER                         :: block_purification_method
+    INTEGER                         :: method
+    TYPE(admm_block_type), DIMENSION(:), &
+                        ALLOCATABLE :: blocks
   END TYPE admm_control_type
 
 ! *****************************************************************************

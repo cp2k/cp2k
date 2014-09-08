@@ -42,7 +42,7 @@ MODULE rtp_admm_methods
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: do_admm_block_density_matrix,&
+  USE input_constants,                 ONLY: do_admm_basis_projection,&
                                              do_admm_purify_none,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -52,6 +52,7 @@ MODULE rtp_admm_methods
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: one,&
                                              zero
+  USE particle_types,                  ONLY: particle_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -259,31 +260,34 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_fit_mo_coeffs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, natoms
     LOGICAL                                  :: recalc_S
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(xc_section)
+    NULLIFY(xc_section, particle_set)
 
     IF (.NOT.(ASSOCIATED(admm_env) )) THEN
-      CALL admm_env_create(mos, mos_aux_fit, &
-                           para_env, admm_env,&
-                           error)
-      CALL get_qs_env(qs_env, input=input, error=error)
+      ! setup admm environment
+      CALL get_qs_env(qs_env, input=input, particle_set=particle_set, error=error)
+      natoms = SIZE(particle_set,1)
+      CALL admm_env_create(admm_env, admm_control, mos, mos_aux_fit, &
+                           para_env, natoms, error)
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
       CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
-      admm_env%method_id = admm_control%method_id
-      admm_env%purification_method = admm_control%purification_method
-      IF( admm_env%method_id == do_admm_block_density_matrix) THEN
-         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-              "Blocking not implemented with RTP."//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
+
+      IF(admm_control%method /= do_admm_basis_projection) THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "RTP requires BASIS_PROJECTION."//&
+                CPSourceFileRef, only_ionode=.TRUE.)
       END IF
     END IF
+
     recalc_S=geometry_did_change.OR.(rtp%iter==0.AND.(rtp%istep==rtp%i_start))
+
     SELECT CASE(admm_env%purification_method)
     CASE(do_admm_purify_none)
        CALL rtp_fit_mo_coeffs_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
@@ -341,20 +345,25 @@ CONTAINS
                                                 zero = (0.0_dp,0.0_dp)
 
     INTEGER                                  :: handle, ispin, nao_aux_fit, &
-                                                nao_orb, nmo, nmo_mos, nspins
+                                                nao_orb, natoms, nmo, &
+                                                nmo_mos, nspins
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occ_num, occ_num_aux
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
     CALL timeset(routineN,handle)
 
+    NULLIFY(dft_control, particle_set)
+
     IF (.NOT.(ASSOCIATED(admm_env) )) THEN
-      CALL admm_env_create(mos, mos_aux_fit, &
-                           para_env, admm_env,&
-                           error)
-      CALL get_qs_env(qs_env, input=input, error=error)
+      CALL get_qs_env(qs_env,input=input,particle_set=particle_set,dft_control=dft_control,error=error)
+      natoms = SIZE(particle_set,1)
+      CALL admm_env_create(admm_env, dft_control%admm_control, mos, mos_aux_fit, para_env, natoms, error)
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
       CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
     END IF

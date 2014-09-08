@@ -3,7 +3,7 @@
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis
-  USE admm_methods,                    ONLY: fit_mo_coeffs_diag
+  USE admm_methods,                    ONLY: admm_fit_mo_coeffs
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -292,8 +292,9 @@ CONTAINS
         CALL update_basis_set(opt_bas,set_id,bas_id,qs_env,error)
         CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,force_env_section=qs_env%input,error=error)
         CALL calculate_overlap(qs_env,"S_AB_AUX",error)
-        CALL fit_mo_coeffs_diag(qs_env, qs_env%admm_env, qs_env%para_env, qs_env%matrix_s_aux_fit,&
-                             qs_env%matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit, .TRUE. , error)
+        CALL admm_fit_mo_coeffs(qs_env, qs_env%admm_env, qs_env%para_env, qs_env%matrix_s_aux_fit,&
+                                qs_env%matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit,&
+                                geometry_did_change=.TRUE. , error=error)
         CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,qs_env%matrix_s_aux_fit_vs_orb(1)%matrix,&
                          qs_env%matrix_s_aux_fit(1)%matrix,qs_env%admm_env,f_vec(my_id),cond_vec(my_id),error)
         CALL evaluate_energy(qs_env%mos_aux_fit,qs_env%matrix_ks,matrix_s_inv(icalc)%matrix,qs_env%admm_env%Q,&

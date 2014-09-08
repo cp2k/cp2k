@@ -14,8 +14,10 @@
 MODULE hfx_admm_utils
 
   USE admm_methods,                    ONLY: admm_calculate_density_matrix,&
-                                             admm_fit_mo_coeffs
-  USE admm_types,                      ONLY: admm_type
+                                             admm_fit_mo_coeffs,&
+                                             create_admm_xc_section
+  USE admm_types,                      ONLY: admm_env_create,&
+                                             admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -109,7 +111,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, n_rep_hf, &
-                                                nspins
+                                                natoms, nspins
     LOGICAL                                  :: do_hfx, failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -117,12 +119,14 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(section_vals_type), POINTER         :: hfx_sections
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
-         mos_aux_fit, para_env)
+         mos_aux_fit, para_env, particle_set, xc_section)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
@@ -160,7 +164,17 @@ CONTAINS
        ENDIF!fm->dbcsr
     ENDDO!fm->dbcsr
 
-    CALL admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
+    IF (.NOT. ASSOCIATED(admm_env)) THEN
+      ! setup admm environment
+      CALL get_qs_env(qs_env, input=input, particle_set=particle_set, error=error)
+      natoms = SIZE(particle_set,1)
+      CALL admm_env_create(admm_env, dft_control%admm_control, mos, mos_aux_fit, &
+                           para_env, natoms, error)
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
+    ENDIF
+
+    CALL admm_fit_mo_coeffs(qs_env, admm_env, para_env, &
                             qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                             mos, mos_aux_fit, ks_env%s_mstruct_changed, error=error)
 

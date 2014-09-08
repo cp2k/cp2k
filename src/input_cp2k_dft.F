@@ -28,10 +28,8 @@ MODULE input_cp2k_dft
        cholesky_reduce, cholesky_restore, constant_env, core_guess, &
        debug_print_level, densities_guess, diag_block_davidson, &
        diag_block_krylov, diag_ot, diag_standard, direct_p_mix, &
-       dispersion_d3, dispersion_uff, do_admm_basis_set_projection, &
-       do_admm_block_aux_basis_off, do_admm_block_aux_basis_on, &
-       do_admm_block_density_matrix, do_admm_block_purify_blocked, &
-       do_admm_block_purify_full, do_admm_block_purify_off, &
+       dispersion_d3, dispersion_uff, do_admm_basis_projection, &
+       do_admm_blocked_projection, do_admm_blocking_purify_full, &
        do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
        do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
        do_admm_purify_none, do_arnoldi, do_bch, do_cn, do_ddapc_constraint, &
@@ -3072,37 +3070,21 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"AUXILIARY_DENSITY_MATRIX_METHOD",&
-            description="Parameters needed to set wavefunction fitting",&
+            description="Parameters needed for the ADMM method.",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             citations=(/Guidon2010/),&
             error=error)
 
        CALL keyword_create(&
             keyword=keyword,&
-            name="METHOD",&
-            description="Method that shall be used for wavefunction fitting. Use BASIS_PROJECTION for MD.",&
-            usage="METHOD BASIS_PROJECTION",&
-            enum_c_vals=s2a("BASIS_PROJECTION","BLOCK_DENSITY_MATRIX"),&
-            enum_i_vals=(/do_admm_basis_set_projection, do_admm_block_density_matrix/),&
-            enum_desc=s2a("Construct auxiliary density matrix from auxiliary basis", &
-                          "Construct auxiliary density from a blocked Fock matrix"), &
-            citations=(/Guidon2010/),&
-            default_i_val=do_admm_basis_set_projection, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(&
-            keyword=keyword,&
             name="ADMM_PURIFICATION_METHOD",&
             description="Method that shall be used for wavefunction fitting. Use MO_DIAG for MD.",&
-            usage="ADMM_PURIFICATION_METHOD NONE",&
             enum_c_vals=s2a("NONE","CAUCHY","CAUCHY_SUBSPACE","MO_DIAG", "MO_NO_DIAG"),&
             enum_i_vals=(/do_admm_purify_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace,&
                           do_admm_purify_mo_diag, do_admm_purify_mo_no_diag/),&
@@ -3111,90 +3093,33 @@ CONTAINS
                           "Apply McWeeny purification via Cauchy representation in occupied subspace", &
                           "Calculate MO derivatives via Cauchy representation by diagonalization", &
                           "Calculate MO derivatives via Cauchy representation by inversion"), &
-            citations=(/Guidon2010/),&
             default_i_val=do_admm_purify_mo_diag, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(subsection)
-       CALL create_admm_block_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="METHOD",&
+            description="Method that shall be used for wavefunction fitting. Use BASIS_PROJECTION for MD.",&
+            enum_c_vals=s2a("BASIS_PROJECTION","BLOCKED_PROJECTION_PURIFY_FULL","BLOCKED_PROJECTION"),&
+            enum_i_vals=(/do_admm_basis_projection, do_admm_blocking_purify_full, do_admm_blocked_projection/),&
+            enum_desc=s2a("Construct auxiliary density matrix from auxiliary basis.",&
+            "Construct auxiliary density from a blocked Fock matrix,"//&
+            " but use the original matrix for purification.",&
+            "Construct auxiliary density from a blocked Fock matrix."),&
+            default_i_val=do_admm_basis_projection, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BLOCK_LIST",&
+            description="Specifies a list of atoms.",&
+            usage="LIST {integer} {integer} .. {integer}", required=.FALSE.,&
+            n_var=-1, type_of_var=integer_t, repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_admm_section
-
-! *****************************************************************************
-!> \brief ...
-!> \param section ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE create_admm_block_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_admm_block_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
-    NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,"BLOCK_DENSITY_MATRIX_METHOD",&
-            description="Parameters needed to set wavefunction fitting",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="BASIS_PROJECTION",&
-            description="Defines usage of auxiliary basis set",&
-            usage="BASIS_PROJECTION ON",&
-            enum_c_vals=s2a("ON","OFF"),&
-            enum_i_vals=(/do_admm_block_aux_basis_on, do_admm_block_aux_basis_off/),&
-            enum_desc=s2a("Use auxiliary basis", &
-                          "Use primary basis"), &
-            default_i_val=do_admm_block_aux_basis_on, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="PURIFICATION",&
-            description="Method that shall be used for Purification",&
-            usage="PURIFICATION ON",&
-            enum_c_vals=s2a("OFF","FULL","BLOCKED"),&
-            enum_i_vals=(/do_admm_block_purify_off, do_admm_block_purify_full, do_admm_block_purify_blocked/),&
-            enum_desc=s2a("Do not apply any purification", &
-                          "Apply full McWeeny purification via general Cauchy representation",&
-                          "Apply blocked McWeeny purification via general Cauchy representation"), &
-            default_i_val=do_admm_block_purify_full, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       NULLIFY(keyword, subsection)
-       ! FRAGMENT SECTION
-       CALL section_create(subsection,name="BLOCK",&
-            description="Specify the atom number belonging to this fragment.",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="LIST",&
-            description="Specifies a list of atoms.",&
-            usage="LIST {integer} {integer} .. {integer}", required=.FALSE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-    END IF
-  END SUBROUTINE create_admm_block_section
 
 ! *****************************************************************************
 !> \brief ...

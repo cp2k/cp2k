@@ -13,22 +13,21 @@ MODULE cp_control_utils
        Seifert1996, Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
        VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: &
-       admm_control_create, ddapc_control_create, ddapc_restraint_type, &
-       dft_control_create, dft_control_type, efield_type, qs_control_type, &
-       tddfpt_control_create, tddfpt_control_type, xas_control_create
+       admm_control_create, admm_control_type, ddapc_control_create, &
+       ddapc_restraint_type, dft_control_create, dft_control_type, &
+       efield_type, qs_control_type, tddfpt_control_create, &
+       tddfpt_control_type, xas_control_create
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       constant_env, do_admm_block_aux_basis_on, &
-       do_admm_block_density_matrix, do_admm_purify_cauchy, &
-       do_admm_purify_cauchy_subspace, do_admm_purify_mo_diag, &
-       do_admm_purify_mo_no_diag, do_admm_purify_none, do_ddapc_constraint, &
-       do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
-       do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
-       do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-       do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
+       constant_env, do_admm_basis_projection, do_admm_purify_mo_diag, &
+       do_admm_purify_mo_no_diag, do_ddapc_constraint, do_ddapc_restraint, &
+       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
+       do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
+       do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
+       do_method_pnnl, do_method_rm1, do_method_scptb, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
        do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
@@ -106,8 +105,7 @@ CONTAINS
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pol
-    TYPE(section_vals_type), POINTER         :: admm_block_section, &
-                                                scf_section, tmp_section, &
+    TYPE(section_vals_type), POINTER         :: scf_section, tmp_section, &
                                                 xc_fun_section, xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
@@ -194,46 +192,25 @@ CPSourceFileRef,&
       do_ot = .FALSE.
       CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=do_ot,error=error)
       CALL admm_control_create(dft_control%admm_control, error)
-      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%METHOD",i_val=method_id,error=error)
-      dft_control%admm_control%method_id = method_id
+
       CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD",i_val=method_id,error=error)
       dft_control%admm_control%purification_method = method_id
-      NULLIFY(admm_block_section)
-      admm_block_section => section_vals_get_subs_vals(dft_section,&
-                           "AUXILIARY_DENSITY_MATRIX_METHOD%BLOCK_DENSITY_MATRIX_METHOD",error=error)
-      CALL section_vals_get(admm_block_section,explicit=is_present, error=error)
 
-      IF( is_present) THEN
-        CALL section_vals_val_get(admm_block_section,"BASIS_PROJECTION",i_val=method_id,error=error)
-        dft_control%admm_control%block_projection_method = method_id
-        CALL section_vals_val_get(admm_block_section,"PURIFICATION",i_val=method_id,error=error)
-        dft_control%admm_control%block_purification_method = method_id
-      END IF
-      ! Some algorithms are not implemented yet
-      IF( dft_control%admm_control%method_id == do_admm_block_density_matrix ) THEN
-        IF( dft_control%admm_control%block_projection_method == do_admm_block_aux_basis_on ) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-                                      message="ADMM: Block density matrix method with basis projection not implemented", &
-                                      error=error, error_level=cp_failure_level)
-        END IF
-      ELSE
-        SELECT CASE (dft_control%admm_control%purification_method)
-        CASE (do_admm_purify_none)
-        CASE (do_admm_purify_cauchy)
-        CASE (do_admm_purify_cauchy_subspace)
-        CASE (do_admm_purify_mo_diag)
-          IF( .NOT. do_ot) THEN
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%METHOD",i_val=method_id,error=error)
+      dft_control%admm_control%method = method_id
+
+      CALL read_admm_block_list(dft_control%admm_control, dft_section, error)
+
+      IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag .OR. &
+         dft_control%admm_control%purification_method == do_admm_purify_mo_no_diag) THEN
+          IF( dft_control%admm_control%method /= do_admm_basis_projection ) &
             CALL cp_unimplemented_error(fromWhere=routineP, &
-                                        message="ADMM: Purify MO DIAG only works with OT", &
+              message="ADMM: MO-based purification requires BASIS_PROJECTION", &
                                         error=error, error_level=cp_failure_level)
-          END IF
-        CASE (do_admm_purify_mo_no_diag)
-           IF( .NOT. do_ot) THEN
-            CALL cp_unimplemented_error(fromWhere=routineP, &
-                                        message="ADMM: Purify MO NO DIAG only works with OT", &
-                                        error=error, error_level=cp_failure_level)
-          END IF
-         END SELECT
+
+           IF( .NOT. do_ot) CALL cp_unimplemented_error(fromWhere=routineP, &
+                               message="ADMM: MO-based purification requires OT.", &
+                               error=error, error_level=cp_failure_level)
       END IF
     END IF
 
@@ -1812,5 +1789,36 @@ CPSourceFileRef,&
       i_val=dft_control%rtp_control%sc_check_start,error=error)
 
   END SUBROUTINE read_rtp_section
+
+! *****************************************************************************
+!> \brief Parses the BLOCK_LIST keywords from the ADMM section
+! *****************************************************************************
+  SUBROUTINE read_admm_block_list(admm_control, dft_section, error)
+    TYPE(admm_control_type), POINTER         :: admm_control
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_admm_block_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: irep, list_size, n_rep
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
+
+    NULLIFY(tmplist)
+
+    CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%BLOCK_LIST",&
+                              n_rep_val=n_rep, error=error)
+
+    ALLOCATE(admm_control%blocks(n_rep))
+
+    DO irep = 1, n_rep
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%BLOCK_LIST",&
+                                i_rep_val=irep, i_vals=tmplist, error=error)
+      list_size = SIZE(tmplist)
+      ALLOCATE(admm_control%blocks(irep)%list(list_size))
+      admm_control%blocks(irep)%list(:) = tmplist(:)
+    END DO
+
+  END SUBROUTINE read_admm_block_list
 
 END MODULE cp_control_utils

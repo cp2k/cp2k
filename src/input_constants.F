@@ -684,25 +684,16 @@ MODULE input_constants
                                               use_ri_aux_basis_set=5,&
                                               use_lri_basis_set=6
   ! ADMM PARAMETER
-  ! This parameter the method to use in order to get an auxiliary density matrix
-  INTEGER, PARAMETER, PUBLIC               ::  do_admm_basis_set_projection=1,&
-                                               do_admm_block_density_matrix=2
-
   ! This parameter defines the method to use for the purification
   INTEGER, PARAMETER, PUBLIC               :: do_admm_purify_none=1,&
                                               do_admm_purify_cauchy=2,&
                                               do_admm_purify_cauchy_subspace=3,&
                                               do_admm_purify_mo_diag=4,&
                                               do_admm_purify_mo_no_diag=5
-  ! This parameter defines which basis to use for blocking
-  INTEGER, PARAMETER, PUBLIC               :: do_admm_block_aux_basis_off=0,&
-                                              do_admm_block_aux_basis_on=1
-
-  ! This parameter defines whether we purify or not
-  INTEGER, PARAMETER, PUBLIC               :: do_admm_block_purify_off=0,&
-                                              do_admm_block_purify_full=1,&
-                                              do_admm_block_purify_blocked=2
-
+  ! This parameter defines when to use blocking
+  INTEGER, PARAMETER, PUBLIC               :: do_admm_basis_projection=0,&
+                                              do_admm_blocking_purify_full=1,&
+                                              do_admm_blocked_projection=2
 
   ! Define DFT+U method identifier codes
   INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin=1,&

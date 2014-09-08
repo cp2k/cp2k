@@ -28,7 +28,7 @@ MODULE optbas_fenv_manipulation
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: debug_print_level,&
-                                             do_admm_basis_set_projection,&
+                                             do_admm_basis_projection,&
                                              do_admm_purify_mo_diag,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -118,7 +118,7 @@ CONTAINS
      CALL section_vals_add_values(admm_section,error)
      CALL section_vals_val_set(admm_section,"ADMM_PURIFICATION_METHOD",&
                                i_val=do_admm_purify_mo_diag,error=error)
-     CALL section_vals_val_set(admm_section,"METHOD",i_val=do_admm_basis_set_projection,error=error)
+     CALL section_vals_val_set(admm_section,"METHOD",i_val=do_admm_basis_projection,error=error)
 
      ! add the new basis file containing the templates to the basis file list 
      CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",n_rep_val=nbasis,error=error)
@@ -357,21 +357,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_admm_env', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: natoms
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
+    NULLIFY(admm_env, dft_control, mos, mos_aux_fit, particle_set)
     CALL get_qs_env(qs_env=qs_env, admm_env=admm_env, dft_control=dft_control,&
-                    mos=mos,mos_aux_fit=mos_aux_fit,error=error)
- 
-    CALL admm_env_create(mos, mos_aux_fit, qs_env%para_env, qs_env%admm_env, error)
-    NULLIFY(qs_env%admm_env%xc_section_primary,qs_env%admm_env%xc_section_aux)
-    qs_env%admm_env%method_id = dft_control%admm_control%method_id
-    qs_env%admm_env%purification_method = dft_control%admm_control%purification_method
-    qs_env%admm_env%block_purification_method = dft_control%admm_control%block_purification_method
-    qs_env%admm_env%block_projection_method = dft_control%admm_control%block_projection_method
-  
+                    mos=mos,mos_aux_fit=mos_aux_fit, particle_set=particle_set, error=error)
+    natoms = SIZE(particle_set,1)
+    CALL admm_env_create(qs_env%admm_env, dft_control%admm_control, mos, mos_aux_fit,&
+                         qs_env%para_env, natoms, error)
+
   END SUBROUTINE create_opt_admm_env
 
 ! *****************************************************************************
