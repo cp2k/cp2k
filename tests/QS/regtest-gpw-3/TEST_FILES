@@ -45,7 +45,7 @@ H2O-solv.inp                      1     1e-13
 #XC_FUN NONE
 H2O-xc_none.inp                   1     2e-14
 # ghost atom dynamics
-dynamics.inp                      1     2e-11
+dynamics.inp                      1     3e-11
 # RESP charges
 CH3OH.inp          0
 # distributed non-ortho grids
