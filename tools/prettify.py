@@ -3,9 +3,9 @@
 import sys
 import re, tempfile
 import os, os.path
-import normalizeFortranFile
-import replacer
-import addSynopsis
+from formatting import normalizeFortranFile
+from formatting import replacer
+from formatting import addSynopsis
 from sys import argv
 
 operatorsStr=r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."

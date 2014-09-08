@@ -3,9 +3,9 @@
 import sys, re
 from sys import argv
 import prettify
-import normalizeFortranFile
-import replacer
-import addSynopsis
+from formatting import normalizeFortranFile
+from formatting import replacer
+from formatting import addSynopsis
 
 def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
   import re
