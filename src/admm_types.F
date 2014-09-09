@@ -13,6 +13,7 @@ MODULE admm_types
   USE bibliography,                    ONLY: Guidon2010,&
                                              cite_reference
   USE cp_control_types,                ONLY: admm_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -33,7 +34,7 @@ MODULE admm_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: admm_env_create, admm_env_release, admm_type
+  PUBLIC :: admm_env_create, admm_env_release, admm_type, mcweeny_history_type
 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
@@ -46,6 +47,15 @@ MODULE admm_types
     TYPE(eigvals_type), POINTER              :: eigvals
   END TYPE
 
+  TYPE mcweeny_history_type
+    TYPE(cp_dbcsr_type)                        :: m
+    INTEGER                                    :: count = -1
+    TYPE(mcweeny_history_type), POINTER        :: next => Null()
+  END TYPE mcweeny_history_type
+
+  TYPE mcweeny_history_p_type
+    TYPE(mcweeny_history_type), POINTER        :: p => Null()
+  END TYPE mcweeny_history_p_type
 
 ! *****************************************************************************
 !> \brief stores some data used in wavefunction fitting
@@ -118,6 +128,8 @@ MODULE admm_types
     LOGICAL                                  :: block_dm  = .FALSE.
     LOGICAL                                  :: block_fit = .FALSE.
     INTEGER, DIMENSION(:,:), POINTER         :: block_map => Null()
+    TYPE(mcweeny_history_p_type),&
+      DIMENSION(:), POINTER                  :: mcweeny_history
   END TYPE
 
 
@@ -127,10 +139,12 @@ MODULE admm_types
 ! *****************************************************************************
 !> \brief creates ADDE environment, initializes the basic types
 !>
+!> \param admm_env The ADMM env
+!> \param admm_control ...
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
 !> \param para_env The parallel env
-!> \param admm_env The ADMM env
+!> \param natoms ...
 !> \param error ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
@@ -229,6 +243,7 @@ MODULE admm_types
     ALLOCATE(admm_env%lambda_inv2(nspins))
     ALLOCATE(admm_env%C_hat(nspins))
     ALLOCATE(admm_env%P_tilde(nspins))
+    ALLOCATE(admm_env%mcweeny_history(nspins))
 
     DO ispin = 1,nspins
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo)

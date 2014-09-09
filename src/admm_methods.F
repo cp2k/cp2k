@@ -10,18 +10,21 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE admm_methods
-  USE admm_types,                      ONLY: admm_type
+  USE admm_types,                      ONLY: admm_type,&
+                                             mcweeny_history_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
-       cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
-       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_type_no_symmetry, dbcsr_type_symmetric
+       cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
+       cp_dbcsr_get_data_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t
@@ -49,8 +52,9 @@ MODULE admm_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: &
        do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
-       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
-       do_admm_purify_none, do_hfx_potential_coulomb, do_hfx_potential_short, &
+       do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
+       do_admm_purify_mo_no_diag, do_admm_purify_none, &
+       do_hfx_potential_coulomb, do_hfx_potential_short, &
        do_hfx_potential_truncated, use_aux_fit_basis_set, use_orb_basis_set, &
        xc_funct_no_shortcut
   USE input_section_types,             ONLY: section_vals_duplicate,&
@@ -94,17 +98,18 @@ MODULE admm_methods
 !> \param mo_set ...
 !> \param density_matrix ...
 !> \param density_matrix_aux ...
+!> \param matrix_s_aux_fit ...
 !> \param ispin ...
 !> \param nspins ...
-!> \param use_dbcsr ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE admm_calculate_density_matrix(admm_env,mo_set,density_matrix, density_matrix_aux,&
-                                           ispin, nspins,error)
+                                           matrix_s_aux_fit, ispin, nspins,error)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix, &
-                                                density_matrix_aux
+                                                density_matrix_aux, &
+                                                matrix_s_aux_fit
     INTEGER                                  :: ispin, nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -125,6 +130,17 @@ MODULE admm_methods
     IF(admm_env%purification_method == do_admm_purify_cauchy)&
         CALL purify_dm_cauchy(admm_env, mo_set, density_matrix_aux, ispin,&
                               blocked=admm_env%block_dm, error=error)
+
+    IF(admm_env%purification_method == do_admm_purify_mcweeny)THEN
+        IF(nspins==1) CALL cp_dbcsr_scale(density_matrix_aux,0.5_dp,error=error)
+        CALL purify_dm_mcweeny(matrix_p=density_matrix_aux,&
+                               matrix_s=matrix_s_aux_fit,&
+                               history=admm_env%mcweeny_history(ispin)%p,&
+                               threshold=1e-10_dp,& !TODO make it an input parameter
+                               max_steps=100,& !TODO make it an input parameter
+                               error=error)
+       IF(nspins==1) CALL cp_dbcsr_scale(density_matrix_aux,2.0_dp,error=error)
+    ENDIF
 
     CALL timestop(handle)
 
@@ -188,27 +204,30 @@ MODULE admm_methods
 !> \param matrix_ks ...
 !> \param matrix_ks_aux_fit ...
 !> \param matrix_s ...
+!> \param matrix_s_aux_fit ...
+!> \param matrix_s_mixed ...
 !> \param matrix_p_aux_fit ...
 !> \param matrix_p ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE admm_merge_ks_matrix(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
-                                             matrix_ks, matrix_ks_aux_fit, matrix_s, &
+                                             matrix_ks, matrix_ks_aux_fit, matrix_s,&
+                                             matrix_s_aux_fit, matrix_s_mixed,&
                                              matrix_p_aux_fit, matrix_p, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s, matrix_p_aux_fit, &
-                                                matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks, &
+      matrix_ks_aux_fit, matrix_s, matrix_s_aux_fit, matrix_s_mixed, &
+      matrix_p_aux_fit, matrix_p
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_merge_ks_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    TYPE(cp_dbcsr_type)                      :: matrix_A
 
     CALL timeset(routineN,handle)
 
@@ -226,6 +245,21 @@ MODULE admm_methods
                                   mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, &
                                   matrix_s, matrix_p_aux_fit, blocked=admm_env%block_dm, error=error)
 
+      CASE(do_admm_purify_mcweeny)
+        ! TODO conversion fm->dbcsr really needed?
+        CALL cp_dbcsr_init(matrix_A, error=error)
+        CALL cp_dbcsr_create(matrix_A, template=matrix_s_mixed(1)%matrix,&
+                             name="A", matrix_type="N", error=error)
+        CALL copy_fm_to_dbcsr(admm_env%A, matrix_A, error=error)
+        CALL merge_ks_matrix_mcweeny(matrix_ks(ispin)%matrix,&
+                                     matrix_ks_aux_fit(ispin)%matrix,&
+                                     matrix_s_aux_fit(1)%matrix,&
+                                     matrix_A,&
+                                     admm_env%mcweeny_history(ispin)%p,&
+                                     threshold=1e-10_dp,& !TODO make it an input parameter
+                                     error=error)
+        CALL cp_dbcsr_release(matrix_A, error=error)
+
       CASE(do_admm_purify_mo_diag,do_admm_purify_mo_no_diag)
         !do nothing
     END SELECT
@@ -239,7 +273,6 @@ MODULE admm_methods
 !> \brief ...
 !> \param qs_env ...
 !> \param admm_env ...
-!> \param admm_control ...
 !> \param para_env ...
 !> \param matrix_s_aux_fit ...
 !> \param matrix_s_mixed ...
@@ -274,16 +307,15 @@ MODULE admm_methods
                                  blocked=admm_env%block_fit, error=error)
 
     SELECT CASE(admm_env%purification_method)
-       CASE(do_admm_purify_none, do_admm_purify_cauchy)
-         CALL purify_mo_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                             mos, mos_aux_fit, error)
-
        CASE(do_admm_purify_cauchy_subspace, do_admm_purify_mo_no_diag)
          CALL purify_mo_cholesky(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                  mos, mos_aux_fit, error)
 
        CASE(do_admm_purify_mo_diag)
          CALL purify_mo_diag(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+                             mos, mos_aux_fit, error)
+       CASE DEFAULT
+         CALL purify_mo_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                              mos, mos_aux_fit, error)
     END SELECT
 
@@ -303,7 +335,6 @@ MODULE admm_methods
 !>        set and the orbital basis set
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
-!> \param geometry_did_change flag to indicate if the geomtry changed
 !> \param error ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
@@ -384,7 +415,6 @@ MODULE admm_methods
 !>        set and the orbital basis set
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
-!> \param geometry_did_change flag to indicate if the geomtry changed
 !> \param error ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
@@ -470,7 +500,6 @@ MODULE admm_methods
 !> \param matrix_s_mixed ...
 !> \param mos ...
 !> \param mos_aux_fit ...
-!> \param geometry_did_change ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE purify_mo_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
@@ -531,6 +560,7 @@ MODULE admm_methods
 !> \param mos ...
 !> \param mos_aux_fit ...
 !> \param geometry_did_change ...
+!> \param blocked ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE fit_mo_coeffs(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
@@ -1614,6 +1644,7 @@ MODULE admm_methods
 !> \param matrix_ks_aux_fit ...
 !> \param matrix_s ...
 !> \param matrix_p_aux_fit ...
+!> \param blocked ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE merge_ks_matrix_none(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
@@ -1688,6 +1719,142 @@ MODULE admm_methods
 
   END SUBROUTINE merge_ks_matrix_none
 
+
+! *****************************************************************************
+!> \brief Merge auxilary KS-matrix into the primary one using reverse McWeeny
+!> \param matrix_ks ...
+!> \param matrix_ks_aux_fit ...
+!> \param matrix_s_aux_fit ...
+!> \param matrix_A ...
+!> \param history Intermentiate matrices created during McWeeny purficiation.
+!> \param threshold ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE merge_ks_matrix_mcweeny(matrix_ks, matrix_ks_aux_fit, matrix_s_aux_fit,&
+                                     matrix_A, history, threshold, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_ks
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_ks_aux_fit, &
+                                                matrix_s_aux_fit, matrix_A
+    TYPE(mcweeny_history_type), POINTER      :: history
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_mcweeny', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, unit_nr
+    TYPE(cp_dbcsr_type)                      :: matrix_K, matrix_KA
+    TYPE(mcweeny_history_type), POINTER      :: history_curr, history_next
+
+    CALL timeset(routineN,handle)
+    NULLIFY(history_next, history_curr)
+    unit_nr = cp_logger_get_default_unit_nr()
+    history_curr => history
+    NULLIFY(history)
+    CALL cp_dbcsr_init(matrix_K, error=error)
+    CALL cp_dbcsr_copy(matrix_K, matrix_ks_aux_fit, name="K", error=error)
+
+    ! reverse McWeeny iteration
+    DO WHILE (ASSOCIATED(history_curr))
+       IF(unit_nr>1) WRITE(unit_nr,'(t3,a,i5)')"Reverse McWeeny-Step ", history_curr%count
+       CALL reverse_mcweeny(matrix_k=matrix_k,&
+                            matrix_s=matrix_s_aux_fit,&
+                            matrix_p=history_curr%m,&
+                            threshold=threshold,&
+                            error=error)
+       CALL cp_dbcsr_release(history_curr%m,error)
+       history_next => history_curr%next
+       DEALLOCATE(history_curr)
+       history_curr => history_next
+       NULLIFY(history_next)
+    END DO
+
+    ! Add contribution to primary Kohn-Sham matrix
+    ! matrix_ks += A^T * K * A
+    CALL cp_dbcsr_init(matrix_KA,error=error)
+    CALL cp_dbcsr_create(matrix_KA,template=matrix_A, matrix_type="N",error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_K, matrix_A, &
+                           0.0_dp, matrix_KA, filter_eps=threshold, error=error)
+    CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_A, matrix_KA, &
+                           1.0_dp, matrix_ks, filter_eps=threshold, error=error)
+
+    ! clean up
+    CALL cp_dbcsr_release(matrix_KA, error=error)
+    CALL cp_dbcsr_release(matrix_K, error=error)
+    CALL timestop(handle)
+
+  END SUBROUTINE merge_ks_matrix_mcweeny
+
+
+! *****************************************************************************
+!> \brief Multiply matrix_k with partial derivative of McWeeny by reversing it.
+!> \param matrix_k ...
+!> \param matrix_s ...
+!> \param matrix_p ...
+!> \param threshold ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE reverse_mcweeny(matrix_k, matrix_s, matrix_p, threshold, error)
+    TYPE(cp_dbcsr_type)                      :: matrix_k, matrix_s, matrix_p
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'reverse_mcweeny', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(cp_dbcsr_type)                      :: matrix_ps, matrix_sp, &
+                                                matrix_sum, matrix_tmp
+
+    CALL timeset(routineN,handle)
+    CALL cp_dbcsr_init(matrix_ps,error=error)
+    CALL cp_dbcsr_create(matrix_ps,template=matrix_p,matrix_type="N",error=error)
+    CALL cp_dbcsr_init(matrix_sp,error=error)
+    CALL cp_dbcsr_create(matrix_sp,template=matrix_p,matrix_type="N",error=error)
+    CALL cp_dbcsr_init(matrix_tmp,error=error)
+    CALL cp_dbcsr_create(matrix_tmp,template=matrix_p,matrix_type="N",error=error)
+    CALL cp_dbcsr_init(matrix_sum,error=error)
+    CALL cp_dbcsr_create(matrix_sum,template=matrix_p,matrix_type="N",error=error)
+
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p, matrix_s,&
+             0.0_dp, matrix_ps, filter_eps=threshold, error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s, matrix_p,&
+             0.0_dp, matrix_sp, filter_eps=threshold, error=error)
+
+    !TODO: can we exploid more symmetry?
+    CALL cp_dbcsr_multiply("N", "N", 3.0_dp, matrix_k, matrix_ps,&
+             0.0_dp, matrix_sum, filter_eps=threshold, error=error)
+    CALL cp_dbcsr_multiply("N", "N", 3.0_dp, matrix_sp, matrix_k,&
+             1.0_dp, matrix_sum, filter_eps=threshold, error=error)
+
+    !matrix_tmp = KPS
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_k, matrix_ps,&
+             0.0_dp, matrix_tmp, filter_eps=threshold, error=error)
+    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_tmp, matrix_ps,&
+            1.0_dp, matrix_sum, filter_eps=threshold, error=error)
+    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_sp, matrix_tmp,&
+            1.0_dp, matrix_sum, filter_eps=threshold, error=error)
+
+    !matrix_tmp = SPK
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_sp, matrix_k,&
+             0.0_dp, matrix_tmp, filter_eps=threshold, error=error)
+    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_sp, matrix_tmp,&
+            1.0_dp, matrix_sum, filter_eps=threshold, error=error)
+
+    ! overwrite matrix_k
+    CALL cp_dbcsr_copy(matrix_k, matrix_sum, name="K from reverse McWeeny", error=error)
+
+    ! clean up
+    CALL cp_dbcsr_release(matrix_sum,error)
+    CALL cp_dbcsr_release(matrix_tmp,error)
+    CALL cp_dbcsr_release(matrix_ps,error)
+    CALL cp_dbcsr_release(matrix_sp,error)
+    CALL timestop(handle)
+  END SUBROUTINE reverse_mcweeny
+
+
 ! *****************************************************************************
 !> \brief ...
 !> \param admm_env ...
@@ -1750,6 +1917,7 @@ MODULE admm_methods
 !> \param mo_set ...
 !> \param density_matrix ...
 !> \param ispin ...
+!> \param blocked ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE purify_dm_cauchy(admm_env,mo_set,density_matrix,ispin,blocked,error)
@@ -1838,6 +2006,85 @@ MODULE admm_methods
 
   END SUBROUTINE purify_dm_cauchy
 
+
+! *****************************************************************************
+!> \brief Apply McWeeny purification to matrix_p.
+!> \param matrix_p ...
+!> \param matrix_s ...
+!> \param history stores intermentiate matrices, needed later by reverse_mcweeny.
+!> \param threshold ...
+!> \param max_steps ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE purify_dm_mcweeny(matrix_p, matrix_s, history, threshold, max_steps, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s
+    TYPE(mcweeny_history_type), POINTER      :: history
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    INTEGER, INTENT(IN)                      :: max_steps
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_dm_mcweeny', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, unit_nr
+    REAL(KIND=dp)                            :: frob_norm
+    TYPE(cp_dbcsr_type)                      :: matrix_ps, matrix_psp, &
+                                                matrix_test
+    TYPE(mcweeny_history_type), POINTER      :: new_hist_entry
+
+    IF(ASSOCIATED(history)) STOP "purify_dm_mcweeny: history already associated"
+    NULLIFY(new_hist_entry)
+
+    CALL timeset(routineN,handle)
+    unit_nr = cp_logger_get_default_unit_nr()
+    CALL cp_dbcsr_init(matrix_PS,error=error)
+    CALL cp_dbcsr_create(matrix_PS,template=matrix_p,matrix_type="N",error=error)
+    CALL cp_dbcsr_init(matrix_PSP,error=error)
+    CALL cp_dbcsr_create(matrix_PSP,template=matrix_p,matrix_type="S",error=error)
+    CALL cp_dbcsr_init(matrix_test,error=error)
+    CALL cp_dbcsr_create(matrix_test,template=matrix_p,matrix_type="S",error=error)
+
+    DO i=1, max_steps
+       ! allocate new element in linked list
+        ALLOCATE(new_hist_entry)
+        new_hist_entry%next => history
+        history => new_hist_entry
+        history%count = i
+        NULLIFY(new_hist_entry)
+        CALL cp_dbcsr_init(history%m, error=error)
+        CALL cp_dbcsr_create(history%m, template=matrix_p ,matrix_type="N",error=error)
+        CALL cp_dbcsr_copy(history%m, matrix_p, name="P from McWeeny", error=error)
+
+        ! calc PS and PSP
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p, matrix_s,&
+             0.0_dp, matrix_ps, filter_eps=threshold,error=error)
+
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_ps, matrix_p,&
+             0.0_dp, matrix_psp, filter_eps=threshold,error=error)
+
+        !test convergence
+        CALL cp_dbcsr_copy(matrix_test, matrix_psp, error=error)
+        CALL cp_dbcsr_add(matrix_test, matrix_p, 1.0_dp,-1.0_dp,error=error)
+        frob_norm=cp_dbcsr_frobenius_norm(matrix_test)
+        IF(unit_nr>0) WRITE(unit_nr,'(t3,a,i5,a,f16.8)')"McWeeny-Step",i,": Deviation of idempotency",frob_norm
+        IF(frob_norm < 1000_dp*threshold .AND. i>1) EXIT
+
+        ! build next P matrix
+        CALL cp_dbcsr_copy(matrix_p, matrix_PSP, name="P from McWeeny", error=error)
+        CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PS, matrix_PSP,&
+             3.0_dp, matrix_p, filter_eps=threshold, error=error)
+    END DO
+
+    ! clean up
+    CALL cp_dbcsr_release(matrix_PS,error)
+    CALL cp_dbcsr_release(matrix_PSP,error)
+    CALL cp_dbcsr_release(matrix_test,error)
+    CALL timestop(handle)
+  END SUBROUTINE purify_dm_mcweeny
+
+
 ! *****************************************************************************
 !> \brief ...
 !> \param admm_env ...
@@ -1905,6 +2152,7 @@ MODULE admm_methods
 !> \param matrix_s ...
 !> \param matrix_p_aux_fit ...
 !> \param matrix_p ...
+!> \param blocked ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE merge_ks_matrix_cauchy(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &

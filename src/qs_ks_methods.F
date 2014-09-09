@@ -770,6 +770,7 @@ CONTAINS
            IF(.NOT.qs_env%run_rtp)THEN
               CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
                    mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                   qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                    matrix_p_aux_fit, matrix_p, error)
            ELSE
               CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&

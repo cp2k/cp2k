@@ -1792,6 +1792,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Parses the BLOCK_LIST keywords from the ADMM section
+!> \param admm_control ...
+!> \param dft_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_admm_block_list(admm_control, dft_section, error)
     TYPE(admm_control_type), POINTER         :: admm_control
