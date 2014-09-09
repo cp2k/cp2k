@@ -415,6 +415,7 @@ MODULE admm_types
     DEALLOCATE(admm_env%lambda_inv2)
     DEALLOCATE(admm_env%C_hat)
     DEALLOCATE(admm_env%P_tilde)
+    DEALLOCATE(admm_env%mcweeny_history)
 
     IF(ASSOCIATED(admm_env%block_map)) &
       DEALLOCATE(admm_env%block_map)
