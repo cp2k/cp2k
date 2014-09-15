@@ -115,6 +115,7 @@ MODULE dbcsr_operations_low
             dbcsr_filter, dbcsr_scale_by_vector,&
             dbcsr_function_of_elements,&
             dbcsr_btriu,&
+            dbcsr_triu,&
             dbcsr_init_random
   PUBLIC :: dbcsr_sum_replicated
   PUBLIC :: dbcsr_norm, dbcsr_conjg,&

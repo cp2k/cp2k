@@ -41,7 +41,7 @@ MODULE dbcsr_operations
        dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_diag, &
        dbcsr_hadamard_product, dbcsr_init_random, dbcsr_maxabs, dbcsr_norm, &
        dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_no_symmetry,&
@@ -76,6 +76,7 @@ MODULE dbcsr_operations
             dbcsr_get_block_diag, dbcsr_hadamard_product,&
             dbcsr_filter, dbcsr_scale_by_vector,&
             dbcsr_btriu,&
+            dbcsr_triu,&
             dbcsr_init_random,&
             dbcsr_sum_replicated, dbcsr_norm,&
             dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm,&

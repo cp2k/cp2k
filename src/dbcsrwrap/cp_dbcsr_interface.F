@@ -27,7 +27,7 @@ MODULE cp_dbcsr_interface
        create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
        dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
        dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_copy_into_existing, dbcsr_create, &
+       dbcsr_copy_into_existing, dbcsr_create, dbcsr_triu, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
@@ -41,6 +41,10 @@ MODULE cp_dbcsr_interface
        dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
        dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
+       dbcsr_func_ddtanh, dbcsr_func_inverse_special, &
+       dbcsr_func_spread_from_zero, dbcsr_func_sin, &
+       dbcsr_func_dsin, dbcsr_func_ddsin, dbcsr_func_asin, &
+       dbcsr_func_truncate, dbcsr_func_cos, &
        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
        dbcsr_gershgorin_norm, dbcsr_get_block, dbcsr_get_block_diag, &
        dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
@@ -63,8 +67,8 @@ MODULE cp_dbcsr_interface
        dbcsr_nblkrows_total, dbcsr_new_transposed, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_print, dbcsr_put_block, dbcsr_release, &
-       dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_obj, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, & 
+       dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
        dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
        dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
@@ -124,6 +128,10 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_test_multiplies, dbcsr_norm_maxabsnorm, dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release, dbcsr_name
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
+  PUBLIC :: dbcsr_func_ddtanh, dbcsr_func_inverse_special
+  PUBLIC :: dbcsr_func_spread_from_zero, dbcsr_func_sin
+  PUBLIC :: dbcsr_func_dsin, dbcsr_func_ddsin, dbcsr_func_asin
+  PUBLIC :: dbcsr_func_truncate, dbcsr_func_cos
   PUBLIC :: dbcsr_distribution_mp
   PUBLIC :: convert_sizes_to_offsets
   PUBLIC :: cp_dbcsr_iterator
@@ -153,6 +161,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_checksum
   PUBLIC :: cp_dbcsr_trace
   PUBLIC :: cp_dbcsr_print
+  PUBLIC :: cp_dbcsr_print_block_sum
   PUBLIC :: cp_dbcsr_init
   PUBLIC :: cp_dbcsr_init_p
   PUBLIC :: cp_dbcsr_release
@@ -200,6 +209,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_binary_read
   PUBLIC :: cp_dbcsr_function_of_elements
   PUBLIC :: cp_dbcsr_btriu
+  PUBLIC :: cp_dbcsr_triu
   PUBLIC :: cp_dbcsr_clear_mempools
   PUBLIC :: accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins,&
             accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort,&
@@ -1186,6 +1196,25 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_print
 
+! *****************************************************************************
+!> \brief Prints the sum of the elements in each block
+!> \param matrix ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_print_block_sum(matrix, unit_nr, error)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER, OPTIONAL                        :: unit_nr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print_block_sum', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL dbcsr_print_block_sum(matrix%matrix, unit_nr, dbcsr_error)
+
+  END SUBROUTINE cp_dbcsr_print_block_sum
 
 ! *****************************************************************************
 !> \brief ...
@@ -1248,6 +1277,26 @@ CONTAINS
          template=matrix_a, error=error)
     CALL dbcsr_btriu(matrix_b%matrix, matrix_a%matrix, dbcsr_error)
   END SUBROUTINE cp_dbcsr_btriu
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_triu(matrix, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_triu', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    !CALL cluster_buffer_flush (matrix%buffers, error=error)
+    CALL dbcsr_triu(matrix%matrix, dbcsr_error)
+    !CALL dbcsr_index_compact(matrix%matrix, dbcsr_error)
+
+  END SUBROUTINE cp_dbcsr_triu
 
 ! *****************************************************************************
 !> \brief ...

@@ -10,11 +10,11 @@
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
 MODULE almo_scf_types
-  USE almo_scf_aux2_types,             ONLY: object01_type,&
-                                             object02_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE domain_submatrix_types,          ONLY: domain_map_type,&
+                                             domain_submatrix_type
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 
@@ -32,9 +32,28 @@ MODULE almo_scf_types
                                   almo_mat_dim_virt_disc=6
   REAL(KIND=dp), PARAMETER, PUBLIC :: almo_max_cutoff_multiplier=2.2_dp
 
-  PUBLIC :: almo_objectM1_type
+  PUBLIC :: almo_scf_env_type, optimizer_options_type
 
-  TYPE almo_objectM1_type
+  TYPE optimizer_options_type 
+    
+    REAL(KIND=dp)  :: eps_filter,&
+                      grad_target,&
+                      lin_search_grad_target,&
+                      step_size_guess
+
+    INTEGER        :: preconditioner,&
+                      conjugator,&
+                      max_iter
+
+    TYPE(cp_para_env_type),  POINTER  :: para_env
+    TYPE(cp_blacs_env_type), POINTER  :: blacs_env
+
+  END TYPE optimizer_options_type
+
+
+
+  ! the structure contains general info about the system
+  TYPE almo_scf_env_type
     
     TYPE(cp_para_env_type),  POINTER  :: para_env
     TYPE(cp_blacs_env_type), POINTER  :: blacs_env
@@ -43,29 +62,101 @@ MODULE almo_scf_types
     INTEGER :: natoms, nmolecules
     INTEGER, DIMENSION(2) :: nelectrons_spin
 
+    ! Definitions: 
+    ! I.  Domain - a subset of basis functions (e.g. AOs),
+    ! II. Group  - a subset of electrons delocalized within a domain.
+    !
+    ! The following variables specify the group-domain structure
+    ! of the system. Several rules must be obeyed:
+    ! 1. There should be no zero domains (i.e. domain contains at least one AO).
+    ! 2. There should be no empty domains (i.e. all domains must be populated
+    !     by at least one electron).
+    ! 3. If two groups are localized within the same domain they are combined
+    ! It follows that the number of domains is equal to the number of groups
+    !
+    ! Number of domains
     INTEGER :: ndomains
 
+    ! List of atoms, whose basis functions are included into the domain.
+    ! It is assumed that: 
+    !   (a) basis functions are localized and atom-labeled,
+    !   (b) basis functions are grouped into atomic sets (i.e. if a basis
+    !       function on an atom is in domain A then all basis functions on
+    !       this atom are in domain A)
+    !TYPE(domain_list_type), DIMENSION(:), ALLOCATABLE   :: atom_list_of_domain
+    ! List of basis functions included into the domain
+    !TYPE(domain_list_type), DIMENSION(:), ALLOCATABLE   :: basis_list_of_domain
+
+    ! Number of electrons of each spin for a given domain (second dim is spin).
+    ! Note that some domains can be populated only with alpha or beta electrons.
     INTEGER, DIMENSION(:,:), ALLOCATABLE                :: nocc_of_domain
+    ! Number of basis functions for a given domain
     INTEGER, DIMENSION(:), ALLOCATABLE                  :: nbasis_of_domain
+    ! Define number of virtuals for a given domain: nvirt = nbasis - nocc
     INTEGER, DIMENSION(:,:), ALLOCATABLE                :: nvirt_full_of_domain
+    ! Define the dimension of truncated virtual subspace for a given domain:
     INTEGER, DIMENSION(:,:), ALLOCATABLE                :: nvirt_of_domain
+    ! Define the dimension of discarded virtual subspace for a given domain:
     INTEGER, DIMENSION(:,:), ALLOCATABLE                :: nvirt_disc_of_domain
+    ! Each domain has its own mu - "fermi" level
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE          :: mu_of_domain
     INTEGER, DIMENSION(:), ALLOCATABLE                  :: first_atom_of_domain
+    ! The following arrays are useful only with non-overlapping domains
+    ! RZK-warning generalization is required
     INTEGER, DIMENSION(:), ALLOCATABLE        :: domain_index_of_ao
     INTEGER, DIMENSION(:), ALLOCATABLE        :: domain_index_of_atom
 
 
-INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
+    ! Charge of a domain
+    ! RZK-warning: should be stored in molecule_kind, only a copy exists here
+    INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
    
+    ! The matrix contains information about the delocalization of
+    ! alpha and beta electrons.
+    ! Rows denote basis function, columns denote electrons.
+    ! Non-zero (j,i) entry means that electron j can delocalize over
+    ! basis function i. 0.0 means no delocalization
     TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE   :: quench_t 
     TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE   :: quench_t_blk
-    TYPE(object02_type), DIMENSION(:), ALLOCATABLE :: domain_map
+    ! Local array for a compact description of quench_t
+    TYPE(domain_map_type), DIMENSION(:), ALLOCATABLE :: domain_map
     
+    ! Several special cases for the structure of the group-domain matrix:
+    ! 1. The basis functions can be grouped into:
+    !    a. molecular sets
+    !    b. atomic sets
+    ! 2. Electrons can be grouped into:
+    !    a. molecular sets
+    !    b. atomic sets
     INTEGER :: domain_layout_mos, domain_layout_aos
+    ! ALMO  constraint type. 
     INTEGER :: constraint_type
 
+    ! decomposition analysis (energy da, charge da)
+    INTEGER :: almo_eda
+
+    ! Desciptors of molecules
+    !INTEGER, DIMENSION(:), ALLOCATABLE        :: molecule_index_of_atom
+    !INTEGER, DIMENSION(:), ALLOCATABLE        :: first_atom_of_molecule
+    !INTEGER, DIMENSION(:), ALLOCATABLE        :: nbasis_of_molecule
+    !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nocc_of_molecule
+    !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nvirt_of_molecule
+    !REAL(KIND=dp),DIMENSION(:,:), ALLOCATABLE :: mu_of_molecule
+
+    ! Descriptors of atoms 
+    !INTEGER, DIMENSION(:), ALLOCATABLE        :: nbasis_of_atom
+    !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nocc_of_atom
+    !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nvirt_of_atom
+    !REAL(KIND=dp),DIMENSION(:,:), ALLOCATABLE :: mu_of_atom
+
+    ! All AO and MO matrices are distributed for parallel computations.
+    ! The following flags specify what constitues a block for a parallel
+    ! distribution. Both AOs and MOs can be divided into atomic or
+    ! molecular blocks. Domain blocks should be equal or larger than
+    ! the distribution blocks (otherwise retain_sparsity does not work).
+    ! Possible values: almo_mat_distr_atomic, almo_mat_distr_molecular
     INTEGER :: mat_distr_aos, mat_distr_mos
+    ! Define mappping from a distribution block to a domain
     INTEGER, DIMENSION(:), ALLOCATABLE :: domain_index_of_ao_block
     INTEGER, DIMENSION(:), ALLOCATABLE :: domain_index_of_mo_block
 
@@ -77,31 +168,42 @@ INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
     REAL(KIND=dp)        :: almo_scf_energy
     LOGICAL               :: orthogonal_basis, fixed_mu
   
+    ! Controls for the SCF procedure
     REAL(KIND=dp)         :: eps_filter
     REAL(KIND=dp)         :: eps_prev_guess
+    INTEGER               :: order_lanczos
+    REAL(KIND=dp)         :: eps_lanczos
+    INTEGER               :: max_iter_lanczos
 
+    ! SCF procedure for the block-diagonal ALMOs
     REAL(KIND=dp)         :: eps_scf_bd
     REAL(KIND=dp)         :: mixing_fraction
     REAL(KIND=dp)         :: mu
     INTEGER               :: max_scf_bd
-    INTEGER               :: counter04_bd
+    INTEGER               :: ndiis_bd
     INTEGER               :: almo_update_algorithm
 
+    ! SCF procedure for the quenched ALMOs (xALMOs)
     REAL(KIND=dp)         :: eps_scf_q
     REAL(KIND=dp)         :: eps_lin_search
     INTEGER               :: max_scf_q
     INTEGER               :: scf_conjugator
     INTEGER               :: outer_max_scf_q
     INTEGER               :: almo_update_algorithm_q
+    INTEGER               :: ndiis_q
 
+    ! ALMO SCF delocalization control
     LOGICAL               :: perturbative_delocalization
     INTEGER               :: quencher_radius_type
     REAL(KIND=dp)         :: quencher_r0_factor,&
                              quencher_r1_factor,&
+                             !quencher_r0_shift,&
+                             !quencher_r1_shift,&
                              quencher_s0,&
                              quencher_s1,&
                              envelope_amplitude
 
+    ! keywords that control electron delocalization treatment
     INTEGER         :: deloc_method
     LOGICAL         :: deloc_use_occ_orbs
     LOGICAL         :: deloc_cayley_use_virt_orbs
@@ -115,6 +217,8 @@ INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
     LOGICAL         :: deloc_cayley_occ_precond
     LOGICAL         :: deloc_cayley_vir_precond
 
+    ! keywords that control optimization of retained orbitals
+    !INTEGER         :: opt_k_method
     INTEGER         :: opt_k_conjugator
     REAL(KIND=dp)   :: opt_k_eps_convergence
     REAL(KIND=dp)   :: opt_k_trial_step_size
@@ -126,6 +230,7 @@ INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
     INTEGER         :: opt_k_conj_iter_freq
     INTEGER         :: opt_k_prec_iter_freq
  
+    ! development keywords
     INTEGER         :: integer01
     INTEGER         :: integer02
     INTEGER         :: integer03
@@ -142,77 +247,102 @@ INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
     LOGICAL         :: logical04
     LOGICAL         :: logical05
  
+    !!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!! MATRICES !!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!
+
+    ! AO overlap NxN
     TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s
+    TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_inv
+    TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_sqrt
+    TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_sqrt_inv
+    ! block-diagonal AO overlap NxN
+    TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk
+    TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk_inv
+    TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk_sqrt
+    TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk_sqrt_inv
     
-    TYPE(cp_dbcsr_type), DIMENSION(1)   :: so_i
-    TYPE(cp_dbcsr_type), DIMENSION(1)   :: so_s
-    TYPE(cp_dbcsr_type), DIMENSION(1)   :: so_si
-    TYPE(cp_dbcsr_type), DIMENSION(1)   :: so_b
-    TYPE(cp_dbcsr_type), DIMENSION(1)   :: so_bi
-    TYPE(cp_dbcsr_type), DIMENSION(1)   :: so_bs
-    TYPE(cp_dbcsr_type), DIMENSION(1)   :: so_bsi
+    ! occupied ALMO coeff NxOCC (alpha,beta - if necessary)
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t_blk
+    ! occupied MO coeff NxOCC (alpha,beta - if necessary)
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t_tr
+    ! MO overlap OCCxOCC and its inverse (alpha, beta - if necessary)
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_sigma,&
+                                                      matrix_sigma_inv,&
+                                                      matrix_sigma_sqrt,&
+                                                      matrix_sigma_sqrt_inv,&
+                                                      matrix_sigma_blk
     
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: enter_b
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: enter
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: enter_tr
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: rem,&
-                                                      rem_i,&
-                                                      rem_s,&
-                                                      rem_si,&
-                                                      rem_b
-    
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: gst_b
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: gst_xx
+    ! error vector (alpha,beta - if necessary)
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_err_blk
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_err_xx
 
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: rem_vv,&
-                                                      rem_vv_b,&
-                                                      rem_vv_s,&
-                                                      rem_vv_si
+    ! MO overlap VIRTxVIRT and its derivatives
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_sigma_vv,&
+                                                      matrix_sigma_vv_blk,&
+                                                      matrix_sigma_vv_sqrt,&
+                                                      matrix_sigma_vv_sqrt_inv
 
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: vv_fb,&
-                                                      vv_db,&
-                                                      vv_d
+    ! template of various VIRT x VIR matrices
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_vv_full_blk,&
+                                                      matrix_vv_disc_blk,&
+                                                      matrix_vv_disc
    
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: vo, ov
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: ov_full,&
-                                                      ov_disc
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: xia
+    ! VIRT-OCC MO overlap
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_vo, matrix_ov
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ov_full,&
+                                                      matrix_ov_disc
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_x
     
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: kx_b
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: k_t
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: kx_bo
+    ! VIRT_DISC x VIRT_RETAINED 
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_blk
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_tr
+    ! matrix_k_blk_ones is blocked with all elements equal to 1.0
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_blk_ones
     
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: v_b,&
-                                                      vib,&
-                                                      v_fb,&
-                                                      v_d,&
-                                                      v_db
+    ! virtual ALMO coeff NxV 
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_v_blk,&
+                                                      matrix_v,&
+                                                      matrix_v_full_blk,&
+                                                      matrix_v_disc,&
+                                                      matrix_v_disc_blk
     
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: hfh
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: hfh_b
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: dpp
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: dpp_b
+    ! kohn-sham matrix (alpha,beta - if necessary)
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks_blk
+    ! density NxN (alpha,beta - if necessary)
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p_blk
 
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: eoo
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: evv
-    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: hfh_con
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_eoo
+    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_evv_full
+    TYPE(cp_dbcsr_type), DIMENSION(:), &
+       ALLOCATABLE                  :: matrix_ks_almo_scf_converged
 
+    ! preconditioner for k-optimization
     TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: opt_k_t_rr,&
                                                       opt_k_t_dd,&
                                                       opt_k_denom
 
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_p
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_soi
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_ss
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_ss_inv
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_hfh_xx
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_enter
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_gst
-    TYPE(object01_type), DIMENSION(:,:), ALLOCATABLE :: concept_dpp
+    !TYPE(almo_scf_diis_type), DIMENSION(:), ALLOCATABLE :: diis
+
+    !TYPE(optimizer_options_type)                   :: orthogonalization_opt
+  
+    ! second dimension is spin
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_preconditioner
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_s_inv
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_s_sqrt
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_s_sqrt_inv
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_ks_xx
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_t
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_err
+    TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_r_down_up
 
     INTEGER, DIMENSION(:), ALLOCATABLE                       :: cpu_of_domain
 
-  END TYPE almo_objectM1_type
+  END TYPE almo_scf_env_type
 
 END MODULE almo_scf_types
+
 

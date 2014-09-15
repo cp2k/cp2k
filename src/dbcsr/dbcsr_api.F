@@ -61,7 +61,8 @@ MODULE dbcsr_api
                                              dbcsr_error_type
   USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                              dbcsr_binary_write,&
-                                             dbcsr_print
+                                             dbcsr_print,&
+                                             dbcsr_print_block_sum
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -85,8 +86,8 @@ MODULE dbcsr_api
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_clear_mempools, &
-       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_filter, &
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_triu, dbcsr_copy, &
+       dbcsr_clear_mempools, dbcsr_copy_into_existing, dbcsr_filter, &
        dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_gershgorin_norm, &
        dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
        dbcsr_init_lib, dbcsr_init_random, dbcsr_maxabs, dbcsr_multiply, &
@@ -103,6 +104,10 @@ MODULE dbcsr_api
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_func_artanh, &
+       dbcsr_func_ddtanh, dbcsr_func_inverse_special, &
+       dbcsr_func_spread_from_zero, dbcsr_func_sin, &
+       dbcsr_func_dsin, dbcsr_func_ddsin, dbcsr_func_asin, &
+       dbcsr_func_truncate, dbcsr_func_cos, &
        dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_iterator, &
        dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
@@ -161,6 +166,7 @@ MODULE dbcsr_api
             dbcsr_binary_read,&
             dbcsr_binary_write,&
             dbcsr_btriu,&
+            dbcsr_triu,&
             dbcsr_checksum,&
             dbcsr_clear_mempools,&
             dbcsr_complete_redistribute,&
@@ -267,6 +273,7 @@ MODULE dbcsr_api
             dbcsr_no_transpose,&
             dbcsr_obj,&
             dbcsr_print,&
+            dbcsr_print_block_sum,&
             dbcsr_put_block,&
             dbcsr_release,&
             dbcsr_repl_full,&

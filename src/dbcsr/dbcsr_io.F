@@ -70,6 +70,7 @@ MODULE dbcsr_io
 
   ! Main
   PUBLIC :: dbcsr_print
+  PUBLIC :: dbcsr_print_block_sum
   ! Low-level printing
 ! PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
   ! Utility printing
@@ -1219,7 +1220,7 @@ CONTAINS
   END SUBROUTINE dbcsr_binary_read
 
 ! *****************************************************************************
-!> \brief Prints the sum of elements for each block
+!> \brief Prints the sum of the elements for each block
 !> \param[in] matrix          matrix
 !> \param unit_nr ...
 !> \param[in,out] error       cp2k error
