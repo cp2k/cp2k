@@ -2996,9 +2996,9 @@ CONTAINS
        IF (my_action.eq.-2.OR.my_action.eq.-1) THEN
           ! project out
           ALLOCATE(tmp(ao_domain_sizes(col),ao_domain_sizes(col)))
-          tmp=MATMUL(R,Sinv)
-          Minv=MATMUL(tmp,M) ! use Minv as temporary storage
-          M=M-Minv-TRANSPOSE(Minv)+MATMUL(Minv,TRANSPOSE(tmp))
+          tmp(:,:)=MATMUL(R,Sinv)
+          Minv(:,:)=MATMUL(tmp,M) ! use Minv as temporary storage
+          M(:,:)=M(:,:)-Minv(:,:)-TRANSPOSE(Minv)+MATMUL(Minv,TRANSPOSE(tmp))
           DEALLOCATE(tmp)
        ENDIF
 
@@ -3031,15 +3031,15 @@ CONTAINS
                 ! apply the inverted matrix
                 tmp(:,ii)=MATMUL(Minv,subm_in(:,ii))
              ENDDO
-             subm_out=MATMUL(tmp,sigma)
+             subm_out(:,:)=MATMUL(tmp,sigma)
              DEALLOCATE(tmp)
           ELSE
              CALL invert_matrix(A=M,Ainv=Minv,N=ao_domain_sizes(col),method=1,&
                      range1=mo_block_sizes(col),range2=mo_domain_sizes(col),error=error)
              ALLOCATE(tmp(ao_domain_sizes(col),mo_block_sizes(col)))
-             tmp=MATMUL(Minv,subm_in)
+             tmp(:,:)=MATMUL(Minv,subm_in)
              !!!!!subm_out=tmp
-             subm_out=MATMUL(tmp,sigma)
+             subm_out(:,:)=MATMUL(tmp,sigma)
              DEALLOCATE(tmp)
           ENDIF
        ENDIF
@@ -3054,13 +3054,13 @@ CONTAINS
           ALLOCATE(residue(ao_domain_sizes(col),mo_block_sizes(col)))
           IF (my_use_trimmer) THEN
              tmp(:,:)=subm_out(:,:)*Mtrim(:,:)
-             residue=MATMUL(M,tmp)
+             residue(:,:)=MATMUL(M,tmp)
              tmp(:,:)=residue(:,:)*Mtrim(:,:)
           ELSE
-             tmp=MATMUL(M,subm_out)
+             tmp(:,:)=MATMUL(M,subm_out)
           ENDIF
           !!!!!!residue=tmp-subm_in
-          residue=MATMUL(tmp,sigma_inv)+subm_in
+          residue(:,:)=MATMUL(tmp,sigma_inv)+subm_in
 
           WRITE(*,'(A35,I4,A5,E15.6)') "H.step=-g error for fragment ", col, " is ", MAXVAL(ABS(residue))
 
@@ -3089,9 +3089,9 @@ CONTAINS
 !ENDDO
           ALLOCATE(tmp(ao_domain_sizes(col),mo_block_sizes(col)))
           ALLOCATE(tmp2(ao_domain_sizes(col),mo_block_sizes(col)))
-          tmp=MATMUL(Sinv,subm_in)
-          tmp2=MATMUL(R,tmp)
-          subm_out=subm_in-tmp2
+          tmp(:,:)=MATMUL(Sinv,subm_in)
+          tmp2(:,:)=MATMUL(R,tmp)
+          subm_out(:,:)=subm_in(:,:)-tmp2(:,:)
 !WRITE (*,*) "SUBMATRIX: ", col, ao_domain_sizes(col), 'x', mo_block_sizes(col)
 !WRITE (colstr,*) mo_block_sizes(col)
 !formatstr='('//trim(adjustl(colstr))//'F16.9)'
@@ -3103,28 +3103,28 @@ CONTAINS
        CASE (2)
           ALLOCATE(tmp(ao_domain_sizes(col),mo_block_sizes(col)))
           ALLOCATE(tmp2(ao_domain_sizes(col),mo_block_sizes(col)))
-          tmp=MATMUL(R,subm_in)
-          tmp2=MATMUL(Sinv,tmp)
-          subm_out=subm_in-tmp2
+          tmp(:,:)=MATMUL(R,subm_in)
+          tmp2(:,:)=MATMUL(Sinv,tmp)
+          subm_out(:,:)=subm_in(:,:)-tmp2(:,:)
           DEALLOCATE(tmp)
           DEALLOCATE(tmp2)
        CASE (3)
           ALLOCATE(tmp(ao_domain_sizes(col),mo_block_sizes(col)))
           ALLOCATE(tmp2(ao_domain_sizes(col),mo_block_sizes(col)))
-          tmp=MATMUL(S,T)
-          tmp2=MATMUL(tmp,sigma_inv)
-          Sinv=MATMUL(tmp2,TRANSPOSE(T))
-          subm_out=subm_in-MATMUL(Sinv,subm_in)
+          tmp(:,:)=MATMUL(S,T)
+          tmp2(:,:)=MATMUL(tmp,sigma_inv)
+          Sinv(:,:)=MATMUL(tmp2,TRANSPOSE(T))
+          subm_out(:,:)=subm_in(:,:)-MATMUL(Sinv,subm_in)
           DEALLOCATE(tmp)
           DEALLOCATE(tmp2)
        CASE (4)
           ALLOCATE(tmp(ao_domain_sizes(col),mo_block_sizes(col)))
           ALLOCATE(tmp2(ao_domain_sizes(col),mo_block_sizes(col)))
-          tmp=MATMUL(S,T)
-          tmp2=MATMUL(tmp,sigma_inv)
-          Sinv=MATMUL(T,TRANSPOSE(tmp2))
-          tmp=MATMUL(Sinv,subm_in)
-          subm_out=subm_in-tmp
+          tmp(:,:)=MATMUL(S,T)
+          tmp2(:,:)=MATMUL(tmp,sigma_inv)
+          Sinv(:,:)=MATMUL(T,TRANSPOSE(tmp2))
+          tmp(:,:)=MATMUL(Sinv,subm_in)
+          subm_out(:,:)=subm_in(:,:)-tmp(:,:)
           DEALLOCATE(tmp)
           DEALLOCATE(tmp2)
        END SELECT
@@ -3785,13 +3785,13 @@ CONTAINS
        test(jj,:)=Asqrtinv(:,jj)*SQRT(eigenvalues(jj))
     ENDDO
     ALLOCATE(testN(N,N))
-    testN=MATMUL(Asqrtinv,test)
+    testN(:,:)=MATMUL(Asqrtinv,test)
     Asqrt=testN
     ! now, sqrt_inv
     DO jj=1, N
        test(jj,:)=Asqrtinv(:,jj)/SQRT(eigenvalues(jj))
     ENDDO
-    testN=MATMUL(Asqrtinv,test)
+    testN(:,:)=MATMUL(Asqrtinv,test)
     Asqrtinv=testN
     DEALLOCATE(test,testN)
     
@@ -3952,7 +3952,7 @@ CONTAINS
        ENDIF
        !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
        ALLOCATE(testN(N,N))
-       testN=MATMUL(Ainv,test)
+       testN(:,:)=MATMUL(Ainv,test)
        Ainv=testN
        DEALLOCATE(test,testN)
        DEALLOCATE(eigenvalues)
@@ -4625,7 +4625,7 @@ CONTAINS
     ! invert the Hessian
     INFO=0
     ALLOCATE(Hinv(H_size,H_size))
-    Hinv=H
+    Hinv(:,:)=H(:,:)
 
     ! before inverting diagonalize
     ALLOCATE(eigenvalues(H_size))
@@ -4659,8 +4659,8 @@ CONTAINS
     ENDDO
     WRITE(*,*) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
     ALLOCATE(test2(H_size,H_size))
-    test2=MATMUL(Hinv,test)
-    Hinv=test2
+    test2(:,:)=MATMUL(Hinv,test)
+    Hinv(:,:)=test2(:,:)
     DEALLOCATE(test,test2)
 
     !! shift to kill singularity
@@ -4708,7 +4708,7 @@ CONTAINS
     ! compute the inversion error 
     ALLOCATE(test(H_size,H_size))
 !    WRITE(*,*) "SIZE: ", H_size
-    test=MATMUL(Hinv,H)
+    test(:,:)=MATMUL(Hinv,H)
 !WRITE(*,*) "TEST"
 !DO ii=1,H_size
 ! WRITE(*,'(100F8.4)') test(ii,:)
@@ -4728,12 +4728,12 @@ CONTAINS
     ! prepare the output vector
     ALLOCATE(Step_vec(H_size))
     ALLOCATE(tmp(H_size))
-    tmp=MATMUL(Hinv,Grad_vec)
+    tmp(:)=MATMUL(Hinv,Grad_vec)
     Step_vec(:)=-1.0_dp*tmp(:)
     
 ALLOCATE(tmpr(H_size))
-tmpr=MATMUL(H,Step_vec)
-tmp=tmpr+Grad_vec
+tmpr(:)=MATMUL(H,Step_vec)
+tmp(:)=tmpr(:)+Grad_vec(:)
 DEALLOCATE(tmpr)
 WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 

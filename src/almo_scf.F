@@ -311,7 +311,7 @@ CONTAINS
        ENDDO ! spin
     ELSE ! domains are atomic
        ! RZK-warning do the same for atomic domains/groups 
-       almo_scf_env%domain_index_of_atom=(/(i, i=1,natoms)/)
+       almo_scf_env%domain_index_of_atom(1:natoms)=(/(i, i=1,natoms)/)
     ENDIF
     
     ao=1
@@ -1715,8 +1715,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: iunit = 78
 
-    CHARACTER*100                            :: mylogfile, mynodestr
-    CHARACTER*20                             :: iter_type
+    CHARACTER(LEN=100)                       :: mylogfile, mynodestr
+    CHARACTER(LEN=20)                        :: iter_type
     INTEGER :: cg_iteration, dim0, fixed_line_search_niter, handle, ispin, &
       iteration, jj, line_search_iteration, max_iter, my_special_case, &
       mynode, ncores, ndomains, occ1, outer_iteration, outer_max_iter, &
@@ -3945,7 +3945,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1)              :: local_mu
     REAL(KIND=dp), DIMENSION(2)              :: energy_correction
     REAL(KIND=dp), DIMENSION(3)              :: minima
-    TYPE(cp_dbcsr_iterator)                  :: iter
+    !TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type) :: grad, k_vd_index_down, k_vr_index_down, &
       matrix_k_central, matrix_tmp1, matrix_tmp2, prec, prev_grad, &
       prev_minus_prec_grad, prev_step, sigma_oo_curr, sigma_oo_curr_inv, &

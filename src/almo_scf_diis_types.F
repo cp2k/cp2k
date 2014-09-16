@@ -356,7 +356,9 @@ CONTAINS
     REAL(KIND=dp)                            :: checksum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, WORK
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: coeff, m_b_copy, tmp1
+      DIMENSION(:, :)                        :: m_b_copy
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: coeff, tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -416,10 +418,15 @@ CONTAINS
 
           ! use the eigensystem to invert (implicitly) B matrix
           ! and compute the extrapolation coefficients
-          ALLOCATE(tmp1(diis_env%buffer_length+1,1))
-          ALLOCATE(coeff(diis_env%buffer_length+1,1))
-          tmp1(:,1)=-1.0_dp*m_b_copy(1,:)/eigenvalues(:)
-          coeff=MATMUL(m_b_copy,tmp1)
+          !! ALLOCATE(tmp1(diis_env%buffer_length+1,1))
+          !! ALLOCATE(coeff(diis_env%buffer_length+1,1))
+          !! tmp1(:,1)=-1.0_dp*m_b_copy(1,:)/eigenvalues(:)
+          !! coeff=MATMUL(m_b_copy,tmp1)
+          !! DEALLOCATE(tmp1)
+          ALLOCATE(tmp1(diis_env%buffer_length+1))
+          ALLOCATE(coeff(diis_env%buffer_length+1))
+          tmp1(:)=-1.0_dp*m_b_copy(1,:)/eigenvalues(:)
+          coeff(:)=MATMUL(m_b_copy,tmp1)
           DEALLOCATE(tmp1)
 
           !IF (unit_nr.gt.0) THEN
@@ -435,8 +442,8 @@ CONTAINS
              CALL cp_dbcsr_set(extr_var,0.0_dp,error=error)
              DO im=1,diis_env%buffer_length
                 CALL cp_dbcsr_add(extr_var,diis_env%m_var(im),&
-                        1.0_dp,coeff(im+1,1),error=error)
-                checksum=checksum+coeff(im+1,1)
+                        1.0_dp,coeff(im+1),error=error)
+                checksum=checksum+coeff(im+1)
              ENDDO
           ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
              CALL copy_submatrices(diis_env%d_var(1,idomain),&
@@ -445,9 +452,9 @@ CONTAINS
              CALL set_submatrices(d_extr_var(idomain),0.0_dp,error=error)
              DO im=1,diis_env%buffer_length
                 CALL add_submatrices(1.0_dp,d_extr_var(idomain),&
-                        coeff(im+1,1),diis_env%d_var(im,idomain),&
+                        coeff(im+1),diis_env%d_var(im,idomain),&
                         'N',error=error)
-                checksum=checksum+coeff(im+1,1)
+                checksum=checksum+coeff(im+1)
              ENDDO
           ENDIF
           !WRITE(*,*) checksum
