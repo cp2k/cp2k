@@ -1677,6 +1677,7 @@ CPSourceFileRef,&
 #if defined(__SCALAPACK)
     INTEGER                                  :: sdat, ddat, m, n
     INTEGER, DIMENSION(9)                    :: desca, descb
+    REAL(KIND=dp), DIMENSION(1,1), TARGET    :: dummy
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: smat, dmat
 #endif
 
@@ -1707,6 +1708,7 @@ CPSourceFileRef,&
           smat => source%local_data
        ELSE
           desca = -1
+          smat => dummy
        END IF
        IF(ASSOCIATED(destination)) THEN
           ddat = 1
@@ -1721,6 +1723,7 @@ CPSourceFileRef,&
           dmat => destination%local_data
        ELSE
           descb = -1
+          dmat => dummy
        END IF
 
        IF(sdat*ddat == 1) THEN
