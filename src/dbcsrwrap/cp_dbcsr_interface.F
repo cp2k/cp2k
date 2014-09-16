@@ -27,7 +27,7 @@ MODULE cp_dbcsr_interface
        create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
        dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
        dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_copy_into_existing, dbcsr_create, dbcsr_triu, &
+       dbcsr_copy_into_existing, dbcsr_create, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
@@ -40,12 +40,11 @@ MODULE cp_dbcsr_interface
        dbcsr_distribution_obj, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
-       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
-       dbcsr_func_ddtanh, dbcsr_func_inverse_special, &
-       dbcsr_func_spread_from_zero, dbcsr_func_sin, &
-       dbcsr_func_dsin, dbcsr_func_ddsin, dbcsr_func_asin, &
-       dbcsr_func_truncate, dbcsr_func_cos, &
-       dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
+       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_asin, &
+       dbcsr_func_cos, dbcsr_func_ddsin, dbcsr_func_ddtanh, dbcsr_func_dsin, &
+       dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_inverse_special, &
+       dbcsr_func_sin, dbcsr_func_spread_from_zero, dbcsr_func_tanh, &
+       dbcsr_func_truncate, dbcsr_function_of_elements, &
        dbcsr_gershgorin_norm, dbcsr_get_block, dbcsr_get_block_diag, &
        dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
        dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
@@ -67,7 +66,7 @@ MODULE cp_dbcsr_interface
        dbcsr_nblkrows_total, dbcsr_new_transposed, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, & 
+       dbcsr_obj, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
        dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
        dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
@@ -79,7 +78,7 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
        dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
        dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
+       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
@@ -1292,7 +1291,8 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    !CALL cluster_buffer_flush (matrix%buffers, error=error)
+!CALL cluster_buffer_flush (matrix%buffers, error=error)
+
     CALL dbcsr_triu(matrix%matrix, dbcsr_error)
     !CALL dbcsr_index_compact(matrix%matrix, dbcsr_error)
 

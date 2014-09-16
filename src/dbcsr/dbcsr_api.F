@@ -86,13 +86,14 @@ MODULE dbcsr_api
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_triu, dbcsr_copy, &
-       dbcsr_clear_mempools, dbcsr_copy_into_existing, dbcsr_filter, &
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_clear_mempools, &
+       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_filter, &
        dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_gershgorin_norm, &
        dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
        dbcsr_init_lib, dbcsr_init_random, dbcsr_maxabs, dbcsr_multiply, &
        dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, &
-       dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
+       dbcsr_triu
   USE dbcsr_operations_low,            ONLY: dbcsr_function_of_elements
   USE dbcsr_tests,                     ONLY: cp_test_multiplies
   USE dbcsr_toollib,                   ONLY: swap
@@ -104,12 +105,11 @@ MODULE dbcsr_api
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_func_artanh, &
-       dbcsr_func_ddtanh, dbcsr_func_inverse_special, &
-       dbcsr_func_spread_from_zero, dbcsr_func_sin, &
-       dbcsr_func_dsin, dbcsr_func_ddsin, dbcsr_func_asin, &
-       dbcsr_func_truncate, dbcsr_func_cos, &
-       dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_iterator, &
-       dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
+       dbcsr_func_asin, dbcsr_func_cos, dbcsr_func_ddsin, dbcsr_func_ddtanh, &
+       dbcsr_func_dsin, dbcsr_func_dtanh, dbcsr_func_inverse, &
+       dbcsr_func_inverse_special, dbcsr_func_sin, &
+       dbcsr_func_spread_from_zero, dbcsr_func_tanh, dbcsr_func_truncate, &
+       dbcsr_iterator, dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
        dbcsr_repl_full, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, &
@@ -208,6 +208,15 @@ MODULE dbcsr_api
             dbcsr_func_dtanh,&
             dbcsr_func_inverse,&
             dbcsr_func_tanh,&
+            dbcsr_func_sin,&
+            dbcsr_func_cos,&
+            dbcsr_func_truncate,&
+            dbcsr_func_asin,&
+            dbcsr_func_ddsin,&
+            dbcsr_func_dsin,&
+            dbcsr_func_spread_from_zero,&
+            dbcsr_func_inverse_special,&
+            dbcsr_func_ddtanh,&
             dbcsr_function_of_elements,&
             dbcsr_gershgorin_norm,&
             dbcsr_get_block,&

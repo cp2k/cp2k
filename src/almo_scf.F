@@ -3945,7 +3945,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1)              :: local_mu
     REAL(KIND=dp), DIMENSION(2)              :: energy_correction
     REAL(KIND=dp), DIMENSION(3)              :: minima
-    !TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type) :: grad, k_vd_index_down, k_vr_index_down, &
       matrix_k_central, matrix_tmp1, matrix_tmp2, prec, prev_grad, &
       prev_minus_prec_grad, prev_step, sigma_oo_curr, sigma_oo_curr_inv, &
@@ -3958,6 +3957,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ct_step_env_type)                   :: ct_step_env
 
+!TYPE(cp_dbcsr_iterator)                  :: iter
 !TYPE(cp_dbcsr_type) :: tmp11,tmp22,tmp33
 !REAL(kind=dp)                            :: k_var1, k_var2
 !TYPE(cp_dbcsr_type)                      :: fake_step 

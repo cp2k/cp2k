@@ -354,11 +354,9 @@ CONTAINS
                                                 LWORK, ndomains, unit_nr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: checksum
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, WORK
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coeff, eigenvalues, tmp1, WORK
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: m_b_copy
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                           :: coeff, tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
