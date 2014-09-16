@@ -56,6 +56,7 @@ MODULE  rt_propagation_utils
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
+  USE rt_propagation_methods,          ONLY: calc_update_rho_sparse
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -295,6 +296,7 @@ MODULE  rt_propagation_utils
              CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix,&
                   matrix_v=mo_array(ispin)%mo_set%mo_coeff,matrix_g=mo_array(ispin)%mo_set%mo_coeff,ncol=ncol,&
                   keep_sparsity=.FALSE.,alpha=alpha,error=error)
+             CALL calc_update_rho_sparse(qs_env,error)
           END DO
        ELSE
           CALL get_rtp(rtp=rtp,mos_old=mos_old,error=error)
