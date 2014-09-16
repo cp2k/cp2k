@@ -54,9 +54,9 @@ MODULE  rt_propagation_utils
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE rt_propagation_methods,          ONLY: calc_update_rho_sparse
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-  USE rt_propagation_methods,          ONLY: calc_update_rho_sparse
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"

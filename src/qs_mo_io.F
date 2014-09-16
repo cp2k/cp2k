@@ -48,7 +48,12 @@ MODULE qs_mo_io
                                              default_string_length,&
                                              dp
   USE kpoint_types,                    ONLY: kpoint_type
-  USE message_passing,                 ONLY: mp_bcast
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_irecv,&
+                                             mp_isend,&
+                                             mp_sum,&
+                                             mp_sync,&
+                                             mp_wait
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
                                              nso
@@ -193,9 +198,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_kp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ic, ik, ikk, is, nc, &
-                                                ns
+    INTEGER                                  :: handle, ic, ik, ikk, iogroup, &
+                                                is, mosource, nc, ns, &
+                                                request, tag
     LOGICAL                                  :: failure, is_source, moalloc
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_inter_kp
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set, mop
@@ -211,6 +218,15 @@ CONTAINS
           WRITE (ires) kpoints%wkp(ik),kpoints%xkp(1:3,ik)
        END DO
     END IF
+
+    ! para groups
+    para_env => kpoints%para_env
+    para_env_inter_kp => kpoints%para_env_inter_kp
+    iogroup = 0
+    IF(kpoints%iogrp) THEN
+       iogroup = para_env_inter_kp%mepos
+    END IF
+    CALL mp_sum(iogroup,para_env_inter_kp%group)
 
     moalloc = .FALSE.
     ! as each proc owns at least one kpoint and all kpoint mo structures 
@@ -237,9 +253,21 @@ CONTAINS
                 CALL write_mo_set_basic(mo_set, ires, error)
              END DO
           END DO
+          ! this is for synchronization
+          mosource = 0
+          CALL mp_sum(mosource,para_env_inter_kp%group)
        ELSE IF(is_source) THEN
-          ! not yet implemented
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          mosource = para_env_inter_kp%mepos
+          CALL mp_sum(mosource,para_env_inter_kp%group)
+          tag = ik
+          DO is=1,SIZE(mos,2)
+             DO ic=1,SIZE(mos,1)
+                request = ic*100 + is
+                mo_set => mos(ic,is)%mo_set
+                CALL mp_isend(mo_set%mo_coeff%local_data,iogroup,para_env_inter_kp%group,request,tag)
+                CALL mp_wait(request)
+             END DO
+          END DO
        ELSE IF(kpoints%iogrp) THEN
           IF(.NOT.moalloc) THEN
              NULLIFY(mop)
@@ -248,9 +276,23 @@ CONTAINS
              CALL duplicate_mo_set(mop,mo_set,error)
              moalloc = .TRUE.
           END IF
-          ! not yet implemented
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          mosource = 0
+          CALL mp_sum(mosource,para_env_inter_kp%group)
+          tag = ik
+          DO is=1,SIZE(mos,2)
+             DO ic=1,SIZE(mos,1)
+                request = ic*100 + is
+                CALL mp_irecv(mop%mo_coeff%local_data,mosource,para_env_inter_kp%group,request,tag)
+                CALL mp_wait(request)
+                IF (ires > 0) WRITE (ires) ic,is
+                CALL write_mo_set_basic(mop, ires, error)
+             END DO
+          END DO
+       ELSE
+          mosource = 0
+          CALL mp_sum(mosource,para_env_inter_kp%group)
        END IF
+       CALL mp_sync(para_env_inter_kp%group)
     END DO
 
     IF(moalloc) THEN

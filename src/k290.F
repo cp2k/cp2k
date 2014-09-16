@@ -607,6 +607,7 @@ CONTAINS
     IF (ABS(iq1)+ABS(iq2)+ABS(iq3)/=0) THEN
 
        invadd = 0
+       IF (li==0) invadd = 1
        IF (li==0 .AND. iout>0) THEN
           WRITE (iout,'(A)') &
                ' K290| Although the point group of the crystal does not'

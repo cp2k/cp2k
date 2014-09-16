@@ -1677,6 +1677,7 @@ CPSourceFileRef,&
 #if defined(__SCALAPACK)
     INTEGER                                  :: sdat, ddat, m, n
     INTEGER, DIMENSION(9)                    :: desca, descb
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: smat, dmat
 #endif
 
     CALL timeset(routineN,handle)
@@ -1692,27 +1693,32 @@ CPSourceFileRef,&
        n = 1
        sdat = 0
        ddat = 0
+       NULLIFY(smat,dmat)
        IF(ASSOCIATED(source)) THEN
+          sdat = 1
           desca = source%matrix_struct%descriptor
-          IF(source%use_sp) THEN
-             sdat=-1
-          ELSE
-             sdat=1
-          END IF
+          CALL cp_assert(.NOT.source%use_sp,&
+               cp_failure_level, cp_assertion_failed, routineP, &
+               "only DP kind implemnted"//&
+CPSourceFileRef,&
+               error=error)
           m = source%matrix_struct%nrow_global
           n = source%matrix_struct%ncol_global
+          smat => source%local_data
        ELSE
           desca = -1
        END IF
        IF(ASSOCIATED(destination)) THEN
+          ddat = 1
           descb = destination%matrix_struct%descriptor
-          IF(destination%use_sp) THEN
-             ddat=-1
-          ELSE
-             ddat=1
-          END IF
+          CALL cp_assert(.NOT.destination%use_sp,&
+               cp_failure_level, cp_assertion_failed, routineP, &
+               "only DP kind implemnted"//&
+CPSourceFileRef,&
+               error=error)
           m = destination%matrix_struct%nrow_global
           n = destination%matrix_struct%ncol_global
+          dmat => destination%local_data
        ELSE
           descb = -1
        END IF
@@ -1734,15 +1740,8 @@ CPSourceFileRef,&
                error=error)
        END IF
 
-       IF(sdat <= 0 .AND. ddat <= 0) THEN
-          CALL psgemr2d(m,n,source%local_data_sp,1,1,desca,&
-                        destination%local_data_sp,1,1,descb,global_context)
-       ELSEIF(sdat >= 0 .AND. ddat >= 0) THEN
-          CALL pdgemr2d(m,n,source%local_data,1,1,desca,&
-                        destination%local_data,1,1,descb,global_context)
-       ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-       END IF
+       CALL pdgemr2d(m,n,smat,1,1,desca,dmat,1,1,descb,global_context)
+
 #else
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif

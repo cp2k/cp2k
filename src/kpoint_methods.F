@@ -14,13 +14,11 @@ MODULE kpoint_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm
@@ -647,7 +645,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(3)                    :: cell
     LOGICAL                                  :: do_symmetric, failure, found, &
                                                 wfn_real_only
-    REAL(KIND=dp)                            :: arg, coskl, sinkl
+    REAL(KIND=dp)                            :: arg, coskl, fsym, sinkl
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cblock, rblock, rsblock
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -667,16 +665,18 @@ CPSourceFileRef,&
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
        CALL get_iterator_info(nl_iterator,iatom=iatom,jatom=jatom,cell=cell)
 
+       fsym = 1.0_dp
        irow = iatom
        icol = jatom
        IF( do_symmetric .AND. (iatom > jatom) ) THEN
           irow = jatom
           icol = iatom
+          fsym = -1.0_dp
        END IF
 
        arg = REAL(cell(1),dp)*xkp(1)+REAL(cell(2),dp)*xkp(2)+REAL(cell(3),dp)*xkp(3) 
        coskl = COS(twopi*arg)
-       sinkl = SIN(twopi*arg)
+       sinkl = fsym*SIN(twopi*arg)
 
        ic = cell_to_index(cell(1),cell(2),cell(3))
        CALL cp_dbcsr_get_block_p(matrix=rsmat(ispin,ic)%matrix,row=irow,col=icol,&
@@ -685,15 +685,15 @@ CPSourceFileRef,&
 
        IF(wfn_real_only) THEN
           CALL cp_dbcsr_get_block_p(matrix=rmatrix,row=irow,col=icol,&
-                                 block=rblock,found=found)
+                                    block=rblock,found=found)
           CPPostcondition(found,cp_failure_level,routineP,error,failure)
           rblock = rblock + coskl*rsblock
        ELSE
           CALL cp_dbcsr_get_block_p(matrix=rmatrix,row=irow,col=icol,&
-                                 block=rblock,found=found)
+                                    block=rblock,found=found)
           CPPostcondition(found,cp_failure_level,routineP,error,failure)
           CALL cp_dbcsr_get_block_p(matrix=cmatrix,row=irow,col=icol,&
-                                 block=cblock,found=found)
+                                    block=cblock,found=found)
           CPPostcondition(found,cp_failure_level,routineP,error,failure)
           rblock = rblock + coskl*rsblock
           cblock = cblock + sinkl*rsblock
@@ -881,18 +881,21 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ic, icell, icol, ik, &
-                                                irow, ispin, jatom, nc, &
-                                                ncount, nkp, nspin, stat
+    INTEGER                                  :: bcntxt, iatom, ic, icell, &
+                                                icol, ik, ikk, irow, ispin, &
+                                                jatom, nc, ncount, nkp, &
+                                                nspin, stat
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: failure, found, real_only
+    LOGICAL                                  :: do_symmetric, failure, found, &
+                                                my_kpgrp, real_only
     REAL(KIND=dp)                            :: arg, coskl, fc, sinkl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wkp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cblock, dblock, rblock, xkp
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: refmatrix
     TYPE(cp_dbcsr_type), POINTER             :: cpmat, rpmat
+    TYPE(cp_fm_type), POINTER                :: fmdummy
     TYPE(cp_para_env_type), POINTER          :: para_env_inter_kp
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(neighbor_list_iterator_p_type), &
@@ -907,9 +910,13 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(rpmat,error=error)
     CALL cp_dbcsr_init(cpmat,error=error)
-    CALL get_kpoint_info(kpoint,matrix_s=refmatrix,error=error)
-    CALL cp_dbcsr_copy(rpmat,refmatrix(1,1)%matrix,error=error)
-    CALL cp_dbcsr_copy(cpmat,refmatrix(1,1)%matrix,error=error)
+    CALL get_kpoint_info(kpoint,matrix_s=refmatrix,sab_nl=sab_nl,error=error)
+    CALL cp_dbcsr_create(rpmat,template=refmatrix(1,1)%matrix,&
+         matrix_type=dbcsr_type_symmetric,error=error)
+    CALL cp_dbcsr_create(cpmat,template=refmatrix(1,1)%matrix,&
+         matrix_type=dbcsr_type_antisymmetric,error=error)
+    CALL cp_dbcsr_alloc_block_from_nbl(rpmat,sab_nl,error)
+    CALL cp_dbcsr_alloc_block_from_nbl(cpmat,sab_nl,error)
 
     CALL get_kpoint_info(kpoint,nkp=nkp,xkp=xkp,wkp=wkp,&
                          para_env_inter_kp=para_env_inter_kp,&
@@ -920,50 +927,58 @@ CPSourceFileRef,&
     nspin = SIZE(kp%mos,2)
     nc = SIZE(kp%mos,1)
     real_only = (nc==1)
+    bcntxt = kpoint%blacs_env_all%group
+    NULLIFY(fmdummy)
     DO ispin=1,nspin
        DO ic=1,ncount
           CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)
        END DO
        !
        DO ik=1,nkp
-          ! collect this density matrix on all processors
-          IF(para_env_inter_kp%num_pe == 1) THEN
-             kp => kpoint%kp_env(ik)%kpoint_env
-             DO ic=1,nc
-                CALL cp_fm_copy_general(kp%pmat(ic,ispin)%matrix,fmwork(ic)%matrix,&
-                                        kpoint%blacs_env_all%group,error)
-             END DO
+          my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
+          IF(my_kpgrp) THEN
+            ikk = ik - kpoint%kp_range(1) + 1
+            kp => kpoint%kp_env(ikk)%kpoint_env
           ELSE
-             ! collect from all processes
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+            NULLIFY(kp)
           END IF
+          ! collect this density matrix on all processors
+          DO ic=1,nc
+             IF(my_kpgrp) THEN
+                CALL cp_fm_copy_general(kp%pmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt,error)
+             ELSE
+                CALL cp_fm_copy_general(fmdummy,fmwork(ic)%matrix,bcntxt,error)
+             END IF
+          END DO
           ! reduce to dbcsr storage
           IF(real_only) THEN
              CALL copy_fm_to_dbcsr(fmwork(1)%matrix,rpmat,keep_sparsity=.TRUE.,error=error)
           ELSE
              CALL copy_fm_to_dbcsr(fmwork(1)%matrix,rpmat,keep_sparsity=.TRUE.,error=error)
+             ! it seems this copy to a antisymmetric dbcsr matrix changes sign!
              CALL copy_fm_to_dbcsr(fmwork(2)%matrix,cpmat,keep_sparsity=.TRUE.,error=error)
           END IF
 
           ! transformation
+          CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
           CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
           DO WHILE (neighbor_list_iterate(nl_iterator)==0)
              CALL get_iterator_info(nl_iterator,iatom=iatom,jatom=jatom,cell=cell)
 
-             IF( iatom <= jatom) THEN
-                irow = iatom
-                icol = jatom
-                fc = 1.0_dp
-             ELSE
+             ! fc = +/-1 sign change from above, is used to get correct sign due to
+             !           a<->b ==> cell = -cell
+             irow = iatom
+             icol = jatom
+             fc = -1.0_dp
+             IF( do_symmetric .AND. iatom > jatom) THEN
                 irow = jatom
                 icol = iatom
-                fc = -1.0_dp
+                fc = 1.0_dp
              END IF
              icell = cell_to_index(cell(1),cell(2),cell(3))
              arg = REAL(cell(1),dp)*xkp(1,ik)+REAL(cell(2),dp)*xkp(2,ik)+REAL(cell(3),dp)*xkp(3,ik) 
              coskl = wkp(ik)*COS(twopi*arg)
              sinkl = wkp(ik)*fc*SIN(twopi*arg)
-
 
              CALL cp_dbcsr_get_block_p(matrix=denmat(ispin,icell)%matrix,row=irow,col=icol,&
                                        block=dblock,found=found)
@@ -982,7 +997,7 @@ CPSourceFileRef,&
                                        block=cblock,found=found)
                 CPPostcondition(found,cp_failure_level,routineP,error,failure)
                 dblock = dblock + coskl*rblock
-                dblock = dblock - sinkl*cblock
+                dblock = dblock + sinkl*cblock
              END IF
           END DO
           CALL neighbor_list_iterator_release(nl_iterator)

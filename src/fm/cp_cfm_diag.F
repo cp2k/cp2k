@@ -181,7 +181,7 @@ CONTAINS
     CALL cp_cfm_triangular_invert(bmatrix,error=error)
     ! Reduce to get U^(-T) * H * U^(-1)
     CALL cp_cfm_triangular_multiply(bmatrix,amatrix,side="R",error=error)
-    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,transpose_tr=.TRUE.,error=error)
+    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,transa_tr="C",error=error)
     ! Diagonalize
     CALL cp_cfm_heevd(matrix=amatrix,eigenvectors=work,eigenvalues=evals,error=error)
     ! Restore vectors C = U^(-1) * C*

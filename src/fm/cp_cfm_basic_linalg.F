@@ -657,15 +657,17 @@ CPSourceFileRef,&
 !>      or (if side='R')
 !>       matrix_b = alpha matrix_b op(triangular_matrix)
 !>      op(triangular_matrix) is:
-!>       triangular_matrix (if transpose_tr=.false. and invert_tr=.false.)
-!>       triangular_matrix^T (if transpose_tr=.true. and invert_tr=.false.)
-!>       triangular_matrix^(-1) (if transpose_tr=.false. and invert_tr=.true.)
-!>       triangular_matrix^(-T) (if transpose_tr=.true. and invert_tr=.true.)
+!>       triangular_matrix (if transa="N" and invert_tr=.false.)
+!>       triangular_matrix^T (if transa="T" and invert_tr=.false.)
+!>       triangular_matrix^H (if transa="C" and invert_tr=.false.)
+!>       triangular_matrix^(-1) (if transa="N" and invert_tr=.true.)
+!>       triangular_matrix^(-T) (if transa="T" and invert_tr=.true.)
+!>       triangular_matrix^(-H) (if transa="C" and invert_tr=.true.)
 !> \param triangular_matrix the triangular matrix that multiplies the other
 !> \param matrix_b the matrix that gets multiplied and stores the result
 !> \param side on which side of matrix_b stays op(triangular_matrix)
 !>        (defaults to 'L')
-!> \param transpose_tr if the triangular matrix should be transposed
+!> \param transpose_tr if the triangular matrix should be transposed/complex comjugated
 !>        (defaults to false)
 !> \param invert_tr if the triangular matrix should be inverted
 !>        (defaults to false)
@@ -687,15 +689,15 @@ CPSourceFileRef,&
 !>      needs an mpi env
 ! *****************************************************************************
 SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
-     transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
+     transa_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
      alpha,error)
-    TYPE(cp_cfm_type), POINTER                :: triangular_matrix, matrix_b
-    CHARACTER, INTENT(in), OPTIONAL          :: side
-    LOGICAL, INTENT(in), OPTIONAL            :: transpose_tr, invert_tr
+    TYPE(cp_cfm_type), POINTER               :: triangular_matrix, matrix_b
+    CHARACTER, INTENT(in), OPTIONAL          :: side, transa_tr
+    LOGICAL, INTENT(in), OPTIONAL            :: invert_tr
     CHARACTER, INTENT(in), OPTIONAL          :: uplo_tr
     LOGICAL, INTENT(in), OPTIONAL            :: unit_diag_tr
     INTEGER, INTENT(in), OPTIONAL            :: n_rows, n_cols
-    COMPLEX(KIND=dp), INTENT(in), OPTIONAL      :: alpha
+    COMPLEX(KIND=dp), INTENT(in), OPTIONAL   :: alpha
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_triangular_multiply', &
@@ -727,13 +729,7 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
         unit_diag='N'
      END IF
   END IF
-  IF (PRESENT(transpose_tr)) THEN
-     IF (transpose_tr) THEN
-        transa='T'
-     ELSE
-        transa='N'
-     END IF
-  END IF
+  IF (PRESENT(transa_tr)) transa = transa_tr
   IF (PRESENT(alpha)) al=alpha
   IF (PRESENT(n_rows)) m=n_rows
   IF (PRESENT(n_cols)) n=n_cols
@@ -771,6 +767,7 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
   END IF
 
   CALL timestop(handle)
+
   END SUBROUTINE cp_cfm_triangular_multiply
 
 ! *****************************************************************************

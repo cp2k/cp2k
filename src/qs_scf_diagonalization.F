@@ -340,7 +340,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: kp_dist
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_level_shift, failure, &
-                                                use_real_wfn
+                                                my_kpgrp, use_real_wfn
     REAL(kind=dp), DIMENSION(:), POINTER     :: eigenvalues
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: xkp
     TYPE(cp_cfm_type), POINTER               :: cksmat, cmos, csmat, cwork
@@ -350,8 +350,8 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_ao_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, mo_struct
-    TYPE(cp_fm_type), POINTER                :: fmlocal, imos, mo_coeff, &
-                                                rksmat, rmos, rsmat
+    TYPE(cp_fm_type), POINTER                :: fmdummy, fmlocal, imos, &
+                                                mo_coeff, rksmat, rmos, rsmat
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
@@ -360,6 +360,7 @@ CONTAINS
     failure = .FALSE.
     diis_step = .FALSE.
     nspin = SIZE(matrix_ks,1)
+    NULLIFY(fmdummy)
 
     do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
                       ((scf_control%density_guess == core_guess).OR.&
@@ -429,6 +430,7 @@ CONTAINS
           DO ikp = 1,nkp_groups
              ! number of current kpoint
              ik = kp_dist(1,ikp)+ikpgr-1
+             my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
              IF(use_real_wfn) THEN
                 ! FT of matrices KS and S, then transfer to FM type
                 CALL rskp_transform(rmatrix=rmatrix,rsmat=matrix_ks,ispin=ispin,&
@@ -456,14 +458,18 @@ CONTAINS
              END IF
              ! transfer to kpoint group
              ! redistribution of matrices, new blacs environment
-             IF(nkp_groups == 1) THEN
-                ! we need still to change the blacs environment
-                ! fmwork -> fmlocal -> rksmat
-                IF(use_real_wfn) THEN
+             ! fmwork -> fmlocal -> rksmat/cksmat
+             ! fmwork -> fmlocal -> rsmat/csmat
+             IF(use_real_wfn) THEN
+                IF(my_kpgrp) THEN
                    CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,bcntxt,error)
                    CALL cp_fm_copy_general(fmwork(3)%matrix,rsmat,bcntxt,error)
                 ELSE
-                   ! Hermitian ??????
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmdummy,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmdummy,bcntxt,error)
+                END IF
+             ELSE
+                IF(my_kpgrp) THEN
                    CALL cp_fm_copy_general(fmwork(1)%matrix,fmlocal,bcntxt,error)
                    CALL cp_cfm_add_fm(czero,cksmat,cone,fmlocal,error)
                    CALL cp_fm_copy_general(fmwork(2)%matrix,fmlocal,bcntxt,error)
@@ -472,11 +478,12 @@ CONTAINS
                    CALL cp_cfm_add_fm(czero,csmat,cone,fmlocal,error)
                    CALL cp_fm_copy_general(fmwork(4)%matrix,fmlocal,bcntxt,error)
                    CALL cp_cfm_add_fm(cone,csmat,ione,fmlocal,error)
+                ELSE
+                   CALL cp_fm_copy_general(fmwork(1)%matrix,fmdummy,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(2)%matrix,fmdummy,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(3)%matrix,fmdummy,bcntxt,error)
+                   CALL cp_fm_copy_general(fmwork(4)%matrix,fmdummy,bcntxt,error)
                 END IF
-             ELSE
-                ! this requires more complex reshuffling of data
-                ! CALL cp_fm_copy_general(fmwork(1)%matrix,rksmat,bcntxt,error)
-                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END IF
           END DO
           ! Each kpoint group has now information on a kpoint to be diagonalized
