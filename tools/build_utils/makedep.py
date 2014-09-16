@@ -21,7 +21,8 @@ def main():
     out_fn  = sys.argv[1]
     mod_format = sys.argv[2]
     mode = sys.argv[3]
-    src_files = sys.argv[4:]
+    archive_ext = sys.argv[4]
+    src_files = sys.argv[5:]
     if(mod_format not in ('lower', 'upper', 'no')):
         error('Module filename format must be eighter of "lower", "upper", or "no".')
     if(mode not in ('normal', 'hackdep', 'mod_compiler')):
@@ -91,10 +92,11 @@ def main():
     for p in packages.keys():
         if(len(packages[p]['objects']) > 0):
             makefile += "# Package %s\n"%p
-            makefile += "$(LIBDIR)/%s.a : "%packages[p]['archive']
+            makefile += "$(LIBDIR)/%s : "%(packages[p]['archive']+archive_ext)
             makefile += " ".join(packages[p]['objects']) + "\n\n"
 
     # write rules for executables
+    archive_postfix = archive_ext.rsplit(".",1)[0]
     for fn in src_files:
         if(not parsed_files[fn]['program']):
             continue
@@ -103,10 +105,10 @@ def main():
         makefile += "$(EXEDIR)/%s.$(ONEVERSION) : %s.o "%(bfn, bfn)
         p = normpath(dirname(fn))
         deps = collect_pkg_deps(packages, p)
-        makefile += " ".join(["$(LIBDIR)/%s.a"%a for a in deps]) + "\n"
+        makefile += " ".join(["$(LIBDIR)/"+a+archive_ext for a in deps]) + "\n"
         makefile += "\t" + "$(LD) $(LDFLAGS) -L$(LIBDIR) -o $@ %s.o "%bfn
         assert(all([a.startswith("lib") for a in deps]))
-        makefile += " ".join(["-l"+a[3:] for a in deps])
+        makefile += " ".join(["-l"+a[3:]+archive_postfix for a in deps])
         makefile += " $(LIBS)\n\n"
 
     # write rules for objects
