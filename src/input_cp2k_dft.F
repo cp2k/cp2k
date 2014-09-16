@@ -7450,7 +7450,7 @@ CONTAINS
             "uses scaling and squaring together with the pade approximation",&
             "uses arnoldi subspace algorithm to compute exp(H)*MO directly, can't be used in "//&
             "combination with Crank Nicholson or density propagation",&
-            "Uses a Baker–Campbell–Hausdorff expansion to propagate the density matrix,"//&
+            "Uses a Baker-Campbell-Hausdorff expansion to propagate the density matrix,"//&
             " only works for density propagation"),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
