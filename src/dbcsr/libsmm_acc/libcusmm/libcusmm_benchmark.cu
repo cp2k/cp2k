@@ -48,10 +48,15 @@ static void stackInit(int **stack, int n_stack, int n_c, double* mat_c,
   int* s = (int*) malloc(n_stack * 7 * sizeof(int));
   *stack = s;
 
+  if(n_stack < n_c){
+    printf("Error: n_stack < n_c\n");
+    exit(1);
+  }
+
   int n_avg = n_stack / n_c;  // on average, we have n_avg matrix prodcuts contributing to 
                               // a result mat_c
-  int n_imbalance = n_avg - 4; 
-  if(n_imbalance < 0) n_imbalance =0;
+
+  int n_imbalance = max(1, n_avg-4);
 
   int c = 0;
   int n_top = 0;
