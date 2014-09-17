@@ -208,7 +208,7 @@ vpath %.pretty $(PRETTYOBJDIR)
 prettydir:
 	@mkdir -p $(PRETTYOBJDIR)
 
-pretty: prettydir $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
+pretty: doxify prettydir $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
 TOOL_HELP += "pretty : Reformat all source files in a pretty way."
 
 prettyclean:
