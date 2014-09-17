@@ -397,8 +397,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_info', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=10*default_string_length)  :: conf_loc_s, conf_s
     INTEGER                                  :: i, istat, iw
+    CHARACTER(len=20*SIZE(conf))             :: conf_loc_s, conf_s
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
