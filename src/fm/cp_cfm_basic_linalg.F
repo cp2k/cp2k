@@ -667,8 +667,7 @@ CPSourceFileRef,&
 !> \param matrix_b the matrix that gets multiplied and stores the result
 !> \param side on which side of matrix_b stays op(triangular_matrix)
 !>        (defaults to 'L')
-!> \param transpose_tr if the triangular matrix should be transposed/complex comjugated
-!>        (defaults to false)
+!> \param transa_tr ...
 !> \param invert_tr if the triangular matrix should be inverted
 !>        (defaults to false)
 !> \param uplo_tr if triangular_matrix is stored in the upper ('U') or
@@ -682,6 +681,8 @@ CPSourceFileRef,&
 !> \param alpha ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param transpose_tr if the triangular matrix should be transposed/complex comjugated
+!>        (defaults to false) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
