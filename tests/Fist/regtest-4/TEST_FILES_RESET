@@ -366,3 +366,5 @@ nh3_bfgs.inp
 nh3_bfgs_r.inp
 #improvement of bfgs and curvy steps
 nh3_wat-restraint-fixd-3.inp
+#restore EPCC's cuda regtest
+H2O-meta-combine.inp
