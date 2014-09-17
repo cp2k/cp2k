@@ -16,9 +16,6 @@
 ! *****************************************************************************
 MODULE qs_environment
   USE atom_kind_orbitals,              ONLY: calculate_atomic_relkin
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE basis_set_types,                 ONLY: copy_gto_basis_set,&
                                              gto_basis_set_type
@@ -56,9 +53,8 @@ MODULE qs_environment
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_release,&
+  USE cp_subsys_methods,               ONLY: cp_subsys_create
+  USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsys_type
   USE cp_symmetry,                     ONLY: write_symmetry
@@ -121,12 +117,6 @@ MODULE qs_environment
                                              lri_env_create,&
                                              lri_environment_type
   USE machine,                         ONLY: m_flush
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                             mol_kind_new_list_release,&
-                                             mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                             mol_new_list_release,&
-                                             mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
@@ -135,9 +125,6 @@ MODULE qs_environment
   USE mp2_types,                       ONLY: mp2_env_create
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE particle_list_types,             ONLY: particle_list_create,&
-                                             particle_list_release,&
-                                             particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
@@ -201,7 +188,6 @@ MODULE qs_environment
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology,                        ONLY: topology_control
   USE xas_control,                     ONLY: write_xas_control
 #include "./common/cp_common_uses.f90"
 
@@ -259,7 +245,6 @@ CONTAINS
       mp2_present, my_qmmm, my_qmmm_multipole, my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
@@ -270,23 +255,15 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
-    TYPE(mol_new_list_type), POINTER         :: mols
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(rel_control_type), POINTER          :: rel_control
-    TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
-      dft_section, et_coupling_section, harris_section, hfx_ri_section, &
-      hfx_section, kind_section, kpoint_section, mp2_section
+    TYPE(section_vals_type), POINTER :: cell_section, dft_section, &
+      et_coupling_section, harris_section, hfx_ri_section, hfx_section, &
+      kind_section, kpoint_section, mp2_section
 
     failure = .FALSE.
-    NULLIFY(my_subsys,molecule_kind_set,molecule_set,atomic_kind_set,&
-         particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
+    NULLIFY(my_subsys,my_cell,my_cell_ref, atomic_kind_set, particle_set,&
          cell_section,harris_section,kind_section,kpoint_section,dft_section,ga_env)
     para_env=>qs_env%para_env
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
@@ -346,35 +323,19 @@ CONTAINS
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     IF (PRESENT(subsys)) THEN
        my_subsys => subsys
-       CALL create_qs_kind_set(qs_env%qs_kind_set, &
-                               my_subsys%atomic_kinds%els,&
-                               kind_section, para_env, force_env_section, error)
     ELSE
-       CALL cp_subsys_create(my_subsys,para_env=para_env,error=error)
-
-       colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
-       CALL cp_subsys_read_colvar( my_subsys, colvar_section, error=error)
-
-       !   *** Read the particle coordinates and allocate the atomic kind, ***
-       !   *** the molecule kind, and the molecule data structures         ***
-       CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set, molecule_set,&
-            my_subsys%colvar_p,my_subsys%gci, root_section, para_env, &
-            force_env_section=force_env_section, subsys_section=subsys_section,&
-            use_motion_section=use_motion_section, error=error)
-       CALL create_qs_kind_set(qs_env%qs_kind_set, atomic_kind_set, &
-                               kind_section, para_env, force_env_section, error)
-       CALL num_ao_el_per_molecule(molecule_kind_set, qs_env%qs_kind_set)
-       CALL particle_list_create(particles,els_ptr=particle_set,error=error)
-       CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
-       CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
-       CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
-       CALL cp_subsys_set(my_subsys,particles=particles,atomic_kinds=atomic_kinds,&
-            molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
-       CALL particle_list_release(particles,error=error)
-       CALL atomic_kind_list_release(atomic_kinds,error=error)
-       CALL mol_new_list_release(mols,error=error)
-       CALL mol_kind_new_list_release(mol_kinds,error=error)
+       CALL cp_subsys_create(my_subsys, para_env, root_section=root_section,&
+          force_env_section=force_env_section, subsys_section=subsys_section,&
+          use_motion_section=use_motion_section, error=error)
     END IF
+    CALL set_qs_env(qs_env,subsys=my_subsys,error=error)
+
+    particle_set    => my_subsys%particles%els
+    atomic_kind_set => my_subsys%atomic_kinds%els
+
+    CALL create_qs_kind_set(qs_env%qs_kind_set, atomic_kind_set, kind_section, &
+                            para_env, force_env_section, error)
+    CALL num_ao_el_per_molecule(my_subsys%molecule_kinds_new%els, qs_env%qs_kind_set)
 
     CALL qs_init_subsys(qs_env,my_subsys,my_cell,my_cell_ref,use_ref_cell,&
          root_section,subsys_section,my_qmmm,harris=harris_flag,error=error)
@@ -387,7 +348,6 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
     kpoint_section => section_vals_get_subs_vals(qs_env%input,"DFT%KPOINTS",error=error)
     CALL read_kpoint_section(kpoints,kpoint_section,error)
-    particle_set => my_subsys%particles%els
     CALL kpoint_initialize(kpoints, particle_set, qs_env%cell, error)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     CALL write_kpoint_info(kpoints,dft_section,error)
@@ -407,8 +367,6 @@ CONTAINS
     CALL section_vals_get(hfx_section,explicit=do_hfx,error=error)
     IF (do_hfx) THEN
       ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
-      particle_set    => my_subsys%particles%els
-      atomic_kind_set => my_subsys%atomic_kinds%els
       natom=SIZE(particle_set)
       CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
                       qs_env%qs_kind_set, qs_env%dft_control, qs_env%cell, error=error)
@@ -430,8 +388,6 @@ CONTAINS
        CALL section_vals_get(hfx_section,explicit=do_exx,error=error)
        IF (do_exx) THEN
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
-         particle_set    => my_subsys%particles%els
-         atomic_kind_set => my_subsys%atomic_kinds%els
          natom=SIZE(particle_set)
          CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set,&
                          qs_env%qs_kind_set, qs_env%dft_control, qs_env%cell, error=error)
@@ -491,11 +447,10 @@ CONTAINS
     CALL get_qs_env(qs_env,rel_control=rel_control,error=error)
     IF (rel_control%rel_method /= rel_none) THEN
        IF (rel_control%rel_transformation == rel_trans_atom) THEN
-          CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
           nkind = SIZE(atomic_kind_set)
           DO ikind=1,nkind
              NULLIFY(rtmat)
-             CALL calculate_atomic_relkin(atomic_kind_set(ikind),qs_env%qs_kind_set(ikind),rel_control,rtmat,error)
+             CALL calculate_atomic_relkin(atomic_kind_set(ikind), qs_env%qs_kind_set(ikind),rel_control,rtmat,error)
              IF(ASSOCIATED(rtmat)) CALL set_qs_kind(qs_env%qs_kind_set(ikind), reltmat=rtmat)
           END DO
        END IF
@@ -840,7 +795,6 @@ CONTAINS
     END IF
 
     !   *** Set the current Quickstep environment ***
-    CALL set_qs_env(qs_env,subsys=subsys,error=error)
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     cell_ref=cell_ref,&

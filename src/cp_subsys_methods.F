@@ -18,14 +18,16 @@ MODULE cp_subsys_methods
   USE cell_methods,                    ONLY: cell_retain,&
                                              cell_type
   USE colvar_methods,                  ONLY: colvar_read
+  USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
+  USE exclusion_types,                 ONLY: exclusion_type
   USE f77_blas
   USE input_constants,                 ONLY: do_conn_off
   USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -41,10 +43,12 @@ MODULE cp_subsys_methods
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE topology,                        ONLY: connectivity_control
+  USE topology,                        ONLY: connectivity_control,&
+                                             topology_control
   USE topology_connectivity_util,      ONLY: topology_connectivity_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
   USE topology_types,                  ONLY: deallocate_topology,&
@@ -60,9 +64,104 @@ MODULE cp_subsys_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_methods'
 
   PUBLIC :: create_small_subsys,&
-            cp_subsys_read_colvar
+            cp_subsys_read_colvar, cp_subsys_create
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Creates allocates and fills subsys from given input.
+!> \param subsys ...
+!> \param para_env ...
+!> \param root_section ...
+!> \param force_env_section ...
+!> \param subsys_section ...
+!> \param use_motion_section ...
+!> \param qmmm ...
+!> \param qmmm_env ...
+!> \param exclusions ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cp_subsys_create(subsys, para_env, &
+                              root_section, force_env_section, subsys_section,&
+                              use_motion_section, qmmm, qmmm_env, exclusions, error)
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: force_env_section, &
+                                                subsys_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_motion_section
+    LOGICAL, OPTIONAL                        :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(exclusion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: exclusions
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_use_motion_section
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
+    TYPE(mol_new_list_type), POINTER         :: mols
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: colvar_section, &
+                                                my_force_env_section, &
+                                                my_subsys_section
+
+    CPPostcondition(.NOT.ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+    ALLOCATE(subsys)
+
+    CALL cp_para_env_retain(para_env,error=error)
+    subsys%para_env => para_env
+
+    my_use_motion_section = .FALSE.
+    IF(PRESENT(use_motion_section)) &
+      my_use_motion_section = use_motion_section
+
+    my_force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
+    IF(PRESENT(force_env_section)) &
+      my_force_env_section => force_env_section
+
+    my_subsys_section => section_vals_get_subs_vals(my_force_env_section,"SUBSYS",error=error)
+    IF(PRESENT(subsys_section)) &
+      my_subsys_section => subsys_section
+
+    colvar_section => section_vals_get_subs_vals(my_subsys_section,"COLVAR",error=error)
+
+    CALL cp_subsys_read_colvar(subsys, colvar_section, error=error)
+
+    !   *** Read the particle coordinates and allocate the atomic kind, ***
+    !   *** the molecule kind, and the molecule data structures         ***
+    CALL topology_control(atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
+                       subsys%colvar_p, subsys%gci, root_section, para_env,&
+                       force_env_section=my_force_env_section,&
+                       subsys_section=my_subsys_section,use_motion_section=my_use_motion_section,&
+                       qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions, error=error)
+
+    CALL particle_list_create(particles,els_ptr=particle_set,error=error)
+    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
+    CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
+    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
+
+    CALL cp_subsys_set(subsys,particles=particles,atomic_kinds=atomic_kinds,&
+         molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
+
+    CALL particle_list_release(particles,error=error)
+    CALL atomic_kind_list_release(atomic_kinds,error=error)
+    CALL mol_new_list_release(mols,error=error)
+    CALL mol_kind_new_list_release(mol_kinds,error=error)
+  END SUBROUTINE cp_subsys_create
 
 ! *****************************************************************************
 !> \brief reads the colvar section of the colvar
@@ -249,7 +348,9 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 8. Allocate new subsys
        !-----------------------------------------------------------------------------
-       CALL cp_subsys_create(small_subsys,para_env=small_para_env,error=error)
+       ALLOCATE(small_subsys)
+       CALL cp_para_env_retain(para_env,error=error)
+       small_subsys%para_env => para_env
        CALL particle_list_create(particles,els_ptr=particle_set,error=error)
        CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
        CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)

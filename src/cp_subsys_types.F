@@ -49,14 +49,12 @@ MODULE cp_subsys_types
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_types'
-  INTEGER, PRIVATE, SAVE :: last_fragment_id = 0
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
   PUBLIC :: cp_subsys_type,&
             cp_subsys_p_type
 
-  PUBLIC :: cp_subsys_create,&
-            cp_subsys_retain,&
+  PUBLIC :: cp_subsys_retain,&
             cp_subsys_release,&
             cp_subsys_get,&
             cp_subsys_set,&
@@ -79,23 +77,23 @@ MODULE cp_subsys_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE cp_subsys_type
-     INTEGER :: ref_count, id_nr
-     TYPE (atomic_kind_list_type), POINTER       :: atomic_kinds
-     TYPE (particle_list_type), POINTER          :: particles
-     TYPE (particle_list_type), POINTER          :: shell_particles
-     TYPE (particle_list_type), POINTER          :: core_particles
-     TYPE (distribution_1d_type), POINTER        :: local_particles
-     TYPE (cp_para_env_type), POINTER            :: para_env
+     INTEGER :: ref_count = 1
+     TYPE (atomic_kind_list_type), POINTER       :: atomic_kinds => Null()
+     TYPE (particle_list_type), POINTER          :: particles => Null()
+     TYPE (particle_list_type), POINTER          :: shell_particles => Null()
+     TYPE (particle_list_type), POINTER          :: core_particles => Null()
+     TYPE (distribution_1d_type), POINTER        :: local_particles => Null()
+     TYPE (cp_para_env_type), POINTER            :: para_env => Null()
      ! New molecules kinds
-     TYPE (mol_new_list_type), POINTER           :: molecules_new
-     TYPE (mol_kind_new_list_type), POINTER      :: molecule_kinds_new
-     TYPE (distribution_1d_type), POINTER        :: local_molecules_new
+     TYPE (mol_new_list_type), POINTER           :: molecules_new => Null()
+     TYPE (mol_kind_new_list_type), POINTER      :: molecule_kinds_new => Null()
+     TYPE (distribution_1d_type), POINTER        :: local_molecules_new => Null()
      ! Definitions of the collective variables
-     TYPE (colvar_p_type), DIMENSION(:), POINTER :: colvar_p
+     TYPE (colvar_p_type), DIMENSION(:), POINTER :: colvar_p => Null()
      ! Intermolecular constraints
-     TYPE (global_constraint_type), POINTER      :: gci
+     TYPE (global_constraint_type), POINTER      :: gci => Null()
      ! Multipoles
-     TYPE (multipole_type), POINTER              :: multipoles
+     TYPE (multipole_type), POINTER              :: multipoles => Null()
   END TYPE cp_subsys_type
 
 ! *****************************************************************************
@@ -111,46 +109,6 @@ MODULE cp_subsys_types
   END TYPE cp_subsys_p_type
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief creates a subsys
-!> \param subsys the subsys to allocate and initialize
-!> \param para_env the parallel environment of this subsys
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      07.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_subsys_create(subsys, para_env, error)
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    ALLOCATE(subsys, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       last_fragment_id=last_fragment_id+1
-       subsys%id_nr=last_fragment_id
-       subsys%ref_count=1
-       CALL cp_para_env_retain(para_env,error=error)
-       subsys%para_env => para_env
-       NULLIFY(subsys%atomic_kinds, subsys%particles, &
-            subsys%shell_particles , subsys%core_particles, &
-            subsys%local_particles, subsys%molecules_new,&
-            subsys%molecule_kinds_new, subsys%local_molecules_new,&
-            subsys%gci, subsys%multipoles)
-       NULLIFY(subsys%colvar_p)
-    END IF
-  END SUBROUTINE cp_subsys_create
 
 ! *****************************************************************************
 !> \brief retains a subsys (see doc/ReferenceCounting.html)
@@ -345,7 +303,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns information about various attributes of the given subsys
 !> \param subsys the subsys you want info about
-!> \param id_nr ...
 !> \param ref_count ...
 !> \param atomic_kinds ...
 !> \param particles ...
@@ -372,13 +329,13 @@ CONTAINS
 !>      22.11.2010 (MK)
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
+  SUBROUTINE cp_subsys_get(subsys, ref_count, atomic_kinds, particles,&
                            local_particles, molecules_new, molecule_kinds_new,&
                            local_molecules_new, para_env, colvar_p,&
                            shell_particles, core_particles, gci, multipoles,&
                            natom, nparticle, ncore, nshell, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
-    INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
+    INTEGER, INTENT(out), OPTIONAL           :: ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
     TYPE(particle_list_type), OPTIONAL, &
@@ -420,7 +377,6 @@ CONTAINS
     CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
-       IF (PRESENT(id_nr)) id_nr = subsys%id_nr
        IF (PRESENT(ref_count)) ref_count = subsys%ref_count
        IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
        IF (PRESENT(particles)) particles => subsys%particles

@@ -21,8 +21,7 @@ MODULE mixed_environment_types
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_release,&
                                              cp_result_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
@@ -217,7 +216,7 @@ CONTAINS
     NULLIFY (mixed_env%energies)
     NULLIFY (mixed_env%par)
     NULLIFY (mixed_env%val)
-    CALL cp_subsys_create(mixed_env%subsys, para_env=para_env, error=error)
+    NULLIFY (mixed_env%subsys)
     CALL cp_result_create(results=mixed_env%results,error=error)
     CALL cp_para_env_retain(para_env,error=error)
     mixed_env%para_env => para_env

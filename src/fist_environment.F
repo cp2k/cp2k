@@ -8,9 +8,6 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE fist_environment
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: Devynck2012,&
@@ -25,9 +22,8 @@ MODULE fist_environment
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_release,&
+  USE cp_subsys_methods,               ONLY: cp_subsys_create
+  USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsys_type
   USE cp_symmetry,                     ONLY: write_symmetry
@@ -57,12 +53,6 @@ MODULE fist_environment
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                             mol_kind_new_list_release,&
-                                             mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                             mol_new_list_release,&
-                                             mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
@@ -79,7 +69,6 @@ MODULE fist_environment
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology,                        ONLY: topology_control
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -122,9 +111,6 @@ CONTAINS
     LOGICAL                                  :: failure, qmmm, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp), DIMENSION(3)              :: abc
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -132,29 +118,20 @@ CONTAINS
     TYPE(exclusion_type), DIMENSION(:), &
       POINTER                                :: exclusions
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
-    TYPE(mol_new_list_type), POINTER         :: mols
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+    TYPE(particle_list_type), POINTER        :: core_particles, &
                                                 shell_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: core_particle_set, &
-                                                particle_set, &
                                                 shell_particle_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                ewald_section, mm_section, &
-                                                poisson_section
+    TYPE(section_vals_type), POINTER         :: cell_section, ewald_section, &
+                                                mm_section, poisson_section
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
-    NULLIFY ( subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
-         particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
+    NULLIFY ( subsys, cell,cell_ref)
     NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, &
          poisson_section, shell_particle_set, shell_particles, &
          core_particle_set, core_particles, exclusions)
@@ -173,12 +150,6 @@ CONTAINS
     CALL fist_header(iw)
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_BANNER",error=error)
 
-    CALL cp_subsys_create ( subsys, para_env = para_env, error = error )
-
-    ! read colvars and add to subsys
-    colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
-    CALL cp_subsys_read_colvar( subsys, colvar_section, error=error)
-
     CALL read_cell( cell, cell_ref, cell_section=cell_section, para_env=para_env, error=error)
     CALL get_cell (cell, abc=abc)
 
@@ -192,24 +163,22 @@ CONTAINS
     CALL read_ewald_section ( ewald_env, ewald_section,error )
     CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
-    CALL fist_env_get (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
     ! Topology
-    CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
-                            subsys%colvar_p, subsys%gci, root_section, para_env, qmmm=qmmm,&
-                            qmmm_env=qmmm_env, force_env_section=force_env_section,&
-                            subsys_section=subsys_section,use_motion_section=use_motion_section,&
-                            exclusions=exclusions, error=error)
-    CALL fist_env_set(fist_env, exclusions=exclusions, error=error)
+    CALL fist_env_get (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
+    CALL cp_subsys_create(subsys, para_env=para_env, root_section=root_section,&
+           force_env_section=force_env_section, subsys_section=subsys_section,&
+           qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions,&
+           use_motion_section=use_motion_section, error=error)
+    CALL fist_env_set(fist_env, subsys=subsys, exclusions=exclusions, error=error)
 
-    CALL force_field_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
-                               ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm,&
-                               qmmm_env=qmmm_env, subsys_section=subsys_section,&
-                               mm_section=mm_section, shell_particle_set=shell_particle_set, &
-                               core_particle_set=core_particle_set, cell=cell, error=error )
+    CALL force_field_control(subsys%atomic_kinds%els, subsys%particles%els, &
+                             subsys%molecule_kinds_new%els, subsys%molecules_new%els,&
+                             ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm,&
+                             qmmm_env=qmmm_env, subsys_section=subsys_section,&
+                             mm_section=mm_section, shell_particle_set=shell_particle_set, &
+                             core_particle_set=core_particle_set, cell=cell, error=error )
 
-    CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
-    NULLIFY(shell_particles)
-    NULLIFY(core_particles)
+    NULLIFY(shell_particles,core_particles)
     IF (ASSOCIATED(shell_particle_set)) THEN
        CALL cite_reference(Devynck2012)
        CALL cite_reference(Mitchell1993)
@@ -219,23 +188,14 @@ CONTAINS
     IF (ASSOCIATED(core_particle_set)) THEN
        CALL particle_list_create ( core_particles, els_ptr = core_particle_set, error = error )
     END IF
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_atomic_kind_set(atomic_kind_set=subsys%atomic_kinds%els,&
                              shell_present=shell_present, shell_adiabatic=shell_adiabatic)
     CALL fist_env_set(fist_env, shell_model=shell_present, &
                       shell_model_ad=shell_adiabatic, error=error)
-    CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
-    CALL mol_new_list_create ( mols, els_ptr = molecule_set, error = error )
-    CALL mol_kind_new_list_create ( mol_kinds, els_ptr = molecule_kind_set, error = error )
-    CALL cp_subsys_set ( subsys, particles = particles, atomic_kinds = atomic_kinds, &
-                         molecules_new = mols, molecule_kinds_new = mol_kinds, &
-                         shell_particles=shell_particles, core_particles=core_particles,&
-                         error = error )
-    CALL particle_list_release ( particles, error = error )
+    CALL cp_subsys_set(subsys, shell_particles=shell_particles, &
+                       core_particles=core_particles, error=error)
     CALL particle_list_release ( shell_particles, error = error )
     CALL particle_list_release ( core_particles, error = error )
-    CALL atomic_kind_list_release ( atomic_kinds, error = error )
-    CALL mol_new_list_release ( mols, error = error )
-    CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
     CALL fist_init_subsys ( fist_env, subsys, cell, cell_ref, fist_nonbond_env, ewald_env,&
                             force_env_section, subsys_section, prev_subsys, error)
@@ -357,7 +317,6 @@ CONTAINS
     CALL cp_subsys_set(subsys, multipoles=multipoles, error=error)
 
     ! Set the fist_env
-    CALL fist_env_set ( fist_env = fist_env, subsys = subsys, error = error )
     CALL fist_env_set ( fist_env=fist_env,&
                         cell=cell, cell_ref=cell_ref, &
                         local_molecules=local_molecules,&

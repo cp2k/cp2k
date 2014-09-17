@@ -10,9 +10,6 @@
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
 MODULE eip_environment
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_methods,                    ONLY: cell_release,&
@@ -21,10 +18,8 @@ MODULE eip_environment
                                              read_cell,&
                                              write_cell
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_methods,               ONLY: cp_subsys_read_colvar
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_release,&
-                                             cp_subsys_set,&
+  USE cp_subsys_methods,               ONLY: cp_subsys_create
+  USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
@@ -37,25 +32,15 @@ MODULE eip_environment
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                             mol_kind_new_list_release,&
-                                             mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                             mol_new_list_release,&
-                                             mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
-  USE particle_list_types,             ONLY: particle_list_create,&
-                                             particle_list_release,&
-                                             particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_fist_particle_coordinates,&
                                              write_particle_distances,&
                                              write_structure_data
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology,                        ONLY: topology_control
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -102,20 +87,8 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp), DIMENSION(3)              :: abc
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 eip_section
 
@@ -127,10 +100,8 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       ! nullifying  pointers
-      NULLIFY( cell_section, colvar_section, eip_section, &
-              cell, cell_ref, subsys, molecule_kind_set, molecule_set, &
-              particle_set, atomic_kind_set, particles, molecules, &
-              molecule_kinds, atomic_kinds)
+      NULLIFY(cell_section, colvar_section, eip_section, cell, cell_ref, &
+           subsys)
 
       IF (.NOT.ASSOCIATED(subsys_section)) THEN
          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
@@ -147,27 +118,7 @@ CONTAINS
       CALL get_cell(cell=cell, abc=abc)
       CALL write_cell(cell=cell, subsys_section=subsys_section,error=error)
 
-      CALL cp_subsys_create(subsys, para_env=para_env, error=error)
-      CALL cp_subsys_read_colvar(subsys=subsys, colvar_section=colvar_section, &
-                                 error=error)
-
-      CALL topology_control(atomic_kind_set, particle_set,molecule_kind_set,&
-           molecule_set, subsys%colvar_p, subsys%gci, root_section, &
-           para_env, force_env_section=force_env_section,&
-           subsys_section=subsys_section, use_motion_section=use_motion_section,&
-           error=error)
-
-      CALL particle_list_create(particles, els_ptr=particle_set, error=error)
-      CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set, error=error)
-      CALL mol_new_list_create(molecules, els_ptr=molecule_set, error=error)
-      CALL mol_kind_new_list_create(molecule_kinds, els_ptr=molecule_kind_set, error=error)
-      CALL cp_subsys_set(subsys, particles=particles, atomic_kinds=atomic_kinds, &
-                         molecules_new=molecules, molecule_kinds_new=molecule_kinds, &
-                         error=error)
-      CALL particle_list_release(particles, error=error)
-      CALL atomic_kind_list_release(atomic_kinds, error=error)
-      CALL mol_new_list_release(molecules, error=error)
-      CALL mol_kind_new_list_release(molecule_kinds, error=error)
+      CALL cp_subsys_create(subsys, para_env, root_section, error=error)
 
       CALL eip_init_subsys(eip_env=eip_env, subsys=subsys, cell=cell, &
                            cell_ref=cell_ref, use_ref_cell=use_ref_cell, &

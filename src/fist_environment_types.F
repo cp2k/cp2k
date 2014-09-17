@@ -24,8 +24,7 @@ MODULE fist_environment_types
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_release,&
                                              cp_result_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
@@ -208,7 +207,6 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new, fist_multipoles)
-    CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( input ) ) input => fist_env%input
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
@@ -224,17 +222,19 @@ CONTAINS
     IF ( PRESENT ( shell_model ) ) shell_model = fist_env % shell_model
     IF ( PRESENT ( shell_model_ad ) ) shell_model_ad = fist_env % shell_model_ad
     IF (PRESENT(subsys)) subsys => fist_env%subsys
-    CALL cp_subsys_get(fist_env%subsys,&
-                      atomic_kinds=atomic_kinds,&
-                      local_molecules_new=local_molecules,&
-                      local_particles=local_particles,&
-                      particles=particles,&
-                      molecule_kinds_new=molecule_kinds_new,&
-                      molecules_new=molecules_new,&
-                      shell_particles=shell_particles,&
-                      core_particles=core_particles,&
-                      multipoles=fist_multipoles,&
-                      error=error)
+
+    IF(ASSOCIATED(fist_env%subsys)) &
+       CALL cp_subsys_get(fist_env%subsys,&
+                          atomic_kinds=atomic_kinds,&
+                          local_molecules_new=local_molecules,&
+                          local_particles=local_particles,&
+                          particles=particles,&
+                          molecule_kinds_new=molecule_kinds_new,&
+                          molecules_new=molecules_new,&
+                          shell_particles=shell_particles,&
+                          core_particles=core_particles,&
+                          multipoles=fist_multipoles,&
+                          error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
@@ -274,7 +274,7 @@ CONTAINS
     fist_env % shell_model = .FALSE.
     fist_env % shell_model_ad = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
-    CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
+    NULLIFY (fist_env%subsys)
     CALL cp_result_create(results=fist_env%results,error=error)
     CALL cp_para_env_retain(para_env,error=error)
     fist_env%para_env => para_env

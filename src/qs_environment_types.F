@@ -43,8 +43,7 @@ MODULE qs_environment_types
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_release,&
                                              cp_result_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_type
@@ -798,7 +797,7 @@ CONTAINS
     IF (PRESENT(ga_env)) ga_env => qs_env%ga_env
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(mp2_env)) mp2_env => qs_env%mp2_env
-    IF (PRESENT(kg_env)) kg_env => qs_env%kg_env   
+    IF (PRESENT(kg_env)) kg_env => qs_env%kg_env
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
@@ -1097,7 +1096,7 @@ CONTAINS
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
-    CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
+    NULLIFY (qs_env%subsys)
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
     CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
