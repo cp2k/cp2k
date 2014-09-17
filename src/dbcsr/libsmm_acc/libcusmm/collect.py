@@ -13,7 +13,7 @@ from pprint import pprint
 
 re_mnk    = re.compile("tune_(\d+)x(\d+)x(\d+)_")
 re_winner = re.compile("\nWINNER: \d+ (.+)\n")
-re_gflops = re.compile("# ([0-9.]+) GFlop/s")
+re_gflops = re.compile("# ([0-9.]+) GFlop/?s")
 re_errors = re.compile("Number of errors: (\d+)\n")
 
 #===============================================================================
