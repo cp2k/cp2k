@@ -448,6 +448,11 @@ CONTAINS
                                                 tmp_gx
     TYPE(cp_logger_type), POINTER            :: logger
 
+    IF(nelectron==0) THEN
+       CALL cp_dbcsr_set(matrix_p,0.0_dp,error=error)
+       RETURN
+    ENDIF
+
     CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
