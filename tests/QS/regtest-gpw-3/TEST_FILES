@@ -24,6 +24,7 @@ rsgrid-dist-1.inp                 1     4e-14
 # This file is created from the previous run..
 #H2O-1_3.restart    5
 3H2O_bsse.inp      5
+3H2O_bsse_multi_LIST.inp      5
 OH-H2O-bsse.inp    5
 # Langevin dynamics
 H2O-langevin-1.inp 1
