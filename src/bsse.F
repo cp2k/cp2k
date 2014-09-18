@@ -262,8 +262,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
-    INTEGER :: i, isize, j, k, method_name_id, my_targ, n_rep, num_of_frag, &
-      old_size, present_charge, present_multpl, stat, ir
+    INTEGER :: i, ir, isize, j, k, method_name_id, my_targ, n_rep, &
+      num_of_frag, old_size, present_charge, present_multpl, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, tmplist
     LOGICAL                                  :: failure
