@@ -251,7 +251,7 @@ MODULE  rt_propagation_utils
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: p_rmpv, rho_old
+      POINTER                                :: p_rmpv, rho_new, rho_old
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -286,7 +286,7 @@ MODULE  rt_propagation_utils
           CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix,error=error)
        ENDDO
        IF(rtp%linear_scaling) THEN
-          CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
+          CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
           DO ispin=1,SIZE(mo_array)
              re=2*ispin-1
              im=2*ispin
@@ -296,8 +296,11 @@ MODULE  rt_propagation_utils
              CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix,&
                   matrix_v=mo_array(ispin)%mo_set%mo_coeff,matrix_g=mo_array(ispin)%mo_set%mo_coeff,ncol=ncol,&
                   keep_sparsity=.FALSE.,alpha=alpha,error=error)
-             CALL calc_update_rho_sparse(qs_env,error)
           END DO
+          DO i=1,SIZE(rho_new)
+             CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
+          ENDDO
+          CALL calc_update_rho_sparse(qs_env,error)
        ELSE
           CALL get_rtp(rtp=rtp,mos_old=mos_old,error=error)
           DO i=1,SIZE(qs_env%mos)

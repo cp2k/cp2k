@@ -6,4 +6,6 @@ emd-KG.inp
 H2O-ls-ortho-emd.inp
 # fix trs4 for zero electrons
 H2plus-ls-rtp.inp
+# bugfix restart
+H2O-ls-rtp-scf-restart.inp
 

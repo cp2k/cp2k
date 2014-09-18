@@ -11,8 +11,6 @@
 MODULE rt_propagation
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -179,8 +177,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: i
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_new, rho_old
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -193,12 +189,7 @@ CONTAINS
          error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
-    IF(rtp%linear_scaling) THEN
-       CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
-        DO i=1,SIZE(rho_new)
-           CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
-        ENDDO 
-    ELSE
+    IF(.NOT.rtp%linear_scaling) THEN
        CALL get_qs_env(qs_env,mos=mos,error=error)
        CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
@@ -248,8 +239,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: i
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_new, rho_old
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -265,12 +254,7 @@ CONTAINS
          error=error)
      rtp_control=>qs_env%dft_control%rtp_control
 
-     IF(rtp%linear_scaling) THEN 
-        CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)   
-        DO i=1,SIZE(rho_new)
-           CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
-        ENDDO 
-     ELSE
+     IF(.NOT.rtp%linear_scaling) THEN 
         CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
 
         IF(rtp_control%initial_wfn==use_scf_wfn)THEN

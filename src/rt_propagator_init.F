@@ -499,15 +499,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: im, ispin, &
+    INTEGER                                  :: i, im, ispin, &
                                                 nelectron_spin_real, re
     REAL(KIND=dp)                            :: e_homo, e_lumo, e_mu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, rho_old
+      POINTER                                :: matrix_ks, matrix_s, rho_new, &
+                                                rho_old
     TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
 
     CALL get_qs_env(qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
-    CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,error=error)
+    CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,rho_new=rho_new,error=error)
     !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
     CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
          rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
@@ -519,7 +520,6 @@ CONTAINS
     e_homo = 0
     e_lumo = 0
     e_mu = 0
-
 
     DO ispin=1,SIZE(matrix_ks)
        re=2*ispin-1
@@ -539,6 +539,10 @@ CONTAINS
        CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
     END DO
 
+    DO i=1,SIZE(rho_new)
+       CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
+    ENDDO
+    CALL calc_update_rho_sparse(qs_env,error)
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
    END SUBROUTINE rt_initialize_rho_from_ks
