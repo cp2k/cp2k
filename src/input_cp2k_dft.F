@@ -4933,7 +4933,7 @@ CONTAINS
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms.",&
             usage="LIST {integer} {integer} .. {integer}", required=.FALSE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
+            repeats=.TRUE., n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

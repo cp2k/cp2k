@@ -244,6 +244,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \par History
 !>      07.2005 created [tlaino]
+!>      2014/09/17 made atom list to be read from repeated occurance of LIST [LTong]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc, n_frags, &
@@ -262,7 +263,7 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER :: i, isize, j, k, method_name_id, my_targ, n_rep, num_of_frag, &
-      old_size, present_charge, present_multpl, stat
+      old_size, present_charge, present_multpl, stat, ir
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, tmplist
     LOGICAL                                  :: failure
@@ -300,12 +301,14 @@ CONTAINS
              ! Get the list of atoms creating the present fragment
              !
              old_size=isize
-             CALL section_vals_val_get(n_frags,"LIST", i_rep_section=i, n_rep_val=n_rep, error=error)
+             CALL section_vals_val_get(n_frags, "LIST", i_rep_section=i, n_rep_val=n_rep, error=error)
              IF (n_rep /= 0) THEN
-                CALL section_vals_val_get(n_frags,"LIST", i_rep_section=i, i_vals=tmplist, error=error)
-                CALL reallocate(atom_index,1,isize+SIZE(tmplist))
-                atom_index(isize+1:isize+SIZE(tmplist)) = tmplist
-                isize = SIZE(atom_index)
+                DO ir = 1, n_rep
+                   CALL section_vals_val_get(n_frags, "LIST", i_rep_section=i, i_rep_val=ir, i_vals=tmplist, error=error)
+                   CALL reallocate(atom_index,1,isize+SIZE(tmplist))
+                   atom_index(isize+1:isize+SIZE(tmplist)) = tmplist
+                   isize = SIZE(atom_index)
+                END DO
              END IF
              my_conf(i) = isize - old_size
              CPPostcondition(conf(i)/=0,cp_failure_level,routineP,error,failure)
