@@ -1,0 +1,64 @@
+&GLOBAL
+  PROJECT dftd3_t9
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+  &END
+&END
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 10
+      EPS_SCF 1.0e-5
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE 
+      &END XC_FUNCTIONAL
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+         &PAIR_POTENTIAL
+            TYPE DFTD3(BJ)
+            CALCULATE_C9_TERM .TRUE.
+            REFERENCE_C9_TERM .TRUE.
+            PARAMETER_FILE_NAME ../dftd3.dat
+            VERBOSE_OUTPUT
+            REFERENCE_FUNCTIONAL PBE
+            R_CUTOFF 8.
+            EPS_CN 0.01
+         &END PAIR_POTENTIAL
+      &END vdW_POTENTIAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.30 8.30 8.30
+    &END
+    &COORD
+ SCALED
+ Ar    0.0 0.0 0.0
+ Ar    0.5 0.5 0.0
+ Ar    0.5 0.0 0.5
+ Ar    0.0 0.5 0.5
+    &END COORD
+    &KIND Ar
+      BASIS_SET SZV-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q8
+    &END
+  &END SUBSYS
+&END
