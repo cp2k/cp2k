@@ -27,6 +27,7 @@ MODULE qs_ot
        cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_scale_by_vector, &
        cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
+  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -905,7 +906,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, k, n
+    INTEGER                                  :: handle, k, max_iter, n
+    LOGICAL                                  :: converged
+    REAL(KIND=dp)                            :: max_ev, min_ev, threshold
 
     CALL timeset(routineN,handle)
 
@@ -914,7 +917,14 @@ CONTAINS
     ! get the overlap
     CALL cp_dbcsr_multiply('T','N',rone,matrix_x,matrix_sx,rzero,&
          qs_ot_env%matrix_p,error=error)
+
     ! get an upper bound for the largest eigenvalue
+    ! try using lancos first and fall back to gershgorin norm if it fails
+    max_iter=12; threshold=1.0E-03_dp
+    CALL lanczos_alg_serial(qs_ot_env%matrix_p, max_ev, min_ev, converged, threshold, max_iter, error=error)
+    IF(.NOT.converged) qs_ot_env % largest_eval_upper_bound=MAX(max_ev,ABS(min_ev))
+
+
     qs_ot_env % largest_eval_upper_bound = cp_dbcsr_gershgorin_norm(qs_ot_env%matrix_p)
     CALL decide_strategy(qs_ot_env)
     IF (qs_ot_env % do_taylor) THEN
