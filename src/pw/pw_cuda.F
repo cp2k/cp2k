@@ -396,8 +396,8 @@ END SUBROUTINE pw_cuda_finalize
 
 #if defined (__PW_CUDA)
     INTEGER                                  :: handle, ierr
-    INTEGER                                  :: i, ngpts, stat, iout
-    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx1, my1, mx2, mz2, n1, n2, nmax
+    INTEGER                                  :: ngpts, iout
+    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
     INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
     INTEGER, DIMENSION(2)                    :: r_pos, r_dim
     INTEGER                                  :: gs_group, rs_group
@@ -591,8 +591,8 @@ END SUBROUTINE pw_cuda_finalize
 #if defined (__PW_CUDA)
     INTEGER                                  :: handle, ierr
 
-    INTEGER                                  :: i, ngpts, stat, iout
-    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx1, my1, mx2, mz2, n1, n2, nmax, mcz1, mcx2, mcz2
+    INTEGER                                  :: ngpts, iout
+    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
     INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
     INTEGER, DIMENSION(2)                    :: r_pos, r_dim
     INTEGER                                  :: gs_group, rs_group
@@ -1042,10 +1042,6 @@ END SUBROUTINE pw_cuda_finalize
     INTEGER                                  :: mmax, mg, ngpts, handle, nmaps
     INTEGER, DIMENSION(:), POINTER           :: npts
 
-    COMPLEX(KIND=dp), DIMENSION(:), &
-      ALLOCATABLE, TARGET                    :: pwin
-    COMPLEX(KIND=dp), DIMENSION(:,:), &
-      ALLOCATABLE, TARGET                    :: pwout
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
     COMPLEX(KIND=dp), POINTER                :: ptr_pwout
     INTEGER, POINTER                         :: ptr_ghatmap
