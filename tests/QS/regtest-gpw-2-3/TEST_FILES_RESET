@@ -4,3 +4,11 @@ hcn_meta_coord.inp.out
 #change in numerics
 hcn_meta_chaincoord.inp.out
 hcn_meta_chaincoord_kind.inp.out
+#  
+hcn_md.inp
+#  
+hcn_meta_coord.inp
+#  
+hcn_meta_chaincoord.inp
+#  
+hcn_meta_chaincoord_kind.inp

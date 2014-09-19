@@ -984,3 +984,5 @@ sic_ddapc_rt.inp
 He2_ddapc_constraint-4.inp
 #change in numerics
 He2_ddapc_constraint-3.inp.out
+#  
+He2_ddapc_constraint-3.inp
