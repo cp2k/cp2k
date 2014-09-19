@@ -573,7 +573,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
-      col_offset, data_type, error_handler, i, row_offset, irow, icol
+      col_offset, data_type, error_handler, i, icol, irow, row_offset
     LOGICAL                                  :: right, tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
