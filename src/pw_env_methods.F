@@ -741,6 +741,8 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
     IF(dft_control%qs_control%gapw) THEN
        igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0)
        rho0_mpole%igrid_zet0_s = igrid_zet0_s
+    ELSE
+       igrid_zet0_s = 0
     END IF
 
     ! try to predict the maximum radius of the gaussians to be mapped on the grid

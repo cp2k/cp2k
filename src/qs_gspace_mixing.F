@@ -798,6 +798,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
             rho_atom_set=rho_atom,error=error)
       natom = SIZE(rho_atom)
+    ELSE
+      natom = 0
     END IF
 
     DO ispin = 1,nspin
