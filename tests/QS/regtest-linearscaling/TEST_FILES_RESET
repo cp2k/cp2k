@@ -13,3 +13,5 @@ w3-filter.inp
 w3-filter-2.inp
 # more numerics
 w3-filter.inp
+# numerics due to block size change
+w3-filter-2.inp

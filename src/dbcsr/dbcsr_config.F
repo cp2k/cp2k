@@ -152,7 +152,7 @@ MODULE dbcsr_config
   INTEGER, SAVE :: mm_stack_size = 1000
 
   ! Default blocking parameter
-  INTEGER, SAVE :: max_elements_per_block = 16
+  INTEGER, SAVE :: max_elements_per_block = 32
 
   ! Number of stacks to use
   INTEGER, SAVE :: nm_stacks = 3

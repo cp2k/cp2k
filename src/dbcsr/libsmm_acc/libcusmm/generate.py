@@ -17,9 +17,9 @@ from kernels.cusmm_dnt_tiny    import Kernel_dnt_tiny
 def main():
     triples  = combinations(23)                 # blocked H2O (benchmark)
     triples += combinations(6)                  # idem min basis
-    triples += combinations(14,16,29)           # RPA water
-    triples += combinations(5, 16, 13, 24, 26)
-    triples += combinations(9, 16, 22)
+    triples += combinations(14,32,29)           # RPA water
+    triples += combinations(5, 32, 13, 24, 26)
+    triples += combinations(9, 32, 22)
     triples += combinations(32)
     triples += combinations(64)
     triples += combinations(78)
