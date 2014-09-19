@@ -573,7 +573,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
-      col_offset, data_type, error_handler, i, row_offset
+      col_offset, data_type, error_handler, i, row_offset, irow, icol
     LOGICAL                                  :: right, tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
@@ -611,39 +611,59 @@ CONTAINS
        !
        ! let's scale
        IF(right) THEN
-          DO i = 1,a_col_size
-             SELECT CASE (data_type)
-             CASE (dbcsr_type_real_4)
-                CALL sscal(a_row_size,alpha%d%r_sp(col_offset+i-1),&
-                     data_any%d%r_sp((i-1)*a_row_size+1),1)
-             CASE (dbcsr_type_real_8)
-                CALL dscal(a_row_size,alpha%d%r_dp(col_offset+i-1),&
-                     data_any%d%r_dp((i-1)*a_row_size+1),1)
-             CASE (dbcsr_type_complex_4)
-                CALL cscal(a_row_size,alpha%d%c_sp(col_offset+i-1),&
-                     data_any%d%c_sp((i-1)*a_row_size+1),1)
-             CASE (dbcsr_type_complex_8)
-                CALL zscal(a_row_size,alpha%d%c_dp(col_offset+i-1),&
-                     data_any%d%c_dp((i-1)*a_row_size+1),1)
-             END SELECT
-          ENDDO
+          SELECT CASE (data_type)
+          CASE (dbcsr_type_real_4)
+             DO i = 1,a_col_size
+                DO icol=(i-1)*a_row_size+1,(i-1)*a_row_size+a_row_size
+                   data_any%d%r_sp(icol)=data_any%d%r_sp(icol)*alpha%d%r_sp(col_offset+i-1)
+                END DO
+             END DO
+          CASE (dbcsr_type_real_8)
+             DO i = 1,a_col_size
+                DO icol=(i-1)*a_row_size+1,(i-1)*a_row_size+a_row_size
+                   data_any%d%r_dp(icol)=data_any%d%r_dp(icol)*alpha%d%r_dp(col_offset+i-1)
+                END DO
+             END DO
+          CASE (dbcsr_type_complex_4)
+             DO i = 1,a_col_size
+                DO icol=(i-1)*a_row_size+1,(i-1)*a_row_size+a_row_size
+                   data_any%d%c_sp(icol)=data_any%d%c_sp(icol)*alpha%d%c_sp(col_offset+i-1)
+                END DO
+             END DO
+          CASE (dbcsr_type_complex_8)
+             DO i = 1,a_col_size
+                DO icol=(i-1)*a_row_size+1,(i-1)*a_row_size+a_row_size
+                   data_any%d%c_dp(icol)=data_any%d%c_dp(icol)*alpha%d%c_dp(col_offset+i-1)
+                END DO
+             END DO
+          END SELECT
        ELSE
-          DO i = 1,a_row_size
-             SELECT CASE (data_type)
-             CASE (dbcsr_type_real_4)
-                CALL sscal(a_col_size,alpha%d%r_sp(row_offset+i-1),&
-                     data_any%d%r_sp(i),a_col_size)
-             CASE (dbcsr_type_real_8)
-                CALL dscal(a_col_size,alpha%d%r_dp(row_offset+i-1),&
-                     data_any%d%r_dp(i),a_col_size)
-             CASE (dbcsr_type_complex_4)
-                CALL cscal(a_col_size,alpha%d%c_sp(row_offset+i-1),&
-                     data_any%d%c_sp(i),a_col_size)
-             CASE (dbcsr_type_complex_8)
-                CALL zscal(a_col_size,alpha%d%c_dp(row_offset+i-1),&
-                     data_any%d%c_dp(i),a_col_size)
-             END SELECT
-          ENDDO
+          SELECT CASE (data_type)
+          CASE (dbcsr_type_real_4)
+             DO i = 1,a_row_size
+                DO irow=i,i+a_col_size**2-1,a_col_size
+                   data_any%d%r_sp(irow)=data_any%d%r_sp(irow)*alpha%d%r_sp(row_offset+i-1)
+                END DO
+             ENDDO
+          CASE (dbcsr_type_real_8)
+             DO i = 1,a_row_size
+                DO irow=i,i+a_col_size**2-1,a_col_size
+                   data_any%d%r_dp(irow)=data_any%d%r_dp(irow)*alpha%d%r_dp(row_offset+i-1)
+                END DO
+             ENDDO
+          CASE (dbcsr_type_complex_4)
+             DO i = 1,a_row_size
+                DO irow=i,i+a_col_size**2-1,a_col_size
+                   data_any%d%c_sp(irow)=data_any%d%c_sp(irow)*alpha%d%c_sp(row_offset+i-1)
+                END DO
+             ENDDO
+          CASE (dbcsr_type_complex_8)
+             DO i = 1,a_row_size
+                DO irow=i,i+a_col_size**2-1,a_col_size
+                   data_any%d%c_dp(irow)=data_any%d%c_dp(irow)*alpha%d%c_dp(row_offset+i-1)
+                END DO
+             ENDDO
+          END SELECT
        ENDIF
     ENDDO
     CALL dbcsr_iterator_stop(iter)
