@@ -514,7 +514,8 @@ MODULE input_constants
                                               xc_vdw_fun_pairpot=101,&
                                               xc_vdw_fun_nonloc=102
   INTEGER, PARAMETER, PUBLIC               :: vdw_pairpot_dftd2=1,&
-                                              vdw_pairpot_dftd3=2
+                                              vdw_pairpot_dftd3=2,&
+                                              vdw_pairpot_dftd3bj=3
   INTEGER, PARAMETER, PUBLIC               :: vdw_nl_DRSLL=1,&
                                               vdw_nl_LMKLL=2,&
                                               vdw_nl_RVV10=3

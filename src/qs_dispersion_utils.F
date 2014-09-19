@@ -18,6 +18,7 @@ MODULE qs_dispersion_utils
                                              vdw_nl_RVV10,&
                                              vdw_pairpot_dftd2,&
                                              vdw_pairpot_dftd3,&
+                                             vdw_pairpot_dftd3bj,&
                                              xc_vdw_fun_nonloc,&
                                              xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -27,6 +28,7 @@ MODULE qs_dispersion_utils
   USE physcon,                         ONLY: bohr,&
                                              kjmol
   USE qs_dispersion_pairpot,           ONLY: qs_scaling_dftd3,&
+                                             qs_scaling_dftd3bj,&
                                              qs_scaling_init
   USE qs_dispersion_types,             ONLY: qs_atom_dispersion_type,&
                                              qs_dispersion_type
@@ -103,27 +105,52 @@ MODULE qs_dispersion_utils
           dispersion_env%exp_pre=0._dp
           dispersion_env%scaling=0._dp
        END IF
-       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3  .OR. &
+            dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           ! functional parameters for Grimme DFT-D3 type
           CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn, error=error)
-          CALL section_vals_val_get(pp_section, "D3_SCALING" ,explicit=explicit,error=error)
           CALL section_vals_val_get(pp_section, "CALCULATE_C9_TERM" ,l_val=dispersion_env%doabc,error=error)
           CALL section_vals_val_get(pp_section, "REFERENCE_C9_TERM" ,l_val=dispersion_env%c9cnst,error=error)
           CALL section_vals_val_get(pp_section, "LONG_RANGE_CORRECTION" ,l_val=dispersion_env%lrc,error=error)
+          IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+             CALL section_vals_val_get(pp_section, "D3_SCALING" ,explicit=explicit,error=error)
+          ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
+             CALL section_vals_val_get(pp_section, "D3BJ_SCALING" ,explicit=explicit,error=error)
+          END IF
           IF ( .NOT. explicit ) THEN
              CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
              CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
-             CALL qs_scaling_dftd3(dispersion_env%s6,dispersion_env%sr6,dispersion_env%s8,vdw_section,error)
+             IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+                CALL qs_scaling_dftd3(dispersion_env%s6,dispersion_env%sr6,dispersion_env%s8,vdw_section,error)
+             ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
+                CALL qs_scaling_dftd3bj(dispersion_env%s6,dispersion_env%a1,dispersion_env%s8,&
+                                        dispersion_env%a2,vdw_section,error)
+             END IF
           ELSE
-             CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal, error=error)
-             dispersion_env%s6  =scal(1)
-             dispersion_env%sr6 =scal(2)
-             dispersion_env%s8  =scal(3)
+             IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+                ! zero damping
+                CALL section_vals_val_get(pp_section, "D3_SCALING", r_vals=scal, error=error)
+                dispersion_env%s6  =scal(1)
+                dispersion_env%sr6 =scal(2)
+                dispersion_env%s8  =scal(3)
+                dispersion_env%a1  =0.0_dp
+                dispersion_env%a2  =0.0_dp
+             ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
+                ! BJ damping
+                CALL section_vals_val_get(pp_section, "D3BJ_SCALING", r_vals=scal, error=error)
+                dispersion_env%s6  =scal(1)
+                dispersion_env%a1  =scal(2)
+                dispersion_env%s8  =scal(3)
+                dispersion_env%a2  =scal(4)
+                dispersion_env%sr6 =0.0_dp
+             END IF
           END IF
        ELSE
           dispersion_env%s6=0._dp
           dispersion_env%sr6=0._dp
           dispersion_env%s8=0._dp
+          dispersion_env%a1=0._dp
+          dispersion_env%a2=0._dp
           dispersion_env%eps_cn=0._dp
        END IF
        CALL section_vals_val_get(pp_section, "R_CUTOFF", r_val=dispersion_env%rc_disp, error=error)
@@ -212,11 +239,23 @@ MODULE qs_dispersion_utils
                 END IF
              END DO
           ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'DFT-D3 (Version 3.1)')")
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')")
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Zero Damping')")
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s6 Scaling Factor:',T73,F8.4)") dispersion_env%s6
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'sr6 Scaling Factor:',T73,F8.4)") dispersion_env%sr6
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s8 Scaling Factor:',T73,F8.4)") dispersion_env%s8
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff for CN calculation:',T69,E12.4)") dispersion_env%eps_cn
+          ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'DFT-D3 (Version 3.1)')")
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')")
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'BJ Damping: S. Grimme et al, JCC 32: 1456 (2011)')")
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s6 Scaling Factor:',T73,F8.4)") dispersion_env%s6
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'a1 Damping Factor:',T73,F8.4)") dispersion_env%a1
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s8 Scaling Factor:',T73,F8.4)") dispersion_env%s8
+             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'a2 Damping Factor:',T73,F8.4)") dispersion_env%a2
              WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff for CN calculation:',T69,E12.4)") dispersion_env%eps_cn
           END IF
        ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN

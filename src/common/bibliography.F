@@ -70,6 +70,7 @@ MODULE bibliography
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
+       Grimme2011,                                                     &
        QUIP_ref
 
 CONTAINS
@@ -1735,6 +1736,23 @@ CONTAINS
          "UT ISI:000276971500005",&
          "ER"),&
          DOI="10.1063/1.3382344")
+
+    CALL add_reference(key=Grimme2011,ISI_record=s2a(&
+         "PT J",&
+         "AU Grimme, S",&
+         "   Ehrlich, S",&
+         "   Goerigk, L",&
+         "AF Grimme, Stefan",&
+         "   Ehrlich, Stephan",&
+         "   Goerigk, Lars",&
+         "TI Effect of the damping function in dispersion corrected density functional theory",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "PY 2011",&
+         "VL 32",&
+         "BP 1456",&
+         "DI 10.1002/jcc.21759",&
+         "ER"),&
+         DOI="10.1002/jcc.21759")
 
     CALL add_reference(key=Branduardi2007,ISI_record=s2a(&
          "PT J",&

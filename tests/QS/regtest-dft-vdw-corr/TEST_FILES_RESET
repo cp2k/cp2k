@@ -120,3 +120,8 @@ argon12.inp
 argon04.inp
 # new version libxc 2.2
 argon04.inp
+#
+dftd3bj_t1.inp
+dftd3bj_t2.inp
+dftd3bj_t3.inp
+dftd3bj_t4.inp

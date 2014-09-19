@@ -46,6 +46,7 @@ MODULE qs_neighbor_lists
                                              do_method_lrigpw,&
                                              do_se_IS_slater,&
                                              vdw_pairpot_dftd3,&
+                                             vdw_pairpot_dftd3bj,&
                                              xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -788,7 +789,8 @@ CONTAINS
             subcells=subcells,operator_type="PP",name="sab_vdw",error=error)
        dispersion_env%sab_vdw => sab_vdw
 
-       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+            dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
           DO ikind = 1, nkind
              CALL get_atomic_kind(atomic_kind_set(ikind), z=zat)

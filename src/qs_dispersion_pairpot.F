@@ -16,7 +16,8 @@ MODULE qs_dispersion_pairpot
                                              atprop_type
   USE bibliography,                    ONLY: cite_reference,&
                                              grimme2006,&
-                                             grimme2010
+                                             grimme2010,&
+                                             grimme2011
   USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
@@ -34,6 +35,7 @@ MODULE qs_dispersion_pairpot
   USE f77_blas
   USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
                                              vdw_pairpot_dftd3,&
+                                             vdw_pairpot_dftd3bj,&
                                              xc_vdw_fun_none,&
                                              xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_type,&
@@ -79,7 +81,7 @@ MODULE qs_dispersion_pairpot
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_pairpot'
 
   PUBLIC :: qs_dispersion_pairpot_init, calculate_dispersion_pairpot, &
-            qs_scaling_init, qs_scaling_dftd3
+            qs_scaling_init, qs_scaling_dftd3, qs_scaling_dftd3bj
 
   TYPE dcnum_type
      INTEGER                                :: neighbors
@@ -143,9 +145,10 @@ CONTAINS
           SELECT CASE (dispersion_env%pp_type)
              CASE DEFAULT
                ! do nothing
-             CASE (vdw_pairpot_dftd3)
+             CASE (vdw_pairpot_dftd3,vdw_pairpot_dftd3bj)
                 !DFT-D3 Method initial setup
                 CALL cite_reference(Grimme2010)
+                CALL cite_reference(Grimme2011)
                 max_elem = 94
                 maxc     = 5
                 dispersion_env%max_elem = max_elem
@@ -266,7 +269,7 @@ CONTAINS
              ELSE
                 disp%defined = .FALSE.
              END IF
-          CASE (vdw_pairpot_dftd3)
+          CASE (vdw_pairpot_dftd3,vdw_pairpot_dftd3bj)
              disp%type = dftd3_pp
              IF ( elem <= 94 ) THEN
                 disp%defined = .TRUE.
@@ -397,7 +400,7 @@ CONTAINS
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional,error=error)
 
     ! values for different functionals from:
-    ! http://toc.uni-muenster.de/DFTD3/functionals.html
+    ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionals.html
     SELECT CASE (TRIM(functional))
     CASE DEFAULT
        ! unknown functional
@@ -405,7 +408,6 @@ CONTAINS
             message="No DFT-D3 values available for this functional:"//TRIM(functional), &
             error=error, error_level=cp_failure_level)
     CASE ("B1B95")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.613_dp
        s8  = 1.868_dp
@@ -440,7 +442,6 @@ CONTAINS
        sr6 = 0.892_dp
        s8  = 0.909_dp
     CASE ("BHLYP")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.370_dp
        s8  = 1.442_dp
@@ -457,12 +458,10 @@ CONTAINS
        sr6 = 1.139_dp
        s8  = 1.683_dp
     CASE ("BPBE")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.087_dp
        s8  = 2.033_dp
     CASE ("MPWLYP")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.239_dp
        s8  = 1.098_dp
@@ -485,7 +484,6 @@ CONTAINS
        sr6 = 1.532_dp
        s8  = 0.862_dp
     CASE ("PWB6K")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.660_dp
        s8  = 0.550_dp
@@ -508,65 +506,347 @@ CONTAINS
        sr6 = 1.252_dp
        s8  = 1.242_dp
     CASE ("TPSSh")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.223_dp
        s8  = 1.219_dp
     CASE ("B3PW91")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.176_dp
        s8  = 1.775_dp
     CASE ("BMK")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.931_dp
        s8  = 2.168_dp
     CASE ("CAMB3LYP")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.378_dp
        s8  = 1.217_dp
     CASE ("LCWPBE")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.355_dp
        s8  = 1.279_dp
     CASE ("M052X")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.417_dp
        s8  = 0.000_dp
     CASE ("M05")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.373_dp
        s8  = 0.595_dp
     CASE ("M062X")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.619_dp
        s8  = 0.000_dp
     CASE ("M06HF")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.446_dp
        s8  = 0.000_dp
     CASE ("M06L")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.581_dp
        s8  = 0.000_dp
     CASE ("M06N")
-       ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.325_dp
        s8  = 0.000_dp
+    CASE ("HCTH120")
+       s6  = 1.000_dp
+       sr6 = 1.221_dp
+       s8  = 1.206_dp
+    CASE ("PTPSS")
+       s6  = 0.750_dp
+       sr6 = 1.541_dp
+       s8  = 0.879_dp
+    CASE ("PWPB95")
+       s6  = 0.820_dp
+       sr6 = 1.557_dp
+       s8  = 0.705_dp
+    CASE ("OLYP")
+       s6  = 1.000_dp
+       sr6 = 0.806_dp
+       s8  = 1.764_dp
+    CASE ("OPBE")
+       s6  = 1.000_dp
+       sr6 = 0.837_dp
+       s8  = 2.055_dp
+    CASE ("OTPSS")
+       s6  = 1.000_dp
+       sr6 = 1.128_dp
+       s8  = 1.494_dp
+    CASE ("PBE38")
+       s6  = 1.000_dp
+       sr6 = 1.333_dp
+       s8  = 0.998_dp
+    CASE ("PBEsol")
+       s6  = 1.000_dp
+       sr6 = 1.345_dp
+       s8  = 0.612_dp
+    CASE ("revSSB")
+       s6  = 1.000_dp
+       sr6 = 1.221_dp
+       s8  = 0.560_dp
+    CASE ("SSB")
+       s6  = 1.000_dp
+       sr6 = 1.215_dp
+       s8  = 0.663_dp
+    CASE ("BOP")
+       s6  = 1.000_dp
+       sr6 = 0.929_dp
+       s8  = 1.975_dp
+    CASE ("MPW1B95")
+       s6  = 1.000_dp
+       sr6 = 1.605_dp
+       s8  = 1.118_dp
+    CASE ("MPWB1K")
+       s6  = 1.000_dp
+       sr6 = 1.671_dp
+       s8  = 1.061_dp
+    CASE ("revPBE0")
+       s6  = 1.000_dp
+       sr6 = 0.949_dp
+       s8  = 0.792_dp
+    CASE ("revPBE38")
+       s6  = 1.000_dp
+       sr6 = 1.021_dp
+       s8  = 0.862_dp
+    CASE ("rPW86PBE")
+       s6  = 1.000_dp
+       sr6 = 1.224_dp
+       s8  = 0.901_dp
     END SELECT
 
   END SUBROUTINE qs_scaling_dftd3
 
 ! *****************************************************************************
+!> \brief ...
+!> \param s6 ...
+!> \param a1 ...
+!> \param s8 ...
+!> \param a2 ...
+!> \param vdw_section ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE qs_scaling_dftd3bj(s6,a1,s8,a2,vdw_section,error)
+    REAL(KIND=dp), INTENT(inout)             :: s6, a1, s8, a2
+    TYPE(section_vals_type), POINTER         :: vdw_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_dftd3bj', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: functional
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional,error=error)
+
+    ! values for different functionals from:
+    ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionalsbj.html
+    SELECT CASE (TRIM(functional))
+    CASE DEFAULT
+       ! unknown functional
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="No DFT-D3(BJ) values available for this functional:"//TRIM(functional), &
+            error=error, error_level=cp_failure_level)
+    CASE ("B1B95")
+       s6  = 1.0000_dp
+       a1  = 0.2092_dp
+       s8  = 1.4507_dp
+       a2  = 5.5545_dp
+    CASE ("B2GPPLYP")
+       s6  = 0.5600_dp
+       a1  = 0.0000_dp
+       s8  = 0.2597_dp
+       a2  = 6.3332_dp
+    CASE ("B3PW91")
+       s6  = 1.0000_dp
+       a1  = 0.4312_dp
+       s8  = 2.8524_dp
+       a2  = 4.4693_dp
+    CASE ("BHLYP")
+       s6  = 1.0000_dp
+       a1  = 0.2793_dp
+       s8  = 1.0354_dp
+       a2  = 4.9615_dp
+    CASE ("BMK")
+       s6  = 1.0000_dp
+       a1  = 0.1940_dp
+       s8  = 2.0860_dp
+       a2  = 5.9197_dp
+    CASE ("BOP")
+       s6  = 1.0000_dp
+       a1  = 0.4870_dp
+       s8  = 3.2950_dp
+       a2  = 3.5043_dp
+    CASE ("BPBE")
+       s6  = 1.0000_dp
+       a1  = 0.4567_dp
+       s8  = 4.0728_dp
+       a2  = 4.3908_dp
+    CASE ("CAMB3LYP")
+       s6  = 1.0000_dp
+       a1  = 0.3708_dp
+       s8  = 2.0674_dp
+       a2  = 5.4743_dp
+    CASE ("LCWPBE")
+       s6  = 1.0000_dp
+       a1  = 0.3919_dp
+       s8  = 1.8541_dp
+       a2  = 5.0897_dp
+    CASE ("MPW1B95")
+       s6  = 1.0000_dp
+       a1  = 0.1955_dp
+       s8  = 1.0508_dp
+       a2  = 6.4177_dp
+    CASE ("MPWB1K")
+       s6  = 1.0000_dp
+       a1  = 0.1474_dp
+       s8  = 0.9499_dp
+       a2  = 6.6223_dp
+    CASE ("MPWLYP")
+       s6  = 1.0000_dp
+       a1  = 0.4831_dp
+       s8  = 2.0077_dp
+       a2  = 4.5323_dp
+    CASE ("OLYP")
+       s6  = 1.0000_dp
+       a1  = 0.5299_dp
+       s8  = 2.6205_dp
+       a2  = 2.8065_dp
+    CASE ("OPBE")
+       s6  = 1.0000_dp
+       a1  = 0.5512_dp
+       s8  = 3.3816_dp
+       a2  = 2.9444_dp
+    CASE ("OTPSS")
+       s6  = 1.0000_dp
+       a1  = 0.4634_dp
+       s8  = 2.7495_dp
+       a2  = 4.3153_dp
+    CASE ("PBE38")
+       s6  = 1.0000_dp
+       a1  = 0.3995_dp
+       s8  = 1.4623_dp
+       a2  = 5.1405_dp
+    CASE ("PBEsol")
+       s6  = 1.0000_dp
+       a1  = 0.4466_dp
+       s8  = 2.9491_dp
+       a2  = 6.1742_dp
+    CASE ("PTPSS")
+       s6  = 0.7500_dp
+       a1  = 0.0000_dp
+       s8  = 0.2804_dp
+       a2  = 6.5745_dp
+    CASE ("PWB6K")
+       s6  = 1.0000_dp
+       a1  = 0.1805_dp
+       s8  = 0.9383_dp
+       a2  = 7.7627_dp
+    CASE ("revSSB")
+       s6  = 1.0000_dp
+       a1  = 0.4720_dp
+       s8  = 0.4389_dp
+       a2  = 4.0986_dp
+    CASE ("SSB")
+       s6  = 1.0000_dp
+       a1  =-0.0952_dp
+       s8  =-0.1744_dp
+       a2  = 5.2170_dp
+    CASE ("TPSSh")
+       s6  = 1.0000_dp
+       a1  = 0.4529_dp
+       s8  = 2.2382_dp
+       a2  = 4.6550_dp
+    CASE ("HCTH120")
+       s6  = 1.0000_dp
+       a1  = 0.3563_dp
+       s8  = 1.0821_dp
+       a2  = 4.3359_dp
+    CASE ("B2PLYP")
+       s6  = 0.6400_dp
+       a1  = 0.3065_dp
+       s8  = 0.9147_dp
+       a2  = 5.0570_dp
+    CASE ("B3LYP")
+       s6  = 1.0000_dp
+       a1  = 0.3981_dp
+       s8  = 1.9889_dp
+       a2  = 4.4211_dp
+    CASE ("B97-D")
+       s6  = 1.0000_dp
+       a1  = 0.5545_dp
+       s8  = 2.2609_dp
+       a2  = 3.2297_dp
+    CASE ("BLYP")
+       s6  = 1.0000_dp
+       a1  = 0.4298_dp
+       s8  = 2.6996_dp
+       a2  = 4.2359_dp
+    CASE ("BP86")
+       s6  = 1.0000_dp
+       a1  = 0.3946_dp
+       s8  = 3.2822_dp
+       a2  = 4.8516_dp
+    CASE ("DSD-BLYP")
+       s6  = 0.5000_dp
+       a1  = 0.0000_dp
+       s8  = 0.2130_dp
+       a2  = 6.0519_dp
+    CASE ("PBE0")
+       s6  = 1.0000_dp
+       a1  = 0.4145_dp
+       s8  = 1.2177_dp
+       a2  = 4.8593_dp
+    CASE ("PBE")
+       s6  = 1.0000_dp
+       a1  = 0.4289_dp
+       s8  = 0.7875_dp
+       a2  = 4.4407_dp
+    CASE ("PW6B95")
+       s6  = 1.0000_dp
+       a1  = 0.2076_dp
+       s8  = 0.7257_dp
+       a2  = 6.3750_dp
+    CASE ("PWPB95")
+       s6  = 0.8200_dp
+       a1  = 0.0000_dp
+       s8  = 0.2904_dp
+       a2  = 7.3141_dp
+    CASE ("revPBE0")
+       s6  = 1.0000_dp
+       a1  = 0.4679_dp
+       s8  = 1.7588_dp
+       a2  = 3.7619_dp
+    CASE ("revPBE38")
+       s6  = 1.0000_dp
+       a1  = 0.4309_dp
+       s8  = 1.4760_dp
+       a2  = 3.9446_dp
+    CASE ("revPBE")
+       s6  = 1.0000_dp
+       a1  = 0.5238_dp
+       s8  = 2.3550_dp
+       a2  = 3.5016_dp
+    CASE ("RPW86PBE")
+       s6  = 1.0000_dp
+       a1  = 0.4613_dp
+       s8  = 1.3845_dp
+       a2  = 4.5062_dp
+    CASE ("TPSS0")
+       s6  = 1.0000_dp
+       a1  = 0.3768_dp
+       s8  = 1.2576_dp
+       a2  = 4.5865_dp
+    CASE ("TPSS")
+       s6  = 1.0000_dp
+       a1  = 0.4535_dp
+       s8  = 1.9435_dp
+       a2  = 4.4752_dp
+    END SELECT
+
+  END SUBROUTINE qs_scaling_dftd3bj
 
 ! *****************************************************************************
 !> \brief ...
@@ -588,9 +868,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, ia, &
-      iatom, icx, icy, icz, ikind, ilist, istat, jatom, jkind, katom, kkind, &
-      kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, ni, nj, nkind, &
-      unit_nr, za, zb, zc
+      iatom, icx, icy, icz, idmp, ikind, ilist, istat, jatom, jkind, katom, &
+      kkind, kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, ni, nj, &
+      nkind, unit_nr, za, zb, zc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, atomnumber, &
                                                 kind_of
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
@@ -599,13 +879,14 @@ CONTAINS
     LOGICAL :: atenergy, atstress, debug, debugall, debugx, failure, ghost_a, &
       ghost_b, ghost_c, is000, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: dodisp, ghost
-    REAL(KIND=dp) :: alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnab, &
-      cnum, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, &
-      dcc6caa, dcc6cac, dcnab, dd, de6, de8, de91, de921, de922, dea, devdw, &
-      dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, e8, e8tot, e9, &
-      e9tot, elrc6, elrc8, elrc9, eps_cn, er, evdw, fac, fdab6, fdab8, fdabc, &
-      fdmp, gnorm, nab, nabc, r0, r2ab, r2abc, r2bc, r2ca, r6, r8, rabc, rc2, &
-      rcc, rcova, rcovb, rcut, rs6, rs8, s1, s2, s3, s6, s8, s9, xp
+    REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, &
+      cc6ca, cnab, cnum, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, &
+      dcc6bcc, dcc6caa, dcc6cac, dcnab, dd, de6, de8, de91, de921, de922, &
+      dea, devdw, dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, e8, &
+      e8tot, e9, e9tot, elrc6, elrc8, elrc9, eps_cn, er, evdw, f0ab, fac, &
+      fdab6, fdab8, fdabc, fdmp, gnorm, nab, nabc, r0, r0ab, r2ab, r2abc, &
+      r2bc, r2ca, r6, r8, rabc, rc2, rcc, rcova, rcovb, rcut, rs6, rs8, s1, &
+      s2, s3, s6, s8, s9, xp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c6d2, cnkind, cnumbers, &
                                                 cnumfix, radd2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -637,6 +918,9 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
+
+!deb
+!deb
 
     CALL timeset(routineN,handle)
 
@@ -686,6 +970,8 @@ CONTAINS
            WRITE(unit_nr,*) " Dispersion potential type: DFT-D2"
         ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
            WRITE(unit_nr,*) " Dispersion potential type: DFT-D3"
+        ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
+           WRITE(unit_nr,*) " Dispersion potential type: DFT-D3(BJ)"
         END IF
        END IF
 
@@ -702,7 +988,8 @@ CONTAINS
           IF (use_virial .AND. debugall) THEN
             dvirial = virial%pv_virial
           END IF
-       ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. dispersion_env%doabc ) THEN
+       ELSE IF ( ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
+                   dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc ) THEN
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
@@ -734,7 +1021,8 @@ CONTAINS
              WRITE(unit_nr,*) " Scaling parameter (s6) ",s6
              WRITE(unit_nr,*) " Exponential prefactor  ",dd
           END IF
-       ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+       ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3  .OR. &
+                 dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           maxc = SIZE(dispersion_env%c6ab,3)
           max_elem = SIZE(dispersion_env%c6ab,1)
           alp6 = dispersion_env%alp
@@ -744,16 +1032,30 @@ CONTAINS
           s9   = dispersion_env%s6
           rs6  = dispersion_env%sr6
           rs8  = 1._dp
+          a1   = dispersion_env%a1
+          a2   = dispersion_env%a2
           eps_cn = dispersion_env%eps_cn
           e6tot = 0._dp
           e8tot = 0._dp
           e9tot = 0._dp
+          ! damping type
+          idmp = 0
+          IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+             idmp = 1
+          ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
+             idmp = 2
+          END IF
 
           IF(unit_nr>0) THEN
             WRITE(unit_nr,*) " Scaling parameter (s6) ",s6
             WRITE(unit_nr,*) " Scaling parameter (s8) ",s8
-            WRITE(unit_nr,*) " Scaling parameter (sr6)",rs6
-            WRITE(unit_nr,*) " Scaling parameter (sr8)",rs8
+            IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+               WRITE(unit_nr,*) " Zero Damping parameter (sr6)",rs6
+               WRITE(unit_nr,*) " Zero Damping parameter (sr8)",rs8
+            ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
+               WRITE(unit_nr,*) " BJ Damping parameter (a1) ",a1
+               WRITE(unit_nr,*) " BJ Damping parameter (a2) ",a2
+            END IF
             WRITE(unit_nr,*) " Cutoff coordination numbers",eps_cn
             IF (dispersion_env%lrc) THEN
               WRITE(unit_nr,*) " Apply a long range correction"
@@ -822,7 +1124,6 @@ CONTAINS
           ! for parallel runs we have to update dcnum on all processors
           IF(calculate_forces .OR. debugall) THEN
             CALL dcnum_distribute(dcnum,para_env,error)
-
             IF (unit_nr>0 .AND. SIZE(dcnum)>0) THEN
               WRITE(unit_nr,*)
               WRITE(unit_nr,*) "  ATOM       Coordination   Neighbors"
@@ -942,19 +1243,34 @@ CONTAINS
                   atener(jatom) = atener(jatom) - 0.5_dp*xp*fdmp*fac
                 END IF
              ELSE IF ( disp_a%type == dftd3_pp .AND. dr > 0.001_dp ) THEN
-                ! damping
-                CALL damping_d3(dr,dispersion_env%r0ab(za,zb),rs6,alp6,rcut,fdab6,dfdab6)
-                CALL damping_d3(dr,dispersion_env%r0ab(za,zb),rs8,alp8,rcut,fdab8,dfdab8)
                 ! C6 coefficient
                 CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                            cnumbers(iatom),cnumbers(jatom),dispersion_env%k3,c6,dc6a,dc6b)
-                r6 = dr**6
-                e6 = s6*fac*c6*fdab6/r6
                 c8 = 3.0d0*c6*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
                 dc8a = 3.0d0*dc6a*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
                 dc8b = 3.0d0*dc6b*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
+                r6 = dr**6
                 r8 = r6*dr*dr
-                e8 = s8*fac*c8*fdab8/r8
+                ! damping
+                IF(idmp==1) THEN
+                   ! zero
+                   CALL damping_d3(dr,dispersion_env%r0ab(za,zb),rs6,alp6,rcut,fdab6,dfdab6)
+                   CALL damping_d3(dr,dispersion_env%r0ab(za,zb),rs8,alp8,rcut,fdab8,dfdab8)
+                   e6 = s6*fac*c6*fdab6/r6
+                   e8 = s8*fac*c8*fdab8/r8
+                ELSE IF(idmp==2) THEN
+                   ! BJ
+                   r0ab = SQRT(3.0d0*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb))
+                   f0ab = a1*r0ab + a2
+                   fdab6 = 1.0_dp/(r6+f0ab**6)
+                   fdab8 = 1.0_dp/(r8+f0ab**8)
+                   e6 = s6*fac*c6*fdab6
+                   e8 = s8*fac*c8*fdab8
+                ELSE
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Unknown DFT-D3 damping function:", &
+                        error=error, error_level=cp_failure_level)
+                END IF
                 evdw = evdw - e6 - e8
                 e6tot = e6tot - e6
                 e8tot = e8tot - e8
@@ -963,8 +1279,20 @@ CONTAINS
                   atener(jatom) = atener(jatom) - 0.5_dp*(e6+e8)
                 END IF
                 IF(calculate_forces) THEN
-                   de6 = -s6*c6/r6*(dfdab6-6._dp*fdab6/dr)
-                   de8 = -s8*c8/r8*(dfdab8-8._dp*fdab8/dr)
+                   ! damping
+                   IF(idmp==1) THEN
+                      ! zero
+                      de6 = -s6*c6/r6*(dfdab6-6._dp*fdab6/dr)
+                      de8 = -s8*c8/r8*(dfdab8-8._dp*fdab8/dr)
+                   ELSE IF(idmp==2) THEN
+                      ! BJ  
+                      de6 = s6*c6*fdab6*fdab6*6.0_dp*dr**5
+                      de8 = s8*c8*fdab8*fdab8*8.0_dp*dr**7
+                   ELSE
+                      CALL cp_unimplemented_error(fromWhere=routineP, &
+                           message="Unknown DFT-D3 damping function:", &
+                           error=error, error_level=cp_failure_level)
+                   END IF
                    fdij(:) = (de6+de8) * rij(:)/dr * fac
                    atom_a = atom_of_kind(iatom)
                    atom_b = atom_of_kind(jatom)
@@ -978,10 +1306,23 @@ CONTAINS
                       CALL virial_pair_force ( atstr(:,:,jatom), -0.5_dp, fdij, rij, error)
                    END IF
                    ! forces from the r-dependence of the coordination numbers
-                   dc6a = -s6*fac*dc6a*fdab6/r6
-                   dc6b = -s6*fac*dc6b*fdab6/r6
-                   dc8a = -s8*fac*dc8a*fdab8/r8
-                   dc8b = -s8*fac*dc8b*fdab8/r8
+                   IF(idmp==1) THEN
+                      ! zero
+                      dc6a = -s6*fac*dc6a*fdab6/r6
+                      dc6b = -s6*fac*dc6b*fdab6/r6
+                      dc8a = -s8*fac*dc8a*fdab8/r8
+                      dc8b = -s8*fac*dc8b*fdab8/r8
+                   ELSE IF(idmp==2) THEN
+                      ! BJ  
+                      dc6a = -s6*fac*dc6a*fdab6
+                      dc6b = -s6*fac*dc6b*fdab6
+                      dc8a = -s8*fac*dc8a*fdab8
+                      dc8b = -s8*fac*dc8b*fdab8
+                   ELSE
+                      CALL cp_unimplemented_error(fromWhere=routineP, &
+                           message="Unknown DFT-D3 damping function:", &
+                           error=error, error_level=cp_failure_level)
+                   END IF
                    DO i=1,dcnum(iatom)%neighbors
                      katom=dcnum(iatom)%nlist(i)
                      kkind=kind_of(katom)
@@ -1259,7 +1600,8 @@ CONTAINS
        elrc6 = 0._dp
        elrc8 = 0._dp
        elrc9 = 0._dp
-       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
+            dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           ! Long range correction (atomic contributions not implemented)
           IF (dispersion_env%lrc) THEN
              ALLOCATE (cnkind(nkind),STAT=istat)
@@ -1317,7 +1659,8 @@ CONTAINS
           END IF
        END IF
 
-       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
+       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
+            dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           DEALLOCATE (cnumbers,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           IF ( dispersion_env%doabc .AND. dispersion_env%c9cnst ) THEN
@@ -1339,7 +1682,8 @@ CONTAINS
        evdw = evdw + (elrc6+elrc8+elrc9)
        energy = evdw
 
-       IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. debugall ) THEN
+       IF ( ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+              dispersion_env%pp_type == vdw_pairpot_dftd3bj ) .AND. debugall ) THEN
          CALL mp_sum(e6tot,para_env%group)
          CALL mp_sum(e8tot,para_env%group)
          CALL mp_sum(e9tot,para_env%group)
