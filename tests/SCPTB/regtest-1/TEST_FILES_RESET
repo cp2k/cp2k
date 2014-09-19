@@ -29,3 +29,8 @@ hf_1.inp
 hf_2.inp  
 hf_3.inp  
 hf_4.inp  
+#change in numerics
+hf_1.inp.out
+hf_2.inp.out
+hf_3.inp.out
+hf_4.inp.out

@@ -590,3 +590,8 @@ hcn_pm6.inp
 Pt-cis-2xpet3Cl2.inp
 #improvement of bfgs and curvy steps
 Pt-cis-2xpet3Cl2-si-noc.inp
+#change in numerics
+Pt-cis-2xpet3Cl2.inp.out
+#change in numerics
+Pt-cis-2xpet3Cl2-si.inp.out
+Pt-cis-2xpet3Cl2-si-noc.inp.out

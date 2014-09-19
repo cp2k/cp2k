@@ -922,10 +922,9 @@ CONTAINS
     ! try using lancos first and fall back to gershgorin norm if it fails
     max_iter=12; threshold=1.0E-03_dp
     CALL lanczos_alg_serial(qs_ot_env%matrix_p, max_ev, min_ev, converged, threshold, max_iter, error=error)
-    IF(.NOT.converged) qs_ot_env % largest_eval_upper_bound=MAX(max_ev,ABS(min_ev))
+    qs_ot_env % largest_eval_upper_bound=MAX(max_ev,ABS(min_ev))
 
-
-    qs_ot_env % largest_eval_upper_bound = cp_dbcsr_gershgorin_norm(qs_ot_env%matrix_p)
+    IF(.NOT.converged)qs_ot_env % largest_eval_upper_bound = cp_dbcsr_gershgorin_norm(qs_ot_env%matrix_p)
     CALL decide_strategy(qs_ot_env)
     IF (qs_ot_env % do_taylor) THEN
        CALL qs_ot_p2m_taylor(qs_ot_env,error=error)

@@ -315,3 +315,5 @@ CO_xastpxfh.inp
 H2O_Hnopaw_pp.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 H2O_Onopaw_gop.inp
+#change in numerics
+H2O_Onopaw_gop.inp.out

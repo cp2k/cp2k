@@ -4,3 +4,5 @@
 # bug fix scZORAMP
 h2o-3.inp
 h2o-4.inp
+#change in numerics
+h2o-5.inp.out
