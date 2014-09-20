@@ -62,7 +62,7 @@ SUBROUTINE vc_x_vc ( n, cvec2, cvec )
   INTEGER :: i
   REAL ( wp ) :: re_c, im_c, re_c2, im_c2
 
-!$OMP PARALLEL DO
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I,re_c,im_c,re_c2,im_c2) SHARED(cvec,cvec2)
   DO i = 1, n
     re_c = cvec ( 1, i )
     im_c = cvec ( 2, i )
@@ -95,7 +95,7 @@ SUBROUTINE vr_x_vc ( n, rvec, cvec )
 
   INTEGER :: i
 
-!$OMP PARALLEL DO
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(cvec,rvec) PRIVATE(i)
   DO i = 1, n
     cvec ( 1, i ) = cvec ( 1, i ) * rvec ( i )
     cvec ( 2, i ) = cvec ( 2, i ) * rvec ( i )
@@ -126,7 +126,7 @@ SUBROUTINE copy_cri ( n, z, r1, r2 )
 
   INTEGER :: i
 
-!$OMP PARALLEL DO
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(r1,r2,z) PRIVATE(i)
   DO i = 1, n
     r1 ( i ) = z ( 1, i )
     r2 ( i ) = z ( 2, i )
@@ -152,7 +152,7 @@ SUBROUTINE copy_cr ( n, z, r1 )
   REAL ( wp ), INTENT ( IN ) :: z(2,n)
   INTEGER :: i
 
-!$OMP PARALLEL DO
+!$OMP PARALLEL DO DEFAULT(none) PRIVATE(i) SHARED(r1,z)
   DO i=1,n
        r1(i)=z(1,i)
   ENDDO
@@ -178,7 +178,7 @@ SUBROUTINE copy_rc ( n, r1, z )
   REAL ( wp ), INTENT ( IN ) :: r1(n)
   REAL ( wp ), INTENT ( OUT ) :: z(2,n)
   INTEGER :: i
-!$OMP PARALLEL DO
+!$OMP PARALLEL DO DEFAULT(none), PRIVATE(i), SHARED(n,z,r1)
   DO i=1,n
        z(1,i)=r1(i)
        z(2,i)=0._wp
