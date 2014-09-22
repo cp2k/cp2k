@@ -36,6 +36,11 @@ extern "C" int acc_set_active_device(int device_id){
   if (myDevice != device_id)
     return -1;
 
+  // establish context
+  cErr = cudaFree(0);
+  if (cuda_error_check (cErr))
+    return -1;
+
   return 0;
 }
 

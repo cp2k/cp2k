@@ -68,8 +68,11 @@ CONTAINS
 #if defined (__ACC)
     INTEGER :: istat
 
+!$omp parallel default(none) private(istat) shared(dev_id)
     istat = acc_set_active_device_cu (dev_id)
     IF (istat /= 0) STOP 'acc_set_active_device: failed'
+!$omp end parallel
+
 #else
     STOP "__ACC not compiled in"
 #endif
