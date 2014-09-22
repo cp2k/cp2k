@@ -321,7 +321,6 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>      for the orther arguments see the attributes of force_env_type
-!> \param atprop_env ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
