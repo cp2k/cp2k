@@ -369,8 +369,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
                                                 S_der
-    REAL(dp), OPTIONAL                       :: dt
-    INTEGER, OPTIONAL                        :: nsteps
+    REAL(dp), INTENT(out), OPTIONAL          :: dt
+    INTEGER, INTENT(out), OPTIONAL           :: nsteps
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: SinvH, SinvB
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -421,7 +421,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE rt_prop_release(rtp,error)
-    TYPE(rt_prop_type)                       :: rtp
+    TYPE(rt_prop_type), INTENT(inout)        :: rtp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_release', &
@@ -597,8 +597,8 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE rtp_history_create(rtp,aspc_order,error)
-    TYPE(rt_prop_type)                       :: rtp
-    INTEGER                                  :: aspc_order
+    TYPE(rt_prop_type), INTENT(inout)        :: rtp
+    INTEGER, INTENT(in)                      :: aspc_order
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_create', &
@@ -659,7 +659,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE rtp_history_release(rtp,error)
-    TYPE(rt_prop_type)                       :: rtp
+    TYPE(rt_prop_type), INTENT(inout)        :: rtp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_release', &

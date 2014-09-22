@@ -83,8 +83,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rt_prop_output(qs_env,run_type,delta_iter,used_time,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER                                  :: run_type
-    REAL(dp), OPTIONAL                       :: delta_iter, used_time
+    INTEGER, INTENT(in)                      :: run_type
+    REAL(dp), INTENT(in), OPTIONAL           :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_electrons, output_unit
@@ -208,8 +208,8 @@ CONTAINS
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
   SUBROUTINE rt_calculate_orthonormality(unit_nr,orthonormality,mos_new,matrix_s,error)
-    INTEGER                                  :: unit_nr
-    REAL(KIND=dp)                            :: orthonormality
+    INTEGER, INTENT(in)                      :: unit_nr
+    REAL(KIND=dp), INTENT(out)               :: orthonormality
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
@@ -299,7 +299,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos
-    REAL(dp)                                 :: delta_eps
+    REAL(dp), INTENT(out)                    :: delta_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence', &
@@ -427,7 +427,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: delta_P
-    REAL(dp)                                 :: delta_eps
+    REAL(dp), INTENT(out)                    :: delta_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density', &

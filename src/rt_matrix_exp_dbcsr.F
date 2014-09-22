@@ -179,8 +179,8 @@ END SUBROUTINE
 
     TYPE(cp_dbcsr_p_type), DIMENSION(2)      :: exp_H
     TYPE(cp_dbcsr_type), POINTER             :: im_matrix
-    INTEGER                                  :: nsquare, ntaylor
-    REAL(KIND=dp)                            :: filter_eps
+    INTEGER, INTENT(in)                      :: nsquare, ntaylor
+    REAL(KIND=dp), INTENT(in)                :: filter_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary_dbcsr', &
@@ -289,8 +289,8 @@ END SUBROUTINE
   SUBROUTINE taylor_full_complex_dbcsr(exp_H,re_part,im_part,nsquare,ntaylor,filter_eps,error)
     TYPE(cp_dbcsr_p_type), DIMENSION(2)      :: exp_H
     TYPE(cp_dbcsr_type), POINTER             :: re_part, im_part
-    INTEGER                                  :: nsquare, ntaylor
-    REAL(KIND=dp)                            :: filter_eps
+    INTEGER, INTENT(in)                      :: nsquare, ntaylor
+    REAL(KIND=dp), INTENT(in)                :: filter_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex_dbcsr', &
@@ -395,7 +395,7 @@ END SUBROUTINE
    SUBROUTINE bch_expansion_imaginary_propagator(propagator,density_re,density_im,filter_eps,filter_eps_small,eps_exp,error)
     TYPE(cp_dbcsr_type), POINTER             :: propagator, density_re, &
                                                 density_im
-    REAL(KIND=dp)                            :: filter_eps, filter_eps_small, &
+    REAL(KIND=dp), INTENT(in)                :: filter_eps, filter_eps_small, &
                                                 eps_exp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -504,7 +504,7 @@ END SUBROUTINE
               filter_eps_small,eps_exp,error)
     TYPE(cp_dbcsr_type), POINTER             :: propagator_re, propagator_im, &
                                                 density_re, density_im
-    REAL(KIND=dp)                            :: filter_eps, filter_eps_small, &
+    REAL(KIND=dp), INTENT(in)                :: filter_eps, filter_eps_small, &
                                                 eps_exp
     TYPE(cp_error_type), INTENT(inout)       :: error
 

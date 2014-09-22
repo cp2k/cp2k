@@ -526,7 +526,7 @@ CONTAINS
 
   SUBROUTINE complex_frobenius_norm(frob_norm,mat_re,mat_im,error)
 
-    REAL(KIND=dp)                            :: frob_norm
+    REAL(KIND=dp), INTENT(out)               :: frob_norm
     TYPE(cp_dbcsr_type), POINTER             :: mat_re, mat_im
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -599,9 +599,9 @@ CONTAINS
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: P, s_mat
-    REAL(KIND=dp)                            :: eps, eps_small
-    INTEGER                                  :: max_iter
-    REAL(KIND=dp)                            :: threshold
+    REAL(KIND=dp), INTENT(in)                :: eps, eps_small
+    INTEGER, INTENT(in)                      :: max_iter
+    REAL(KIND=dp), INTENT(in)                :: threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -691,9 +691,9 @@ CONTAINS
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: P, s_mat
-    REAL(KIND=dp)                            :: eps, eps_small
-    INTEGER                                  :: max_iter
-    REAL(KIND=dp)                            :: threshold
+    REAL(KIND=dp), INTENT(in)                :: eps, eps_small
+    INTEGER, INTENT(in)                      :: max_iter
+    REAL(KIND=dp), INTENT(in)                :: threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'purify_mcweeny_complex_orth', &
@@ -887,7 +887,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_P_imaginary(rtp,do_admm,error)
     TYPE(rt_prop_type), POINTER              :: rtp
-    LOGICAL                                  :: do_admm
+    LOGICAL, INTENT(in)                      :: do_admm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
@@ -936,7 +936,7 @@ CONTAINS
   SUBROUTINE aspc_extrapolate(qs_env,rtp,aspc_order,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
-    INTEGER                                  :: aspc_order
+    INTEGER, INTENT(in)                      :: aspc_order
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'aspc_extrapolate', &

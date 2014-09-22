@@ -196,7 +196,7 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux, &
                                                 density_matrix_aux_im
-    INTEGER                                  :: ispin, nspins
+    INTEGER, INTENT(in)                      :: ispin, nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rtp_admm_calculate_dm', &
@@ -433,7 +433,7 @@ CONTAINS
                                                 density_matrix_aux_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
-    INTEGER                                  :: ispin
+    INTEGER, INTENT(in)                      :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rtp_admm_density', &

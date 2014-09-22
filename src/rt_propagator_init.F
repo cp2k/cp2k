@@ -407,7 +407,7 @@ CONTAINS
 
   SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
 
-    REAL(dp), DIMENSION(:)                   :: Eval
+    REAL(dp), DIMENSION(:), INTENT(in)       :: Eval
     TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 

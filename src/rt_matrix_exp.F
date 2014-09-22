@@ -74,7 +74,7 @@ CONTAINS
   SUBROUTINE taylor_only_imaginary(exp_H,im_matrix,nsquare,ntaylor,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_matrix
-    INTEGER                                  :: nsquare, ntaylor
+    INTEGER, INTENT(in)                      :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary', &
@@ -178,7 +178,7 @@ CONTAINS
   SUBROUTINE taylor_full_complex(exp_H,re_part,im_part,nsquare,ntaylor,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
-    INTEGER                                  :: nsquare, ntaylor
+    INTEGER, INTENT(in)                      :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex', &
@@ -266,11 +266,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd,error)
 
-    REAL(dp)                                 :: norm
-    INTEGER                                  :: nsquare, norder
-    REAL(dp)                                 :: eps_exp
-    INTEGER                                  :: method
-    LOGICAL                                  :: do_emd
+    REAL(dp), INTENT(in)                     :: norm
+    INTEGER, INTENT(out)                     :: nsquare, norder
+    REAL(dp), INTENT(in)                     :: eps_exp
+    INTEGER, INTENT(in)                      :: method
+    LOGICAL, INTENT(in)                      :: do_emd
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nsquare_norder', &
@@ -371,7 +371,7 @@ CONTAINS
   SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,nsquare,npade,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
-    INTEGER                                  :: nsquare, npade
+    INTEGER, INTENT(in)                      :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex', &
@@ -388,7 +388,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: Dpq, fin_p, Npq, T1, T2, Tres
 
     p=npade
-    q=npade !p==q seems to be neccesary for the rest of the code
+    q=npade
 
     CALL timeset(routineN,handle)
     CALL cp_fm_get_info(re_part,local_data=local_data_re,ncol_local=ldim,&
@@ -435,7 +435,6 @@ CONTAINS
     CALL cp_cfm_add(one,Npq,one*0.5_dp,T2,error)
     CALL cp_cfm_add(one,Dpq,-one*0.5_dp,T2,error)
 
-    npade=MAX(p,q)
     IF(npade.GT.2)THEN
        DO i=2,npade
           IF(i.LE.p)scaleN=CMPLX(fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,kind=dp)
@@ -489,7 +488,7 @@ CONTAINS
   SUBROUTINE exp_pade_only_imaginary(exp_H,im_part,nsquare,npade,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_part
-    INTEGER                                  :: nsquare, npade
+    INTEGER, INTENT(in)                      :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_only_imaginary', &
@@ -628,7 +627,7 @@ CONTAINS
   SUBROUTINE exp_pade_real(exp_H,matrix,nsquare,npade,error)
     TYPE(cp_fm_type)                         :: exp_H
     TYPE(cp_fm_type), POINTER                :: matrix
-    INTEGER                                  :: nsquare, npade
+    INTEGER, INTENT(in)                      :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_real', &
@@ -753,12 +752,12 @@ CONTAINS
   SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,mos_next,narn_old,error)
 
     TYPE(cp_fm_p_type), DIMENSION(2)         :: mos_old, mos_new
-    REAL(KIND=dp)                            :: eps_exp
+    REAL(KIND=dp), INTENT(in)                :: eps_exp
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: Hre
     TYPE(cp_fm_type), POINTER                :: Him
     TYPE(cp_fm_p_type), DIMENSION(2), &
       OPTIONAL                               :: mos_next
-    INTEGER                                  :: narn_old
+    INTEGER, INTENT(inout)                   :: narn_old
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'arnoldi', &

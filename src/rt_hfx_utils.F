@@ -89,7 +89,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    INTEGER                                  :: nspins
+    INTEGER, INTENT(in)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_matrices', &
