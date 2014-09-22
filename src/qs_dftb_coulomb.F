@@ -145,6 +145,7 @@ CONTAINS
                                                 mcout, pblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -167,7 +168,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(gamma_matrix, matrix_p, matrix_s)
+    NULLIFY(gamma_matrix, matrix_p, matrix_s, virial, atprop)
 
     failure=.FALSE.
     use_virial=.FALSE.
@@ -185,7 +186,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,&
                     particle_set=particle_set,cell=cell,&
-                    virial=virial,error=error)
+                    virial=virial,atprop=atprop,error=error)
 
     IF ( calculate_forces ) THEN
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -218,18 +219,18 @@ CONTAINS
           rij = particle_set(iatom)%r - particle_set(jatom)%r
           rij = pbc(rij,cell)
           CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
-          IF (qs_env%atprop%stress) THEN
-            CALL virial_pair_force ( qs_env%atprop%atstress(:,:,iatom), 0.5_dp, fij, rij, error)
-            CALL virial_pair_force ( qs_env%atprop%atstress(:,:,jatom), 0.5_dp, fij, rij, error)
+          IF (atprop%stress) THEN
+            CALL virial_pair_force (atprop%atstress(:,:,iatom), 0.5_dp, fij, rij, error)
+            CALL virial_pair_force (atprop%atstress(:,:,jatom), 0.5_dp, fij, rij, error)
           END IF
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
     END IF
 
-    IF (qs_env%atprop%energy) THEN
+    IF (atprop%energy) THEN
       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
       natom = SIZE (particle_set)
-      CALL atprop_array_init(qs_env%atprop%atecoul,natom,error)
+      CALL atprop_array_init(atprop%atecoul,natom,error)
     END IF
 
     ! 1/R contribution
@@ -244,7 +245,7 @@ CONTAINS
       CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
       CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
       CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
-                              virial,use_virial,qs_env%atprop,error=error)
+                              virial,use_virial,atprop,error=error)
       SELECT CASE(ewald_type)
       CASE DEFAULT
         CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
@@ -259,7 +260,7 @@ CONTAINS
              "PME not implemented in DFTB",error)
       CASE(do_ewald_spme)
         CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,&
-          gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
+          gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
       END SELECT
     ELSE
       ! direct sum
@@ -299,7 +300,7 @@ CONTAINS
     END IF
 
     energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
-    IF(qs_env%atprop%energy) THEN
+    IF(atprop%energy) THEN
       CALL get_qs_env(qs_env=qs_env,&
                       local_particles=local_particles,error=error)
       DO ikind=1,SIZE(local_particles%n_el)
@@ -307,7 +308,7 @@ CONTAINS
         CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
         DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
-          qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + &
+          atprop%atecoul(iatom) = atprop%atecoul(iatom) + &
              0.5_dp*zeff*gmcharge(iatom,1)
         END DO
       END DO
@@ -375,9 +376,9 @@ CONTAINS
                rij = particle_set(iatom)%r - particle_set(jatom)%r
                rij = pbc(rij,cell)
                CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
-               IF (qs_env%atprop%stress) THEN
-                 CALL virial_pair_force ( qs_env%atprop%atstress(:,:,iatom), -0.5_dp, fij, rij, error)
-                 CALL virial_pair_force ( qs_env%atprop%atstress(:,:,jatom), -0.5_dp, fij, rij, error)
+               IF (atprop%stress) THEN
+                 CALL virial_pair_force (atprop%atstress(:,:,iatom), -0.5_dp, fij, rij, error)
+                 CALL virial_pair_force (atprop%atstress(:,:,jatom), -0.5_dp, fij, rij, error)
                END IF
             END IF
          END IF

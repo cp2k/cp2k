@@ -49,8 +49,7 @@ MODULE optimize_basis
                                              optimize_basis_init_read_input,&
                                              update_derived_basis_sets
   USE powell,                          ONLY: powell_optimize
-  USE qs_environment_types,            ONLY: qs_environment_type,&
-                                             set_qs_env
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -398,7 +397,6 @@ CONTAINS
        CALL f_env_add_defaults(f_env_id(icalc), f_env, suberror(icalc), failure)
        force_env => f_env%force_env
        CALL force_env_get(force_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env=qs_env,atprop=force_env%atprop_env,error=error)
        CALL allocate_mo_sets(qs_env,error)
        CALL f_env_rm_defaults(f_env, suberror(icalc),stat)
 

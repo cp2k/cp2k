@@ -84,6 +84,7 @@ MODULE mp2
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -160,9 +161,11 @@ MODULE mp2
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
+    TYPE(virial_type), POINTER               :: virial
 
 !$  INTEGER :: omp_get_max_threads
 
+    NULLIFY(virial)
     CALL timeset(routineN,handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -172,7 +175,7 @@ MODULE mp2
     CALL get_qs_env(qs_env=qs_env, input=input, atomic_kind_set=atomic_kind_set, &
                   qs_kind_set=qs_kind_set,&
                   particle_set=particle_set, para_env=para_env,   &
-                  energy=energy, rho=rho, mos=mos, scf_env=scf_env,&
+                  energy=energy, rho=rho, mos=mos, scf_env=scf_env,virial=virial,&
                   matrix_ks=matrix_ks, matrix_s=matrix_s, matrix_ks_aux_fit=matrix_ks_aux,&
                   mp2_env=mp2_env, admm_env=admm_env, error=error)
 
@@ -359,7 +362,7 @@ MODULE mp2
       free_hfx_buffer=.TRUE.
       IF(calc_forces.AND.(.NOT.mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer=.FALSE.
     END IF
-    IF(qs_env%virial%pv_numer) THEN
+    IF(virial%pv_numer) THEN
       ! in the case of numerical stress we don't have to free the HFX integrals
       free_hfx_buffer=.FALSE.
       mp2_env%ri_mp2%free_hfx_buffer=.FALSE.

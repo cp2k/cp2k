@@ -12,6 +12,7 @@ MODULE scptb_ks_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_type
   USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc
@@ -361,6 +362,7 @@ CONTAINS
                                                 sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -385,7 +387,8 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,virial=virial,&
+    NULLIFY(virial, atprop)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,virial=virial,atprop=atprop,&
          energy=energy,para_env=para_env,particle_set=particle_set,cell=cell,error=error)
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
          local_particles=local_particles,natom=natom,error=error)
@@ -415,7 +418,7 @@ CONTAINS
           CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
           CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
           CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
-                                  virial,use_virial,qs_env%atprop,error=error)
+                                  virial,use_virial,atprop,error=error)
           SELECT CASE(ewald_type)
           CASE DEFAULT
             CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
@@ -428,7 +431,7 @@ CONTAINS
             CALL cp_unimplemented_error(routineP,"PME not implemented in SCPTB",error)
           CASE(do_ewald_spme)
             CALL dftb_spme_evaluate(ewald_env,ewald_pw,particle_set,cell,&
-              gmcharge,mcharge,calculate_forces,virial,use_virial,qs_env%atprop,error)
+              gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
           END SELECT
 
           ! add self charge interaction and background charge contribution
@@ -498,9 +501,9 @@ CONTAINS
                      rij = particle_set(iatom)%r - particle_set(jatom)%r
                      rij = pbc(rij,cell)
                      CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
-                     IF (qs_env%atprop%stress) THEN
-                       CALL virial_pair_force ( qs_env%atprop%atstress(:,:,iatom), -0.5_dp, fij, rij, error)
-                       CALL virial_pair_force ( qs_env%atprop%atstress(:,:,jatom), -0.5_dp, fij, rij, error)
+                     IF (atprop%stress) THEN
+                       CALL virial_pair_force (atprop%atstress(:,:,iatom), -0.5_dp, fij, rij, error)
+                       CALL virial_pair_force (atprop%atstress(:,:,jatom), -0.5_dp, fij, rij, error)
                      END IF
                   END IF
                END IF

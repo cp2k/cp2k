@@ -8,9 +8,9 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE qs_dftb3_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_type
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
@@ -90,6 +90,7 @@ CONTAINS
                                                 pblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -106,15 +107,18 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
+    NULLIFY(atprop)
+
+    ! Energy
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+                   qs_kind_set=qs_kind_set,atprop=atprop,error=error)
 
     ! Atenergy
-    IF (qs_env%atprop%energy) THEN
+    IF (atprop%energy) THEN
        ! not implemented
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
-    ! Energy
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
     eb3 = 0.0_dp
     CALL get_qs_env(qs_env=qs_env,local_particles=local_particles,error=error)
     DO ikind=1,SIZE(local_particles%n_el)

@@ -42,8 +42,7 @@ MODULE rt_propagation
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
@@ -110,7 +109,6 @@ CONTAINS
     NULLIFY(qs_env,rtp_control)
 
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv,error=error)
-    CALL set_qs_env(qs_env=qs_env,atprop=force_env%atprop_env,error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
 

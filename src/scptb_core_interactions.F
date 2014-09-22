@@ -12,7 +12,8 @@
 MODULE scptb_core_interactions
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE atprop_types,                    ONLY: atprop_array_init
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -77,6 +78,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -98,22 +100,22 @@ CONTAINS
 
     failure  = .FALSE.
     enuclear = 0.0_dp
-
+    NULLIFY(atprop)
     CALL timeset(routineN,handle)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,dft_control=dft_control,&
-                    cell=cell,virial=virial,energy=energy,error=error)
+                    cell=cell,virial=virial,energy=energy,atprop=atprop,error=error)
 
     ! Parameters
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     ! atomic energy decomposition
-    atener = qs_env%atprop%energy
+    atener = atprop%energy
     IF (atener) THEN
       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
       natom = SIZE (particle_set)
-      CALL atprop_array_init(qs_env%atprop%atecc,natom,error)
+      CALL atprop_array_init(atprop%atecc,natom,error)
     END IF
 
     IF (.NOT. failure) THEN
@@ -175,8 +177,8 @@ CONTAINS
              enucij = enucij + enuc
           END IF
           IF (atener) THEN
-            qs_env%atprop%atecc(iatom) = qs_env%atprop%atecc(iatom) + 0.5_dp*enucij
-            qs_env%atprop%atecc(jatom) = qs_env%atprop%atecc(jatom) + 0.5_dp*enucij
+            atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*enucij
+            atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*enucij
           END IF
           enuclear = enuclear + enucij
        END DO

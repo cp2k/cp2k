@@ -209,6 +209,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
+    TYPE(virial_type), POINTER               :: virial
 
     initialStep=0
     inittime=0.0_dp
@@ -216,7 +217,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
     CALL timeset(routineN,handle)
     failure = .FALSE.
     my_rm_restart_info = .TRUE.
-    NULLIFY(md_env, para_env,fs_section)
+    NULLIFY(md_env, para_env,fs_section, virial)
     para_env       => force_env%para_env
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
     md_section     => section_vals_get_subs_vals(motion_section,"MD",error=error)
@@ -412,7 +413,8 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
          (simpar%ensemble==npe_i_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_damped_ensemble)) THEN
-       check = force_env%virial%pv_availability
+       CALL force_env_get(force_env, virial=virial, error=error )
+       check = virial%pv_availability
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
             routineP,"Virial evaluation not requested for this run in the input file! "//&
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
@@ -422,7 +424,8 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
-                check = check .AND. force_env%sub_force_env(i)%force_env%virial%pv_availability
+                CALL force_env_get(force_env%sub_force_env(i)%force_env, virial=virial, error=error )
+                check = check .AND. virial%pv_availability
              END IF
           END DO
        END IF
@@ -516,8 +519,9 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
 !        CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
 !             particles=particles,error=error)
 
+       CALL force_env_get(force_env, virial=virial, error=error )
        CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&
-            force_env%virial, force_env%para_env%group, error=error)
+            virial, force_env%para_env%group, error=error)
 
        CALL md_energy(md_env,md_ener,error)
 !        CALL md_write_output(md_env, error) !inits the print env at itimes == 0 also writes trajectories

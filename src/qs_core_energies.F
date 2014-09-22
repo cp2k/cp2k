@@ -10,7 +10,6 @@
 !> \author Matthias Krack (27.04.2001)
 ! *****************************************************************************
 MODULE qs_core_energies
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -390,6 +389,7 @@ CONTAINS
                                                 ecore_self, es, zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -399,10 +399,11 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
+    NULLIFY(atprop)
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-                    qs_kind_set=qs_kind_set,energy=energy,error=error)
+                    qs_kind_set=qs_kind_set,energy=energy,atprop=atprop,error=error)
 
     ecore_self = 0.0_dp
 
@@ -417,13 +418,13 @@ CONTAINS
       E_self_core = energy%core_self
     END IF
 
-    IF (ASSOCIATED(qs_env%atprop)) THEN
-      IF (qs_env%atprop%energy) THEN
+    IF (ASSOCIATED(atprop)) THEN
+      IF (atprop%energy) THEN
         ! atomic energy
         CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
                         local_particles=local_particles,error=error)
         natom = SIZE(particle_set)
-        CALL atprop_array_init(qs_env%atprop%ateself,natom,error)
+        CALL atprop_array_init(atprop%ateself,natom,error)
 
         DO ikind=1,SIZE(atomic_kind_set)
            nparticle_local = local_particles%n_el(ikind)
@@ -431,7 +432,7 @@ CONTAINS
            es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
            DO iparticle_local = 1, nparticle_local
               iatom = local_particles%list(ikind)%array(iparticle_local)
-              qs_env%atprop%ateself(iatom) = qs_env%atprop%ateself(iatom) - es
+              atprop%ateself(iatom) = atprop%ateself(iatom) - es
            END DO
         END DO
       END IF

@@ -12,7 +12,8 @@ MODULE qs_dftb_matrices
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
                                              is_hydrogen
-  USE atprop_types,                    ONLY: atprop_array_init
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
@@ -133,6 +134,7 @@ CONTAINS
     TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(block_p_type), DIMENSION(2:4)       :: dgblocks, dsblocks
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: gamma_matrix, matrix_h, &
@@ -177,7 +179,7 @@ CONTAINS
       END DO
     END DO
 
-    NULLIFY(logger)
+    NULLIFY(logger, virial, atprop)
     logger => cp_error_get_logger(error)
 
     NULLIFY (matrix_h,matrix_s,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,qs_kind_set,sab_orb)
@@ -185,7 +187,7 @@ CONTAINS
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_h=matrix_h,matrix_s=matrix_s,&
+                    matrix_h=matrix_h,matrix_s=matrix_s,atprop=atprop,&
                     dft_control=dft_control,error=error)
     
     dftb_control => dft_control%qs_control%dftb_control
@@ -283,10 +285,10 @@ CONTAINS
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
     ! atomic energy decomposition
-    IF (qs_env%atprop%energy) THEN
+    IF (atprop%energy) THEN
       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
       natom = SIZE (particle_set)
-      CALL atprop_array_init(qs_env%atprop%atecc,natom,error)
+      CALL atprop_array_init(atprop%atecc,natom,error)
     END IF
 
     erep = 0._dp
@@ -445,12 +447,12 @@ CONTAINS
              IF ( use_virial ) THEN
                CALL virial_pair_force ( virial%pv_virial, -f0, force_ab, rij, error)
                CALL virial_pair_force ( virial%pv_virial, -f0, force_w, rij, error)
-               IF ( qs_env%atprop%stress ) THEN
+               IF (atprop%stress) THEN
                   f1 = 0.5_dp*f0
-                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,iatom),-f1,force_ab,rij,error)
-                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,iatom),-f1,force_w,rij,error)
-                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,jatom),-f1,force_ab,rij,error)
-                  CALL virial_pair_force (qs_env%atprop%atstress(:,:,jatom),-f1,force_w,rij,error)
+                  CALL virial_pair_force (atprop%atstress(:,:,iatom),-f1,force_ab,rij,error)
+                  CALL virial_pair_force (atprop%atstress(:,:,iatom),-f1,force_w,rij,error)
+                  CALL virial_pair_force (atprop%atstress(:,:,jatom),-f1,force_ab,rij,error)
+                  CALL virial_pair_force (atprop%atstress(:,:,jatom),-f1,force_w,rij,error)
                END IF
              END IF
              DEALLOCATE (dfblock,dsblock,STAT=istat)
@@ -508,9 +510,9 @@ CONTAINS
           CALL urep_egr(rij,dr,erepij,force_rr,&
               n_urpoly,urep,spdim,s_cut,srep,spxr,scoeff,surr,calculate_forces)
           erep = erep + erepij
-          IF(qs_env%atprop%energy) THEN
-             qs_env%atprop%atecc(iatom) = qs_env%atprop%atecc(iatom) + 0.5_dp*erepij
-             qs_env%atprop%atecc(jatom) = qs_env%atprop%atecc(jatom) + 0.5_dp*erepij
+          IF(atprop%energy) THEN
+             atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*erepij
+             atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*erepij
           END IF
           IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
             atom_a = atom_of_kind(iatom)
@@ -521,9 +523,9 @@ CONTAINS
                 force(jkind)%repulsive(:,atom_b) + force_rr(:)
             IF ( use_virial ) THEN
               CALL virial_pair_force ( virial%pv_virial, -1._dp, force_rr, rij, error)
-              IF(qs_env%atprop%stress) THEN
-                CALL virial_pair_force(qs_env%atprop%atstress(:,:,iatom),-0.5_dp,force_rr,rij,error)
-                CALL virial_pair_force(qs_env%atprop%atstress(:,:,jatom),-0.5_dp,force_rr,rij,error)
+              IF(atprop%stress) THEN
+                CALL virial_pair_force(atprop%atstress(:,:,iatom),-0.5_dp,force_rr,rij,error)
+                CALL virial_pair_force(atprop%atstress(:,:,jatom),-0.5_dp,force_rr,rij,error)
               END IF
             END IF
           END IF

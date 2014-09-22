@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE se_fock_matrix_ga
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE atprop_types,                    ONLY: atprop_array_init
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
@@ -107,6 +108,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, mo_derivs
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
@@ -128,14 +130,14 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
-    NULLIFY(atomic_kind_set, scp_env, energy_scp, scp_store_int_env)
+    NULLIFY(atomic_kind_set, scp_env, energy_scp, scp_store_int_env, atprop)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
          para_env=para_env, se_store_int_env=store_int_env, &
-         atomic_kind_set=atomic_kind_set, &
+         atomic_kind_set=atomic_kind_set, atprop=atprop,&
          error=error)
 
     SELECT CASE (dft_control%qs_control%method_id)
@@ -175,10 +177,10 @@ CONTAINS
        END DO
 
 !      WRITE ( *, * ) 'KS_ENV%s_mstruct_changed', ks_env%s_mstruct_changed
-       IF(qs_env%atprop%energy) THEN
+       IF(atprop%energy) THEN
          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
          natom = SIZE(particle_set)
-         CALL atprop_array_init(qs_env%atprop%atecoul,natom,error)
+         CALL atprop_array_init(atprop%atecoul,natom,error)
        END IF
 
        ! Compute Exchange and Coulomb terms
@@ -211,8 +213,8 @@ CONTAINS
        END IF
        CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
 
-       IF(qs_env%atprop%energy) THEN
-         qs_env%atprop%atecoul = 0.5_dp*qs_env%atprop%atecoul
+       IF(atprop%energy) THEN
+         atprop%atecoul = 0.5_dp*atprop%atecoul
        END IF
 
        ! Compute the Hartree energy

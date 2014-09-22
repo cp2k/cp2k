@@ -17,6 +17,7 @@
 MODULE se_fock_matrix_coulomb_ga
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE atprop_types,                    ONLY: atprop_type
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
@@ -165,6 +166,7 @@ CONTAINS
       pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -198,12 +200,12 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set,&
-               se_control,se_taper,ga_env,pbuff_a, &
+               se_control,se_taper,ga_env,pbuff_a, virial, atprop, &
                pbuff_b, ksbuff_a, ksbuff_b, ks_i, ks_j, dens_i_info, dens_j_info )
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
-            particle_set=particle_set, virial=virial, ga_env=ga_env,  error=error)
+            particle_set=particle_set, virial=virial, atprop=atprop, ga_env=ga_env,  error=error)
 
 ! GA option:  Get the GA info
        CALL get_ga_env ( ga_env, se_dims=se_dims, error=error )
@@ -214,7 +216,7 @@ CONTAINS
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
        use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-       atener      = qs_env%atprop%energy
+       atener      = atprop%energy
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=se_control%do_ewald_gks, integral_screening=se_control%integral_screening,&
@@ -394,8 +396,8 @@ CONTAINS
                    ecore2 = ecore2 + ecab(1) + ecab(2)
                  END IF
                  IF (atener) THEN
-                   qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecab(1)
-                   qs_env%atprop%atecoul(jatom) = qs_env%atprop%atecoul(jatom) + ecab(2)
+                   atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecab(1)
+                   atprop%atecoul(jatom) = atprop%atecoul(jatom) + ecab(2)
                  END IF
                 ! Coulomb Terms
                  IF      ( nspins == 1 ) THEN
@@ -530,7 +532,7 @@ CONTAINS
                 END IF
                 ecore2=ecore2+ecores
                 IF (atener) THEN
-                   qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecores
+                   atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecores
                 END IF
              ! Coulomb Terms
                 IF      ( nspins == 1 ) THEN
@@ -629,6 +631,7 @@ CONTAINS
                                                 pa_block_a, pbuff_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -662,14 +665,14 @@ CONTAINS
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force,particle_set,local_particles,&
             se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
-            logger,ks_i, dens_i_info)
+            logger,ks_i, dens_i_info, atprop, virial)
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
             atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set,&
             ewald_env=ewald_env,&
             ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,local_particles=local_particles,&
-            se_nonbond_env=se_nonbond_env, virial=virial, ga_env=ga_env, &
+            se_nonbond_env=se_nonbond_env, virial=virial, atprop=atprop, ga_env=ga_env, &
             error=error)
 ! GA option: get GA info
        CALL get_ga_env ( ga_env, se_dims=se_dims, error=error )
@@ -693,7 +696,7 @@ CONTAINS
        scp_nddo   =  se_control%scp
        anag       =  se_control%analytical_gradients
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
-       atener      = qs_env%atprop%energy
+       atener     = atprop%energy
 
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
@@ -955,7 +958,7 @@ CONTAINS
              ! Nuclear term and forces
              IF (task(1)) enuc = enuc + se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
              IF (atener) THEN
-                qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) +&
+                atprop%atecoul(iatom) = atprop%atecoul(iatom) +&
                           0.5_dp*se_kind_a%zeff * se_nddo_mpole%efield0(iatom)
              END IF
              IF(calculate_forces) THEN
@@ -1061,6 +1064,7 @@ CONTAINS
       pb_block_a, pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1086,11 +1090,11 @@ CONTAINS
 #endif
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, se_control, se_taper, &
-            efield0, efield1, efield2,ga_env)
+            efield0, efield1, efield2,ga_env, atprop)
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
-            particle_set=particle_set, ga_env=ga_env, error=error)
+            particle_set=particle_set, atprop=atprop, ga_env=ga_env, error=error)
 
        CALL get_ga_env ( ga_env, se_dims = se_dims, error = error )
 
@@ -1100,7 +1104,7 @@ CONTAINS
        anag        =  se_control%analytical_gradients
        scp_nddo    =  se_control%scp
        use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
-       atener      = qs_env%atprop%energy
+       atener      = atprop%energy
 
        CALL setup_se_int_control_type(se_int_control, do_ewald_r3=se_control%do_ewald_r3,&
             do_ewald_gks=.FALSE., integral_screening=se_control%integral_screening,&
@@ -1271,8 +1275,8 @@ CONTAINS
                        ecore2 = ecore2 + ecab(1) + ecab(2)
                     END IF
                     IF (atener) THEN
-                      qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecab(1) + 0.5_dp*enuc
-                      qs_env%atprop%atecoul(jatom) = qs_env%atprop%atecoul(jatom) + ecab(2) + 0.5_dp*enuc
+                      atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecab(1) + 0.5_dp*enuc
+                      atprop%atecoul(jatom) = atprop%atecoul(jatom) + ecab(2) + 0.5_dp*enuc
                     END IF
                 ! Coulomb Terms
                     IF      ( nspins == 1 ) THEN
@@ -1486,6 +1490,7 @@ CONTAINS
       pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1519,14 +1524,14 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, &
-            local_particles, se_control, ewald_env, ewald_pw, &
+            local_particles, se_control, ewald_env, ewald_pw, atprop, &
             se_nddo_mpole, se_nonbond_env, se_section, logger, ga_env, &
             pbuff_a, pbuff_b, ksbuff_a, ksbuff_b, ks_i, ks_j, dens_i_info, dens_j_info )
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
             atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set,&
-            ewald_env=ewald_env,&
+            ewald_env=ewald_env, atprop=atprop,&
             local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
             se_nonbond_env=se_nonbond_env, ga_env=ga_env, error=error)
 
@@ -1549,7 +1554,7 @@ CONTAINS
        se_section => section_vals_get_subs_vals(qs_env%input,"DFT%QS%SE",error=error)
        se_control => dft_control%qs_control%se_control
        anag       =  se_control%analytical_gradients
-       atener     =  qs_env%atprop%energy
+       atener     =  atprop%energy
 
        nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
@@ -1684,8 +1689,8 @@ CONTAINS
                       ecore2 = ecore2 + ecab(1) + ecab(2)
                    END IF
                    IF (atener) THEN
-                     qs_env%atprop%atecoul(iatom) = qs_env%atprop%atecoul(iatom) + ecab(1)
-                     qs_env%atprop%atecoul(jatom) = qs_env%atprop%atecoul(jatom) + ecab(2)
+                     atprop%atecoul(iatom) = atprop%atecoul(iatom) + ecab(1)
+                     atprop%atecoul(jatom) = atprop%atecoul(jatom) + ecab(2)
                    END IF
                 ! Coulomb Terms
                    IF      ( nspins == 1 ) THEN

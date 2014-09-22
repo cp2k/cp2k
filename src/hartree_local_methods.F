@@ -6,7 +6,8 @@
 MODULE  hartree_local_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE atprop_types,                    ONLY: atprop_array_init
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
@@ -247,6 +248,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG, Qlm_gg
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -276,7 +278,7 @@ CONTAINS
     NULLIFY(rho0_mpole,rhoz_set,ecoul_1c)
     NULLIFY(atom_list,grid_atom,harmonics)
     NULLIFY(orb_basis,lmin,lmax,npgf,zet)
-    NULLIFY(gsph)
+    NULLIFY(gsph, atprop)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -286,7 +288,7 @@ CONTAINS
          cell=cell,dft_control=dft_control,&
          para_env=para_env,&
          atomic_kind_set=atomic_kind_set,&
-         qs_kind_set=qs_kind_set,&
+         qs_kind_set=qs_kind_set,atprop=atprop,&
          pw_env=pw_env,qs_charges=qs_charges,error=error)
 
     CALL pw_env_get(pw_env,poisson_env=poisson_env,error=error)
@@ -323,11 +325,11 @@ CONTAINS
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
 
     atenergy=.FALSE.
-    IF (ASSOCIATED(qs_env%atprop)) THEN
-      atenergy = qs_env%atprop%energy
+    IF (ASSOCIATED(atprop)) THEN
+      atenergy = atprop%energy
       IF (atenergy) THEN
         CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
-        CALL atprop_array_init(qs_env%atprop%ate1c,natom,error)
+        CALL atprop_array_init(atprop%ate1c,natom,error)
       END IF
     END IF
 
@@ -442,7 +444,7 @@ CONTAINS
 
             CALL Vh_1c_atom_energy(energy_hartree_1c,ecoul_1c,rho_atom,rrad_0,&
                  grid_atom,iatom,core_charge,rrad_z,Vh1_h,Vh1_s,&
-                 nchan_0,nspins,max_iso_not0,atenergy,qs_env%atprop%ate1c,error)
+                 nchan_0,nspins,max_iso_not0,atenergy,atprop%ate1c,error)
 
             CALL Vh_1c_atom_integrals(rho_atom,&
                  aVh1b_hh,aVh1b_ss,aVh1b_00,Vh1_h,Vh1_s,max_iso_not0,&

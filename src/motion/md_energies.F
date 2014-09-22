@@ -334,13 +334,12 @@ CONTAINS
     root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
 
-    CALL force_env_get(force_env, cell=cell, subsys=subsys, qmmm_env=qmmm_env,&
-         virial=virial, error=error)
+    CALL force_env_get(force_env,cell=cell,subsys=subsys,qmmm_env=qmmm_env,error=error)
 
     qmmm     = calc_nfree_qm(md_env, md_ener, error) > 0
     is_mixed = (force_env%in_use == use_mixed_force)
 
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL cp_subsys_get(subsys,particles=particles, virial=virial, error=error)
     nat = particles%n_els
     dt  = simpar%dt*simpar%dt_fact
 

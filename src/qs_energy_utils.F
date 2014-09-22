@@ -465,12 +465,12 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
+    NULLIFY(atprop)
     CALL timeset(routineN,handle)
 
     ! atomic energies using Mulliken partition
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,input=input,error=error)
-    IF (qs_env%atprop%energy) THEN
-       CALL get_qs_env(qs_env=qs_env,atprop=atprop,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,input=input,atprop=atprop,error=error)
+    IF (atprop%energy) THEN
        CALL qs_energies_mulliken(qs_env,error)
        IF ( .NOT.dft_control%qs_control%semi_empirical .AND. &
             .NOT.dft_control%qs_control%dftb) THEN
@@ -565,10 +565,11 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks
     TYPE(qs_rho_type), POINTER               :: rho
 
-    IF(qs_env%atprop%energy) THEN
-       CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_h=matrix_h,&
+    NULLIFY(atprop,matrix_h,matrix_ks,rho)
+    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_h=matrix_h,&
                        rho=rho,atprop=atprop,error=error)
 
+    IF(atprop%energy) THEN
        ! E = 0.5*Tr(H*P+F*P)
        atprop%atener = 0._dp
        DO ispin = 1,SIZE(rho%rho_ao)

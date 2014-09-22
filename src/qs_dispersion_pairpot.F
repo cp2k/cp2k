@@ -8,7 +8,6 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE qs_dispersion_pairpot
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -955,12 +954,12 @@ CONTAINS
           NULLIFY (particle_set)
           CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
           natom = SIZE(particle_set)
-          CALL atprop_array_init(qs_env%atprop%atevdw,natom,error)
-          atener => qs_env%atprop%atevdw
+          CALL atprop_array_init(atprop%atevdw,natom,error)
+          atener => atprop%atevdw
        END IF
-       atstress = qs_env%atprop%stress
+       atstress = atprop%stress
        IF (atstress) THEN
-          atstr => qs_env%atprop%atstress
+          atstr => atprop%atstress
        END IF
 
        IF(unit_nr>0) THEN

@@ -28,7 +28,8 @@
 MODULE qs_integrate_potential_single
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE atprop_types,                    ONLY: atprop_array_init
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_methods,                    ONLY: cell_type,&
@@ -695,7 +696,7 @@ CONTAINS
                                                 j, natom, natom_of_kind, &
                                                 npme, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: atenergy, failure, paw_atom, &
+    LOGICAL                                  :: failure, paw_atom, &
                                                 skip_fcore, use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
@@ -704,6 +705,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -719,16 +721,12 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
+    NULLIFY(virial, atprop)
 
     !If gapw, check for gpw kinds
     skip_fcore = .FALSE.
     IF(qs_env%dft_control%qs_control%gapw) THEN
       IF(.NOT. qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
-    END IF
-    ! atomic energy contributions
-    atenergy = .FALSE.
-    IF(ASSOCIATED(qs_env%atprop)) THEN
-      atenergy=qs_env%atprop%energy
     END IF
 
     failure = .FALSE.
@@ -753,11 +751,15 @@ CONTAINS
              dft_control=dft_control,&
              particle_set=particle_set,&
              para_env=para_env,pw_env=pw_env,&
-             force=force,virial=virial,error=error)
+             force=force,&
+             virial=virial,&
+             atprop=atprop,&
+             error=error)
 
-        IF(atenergy) THEN
+        ! atomic energy contributions
+        IF(ASSOCIATED(atprop)) THEN
            natom = SIZE(particle_set)
-           CALL atprop_array_init(qs_env%atprop%ateb,natom,error)
+           CALL atprop_array_init(atprop%ateb,natom,error)
         END IF
 
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -831,8 +833,8 @@ CONTAINS
             IF (use_virial) THEN
               virial%pv_virial = virial%pv_virial + my_virial_a
             END IF
-            IF (atenergy) THEN
-               qs_env%atprop%ateb(atom_a) = qs_env%atprop%ateb(atom_a) + 0.5_dp*hab(1,1)*pab(1,1)
+            IF (ASSOCIATED(atprop)) THEN
+               atprop%ateb(atom_a) = atprop%ateb(atom_a) + 0.5_dp*hab(1,1)*pab(1,1)
             END IF
 
          END DO

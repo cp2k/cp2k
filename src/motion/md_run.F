@@ -97,6 +97,7 @@ MODULE md_run
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
+  USE virial_types,                    ONLY: virial_type
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              create_wiener_process_cv
 #include "../common/cp_common_uses.f90"
@@ -221,6 +222,7 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
+    TYPE(virial_type), POINTER               :: virial
 #ifdef PLUMED_CP2K
     INTEGER                                  :: natom_plumed, nsp_plumed
     INTEGER, DIMENSION(90)                   :: na_plumed
@@ -237,7 +239,7 @@ CONTAINS
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          reftraj_section, work_section, atomic_kinds, &
          local_particles, time, fe_env, free_energy_section, &
-         constraint_section, thermal_regions)
+         constraint_section, thermal_regions, virial)
     logger   => cp_error_get_logger(error)
     para_env => force_env%para_env
 
@@ -305,7 +307,7 @@ CONTAINS
     END IF
 
     CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref,&
-                       force_env_section=force_env_section, error=error )
+                       force_env_section=force_env_section, virial=virial, error=error )
 
     ! Set V0 if needed
     IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
@@ -349,7 +351,7 @@ CONTAINS
          (simpar%ensemble==npe_i_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_damped_ensemble)) THEN
-       check = force_env%virial%pv_availability
+       check = virial%pv_availability
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
             routineP,"Virial evaluation not requested for this run in the input file! "//&
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
@@ -359,7 +361,8 @@ CONTAINS
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
-                check = check .AND. force_env%sub_force_env(i)%force_env%virial%pv_availability
+                CALL force_env_get(force_env%sub_force_env(i)%force_env, virial=virial, error=error )
+                check = check .AND. virial%pv_availability
              END IF
           END DO
        END IF
@@ -459,14 +462,14 @@ CONTAINS
                calc_force=.TRUE.,error=error)
        END IF
 
-       CALL force_env_get( force_env, subsys=subsys, error=error )
+       CALL force_env_get( force_env, subsys=subsys, virial=virial, error=error )
 
        CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
             particles=particles,error=error)
 
 
        CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&
-            force_env%virial, force_env%para_env%group, error=error)
+            virial, force_env%para_env%group, error=error)
 
        CALL md_energy(md_env,md_ener,error)
        CALL md_write_output(md_env, error) !inits the print env at itimes == 0 also writes trajectories

@@ -37,8 +37,6 @@ MODULE qmmm_update
                                              qmmm_env_qm_retain
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_types,                    ONLY: virial_release,&
-                                             virial_retain
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -185,12 +183,9 @@ CPSourceFileRef,&
 
         ! duplicate releases in force_env_release
         CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
-        CALL virial_release(force_env%virial,error=error)
         CALL cp_subsys_release(force_env%subsys,error=error)
 
         ! duplicate things that are pointed to in force_env_create when doing qmmm
-        force_env%virial => sub_force_env(primary_subsys)%force_env%virial
-        CALL virial_retain(force_env%virial, error=error)
         force_env%qmmm_env => sub_force_env(primary_subsys)%force_env%qmmm_env
         CALL qmmm_env_qm_retain(force_env%qmmm_env, error=error)
         force_env%subsys => sub_force_env(primary_subsys)%force_env%subsys

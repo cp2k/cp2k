@@ -14,8 +14,7 @@
 ! *****************************************************************************
 MODULE force_env_methods
 
-  USE atprop_types,                    ONLY: atprop_create,&
-                                             atprop_init,&
+  USE atprop_types,                    ONLY: atprop_init,&
                                              atprop_type
   USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
@@ -85,11 +84,9 @@ MODULE force_env_methods
   USE input_constants,                 ONLY: &
        debug_run, do_fm_mom_conserv_QM, do_fm_mom_conserv_buffer, &
        do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &
-       do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, &
-       do_stress_analytical, do_stress_diagonal_anal, &
-       do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
-       low_print_level, mix_coupled, mix_generic, mix_linear_combination, &
-       mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
+       do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, low_print_level, &
+       mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
+       mix_restrained, use_bazant_eip, use_lenosky_eip
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_get_subs_vals,&
                                              section_vals_retain,&
@@ -141,9 +138,13 @@ MODULE force_env_methods
   USE se_ga_tools,                     ONLY: se_ga_release
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: print_warning
-  USE virial_types,                    ONLY: &
-       cp_virial, sym_virial, virial_create, virial_p_type, virial_release, &
-       virial_retain, virial_set, virial_type, zero_virial
+  USE virial_types,                    ONLY: cp_virial,&
+                                             sym_virial,&
+                                             virial_create,&
+                                             virial_p_type,&
+                                             virial_release,&
+                                             virial_type,&
+                                             zero_virial
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -210,7 +211,7 @@ CONTAINS
                                                 shell_particles
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (logger,results)
+    NULLIFY (logger,results, virial, subsys, atprop_env)
     logger => cp_error_get_logger(error)
     failure = .FALSE.
     eval_ef = .TRUE.
@@ -234,12 +235,10 @@ CONTAINS
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
 
-    CALL force_env_get(force_env,virial=virial,error=error)
+    CALL force_env_get(force_env, virial=virial, atprop=atprop_env, error=error)
     CALL force_env_set(force_env,additional_potential=0.0_dp,error=error)
     IF (virial%pv_availability) CALL zero_virial(virial,reset=.FALSE.)
 
-    NULLIFY (atprop_env)
-    CALL force_env_get(force_env,atprop_env=atprop_env,error=error)
     nat=force_env_get_natom(force_env,error=error)
     CALL atprop_init(atprop_env,nat,error)
 
@@ -247,13 +246,14 @@ CONTAINS
        IF (eval_ef) THEN
           SELECT CASE ( force_env%in_use )
           CASE ( use_fist_force )
-             CALL fist_force_control( force_env%fist_env, virial, atprop_env, force_env%para_env, &
-                  force_env_section=force_env%force_env_section, error=error)
+             CALL fist_force_control( force_env%fist_env, virial, atprop_env,&
+                  force_env%para_env, force_env_section=force_env%force_env_section,&
+                  error=error)
              CALL fist_env_get(fist_env=force_env%fist_env,results=results,error=error)
           CASE (use_ep_force)
              CALL ep_f77_calc_e_f(force_env%ep_env_id,calculate_forces,error)
           CASE ( use_qs_force )
-             CALL set_qs_env(qs_env=force_env%qs_env,atprop=atprop_env,error=error)
+             CALL set_qs_env(qs_env=force_env%qs_env,error=error)
              force_env%qs_env%linres_run = linres_run
              IF (.NOT.calculate_forces) THEN
                 CALL qs_energies(qs_env=force_env%qs_env, consistent_energies=energy_consistency, &
@@ -723,10 +723,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, stress_tensor
-    LOGICAL                                  :: atomic_energy, atomic_stress, &
-                                                failure, pv_availability, &
-                                                pv_diagonal, pv_numerical
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
 
@@ -743,7 +741,7 @@ CONTAINS
             force_env%meta_env, force_env%sub_force_env, &
             force_env%qmmm_env, force_env%ep_env_id, force_env%fp_env, &
             force_env%force_env_section, force_env%eip_env,force_env%mixed_env,&
-            force_env%root_section, force_env%atprop_env, force_env%results)
+            force_env%root_section, force_env%results)
        last_force_env_id=last_force_env_id+1
        force_env%id_nr=last_force_env_id
        force_env%ref_count=1
@@ -762,54 +760,12 @@ CONTAINS
        CALL section_vals_retain(force_env_section,error=error)
        force_env%force_env_section => force_env_section
 
-       ! Should we compute the virial?
-       CALL section_vals_val_get(force_env_section,"STRESS_TENSOR",i_val=stress_tensor,error=error)
-       SELECT CASE(stress_tensor)
-       CASE(do_stress_none)
-          pv_availability=.FALSE.
-          pv_numerical=.FALSE.
-          pv_diagonal=.FALSE.
-       CASE(do_stress_analytical)
-          pv_availability=.TRUE.
-          pv_numerical=.FALSE.
-          pv_diagonal=.FALSE.
-       CASE(do_stress_numerical)
-          pv_availability=.TRUE.
-          pv_numerical=.TRUE.
-          pv_diagonal=.FALSE.
-       CASE(do_stress_diagonal_anal)
-          pv_availability=.TRUE.
-          pv_numerical=.FALSE.
-          pv_diagonal=.TRUE.
-       CASE(do_stress_diagonal_numer)
-          pv_availability=.TRUE.
-          pv_numerical=.TRUE.
-          pv_diagonal=.TRUE.
-       END SELECT
-
-       ! Should we compute atomic properties?
-       CALL atprop_create(force_env%atprop_env,error)
-       CALL section_vals_val_get(force_env_section,"PROPERTIES%ATOMIC%ENERGY",l_val=atomic_energy,error=error)
-       force_env%atprop_env%energy = atomic_energy
-       CALL section_vals_val_get(force_env_section,"PROPERTIES%ATOMIC%PRESSURE",l_val=atomic_stress,error=error)
-       IF (atomic_stress) THEN
-          CPPrecondition(pv_availability,cp_failure_level,routineP,error,failure)
-          CPPrecondition(.NOT.pv_numerical,cp_failure_level,routineP,error,failure)
-       END IF
-       force_env%atprop_env%stress = atomic_stress
-
        IF (PRESENT(fist_env)) THEN
           IF (ASSOCIATED(fist_env)) THEN
              CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
              force_env%in_use=use_fist_force
              force_env%fist_env => fist_env
              CALL fist_env_retain(fist_env,error=error)
-             ! Virial controlled through the external request
-             CALL virial_create(force_env%virial,error=error)
-             CALL virial_set(force_env%virial,&
-                             pv_availability=pv_availability,&
-                             pv_numer=pv_numerical,&
-                             pv_diagonal=pv_diagonal)
           END IF
        END IF
        IF (PRESENT(eip_env)) THEN
@@ -818,10 +774,6 @@ CONTAINS
              force_env%in_use = use_eip_force
              force_env%eip_env => eip_env
              CALL eip_env_retain(eip_env, error=error)
-             ! Virial not present for EIP
-             CALL virial_create(force_env%virial, error=error)
-             eip_env%virial => force_env%virial
-             CALL virial_retain(eip_env%virial,error=error)
           END IF
        END IF
        IF (PRESENT(qs_env)) THEN
@@ -830,14 +782,6 @@ CONTAINS
              force_env%in_use=use_qs_force
              force_env%qs_env => qs_env
              CALL qs_env_retain(qs_env,error=error)
-             CALL virial_create(force_env%virial, error=error)
-             ! Virial controlled through the external request
-             CALL virial_set(virial=force_env%virial,&
-                             pv_availability=pv_availability,&
-                             pv_numer=pv_numerical,&
-                             pv_diagonal=pv_diagonal)
-             qs_env%virial => force_env%virial
-             CALL virial_retain(qs_env%virial,error=error)
           END IF
        END IF
        IF (PRESENT(qmmm_env)) THEN
@@ -845,25 +789,12 @@ CONTAINS
           force_env%in_use=use_qmmm
           force_env%qmmm_env => qmmm_env
           CALL qmmm_env_qm_retain(qmmm_env,error=error)
-          force_env%virial => sub_force_env(primary_subsys)%force_env%virial
-          CALL virial_retain(force_env%virial,error=error)
-          ! Virial controlled through the external request
-          CALL virial_set ( virial=force_env%virial,&
-                            pv_availability=pv_availability,&
-                            pv_numer=pv_numerical,&
-                            pv_diagonal=pv_diagonal)
        END IF
        IF (PRESENT(mixed_env)) THEN
           CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
           force_env%in_use=use_mixed_force
           force_env%mixed_env => mixed_env
           CALL mixed_env_retain ( mixed_env, error = error )
-          ! This is necessary as long as there are methods not implementing the virial
-          CALL virial_create ( force_env % virial, error=error)
-          CALL virial_set ( virial=force_env%virial,&
-                            pv_availability=pv_availability,&
-                            pv_numer=pv_numerical,&
-                            pv_diagonal=pv_diagonal)
        END IF
        IF (PRESENT(ep_env_id)) THEN
           IF (ASSOCIATED(ep_env_id)) THEN
@@ -871,8 +802,6 @@ CONTAINS
              force_env%in_use=use_ep_force
              force_env%ep_env_id => ep_env_id
              CALL ep_f77_retain(ep_env_id,error=error)
-             ! Virial not present for EP
-             CALL virial_create ( force_env%virial, error=error)
           END IF
        END IF
        CPPostcondition(force_env%in_use/=0,cp_failure_level,routineP,error,failure)
@@ -1422,12 +1351,12 @@ CPSourceFileRef,&
                        subsys=subsys_mix,&
                        force_env_section=force_env_section,&
                        root_section=root_section,&
-                       virial=virial_mix,&
                        results=results_mix,&
                        cell=cell_mix,&
                        error=error)
     CALL cp_subsys_get(subsys=subsys_mix,&
                        particles=particles_mix,&
+                       virial=virial_mix,&
                        error=error)
     NULLIFY(map_index, glob_natoms, global_forces)
     virial_consistent = .TRUE.
