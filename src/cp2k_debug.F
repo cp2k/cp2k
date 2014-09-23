@@ -30,7 +30,8 @@ MODULE cp2k_debug
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_calc_num_pressure
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_type,&
+                                             use_qs_force
   USE input_constants,                 ONLY: do_stress_analytical,&
                                              do_stress_diagonal_anal,&
                                              do_stress_diagonal_numer,&
@@ -41,7 +42,10 @@ MODULE cp2k_debug
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE particle_types,                  ONLY: particle_type,&
-                                             write_fist_particle_coordinates
+                                             write_fist_particle_coordinates,&
+                                             write_qs_particle_coordinates
+  USE qs_environment_types,            ONLY: get_qs_env
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE termination,                     ONLY: print_warning,&
                                              stop_program
   USE virial_types,                    ONLY: cp_virial,&
@@ -90,6 +94,8 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: harris_section, root_section, &
                                                 subsys_section
     TYPE(virial_type), POINTER               :: virial, virial_analytical, &
@@ -224,8 +230,13 @@ CONTAINS
           ! Debug forces (numerical vs analytical)
           CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
           particles => subsys%particles%els
-          CALL write_fist_particle_coordinates(particles,subsys_section,&
-                                              charges=Null(),error=error)
+          SELECT CASE (force_env%in_use)
+          CASE (use_qs_force)
+             CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
+             CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
+          CASE DEFAULT
+             CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
+          END SELECT
           ! First evaluate energy and forces
           CALL force_env_calc_energy_force(force_env,&
                                            calc_force=.TRUE.,&
@@ -249,8 +260,13 @@ CONTAINS
                 std_value = particles(ip)%r(k)
                 DO j=1,2
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
-                   CALL write_fist_particle_coordinates(particles,subsys_section,&
-                                                        charges=Null(), error=error)
+                   SELECT CASE (force_env%in_use)
+                   CASE (use_qs_force)
+                      CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
+                      CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
+                   CASE DEFAULT
+                      CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
+                   END SELECT
                    ! Compute energy
                    CALL force_env_calc_energy_force(force_env,&
                                                     calc_force=.FALSE.,&
