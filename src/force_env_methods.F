@@ -205,13 +205,12 @@ CONTAINS
     TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (logger,results, virial, subsys, atprop_env)
+    NULLIFY (logger, virial, subsys, atprop_env)
     logger => cp_error_get_logger(error)
     failure = .FALSE.
     eval_ef = .TRUE.
@@ -249,7 +248,7 @@ CONTAINS
              CALL fist_force_control( force_env%fist_env, virial, atprop_env,&
                   force_env%para_env, force_env_section=force_env%force_env_section,&
                   error=error)
-             CALL fist_env_get(fist_env=force_env%fist_env,results=results,error=error)
+             CALL fist_env_get(fist_env=force_env%fist_env,error=error)
           CASE (use_ep_force)
              CALL ep_f77_calc_e_f(force_env%ep_env_id,calculate_forces,error)
           CASE ( use_qs_force )
@@ -263,7 +262,7 @@ CONTAINS
              END IF
 ! GA option
              CALL se_ga_release ( force_env%qs_env, error )
-             CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)
+             CALL get_qs_env(qs_env=force_env%qs_env,error=error)
           CASE (use_eip_force)
              IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
                 CALL eip_lenosky(force_env, error=error)
@@ -357,10 +356,6 @@ CONTAINS
        CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,"PRINT%FORCES",&
                                          error=error)
 
-       ! Store results
-       IF(ASSOCIATED(results))THEN
-          CALL cp_result_copy(results_in=results,results_out=force_env%results,error=error)
-       END IF
     END IF
 
     ! Write stress tensor
@@ -741,7 +736,7 @@ CONTAINS
             force_env%meta_env, force_env%sub_force_env, &
             force_env%qmmm_env, force_env%ep_env_id, force_env%fp_env, &
             force_env%force_env_section, force_env%eip_env,force_env%mixed_env,&
-            force_env%root_section, force_env%results)
+            force_env%root_section)
        last_force_env_id=last_force_env_id+1
        force_env%id_nr=last_force_env_id
        force_env%ref_count=1
@@ -816,7 +811,6 @@ CONTAINS
        ELSE
           NULLIFY(force_env%meta_env)
        END IF
-       CALL cp_result_create(results=force_env%results,error=error)
        SELECT CASE(force_env%in_use)
        CASE(use_fist_force)
           CALL fist_env_get (force_env%fist_env, subsys=force_env%subsys, error=error)

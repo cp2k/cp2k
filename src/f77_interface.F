@@ -41,6 +41,7 @@ MODULE f77_interface
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: get_results,&
                                              test_for_result
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type,&
                                              unpack_subsys_particles
   USE eip_main,                        ONLY: eip_create_force_env
@@ -1152,30 +1153,26 @@ CPSourceFileRef,&
     INTEGER                                  :: nres
     LOGICAL                                  :: exist_res, failure
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    NULLIFY (f_env)
+    NULLIFY (f_env, results)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
 
     IF (.NOT. failure) THEN
+      CALL force_env_get(f_env%force_env, results=results, error=error)
       ! first test for the result
       IF(PRESENT(res_exist)) THEN
-        res_exist = test_for_result(results=f_env%force_env%results,&
-                      description=description, error=error)
+        res_exist = test_for_result(results, description=description, error=error)
         exist_res = res_exist
       ELSE
         exist_res = .TRUE.
       END IF
       ! if existing (or assuming the existance) read the results
       IF(res_exist) THEN
-        CALL get_results(results=f_env%force_env%results,&
-             description=description,&
-             n_rep=nres,error=error)
-        CALL get_results(results=f_env%force_env%results,&
-             description=description,&
-             values=RESULT,&
-             nval=nres,error=error)
+        CALL get_results(results, description=description, n_rep=nres,error=error)
+        CALL get_results(results, description=description, values=RESULT, nval=nres,error=error)
       END IF
     ENDIF
 

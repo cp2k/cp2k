@@ -21,9 +21,7 @@ MODULE fist_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_create,&
-                                             cp_result_release,&
-                                             cp_result_type
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
@@ -234,6 +232,7 @@ CONTAINS
                           shell_particles=shell_particles,&
                           core_particles=core_particles,&
                           multipoles=fist_multipoles,&
+                          results=results,&
                           error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
@@ -241,7 +240,6 @@ CONTAINS
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(shell_particle_set)) shell_particle_set => shell_particles%els
     IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
-    IF (PRESENT(results)) results => fist_env%results
     IF (PRESENT(multipoles)) multipoles => fist_multipoles
   END SUBROUTINE fist_env_get
 
@@ -275,7 +273,6 @@ CONTAINS
     fist_env % shell_model_ad = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
     NULLIFY (fist_env%subsys)
-    CALL cp_result_create(results=fist_env%results,error=error)
     CALL cp_para_env_retain(para_env,error=error)
     fist_env%para_env => para_env
     fist_env%ref_count=1
@@ -546,7 +543,6 @@ CONTAINS
           CALL deallocate_fist_energy(fist_env%thermo)
 
           CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
-          CALL cp_result_release(fist_env%results,error=error)
           CALL cp_subsys_release(fist_env%subsys,error=error)
           CALL section_vals_release(fist_env%input,error=error)
           CALL exclusion_release(fist_env%exclusions,error=error)

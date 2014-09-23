@@ -18,9 +18,7 @@ MODULE force_env_types
   USE cell_types,                      ONLY: cell_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_release,&
-                                             cp_result_retain,&
-                                             cp_result_type
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_type,&
@@ -158,7 +156,6 @@ MODULE force_env_types
      TYPE ( mixed_environment_type ), POINTER            :: mixed_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
-     TYPE ( cp_result_type), POINTER                     :: results
   END TYPE force_env_type
 
 ! *****************************************************************************
@@ -265,7 +262,6 @@ CONTAINS
           CASE (use_mixed_force)
              CALL mixed_env_release(force_env%mixed_env,error=error)
           END SELECT
-          CALL cp_result_release(results=force_env%results,error=error)
           CALL globenv_release(force_env%globenv,error=error)
           CALL cp_para_env_release(force_env%para_env,error=error)
           ! Not deallocated
@@ -516,7 +512,8 @@ CONTAINS
        IF (PRESENT(eip_env)) THEN
           eip_env => force_env%eip_env
        END IF
-       IF (PRESENT(results)) results => force_env%results
+       IF (PRESENT(results)) &
+         CALL cp_subsys_get(force_env%subsys, results=results, error=error)
        IF (PRESENT(subsys)) subsys => force_env%subsys
        IF (PRESENT(para_env)) para_env => force_env%para_env
        ! adjust the total energy for the metadynamics
@@ -742,15 +739,15 @@ CONTAINS
 !> \param force_env_section ...
 !> \param method_name_id ...
 !> \param additional_potential ...
-!> \param results ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param results ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE force_env_set(force_env, meta_env,fp_env, force_env_section,&
-     method_name_id, additional_potential, results, error)
+     method_name_id, additional_potential, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
@@ -759,7 +756,6 @@ CONTAINS
       POINTER                                :: force_env_section
     INTEGER, OPTIONAL                        :: method_name_id
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: additional_potential
-    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
@@ -794,13 +790,6 @@ CONTAINS
        END IF
        IF (PRESENT(additional_potential)) THEN
           force_env%additional_potential = additional_potential
-       END IF
-       IF (PRESENT(results)) THEN
-          IF(ASSOCIATED(results)) THEN
-             CALL cp_result_retain(results,error)
-          END IF
-          CALL cp_result_release(force_env%results,error)
-          force_env%results => results
        END IF
        IF (PRESENT(method_name_id)) THEN
           force_env%method_name_id=method_name_id

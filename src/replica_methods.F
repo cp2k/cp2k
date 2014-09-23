@@ -22,6 +22,7 @@ MODULE replica_methods
                                              cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_retain
+  USE cp_subsys_types,                 ONLY: cp_subsys_set
   USE f77_blas
   USE f77_interface,                   ONLY: calc_force,&
                                              create_force_env,&
@@ -32,7 +33,6 @@ MODULE replica_methods
                                              get_pos,&
                                              set_vel
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set,&
                                              use_qs_force
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_type,&
@@ -539,7 +539,7 @@ MODULE replica_methods
 
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                new_error=new_error, failure=failure)
-          CALL force_env_set(force_env=f_env%force_env,&
+          CALL cp_subsys_set(f_env%force_env%subsys,&
                results=rep_env%results(irep)%results,&
                error=error)
           CALL f_env_rm_defaults(f_env,new_error,ierr)

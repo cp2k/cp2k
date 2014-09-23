@@ -61,6 +61,7 @@ MODULE qs_scf
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: get_results,&
                                              test_for_result
+  USE cp_result_types,                 ONLY: cp_result_type
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_postprocessing
@@ -259,6 +260,7 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -284,7 +286,7 @@ CONTAINS
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
-            scf_section, para_env)
+            scf_section, para_env, results)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -306,6 +308,7 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos,&
                     input=input, dft_control=dft_control, scf_control=scf_control,&
                     do_kpoints=do_kpoints,&
+                    results=results,&
                     error=error)
 
     ! Defining SCP logicals
@@ -347,9 +350,8 @@ CONTAINS
     ! check for external communicator and if the inermediate energy should be sended
     res_val_3(:) = -1.0_dp
     description  = "[EXT_SCF_ENER_COMM]"
-    IF(test_for_result(results=qs_env%results,description=description, &
-                       error=error)) THEN
-      CALL get_results(results=qs_env%results, description=description,&
+    IF(test_for_result(results,description=description, error=error)) THEN
+      CALL get_results(results, description=description,&
                        values=res_val_3, n_entries=i_tmp, error=error)
       CPPostcondition(i_tmp.EQ.3,cp_failure_level,routineP,error,failure)
       CALL cp_assert(ANY(res_val_3(:).GT.0.0),cp_failure_level,&

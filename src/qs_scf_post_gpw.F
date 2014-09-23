@@ -50,6 +50,7 @@ MODULE qs_scf_post_gpw
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              get_results,&
                                              put_results
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
@@ -1027,6 +1028,7 @@ CONTAINS
                                                 rcc, ria
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -1039,11 +1041,12 @@ CONTAINS
     print_key => section_vals_get_subs_vals(input,"DFT%LOCALIZE%PRINT%TOTAL_DIPOLE", error=error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,first_time=first_time,&
          error=error),cp_p_file)) THEN
-       NULLIFY(cell, particle_set, qs_kind_set, ref_point)
+       NULLIFY(cell, particle_set, qs_kind_set, ref_point, results)
        CALL get_qs_env(qs_env=qs_env,&
                        cell=cell,&
                        particle_set=particle_set,&
                        qs_kind_set=qs_kind_set,&
+                       results=results,&
                        error=error)
 
        reference = section_get_ival(print_key,keyword_name="REFERENCE",error=error)
@@ -1130,11 +1133,11 @@ CONTAINS
                                  "delta_dipole(x,y,z)[atomic units]"
           END IF
           iter=cp_iter_string(logger%iter_info,error=error)
-          CALL get_results(qs_env%results,descriptionThisDip,n_rep=n_rep,error=error)
+          CALL get_results(results,descriptionThisDip,n_rep=n_rep,error=error)
           IF(n_rep==0)THEN
              dipole_old=0._dp
           ELSE
-             CALL get_results(qs_env%results,descriptionThisDip,dipole_old,nval=n_rep,error=error)
+             CALL get_results(results,descriptionThisDip,dipole_old,nval=n_rep,error=error)
           END IF
           IF (do_berry) THEN
              WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
@@ -1145,10 +1148,10 @@ CONTAINS
           END IF
        END IF
        CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
-       CALL cp_results_erase(qs_env%results,description,error=error)
-       CALL put_results(qs_env%results,description,dipole,error)
-       CALL cp_results_erase(qs_env%results,descriptionThisDip,error=error)
-       CALL put_results(qs_env%results,descriptionThisDip,dipole,error)
+       CALL cp_results_erase(results,description,error=error)
+       CALL put_results(results,description,dipole,error)
+       CALL cp_results_erase(results,descriptionThisDip,error=error)
+       CALL put_results(results,descriptionThisDip,dipole,error)
     END IF
 
     CALL timestop(handle)

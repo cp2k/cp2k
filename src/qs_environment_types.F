@@ -40,9 +40,7 @@ MODULE qs_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_create,&
-                                             cp_result_release,&
-                                             cp_result_type
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
@@ -411,7 +409,6 @@ MODULE qs_environment_types
     TYPE(hfx_type),DIMENSION(:,:), POINTER                :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
-    TYPE(cp_result_type) ,POINTER                         :: results
     TYPE(task_list_type), POINTER                         :: task_list
     TYPE(task_list_type), POINTER                         :: task_list_aux_fit
     TYPE(task_list_type), POINTER                         :: task_list_soft
@@ -925,6 +922,7 @@ CONTAINS
                       molecules_new=molecules_new,&
                       atprop=atprop,&
                       virial=virial,&
+                      results=results,&
                       error=error)
 
     IF (PRESENT(qs_kind_set)) qs_kind_set => qs_env%qs_kind_set
@@ -943,7 +941,6 @@ CONTAINS
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
     IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
     IF (PRESENT(efield)) efield => qs_env%efield
-    IF (PRESENT(results)) results => qs_env%results
     IF (PRESENT(task_list)) task_list => qs_env%task_list
     IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => qs_env%task_list_aux_fit
     IF (PRESENT(task_list_soft)) task_list_soft => qs_env%task_list_soft
@@ -1056,7 +1053,6 @@ CONTAINS
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
     NULLIFY (qs_env%dftb_potential)
-    NULLIFY (qs_env%results)
     NULLIFY (qs_env%task_list)
     NULLIFY (qs_env%task_list_aux_fit)
     NULLIFY (qs_env%task_list_soft)
@@ -1113,7 +1109,6 @@ CONTAINS
     qs_env%sim_time=0._dp
     qs_env%sim_step=0
     ! Zero all variables containing results
-    CALL cp_result_create(qs_env%results, error)
     NULLIFY(qs_env%mo_derivs)
     NULLIFY(qs_env%mo_derivs_aux_fit)
     NULLIFY(qs_env%mo_loc_history)
@@ -2086,7 +2081,6 @@ CONTAINS
           CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
           CALL ep_qs_release(qs_env%ep_qs_env,error=error)
           CALL efield_berry_release(qs_env%efield,error=error)
-          CALL cp_result_release(qs_env%results,error=error)
           IF(ASSOCIATED(qs_env%x_data)) THEN
              CALL hfx_release(qs_env%x_data, error=error)
           END IF

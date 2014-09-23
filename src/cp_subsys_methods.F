@@ -21,6 +21,7 @@ MODULE cp_subsys_methods
   USE colvar_methods,                  ONLY: colvar_read
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_create
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
@@ -215,6 +216,8 @@ CONTAINS
        CPPrecondition(.NOT.pv_numerical,cp_failure_level,routineP,error,failure)
     END IF
     subsys%atprop%stress = atomic_stress
+
+    CALL cp_result_create(subsys%results,error=error)
   END SUBROUTINE cp_subsys_create
 
 ! *****************************************************************************
@@ -418,6 +421,7 @@ CONTAINS
 
        CALL virial_create(small_subsys%virial, error=error)
        CALL atprop_create(small_subsys%atprop,error)
+       CALL cp_result_create(small_subsys%results,error=error)
     END IF
   END SUBROUTINE create_small_subsys
 

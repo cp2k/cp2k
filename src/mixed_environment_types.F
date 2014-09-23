@@ -18,9 +18,7 @@ MODULE mixed_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_p_type,&
                                              cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_create,&
-                                             cp_result_release,&
-                                             cp_result_type
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
@@ -68,7 +66,6 @@ MODULE mixed_environment_types
      TYPE ( cp_subsys_type ), POINTER                 :: subsys
      TYPE(section_vals_type), POINTER                 :: input
      REAL(KIND=dp), DIMENSION(:), POINTER             :: energies
-     TYPE(cp_result_type),POINTER                     :: results
      ! Parallelization of multiple force_eval
      INTEGER                                          :: new_group, ngroups
      INTEGER, DIMENSION(:), POINTER                   :: group_distribution
@@ -184,12 +181,12 @@ CONTAINS
                       particles=particles,&
                       molecule_kinds_new=molecule_kinds_new,&
                       molecules_new=molecules_new,&
+                      results=results,&
                       error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
-    IF (PRESENT(results)) results => mixed_env%results
 
   END SUBROUTINE get_mixed_env
 
@@ -217,7 +214,6 @@ CONTAINS
     NULLIFY (mixed_env%par)
     NULLIFY (mixed_env%val)
     NULLIFY (mixed_env%subsys)
-    CALL cp_result_create(results=mixed_env%results,error=error)
     CALL cp_para_env_retain(para_env,error=error)
     mixed_env%para_env => para_env
     mixed_env%ref_count=1
@@ -453,7 +449,6 @@ CONTAINS
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           CALL cell_release(mixed_env%cell_ref,error=error)
-          CALL cp_result_release(mixed_env%results,error=error)
           CALL cp_para_env_release(mixed_env%para_env,error=error)
           CALL deallocate_mixed_energy(mixed_env%mixed_energy,error=error)
           CALL cp_subsys_release(mixed_env%subsys,error=error)

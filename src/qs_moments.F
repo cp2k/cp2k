@@ -10,7 +10,6 @@
 !> \author JGH (20.07.2006)
 ! *****************************************************************************
 MODULE qs_moments
-
   USE ai_angmom,                       ONLY: angmom
   USE ai_moments,                      ONLY: contract_cossin,&
                                              cossin,&
@@ -48,6 +47,7 @@ MODULE qs_moments
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
+  USE cp_result_types,                 ONLY: cp_result_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -856,6 +856,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -900,8 +901,8 @@ CONTAINS
        END IF
 
        para_env => qs_env%para_env
-       NULLIFY ( dft_control, rho, cell, particle_set )
-       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
+       NULLIFY ( dft_control, rho, cell, particle_set, results )
+       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell, results=results,&
                          particle_set=particle_set, qs_kind_set=qs_kind_set, error=error)
        NULLIFY ( local_particles )
        CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
@@ -1211,8 +1212,8 @@ CONTAINS
 
        rmom(:,3) = rmom(:,1) + rmom(:,2)
        description="[DIPOLE]"
-       CALL cp_results_erase(results=qs_env%results,description=description,error=error)
-       CALL put_results(results=qs_env%results,description=description,&
+       CALL cp_results_erase(results=results,description=description,error=error)
+       CALL put_results(results=results,description=description,&
                         values=rmom(2:4,3),error=error)
        IF(magnetic) THEN
           CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.,mmom=mmom)
@@ -1423,6 +1424,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: magmom, matrix_s, moments
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
@@ -1446,8 +1448,8 @@ CONTAINS
        ! electronic contribution
        NULLIFY ( moments )
        CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
-       NULLIFY ( dft_control, rho, cell, particle_set, qs_kind_set )
-       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
+       NULLIFY ( dft_control, rho, cell, particle_set, qs_kind_set, results )
+       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell, results=results,&
                          particle_set=particle_set, qs_kind_set=qs_kind_set, error=error)
        para_env => qs_env%para_env
        NULLIFY ( matrix_s )
@@ -1526,8 +1528,8 @@ CONTAINS
        rmom(:,3) = rmom(:,1) + rmom(:,2)
 
        description="[DIPOLE]"
-       CALL cp_results_erase(results=qs_env%results,description=description,error=error)
-       CALL put_results(results=qs_env%results,description=description,&
+       CALL cp_results_erase(results=results,description=description,error=error)
+       CALL put_results(results=results,description=description,&
                         values=rmom(2:4,3),error=error)
        IF(magnetic) THEN
           CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.,mmom=mmom)

@@ -25,6 +25,9 @@ MODULE cp_subsys_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_release,&
+                                             cp_result_retain,&
+                                             cp_result_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
@@ -99,6 +102,7 @@ MODULE cp_subsys_types
      TYPE (multipole_type), POINTER              :: multipoles => Null()
      TYPE (atprop_type), POINTER                 :: atprop => Null()
      TYPE (virial_type), POINTER                 :: virial => Null()
+     TYPE (cp_result_type), POINTER              :: results => Null()
   END TYPE cp_subsys_type
 
 ! *****************************************************************************
@@ -176,6 +180,7 @@ CONTAINS
           CALL deallocate_global_constraint(subsys%gci, error)
           CALL atprop_release(subsys%atprop,error=error)
           CALL virial_release(subsys%virial,error=error)
+          CALL cp_result_release(subsys%results,error=error)
           DEALLOCATE(subsys)
        END IF
     END IF
@@ -196,6 +201,7 @@ CONTAINS
 !> \param core_particles ...
 !> \param gci ...
 !> \param multipoles ...
+!> \param results ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>      For the description of the other arguments see cp_subsys_type
@@ -206,7 +212,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
        molecules_new, molecule_kinds_new, local_molecules_new, para_env,&
-       colvar_p, shell_particles, core_particles, gci, multipoles, error)
+       colvar_p, shell_particles, core_particles, gci, multipoles, results, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
@@ -230,6 +236,7 @@ CONTAINS
     TYPE(global_constraint_type), OPTIONAL, &
       POINTER                                :: gci
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
+    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_set', &
@@ -304,6 +311,13 @@ CONTAINS
           CPPrecondition(.NOT.ASSOCIATED(subsys%gci),cp_failure_level,routineP,error,failure)
           subsys%gci => gci
        ENDIF
+       IF (PRESENT(results)) THEN !TODO STOP remove
+          IF(ASSOCIATED(results)) THEN
+             CALL cp_result_retain(results, error=error)
+             CALL cp_result_release(subsys%results, error=error)
+             subsys%results => results
+          END IF
+       END IF
     END IF
   END SUBROUTINE cp_subsys_set
 
@@ -329,6 +343,7 @@ CONTAINS
 !> \param nshell ...
 !> \param atprop ...
 !> \param virial ...
+!> \param results ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>      For the description of the other arguments see cp_subsys_type
@@ -342,7 +357,7 @@ CONTAINS
                            local_particles, molecules_new, molecule_kinds_new,&
                            local_molecules_new, para_env, colvar_p,&
                            shell_particles, core_particles, gci, multipoles,&
-                           natom, nparticle, ncore, nshell, atprop, virial, error)
+                           natom, nparticle, ncore, nshell, atprop, virial, results, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
@@ -371,6 +386,7 @@ CONTAINS
                                                 nshell
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_subsys_get', &
@@ -403,6 +419,8 @@ CONTAINS
        IF (PRESENT(multipoles)) multipoles => subsys%multipoles
        IF (PRESENT(virial)) virial => subsys%virial
        IF (PRESENT(atprop)) atprop => subsys%atprop
+       IF (PRESENT(results)) results => subsys%results
+
        IF (PRESENT(natom).OR.PRESENT(nparticle).OR.PRESENT(nshell)) THEN
           ! An atomic particle set should be present in each subsystem at the moment
           CPPrecondition(ASSOCIATED(subsys%particles),cp_failure_level,routineP,error,failure)
