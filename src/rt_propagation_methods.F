@@ -137,6 +137,7 @@ CONTAINS
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
             error=error)
     END IF
+
     rtp%delta_iter=1.0_dp
     IF(rtp%linear_scaling) THEN
        ! keep temporary copy of the starting density matrix to check for convergence  

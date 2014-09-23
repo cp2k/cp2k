@@ -11,14 +11,15 @@
 MODULE rt_propagation_output
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_binary_write, &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_filter, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -39,7 +40,8 @@ MODULE rt_propagation_output
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
@@ -92,7 +94,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s, rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
@@ -170,7 +172,9 @@ CONTAINS
     IF(rtp%converged)THEN
        IF(qs_env%dft_control%qs_control%dftb)THEN
           IF (rtp%linear_scaling) THEN
-            !TODO: make a restart for density propagation
+             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,particle_set,dft_section,&
+                              atomic_kind_set,qs_kind_set,error)
           ELSE
              CALL make_moment(qs_env,error)
              CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
@@ -179,14 +183,16 @@ CONTAINS
                             dft_section,atomic_kind_set,qs_kind_set,error)
           END IF
        ELSE
+          dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
           IF (rtp%linear_scaling) THEN
              CALL write_mo_free_results(qs_env,error)
-             !TODO: make a restart for density propagation
+             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,particle_set,dft_section,&
+                              atomic_kind_set,qs_kind_set,error)
           ELSE
              CALL make_moment(qs_env,error)
              CALL write_available_results(qs_env=qs_env,error=error)
              CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
              CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
                                dft_section,atomic_kind_set,qs_kind_set,error)
           ENDIF
@@ -276,10 +282,6 @@ CONTAINS
    CALL mp_max(max_alpha,mos_new(1)%matrix%matrix_struct%para_env%group)
    CALL mp_max(max_beta,mos_new(1)%matrix%matrix_struct%para_env%group)
    orthonormality=max_alpha
-   IF(unit_nr>0)THEN
-
-   END IF
-
 
    CALL timestop(handle)
 
@@ -587,5 +589,70 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE report_density_occupation
+
+! *****************************************************************************
+!> \brief Writes the density matrix and the atomic positions to a restart file
+!> \param rho_new ...
+!> \param particle_set ...
+!> \param dft_section ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param error ...
+!> \author Samuel Andermatt (09.14)
+! *****************************************************************************
+
+  SUBROUTINE write_rt_p_to_restart(rho_new,particle_set,dft_section,&
+                                     atomic_kind_set,qs_kind_set,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_new
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: file_name
+    INTEGER                                  :: handle, im, ispin, re, unit_nr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: cs_pos
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    !TODO: maybe name the file something related to the project name
+    DO ispin=1,SIZE(rho_new)/2
+       re=2*ispin-1
+       im=2*ispin
+       WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_RE",ispin,"_RESTART.dm"
+       cs_pos = cp_dbcsr_checksum (rho_new(re)%matrix, pos=.TRUE., error=error)
+       IF (unit_nr>0) THEN
+          WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+       ENDIF
+       CALL cp_dbcsr_binary_write(rho_new(re)%matrix,file_name,error)
+       WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_IM",ispin,"_RESTART.dm"
+       cs_pos = cp_dbcsr_checksum (rho_new(im)%matrix, pos=.TRUE., error=error)
+       IF (unit_nr>0) THEN
+          WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+       ENDIF
+       CALL cp_dbcsr_binary_write(rho_new(im)%matrix,file_name,error)
+    ENDDO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE write_rt_p_to_restart
 
 END MODULE rt_propagation_output

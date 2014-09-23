@@ -447,44 +447,42 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
+                           rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
 
     CASE(use_restart_wfn,use_rt_restart)
        CALL qs_energies_init(qs_env, .FALSE. , error)
-       DO ispin=1,SIZE(qs_env%mos)
-          CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
-          IF (.NOT.ASSOCIATED(mo_coeff)) THEN
-             CALL init_mo_set(qs_env%mos(ispin)%mo_set,&
-                  qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
-                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                  "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  error=error)
-          END IF
-       END DO
-
-       IF(qs_env%dft_control%do_admm) THEN
-          CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
-               error=error)
-          CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,error,failure)
-          DO ispin=1,SIZE(qs_env%mos_aux_fit)
-             CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
-             IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
-                CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,&
-                     ao_mo_fm_pools_aux_fit(ispin)%pool,&
+       IF(.NOT.rtp_control%linear_scaling.OR.rtp_control%initial_wfn==use_restart_wfn) THEN
+          DO ispin=1,SIZE(qs_env%mos)
+             CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
+             IF (.NOT.ASSOCIATED(mo_coeff)) THEN
+                CALL init_mo_set(qs_env%mos(ispin)%mo_set,&
+                     qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
                      name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                     "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                     "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      error=error)
              END IF
           END DO
-       END IF
-
+          IF(qs_env%dft_control%do_admm) THEN
+             CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
+                  error=error)
+             CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,error,failure)
+             DO ispin=1,SIZE(qs_env%mos_aux_fit)
+                CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
+                IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
+                   CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,&
+                        ao_mo_fm_pools_aux_fit(ispin)%pool,&
+                        name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                        "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                        error=error)
+                END IF
+             END DO
+          END IF
+       ENDIF
        ALLOCATE(qs_env%rtp, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
+                           rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
        CALL get_restart_wfn(qs_env,error)
-
 
        qs_env%run_rtp=.TRUE.
     END SELECT

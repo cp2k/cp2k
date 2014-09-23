@@ -15,17 +15,17 @@ MODULE  rt_propagation_utils
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_dbcsr_add, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_filter, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_create_dist_r_unrot, &
-       dbcsr_distribution_obj, dbcsr_distribution_release, &
-       dbcsr_type_no_symmetry
+       array_i1d_obj, array_release, cp_dbcsr_add, cp_dbcsr_binary_read, &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_filter, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_create_dist_r_unrot, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -37,7 +37,8 @@ MODULE  rt_propagation_utils
                                              use_rt_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE mathconstants,                   ONLY: one,&
                                              zero
   USE orbital_pointers,                ONLY: ncoset
@@ -245,15 +246,17 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_restart_wfn', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: i, id_nr, im, ispin, ncol, &
-                                                nspin, re
-    REAL(KIND=dp)                            :: alpha
+                                                nspin, re, unit_nr
+    REAL(KIND=dp)                            :: alpha, cs_pos
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_rmpv, rho_new, rho_old
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -271,12 +274,17 @@ MODULE  rt_propagation_utils
          particle_set=particle_set,mos=mo_array, &
          input=input,rtp=rtp,dft_control=dft_control,&
          error=error)
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     id_nr=0
     nspin=SIZE(mo_array)
     p_rmpv => qs_env%rho%rho_ao
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-
     SELECT CASE(dft_control%rtp_control%initial_wfn)
     CASE(use_restart_wfn)
        CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
@@ -287,7 +295,7 @@ MODULE  rt_propagation_utils
        ENDDO
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
-          DO ispin=1,SIZE(mo_array)
+          DO ispin=1,nspin
              re=2*ispin-1
              im=2*ispin
              CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,ncol_global=ncol,error=error)
@@ -297,7 +305,7 @@ MODULE  rt_propagation_utils
                   matrix_v=mo_array(ispin)%mo_set%mo_coeff,matrix_g=mo_array(ispin)%mo_set%mo_coeff,ncol=ncol,&
                   keep_sparsity=.FALSE.,alpha=alpha,error=error)
           END DO
-          DO i=1,SIZE(rho_new)
+          DO i=1,nspin
              CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
           ENDDO
           CALL calc_update_rho_sparse(qs_env,error)
@@ -309,17 +317,40 @@ MODULE  rt_propagation_utils
           END DO
        ENDIF
     CASE(use_rt_restart)
-       CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
-       CALL read_rt_mos_from_restart(mo_array,mos_old,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
-            id_nr,dft_control%multiplicity,dft_section, error)
-       DO ispin=1,nspin
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv(ispin)%matrix,error=error)
-       ENDDO
+       IF(rtp%linear_scaling) THEN
+          CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
+          DO ispin=1,nspin
+             re=2*ispin-1
+             im=2*ispin
+             WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_RE",ispin,"_RESTART.dm"
+             CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(rho_old(re)%matrix), &
+                                       matrix_new=rho_old(re)%matrix, error=error)
+             cs_pos = cp_dbcsr_checksum (rho_old(re)%matrix, pos=.TRUE., error=error)
+             IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+             ENDIF
+             WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_IM",ispin,"_RESTART.dm"
+             CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(rho_old(im)%matrix), &
+                                       matrix_new=rho_old(im)%matrix, error=error)
+             cs_pos = cp_dbcsr_checksum (rho_old(im)%matrix, pos=.TRUE., error=error)
+             IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+             ENDIF
+          ENDDO
+          DO i=1,nspin
+             CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
+          ENDDO
+          CALL calc_update_rho_sparse(qs_env,error)
+       ELSE
+          CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
+          CALL read_rt_mos_from_restart(mo_array,mos_old,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
+               id_nr,dft_control%multiplicity,dft_section, error)
+          DO ispin=1,nspin
+             CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                  p_rmpv(ispin)%matrix,error=error)
+          ENDDO
+       ENDIF
     END SELECT
-
-
-
 
   END SUBROUTINE get_restart_wfn
 

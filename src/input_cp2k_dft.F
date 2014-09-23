@@ -7567,6 +7567,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="WRITE_RESTART",&
+            description="For density propagation. It writes out the density matrix after each step",&
+            usage="WRITE_RESTART",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MCWEENY_MAX_ITER",&
             description="Determines the maximum amount of McWeeny steps used after each converged"//&
             " step in density propagation",&
