@@ -354,6 +354,14 @@ if (( maxtasks < numprocs*OMP_NUM_THREADS )); then
    end_test 8 ${lockfile}
 fi
 
+if [[ ${leakcheck} == "YES" ]]; then
+   if [[ ! -f ${dir_base}/suppr.txt ]]; then
+      echo "NOTE: Suppression file ${dir_base}/suppr.txt is missing"
+      touch ${dir_base}/suppr.txt
+      echo "NOTE: An empty suppression file has been created"
+   fi
+fi
+
 # Start testing
 echo "*************************** testing started ******************************"
 echo " started on " `date`
