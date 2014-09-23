@@ -2488,14 +2488,15 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: info
 
     INTEGER                                  :: ierr, istat
-    LOGICAL                                  :: exists, is_open
 #if defined(__parallel)
     INTEGER                                  :: my_info
 #else
     CHARACTER(LEN=10)                        :: fstatus
+    LOGICAL                                  :: exists, is_open
 #endif
 
     ierr = 0
+    istat = 0
 #if defined(__parallel)
     my_info = mpi_info_null
     IF (PRESENT(info)) my_info = info
