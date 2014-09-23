@@ -2487,7 +2487,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: amode_status
     INTEGER, INTENT(IN), OPTIONAL            :: info
 
-    INTEGER                                  :: ierr
+    INTEGER                                  :: ierr, istat
+    LOGICAL                                  :: exists, is_open
 #if defined(__parallel)
     INTEGER                                  :: my_info
 #else
@@ -2509,7 +2510,11 @@ CONTAINS
     ELSE
        fstatus = "OLD"
     END IF
-    fh = 1  ! UNIT=1
+    ! Get a new unit number
+    DO fh=1,999
+       INQUIRE (UNIT=fh,EXIST=exists,OPENED=is_open,IOSTAT=istat)
+       IF (exists.AND.(.NOT.is_open).AND.(istat == 0)) EXIT
+    END DO
     OPEN(UNIT=fh, FILE=filepath, STATUS=fstatus, ACCESS="STREAM")
 #endif
   END SUBROUTINE mp_file_open
