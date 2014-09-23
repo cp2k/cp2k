@@ -484,7 +484,7 @@ CONTAINS
           END DO
           flop = flop + 5 * cnt
        ELSE
-!$omp parallel do private (ig)
+!$omp parallel do private (ig) default(none) shared(pwdr2,pw,i,j,cnt)
           DO ig = 1, cnt
              pwdr2%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig))
           END DO
@@ -543,14 +543,14 @@ CONTAINS
        cnt = SIZE ( pw%cc )
 
        IF ( i == j ) THEN
-!$omp parallel do private (ig)
+!$omp parallel do private (ig) default(none) private(gg) shared(cnt,pw,o3,pwdr2_gg,i)
           DO ig = pw%pw_grid%first_gne0, cnt
              gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
              pwdr2_gg%cc(ig) = gg * pw%cc(ig) / pw%pw_grid%gsq(ig)
           END DO
           flop = flop + 6 * cnt
        ELSE
-!$omp parallel do private (ig)
+!$omp parallel do private (ig) default(none) shared(pwdr2_gg,pw,i,j)
           DO ig = pw%pw_grid%first_gne0, cnt
              pwdr2_gg%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig)) &
                   / pw%pw_grid%gsq(ig)
@@ -952,7 +952,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -964,7 +964,7 @@ CONTAINS
 
     ELSE
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1117,7 +1117,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1129,7 +1129,7 @@ CONTAINS
 
     ELSE
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1149,7 +1149,7 @@ CONTAINS
 
        IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1161,7 +1161,7 @@ CONTAINS
 
        ELSE
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,pw,c)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1

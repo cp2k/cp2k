@@ -191,7 +191,7 @@ CONTAINS
                          "Size of array rs too small.")
     END IF
 
-!$omp parallel do private(k)
+!$omp parallel do private(k) default(none) shared(rs,eps_rho,rho)
     DO k=1, SIZE(rs)
        IF ( rho(k) < eps_rho ) THEN
           rs(k) = 0.0_dp
