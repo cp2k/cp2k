@@ -62,7 +62,7 @@ SUBROUTINE vc_x_vc ( n, cvec2, cvec )
   INTEGER :: i
   REAL ( wp ) :: re_c, im_c, re_c2, im_c2
 
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I,re_c,im_c,re_c2,im_c2) SHARED(cvec,cvec2)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(re_c,im_c,re_c2,im_c2) SHARED(cvec,cvec2)
   DO i = 1, n
     re_c = cvec ( 1, i )
     im_c = cvec ( 2, i )

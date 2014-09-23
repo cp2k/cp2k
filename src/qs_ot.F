@@ -1636,7 +1636,7 @@ CONTAINS
        qs_ot_env%evals(i)=MAX(0.0_dp,qs_ot_env%evals(i))
     ENDDO
 
-    !$OMP PARALLEL DO
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
     DO i=1,k
        qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
     ENDDO
@@ -1645,7 +1645,7 @@ CONTAINS
     CALL cp_dbcsr_multiply('N','T',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
          rzero,qs_ot_env%matrix_cosp,error=error)
 
-    !$OMP PARALLEL DO
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
     DO i=1,k
        qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
     ENDDO
@@ -1653,17 +1653,6 @@ CONTAINS
     CALL cp_dbcsr_scale_by_vector(qs_ot_env%matrix_buf1,alpha=qs_ot_env%dum,side='right',error=error)
     CALL cp_dbcsr_multiply('N','T',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
          rzero,qs_ot_env%matrix_sinp,error=error)
-
-!!$OMP PARALLEL DO PRIVATE(i,j,a,b)
-!DO j=1,ncol_local
-!   DO i=1,nrow_local
-!      a=(SQRT(qs_ot_env%evals(row_indices(i))) &
-!           -SQRT(qs_ot_env%evals(col_indices(j))))/2.0_dp
-!      b=(SQRT(qs_ot_env%evals(row_indices(i))) &
-!           +SQRT(qs_ot_env%evals(col_indices(j))))/2.0_dp
-!      qs_ot_env%matrix_cosp_b%local_data(i,j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
-!   ENDDO
-!ENDDO
 
     CALL cp_dbcsr_copy(qs_ot_env%matrix_cosp_b,qs_ot_env%matrix_cosp,error=error)
     CALL cp_dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
@@ -1682,15 +1671,6 @@ CONTAINS
        ENDDO
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
-
-!!$OMP PARALLEL DO PRIVATE(i,j,a,b)
-!DO j=1,ncol_local
-!   DO i=1,nrow_local
-!      a=SQRT(qs_ot_env%evals(row_indices(i)))
-!      b=SQRT(qs_ot_env%evals(col_indices(j)))
-!      qs_ot_env%matrix_sinp_b%local_data(i,j)=qs_ot_sincf(a,b)
-!   ENDDO
-!ENDDO
 
     CALL cp_dbcsr_copy(qs_ot_env%matrix_sinp_b,qs_ot_env%matrix_sinp,error=error)
     CALL cp_dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)

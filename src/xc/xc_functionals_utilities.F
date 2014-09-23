@@ -218,8 +218,7 @@ CONTAINS
 
     INTEGER                                  :: k
 
-!$omp parallel do private(k)
-
+!$omp parallel do private(k) shared(n,rs,rho,eps_rho) default(none)
     DO k=1, n
        IF ( rho(k) < eps_rho ) THEN
           rs(k) = 0.0_dp
@@ -249,7 +248,7 @@ CONTAINS
 
     CALL calc_rs_pw ( rho, x, n )
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none) shared(x,n)
     DO ip = 1, n
       x(ip) = SQRT(x(ip))
     END DO
@@ -290,7 +289,7 @@ CONTAINS
     !FM IF ( n > SIZE(grho) ) &
     !FM   CALL stop_program(routineN,moduleN,__LINE__,"Incompatible array sizes.")
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none) shared(rho,eps_rho,s,fac,grho)
     DO ip = 1, n
       IF ( rho(ip) < eps_rho ) THEN
          s(ip) = 0.0_dp
@@ -346,7 +345,7 @@ CONTAINS
                                            "SIZE(fx,2) too small")
 !!    END IF
 
-!$omp parallel do private(ip,x,rhoab)
+!$omp parallel do private(ip,x,rhoab) default(none) shared(fx,m,eps_rho)
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)
       IF ( rhoab < eps_rho ) THEN

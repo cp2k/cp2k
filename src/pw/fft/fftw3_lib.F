@@ -611,7 +611,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
  
 
   nt = 1
-!$OMP PARALLEL shared(nt)
+!$OMP PARALLEL DEFAULT(none) shared(nt)
 !$OMP MASTER
 !$ nt = omp_get_num_threads()
 !$OMP END MASTER
@@ -842,7 +842,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
   ELSE
   ! Or use the 3 stage FFT scheme described in fftw3_create_plan_3d
        ALLOCATE(tmp1(n1*n2*n3))   ! Temporary vector used for transpositions
-      !$OMP PARALLEL PRIVATE(tid,nt) SHARED(zin,tmp1,n1,n2,n3,plan)
+      !$OMP PARALLEL DEFAULT(NONE) PRIVATE(tid,nt,i,j,k) SHARED(zin,tmp1,n1,n2,n3,plan,xout)
       tid = 0
       nt = 1
 

@@ -848,8 +848,10 @@ END SUBROUTINE cp_ma_net_affinity
         ENDIF
         num_threads=1
 
-!$omp parallel
+!$omp parallel default(none) shared(num_threads)
+!$omp master
 !$ num_threads = omp_get_num_threads()
+!$omp end master
 !$omp end parallel
 
       CALL m_getpid(pid)
