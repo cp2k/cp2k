@@ -94,22 +94,22 @@ CONTAINS
        n = dbcsr_data_get_size_referenced (source_area)
        SELECT CASE (target_area%d%data_type)
        CASE (dbcsr_type_real_4)
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area)
+          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area,n)
           DO i=1,n
              target_area%d%r_sp(i)=source_area%d%r_sp(i)
           ENDDO
        CASE (dbcsr_type_real_8)
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area)
+          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area,n)
           DO i=1,n
              target_area%d%r_dp(i)=source_area%d%r_dp(i)
           ENDDO
        CASE (dbcsr_type_complex_4)
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area)
+          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area,n)
           DO i=1,n
              target_area%d%c_sp(i)=source_area%d%c_sp(i)
           ENDDO
        CASE (dbcsr_type_complex_8)
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area)
+          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(I) SHARED(target_area,source_area,n)
           DO i=1,n
              target_area%d%c_dp(i)=source_area%d%c_dp(i)
           ENDDO

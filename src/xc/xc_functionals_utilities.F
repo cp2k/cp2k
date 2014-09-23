@@ -289,7 +289,7 @@ CONTAINS
     !FM IF ( n > SIZE(grho) ) &
     !FM   CALL stop_program(routineN,moduleN,__LINE__,"Incompatible array sizes.")
 
-!$omp parallel do private(ip) default(none) shared(rho,eps_rho,s,fac,grho)
+!$omp parallel do private(ip) default(none) shared(rho,eps_rho,s,fac,grho,n)
     DO ip = 1, n
       IF ( rho(ip) < eps_rho ) THEN
          s(ip) = 0.0_dp
@@ -345,7 +345,7 @@ CONTAINS
                                            "SIZE(fx,2) too small")
 !!    END IF
 
-!$omp parallel do private(ip,x,rhoab) default(none) shared(fx,m,eps_rho)
+!$omp parallel do private(ip,x,rhoab) default(none) shared(fx,m,eps_rho,n)
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)
       IF ( rhoab < eps_rho ) THEN
