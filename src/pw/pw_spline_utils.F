@@ -169,22 +169,22 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
-    !$omp parallel do private(i)
+    !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
     DO i=gbo(1,1),gbo(2,1)
        cosIVals(i)=COS(coeff*REAL(i,dp))
     END DO
     coeff=twopi/n_tot(2)
-    !$omp parallel do private(j)
+    !$omp parallel do private(j) default(none) shared(cosJVals,coeff,gbo)
     DO j=gbo(1,2),gbo(2,2)
        cosJVals(j)=COS(coeff*REAL(j,dp))
     END DO
     coeff=twopi/n_tot(3)
-    !$omp parallel do private(k)
+    !$omp parallel do private(k) default(none) shared(cosKVals,coeff,gbo)
     DO k=gbo(1,3),gbo(2,3)
        cosKVals(k)=COS(coeff*REAL(k,dp))
     END DO
 
-    !$omp parallel do private(i,j,k,ii,coeff,c23)
+    !$omp parallel do private(i,j,k,ii,coeff,c23) default(none) shared(spline_g,cosIVals,cosJVals,cosKVals)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
@@ -253,22 +253,22 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
-    !$omp parallel do private(i)
+    !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
     DO i=gbo(1,1),gbo(2,1)
        cosIVals(i)=COS(coeff*REAL(i,dp))
     END DO
     coeff=twopi/n_tot(2)
-    !$omp parallel do private(j)
+    !$omp parallel do private(j) default(none) shared(cosJVals,coeff,gbo)
     DO j=gbo(1,2),gbo(2,2)
        cosJVals(j)=COS(coeff*REAL(j,dp))
     END DO
     coeff=twopi/n_tot(3)
-    !$omp parallel do private(k)
+    !$omp parallel do private(k) default(none) shared(cosKVals,coeff,gbo)
     DO k=gbo(1,3),gbo(2,3)
        cosKVals(k)=COS(coeff*REAL(k,dp))
     END DO
 
-    !$omp parallel do private(i,j,k,ii,coeff,c23)
+    !$omp parallel do default(none) private(i,j,k,ii,coeff,c23) shared(spline_g,cosIVals,cosJVals,cosKVals)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
@@ -673,12 +673,13 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: inv9 = 1.0_dp/9.0_dp
 
     INTEGER                                  :: handle, i, ii, j, k, stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: coeff, inv9, tmp
+    REAL(KIND=dp)                            :: coeff, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
     CALL timeset(routineN,handle)
@@ -688,7 +689,6 @@ CONTAINS
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
     gbo = spline_g%pw_grid%bounds
-    inv9=1.0_dp/9.0_dp
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
@@ -703,36 +703,36 @@ CONTAINS
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
-       !$omp parallel do private(i)
+       !$omp parallel do private(i) default(none) shared(gbo,csIVals,coeff)
        DO i=gbo(1,1),gbo(2,1)
           csIVals(i)=SIN(coeff*REAL(i,dp))
        END DO
     ELSE
-       !$omp parallel do private(i)
+       !$omp parallel do private(i) default(none) shared(gbo,csIVals,coeff)
        DO i=gbo(1,1),gbo(2,1)
           csIVals(i)=COS(coeff*REAL(i,dp))
        END DO
     END IF
     coeff=twopi/n_tot(2)
     IF (idir==2) THEN
-       !$omp parallel do private(j)
+       !$omp parallel do private(j) default(none) shared(gbo,csJVals,coeff)
        DO j=gbo(1,2),gbo(2,2)
           csJVals(j)=SIN(coeff*REAL(j,dp))
        END DO
     ELSE
-       !$omp parallel do private(j)
+       !$omp parallel do private(j) default(none) shared(gbo,csJVals,coeff)
        DO j=gbo(1,2),gbo(2,2)
           csJVals(j)=COS(coeff*REAL(j,dp))
        END DO
     END IF
     coeff=twopi/n_tot(3)
     IF (idir==3) THEN
-       !$omp parallel do private(k)
+       !$omp parallel do private(k) default(none) shared(gbo,csKVals,coeff)
        DO k=gbo(1,3),gbo(2,3)
           csKVals(k)=SIN(coeff*REAL(k,dp))
        END DO
     ELSE
-       !$omp parallel do private(k)
+       !$omp parallel do private(k) default(none) shared(gbo,csKVals,coeff)
        DO k=gbo(1,3),gbo(2,3)
           csKVals(k)=COS(coeff*REAL(k,dp))
        END DO
@@ -741,7 +741,7 @@ CONTAINS
     SELECT CASE(idir)
     CASE (1)
        ! x deriv
-       !$omp parallel do private(ii,k,j,i,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp) default(none) shared(spline_g,csIVals,csJVals,csKVals)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -760,7 +760,7 @@ CONTAINS
        END DO
     CASE(2)
        ! y deriv
-       !$omp parallel do private(ii,k,j,i,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp) default(none) shared(spline_g,csIVals,csJVals,csKVals)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -776,7 +776,7 @@ CONTAINS
        END DO
     CASE(3)
        ! z deriv
-       !$omp parallel do private(ii,k,j,i,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp) default(none) shared(spline_g,csIVals,csJVals,csKVals)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -819,12 +819,13 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: inv16 = 1.0_dp/16.0_dp
 
     INTEGER                                  :: handle, i, ii, j, k, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n, n_tot
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: coeff, inv16, tmp
+    REAL(KIND=dp)                            :: coeff, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
     CALL timeset(routineN,handle)
@@ -833,7 +834,6 @@ CONTAINS
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds
-    inv16=1.0_dp/16.0_dp
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
@@ -847,36 +847,36 @@ CONTAINS
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
-       !$omp parallel do private(i)
+       !$omp parallel do private(i) default(none) shared(bo,coeff,csIVals)
        DO i=bo(1,1),bo(2,1)
           csIVals(i)=SIN(coeff*REAL(i,dp))
        END DO
     ELSE
-       !$omp parallel do private(i)
+       !$omp parallel do private(i) default(none) shared(bo,coeff,csIVals)
        DO i=bo(1,1),bo(2,1)
           csIVals(i)=COS(coeff*REAL(i,dp))
        END DO
     END IF
     coeff=twopi/n_tot(2)
     IF (idir==2) THEN
-       !$omp parallel do private(j)
+       !$omp parallel do private(j) default(none) shared(bo,coeff,csJVals)
        DO j=bo(1,2),bo(2,2)
           csJVals(j)=SIN(coeff*REAL(j,dp))
        END DO
     ELSE
-       !$omp parallel do private(j)
+       !$omp parallel do private(j) default(none) shared(bo,coeff,csJVals)
        DO j=bo(1,2),bo(2,2)
           csJVals(j)=COS(coeff*REAL(j,dp))
        END DO
     END IF
     coeff=twopi/n_tot(3)
     IF (idir==3) THEN
-       !$omp parallel do private(k)
+       !$omp parallel do private(k) default(none) shared(bo,coeff,csKVals)
        DO k=bo(1,3),bo(2,3)
           csKVals(k)=SIN(coeff*REAL(k,dp))
        END DO
     ELSE
-       !$omp parallel do private(k)
+       !$omp parallel do private(k) default(none) shared(bo,coeff,csKVals)
        DO k=bo(1,3),bo(2,3)
           csKVals(k)=COS(coeff*REAL(k,dp))
        END DO
@@ -885,7 +885,7 @@ CONTAINS
     SELECT CASE(idir)
     CASE (1)
        ! x deriv
-       !$omp parallel do private(ii,k,j,i,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp) shared(spline_g,csIVals,csJVals,csKVals) default(none)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -904,7 +904,7 @@ CONTAINS
        END DO
     CASE(2)
        ! y deriv
-       !$omp parallel do private(ii,k,j,i,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp) default(none) shared(spline_g,csIVals,csJVals,csKVals)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -920,7 +920,7 @@ CONTAINS
        END DO
     CASE(3)
        ! z deriv
-       !$omp parallel do private(ii,k,j,i,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp) default(none) shared(spline_g,csIVals,csJVals,csKVals)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
