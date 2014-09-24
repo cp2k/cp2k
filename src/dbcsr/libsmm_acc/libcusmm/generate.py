@@ -78,8 +78,11 @@ def gen_library(plan):
 
     output += gen_process(plan)
     output += "\n\n"
-    output += gen_transpose(plan)
+
+    left_sizes = [(k,m) for (m,n,k) in plan.keys()]
+    output += gen_transpose(left_sizes)
     output += "\n\n"
+
     output += gen_list(plan)
     output += "//EOF\n"
     writefile("libcusmm.cu", output)
@@ -177,12 +180,12 @@ def gen_list(plan):
     return(output)
 
 #===============================================================================
-def gen_transpose(plan):
+def gen_transpose(sizes):
     output  = "int libcusmm_transpose_d(int *trs_stack, int offset, int nblks,\n"
     output += "double *buffer, int m, int n, cudaStream_t * stream) {\n"
 
-    m_vals = sorted(list(set([k for (m,n,k) in plan.keys()])))
-    n_vals = sorted(list(set([m for (m,n,k) in plan.keys()])))
+    m_vals = sorted(list(set([m for (m,n) in sizes])))
+    n_vals = sorted(list(set([n for (m,n) in sizes])))
     assert(len(m_vals) * len(n_vals) < pow(2,16))
 
     output += "int idx = 0;\n"
@@ -204,7 +207,7 @@ def gen_transpose(plan):
     output += "if(missing) return 0;\n\n"
 
     idx_map = dict()
-    for (m,n,k) in plan.keys():
+    for (m,n) in sizes:
         idx = m_vals.index(m)*len(n_vals) + n_vals.index(n)
         idx_map[idx] = (m,n)
 
@@ -227,8 +230,7 @@ def gen_transpose(plan):
         output += "kern_func_%d<<<nblks, 128, 0, *stream>>>(trs_stack+offset, nblks, buffer);\n"%idx
         output += "break;\n"
 
-    output += "// If there is no kernel for these blocks, we don't need to transpose them.\n"
-    output += "default: return(0);\n"
+    output += "default: return -1; // should never happen\n"
     output += "}\n\n"
 
     output += "return(cudaGetLastError());\n"
