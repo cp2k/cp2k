@@ -359,8 +359,6 @@ CONTAINS
        ELSE
           EXIT
        END IF
-
-
     END DO
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
 

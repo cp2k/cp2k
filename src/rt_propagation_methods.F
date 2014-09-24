@@ -217,12 +217,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, ihist, im, ispin, &
-                                                re
-    REAL(KIND=dp)                            :: frob_norm
+    INTEGER                                  :: handle, i, ihist
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_new, exp_H_old, PS, &
-                                                PSP, rho_new, rho_old, s_mat
+      POINTER                                :: exp_H_new, exp_H_old, &
+                                                rho_new, rho_old, s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -248,43 +246,12 @@ CONTAINS
                 CALL cp_dbcsr_scale(rho_new(1)%matrix,one/2,error=error)
                 CALL cp_dbcsr_scale(rho_new(2)%matrix,one/2,error=error)
              ENDIF
-             IF(rtp_control%mcweeny_max_iter>0) THEN
-                IF(rtp_control%orthonormal) THEN
-                   CALL purify_mcweeny_complex_orth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
-                        rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
-                ELSE
-                   CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
-                        rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
-                ENDIF
+             IF(rtp_control%orthonormal) THEN
+                CALL purify_mcweeny_complex_orth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
+                     rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
              ELSE
-                NULLIFY(PS,PSP)
-                CALL cp_dbcsr_allocate_matrix_set(PS,SIZE(rho_new),error=error)
-                CALL cp_dbcsr_allocate_matrix_set(PSP,SIZE(rho_new),error=error)
-                DO ispin=1,SIZE(rho_new)/2
-                   re=2*ispin-1
-                   im=2*ispin
-                   CALL cp_dbcsr_init_p(PS(re)%matrix,error=error)
-                   CALL cp_dbcsr_init_p(PS(im)%matrix,error=error)
-                   CALL cp_dbcsr_init_p(PSP(re)%matrix,error=error)
-                   CALL cp_dbcsr_init_p(PSP(im)%matrix,error=error)
-                   CALL cp_dbcsr_create(PS(re)%matrix,template=rho_new(re)%matrix,error=error)
-                   CALL cp_dbcsr_create(PS(im)%matrix,template=rho_new(im)%matrix,error=error)
-                   CALL cp_dbcsr_create(PSP(re)%matrix,template=rho_new(re)%matrix,error=error)
-                   CALL cp_dbcsr_create(PSP(im)%matrix,template=rho_new(im)%matrix,error=error)
-                   CALL cp_dbcsr_multiply("N","N",one,rho_new(re)%matrix,s_mat(1)%matrix,zero,&
-                        PS(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
-                   CALL cp_dbcsr_multiply("N","N",one,rho_new(im)%matrix,s_mat(1)%matrix,zero,&
-                        PS(im)%matrix,filter_eps=rtp%filter_eps_small,error=error)
-                   CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
-                        rho_new(re)%matrix,rho_new(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
-                        filter_eps=rtp%filter_eps_small,error=error)
-                END DO
-                !PSP works here as a work matrix to calculate the idempotency
-                CALL cp_dbcsr_add(PSP(re)%matrix,rho_new(re)%matrix,one,-one,error=error)
-                CALL cp_dbcsr_add(PSP(im)%matrix,rho_new(im)%matrix,one,-one,error=error)
-                CALL complex_frobenius_norm(frob_norm,PSP(re)%matrix,PSP(im)%matrix,error=error)
-                CALL cp_dbcsr_deallocate_matrix_set(PS,error)
-                CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
+                CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
+                     rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
              ENDIF
              IF(SIZE(rho_new)==2) THEN
                 CALL cp_dbcsr_scale(rho_new(1)%matrix,one*2,error=error)
@@ -535,22 +502,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: col_atom, handle, row_atom, &
-                                                unit_nr
+    INTEGER                                  :: col_atom, handle, row_atom
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:), POINTER          :: block_values, block_values2
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type), POINTER             :: tmp
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    logger   => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-       unit_nr=-1
-    ENDIF
 
     NULLIFY(tmp)
     ALLOCATE(tmp)
@@ -576,7 +535,6 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop (iter)
     frob_norm=cp_dbcsr_frobenius_norm(tmp)
-    IF(unit_nr.gt.0) WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
 
@@ -610,12 +568,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, ispin, re
+    INTEGER                                  :: handle, i, im, imax, ispin, &
+                                                re, unit_nr
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: PS, PSP, tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger   => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     NULLIFY(tmp,PS,PSP)
     CALL cp_dbcsr_allocate_matrix_set(tmp,SIZE(P),error=error)
@@ -632,7 +599,8 @@ CONTAINS
     DO ispin=1,SIZE(P)/2
        re=2*ispin-1
        im=2*ispin
-       DO i=1,max_iter
+       imax=MAX(max_iter,1) !if max_iter is 0 then only the deviation from idempotency needs to be calculated
+       DO i=1,imax
           CALL cp_dbcsr_multiply("N", "N", one, P(re)%matrix,s_mat(1)%matrix,&
                zero, PS(re)%matrix, filter_eps=eps_small,error=error)
           CALL cp_dbcsr_multiply("N", "N", one, P(im)%matrix,s_mat(1)%matrix,&
@@ -645,7 +613,8 @@ CONTAINS
           CALL cp_dbcsr_add(tmp(re)%matrix,P(re)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL cp_dbcsr_add(tmp(im)%matrix,P(im)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL complex_frobenius_norm(frob_norm,tmp(re)%matrix,tmp(im)%matrix,error=error)
-          IF(frob_norm.GT.threshold)THEN
+          IF(unit_nr.gt.0) WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
+          IF(frob_norm.GT.threshold.AND.max_iter>0)THEN
              CALL cp_dbcsr_copy(P(re)%matrix,PSP(re)%matrix,error=error)
              CALL cp_dbcsr_copy(P(im)%matrix,PSP(im)%matrix,error=error)
              CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix,PS(im)%matrix,&
@@ -701,12 +670,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, ispin, re
+    INTEGER                                  :: handle, i, im, imax, ispin, &
+                                                re, unit_nr
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: PP, tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger   => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     NULLIFY(tmp,PP)
     CALL cp_dbcsr_allocate_matrix_set(tmp,SIZE(P),error=error)
@@ -720,7 +698,8 @@ CONTAINS
     DO ispin=1,SIZE(P)/2
        re=2*ispin-1
        im=2*ispin
-       DO i=1,max_iter
+       imax=MAX(max_iter,1) !if max_iter is 0 then only the deviation from idempotency needs to be calculated
+       DO i=1,imax
           CALL cp_complex_dbcsr_gemm_3("N","N",one,P(re)%matrix,P(im)%matrix,&
                P(re)%matrix,P(im)%matrix,zero,PP(re)%matrix,PP(im)%matrix,&
                filter_eps=eps_small,error=error)
@@ -729,7 +708,8 @@ CONTAINS
           CALL cp_dbcsr_add(tmp(re)%matrix,P(re)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL cp_dbcsr_add(tmp(im)%matrix,P(im)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL complex_frobenius_norm(frob_norm,tmp(re)%matrix,tmp(im)%matrix,error=error)
-          IF(frob_norm.GT.threshold)THEN
+          IF(unit_nr.gt.0) WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
+          IF(frob_norm.GT.threshold.AND.max_iter>0)THEN
              CALL cp_dbcsr_copy(tmp(re)%matrix,P(re)%matrix,error=error)
              CALL cp_dbcsr_copy(tmp(im)%matrix,P(im)%matrix,error=error)
              CALL cp_dbcsr_copy(P(re)%matrix,PP(re)%matrix,error=error)
