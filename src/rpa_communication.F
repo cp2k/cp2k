@@ -258,12 +258,14 @@ MODULE rpa_communication
       END IF
     END DO
 
-    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(para_env_RPA,RPA_proc_map,map_rec_size,&
+    !$OMP PARALLEL DO DEFAULT(NONE) SHARED(para_env_RPA,RPA_proc_map,map_rec_size,&
     !$OMP                                     local_size_source,fm_mat_source,fm_mat_dest,&
     !$OMP                                     nrow_block_s,nprow_s,nrow_block_d,nprow_d,dummy_proc,&
     !$OMP                                     ncol_block_s,npcol_s,ncol_block_d,npcol_d,&
     !$OMP                                     myprow_d,mypcol_d,&
-    !$OMP                                     buffer_rec,proc2counter)
+    !$OMP                                     buffer_rec,proc2counter)&
+    !$OMP PRIVATE(proc_receive,size_rec_buffer,rec_local_row,rec_local_col,ref_rec_prow,ref_rec_pcol,&
+    !$OMP         rec_counter,iii,i_global,rec_prow,i_local,j_global,rec_pcol,j_local)
     DO proc_shift=1, para_env_RPA%num_pe-1
       proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
       size_rec_buffer=map_rec_size(proc_receive)
