@@ -319,7 +319,7 @@ MODULE hfx_derivatives
     END IF
 
 
-!$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
+!$OMP PARALLEL DEFAULT(NONE) SHARED(qs_env,&
 !$OMP                                  rho_ao,&
 !$OMP                                  rho_ao_mp2,&
 !$OMP                                  with_mp2_density,&
@@ -363,7 +363,40 @@ MODULE hfx_derivatives
 !$OMP                                  shm_atomic_pair_list,&
 !$OMP                                  shm_pmax_atom,&
 !$OMP                                  use_virial,&
-!$OMP                                  do_print_load_balance_info)
+!$OMP                                  do_print_load_balance_info)&
+!$OMP  PRIVATE(actual_x_data,atomic_kind_set,atomic_offset_ac,atomic_offset_ad,atomic_offset_bc,&
+!$OMP  atomic_offset_bd,atom_of_kind,basis_info,&
+!$OMP  basis_parameter,bins_left,bintime_start,bintime_stop,bits_max_val,buffer_left,buffer_overflow,buffer_size,&
+!$OMP  buffer_start,cache_size,cartesian_estimate,cartesian_estimate_virial,&
+!$OMP  coeffs_kind_max0,compression_factor,counter,current_counter,&
+!$OMP  distribution_forces,do_dynamic_load_balancing,do_it,do_periodic,ede_buffer1,ede_buffer2,&
+!$OMP  ede_primitives_tmp,ede_primitives_tmp_virial,&
+!$OMP  ede_work,ede_work2,ede_work2_virial,ede_work_forces,ede_work_virial,eps_schwarz,eps_storage,estimate_to_store_int,&
+!$OMP  fac,failure,first_sgfb,forces_map,general_parameter,handle_bin,handle_getp,handle_load,&
+!$OMP  handle_main,hf_fraction,i_atom,iatom_end,iatom_start,ikind,integral_caches,integral_containers,&
+!$OMP  i_set_list_ij_start,i_set_list_ij_stop,i_set_list_kl_start,i_set_list_kl_stop,i_thread,iw,j_atom,jatom_end,&
+!$OMP  jatom_start,jkind,katom,k_atom,katom_block,katom_end,katom_start,kind_kind_idx,&
+!$OMP  kind_of,kkind,kset,la_max,la_min,last_sgf_global,latom,l_atom,&
+!$OMP  latom_block,latom_end,latom_start,lb_max,lb_min,lc_max,lc_min,ld_max,&
+!$OMP  ld_min,list_ij,list_kl,lkind,ln_10,load_balance_parameter,log10_eps_schwarz,log10_pmax,&
+!$OMP  log_2,logger,lset,max_am,max_contraction,max_contraction_val,max_pgf,max_set,&
+!$OMP  max_val1,max_val2,max_val2_set,maxval_cache,maxval_container,max_val_memory,mem_compression_counter,mem_eris,&
+!$OMP  mem_max_val,memory_parameter,my_bin_id,my_bin_size,my_current_counter,my_istart,my_thread_id,natom,&
+!$OMP  nbits,nblocks,ncob,ncos_max,ncpu,neris_incore,neris_onthefly,neris_tmp,&
+!$OMP  neris_total,nimages,nints,nneighbors,npgfa,npgfb,npgfc,npgfd,&
+!$OMP  nprim_ints,n_processes,nseta,nsetb,nsgfa,nsgfb,nsgfc,nsgfd,&
+!$OMP  nsgfl_a,nsgfl_b,nsgfl_c,nsgfl_d,nsgf_max,nspins,offset_ac_set,offset_ad_set,&
+!$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_mp2,pad_buf,pad_buf_beta,pad_buf_mp2,&
+!$OMP  particle_set,pbc_buf,pbc_buf_beta,pbc_buf_mp2,pbd_buf,pbd_buf_beta,pbd_buf_mp2,pgf_list_ij,&
+!$OMP  pgf_list_kl,pgf_product_list,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
+!$OMP  primitive_forces_virial,private_deriv,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
+!$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
+!$OMP  sgfb,spherical_estimate,spherical_estimate_virial,sphi_a_ext,sphi_a_ext_set,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+!$OMP  sphi_b,sphi_b_ext,sphi_b_ext_set,sphi_b_u1,sphi_b_u2,sphi_b_u3,sphi_c_ext,sphi_c_ext_set,&
+!$OMP  sphi_c_u1,sphi_c_u2,sphi_c_u3,sphi_d_ext,sphi_d_ext_set,sphi_d_u1,sphi_d_u2,sphi_d_u3,&
+!$OMP  stat,storage_counter_integrals,stor_count_max_val,swap_id,symm_fac,t2,tmp_block,tmp_i8,&
+!$OMP  tmp_index,tmp_r_1,tmp_r_2,tmp_screen_pgf1,tmp_screen_pgf2,tmp_task_list,tmp_task_list_cost,tmp_virial,&
+!$OMP  treat_forces_in_core,use_disk_storage,zeta,zetb,zetc,zetd)
 
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
