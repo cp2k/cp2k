@@ -210,7 +210,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys, subsys_i
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -239,7 +239,7 @@ CONTAINS
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          reftraj_section, work_section, atomic_kinds, &
          local_particles, time, fe_env, free_energy_section, &
-         constraint_section, thermal_regions, virial)
+         constraint_section, thermal_regions, virial, subsys_i)
     logger   => cp_error_get_logger(error)
     para_env => force_env%para_env
 
@@ -307,7 +307,8 @@ CONTAINS
     END IF
 
     CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref,&
-                       force_env_section=force_env_section, virial=virial, error=error )
+                       force_env_section=force_env_section,  error=error )
+    CALL cp_subsys_get(subsys,virial=virial,error=error)
 
     ! Set V0 if needed
     IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
@@ -361,7 +362,8 @@ CONTAINS
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
-                CALL force_env_get(force_env%sub_force_env(i)%force_env, virial=virial, error=error )
+                CALL force_env_get(force_env%sub_force_env(i)%force_env, subsys=subsys_i, error=error )
+                CALL cp_subsys_get(subsys_i, virial=virial, error=error)
                 check = check .AND. virial%pv_availability
              END IF
           END DO
@@ -462,10 +464,10 @@ CONTAINS
                calc_force=.TRUE.,error=error)
        END IF
 
-       CALL force_env_get( force_env, subsys=subsys, virial=virial, error=error )
+       CALL force_env_get( force_env, subsys=subsys, error=error )
 
        CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-            particles=particles,error=error)
+            particles=particles,virial=virial,error=error)
 
 
        CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&

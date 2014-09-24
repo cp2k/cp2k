@@ -5,12 +5,12 @@
 !> \author Michele Ceriotti 03.2012
 ! *****************************************************************************
 MODULE ipi_driver
-
   USE cell_methods,                    ONLY: cell_create,&
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: external_control
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE f77_interface,                   ONLY: default_para_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -348,7 +348,8 @@ MODULE ipi_driver
           END DO
          END DO         
          CALL force_env_get(force_env, potential_energy=pot, error=error)
-         CALL force_env_get(force_env,cell=cpcell, virial=virial, error=error)
+         CALL force_env_get(force_env,cell=cpcell, error=error)
+         CALL cp_subsys_get(subsys, virial=virial, error=error)
          vir = TRANSPOSE(virial%pv_virial)
          
          CALL external_control(should_stop,"IPI",globenv=globenv,error=error)

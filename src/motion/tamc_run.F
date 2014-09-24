@@ -189,7 +189,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys, subsys_i
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(mc_averages_type), POINTER          :: MCaverages
@@ -236,7 +236,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          reftraj_section, work_section, atomic_kinds, &
          local_particles, time, fe_env, free_energy_section, &
-         constraint_section, thermal_regions)
+         constraint_section, thermal_regions, subsys_i)
     logger   => cp_error_get_logger(error)
     para_env => force_env%para_env
 
@@ -390,7 +390,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
        CALL force_env_get( force_env, subsys=subsys, error=error )
 
        CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-            particles=particles,error=error)
+            particles=particles,virial=virial,error=error)
 
         DO i=1,rand2skip
           auxRandom=next_random_number(rng_stream_mc,error=error)
@@ -413,7 +413,6 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
          (simpar%ensemble==npe_i_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_damped_ensemble)) THEN
-       CALL force_env_get(force_env, virial=virial, error=error )
        check = virial%pv_availability
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
             routineP,"Virial evaluation not requested for this run in the input file! "//&
@@ -424,7 +423,8 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
-                CALL force_env_get(force_env%sub_force_env(i)%force_env, virial=virial, error=error )
+                CALL force_env_get(force_env%sub_force_env(i)%force_env, subsys=subsys_i, error=error )
+                CALL cp_subsys_get(subsys_i, virial=virial, error=error)
                 check = check .AND. virial%pv_availability
              END IF
           END DO
@@ -519,7 +519,6 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
 !        CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
 !             particles=particles,error=error)
 
-       CALL force_env_get(force_env, virial=virial, error=error )
        CALL virial_evaluate(atomic_kinds%els, particles%els, local_particles,&
             virial, force_env%para_env%group, error=error)
 
@@ -1029,8 +1028,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
     CALL get_mc_par(mc_par,nstep=nstep,iprint=iprint)
 
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,&
-         virial=virial,error=error)
+    CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,error=error)
 
 !!!! this bit should vanish once I understand what the hell is with it
 
@@ -1039,7 +1037,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
 
      CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
      nparticle_kind  = atomic_kinds%n_els
      atomic_kind_set => atomic_kinds%els

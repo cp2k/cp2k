@@ -25,7 +25,8 @@ MODULE cp2k_debug
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_calc_num_pressure
@@ -109,7 +110,7 @@ CONTAINS
 
     IF (.NOT.failure) THEN
 
-       CALL force_env_get(force_env,para_env=para_env,error=error)
+       CALL force_env_get(force_env,para_env=para_env,subsys=subsys,cell=cell,error=error)
        harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "DFT%QS%HARRIS",error=error)
        subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
@@ -158,7 +159,7 @@ CONTAINS
           IF (.NOT.skip) THEN
 
              ! Compute the analytical stress tensor
-             CALL force_env_get(force_env,virial=virial,error=error)
+             CALL cp_subsys_get(subsys,virial=virial,error=error)
              CALL virial_set(virial,pv_numer=.FALSE.)
              CALL force_env_calc_energy_force(force_env,&
                                               calc_force=.TRUE.,&
@@ -175,7 +176,7 @@ CONTAINS
              CALL force_env_calc_num_pressure(force_env,dx=dx,error=error)
 
              ! Retrieve the numerical virial
-             CALL force_env_get(force_env,virial=virial,error=error)
+             CALL cp_subsys_get(subsys,virial=virial,error=error)
              CALL virial_create(virial_numerical,error=error)
              CALL zero_virial(virial_numerical)
              CALL cp_virial(virial,virial_numerical)
@@ -228,7 +229,6 @@ CONTAINS
 
        IF (debug_forces) THEN
           ! Debug forces (numerical vs analytical)
-          CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
           particles => subsys%particles%els
           SELECT CASE (force_env%in_use)
           CASE (use_qs_force)

@@ -12,8 +12,6 @@
 MODULE qmmm_update
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_release,&
-                                             cp_subsys_retain,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
@@ -154,16 +152,14 @@ CPSourceFileRef,&
 
         CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env, subsys=subsys, error=error)
         CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
-        CALL cp_subsys_get(sub_force_env(force_mixing_core_subsys)%force_env%subsys, &
-                           atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
+        CALL cp_subsys_get(subsys, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
         IF (ASSOCIATED(local_particles%local_particle_set)) THEN
            CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles, error=error)
         ENDIF
 
         CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env, subsys=subsys, error=error)
         CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
-        CALL cp_subsys_get(sub_force_env(force_mixing_extended_subsys)%force_env%subsys, &
-                           atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
+        CALL cp_subsys_get(subsys, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
         IF (ASSOCIATED(local_particles%local_particle_set)) THEN
            CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles, error=error)
         ENDIF
@@ -183,13 +179,10 @@ CPSourceFileRef,&
 
         ! duplicate releases in force_env_release
         CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
-        CALL cp_subsys_release(force_env%subsys,error=error)
 
         ! duplicate things that are pointed to in force_env_create when doing qmmm
         force_env%qmmm_env => sub_force_env(primary_subsys)%force_env%qmmm_env
         CALL qmmm_env_qm_retain(force_env%qmmm_env, error=error)
-        force_env%subsys => sub_force_env(primary_subsys)%force_env%subsys
-        CALL cp_subsys_retain(force_env%subsys, error=error)
 
         ! set a flag to identify when force mixing is active
         force_env%qmmm_env%do_force_mixing = .TRUE.

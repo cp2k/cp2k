@@ -956,10 +956,10 @@ CONTAINS
     CALL write_geo_traj(force_env,  root_section, its, opt_energy, error)
 
     ! Write the stress Tensor
-    CALL force_env_get(force_env, cell=cell, virial=virial, para_env=para_env, &
+    CALL force_env_get(force_env, cell=cell, para_env=para_env, &
          subsys=subsys, error=error)
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles, error=error)
+         particles=particles, virial=virial, error=error)
     atomic_kind_set => atomic_kinds%els
     particle_set => particles%els
     CALL virial_evaluate(atomic_kind_set, particle_set,  local_particles, &

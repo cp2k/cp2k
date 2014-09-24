@@ -960,10 +960,11 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: values
     TYPE(cp_result_type), POINTER            :: results
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    NULLIFY(results)
+    NULLIFY(results,subsys)
     CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
 
     CALL f_env_get_from_id(env_id,f_env,error)
@@ -982,7 +983,8 @@ CONTAINS
     description = "[EXT_SCF_ENER_COMM]"
 
     ! set the communicator information in the qs_env result container
-    CALL force_env_get(f_env%force_env, results=results, error=error)
+    CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys, results=results, error=error)
     CALL put_results(results, description=description, values=values, error=error)
   END SUBROUTINE set_intermediate_info_comm
 
@@ -1005,10 +1007,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: results
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    NULLIFY(results)
+    NULLIFY(subsys,results)
     CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
 
     CALL f_env_get_from_id(env_id,f_env,error)
@@ -1023,7 +1026,8 @@ CONTAINS
     description = "[EXT_SCF_ENER_COMM]"
 
     ! set the communicator information in the qs_env result container
-    CALL force_env_get(f_env%force_env, results=results, error=error)
+    CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys, results=results, error=error)
     CALL cp_results_erase(results, description=description, error=error)
   END SUBROUTINE remove_intermediate_info_comm
 

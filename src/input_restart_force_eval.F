@@ -93,13 +93,14 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: failure, multiple_subsys, &
                                                 skip_vel_section
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 qmmm_section, rng_section, &
                                                 subsys_section
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY(rng_section, subsys_section, virial)
+    NULLIFY(rng_section, subsys_section, virial, subsys)
     ! If it's not a dynamical run don't update the velocity section
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
     skip_vel_section =((myid /= mol_dyn_run).AND.&
@@ -128,9 +129,8 @@ CONTAINS
     ! And now update only the cells of all other force_eval
     ! This is to make consistent for cell variable runs..
     IF (nforce_eval>1) THEN
-       CALL force_env_get(force_env=force_env,&
-                          virial=virial,&
-                          error=error)
+       CALL force_env_get(force_env, subsys=subsys, error=error)
+       CALL cp_subsys_get(subsys, virial=virial, error=error)
        CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%MULTIPLE_SUBSYS",l_val=multiple_subsys,error=error)
        IF (virial%pv_availability.AND.multiple_subsys) THEN
           DO iforce_eval = 2, nforce_eval

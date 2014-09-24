@@ -128,6 +128,7 @@
                        core_particles=core_particles,&
                        particles=particles,&
                        shell_particles=shell_particles,&
+                       virial=virial,&
                        error=error)
 
     my_final_evaluation = .FALSE.
@@ -179,7 +180,6 @@
        CALL unpack_subsys_particles(subsys=subsys,r=x,error=error)
     CASE (default_cell_method_id)
        ! Check for VIRIAL
-       CALL force_env_get(gopt_env%force_env,virial=virial,error=error)
        CALL cp_assert(virial%pv_availability,cp_failure_level,cp_assertion_failed,routineP,&
             "Cell optimization requested but FORCE_EVAL%STRESS_TENSOR was not defined! "//&
             "Activate the evaluation of the stress tensor for cell optimization! "//&
@@ -197,7 +197,7 @@ CPSourceFileRef,&
                require_consistent_energy_force=gopt_env%require_consistent_energy_force,&
                error=error)
           ! Possibly take the potential energy
-          CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,virial=virial,error=error)
+          CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,error=error)
           CALL cp_virial(virial,virial_avg)
           CALL virial_update(virial_avg,subsys,para_env,error=error)
           IF (PRESENT(f)) THEN
@@ -253,7 +253,7 @@ CPSourceFileRef,&
                 CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
                      project_name, id_run=geo_opt_run, error=error)
                 CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv,eval_opt_geo=.FALSE.,error=new_error)
-                CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,virial=virial,error=error)
+                CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,error=error)
                 CALL cp_virial(virial, virial_avg)
              CASE(default_cell_md_id)
                 work         => section_vals_get_subs_vals(gopt_env%motion_section,"MD",error=error)

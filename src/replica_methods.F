@@ -22,7 +22,9 @@ MODULE replica_methods
                                              cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_retain
-  USE cp_subsys_types,                 ONLY: cp_subsys_set
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
+                                             cp_subsys_type
   USE f77_blas
   USE f77_interface,                   ONLY: calc_force,&
                                              create_force_env,&
@@ -318,6 +320,7 @@ MODULE replica_methods
     LOGICAL                                  :: failure, has_unit_metric
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -328,7 +331,7 @@ MODULE replica_methods
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
          failure=failure)
-    NULLIFY(qs_env,dft_control)
+    NULLIFY(qs_env,dft_control,subsys)
     IF (.NOT. failure) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
             new_error=error, failure=failure)
@@ -373,9 +376,8 @@ MODULE replica_methods
           DO i=1, rep_env%nrep
              NULLIFY(rep_env%results(i)%results)
              IF (i==1) THEN
-                CALL force_env_get(f_env%force_env,&
-                     results=rep_env%results(i)%results,&
-                     error=error)
+               CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+                CALL cp_subsys_get(subsys, results=rep_env%results(i)%results, error=error)
                 CALL cp_result_retain(rep_env%results(i)%results,error)
              ELSE
                 CALL cp_result_create(rep_env%results(i)%results,error)
@@ -494,11 +496,12 @@ MODULE replica_methods
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     failure=.FALSE.
-    NULLIFY(f_env,qs_env)
+    NULLIFY(f_env,qs_env,subsys)
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -539,9 +542,8 @@ MODULE replica_methods
 
           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
                new_error=new_error, failure=failure)
-          CALL cp_subsys_set(f_env%force_env%subsys,&
-               results=rep_env%results(irep)%results,&
-               error=error)
+          CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+          CALL cp_subsys_set(subsys, results=rep_env%results(irep)%results, error=error)
           CALL f_env_rm_defaults(f_env,new_error,ierr)
           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
           CALL calc_force(rep_env%f_env_id,rep_env%r(:,irep),ndim,&

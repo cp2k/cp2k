@@ -42,7 +42,8 @@ MODULE f77_interface
   USE cp_result_methods,               ONLY: get_results,&
                                              test_for_result
   USE cp_result_types,                 ONLY: cp_result_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type,&
                                              unpack_subsys_particles
   USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
@@ -1154,14 +1155,16 @@ CPSourceFileRef,&
     LOGICAL                                  :: exist_res, failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_result_type), POINTER            :: results
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    NULLIFY (f_env, results)
+    NULLIFY (f_env, subsys, results)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
 
     IF (.NOT. failure) THEN
-      CALL force_env_get(f_env%force_env, results=results, error=error)
+      CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+      CALL cp_subsys_get(subsys, results=results, error=error)
       ! first test for the result
       IF(PRESENT(res_exist)) THEN
         res_exist = test_for_result(results, description=description, error=error)
@@ -1232,16 +1235,18 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY (f_env, virial, cell)
+    NULLIFY (f_env, subsys, virial, cell)
     stress_tensor(:,:) = 0.0_dp
 
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
-       CALL force_env_get(f_env%force_env, virial=virial, cell=cell, error=error)
+       CALL force_env_get(f_env%force_env, subsys=subsys, cell=cell, error=error)
+       CALL cp_subsys_get(subsys, virial=virial, error=error)
        IF(virial%pv_availability) THEN
           stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth
        ENDIF

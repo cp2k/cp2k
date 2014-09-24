@@ -15,8 +15,10 @@ MODULE metadynamics_utils
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE f77_blas
-  USE force_env_types,                 ONLY: force_env_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
   USE input_constants,                 ONLY: do_fe_meta,&
                                              do_wall_gaussian,&
                                              do_wall_m,&
@@ -97,18 +99,21 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     LOGICAL                                  :: check, explicit, failure
     REAL(kind=dp)                            :: dt
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: md_section, metadyn_section, &
                                                 metavar_section, &
                                                 walkers_section
 
+    NULLIFY(subsys)
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CALL section_vals_get(fe_section,explicit=explicit,error=error)
     IF (explicit) THEN
        number_allocated_colvars = 0
-       IF (ASSOCIATED(force_env%subsys%colvar_p)) THEN
-          number_allocated_colvars = SIZE(force_env%subsys%colvar_p)
+       CALL force_env_get(force_env, subsys=subsys, error=error)
+       IF (ASSOCIATED(subsys%colvar_p)) THEN
+          number_allocated_colvars = SIZE(subsys%colvar_p)
        END IF
        CALL section_vals_val_get(fe_section,"METHOD",i_val=id_method,error=error)
        IF (id_method/=do_fe_meta) THEN

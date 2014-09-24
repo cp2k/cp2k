@@ -181,8 +181,7 @@ CONTAINS
     gam = simpar%gamma+simpar%shadow_gamma
     nshell = 0
 
-    CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,&
-         virial=virial,error=error)
+    CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
@@ -196,6 +195,7 @@ CONTAINS
                        molecule_kinds_new=molecule_kinds,&
                        nshell=nshell,&
                        particles=particles,&
+                       virial=virial,&
                        error=error)
     CALL cp_assert((nshell == 0),cp_failure_level,cp_assertion_failed,routineP,&
                    "Langevin dynamics is not yet implemented for core-shell models",&
@@ -450,15 +450,14 @@ CONTAINS
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
          para_env=para_env, ehrenfest_md=ehrenfest_md, error=error)
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env, subsys=subsys,&
-         virial=virial, cell=cell, error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys,cell=cell, error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -813,15 +812,14 @@ CONTAINS
          para_env=para_env, error=error)
     dt = simpar%dt
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, &
-         virial=virial, cell=cell,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1043,15 +1041,14 @@ CONTAINS
          error=error)
     dt = simpar%dt
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, &
-         virial=virial, cell=cell,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1151,12 +1148,11 @@ CONTAINS
     ![NB] recreate pointers changed by creation of new subsys in qmmm_update_force_mixing_env
     ![NB] ugly hack, which is why adaptivity isn't implemented in most other ensembles
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    CALL force_env_get(force_env=force_env, subsys=subsys, &
-       virial=virial, cell=cell,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
        particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-       molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+       molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1319,15 +1315,14 @@ CONTAINS
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, virial=virial,&
-         cell=cell, error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         gci=gci,molecule_kinds_new=molecule_kinds ,error=error)
+         gci=gci,molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1815,14 +1810,14 @@ CPSourceFileRef,&
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree, dp )
 
-    CALL force_env_get(force_env, subsys=subsys, virial = virial, cell=cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell ,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules, molecules_new=molecules, gci=gci,&
-         molecule_kinds_new=molecule_kinds ,error=error)
+         molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -2077,11 +2072,11 @@ CPSourceFileRef,&
     infree = 1.0_dp / REAL ( simpar%nfree, dp )
     gamma1 = simpar%gamma_nph
 
-    CALL force_env_get(force_env, subsys=subsys, virial = virial, cell = cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell = cell ,error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,gci=gci,&
-         molecule_kinds_new=molecule_kinds ,error=error)
+         molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -2355,14 +2350,14 @@ CPSourceFileRef,&
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
-    CALL force_env_get(force_env, subsys=subsys, virial=virial, cell=cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell ,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds, local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         gci=gci,molecule_kinds_new=molecule_kinds ,error=error)
+         gci=gci,molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
