@@ -256,7 +256,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     INTEGER                                  :: k
     REAL(KIND=dp), DIMENSION(0:3)            :: ed
 
-!$omp parallel do private ( k, ed )
+!$omp parallel do private ( k, ed ) default(none)&
+!$omp shared(npoints,rho,eps_rho,order,e_0,e_rho,e_rho_rho,e_rho_rho_rho,sc)
     DO k=1, npoints
 
        IF ( rho(k) > eps_rho ) THEN
@@ -446,7 +447,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
     order_=ABS(order)
 
-!$omp parallel do private ( k, rho, ed ) shared(order,npoints,eps_rho)
+!$omp parallel do private ( k, rho, ed ) default(none)&
+!$omp shared(order_,order,npoints,eps_rho,a,b,sc,e_0,ea,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
     DO k=1, npoints
 
        rho = a(k) + b(k)
