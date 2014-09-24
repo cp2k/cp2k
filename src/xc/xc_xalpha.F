@@ -343,7 +343,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = sx * flda
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none) &
+!$omp shared(n,rho,eps_rho,pot,f,r13)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -373,7 +374,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = f43 * flda * sx
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rho,eps_rho,pot,f,r13)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + f * r13(ip)
@@ -402,7 +404,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = f13 * f43 * flda * sx
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rho,eps_rho,pot,f,r13)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + f * r13(ip) / rho(ip)
@@ -431,7 +434,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = -f23 * f13 * f43 * flda * sx
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rho,eps_rho,pot,f,r13)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + f * r13(ip) / ( rho(ip) * rho(ip) )
@@ -463,7 +467,8 @@ ELSE
 
     f = sx * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,pot,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -497,7 +502,8 @@ ELSE
 
     f = f43 * flsd * sx
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,pota,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -531,7 +537,8 @@ ELSE
 
     f = f13 * f43 * flsd * sx
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,potaa,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -565,7 +572,8 @@ ELSE
 
     f = -f23 * f13 * f43 * flsd * sx
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,potaaa,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
