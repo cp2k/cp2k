@@ -2234,7 +2234,7 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i)
+        !$omp parallel do private(k,j,i) shared(v_xc,bo,rho1a,deriv_data) default(none)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2251,7 +2251,7 @@ CPSourceFileRef,&
         IF (ASSOCIATED(deriv_att)) THEN
            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                 error=error)
-           !$omp parallel do private(k,j,i)
+           !$omp parallel do private(k,j,i) default(none) shared(bo,v_xc,deriv_data,rho1b)
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)
@@ -2268,7 +2268,7 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i)
+        !$omp parallel do private(k,j,i) default(none) shared(bo,v_xc,deriv_data,rho1b,rho1a,nspins,fac)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2291,7 +2291,7 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir) default(none) shared(drhoa,drho1a,v_xc,tmp_a,bo,deriv_data,rho1a)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2313,7 +2313,7 @@ CPSourceFileRef,&
         IF (ASSOCIATED(deriv_att)) THEN
            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                 error=error)
-           !$omp parallel do private(k,j,i,dr1dr,idir)
+           !$omp parallel do private(k,j,i,dr1dr,idir) default(none) shared(v_xc,tmp_b,deriv_data,rho1b,bo,drhob,drho1b)
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)
@@ -2336,7 +2336,7 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir) default(none) shared(bo,drhob,drho1b,v_xc,tmp_b,deriv_data,nspins,rho1a,fac)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2363,7 +2363,7 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir) default(none) shared(bo,nspins,drhoa,drho1a,v_xc,tmp_a,fac,deriv_data,rho1b)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2390,7 +2390,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir) 
+        !$omp parallel do private(k,j,i,dr1dr,idir) default(none)&
+        !$omp   shared(bo,drhob,drho1a,deriv_data,v_xc,drhoa,drho1b,tmp_a,tmp_b,nspins,rho1a,fac)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2432,7 +2433,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir) default(none) &
+        !$omp shared(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_b,fac)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2486,7 +2488,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir)  default(none) &
+        !$omp shared(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_b,fac,v_xc,rho1b)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2521,7 +2524,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir)  default(none) &
+        !$omp shared(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_b,fac)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2568,7 +2572,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir)  default(none) &
+        !$omp shared(bo,nspins,drhoa,drho1a,deriv_data,tmp_a)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2588,7 +2593,8 @@ CPSourceFileRef,&
         IF (ASSOCIATED(deriv_att)) THEN
            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
                 error=error)
-           !$omp parallel do private(k,j,i,dr1dr,idir)
+           !$omp parallel do private(k,j,i,dr1dr,idir) default(none)&
+           !$omp shared(drhob,drho1b,tmp_b,deriv_data,bo)
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)
@@ -2609,7 +2615,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir)  default(none) &
+        !$omp shared(bo,nspins,drhob,drho1a,deriv_data,drhoa,drho1b,tmp_a,tmp_b,fac)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2642,7 +2649,8 @@ CPSourceFileRef,&
              error=error)
         CALL xc_derivative_get(deriv_att, deriv_data=e_drhoa, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir) default(none)&
+        !$omp shared(bo,drhoa,drho1a,tmp_a,deriv_data)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2665,7 +2673,8 @@ CPSourceFileRef,&
                 error=error)
            CALL xc_derivative_get(deriv_att, deriv_data=e_drhob, &
                 error=error)
-           !$omp parallel do private(k,j,i,dr1dr,idir)
+           !$omp parallel do private(k,j,i,dr1dr,idir) default(none) &
+           !$omp shared(bo,drhob,drho1b,tmp_b,deriv_data)
            DO k = bo(1,3), bo(2,3)
               DO j = bo(1,2), bo(2,2)
                  DO i = bo(1,1), bo(2,1)
@@ -2686,7 +2695,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,dr1dr,idir)
+        !$omp parallel do private(k,j,i,dr1dr,idir) default(none)&
+        !$omp shared(bo,nspins,drhob,drho1a,drhoa,drho1b,tmp_a,tmp_b,fac,deriv_data)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2731,7 +2741,8 @@ CPSourceFileRef,&
      IF (gradient_f) THEN
 
         IF (my_gapw) THEN
-           !$omp parallel do private(ia,idir,ispin,ir)
+           !$omp parallel do private(ia,idir,ispin,ir) default(none) &
+           !$omp shared(bo,nspins,vxg,drhoa,drhob,tmp_a,tmp_b,e_drhoa,e_drhob,e_norm_drho,drho1a,drho1b,fac)
            DO ir = bo(1,2), bo(2,2)
               DO ia = bo(1,1), bo(2,1)
                  DO idir = 1,3
@@ -2768,7 +2779,8 @@ CPSourceFileRef,&
            DO idir=1, 3
 
               DO ispin=1, nspins
-                 !$omp parallel do private(k,j,i,dr1dr)
+                 !$omp parallel do private(k,j,i,dr1dr) default(none) &
+                 !$omp shared(bo,tmp_r,tmp_a,tmp_b,drhoa,drhob,ispin,idir)
                  DO k = bo(1,3), bo(2,3)
                     DO j = bo(1,2), bo(2,2)
                        DO i = bo(1,1), bo(2,1)
@@ -2779,7 +2791,8 @@ CPSourceFileRef,&
                     END DO
                  END DO
                  IF (ASSOCIATED(e_drhoa)) THEN
-                    !$omp parallel do private(k,j,i)
+                    !$omp parallel do private(k,j,i) default(none) &
+                    !$omp shared(bo,tmp_r,e_drhoa,drho1a,idir)
                     DO k = bo(1,3), bo(2,3)
                        DO j = bo(1,2), bo(2,2)
                           DO i = bo(1,1), bo(2,1)
@@ -2790,7 +2803,8 @@ CPSourceFileRef,&
                     END DO
                  END IF
                  IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-                    !$omp parallel do private(k,j,i)
+                    !$omp parallel do private(k,j,i) default(none)&
+                    !$omp shared(bo,tmp_r,e_drhob,drho1b,idir)
                     DO k = bo(1,3), bo(2,3)
                        DO j = bo(1,2), bo(2,2)
                           DO i = bo(1,1), bo(2,1)
@@ -2801,7 +2815,8 @@ CPSourceFileRef,&
                     END DO
                  END IF
                  IF (ASSOCIATED(e_norm_drho)) THEN
-                    !$omp parallel do private(k,j,i)
+                    !$omp parallel do private(k,j,i) default(none)&
+                    !$omp shared(bo,tmp_r,e_norm_drho,drho1b,drho1a,fac,idir,nspins)
                     DO k = bo(1,3), bo(2,3)
                        DO j = bo(1,2), bo(2,2)
                           DO i = bo(1,1), bo(2,1)
@@ -2895,7 +2910,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i)
+        !$omp parallel do private(k,j,i) default(none) &
+        !$omp shared(bo,v_xc,deriv_data,rho1)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2911,7 +2927,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,idir,dr1dr)
+        !$omp parallel do private(k,j,i,idir,dr1dr) default(none)&
+        !$omp shared(bo,drho,drho1,v_xc,deriv_data,v_drho,rho1)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2932,7 +2949,8 @@ CPSourceFileRef,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
              error=error)
-        !$omp parallel do private(k,j,i,idir,dr1dr)
+        !$omp parallel do private(k,j,i,idir,dr1dr) default(none)&
+        !$omp shared(bo,drho,drho1,v_drho,deriv_data)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2953,7 +2971,8 @@ CPSourceFileRef,&
              error=error)
         CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho, &
              error=error)
-        !$omp parallel do private(k,j,i,idir,dr1dr)
+        !$omp parallel do private(k,j,i,idir,dr1dr) default(none)&
+        !$omp shared(bo,drho,drho1,gradient_cut,rho_set,v_drho,deriv_data)
         DO k = bo(1,3), bo(2,3)
            DO j = bo(1,2), bo(2,2)
               DO i = bo(1,1), bo(2,1)
@@ -2975,7 +2994,8 @@ CPSourceFileRef,&
         IF (my_gapw) THEN
 
            DO idir=1,3
-              !$omp parallel do private(ia,ir)
+              !$omp parallel do private(ia,ir) default(none) &
+              !$omp shared(bo,vxg,drho,v_drho,e_norm_drho,drho1,idir)
               DO ia = bo(1,1), bo(2,1)
                  DO ir = bo(1,2), bo(2,2)
                     vxg(idir,ia,ir,1) = drho(idir)%array(ia,ir,1)*v_drho%pw%cr3d(ia,ir,1)
@@ -3004,7 +3024,8 @@ CPSourceFileRef,&
            END IF
 
            DO idir=1,3
-              !$omp parallel do private(k,j,i)
+              !$omp parallel do private(k,j,i) default(none)&
+              !$omp shared(bo,tmp_r,drho,v_drho,drho1,deriv_data,idir)
               DO k = bo(1,3), bo(2,3)
                  DO j = bo(1,2), bo(2,2)
                     DO i = bo(1,1), bo(2,1)
@@ -3179,7 +3200,7 @@ END SUBROUTINE xc_calc_2nd_deriv
           DO idesc=1,SIZE(split_desc)
              SELECT CASE(split_desc(idesc))
              CASE("norm_drho")
-                !$omp parallel do private(i,j,k)
+                !$omp parallel do private(i,j,k) default(none) shared(bo,deriv_att,rho_set,drho_cutoff)
                 DO k = bo(1,3), bo(2,3)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
@@ -3189,7 +3210,7 @@ END SUBROUTINE xc_calc_2nd_deriv
                    END DO
                 END DO
              CASE("norm_drhoa")
-                !$omp parallel do private(i,j,k)
+                !$omp parallel do private(i,j,k) default(none) shared(bo,deriv_att,rho_set,drho_cutoff)
                 DO k = bo(1,3), bo(2,3)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
@@ -3199,7 +3220,7 @@ END SUBROUTINE xc_calc_2nd_deriv
                    END DO
                 END DO
              CASE("norm_drhob")
-                !$omp parallel do private(i,j,k)
+                !$omp parallel do private(i,j,k) default(none) shared(bo,deriv_att,rho_set,drho_cutoff)
                 DO k = bo(1,3), bo(2,3)
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
