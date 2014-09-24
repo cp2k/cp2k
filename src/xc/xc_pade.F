@@ -308,7 +308,8 @@ CONTAINS
     IF ( n > SIZE(pot,1) ) CALL stop_program(routineN,moduleN,__LINE__,&
                                              "Size of POT array too small.")
 
-!$omp parallel do private(i,fx,rs,m1,m2)
+!$omp parallel do private(i,fx,rs,m1,m2) default(none)&
+!$omp shared(rhoa,rhob,m,pot,n,calc,mx)
     DO i=1, n
        fx(1) = rhoa(i) + rhob(i)
 
@@ -411,7 +412,8 @@ CONTAINS
        CALL xc_derivative_get(deriv,deriv_data=e_rbrbrb,error=error)
     END IF
 
-!$omp parallel do private(i,j,k,fx,rhoa,rhob,rs)
+!$omp parallel do private(i,j,k,fx,rhoa,rhob,rs) default(none)&
+!$omp shared(rho_set,order,e_0,e_ra,e_rb,calc,e_rara,e_rarb,e_rbrb,e_rarara,e_rararb,e_rarbrb,e_rbrbrb)
     DO i=rho_set%local_bounds(1,1), rho_set%local_bounds(2,1)
        DO j=rho_set%local_bounds(1,2), rho_set%local_bounds(2,2)
           DO k=rho_set%local_bounds(1,3), rho_set%local_bounds(2,3)
@@ -463,8 +465,8 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: epade, p, q
 
-!$omp parallel do private(ip,p,q,epade)
-
+!$omp parallel do private(ip,p,q,epade) default(none)&
+!$omp shared(n,rho,eps_rho,pot,rs)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
@@ -493,7 +495,8 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q
 
-!$omp parallel do private(ip,p,q,epade,dpv,dq,depade)
+!$omp parallel do private(ip,p,q,epade,dpv,dq,depade) default(none)&
+!$omp shared(n,rho,eps_rho,rs,pot)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -531,7 +534,8 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q
 
-!$omp parallel do private(ip,p,q,epade,dpv,dq,depade)
+!$omp parallel do private(ip,p,q,epade,dpv,dq,depade) default(none)&
+!$omp shared(n,rho,eps_rho,pot0,pot1)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -570,7 +574,8 @@ CONTAINS
     REAL(KIND=dp)                            :: d2p, d2q, dpv, dq, p, q, rsr, &
                                                 t1, t2, t3
 
-!$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,rsr,t1,t2,t3)
+!$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,rsr,t1,t2,t3) default(none)&
+!$omp shared(n,rho,eps_rho,rs)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -615,7 +620,8 @@ CONTAINS
                                                 d3q, dpv, dq, p, q, rsr1, &
                                                 rsr2, rsr3
 
-!$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
+!$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3) default(none)&
+!$omp shared(n,rho,eps_rho,rs,pot)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
