@@ -710,7 +710,7 @@ CONTAINS
 
 ! determine number of threads
         npr=1
-!$omp parallel private(iam)  shared (npr)
+!$omp parallel private(iam)  shared (npr) default(none)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
 !$omp end parallel
@@ -756,7 +756,7 @@ CONTAINS
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
-!$omp parallel do shared (alat,nat,rxyz0) private(iat)
+!$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
         DO 5983,iat=1,nat
         rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
         rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
@@ -1191,7 +1191,7 @@ CONTAINS
 
         indlstx=0
 
-!$omp parallel  &
+!$omp parallel default(none) &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
@@ -1240,7 +1240,7 @@ CONTAINS
 
         istopg=0
 
-!$omp parallel  &
+!$omp parallel default(none)  &
 !$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
 !$omp tener,tener2,txyz,s2,s3,sz,num2,num3,numz,max_nbrs) &
 !$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
@@ -1883,7 +1883,7 @@ CONTAINS
 
 ! determine number of threads
         npr=1
-!$omp parallel private(iam)  shared (npr)
+!$omp parallel private(iam)  shared (npr) default(none)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
 !$omp end parallel
@@ -1929,7 +1929,7 @@ CONTAINS
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
-!$omp parallel do shared (alat,nat,rxyz0) private(iat)
+!$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
         DO 5983,iat=1,nat
         rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
         rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
@@ -2363,7 +2363,7 @@ CONTAINS
 
         indlstx=0
 
-!$omp parallel  &
+!$omp parallel default(none)  &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
@@ -2411,7 +2411,7 @@ CONTAINS
            ENDIF
 
         istopg=0
-!$omp parallel  &
+!$omp parallel default(none)  &
 !$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
 !$omp tener,tener2,txyz,f2ij,f3ij,f3ik,npjx,npjkx) &
 !$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
