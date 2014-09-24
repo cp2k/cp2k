@@ -249,7 +249,8 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(KIND=dp)                            :: cr, ep, g, or, phi, r, x
 
-!$omp parallel do private(ip,g,r,x,or,cr,phi,ep)
+!$omp parallel do private(ip,g,r,x,or,cr,phi,ep) default(none)&
+!$omp shared(npoints,rho,eps_rho,grho,rs,e_0)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -290,7 +291,8 @@ CONTAINS
                                                 dq, ep, ff, g, or, p, phi, q, &
                                                 r, x
 
-!$omp parallel do private(ip,g,r,x,or,p,dpv,q,dq,cr,dcr,dphig,phi,dphir,ep,ff)
+!$omp parallel do private(ip,g,r,x,or,p,dpv,q,dq,cr,dcr,dphig,phi,dphir,ep,ff) default(none)&
+!$omp shared(npoints,rho,eps_rho,grho,rs,e_rho,e_ndrho)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -345,7 +347,8 @@ CONTAINS
                                                 q, r, x
 
 !$omp parallel do private(ip,x,r,cr,phi,ep,g,or,p,q,dpv,dq,dphir,dcr) &
-!$omp             private(dphig,dphigr,d2phir,d2cr,d2p,d2q)
+!$omp             private(dphig,dphigr,d2phir,d2cr,d2p,d2q) default(none) &
+!$omp shared(npoints,rho,eps_rho,grho,rs,e_rho_rho,e_rho_ndrho,e_ndrho_ndrho)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -417,7 +420,8 @@ CONTAINS
 
 !$omp parallel do private(ip,x, r, cr, phi, ep, g, or, p, q, dpv, dq, dphir, dcr, dphig) &
 !$omp             private(dphigr, d2phir, d3phir, d2cr, d3cr, d2p, d2q, d2phirg, d3q) &
-!$omp             private(pq, dpq, d2pq, d3pq, oz, dz, d2z, d3z)
+!$omp             private(pq, dpq, d2pq, d3pq, oz, dz, d2z, d3z) default(none) &
+!$omp             shared(npoints,rho,eps_rho,grho,e_rho_rho_rho,e_rho_rho_ndrho,e_rho_ndrho_ndrho,e_ndrho_ndrho_ndrho)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
