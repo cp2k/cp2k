@@ -741,7 +741,6 @@ CONTAINS
 !> \param additional_potential ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param results ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
