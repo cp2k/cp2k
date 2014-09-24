@@ -332,7 +332,8 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
   abs_order=ABS(order)
 
-!$omp parallel do private (k, ed)
+!$omp parallel do private (k, ed) default(none)&
+!$omp shared(npoints,rho,eps_rho,abs_order,scale,e_0,e_rho,e_rho_rho,e_rho_rho_rho,order)
     DO k=1, npoints
 
        IF ( rho(k) > eps_rho ) THEN
@@ -518,7 +519,8 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
     abs_order=ABS(order)
 
-!$omp parallel do private (k, rho, ed)
+!$omp parallel do private (k, rho, ed) default(none)&
+!$omp shared(npoints,rhoa,rhob,eps_rho,abs_order,order,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb,scale)
     DO k=1, npoints
 
        rho = rhoa(k) + rhob(k)

@@ -241,7 +241,8 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-    !$omp parallel do private(ip)
+    !$omp parallel do private(ip) default(none)&
+    !$omp shared(npoints,rho,eps_rho,s,grho)
     DO ip = 1, npoints
       IF ( rho(ip) < eps_rho ) THEN
          s(ip) = 0.0_dp
@@ -393,7 +394,8 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_0,flda,r13,s,fvw)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -430,7 +432,8 @@ CONTAINS
 
     f = f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_rho,e_ndrho,grho,s,r13,f,fvw)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -471,7 +474,8 @@ CONTAINS
 
     f = f23 * f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_rho_rho,e_rho_ndrho,e_ndrho_ndrho,grho,f,fvw)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -514,7 +518,8 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_rho_rho_rho,r13,s,e_rho_rho_ndrho,e_rho_ndrho_ndrho,f,fvw)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -551,7 +556,8 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints, rhoa,eps_rho,e_0,r13a,sa,flsd,fvw)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -587,7 +593,8 @@ CONTAINS
 
     f = f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,r13a,sa,fvw,grhoa,e_rho,e_ndrho,f)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -626,7 +633,8 @@ CONTAINS
 
     f = f23 * f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho_rho,f,fvw,r13a,sa,e_rho_ndrho,e_ndrho_ndrho)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -669,7 +677,8 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho_rho_rho,e_rho_rho_ndrho,e_rho_ndrho_ndrho,f,fvw,sa,grhoa)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
