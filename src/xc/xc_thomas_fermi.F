@@ -302,7 +302,8 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_0,flda,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -336,7 +337,8 @@ CONTAINS
 
     f = f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none) &
+!$omp shared(npoints,rho,eps_rho,e_rho,f,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -370,7 +372,8 @@ CONTAINS
 
     f = f23 * f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_rho_rho,f,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -404,7 +407,8 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_rho_rho_rho,f,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -435,7 +439,8 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_0,flsd,r13a)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -467,7 +472,8 @@ CONTAINS
 
     f = f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho,f,r13a)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -499,7 +505,9 @@ CONTAINS
 
     f = f23 * f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho_rho,f,r13a)
+
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -531,7 +539,8 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho_rho_rho,f,r13a)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
