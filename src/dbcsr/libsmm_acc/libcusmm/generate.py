@@ -230,7 +230,8 @@ def gen_transpose(sizes):
         output += "kern_func_%d<<<nblks, 128, 0, *stream>>>(trs_stack+offset, nblks, buffer);\n"%idx
         output += "break;\n"
 
-    output += "default: return -1; // should never happen\n"
+    output += "// If there is no kernel for these blocks, we don't need to transpose them.\n"
+    output += "default: return 0;\n"
     output += "}\n\n"
 
     output += "return(cudaGetLastError());\n"
