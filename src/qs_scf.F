@@ -71,8 +71,7 @@ MODULE qs_scf
                                              ot_precond_full_single,&
                                              ot_precond_full_single_inverse,&
                                              ot_precond_none,&
-                                             ot_precond_s_inverse,&
-                                             ot_precond_sparse_diag
+                                             ot_precond_s_inverse
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -632,6 +631,7 @@ CONTAINS
             scf_control%diagonalization%ot_settings%preconditioner_type,&
             scf_control%diagonalization%ot_settings%precond_solver_type,&
             scf_control%diagonalization%ot_settings%energy_gap,dft_control%nspins,error=error)
+              
     CASE (block_davidson_diag_method_nr)
         ! Preconditioner initialized within the loop, when required
     CASE (ot_method_nr)
@@ -706,12 +706,14 @@ CPSourceFileRef)
           IF(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
              scf_env%qs_ot_env(1)%settings%mixed_precision=.FALSE.
           END IF
+
           CALL prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,scf_env%ot_preconditioner,&
               scf_env%qs_ot_env(1)%settings%preconditioner_type,&
               scf_env%qs_ot_env(1)%settings%precond_solver_type,&
               scf_env%qs_ot_env(1)%settings%energy_gap,dft_control%nspins,&
               has_unit_metric=has_unit_metric,&
               mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision,error=error)
+
           ! we have to treat the semi-empirical methods separately
           IF ( scp_nddo ) THEN
              CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
@@ -738,7 +740,7 @@ CPSourceFileRef)
                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
                         scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
                 ENDDO
-             CASE(ot_precond_s_inverse,ot_precond_sparse_diag,ot_precond_full_single)
+             CASE(ot_precond_s_inverse,ot_precond_full_single)
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
                         scf_env%ot_preconditioner(1)%preconditioner,error=error)

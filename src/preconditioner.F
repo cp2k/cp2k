@@ -12,38 +12,20 @@
 ! *****************************************************************************
 MODULE preconditioner
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, array_i1d_obj, block_add_on_diag, block_chol_inv, &
-       cp_create_bl_distribution, cp_dbcsr_add, cp_dbcsr_add_on_diag, &
-       cp_dbcsr_btriu, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
-       cp_dbcsr_finalize, cp_dbcsr_get_block, cp_dbcsr_get_block_p, &
-       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_get_info, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, &
-       cp_dbcsr_get_occupation, cp_dbcsr_get_stored_coordinates, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_nblkcols_local, cp_dbcsr_nblkrows_local, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_p_type, &
-       cp_dbcsr_print, cp_dbcsr_put_block, cp_dbcsr_release, &
-       cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, cp_dbcsr_trace, &
-       cp_dbcsr_type, cp_dbcsr_verify_matrix, cp_dbcsr_work_create, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_error_type, dbcsr_mp_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
-       dbcsr_norm_frobenius, dbcsr_scale_mat, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_4, dbcsr_type_real_default
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy_vec, &
-       cp_dbcsr_from_fm, cp_dbcsr_multiply_vec, cp_dbcsr_pack_vec, &
-       cp_dbcsr_sm_fm_multiply, cp_dbcsr_unpack_vec, packed_vec_bcast, &
-       packed_vec_bif_tech2, packed_vec_build_u, packed_vec_ini, &
-       packed_vec_scale
+       cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
+       cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
+       cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_default
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add,&
-                                             cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
@@ -65,16 +47,10 @@ MODULE preconditioner
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
-       ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
-       ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
-       ot_precond_sparse_kinetic_sainv
+       ot_precond_solver_inv_chol
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             dp_size,&
-                                             int_size,&
                                              sp
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max
   USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              preconditioner_p_type,&
@@ -84,8 +60,7 @@ MODULE preconditioner
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -99,16 +74,11 @@ MODULE preconditioner
   PUBLIC :: make_preconditioner, restart_preconditioner
   PUBLIC :: apply_preconditioner, prepare_preconditioner
 
-  PRIVATE :: make_sparse_diag, make_full_single, make_local_block
+  PRIVATE :: make_full_single
 
   INTERFACE apply_preconditioner
      MODULE PROCEDURE apply_preconditioner_dbcsr
      MODULE PROCEDURE apply_preconditioner_fm
-  END INTERFACE
-
-  INTERFACE apply_solve_lin_system
-     MODULE PROCEDURE apply_solve_lin_system_dbcsr
-     MODULE PROCEDURE apply_solve_lin_system_fm
   END INTERFACE
 
 ! *****************************************************************************
@@ -136,6 +106,10 @@ CONTAINS
 !> \param mixed_precision ...
 !> \param convert_precond_to_dbcsr ...
 !> \param error ...
+!> \par History
+!>      09.2014 removed some unused or unfinished methods
+!>              removed sparse preconditioners and the 
+!>              sparse approximate inverse at rev 14341 [Florian Schiffmann]
 ! *****************************************************************************
 SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
      matrix_t, mo_set, energy_gap, mixed_precision, convert_precond_to_dbcsr, error)
@@ -168,7 +142,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
     use_mo_coeff_b = mo_set%use_mo_coeff_b
-
     CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
     my_convert_precond_to_dbcsr = .FALSE.
@@ -192,11 +165,11 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     SELECT CASE(precon_type)
     CASE (ot_precond_full_single_inverse,ot_precond_full_all)
        needs_full_spectrum=.TRUE.
-    CASE (ot_precond_sparse_diag,ot_precond_full_single)
+    CASE (ot_precond_full_single)
        needs_homo=.TRUE.
        ! XXXX to be removed if homo estimate only is implemented
        needs_full_spectrum=.TRUE.
-    CASE (ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_sparse_kinetic)
+    CASE (ot_precond_full_kinetic,ot_precond_s_inverse)
        ! these should be happy without an estimate for the homo energy
        ! preconditioning can  not depend on an absolute eigenvalue, only on eigenvalue differences
     CASE DEFAULT
@@ -233,19 +206,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
   my_solver_type = solver_type
   SELECT CASE (precon_type)
-  CASE (ot_precond_sparse_diag)
-     preconditioner_env%in_use=ot_precond_sparse_diag
-     IF (my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Only PRECOND_SOLVER DEFAULT for the moment")
-     END IF
-     IF ( PRESENT(matrix_s) ) THEN
-        CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
-                              energy_homo, energy_gap ,error=error)
-     ELSE
-        CALL make_sparse_diag_ortho(preconditioner_env, matrix_h, &
-                              energy_homo, energy_gap ,error=error)
-     END IF
   CASE (ot_precond_full_single)
      preconditioner_env%in_use=ot_precond_full_single
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
@@ -312,15 +272,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
         CALL make_full_all_ortho(preconditioner_env,mo_coeff,matrix_h, &
                                  eigenvalues_ot, energy_gap,error=error)
      END IF
-  CASE(ot_precond_sparse_kinetic)
-     preconditioner_env%in_use=ot_precond_sparse_kinetic
-     IF(my_solver_type.NE.ot_precond_solver_default) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Only PRECOND_SOLVER DEFAULT for the moment")
-     ENDIF
-     CALL make_sparse_kinetic(preconditioner_env, matrix_t, matrix_s, energy_gap ,error=error)
-     CALL make_diag_inner_precond(preconditioner_env, preconditioner_env%sparse_matrix,&
-                                  preconditioner_env%sparse_matrix_inner, error=error)
   CASE DEFAULT
      CALL stop_program(routineN,moduleN,__LINE__,"Type not implemented")
   END SELECT
@@ -333,11 +284,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      preconditioner_env%solver=ot_precond_solver_inv_chol
      CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
                                      my_mixed_precision, error=error)
-  CASE (ot_precond_solver_sainv)
-     !
-     preconditioner_env%solver=ot_precond_solver_sainv
-     CALL make_sparse_inverse_bif(preconditioner_env, preconditioner_env%fm, matrix_s, &
-                                  error=error)
   CASE (ot_precond_solver_direct)
      !
      ! prepare for the direct solver
@@ -388,6 +334,60 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   END SUBROUTINE make_preconditioner
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param preconditioner_env ...
+!> \param matrix_t ...
+!> \param matrix_s ...
+!> \param energy_gap ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE make_sparse_kinetic(preconditioner_env, matrix_t, matrix_s, &
+                                 energy_gap, error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_t, matrix_s
+    REAL(KIND=dp), INTENT(IN)                :: energy_gap
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_kinetic', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, n
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: shift
+
+    failure = .FALSE.
+  CALL timeset(routineN,handle)
+    CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+    ! some infos
+    CALL cp_dbcsr_get_info(matrix_t,nfullrows_total=n)
+    ! allocate
+
+    IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
+       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
+       NULLIFY(preconditioner_env%sparse_matrix)
+    ENDIF
+
+    ALLOCATE(preconditioner_env%sparse_matrix)
+    CALL cp_dbcsr_init(preconditioner_env%sparse_matrix,error=error)
+    CALL cp_dbcsr_create(preconditioner_env%sparse_matrix, ' PRECONDITIONER ', &
+         cp_dbcsr_distribution (matrix_t),&
+         cp_dbcsr_get_matrix_type (matrix_t), cp_dbcsr_row_block_sizes(matrix_t),&
+         cp_dbcsr_col_block_sizes(matrix_t), 0, 0, error=error)
+
+    ! M = T - epsilon * S
+    shift=MAX(0.0_dp,energy_gap)
+    CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_t,&
+         alpha_scalar=0.0_dp,beta_scalar=1.0_dp,error=error)
+    CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_s,&
+         alpha_scalar=1.0_dp,beta_scalar=shift,error=error)
+  CALL timestop(handle)
+
+  END SUBROUTINE make_sparse_kinetic
+
+
 ! applies a previously created preconditioner to a full matrix
 ! *****************************************************************************
 !> \brief ...
@@ -412,25 +412,13 @@ SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out, er
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
      CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
-  CASE (ot_precond_sparse_diag)
-     CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_single)
      CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_all)
      CALL apply_full_all(preconditioner_env, matrix_in, matrix_out,error=error)
-  CASE(ot_precond_sparse_kinetic)
-     CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error=error)
-  CASE (ot_precond_sparse_kinetic_sainv)
-     SELECT CASE (preconditioner_env%solver)
-     CASE (ot_precond_solver_sainv)
-        CALL apply_sparse_single(preconditioner_env, matrix_in, matrix_out,error=error)
-        !CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
-     CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,"Solver not implemented")
-     END SELECT
   CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
      SELECT CASE (preconditioner_env%solver)
-     CASE(ot_precond_solver_inv_chol,ot_precond_solver_sainv)
+     CASE(ot_precond_solver_inv_chol)
         CALL apply_full_single(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE(ot_precond_solver_direct)
         CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)
@@ -468,22 +456,13 @@ SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out,
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
      CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
-  CASE (ot_precond_sparse_diag,ot_precond_full_single)
+  CASE (ot_precond_full_single)
      CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
   CASE (ot_precond_full_all)
      CALL apply_all(preconditioner_env, matrix_in, matrix_out,error=error)
-  CASE(ot_precond_sparse_kinetic)
-     CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error=error)
-  CASE (ot_precond_sparse_kinetic_sainv)
-     SELECT CASE (preconditioner_env%solver)
-     CASE (ot_precond_solver_sainv)
-        CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
-     CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,"Wrong solver")
-     END SELECT
   CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
      SELECT CASE (preconditioner_env%solver)
-     CASE(ot_precond_solver_inv_chol,ot_precond_solver_sainv)
+     CASE(ot_precond_solver_inv_chol)
         CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
      CASE(ot_precond_solver_direct)
         CALL stop_program(routineN,moduleN,__LINE__,"Apply_full_direct not supported with ot")
@@ -499,248 +478,6 @@ SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out,
 
 END SUBROUTINE apply_preconditioner_dbcsr
 
-! different types of preconditioner come here
-! a sparse block diagonal approximation
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param matrix_in ...
-!> \param matrix_out ...
-!> \param error ...
-! *****************************************************************************
-SUBROUTINE apply_sparse_diag(preconditioner_env, matrix_in, matrix_out, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: k
-
-  CALL cp_fm_get_info(matrix_in,ncol_global=k,error=error)
-  CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_in, &
-                         matrix_out,k,error=error)
-
-END SUBROUTINE apply_sparse_diag
-
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param matrix_h ...
-!> \param matrix_s ...
-!> \param energy_homo ...
-!> \param energy_gap ...
-!> \param error ...
-! *****************************************************************************
-SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
-                          energy_homo, energy_gap, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_h, matrix_s
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, handle, iblock_col, &
-                                                iblock_row, n, nblocks
-    LOGICAL                                  :: found
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s
-    TYPE(cp_dbcsr_iterator)                  :: iter
-
-  CALL timeset(routineN,handle)
-
-    IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
-       NULLIFY(preconditioner_env%sparse_matrix)
-    ENDIF
-
-    ALLOCATE(preconditioner_env%sparse_matrix)
-    CALL cp_dbcsr_init(preconditioner_env%sparse_matrix,error=error)
-    CALL cp_dbcsr_create(preconditioner_env%sparse_matrix, ' PRECONDITIONER ', &
-         cp_dbcsr_distribution (matrix_h),&
-         cp_dbcsr_get_matrix_type (matrix_h), cp_dbcsr_row_block_sizes(matrix_h),&
-         cp_dbcsr_col_block_sizes(matrix_h), 0, 0, error=error)
-
-  CALL cp_dbcsr_get_info(matrix_h,nfullrows_total=nblocks)
-
-  CALL cp_dbcsr_iterator_start(iter, matrix_h)
-  DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-     CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, blk)
-     CALL cp_dbcsr_get_block_p(matrix=matrix_s,&
-          row=iblock_row,col=iblock_col,BLOCK=block_s,found=found)
-
-     IF(.NOT.ASSOCIATED(block_s))CALL stop_program(routineN,moduleN,__LINE__,&
-                                                   ".NOT.ASSOCIATED(block_s)")
-
-     IF (iblock_col .EQ. iblock_row) THEN
-        n=SIZE(block_s,1)
-
-        ALLOCATE(block_pre(n,n))
-
-        CALL make_local_block(block_h,block_s,block_pre,  &
-                                                  energy_homo,energy_gap,3)
-
-        CALL cp_dbcsr_put_block(matrix=preconditioner_env%sparse_matrix,&
-                             row=iblock_row,&
-                             col=iblock_col,&
-                             block=block_pre)
-
-        DEALLOCATE(block_pre)
-
-     ENDIF
-  ENDDO
-
-  CALL cp_dbcsr_iterator_stop(iter)
-  CALL cp_dbcsr_finalize(preconditioner_env%sparse_matrix,error=error)
-
-  CALL timestop(handle)
-
-END SUBROUTINE make_sparse_diag
-! *****************************************************************************
-!> \brief ...
-!> \param block_h ...
-!> \param block_s ...
-!> \param block_pre ...
-!> \param energy_homo ...
-!> \param energy_gap ...
-!> \param TYPE ...
-! *****************************************************************************
-SUBROUTINE make_local_block(block_h,block_s,block_pre, &
-                                 energy_homo,energy_gap, TYPE)
-
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_s, block_pre
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
-    INTEGER                                  :: TYPE
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_local_block', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, info, istat, liwork, &
-                                                lwork, n
-    INTEGER, DIMENSION(:), POINTER           :: iwork
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals, work
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_buf1, block_chol, &
-                                                block_evec
-
-  n=SIZE(block_s,1)
-  lwork=1+6*n+2*n**2+50
-  liwork=5*n+3
-  ALLOCATE(block_chol(n,n))
-  ALLOCATE(block_evec(n,n))
-  ALLOCATE(block_buf1(n,n))
-  ALLOCATE(evals(n))
-  ALLOCATE(work(lwork),STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                   "work",dp_size*lwork)
-  ALLOCATE(iwork(liwork),STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                   "iwork",int_size*liwork)
-  block_pre(:,:)=0.0_dp
-  SELECT CASE (TYPE)
-  CASE(1)
-    DO i=1,n
-      block_pre(i,i)=1.0_dp
-    ENDDO
-  CASE(2)
-    DO i=1,n
-      block_pre(i,i)=1.0_dp/MAX(energy_gap,block_h(i,i)-energy_homo)
-    ENDDO
-  CASE(3)
-     ! more difficult constuct something like S^-0.5 K^T CASE(2) K^T S^-0.5
-     block_chol(:,:)=block_s(:,:)
-     block_evec(:,:)=block_h(:,:)
-     CALL DPOTRF('U',n,block_chol(1,1),n,info)
-     IF (info.ne.0)  CALL stop_program(routineN,moduleN,__LINE__,"Error in dpotrf")
-     CALL DSYGST(1,'U',n,block_evec(1,1),n,block_chol(1,1),n,info)
-     IF (info.ne.0)  CALL stop_program(routineN,moduleN,__LINE__,"Error in dsygst")
-     CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
-                 iwork(1), liwork, info)
-     IF (info.NE.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd")
-     block_pre(:,:)=0.0_dp
-     DO i=1,n
-          block_pre(i,i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
-     ENDDO
-     ! K = V E V ^ T
-     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_dp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_dp,block_pre(1,1),n)
-     ! inv(U) K inv(U)^T
-     CALL DTRSM('L','U','N','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
-     CALL DTRSM('R','U','T','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
-  CASE(4)
-     block_chol(:,:)=block_s(:,:)
-     CALL DPOTRF('U',n,block_chol(1,1),n,info)
-     block_pre(:,:)=0.0_dp
-     DO i=1,n
-          block_pre(i,i)=1.0_dp
-     ENDDO
-     CALL DTRSM('L','U','N','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
-     CALL DTRSM('R','U','T','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
-  CASE(5) ! like 3 but using s^-0.5 instead of the cholesky decomposition, and not transforming back
-     block_evec(:,:)=block_s(:,:)
-     CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
-                 iwork(1), liwork, info)
-     IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd S")
-     block_pre(:,:)=0.0_dp
-     DO i=1,n
-        block_pre(i,i)=1.0_dp/SQRT(evals(i))
-     ENDDO
-     ! block_pre is s^-0.5
-     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_dp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_dp,block_pre(1,1),n)
-     ! transform H
-     block_evec(:,:)=block_h(:,:)
-     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_dp,block_buf1(1,1),n)
-     CALL DGEMM('N','N',n,n,n,1.0_dp,block_pre(1,1),n,block_buf1(1,1),n, &
-                                                  0.0_dp,block_evec(1,1),n)
-     ! get evals and evecs
-     CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
-                 iwork(1), liwork, info)
-     IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd H")
-     block_pre(:,:)=0.0_dp
-     DO i=1,n
-          block_pre(i,i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
-     ENDDO
-     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_dp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_dp,block_pre(1,1),n)
-  CASE(6) ! like 3 not doing any transformation with s before or after (supposedly done by the caller)
-     block_evec(:,:)=block_h(:,:)
-     ! get evals and evecs
-     CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
-                 iwork(1), liwork, info)
-     IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"Error in dsyevd H")
-     block_pre(:,:)=0.0_dp
-     DO i=1,n
-          block_pre(i,i)=1.0_dp/MAX(evals(i),energy_gap)
-     ENDDO
-     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_dp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_dp,block_pre(1,1),n)
-
-  END SELECT
-
-  DEALLOCATE (iwork,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
-  DEALLOCATE (work,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
-  DEALLOCATE (block_chol,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"block_chol")
-  DEALLOCATE (block_evec,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"block_evec")
-  DEALLOCATE (block_buf1,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"block_buf1")
-  DEALLOCATE (evals,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"evals")
-
-END SUBROUTINE make_local_block
 ! different types of preconditioner come here
 ! a full matrix preconditioner
 ! *****************************************************************************
@@ -1514,79 +1251,6 @@ END SUBROUTINE make_full_kinetic
   END SUBROUTINE make_full_fact_cholesky
 
 ! *****************************************************************************
-! Preconditioners for orthogonal basis sets
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param matrix_h ...
-!> \param energy_homo ...
-!> \param energy_gap ...
-!> \param error ...
-! *****************************************************************************
-SUBROUTINE make_sparse_diag_ortho(preconditioner_env, matrix_h, energy_homo, energy_gap, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_h
-    REAL(KIND=dp)                            :: energy_homo, energy_gap
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_diag_ortho', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, handle, i, iblock_col, &
-                                                iblock_row, n, nblocks
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s
-    TYPE(cp_dbcsr_iterator)                  :: iter
-
-  CALL timeset(routineN,handle)
-
-    IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
-       NULLIFY(preconditioner_env%sparse_matrix)
-    ENDIF
-
-    ALLOCATE(preconditioner_env%sparse_matrix)
-    CALL cp_dbcsr_init(preconditioner_env%sparse_matrix,error=error)
-    CALL cp_dbcsr_create(preconditioner_env%sparse_matrix, ' PRECONDITIONER ', &
-         cp_dbcsr_distribution (matrix_h), cp_dbcsr_get_matrix_type (matrix_h),&
-         cp_dbcsr_row_block_sizes(matrix_h),&
-         cp_dbcsr_col_block_sizes(matrix_h), 0, 0, error=error)
-
-  CALL cp_dbcsr_get_info(matrix_h,nfullrows_total=nblocks)
-
-  CALL cp_dbcsr_iterator_start(iter, matrix_h)
-  DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-     CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, blk)
-
-     IF (iblock_col .EQ. iblock_row) THEN
-        n=SIZE(block_h,1)
-        ALLOCATE(block_pre(n,n),block_s(n,n))
-        block_s(:,:)=0._dp
-        DO i=1,n
-           block_s(i,i)=1._dp
-        END DO
-
-        CALL make_local_block(block_h,block_s,block_pre,energy_homo,energy_gap,3)
-
-        CALL cp_dbcsr_put_block(matrix=preconditioner_env%sparse_matrix,&
-                             row=iblock_row,&
-                             col=iblock_col,&
-                             BLOCK=block_pre)
-
-        DEALLOCATE(block_pre,block_s)
-
-     ENDIF
-  ENDDO
-  CALL cp_dbcsr_iterator_stop(iter)
-  CALL cp_dbcsr_finalize(preconditioner_env%sparse_matrix,error=error)
-
-  CALL timestop(handle)
-
-END SUBROUTINE make_sparse_diag_ortho
-
-! *****************************************************************************
-
-! *****************************************************************************
 !> \brief ...
 !> \param preconditioner_env ...
 !> \param fm ...
@@ -1885,954 +1549,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
 
 
 END SUBROUTINE make_full_all_ortho
-! *****************************************************************************
 
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param sm ...
-!> \param sm_inner ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE make_diag_inner_precond(preconditioner_env, sm, sm_inner, error)
-    !
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_dbcsr_type), POINTER             :: sm, sm_inner
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_diag_inner_precond', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, handle, i, iblock_col, &
-                                                iblock_row, info, istat, &
-                                                liwork, lwork, n, nblocks
-    INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals, work
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: block_evec
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_buf1, block_h, block_pre
-    TYPE(cp_dbcsr_iterator)                  :: iter
-
-  CALL timeset(routineN,handle)
-    failure = .FALSE.
-
-    CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
-
-    IF(ASSOCIATED(sm_inner)) THEN
-       CALL cp_dbcsr_deallocate_matrix(sm_inner,error=error)
-       NULLIFY(sm_inner)
-    ENDIF
-
-    ALLOCATE(sm_inner)
-    CALL cp_dbcsr_init(sm_inner,error=error)
-    CALL cp_dbcsr_create(sm_inner, ' PRECONDITIONER ', &
-         cp_dbcsr_distribution (sm), cp_dbcsr_get_matrix_type (sm),&
-         cp_dbcsr_row_block_sizes(sm),&
-         cp_dbcsr_col_block_sizes(sm), 0, 0, error=error)
-
-    CALL cp_dbcsr_get_info(sm,nfullrows_total=nblocks)
-
-    CALL cp_dbcsr_iterator_start(iter, sm)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, blk)
-
-       IF (iblock_col .EQ. iblock_row) THEN
-          n = SIZE(block_h,1)
-          ALLOCATE(block_pre(n,n),block_evec(n,n),block_buf1(n,n),evals(n))
-          lwork=1+6*n+2*n**2+50
-          liwork=5*n+3
-          ALLOCATE (work(lwork),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "work",dp_size*lwork)
-          ALLOCATE (iwork(liwork),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "iwork",int_size*liwork)
-          !
-          ! A simple block diagonal preconditoner
-          block_evec(:,:) = block_h(:,:)
-          CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
-                         iwork(1), liwork, info)
-             IF (info.ne.0) CALL stop_program(routineN,moduleN,__LINE__,"DSYEVD H")
-             block_pre(:,:)=0.0_dp
-             DO i=1,n
-                IF (evals(i).lt.1e-10_dp) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                            "evals(i).lt.1e-10_dp")
-                block_pre(i,i)=1.0_dp/evals(i)
-             ENDDO
-             CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
-                        0.0_dp,block_buf1(1,1),n)
-             CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
-                        0.0_dp,block_pre(1,1),n)
-             !
-             ! add the block
-             CALL cp_dbcsr_put_block(matrix=sm_inner,&
-                                  row=iblock_row,&
-                                  col=iblock_col,&
-                                  BLOCK=block_pre)
-
-             DEALLOCATE(block_pre,block_evec,block_buf1,evals,work,iwork)
-
-          ENDIF
-       ENDDO
-       CALL cp_dbcsr_iterator_stop(iter)
-       CALL cp_dbcsr_finalize(sm_inner,error=error)
-
-  CALL timestop(handle)
-
-  END SUBROUTINE make_diag_inner_precond
-
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param matrix_in ...
-!> \param matrix_out ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE apply_solve_lin_system_fm(preconditioner_env, matrix_in, matrix_out, error)
-    !
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_solve_lin_system_fm', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: max_iter = 200, &
-                                                restart_every = 50
-    REAL(dp), PARAMETER                      :: eps = 1.0e-2_dp
-
-    INTEGER                                  :: iter, m, n, output_unit
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: alpha, beta, residual_ot, &
-                                                tr_pAp, tr_rr, tr_sr_new, &
-                                                tr_sr_old
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: Ap, p, r, s
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    failure = .FALSE.
-    CPPrecondition(ASSOCIATED(preconditioner_env%sparse_matrix),cp_failure_level,routineP,error,failure)
-    !
-    CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=m,error=error)
-    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=m,&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env,error=error)
-    CALL cp_fm_create(r ,fm_struct_tmp,name="solve_r" ,error=error)
-    CALL cp_fm_create(p ,fm_struct_tmp,name="solve_p" ,error=error)
-    CALL cp_fm_create(s ,fm_struct_tmp,name="solve_s" ,error=error)
-    CALL cp_fm_create(Ap,fm_struct_tmp,name="solve_Ap",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL cp_fm_set_all(p ,0.0_dp,error=error)
-    !
-    logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_io_unit(logger)
-    !
-    ! residual
-    CALL cp_fm_trace(matrix_in,matrix_in,residual_ot,error=error)
-    residual_ot = SQRT(residual_ot/(REAL(n,dp)*REAL(m,dp)))
-    !
-    ! r = b-A*x
-    CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
-    CALL cp_fm_scale_and_add(-1.0_dp,r,1.0_dp,matrix_in,error=error)
-    CALL cp_fm_trace(r,r,tr_rr,error=error)
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',0,': ||r_ls||=',&
-              SQRT(tr_rr/(REAL(n,dp)*REAL(m,dp))),' ||r_ot||=',residual_ot
-    ENDIF
-    !
-    ! let's go!
-    DO iter = 1,max_iter
-       !
-       ! s = M * r
-       IF(ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-          CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix_inner,r,s,m,error=error)
-       ELSE
-          CALL cp_fm_to_fm(r,s,error=error)
-       ENDIF
-       CALL cp_fm_trace(s,r,tr_sr_new,error=error)
-       !
-       ! beta (this might be better when O(N) beta=(s_k,r_k-r_{k-1})/(s_{k-1},r_{k-1}))
-       IF(iter.EQ.1) THEN
-          beta = 0.0_dp
-       ELSE
-          beta = tr_sr_new/tr_sr_old
-       ENDIF
-       !
-       ! p = r + beta * p
-       CALL cp_fm_scale_and_add(beta,p,1.0_dp,s,error=error)
-       !
-       ! Ap = A * p
-       CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,p,Ap,m,error=error)
-       CALL cp_fm_trace(Ap,p,tr_pAp,error=error)
-       !
-       ! alpha = Tr(s_k'*r_k)/Tr(p_k'*Ap_k)
-       alpha = tr_sr_new/tr_pAp
-       !
-       ! x = x + alpha * p
-       CALL cp_fm_scale_and_add(1.0_dp,matrix_out,alpha,p,error=error)
-       !
-       ! r = r - alpha * Ap or r = b - A * x
-       IF(MOD(iter,restart_every).EQ.0) THEN
-          CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
-          CALL cp_fm_scale_and_add(-1.0_dp,r,1.0_dp,matrix_in,error=error)
-       ELSE
-          CALL cp_fm_scale_and_add(1.0_dp,r,-alpha,Ap,error=error)
-       ENDIF
-       tr_sr_old = tr_sr_new
-       !
-       ! printing
-       IF(MOD(iter,10).EQ.0.AND.output_unit>0) THEN
-          WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
-                 SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
-                 SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
-       ENDIF
-       !
-       ! exit
-       IF(SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot.LT.eps) EXIT
-       !
-    ENDDO
-    !
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
-              SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
-              SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
-    ENDIF
-    IF(iter.GT.max_iter) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"Increase max_iter")
-    ENDIF
-    !
-    CALL cp_fm_release(r ,error=error)
-    CALL cp_fm_release(p ,error=error)
-    CALL cp_fm_release(s ,error=error)
-    CALL cp_fm_release(Ap,error=error)
-  END SUBROUTINE apply_solve_lin_system_fm
-
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param matrix_in ...
-!> \param matrix_out ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE apply_solve_lin_system_dbcsr(preconditioner_env, matrix_in, matrix_out, error)
-    !
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_dbcsr_type)                      :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_solve_lin_system_dbcsr', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: max_iter = 200, &
-                                                restart_every = 50
-    REAL(dp), PARAMETER                      :: eps = 1.0e-2_dp
-
-    INTEGER                                  :: iter, m, n, output_unit
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: alpha, beta, residual_ot, &
-                                                tr_pAp, tr_rr, tr_sr_new, &
-                                                tr_sr_old
-    TYPE(cp_dbcsr_type)                      :: Ap, p, r, s
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    failure = .FALSE.
-    CPPrecondition(ASSOCIATED(preconditioner_env%sparse_matrix),cp_failure_level,routineP,error,failure)
-    !
-    CALL cp_dbcsr_get_info(matrix_in,nfullrows_total=n,nfullcols_total=m)
-    CALL cp_dbcsr_init(r,error=error)
-    CALL cp_dbcsr_init(p,error=error)
-    CALL cp_dbcsr_init(s,error=error)
-    CALL cp_dbcsr_init(Ap,error=error)
-    CALL cp_dbcsr_copy(r,matrix_in,error=error)
-    CALL cp_dbcsr_copy(p,matrix_in,error=error)
-    CALL cp_dbcsr_copy(s,matrix_in,error=error)
-    CALL cp_dbcsr_copy(Ap,matrix_in,error=error)
-    !
-    logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_io_unit(logger)
-    !
-    ! residual
-    CALL cp_dbcsr_trace(matrix_in,matrix_in,residual_ot,error=error)
-    residual_ot = SQRT(residual_ot/(REAL(n,dp)*REAL(m,dp)))
-    !
-    ! r = b-A*x
-    CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
-         0.0_dp,r,error=error)
-    CALL cp_dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
-    CALL cp_dbcsr_trace(r,r,tr_rr,error=error)
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',0,': ||r_ls||=',&
-              SQRT(tr_rr/(REAL(n,dp)*REAL(m,dp))),' ||r_ot||=',residual_ot
-    ENDIF
-    !
-    ! let's go!
-    DO iter = 1,max_iter
-       !
-       ! s = M * r
-       IF(ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-          CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix_inner,r,&
-               0.0_dp,s,error=error)
-       ELSE
-          CALL cp_dbcsr_copy(s,r,error=error)
-       ENDIF
-       CALL cp_dbcsr_trace(s,r,tr_sr_new,error=error)
-       !
-       ! beta (this might be better when O(N) beta=(s_k,r_k-r_{k-1})/(s_{k-1},r_{k-1}))
-       IF(iter.EQ.1) THEN
-          beta = 0.0_dp
-       ELSE
-          beta = tr_sr_new/tr_sr_old
-       ENDIF
-       !
-       ! p = r + beta * p
-       CALL cp_dbcsr_add(p,s,beta,1.0_dp,error=error)
-       !
-       ! Ap = A * p
-       CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,p,&
-            0.0_dp,Ap,error=error)
-       CALL cp_dbcsr_trace(Ap,p,tr_pAp,error=error)
-       !
-       ! alpha = Tr(s_k'*r_k)/Tr(p_k'*Ap_k)
-       alpha = tr_sr_new/tr_pAp
-       !
-       ! x = x + alpha * p
-       CALL cp_dbcsr_add(matrix_out,p,1.0_dp,alpha,error=error)
-       !
-       ! r = r - alpha * Ap or r = b - A * x
-       IF(MOD(iter,restart_every).EQ.0) THEN
-          CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
-               0.0_dp,r,error=error)
-          CALL cp_dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
-       ELSE
-          CALL cp_dbcsr_add(r,Ap,1.0_dp,-alpha,error=error)
-       ENDIF
-       tr_sr_old = tr_sr_new
-       !
-       ! printing
-       IF(MOD(iter,10).EQ.0.AND.output_unit>0) THEN
-          WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
-                 SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
-                 SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
-       ENDIF
-       !
-       ! exit
-       IF(SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot.LT.eps) EXIT
-       !
-    ENDDO
-    !
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
-              SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
-              SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
-    ENDIF
-    IF(iter.GT.max_iter) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"increase max_iter")
-    ENDIF
-    !
-    CALL cp_dbcsr_release(r, error=error)
-    CALL cp_dbcsr_release(p, error=error)
-    CALL cp_dbcsr_release(s, error=error)
-    CALL cp_dbcsr_release(Ap, error=error)
-  END SUBROUTINE apply_solve_lin_system_dbcsr
-
-! *****************************************************************************
-!> \brief DBCSR BIF based Inverse with
-!> \param[in,out] preconditioner_env    The preconditioner environment
-!> \param         fm                    in input contains the matrix to
-!>                                      approximatly inverse
-!> \param         matrix_s              The overlap matrix
-!> \param[in,out] error       cp2k error
-!> \par History
-!>      - Created by VW
-!> \author Valery Weber
-! *****************************************************************************
-  SUBROUTINE make_sparse_inverse_bif(preconditioner_env, fm, matrix_s, error)
-    !
-    TYPE(preconditioner_type), INTENT(INOUT) :: preconditioner_env
-    TYPE(cp_fm_type), POINTER                :: fm
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_inverse_bif', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: drop_v = 1.0E-5_dp, &
-                                                thresh_inner = 1.0E-2_dp, &
-                                                thresh_post = 1.0E-5_dp
-
-    INTEGER :: d_offset, handle, istat, k, k_s, max_blk_size, &
-      max_row_blk_size, max_vec_size, mp_group, mynode, mypcol, myprow, n, &
-      nblkcols_local, nblkrows_local, nblkrows_total, npcols, nprows, &
-      numnodes, proc_holds_diag_blk
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
-    LOGICAL                                  :: dbg_print_chksum, &
-                                                dbg_print_matrix, failure, &
-                                                found, tr
-    REAL(dp)                                 :: chksum, occ_in, occ_out, s, &
-                                                t(100), trace
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk, blk_p, pkd_d, pkd_inv_d, &
-                                                pkd_u, pkd_u_fac, pkd_v, &
-                                                pkd_v_fac, pkd_v_tmp
-    TYPE(cp_dbcsr_type)                      :: mat_li, mat_li_scaled, &
-                                                mat_lt, mat_lt_scaled, mat_t, &
-                                                mat_tmp, mat_v
-    TYPE(cp_dbcsr_type), POINTER             :: prcnd
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-
-    t=0.0_dp
-    dbg_print_matrix = .FALSE.
-    dbg_print_chksum = .TRUE.
-!
-
-    failure = .FALSE.
-
-    CALL timeset(routineN,handle)
-
-    CALL cpu_time(t(1))
-
-    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
-
-    !
-    ! some infos
-    CALL cp_fm_get_info(fm,nrow_global=n,error=error)
-    !
-    ! allocate
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
-         context=preconditioner_env%ctxt, &
-         para_env=preconditioner_env%para_env,error=error)
-    CALL cp_fm_create(fm_work1,fm_struct_tmp, name="preconditioner_work1",error=error)
-    CALL cp_fm_create(fm_work2,fm_struct_tmp, name="preconditioner_work2",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    !
-    ! here fm should contain the matrix to inverse
-    CALL cp_fm_to_fm(fm,fm_work1,error=error)
-    CALL cp_fm_upper_to_full(fm_work1,fm_work2,error=error)
-    !
-    !
-    ! copy matrices
-    CALL cp_dbcsr_init (mat_t, error)
-    CALL cp_dbcsr_create(mat_t, 'mat t', &
-         cp_dbcsr_distribution(matrix_s), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(matrix_s),&
-         cp_dbcsr_col_block_sizes(matrix_s), 0, 0,&
-         cp_dbcsr_get_data_type(matrix_s), error=error)
-    CALL copy_fm_to_dbcsr(fm_work1,mat_t, error=error)
-    IF(.TRUE.)CALL cp_dbcsr_verify_matrix(mat_t, error=error)
-    IF(dbg_print_matrix)CALL cp_dbcsr_print(mat_t,error=error)
-
-    occ_in = cp_dbcsr_get_occupation(mat_t)
-    CALL cp_dbcsr_filter(mat_t,1e-5_dp,error=error)
-    IF(.FALSE.)CALL cp_dbcsr_verify_matrix(mat_t, error=error)
-    occ_out = cp_dbcsr_get_occupation(mat_t)
-
-    WRITE(*,*) routineN//' occ_in',occ_in,' occ_out',occ_out
-
-    CALL cp_dbcsr_init (mat_li,error=error)
-    CALL cp_dbcsr_create(mat_li, 'matrix li', &
-         cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
-         cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
-         cp_dbcsr_get_data_type(mat_t), error=error)
-    CALL cp_dbcsr_init (mat_v,error=error)
-    CALL cp_dbcsr_create(mat_v, 'matrix v', &
-         cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
-         cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
-         cp_dbcsr_get_data_type(mat_t), error=error)
-
-    CALL cp_dbcsr_work_create(mat_li,work_mutable=.TRUE.,&
-         nblks_guess=cp_dbcsr_get_num_blocks(mat_t),sizedata_guess=cp_dbcsr_get_data_size(mat_t),&
-         error=error)
-    CALL cp_dbcsr_work_create(mat_v,work_mutable=.TRUE.,&
-         nblks_guess=cp_dbcsr_get_num_blocks(mat_t),sizedata_guess=cp_dbcsr_get_data_size(mat_t),&
-         error=error)
-    !
-    !
-    prcnd => preconditioner_env%sparse_matrix
-    IF (ASSOCIATED(prcnd)) THEN
-       CALL cp_dbcsr_deallocate_matrix(prcnd,error=error)
-       NULLIFY(prcnd)
-    ENDIF
-    ALLOCATE(prcnd)
-    CALL cp_dbcsr_init(prcnd,error=error)
-    CALL cp_dbcsr_create(prcnd, ' PRECONDITIONER ', &
-         cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
-         cp_dbcsr_col_block_sizes(mat_t), cp_dbcsr_get_num_blocks(mat_t), cp_dbcsr_get_data_size(mat_t),&
-         cp_dbcsr_get_data_type(mat_t), error=error)
-
-    ! some variables
-    s = 1.0_dp ! s > 0
-
-    nblkrows_total = cp_dbcsr_nblkrows_total(mat_t)
-    nblkrows_local = cp_dbcsr_nblkrows_local(mat_t)
-    nblkcols_local = cp_dbcsr_nblkcols_local(mat_t)
-    row_blk_size => array_data(cp_dbcsr_row_block_sizes(mat_t))
-    mp_obj = dbcsr_distribution_mp (cp_dbcsr_distribution (mat_t))
-    mp_group = dbcsr_mp_group (mp_obj)
-
-    max_row_blk_size = MAXVAL(row_blk_size)
-    max_blk_size = max_row_blk_size**2
-    max_vec_size = 100 * MAX(nblkrows_local,nblkcols_local)*max_blk_size+nblkrows_total+1 ! need to fix that
-    CALL mp_max(max_vec_size,mp_group)
-
-    WRITE(*,*) 'nblkrows_local',nblkrows_local
-    WRITE(*,*) 'max_blk_size',max_blk_size
-    WRITE(*,*) 'nblkrows_local',nblkrows_local
-    WRITE(*,*) 'nblkcols_local',nblkcols_local
-    WRITE(*,*) 'nblkrows_total',nblkrows_total
-    WRITE(*,*) 'max_vec_size',max_vec_size
-
-    ALLOCATE(pkd_u(max_vec_size), pkd_v(max_vec_size), pkd_v_fac(max_vec_size),&
-             pkd_u_fac(max_vec_size), pkd_d(max_vec_size), pkd_inv_d(max_vec_size), &
-             blk(max_blk_size), pkd_v_tmp(max_vec_size), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    pkd_u(:) = 0.0_dp
-    pkd_v(:) = 0.0_dp
-    pkd_d(:) = 0.0_dp
-    pkd_v_fac(:) = 0.0_dp
-    pkd_u_fac(:) = 0.0_dp
-    pkd_inv_d(:) = 0.0_dp
-    blk(:) = 0.0_dp
-
-    numnodes = dbcsr_mp_numnodes (mp_obj)
-    mynode = dbcsr_mp_mynode (mp_obj)
-    myprow = dbcsr_mp_myprow (mp_obj)
-    mypcol = dbcsr_mp_mypcol (mp_obj)
-    npcols = dbcsr_mp_npcols (mp_obj)
-    nprows = dbcsr_mp_nprows (mp_obj)
-    !blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-
-    WRITE(*,*) 'numnodes',numnodes
-    WRITE(*,*) 'mynode',mynode
-    WRITE(*,*) 'myprow',myprow
-    WRITE(*,*) 'mypcol',mypcol
-    WRITE(*,*) 'npcols',npcols
-    WRITE(*,*) 'nprows',nprows
-
-    !
-    !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
-    !p .EQ. dbcsr_mp_mynode (mp_obj)
-    !
-
-    !
-    CALL cpu_time(t(2))
-    WRITE(*,*) 't1',t(2)-t(1)
-    !
-    ! let's bif !
-    d_offset = 1
-    DO k = 1,nblkrows_total
-       !write(*,*) 'enter loop k=',k
-       tr = .FALSE.
-       k_s = k
-       CALL cp_dbcsr_get_stored_coordinates (mat_t, k_s, k_s, tr, proc_holds_diag_blk)
-       !write(*,*) 'proc_holds_diag_blk',proc_holds_diag_blk, proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)
-
-       CALL cpu_time(t(3))
-       !------------------------------------------------------------------------
-       ! set v and u
-       !
-       !v(k,1:n)=A(k,1:n);
-       CALL cp_dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)
-       !chksum = cp_dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum1 checksum(mat_v)',chksum
-       CALL cpu_time(t(4))
-       t(50) = t(50) + t(4)-t(3)
-       !
-       !v(k,k)=v(k,k)-s;
-       IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
-          CALL cp_dbcsr_get_block_p(mat_v, k, k, blk_p, found)
-          IF (.NOT.found) CALL stop_program(routineN,moduleN,__LINE__,&
-                                            "Matrix block not found")
-          CALL block_add_on_diag(row_blk_size(k), blk_p, -s)
-       ENDIF
-
-       !chksum = cp_dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum2 checksum(mat_v)',chksum
-       !
-       !u(k,k)=1;
-       !CALL block_set_d(row_blk_size(k), row_blk_size(k), blk, 1.0_dp, 0.0_dp)
-       !CALL cp_dbcsr_put_block(mat_li, blk, k, k, error=error)!PARA local put
-       !old CALL block_set(row_blk_size(k), row_blk_size(k), blk, 1.0_dp, 0.0_dp)
-       !old CALL cp_dbcsr_put_block(mat_li, blk, k, k, error=error)!PARA local put
-       !
-       !------------------------------------------------------------------------
-       ! build the factor inv(d)*u*A
-       !
-       CALL cpu_time(t(5))
-       t(51) = t(51) + t(5)-t(4)
-       ! compute u(1:k-1,1:n) * A(1:n,k);
-       CALL cp_dbcsr_multiply_vec(mat_li, mat_t, 1, k-1, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by
-       !                                                                        !PARA the same procs as A(1:n,k)
-       !write(*,*) 'pkd_v_fac:',pkd_v_fac(1:int(pkd_v_fac(nblkrows_total+1))-1)
-       !chksum = sum(abs(   pkd_v_fac  ( nblkrows_total+2: int(pkd_v_fac (nblkrows_total+1))-1) ))
-       !write(*,*) 'checksum3.0',chksum
-       !
-       CALL cpu_time(t(6))
-       t(52) = t(52) + t(6)-t(5)
-       !
-       ! bcast pkd_v_fac
-       !CALL packed_vec_bcast(pkd_v_fac, source, 'columnwise', mp_obj, error=error) !PARA replicate columnwise
-       !
-       ! compute inv(d(i,i)) * uAk(i,k) / s , i=1,k-1
-       !chksum = sum(abs(  pkd_inv_d ))
-       !write(*,*) 'checksum3.1',chksum
-       CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_v_fac, k-1, k, row_blk_size, 'left', error=error)!PARA local
-       CALL cpu_time(t(7))
-       t(53) = t(53) + t(7)-t(6)
-       !------------------------------------------------------------------------
-       ! build the factor inv(d)*v
-       !
-       ! pack v(:,k)
-       !old CALL cp_dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
-       !
-       ! bcast pkd_u_fac
-       !CALL packed_vec_bcast(pkd_u_fac, source, 'columnwise', mp_obj, error=error) !PARA replicate columnwise
-       !
-       ! compute inv(d(i,i)) * v(i,k) / s , i=1,k-1
-       !old CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_u_fac, k-1, k, row_blk_size, 'left', error=error)!PARA local
-       !------------------------------------------------------------------------
-       ! update v and u
-       !
-       ! pack u(k,:) and v(k,:)
-       CALL packed_vec_ini(pkd_v, nblkrows_total, error)
-
-       !CALL cp_dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
-       CALL cpu_time(t(8))
-       t(54) = t(54) + t(8)-t(7)
-       !old CALL cp_dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
-       !
-       ! bcast the u and v
-       !call packed_vec_bcast(pkd_v, -1, 'all', .false., nblkrows_total, row_blk_size(k)*row_blk_size, mp_obj, error)
-       !chksum = sum(abs(pkd_v(nblkrows_total+2:int(pkd_v(nblkrows_total+1))-1)))
-       !write(*,*) 'checksum3.2 pkd_v',chksum
-       !chksum = sum(abs(pkd_v_fac(nblkrows_total+2:int(pkd_v_fac(nblkrows_total+1))-1)))
-       !write(*,*) 'checksum3.2 pkd_v_fac',chksum
-
-
-       !CALL packed_vec_bcast(pkd_v, source, 'columnwise', mp_obj, error=error)
-       !CALL packed_vec_bcast(pkd_u, source, 'columnwise', mp_obj, error=error)
-       !
-       ! the core
-       !v(k,1:n) = v(k,1:n) - uAk(i,k)' * inv(d(i,i)) * v(i,1:n) / s; i = 1,k-1
-       !u(k,1:n) = u(k,1:n) -   v(i,k)' * inv(d(i,i)) * u(i,1:n) / s; i = 1,k-1
-       !old CALL packed_vec_bif_tech(mat_v, mat_li, pkd_v_fac, pkd_u_fac, k, pkd_v, pkd_u, error=error)!PARA local
-       CALL packed_vec_bif_tech2(mat_v, pkd_v_fac, k, pkd_v, error=error)!PARA local
-       CALL cpu_time(t(9))
-       t(55) = t(55) + t(9)-t(8)
-       !chksum = cp_dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum4.0 mat_v',chksum
-       ! bcast the v
-
-
-       !write(*,'(A,1000F12.6)') '1pkd_v',pkd_v(nblkrows_total+2:int(pkd_v(nblkrows_total+1))-1)
-       CALL packed_vec_bcast(pkd_v, -1, 'all', .TRUE. ,nblkrows_total, &
-            row_blk_size(k)*row_blk_size, mp_obj, error)
-
-
-       CALL cp_dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', do_sum=.TRUE., error=error)  !PARA local
-       CALL cp_dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
-       CALL packed_vec_bcast(pkd_v, -1, 'all', .FALSE. ,nblkrows_total, &
-            row_blk_size(k)*row_blk_size, mp_obj, error)
-
-       !write(*,*) '2pkd_v',pkd_v( 1 : int(pkd_v(nblkrows_total+1)) - 1 )
-
-       !chksum = sum(abs( pkd_v ( nblkrows_total+2 : int(pkd_v(nblkrows_total+1))-1 ) ))
-       !write(*,'(A,1000F12.6)') '2pkd_v',pkd_v(nblkrows_total+2:int(pkd_v(nblkrows_total+1))-1)
-       !write(*,*) 'checksum4.1',chksum
-       !
-       ! compute norm
-       !
-       ! filter the packed v
-       !
-       ! build u(k,:) = [-v(k,1:k-1)/s 1 0 ... 0]
-       CALL packed_vec_build_u(pkd_u, pkd_v, k, nblkrows_total, s, row_blk_size, error=error)
-       CALL cpu_time(t(10))
-       t(56) = t(56) + t(10)-t(9)
-       !
-       ! reduce the u and v
-       !CALL packed_vec_reduce(pkd_v, to, 'columnwise', vec_blk_size, n, mp_obj, error=error)
-       !CALL packed_vec_reduce(pkd_u, to, 'columnwise', vec_blk_size, n, mp_obj, error=error)
-       !
-       ! unpack u(k,:) and v(k,:)
-       CALL cp_dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
-       CALL cp_dbcsr_unpack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
-       !chksum = cp_dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum5 checksum(mat_v)',chksum
-       !chksum = cp_dbcsr_checksum(mat_li,error)
-       !write(*,*) 'checksum6.0 checksum(mat_li)',chksum
-       !write(*,*) 'checksum6.1',sum(abs(pkd_u))
-       !write(*,*) 'pkd_u',pkd_u
-       CALL cpu_time(t(11))
-       t(57) = t(57) + t(11)-t(10)
-       !------------------------------------------------------------------------
-       ! build d and inv(d)
-       !
-       ! d(k,k) = v(k,k) / s + eye(k);
-       IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
-          CALL cp_dbcsr_get_block(mat_v, k, k, blk, found)
-          IF (.NOT.found) CALL stop_program(routineN,moduleN,__LINE__,&
-                                            "Matrix block not found" )
-          CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)
-          CALL block_add_on_diag(row_blk_size(k), blk, 1.0_dp)
-          CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)
-          !
-          ! inv(d(k,k))
-          CALL block_chol_inv(row_blk_size(k), blk)
-          CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_inv_d(d_offset), 1)
-       ENDIF
-       !
-       ! bcast d(k,k) and inv(d(k,k))
-       CALL mp_bcast(pkd_d(d_offset:d_offset+row_blk_size(k)**2-1), &
-            proc_holds_diag_blk, dbcsr_mp_group (mp_obj))
-       CALL mp_bcast(pkd_inv_d(d_offset:d_offset+row_blk_size(k)**2-1), &
-            proc_holds_diag_blk, dbcsr_mp_group (mp_obj))
-       !
-       ! update the block pointer
-       d_offset = d_offset + row_blk_size(k)**2
-       !------------------------------------------------------------------------
-       CALL cpu_time(t(12))
-       t(58) = t(58) + t(12)-t(11)
-    ENDDO
-    CALL cp_dbcsr_finalize(mat_v, error=error)
-    CALL cp_dbcsr_finalize(mat_li, error=error)
-
-    !WRITE(*,*) 'tin1',t(50)
-    !WRITE(*,*) 'tin2',t(51)
-    !WRITE(*,*) 'tin3',t(52)
-    !WRITE(*,*) 'tin4',t(53)
-    !WRITE(*,*) 'tin5',t(54)
-    !WRITE(*,*) 'tin6',t(55)
-    !WRITE(*,*) 'tin7',t(56)
-    !WRITE(*,*) 'tin8',t(57)
-    !WRITE(*,*) 'tin9',t(58)
-    !
-    ! D=d;
-    ! Linv=u;
-    ! Lt=inv(D)*triu(v+s*I);
-    CALL cp_dbcsr_init (mat_lt,error=error)
-    CALL cp_dbcsr_btriu(mat_lt, mat_v, error=error)
-    !chksum = cp_dbcsr_checksum(mat_lt,error)
-    !WRITE(*,*) 'checksum(lt)_1',chksum
-    CALL cp_dbcsr_add_on_diag(mat_lt, s, error=error)
-    !chksum = cp_dbcsr_checksum(mat_lt,error)
-    !WRITE(*,*) 'checksum(lt)_2',chksum,SUM(ABS(pkd_inv_d))
-    CALL dbcsr_scale_mat(mat_lt%matrix, alpha_matrix=pkd_inv_d, side='left', error=dbcsr_error)
-    !chksum = cp_dbcsr_checksum(mat_lt,error)
-    !WRITE(*,*) 'checksum(lt)_3',chksum
-    CALL cp_dbcsr_init (mat_li_scaled,error=error)
-    CALL cp_dbcsr_copy(mat_li_scaled, mat_li, error=error)
-    CALL dbcsr_scale_mat(mat_li_scaled%matrix, alpha_matrix=pkd_inv_d, side='left', error=dbcsr_error)
-
-    CALL cp_dbcsr_init (mat_lt_scaled,error=error)
-    CALL cp_dbcsr_copy(mat_lt_scaled, mat_lt, error=error)
-    CALL dbcsr_scale_mat(mat_lt_scaled%matrix, alpha_matrix=pkd_d, side='left', error=dbcsr_error)
-
-    occ_in = cp_dbcsr_get_occupation(mat_lt)
-    occ_out = cp_dbcsr_get_occupation(mat_li)
-    WRITE(*,*) routineN//' occ(Lt)',occ_in,' occ(Li)',occ_out
-
-    chksum = cp_dbcsr_checksum(mat_v,error=error)
-    IF(dbg_print_chksum)WRITE(*,*) 'checksum(v)',chksum
-    chksum = cp_dbcsr_checksum(mat_li,error=error)
-    IF(dbg_print_chksum)WRITE(*,*) 'checksum(li)',chksum
-    chksum = cp_dbcsr_checksum(mat_li_scaled,error=error)
-    IF(dbg_print_chksum)WRITE(*,*) 'checksum(li_scaled)',chksum
-    chksum = cp_dbcsr_checksum(mat_lt,error=error)
-    IF(dbg_print_chksum)WRITE(*,*) 'checksum(lt)',chksum
-
-
-    IF(dbg_print_matrix)CALL cp_dbcsr_print(mat_v,error=error)
-    IF(dbg_print_matrix)CALL cp_dbcsr_print(mat_li,error=error,matlab_format=.TRUE.)
-    IF(dbg_print_matrix)CALL cp_dbcsr_print(mat_li_scaled,error=error,matlab_format=.TRUE.)
-    IF(dbg_print_matrix)CALL cp_dbcsr_print(mat_lt,error=error)
-
-    !
-    ! At this point we should have inv(L), L^t, D and inv(D)
-    ! compute the precond or apply the factors
-    !
-    ! C = A*B'
-    IF(.FALSE.)CALL cp_dbcsr_verify_matrix(prcnd, error=error)
-    IF(.FALSE.)CALL cp_dbcsr_verify_matrix(mat_li, error=error)
-    IF(.FALSE.)CALL cp_dbcsr_verify_matrix(mat_t, error=error)
-    IF(.FALSE.)CALL cp_dbcsr_verify_matrix(mat_li_scaled, error=error)
-    CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mat_li, mat_li_scaled, 0.0_dp, prcnd, error=error)
-    !CALL cp_dbcsr_print(prcnd, error, matlab_format=.TRUE.)
-
-    chksum = cp_dbcsr_checksum(prcnd,error=error)
-    IF(dbg_print_chksum)WRITE(*,*) 'checksum(prcnd)',chksum
-
-
-    !
-    ! checks
-    IF(.TRUE.) THEN
-       CALL cp_dbcsr_trace(mat_lt, mat_li, trace, error=error)
-       WRITE(*,*) 'trace(Lt^t*Li)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
-
-       CALL cp_dbcsr_trace(mat_li, mat_lt, trace, error=error)
-       WRITE(*,*) 'trace(Li^t*Lt)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
-
-       CALL cp_dbcsr_init(mat_tmp, error=error)
-       CALL cp_dbcsr_create (mat_tmp, "tmp mat_t", cp_dbcsr_distribution (mat_t), dbcsr_type_no_symmetry,&
-            cp_dbcsr_row_block_sizes (mat_t), cp_dbcsr_col_block_sizes (mat_t),&
-            error=error)
-       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_li_scaled, mat_t, 0.0_dp, mat_tmp, error=error)
-       CALL cp_dbcsr_trace(mat_li, mat_tmp, trace, error=error)
-       WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
-
-       !
-       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, prcnd, mat_t, 0.0_dp, mat_tmp, error=error)
-       CALL cp_dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
-       WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
-
-       CALL cp_dbcsr_multiply("T", "T", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
-       CALL cp_dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
-       WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
-
-       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
-       CALL cp_dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
-       WRITE(*,*) 'norm(Li*D*li^t*A)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
-       !
-       !norm(Lt'*D*Lt-A,'fro')
-       CALL cp_dbcsr_copy(mat_tmp, mat_t, error=error)
-       CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mat_lt, mat_lt_scaled, -1.0_dp, mat_tmp, error=error)
-       CALL cp_dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
-       WRITE(*,*) 'norm(Lt^t*D*Lt-A) = ',trace
-       !
-       !norm(Lt*Linv'-I,'fro')
-       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mat_lt, mat_li, 0.0_dp, mat_tmp, error=error)
-       CALL cp_dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
-       WRITE(*,*) 'norm(Lt*Linv^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
-
-    ENDIF
-    !
-    ! cleanup
-    DEALLOCATE(pkd_u, pkd_v, pkd_v_fac, pkd_u_fac, pkd_d, pkd_inv_d, pkd_v_tmp, blk, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    CALL cp_dbcsr_release(mat_t, error=error)
-    CALL cp_dbcsr_release(mat_v, error=error)
-    CALL cp_dbcsr_release(mat_lt, error=error)
-    CALL cp_dbcsr_release(mat_li, error=error)
-    CALL cp_dbcsr_release(mat_li_scaled, error=error)
-    CALL cp_dbcsr_release(mat_lt_scaled, error=error)
-    CALL cp_dbcsr_release(mat_tmp, error=error)
-
-    CALL cp_fm_release(fm_work1,error=error)
-    CALL cp_fm_release(fm_work2,error=error)
-
-    CALL copy_dbcsr_to_fm (prcnd, fm,error=error)!for the moment
-    CALL cp_dbcsr_deallocate_matrix(prcnd,error=error)!for the moment
-
-CALL cpu_time(t(13))
-
-WRITE(*,*) 'tend',t(13)-t(12)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE make_sparse_inverse_bif
-
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param matrix_in ...
-!> \param matrix_out ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE apply_sparse_single(preconditioner_env, matrix_in, matrix_out,&
-       error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_sparse_single', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, k
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
-    TYPE(cp_dbcsr_type)                      :: matrix_result, matrix_right
-    TYPE(dbcsr_distribution_obj)             :: dist
-
-  CALL timeset(routineN,handle)
-
-    WRITE(*,*)' APPLYING SPARSE SINGLE KINETIC'
-    CALL cp_fm_get_info(matrix_in, ncol_global=k, error=error)
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, k, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution( preconditioner_env%dbcsr_matrix ))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution( preconditioner_env%dbcsr_matrix )),&
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution( preconditioner_env%dbcsr_matrix )), col_dist)
-    CALL cp_dbcsr_init (matrix_right, error)
-    CALL cp_dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist,&
-         row_blk_size = cp_dbcsr_row_block_sizes(preconditioner_env%dbcsr_matrix),&
-         col_blk_size = col_blk_size, error=error)
-    WRITE(*,*)'Pre checksum:',cp_dbcsr_checksum (matrix_right, error=error)
-    CALL cp_dbcsr_init (matrix_result, error)
-    CALL cp_dbcsr_create(matrix_result, "result", dist, 'N',&
-         cp_dbcsr_row_block_sizes (preconditioner_env%dbcsr_matrix),&
-         cp_dbcsr_col_block_sizes (matrix_right), error=error)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, preconditioner_env%dbcsr_matrix,&
-         matrix_right, 0.0_dp, matrix_result, error=error)
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL cp_dbcsr_release (matrix_right, error=error)
-    WRITE(*,*)'Post checksum:',cp_dbcsr_checksum (matrix_result, error=error)
-    CALL cp_dbcsr_release (matrix_result, error=error)
-    WRITE(*,*)' DONE'
-
-  CALL timestop(handle)
-
-  END SUBROUTINE apply_sparse_single
-
-! *****************************************************************************
-!> \brief ...
-!> \param preconditioner_env ...
-!> \param matrix_t ...
-!> \param matrix_s ...
-!> \param energy_gap ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE make_sparse_kinetic(preconditioner_env, matrix_t, matrix_s, &
-                                 energy_gap, error)
-
-    TYPE(preconditioner_type)                :: preconditioner_env
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_t, matrix_s
-    REAL(KIND=dp), INTENT(IN)                :: energy_gap
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_sparse_kinetic', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, n
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: shift
-
-    failure = .FALSE.
-  CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
-    ! some infos
-    CALL cp_dbcsr_get_info(matrix_t,nfullrows_total=n)
-    ! allocate
-
-    IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
-       NULLIFY(preconditioner_env%sparse_matrix)
-    ENDIF
-
-    ALLOCATE(preconditioner_env%sparse_matrix)
-    CALL cp_dbcsr_init(preconditioner_env%sparse_matrix,error=error)
-    CALL cp_dbcsr_create(preconditioner_env%sparse_matrix, ' PRECONDITIONER ', &
-         cp_dbcsr_distribution (matrix_t),&
-         cp_dbcsr_get_matrix_type (matrix_t), cp_dbcsr_row_block_sizes(matrix_t),&
-         cp_dbcsr_col_block_sizes(matrix_t), 0, 0, error=error)
-
-    ! M = T - epsilon * S
-    shift=MAX(0.0_dp,energy_gap)
-    CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_t,&
-         alpha_scalar=0.0_dp,beta_scalar=1.0_dp,error=error)
-    CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_s,&
-         alpha_scalar=1.0_dp,beta_scalar=shift,error=error)
-  CALL timestop(handle)
-
-  END SUBROUTINE make_sparse_kinetic
 
 ! *****************************************************************************
 !> \brief ...
@@ -2865,8 +1582,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
          ENDDO
          DEALLOCATE(preconditioner,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
-             ot_precond_sparse_diag,ot_precond_sparse_kinetic) ! these are 'independent'
+       CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse) ! these are 'independent'
          ! do nothing
        CASE DEFAULT
            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

@@ -42,9 +42,7 @@ MODULE qs_ot_types
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
-       ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
-       ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
-       ot_precond_sparse_kinetic_sainv
+       ot_precond_solver_inv_chol
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -1077,8 +1075,6 @@ error=error)
        settings%precond_solver_name="INVERSE_CHOLESKY"
     CASE(ot_precond_solver_direct)
        settings%precond_solver_name="DIRECT"
-    CASE(ot_precond_solver_sainv)
-       settings%precond_solver_name="SAINV"
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"READ OTSCF SOLVER: Value unknown")
     END SELECT
@@ -1097,12 +1093,6 @@ error=error)
        settings%preconditioner_name="FULL_KINETIC"
     CASE(ot_precond_s_inverse)
        settings%preconditioner_name="FULL_S_INVERSE"
-    CASE(ot_precond_sparse_diag)
-       settings%preconditioner_name="SPARSE_DIAG"
-    CASE(ot_precond_sparse_kinetic)
-       settings%preconditioner_name="SPARSE_KINETIC"
-    CASE(ot_precond_sparse_kinetic_sainv)
-       settings%preconditioner_name="SPARSE_SAINV_KINETIC"
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"READ OTSCF PRECONDITIONER: Value unknown")
     END SELECT

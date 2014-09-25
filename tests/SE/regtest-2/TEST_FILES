@@ -59,7 +59,6 @@ stp1.inp               3
 stp2.inp               3
 stp3.inp               3
 stp4.inp               3
-stp5.inp               3
 stp6.inp               3
 #Reftraj standard XYZ
 scan_zn_1w_cp2k.inp               3     4e-14
