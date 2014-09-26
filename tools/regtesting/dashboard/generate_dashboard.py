@@ -30,22 +30,22 @@ def main():
     svn_info = check_output("svn info svn://svn.code.sf.net/p/cp2k/code/trunk".split())
     trunk_rev = int(re.search("Revision: (\d+)\n", svn_info).group(1))
 
-    output  = '<html>\n'
-    output += '<head><meta http-equiv="refresh" content="200"></head>\n'
-    output += '<body>\n'
+    output  = '<html><body>\n'
     output += '<center><h1>CP2K DASHBOARD</h1>\n'
     output += '<table border="1">\n'
     output += '<tr><th>Automated regtester name</th><th>Configuration</th>'
     output += '<th>Number of tests</th><th>Ok</th><th>Wrong</th><th>New</th>'
     output += '<th>Runtime fail</th><th>Memory leaks</th><th>Revision</th><th>Timestamp</th></tr>\n\n'
 
-    for s in config.sections():
+    for s in sorted(config.sections()):
         print "Working on: "+s
-        org = config.get(s, "org")
-        base_url = config.get(s, "base_url")
-        report_url = base_url + "/regtest-0"
-        test_ok = False
-        test_fresh = False
+        name       = config.get(s,"name")
+        report_url = config.get(s,"report_url")
+        link_url   = config.get(s,"link_url")
+        arch_url   = config.get(s,"arch_url")
+        arch_label = config.get(s,"arch_label")
+
+        test_fresh = test_ok = False
         try:
             report = urlopen(report_url).read()
             test_date = re.search("\nDate: (.*)\n", report).group(1)
@@ -68,10 +68,8 @@ def main():
             traceback.print_exc()
             pass
 
-        arch_url = config.get(s, "arch_url")
-        arch_label = config.get(s, "arch_label")
         output += '<tr align="center">'
-        output += '<td align="left"><a href="%s">%s</a></td>'%(base_url, org)
+        output += '<td align="left"><a href="%s">%s</a></td>'%(link_url, name)
         output += '<td align="left"><a href="%s">%s</a></td>'%(arch_url, arch_label)
 
         if(test_ok and test_fresh):
