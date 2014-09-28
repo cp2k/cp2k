@@ -89,7 +89,7 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
       for substitution in subst:
         inName = instantiationFile.replace(extension, ".template")
         if substitution.has_key("template"):
-            inName = substitution["template"]
+            inName = os.path.join(os.path.dirname(instantiationFile), substitution["template"])
         try: infile=open(inName,"r")
         except:
           logFile.write("ERROR opening template '"+inName+"'\n")
