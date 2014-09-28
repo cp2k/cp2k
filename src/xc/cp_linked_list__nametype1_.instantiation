@@ -20,7 +20,14 @@ USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type""",
  'lessQ':'cp_sll_deriv_less_q',
  'equalQ':'CP_SLL_DERIV_EQUAL_Q',
  'write_el':'',
- 'private_routines':"""!private compare function
+ 'private_routines':r"""
+! *****************************************************************************
+!> \brief private compare function
+!> \param el1 ...
+!> \param el2 ...
+!> \param error ...
+!> \retval res ...
+! *****************************************************************************
 function cp_sll_deriv_less_q(el1,el2,error) result(res)
   type(xc_derivative_type), pointer :: el1,el2
   type(cp_error_type), intent(inout) :: error

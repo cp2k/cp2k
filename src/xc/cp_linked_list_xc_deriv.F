@@ -201,9 +201,9 @@ MODULE cp_linked_list_xc_deriv
 
 CONTAINS
 
-!private compare function
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief private compare function
 !> \param el1 ...
 !> \param el2 ...
 !> \param error ...
@@ -310,9 +310,9 @@ END FUNCTION
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)
@@ -410,7 +410,7 @@ END FUNCTION
 !> \param sll the single linked list to get the element from
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -442,7 +442,7 @@ END FUNCTION
 !>            defaults to 1; -1 means till end of the list.
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -499,7 +499,7 @@ CPSourceFileRef,&
 !> \param sll the single linked list to get the rest from
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -524,7 +524,7 @@ CPSourceFileRef,&
 !> \param sll the list you want to know the length of
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -562,7 +562,7 @@ CPSourceFileRef,&
 !> \param index the position of the element (stating at 1)
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -645,7 +645,7 @@ CPSourceFileRef,&
 !> \param el_att the actual element (valid only if the function returns true)
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -867,7 +867,7 @@ CPSourceFileRef,&
 !> \param sll the list to trasform in array
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -906,7 +906,7 @@ END FUNCTION cp_sll_xc_deriv_to_array
 !> \param array the array you want to copy
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -1121,7 +1121,14 @@ END SUBROUTINE cp_sll_xc_deriv_insert_ordered2
 !  lessQ = "cp_sll_deriv_less_q"
 !  nametype1 = "xc_deriv"
 !  private_routines = 
-!    "!private compare function
+!    "
+!     ! *****************************************************************************
+!     !> \brief private compare function
+!     !> \param el1 ...
+!     !> \param el2 ...
+!     !> \param error ...
+!     !> \retval res ...
+!     ! *****************************************************************************
 !     function cp_sll_deriv_less_q(el1,el2,error) result(res)
 !       type(xc_derivative_type), pointer :: el1,el2
 !       type(cp_error_type), intent(inout) :: error

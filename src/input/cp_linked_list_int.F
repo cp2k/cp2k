@@ -282,9 +282,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_int_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)
@@ -378,7 +378,7 @@ CONTAINS
 !> \param sll the single linked list to get the element from
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -410,7 +410,7 @@ CONTAINS
 !>            defaults to 1; -1 means till end of the list.
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -467,7 +467,7 @@ CPSourceFileRef,&
 !> \param sll the single linked list to get the rest from
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -492,7 +492,7 @@ CPSourceFileRef,&
 !> \param sll the list you want to know the length of
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -530,7 +530,7 @@ CPSourceFileRef,&
 !> \param index the position of the element (stating at 1)
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -612,7 +612,7 @@ CPSourceFileRef,&
 !> \param el_att the actual element (valid only if the function returns true)
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -832,7 +832,7 @@ CPSourceFileRef,&
 !> \param sll the list to trasform in array
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -870,7 +870,7 @@ END FUNCTION cp_sll_int_to_array
 !> \param array the array you want to copy
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \retval res ...
+!> \param res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed

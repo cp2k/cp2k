@@ -8,7 +8,7 @@
 !> \param[in] original   original data pointer
 !> \param[in] lb lower and upper bound for the new pointer view
 !> \param[in] ub lower and upper bound for the new pointer view
-!> \retval view      new pointer
+!> \param[out] view      new pointer
 ! *****************************************************************************
   FUNCTION pointer_view_l (original, lb, ub) RESULT (view)
     INTEGER(kind=int_8), DIMENSION(:), POINTER :: original, view

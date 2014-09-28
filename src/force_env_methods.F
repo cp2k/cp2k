@@ -718,7 +718,6 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-
     failure=.FALSE.
 
     ALLOCATE ( force_env, stat=stat )

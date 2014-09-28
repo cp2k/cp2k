@@ -85,7 +85,14 @@
  'lessQ':'CP_SLL_C_LESS_Q',
  'equalQ':'CP_SLL_C_EQUAL_Q',
  'write_el':'',
- 'private_routines':"""subroutine write_string(str,unit_nr,error)
+ 'private_routines':r"""
+! *****************************************************************************
+!> \brief ...
+!> \param str ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
+subroutine write_string(str,unit_nr,error)
   character(len=*),intent(in) :: str
   integer, intent(in) :: unit_nr
   type(cp_error_type), intent(inout) :: error

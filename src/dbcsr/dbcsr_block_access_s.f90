@@ -363,7 +363,7 @@
 
 ! *****************************************************************************
 !> \brief Put a 2-D block in a DBCSR matrix using the btree
-!> \param[in,out] matrix      DBCSR matrix
+!> \param[in.out] matrix      DBCSR matrix
 !> \param[in]  row            the row
 !> \param[in]  col            the column
 !> \param[in]  block          the block to reserve; added if not NULL
@@ -463,7 +463,7 @@
 
 ! *****************************************************************************
 !> \brief Get a 2D block from the working matrix
-!> \param[in,out] matrix      DBCSR matrix
+!> \param[in.out] matrix      DBCSR matrix
 !> \param[in]  row            the row
 !> \param[in]  col            the column
 !> \param[in]  block          pointer to data block
@@ -521,7 +521,7 @@
 
 ! *****************************************************************************
 !> \brief Put a 2-D block in a DBCSR matrix
-!> \param[in,out] matrix      DBCSR matrix
+!> \param[in.out] matrix      DBCSR matrix
 !> \param[in]  row            the row
 !> \param[in]  col            the column
 !> \param[in]  block          the block to put

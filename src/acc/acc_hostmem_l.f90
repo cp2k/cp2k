@@ -28,7 +28,8 @@
 ! *****************************************************************************
 !> \brief Allocates 2D fortan-array as cuda host-pinned memory.
 !> \param host_mem pointer to array
-!> \param n1,n2 sizes given in terms of item-count (not bytes!)
+!> \param n1 sizes given in terms of item-count (not bytes!)
+!> \param n2 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_hostmem_alloc_l_2D (host_mem, n1, n2)
@@ -49,7 +50,9 @@ SUBROUTINE acc_hostmem_alloc_l_2D (host_mem, n1, n2)
 ! *****************************************************************************
 !> \brief Allocates 3D fortan-array as cuda host-pinned memory.
 !> \param host_mem pointer to array
-!> \param n1,n2,n3 sizes given in terms of item-count (not bytes!)
+!> \param n1 sizes given in terms of item-count (not bytes!)
+!> \param n2 sizes given in terms of item-count (not bytes!)
+!> \param n3 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE acc_hostmem_alloc_l_3D (host_mem, n1, n2, n3)
@@ -71,7 +74,10 @@ SUBROUTINE acc_hostmem_alloc_l_2D (host_mem, n1, n2)
 ! *****************************************************************************
 !> \brief Allocates 4D fortan-array as cuda host-pinned memory.
 !> \param host_mem pointer to array
-!> \param n1,n2,n3,n4 sizes given in terms of item-count (not bytes!)
+!> \param n1 sizes given in terms of item-count (not bytes!)
+!> \param n2 sizes given in terms of item-count (not bytes!)
+!> \param n3 sizes given in terms of item-count (not bytes!)
+!> \param n4 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
 SUBROUTINE acc_hostmem_alloc_l_4D (host_mem, n1, n2, n3, n4)
