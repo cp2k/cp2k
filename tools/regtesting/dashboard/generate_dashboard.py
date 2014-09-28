@@ -72,9 +72,9 @@ def main():
         output += '<td align="left"><a href="%s">%s</a></td>'%(link_url, name)
         output += '<td align="left"><a href="%s">%s</a></td>'%(arch_url, arch_label)
 
-        if(test_ok and test_fresh):
+        if(test_ok):
             output += '<td>%s</td>'%num_tests
-            bgcolor = "#00FF00" if(correct_tests==num_tests) else "#FF0000"
+            bgcolor = "#00FF00" if(wrong_results==0 and runtime_errors==0) else "#FF0000"
             output += '<td bgcolor=%s>%s</td>'%(bgcolor, correct_tests)
             output += '<td>%s</td>'%wrong_results
             output += '<td>%s</td>'%new_inputs
@@ -82,11 +82,10 @@ def main():
             output += '<td>' if(memory_leaks in ("0", "N/A")) else '<td bgcolor=#FF0000>'
             output +=     '%s</td>'%memory_leaks
             output += '<td>%d</td>'%test_rev
-            output += '<td>%s %s</td>'%(test_date, test_time)
-        elif(test_ok):
-            output += '<td colspan=8 bgcolor=#d3d3d3>Out of date</td>'
+            bgcolor = "#00FF00" if(test_fresh) else "#FF0000"
+            output += '<td bgcolor=%s>%s %s</td>'%(bgcolor, test_date, test_time)
         else:
-            output += '<td colspan=8 bgcolor=#d3d3d3>N/A</td>'
+            output += '<td colspan=8 bgcolor=#d3d3d3>testing failed?</td>'
 
         output += '</tr>\n\n'
 
