@@ -132,6 +132,7 @@ CONTAINS
 
     ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF",error=error)
     CALL section_vals_val_get(ls_scf_section,"EPS_FILTER",r_val=rtp%filter_eps,error=error)
+    IF(.NOT.qs_env%rtp%linear_scaling) rtp%filter_eps = 0.0_dp
     IF(rtp_control%acc_ref<1) rtp_control%acc_ref=1
     rtp%filter_eps_small=rtp%filter_eps/rtp_control%acc_ref
     CALL section_vals_val_get(ls_scf_section,"EPS_LANCZOS",r_val=rtp%lanzcos_threshold,error=error)
