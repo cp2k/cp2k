@@ -256,3 +256,5 @@ h2o-6.inp.out
 h2o-6.inp
 #  
 ch2o-ot3.inp
+# remove hamiltonian filtering for non ls emd
+c2h2_emd_mix.inp
