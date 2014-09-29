@@ -280,11 +280,9 @@ CONTAINS
 !> \param harmonic_shell ...
 !> \param kinetic_shell ...
 !> \param cell ...
-!> \param cell_ref ...
 !> \param sub_force_env ...
 !> \param qmmm_env ...
 !> \param eip_env ...
-!> \param use_ref_cell ...
 !> \param globenv ...
 !> \param input ...
 !> \param ep_env_id ...
@@ -301,8 +299,8 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
        meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
-       kinetic_energy, harmonic_shell, kinetic_shell, cell, cell_ref, sub_force_env,&
-       qmmm_env, eip_env, use_ref_cell, globenv, input, ep_env_id, force_env_section, &
+       kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env,&
+       qmmm_env, eip_env, globenv, input, ep_env_id, force_env_section, &
        method_name_id, root_section, mixed_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
@@ -317,14 +315,13 @@ CONTAINS
       POINTER                                :: para_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL :: potential_energy, &
       additional_potential, kinetic_energy, harmonic_shell, kinetic_shell
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
     TYPE(qmmm_env_qm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
-    LOGICAL, INTENT(out), OPTIONAL           :: use_ref_cell
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), OPTIONAL, &
@@ -366,8 +363,6 @@ CONTAINS
           CPPrecondition(ASSOCIATED(force_env%ep_env_id),cp_failure_level,routineP,error,failure)
           CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
           CALL get_qs_env(ep_main_qs_env,&
-                          cell_ref=cell_ref,&
-                          use_ref_cell=use_ref_cell,&
                           input=input,&
                           subsys=subsys,&
                           error=error)
@@ -380,8 +375,6 @@ CONTAINS
           CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CALL get_qs_env(force_env%qs_env,&
                           energy=qs_energy,&
-                          cell_ref=cell_ref,&
-                          use_ref_cell=use_ref_cell,&
                           input=input,&
                           subsys=subsys,&
                           error=error)
@@ -394,12 +387,10 @@ CONTAINS
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL fist_env_get(force_env%fist_env,&
                             thermo=thermo,&
-                            cell_ref=cell_ref,&
                             subsys=subsys,&
                             error=error)
           IF (PRESENT(potential_energy)) potential_energy = thermo%pot
           IF (PRESENT(kinetic_energy)) kinetic_energy = thermo%kin
-          IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
           IF (PRESENT(kinetic_shell)) kinetic_shell = thermo%kin_shell
           IF (PRESENT(harmonic_shell)) harmonic_shell = thermo%harm_shell
        CASE (use_eip_force)
@@ -407,8 +398,6 @@ CONTAINS
           CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
           CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
           CALL eip_env_get(force_env%eip_env,&
-                           cell_ref=cell_ref, &
-                           use_ref_cell=use_ref_cell,&
                            eip_potential_energy=eip_potential_energy,&
                            eip_kinetic_energy=eip_kinetic_energy,&
                            subsys=subsys,&
@@ -419,12 +408,6 @@ CONTAINS
           IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
           CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
        CASE (use_qmmm)
-            IF (PRESENT(cell_ref)) THEN
-                 CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                                    cell_ref=cell_ref,&
-                                    error=error)
-            ENDIF
-            IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
             IF (PRESENT(kinetic_energy)) THEN
                CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
                                   kinetic_energy=kinetic_energy,&
@@ -462,12 +445,10 @@ CONTAINS
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL get_mixed_env(force_env%mixed_env,&
                             mixed_energy=mixed_energy,&
-                            cell_ref=cell_ref,&
                             subsys=subsys,&
                             error=error)
           IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
           IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
-          IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown in_use flag value "//&

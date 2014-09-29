@@ -8,6 +8,7 @@ MODULE input_restart_force_eval
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_methods,                    ONLY: cell_type,&
                                              real_to_scaled
+  USE cell_types,                      ONLY: cell_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
@@ -18,11 +19,16 @@ MODULE input_restart_force_eval
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE eip_environment_types,           ONLY: eip_env_get
+  USE ep_f77,                          ONLY: ep_f77_get_main_qs_env
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              multiple_fe_list,&
-                                             use_qmmm
+                                             use_eip_force,&
+                                             use_ep_force,&
+                                             use_qmmm,&
+                                             use_qs_force
   USE input_constants,                 ONLY: do_coord_cp2k,&
                                              ehrenfest,&
                                              mol_dyn_run,&
@@ -52,6 +58,8 @@ MODULE input_restart_force_eval
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE string_utilities,                ONLY: string_to_ascii
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -93,14 +101,16 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: failure, multiple_subsys, &
                                                 skip_vel_section
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER         :: force_env_sections, &
+    TYPE(section_vals_type), POINTER         :: cell_section, &
+                                                force_env_sections, &
                                                 qmmm_section, rng_section, &
                                                 subsys_section
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY(rng_section, subsys_section, virial, subsys)
+    NULLIFY(rng_section, subsys_section, cell_section, virial, subsys, cell)
     ! If it's not a dynamical run don't update the velocity section
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
     skip_vel_section =((myid /= mol_dyn_run).AND.&
@@ -129,14 +139,15 @@ CONTAINS
     ! And now update only the cells of all other force_eval
     ! This is to make consistent for cell variable runs..
     IF (nforce_eval>1) THEN
-       CALL force_env_get(force_env, subsys=subsys, error=error)
+       CALL force_env_get(force_env, subsys=subsys, cell=cell, error=error)
        CALL cp_subsys_get(subsys, virial=virial, error=error)
        CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%MULTIPLE_SUBSYS",l_val=multiple_subsys,error=error)
        IF (virial%pv_availability.AND.multiple_subsys) THEN
           DO iforce_eval = 2, nforce_eval
              subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
                   i_rep_section=i_force_eval(iforce_eval),error=error)
-             CALL update_cell_section(force_env, subsys_section, error)
+             cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+             CALL update_cell_section(cell, cell_section, error)
           END DO
        END IF
     END IF
@@ -278,7 +289,7 @@ CONTAINS
     INTEGER                                  :: coord_file_format, handle, &
                                                 output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: failure, scale
+    LOGICAL                                  :: failure, scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -287,11 +298,12 @@ CONTAINS
     TYPE(multipole_type), POINTER            :: multipoles
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
+    TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
     NULLIFY (work_section, core_particles, particles, shell_particles, &
-             subsys, cell, para_env, multipoles)
+             subsys, cell, para_env, multipoles, ep_main_qs_env)
     CALL timeset(routineN,handle)
     CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env, &
                        error=error)
@@ -380,7 +392,26 @@ CONTAINS
     END IF
 
     ! Updating cell info
-    CALL update_cell_section(force_env, subsys_section, error)
+    CALL force_env_get(force_env, cell=cell, error=error)
+    work_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
+    CALL update_cell_section(cell, cell_section=work_section, error=error)
+
+    ! Updating cell_ref info
+    use_ref_cell=.FALSE.
+    SELECT CASE(force_env%in_use)
+      CASE(use_ep_force)
+         CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
+         CALL get_qs_env(ep_main_qs_env,cell_ref=cell,use_ref_cell=use_ref_cell,error=error)
+      CASE(use_qs_force)
+         CALL get_qs_env(force_env%qs_env,cell_ref=cell,use_ref_cell=use_ref_cell,error=error)
+      CASE(use_eip_force)
+         CALL eip_env_get(force_env%eip_env,cell_ref=cell,use_ref_cell=use_ref_cell,error=error)
+    END SELECT
+    IF(use_ref_cell) THEN
+       work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
+       CALL update_cell_section(cell, cell_section=work_section, error=error)
+    ENDIF
+
     ! Updating multipoles
     IF (ASSOCIATED(multipoles)) THEN
        work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES",error=error)
@@ -400,97 +431,56 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE update_subsys
 
+
 ! *****************************************************************************
-!> \brief routine to update cell section.. splitted from the main update subsys_section
-!> \param force_env ...
-!> \param subsys_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      07.2007 created [teo] Zurich University
-!> \author Teodoro Laino
+!> \brief Routine to update a cell section
+!> \param cell ...
+!> \param cell_section ...
+!> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE update_cell_section(force_env, subsys_section, error)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+  SUBROUTINE update_cell_section(cell, cell_section, error)
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: cell_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_cell_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
-    NULLIFY(work, work_section, cell, cell_ref, iwork)
+    NULLIFY(work, iwork)
     CALL timeset(routineN,handle)
-    ! Handle case for parallel runs
-    IF (ASSOCIATED(force_env)) THEN
-       CALL force_env_get(force_env,&
-                          cell=cell,&
-                          cell_ref=cell_ref,&
-                          use_ref_cell=use_ref_cell,&
-                          error=error)
-    END IF
 
-    ! CELL
-    work_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
-    ALLOCATE(work(3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! CELL VECTORS - A
+    ALLOCATE(work(3))
     work(1:3) = cell%hmat(1:3,1)
-    CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
-    ALLOCATE(work(3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL section_vals_val_set(cell_section,"A",r_vals_ptr=work,error=error)
+
     ! CELL VECTORS - B
+    ALLOCATE(work(3))
     work(1:3) = cell%hmat(1:3,2)
-    CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
-    ALLOCATE(work(3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL section_vals_val_set(cell_section,"B",r_vals_ptr=work,error=error)
+
     ! CELL VECTORS - C
+    ALLOCATE(work(3))
     work(1:3) = cell%hmat(1:3,3)
-    CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
+    CALL section_vals_val_set(cell_section,"C",r_vals_ptr=work,error=error)
+
     ! MULTIPLE_UNIT_CELL
-    ALLOCATE(iwork(3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iwork(3))
     iwork = 1
-    CALL section_vals_val_set(work_section,"MULTIPLE_UNIT_CELL",i_vals_ptr=iwork,error=error)
+    CALL section_vals_val_set(cell_section,"MULTIPLE_UNIT_CELL",i_vals_ptr=iwork,error=error)
+
     ! Unset unused or misleading information
-    CALL section_vals_val_unset(work_section,"ABC",error=error)
-    CALL section_vals_val_unset(work_section,"ALPHA_BETA_GAMMA",error=error)
-    ! CELL_REF
-    IF (use_ref_cell.AND.ASSOCIATED(cell_ref)) THEN
-       work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
-       ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! CELL VECTORS - A
-       work(1:3) = cell_ref%hmat(1:3,1)
-       CALL section_vals_val_set(work_section,"A",r_vals_ptr=work,error=error)
-       ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! CELL VECTORS - B
-       work(1:3) = cell_ref%hmat(1:3,2)
-       CALL section_vals_val_set(work_section,"B",r_vals_ptr=work,error=error)
-       ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! CELL VECTORS - C
-       work(1:3) = cell_ref%hmat(1:3,3)
-       CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
-       ! MULTIPLE_UNIT_CELL
-       ALLOCATE(iwork(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       iwork = 1
-       CALL section_vals_val_set(work_section,"MULTIPLE_UNIT_CELL",i_vals_ptr=iwork,error=error)
-       ! Unset unused or misleading information
-       CALL section_vals_val_unset(work_section,"ABC",error=error)
-       CALL section_vals_val_unset(work_section,"ALPHA_BETA_GAMMA",error=error)
-    END IF
+    CALL section_vals_val_unset(cell_section,"ABC",error=error)
+    CALL section_vals_val_unset(cell_section,"ALPHA_BETA_GAMMA",error=error)
+
     CALL timestop(handle)
   END SUBROUTINE update_cell_section
+
 
 ! *****************************************************************************
 !> \brief routine to dump coordinates.. fast implementation
