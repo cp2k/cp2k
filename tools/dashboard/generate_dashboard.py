@@ -30,7 +30,9 @@ def main():
     svn_info = check_output("svn info svn://svn.code.sf.net/p/cp2k/code/trunk".split())
     trunk_revision = int(re.search("Revision: (\d+)\n", svn_info).group(1))
 
-    output  = '<html><body>\n'
+    output  = '<html>\n'
+    output += '<head><meta http-equiv="refresh" content="200"></head>\n'
+    output += '<body>\n'
     output += '<center><h1>CP2K DASHBOARD</h1>\n'
     output += '<table border="1">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
@@ -137,7 +139,6 @@ def parse_generic_report(report_txt):
     report['summary'] = re.search("\nSummary: (.+)\n", report_txt).group(1)
     report['status'] = re.search("\nStatus: (.+)\n", report_txt).group(1)
 
-    print report
     return(report)
 
 #===============================================================================
