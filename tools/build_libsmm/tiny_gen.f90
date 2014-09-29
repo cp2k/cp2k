@@ -19,6 +19,9 @@ PROGRAM tiny_gen
   READ(arg,*) data_type
   
   CALL loop_variants(1)
+  write(6,'(A)')                    "#ifdef __INTEL_OFFLOAD"
+  write(6,'(A)')                    "!dir$ attributes offload:mic :: run_kernels"
+  write(6,'(A)')                    "#endif"
   write(6,'(A,I0,A,I0,A,I0,A)')     "SUBROUTINE tiny_find_",M,"_",N,"_",K,"(unit)"
   write(6,'(A)')                    "  IMPLICIT NONE"
   write(6,'(A)')                    "  INTEGER :: unit ! Output unit"

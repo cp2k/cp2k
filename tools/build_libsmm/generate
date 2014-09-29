@@ -190,6 +190,7 @@ case $cmd in
 	rm -fR run_check_*/
 	rm -f *.mod Makefile.* *.x *.o
 	rm -f *~
+	make -s -f mic/Makefile DIR_MIC=mic clean
 	if [ "$cmd" == "cleanall" ]; then
 	    rm -f *.out
 	    rm -fR lib

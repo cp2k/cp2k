@@ -9,7 +9,7 @@
 # and allow some flexibility in reordering floating point expressions (-ffast-math).
 # Higher level optimisation (in particular loop nest optimization) should not be used.
 #
-target_compile="ftn -O2 -hfp3 -hnodwarf -Onopattern -hvector1 "
+target_compile="ftn -O2 -hfp3 -hnodwarf -Onopattern -hvector1 -eF -ffree"
 
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)

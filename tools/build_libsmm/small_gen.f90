@@ -9,6 +9,7 @@
 ! 6) multrec 3
 ! 7) multrec 4
 ! 8) multvec
+! 9) Intel Xeon Phi C intrinsics
 !
 PROGRAM small_gen
    USE mults
@@ -19,6 +20,7 @@ PROGRAM small_gen
    INTEGER :: M,N,K,transpose_flavor,data_type,SIMD_size
    INTEGER :: ibest_square=3, best_square=4
    INTEGER :: isquare
+   LOGICAL :: do_intrinsics
 
    CALL GET_COMMAND_ARGUMENT(1,arg)
    READ(arg,*) M
@@ -33,6 +35,12 @@ PROGRAM small_gen
    CALL GET_COMMAND_ARGUMENT(6,arg)
    READ(arg,*) SIMD_size
    CALL GET_COMMAND_ARGUMENT(7,filename)
+
+   IF (COMMAND_ARGUMENT_COUNT().gt.7) THEN
+      do_intrinsics = .TRUE.
+   ELSE
+      do_intrinsics = .FALSE.
+   END IF
 
    ! generation of the tiny version
    write(label,'(A,I0)') "_",1
@@ -61,6 +69,17 @@ PROGRAM small_gen
            transpose_flavor,data_type,SIMD_size,filename,stack_size_label="")
    ENDIF
 
+   ! generation of the C intrinsics version for Xeon Phi
+   IF ((do_intrinsics).AND.(SIMD_size==64.AND.transpose_flavor==1.AND.data_type==1)) THEN
+      ibest_square=ibest_square+1
+      write(label,'(A,I0)') "_",ibest_square+best_square
+      CALL mult_versions(M,N,K,ibest_square+best_square,label,&
+           transpose_flavor,data_type,SIMD_size,filename,stack_size_label="")
+   END IF
+
+   write(6,'(A)')                    "#ifdef __INTEL_OFFLOAD"
+   write(6,'(A)')                    "!dir$ attributes offload:mic :: run_kernels"
+   write(6,'(A)')                    "#endif"
    write(6,'(A,I0,A,I0,A,I0,A)')     "SUBROUTINE small_find_",M,"_",N,"_",K,"(unit)"
    write(6,'(A)')                    "  IMPLICIT NONE"
    write(6,'(A)')                    "  INTEGER :: unit ! Output unit"

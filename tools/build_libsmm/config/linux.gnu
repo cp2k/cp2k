@@ -6,7 +6,7 @@
 # and allow some flexibility in reordering floating point expressions (-ffast-math).
 # Higher level optimisation (in particular loop nest optimization) should not be used.
 #
-target_compile="gfortran -O2 -funroll-loops -ffast-math -ftree-vectorize -march=native -finline-functions -fopenmp"
+target_compile="gfortran -O2 -funroll-loops -ffast-math -ftree-vectorize -march=native -cpp -finline-functions -fopenmp"
 
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)

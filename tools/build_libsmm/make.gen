@@ -3,6 +3,7 @@ $(EXE:.x=.f90):
 	@echo "Generate master file $@"
 	@rm -f $@
 
+	@if [ -n "$(MIC_OFFLOAD)" ]; then printf '!dir$$ attributes offload:mic :: run_kernels, kern \n' >> $@ ; fi
 	@printf "SUBROUTINE run_kernels(filename,unit,M,N,K,A,B,C,Nmin,Nk,Nloop,kernels,mnk) \n" >> $@
 	@printf "  USE omp_lib \n" >> $@
 	@printf "  IMPLICIT NONE \n" >> $@
@@ -30,7 +31,7 @@ $(EXE:.x=.f90):
 	@printf "  REAL(KIND=KIND(0.D0)) :: t1,t2,timing,best_time \n" >> $@
 	@printf "  INTEGER :: iter,Niter,imin,ik,iloop,best_loop,best_mnk(3) \n" >> 	$@
 	@printf "  if (unit.ne.6) THEN \n" >> $@
-	@printf "     open(unit=unit,file=\"$(OUTDIR)/\"//trim(filename)) \n" >> $@
+	@printf "     open(unit=unit,file=\"`pwd -P`/$(OUTDIR)/\"//trim(filename)) \n" >> $@
 	@printf "  END if \n" >> $@
 	@printf "  flops=2*REAL(M,KIND=KIND(0.D0))*N*K \n" >> $@
 	@printf "  ! assume we would like to do 1 Gflop for testing a subroutine \n" >> $@
@@ -75,10 +76,30 @@ $(EXE:.x=.f90):
 	@printf "  END IF \n" >> $@
 	@printf "  if (unit.ne.6) close(unit) \n" >> $@
 	@printf "END SUBROUTINE run_kernels \n\n" >> $@
-	@printf "PROGRAM $(basename $@) \n" >> $@ 
+
+	@if [ -n "$(MIC_OFFLOAD)" ]; then \
+	  il=20; \
+	  ii=6; \
+	  for kernel_find in $(basename $(SRCFILES)); do \
+	   if [ $${ii} -lt 5 ]; then printf ", "; \
+	   else \
+	    il=$$((il+1)); \
+	    if [ $${ii} -eq 5 ]; then \
+	     if [ $${il} -lt 20 ]; then printf ", &"; fi; \
+	     printf "\n  "; \
+	    fi; \
+	    ii=0; \
+	   fi; \
+	   if [ $${il} -ge 20 ]; then printf '!dir$$ attributes offload:mic :: '; il=0; fi; \
+	   printf "$${kernel_find}"; \
+	   ii=$$((ii+1)); \
+	  done; \
+	  printf "\n"; \
+	 fi >> $@
+	@printf "PROGRAM $(notdir $(basename $@)) \n" >> $@ 
 	@printf "  USE omp_lib \n" >> $@
+	@if [ -n "$(MIC_OFFLOAD)" ]; then printf "  USE mic_lib \n" >> $@ ; fi
 	@printf "  IMPLICIT NONE \n" >> $@
-	@printf "  INTEGER :: i \n" >> $@
 	@printf "  INTERFACE \n" >> $@
 	@printf "    SUBROUTINE kernel_find_X(unit) \n" >> $@
 	@printf "      INTEGER :: unit \n" >> $@
@@ -88,13 +109,39 @@ $(EXE:.x=.f90):
 	@printf "  TYPE t_kernels_vector \n" >> $@
 	@printf "    PROCEDURE(kernel_find_X), POINTER, NOPASS :: ptr \n" >> $@
 	@printf "  END TYPE t_kernels_vector \n" >> $@
+	@if [ -n "$(MIC_OFFLOAD)" ]; then printf '  !dir$$ attributes offload:mic :: kernels_vector \n' >> $@ ; fi
 	@printf "  TYPE(t_kernels_vector) :: kernels_vector($(words $(SRCFILES))) \n" >> $@
+	@if [ -n "$(MIC_OFFLOAD)" ]; then printf '  !dir$$ attributes offload:mic :: ikernel, skernel, ekernel \n' >> $@ ; fi
+	@printf "  INTEGER :: ikernel, skernel, ekernel \n"  >> $@
+	@if [ -n "$(MIC_OFFLOAD)" ]; then \
+	 printf "  INTEGER :: i_mic, n_mics \n" ; \
+	 printf "  n_mics = OFFLOAD_NUMBER_OF_DEVICES() \n" ; \
+	 printf '  !$$omp parallel do num_threads(n_mics) schedule(static,1) \n' ; \
+	 printf "  DO i_mic=0,n_mics-1 \n" ; \
+	 printf '  !dir$$ offload begin target(mic:i_mic) in(i_mic,n_mics) \n' ; \
+	 fi >> $@
 	@ii=1; for kernel_find in $(basename $(SRCFILES)); do printf "  kernels_vector($${ii})%%ptr => $${kernel_find} \n" >> $@ ; ii=$$((ii+1)) ; done
+	@if [ -n "$(MIC_OFFLOAD)" ]; then \
+	 printf "  skernel=1+SIZE(kernels_vector,1)*(REAL(i_mic,KIND=KIND(0.D0))/n_mics) ; ekernel=SIZE(kernels_vector,1)*((REAL(i_mic,KIND=KIND(0.D0))+1)/n_mics) \n" ; \
+	 printf '  !dir$$ end offload \n' ; \
+	 printf '  !dir$$ omp offload target(mic:i_mic) in(i_mic,n_mics) \n' ; \
+	 else \
+	 printf "  skernel=1 ; ekernel=SIZE(kernels_vector,1) \n" ; \
+	 fi >> $@
 	@printf '  !$$omp parallel do schedule(dynamic,2) \n' >> $@
-	@printf "  DO i=1,SIZE(kernels_vector,1) \n" >> $@
-	@printf "    call kernels_vector(i)%%ptr(unit=omp_get_thread_num()+7) \n" >> $@
+	@printf "  DO ikernel=skernel,ekernel \n" >> $@
+	@printf "    print *,\"kernel=\",ikernel \n" >> $@
+	@printf "    call kernels_vector(ikernel)%%ptr(unit=omp_get_thread_num()" >> $@
+	@if [ -n "$(MIC_OFFLOAD)" ]; then \
+	 printf "*n_mics+i_mic" >> $@ ; \
+	 fi
+	@printf "+7) \n" >> $@
 	@printf "  END DO \n" >> $@
 	@printf '  !$$omp end parallel do \n' >> $@
-	@printf "END PROGRAM $(basename $@) \n" >> $@
+	@if [ -n "$(MIC_OFFLOAD)" ]; then \
+	 printf "  END DO \n" ; \
+	 printf '  !$$omp end parallel do \n' ; \
+	 fi >> $@
+	@printf "END PROGRAM $(notdir $(basename $@)) \n" >> $@
 
 	@echo "Master file generation completed."

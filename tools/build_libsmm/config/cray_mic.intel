@@ -11,7 +11,7 @@
 # be used.
 # Mandatory to add "-offload-attribute-target=mic"
 #
-target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -offload-attribute-target=mic -fpp -finline-functions -nogen-interfaces -openmp"
+target_compile="ftn -O2 -funroll-loops -vec-report2 -warn -offload-attribute-target=mic -fpp -finline-functions -nogen-interfaces -openmp"
 
 #
 # target compiler used to build the CPU driven code for the offload execution
@@ -19,7 +19,7 @@ target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -offload-attribute-t
 # You can reuse most of the flags defined in the target_compile variable.
 # Replace "-offload-attribute-target=mic" with "-offload=mandatory".
 #
-target_compile_offload="ifort -O2 -funroll-loops -vec-report2 -warn -offload=mandatory -watch=mic-cmd -fpp -finline-functions -nogen-interfaces -openmp"
+target_compile_offload="ftn -O2 -funroll-loops -vec-report2 -warn -offload=mandatory -watch=mic-cmd -fpp -finline-functions -nogen-interfaces -openmp"
 
 #
 # this variable sets the options for building the intrinsics C version of the
@@ -27,7 +27,7 @@ target_compile_offload="ifort -O2 -funroll-loops -vec-report2 -warn -offload=man
 # use a C compiler, while for the flags are valid the considerations described
 # in the previous target_compile variable. 
 #
-target_compile_c_mic="icc -O2 -funroll-loops -vec-report2 -offload-attribute-target=mic -finline-functions -openmp"
+target_compile_c_mic="cc -O2 -funroll-loops -vec-report2 -offload-attribute-target=mic -finline-functions -openmp"
 
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)
@@ -52,7 +52,7 @@ MIC_OMP_NUM_THREADS=58
 # the library. The library itself is not compiled this way.
 # This compiler needs to be able to deal with some Fortran2003 constructs.
 #
-host_compile="ifort -O2"
+host_compile="ftn -O2"
 
 #
 # Set KMP affinity and other variables
@@ -61,3 +61,9 @@ export KMP_AFFINITY=verbose,granularity=fine,scatter
 export OFFLOAD_REPORT=3
 export OMP_STACKSIZE=256M
 export MIC_STACKSIZE=256M
+export CRAYPE_LINK_TYPE=dynamic
+
+#
+# Set the aprun command and its options for batch submission
+#
+aprun_cmd="aprun -n 1 -N 1 -d ${ntasks} -r 1 -cc none"

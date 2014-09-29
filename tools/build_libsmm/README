@@ -1,6 +1,6 @@
 libsmm: a library for small matrix multiplies.
 
-in order to deal efficiently with small matrix multiplies,
+In order to deal efficiently with small matrix multiplies,
 often involving 'special' matrix dimensions such as 5,13,17,22, 
 a dedicated matrix library can be generated that outperforms (or matches)
 general purpose (optimized) blas libraries.
@@ -18,7 +18,7 @@ Below you can find the detailed instructions for some examples.
 
 ====================================================================================================================
 a) How to generate the library running several jobs in a cluster, where each
-   computer allows for both execution and compilation. 
+   node allows for both execution and compilation. 
    For this example we will use a CRAY system with GNU compiler and SLURM.
    Run "./generate -h" to see the meaning of the options.
 
@@ -51,32 +51,61 @@ a) How to generate the library running several jobs in a cluster, where each
 
 
 ====================================================================================================================
-b) How to generate the library for the Intel Xeon Phi in batch mode
-   For this example we will use a cluster with SLURM, where each node has a MIC card.
+b) How to generate the library running a single job interactively. 
+   For this example we will use a Linux system with GNU compiler.
+   Run "./generate -h" to see the meaning of the options.
+
+   1) Run: ./generate -c config/linux.gnu -j 0 -t 16 tiny1
+      This command generates a file tiny_gen_optimal_dnn_linux.gnu.out
+   
+   2) Run: ./generate -c config/linux.gnu -j 0 -t 16 small1
+      This command generates a file small_gen_optimal_dnn_linux.gnu.out
+
+   3) Run: ./generate -c config/linux.gnu -j 0 -t 16 -w slurm lib
+      This command produces the llibrary inside the directory lib/
+      (libsmm_dnn_linux.gnu.a).
+
+   4) It is highly recommended to run the final test to check the correctness
+      of the library.
+      Run: ./generate -c config/linux.gnu -j 0 -w slurm check1
+      Finally check test_smm_dnn_linux.gnu.out for performance
+      and correctness.
+
+   6) Intermediate files (but not some key output and the library itself)
+      might be removed using ./generate clean
+
+
+====================================================================================================================
+c) How to generate the library for the Intel Xeon Phi in batch mode.
+   For this example we will use a cluster with SLURM, where each node has a
+   Intel Xeon Phi card.
    Run "./generate -h" to see the meaning of the options.
    We use the config file mic.intel (inside the directory config).
    Check if all options are OK for your case, in particular:
-    - the target_compile variable with the flag -mmic, e.g.:
-      target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -fno-inline-functions -nogen-interfaces -openmp"
-    - the variable MICFS to the exported directory between host and Intel Xeon Phi, 
-      e.g. MICFS=~/.mic_exported_directory. Note that the directory is created if doesn't exist.
-    - the variable MIC_LD_LIBRARY_PATH where to find the Intel Xeon Phi library on the card
-    - the variable ssh_mic_cmd, e.g ssh_mic_cmd="ssh mic0"
-    - the variable SINK_LD_LIBRARY_PATH, i.e. where to find the Intel Xeon Phi library on the host
-    - the variable mic_cmd, which by default is mic_cmd="/opt/intel/mic/bin/micnativeloadex"
+    - the target_compile variable with the flag "-offload-attribute-target=mic". 
+    - the target_compile_offload variable with the flag "-offload=mandatory".
+    - the target_compile_c_mic variable to compile the C kernels based on
+      intrinsics with the flag "-offload-attribute-target=mic".
+    - Set the MIC_OMP_NUM_THREADS variable to the number of cores on the card.
+
+   Note that the library is produced by offloading the kernels to the Xeon
+   Phi. Performance output files are written in the same directory where the
+   library is executed on the host, therefore this directory must be exported
+   to the Xeon Phi with the right permission (read/write).
    
-   1) Run: ./generate -c config/mic.intel -j 100 -t 40 -w slurm tiny1
+   1) Run: ./generate -c config/mic.intel -j 100 -t 16 -w slurm tiny1
       This command submits 100 jobs in batch. Each job offloads executions
-      to the MIC card. Wait until completion of all jobs.
+      to the Intel Xeon Phi card (MIC_OMP_NUM_THREADS threads). Wait until
+      completion of all jobs. 
 
    2) Run: ./generate -c config/mic.intel tiny2
       This command collects all results of the tiny1 phase and it generates
       the file tiny_gen_optimal_dnn_mic.intel.out.
 
-   3) As done in 1) and 2), run: ./generate -c config/mic.intel -j 200 -t 10 -w slurm small1
-      This command submits 200 jobs in batch, where each job offloads
-      executions to the MIC card. Note that the maximum number of threads is 10.
-      Wait until their completion. Then run: ./generate -c config/mic.intel small2
+   3) As done in 1) and 2), run: ./generate -c config/mic.intel -j 100 -t 16 -w slurm small1
+      This command submits 100 jobs in batch, where each job offloads
+      executions to the Intel Xeon Phi card (MIC_OMP_NUM_THREADS
+      threads). Wait until their completion. Then run: ./generate -c config/mic.intel small2
       This command collects all results produced in the small1 phase and it
       generates a file small_gen_optimal_dnn_mic.intel.out
 
@@ -97,7 +126,7 @@ b) How to generate the library for the Intel Xeon Phi in batch mode
 
 The following copyright covers code and generated library
 !====================================================================================================================
-! * Copyright (c) 2013 Joost VandeVondele and Alfio Lazzaro
+! * Copyright (c) 2014 Joost VandeVondele and Alfio Lazzaro
 ! * All rights reserved.
 ! *
 ! * Redistribution and use in source and binary forms, with or without

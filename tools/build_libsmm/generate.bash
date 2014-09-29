@@ -1,5 +1,5 @@
 #
-# Author: Alfio Lazzaro, alazzaro@cray.com (2013)
+# Author: Alfio Lazzaro, alazzaro@cray.com (2013-2014)
 # Library for the generate script used in LIBSMM library    
 #
 
@@ -46,7 +46,7 @@ write_makefile_header() {
     #
     # name of the executable
     #
-    printf "EXE=${prefix_file}_find_\$(firstword \$(INDICES))__\$(lastword \$(INDICES)).x \n\n"
+    printf "EXE=\$(OUTDIR)/${prefix_file}_find_\$(firstword \$(INDICES))__\$(lastword \$(INDICES)).x \n\n"
 
     #
     # main target
@@ -58,17 +58,44 @@ write_makefile_header() {
     # include makefile for source master code generation
     #
     printf "DATATYPE=${strdat}\n"
+    if [ -n "${target_compile_offload}" ]; then
+	printf "MIC_OFFLOAD=1\n"
+    fi
     printf "include ../make.gen\n\n"
+
+    #
+    # include Makefile for C intrinsics kernels for Intel Xeon Phi
+    #
+    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_c_mic}") ]]; then
+	printf "DIR_MIC=../mic\n"
+	printf "TARGET_COMPILE_C_MIC=${target_compile_c_mic} \n"
+	printf "include \$(DIR_MIC)/Makefile\n\n"
+    fi
 
     #
     # write general targets
     #
-    printf "bench: \$(OUTDIR)/\$(EXE) \n"
+    printf "bench: \$(EXE) \n"
     printf "\t rm -f \$(OUTFILES) \n"
-    printf "\t export OMP_NUM_THREADS=${ntasks} ; ./\$< \n\n"
+    printf "\t export OMP_NUM_THREADS="
+    if [ -n "${MIC_OMP_NUM_THREADS}" ]; then
+	printf "${MIC_OMP_NUM_THREADS}"
+    else
+	printf "${ntasks}"
+    fi
+    printf " ; ./\$< \n\n"
 
-    printf "\$(OUTDIR)/\$(EXE): \$(OBJFILES) \$(EXE:.x=.f90) \n"
-    printf "\t ${target_compile} \$^ -o \$@ ${blas_linking} \n\n"
+    printf "\$(EXE): \$(OBJFILES) \$(EXE:.x=.f90)"
+    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_c_mic}") ]]; then
+	printf " \$(LIBDIR_MIC)/\$(LIB_MIC)"
+    fi
+    printf "\n"
+    if [ -n "${target_compile_offload}" ]; then
+	printf "\t ${target_compile_offload} "
+    else
+	printf "\t ${target_compile} "
+    fi
+    printf "\$^ -o \$@ ${blas_linking} \n\n"
 }
 
 
@@ -79,6 +106,9 @@ write_makefile_header() {
 run_make() {
     cd ${run_dir}
     mkdir -p ${out_dir}
+    if [ -n "${target_compile_offload}" ]; then
+	chmod o+w ${out_dir}
+    fi
 
     ndims=$#
     nelements=$((ndims*ndims*ndims))
@@ -171,7 +201,7 @@ do_generate_tiny() {
 	    printf "%%.f90: \n"
 	    printf '\t .././tiny_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
 	    printf " ${transpose_flavor} ${data_type} > \$@ \n\n"
-	    ) > ${make_file}
+	) > ${make_file}
 
 	run_make ${dims_tiny}
 
@@ -220,8 +250,12 @@ do_generate_small() {
 	    printf "source: \$(addprefix \$(OUTDIR)/,\$(SRCFILES)) \n"
 	    printf "\$(OUTDIR)/%%.f90: ../${tiny_file} \n"
 	    printf '\t .././small_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
-	    printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${tiny_file} > \$@\n\n"
-	    ) > ${make_file}
+	    printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${tiny_file} "
+	    if [ -n "${target_compile_c_mic}" ]; then
+		printf "1 "
+	    fi
+	    printf "> \$@\n\n"
+	) > ${make_file}
 
 	run_make ${dims_small}
 
@@ -343,6 +377,14 @@ do_generate_lib() {
 		    if [[ "$prod" == "0" ]]; then
 			printf '   GOTO 999\n' >> ${file}
 		    else
+			if [ -n "${target_compile_offload}" ]; then
+			    printf '!dir$ attributes offload:mic ::' >> ${file}
+			    printf "smm${type_label}_${mym}_${myn}_${myk}" >> ${file}
+			    if [ $# -eq 0 ]; then
+				printf "_stack" >> ${file}
+			    fi
+			    printf "\n" >> ${file}
+			fi
 			if [ $# -eq 0 ]; then
 			    printf "   CALL smm${type_label}_${mym}_${myn}_${myk}_stack(A,B,C,stack_size,dbcsr_ps_width,params,p_a_first,p_b_first,p_c_first)\n" >> ${file}
 			else
@@ -357,6 +399,10 @@ do_generate_lib() {
 	printf " RETURN\n" >> ${file}
 	printf "999 CONTINUE \n" >> ${file}
 	printf " ${lds}\n" >> ${file}
+	if [ -n "${target_compile_offload}" ]; then
+	    printf '!dir$ attributes offload:mic ::' >> ${file}
+	    printf "${gemm}\n" >> ${file}
+	fi
 	if [ $# -eq 0 ]; then
 	    printf " DO sp = 1, stack_size\n" >> ${file}
 	    printf "   CALL ${gemm}('%s','%s',M,N,K,one,A(params(p_a_first,sp)),LDA,B(params(p_b_first,sp)),LDB,one,C(params(p_c_first,sp)),M)\n" $ta $tb >> ${file}
@@ -408,6 +454,15 @@ do_generate_lib() {
 	
 	printf "all: archive \n\n"
 
+        #
+        # include Makefile for C intrinsics kernels for Intel Xeon Phi
+        #
+	if [ -n "${target_compile_c_mic}" ]; then
+	    printf "DIR_MIC=../mic\n"
+	    printf "TARGET_COMPILE_C_MIC=${target_compile_c_mic} \n"
+	    printf "include \$(DIR_MIC)/Makefile\n\n"
+	fi
+
 	#
 	# generation source rule
 	#
@@ -427,12 +482,19 @@ do_generate_lib() {
 	printf "\t ${target_compile} -c \$(notdir \$*).f90 -o \$@ \n\n"
 
 	printf "archive: ${archive} \n\n"
-
-	printf "${archive}: \$(OBJFILES) \$(OUTDIR)/\$(DRIVER) \n"
-	printf "\t ar -r \$@ \$^ \n"
+	printf "${archive}: \$(OBJFILES) \$(OUTDIR)/\$(DRIVER)"
+	if [ -n "${target_compile_c_mic}" ]; then
+	    printf " \$(OBJFILES_MIC)"
+	fi
+	printf "\n"
+	if [ -n "${target_compile_offload}" ]; then
+	    printf "\t xiar -rs -qoffload-build \$@ \$^ \n"
+	else
+	    printf "\t ar -rs \$@ \$^ \n"
+	fi
 	printf "\t @echo 'Library produced at `pwd`/lib/lib${library}.a'\n\n"
 
-	) > ${make_file}
+    ) > ${make_file}
 
     cd ${run_dir}
 
@@ -481,13 +543,6 @@ do_check() {
         #
         mkdir -p ${out_dir}
 
-	#
-	# Make directory for MIC execution
-	#
-	if [[ ( -n "${MICFS}" ) && ( -n "${ssh_mic_cmd}" ) ]]; then
-	    mkdir -p ${MICFS}
-	fi
-
 	for m in ${dims_small}  ; do
 	    for n in ${dims_small}  ; do
 		for k in ${dims_small}  ; do
@@ -509,18 +564,33 @@ MODULE WTF_job$ijob
     MODULE PROCEDURE SMYRAND, DMYRAND, CMYRAND, ZMYRAND
   END INTERFACE
 CONTAINS
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ attributes offload:mic :: DMYRAND \n' >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
   SUBROUTINE DMYRAND(A)
     REAL(KIND=KIND(0.0D0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq
     CALL RANDOM_NUMBER(Aeq)
     A=Aeq
   END SUBROUTINE
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ attributes offload:mic :: SMYRAND \n' >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
   SUBROUTINE SMYRAND(A)
     REAL(KIND=KIND(0.0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq
     CALL RANDOM_NUMBER(Aeq)
     A=Aeq
   END SUBROUTINE
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ attributes offload:mic :: CMYRAND \n' >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
   SUBROUTINE CMYRAND(A)
     COMPLEX(KIND=KIND(0.0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq,Beq
@@ -528,6 +598,11 @@ CONTAINS
     CALL RANDOM_NUMBER(Beq)
     A=CMPLX(Aeq,Beq,KIND=KIND(0.0))
   END SUBROUTINE
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ attributes offload:mic :: ZMYRAND \n' >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
   SUBROUTINE ZMYRAND(A)
     COMPLEX(KIND=KIND(0.0D0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq,Beq
@@ -536,6 +611,13 @@ CONTAINS
     A=CMPLX(Aeq,Beq,KIND=KIND(0.0D0))
   END SUBROUTINE
 END MODULE
+
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ attributes offload:mic :: testit, ' >> ${out_dir}/${filename}.f90
+    printf "${gemm}, smm${type_label} \n" >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
 SUBROUTINE testit(M,N,K)
   USE WTF_job$ijob
   IMPLICIT NONE
@@ -552,11 +634,11 @@ SUBROUTINE testit(M,N,K)
 
   flops=2*REAL(M,KIND=KIND(0.0D0))*N*K
   gflop=1000.0D0*1000.0D0*1000.0D0
-  ! assume we would like to do 5 Gflop for testing a subroutine
-  Niter=MAX(1,CEILING(MIN(10000000.0D0,5*gflop/flops)))
+  ! assume we would like to do 1 Gflop for testing a subroutine
+  Niter=MAX(1,CEILING(MIN(10000000.0D0,1*gflop/flops)))
   ${lds}
 
-  DO i=1,10
+  DO i=1,3
      CALL MYRAND(A)
      CALL MYRAND(B)
      CALL MYRAND(C1)
@@ -596,10 +678,18 @@ SUBROUTINE testit(M,N,K)
         " Gflops. Performance ratio: ",((t2-t1)/(t4-t3))*100,"%"
 
 END SUBROUTINE 
-
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ attributes offload:mic :: testit \n ' >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
 PROGRAM tester
   IMPLICIT NONE
-
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ offload begin target(mic) \n' >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
   !\$omp parallel
 EOF
 
@@ -611,7 +701,7 @@ EOF
 		    if [ $element -eq $element_end ]; then
 
 			# last job
-			if [ $ijob -eq $jobs ]; then
+			if [ $ijob -eq $jobs -a ! -n "${target_compile_offload}" ]; then
 cat << EOF >> ${out_dir}/${filename}.f90
   ! checking 'peak' performance (and a size likely outside of the library)
   CALL testit(1000,1000,1000)
@@ -620,6 +710,11 @@ EOF
 
 cat << EOF >> ${out_dir}/${filename}.f90
   !\$omp end parallel
+EOF
+if [ -n "${target_compile_offload}" ]; then
+    printf '!dir$ end offload \n' >> ${out_dir}/${filename}.f90
+fi
+cat << EOF >> ${out_dir}/${filename}.f90
 END PROGRAM
 EOF
 
@@ -637,8 +732,13 @@ EOF
 			    printf "#!/bin/bash -e \n\n"
 			    printf "set -o pipefail\n\n"
 			    printf "cd ${out_dir}\n"
-			    printf "${target_compile} ${filename}.f90 -o ${exe} -L../../lib -l${library} ${blas_linking}\n"
-			    printf "export OMP_NUM_THREADS=1 ; ./${exe} | tee ${filename}.out"
+			    if [ -n "${target_compile_offload}" ]; then
+				printf "${target_compile_offload}"
+			    else
+				printf "${target_compile}"
+			    fi
+			    printf " ${filename}.f90 -o ${exe} ../../${archive} ${blas_linking}\n"
+			    printf "export OMP_NUM_THREADS=1 ; ./${exe} | tee ${filename}.out\n"
 			) > ${out_dir}/${filename}.sh
 			chmod +x ${out_dir}/${filename}.sh
 
@@ -670,7 +770,7 @@ EOF
 	    echo "ERROR: Empty check file \"${run_dir}/${out_dir}/${test_file}_job$ijob.out\""
 	    exit
 	fi
-	cat ${run_dir}/${out_dir}/${test_file}"_job$ijob".out >> ${test_file}_${config_file_name}.out
+	cat ${run_dir}/${out_dir}/${test_file}"_job$ijob".out | grep "Matrix size" >> ${test_file}_${config_file_name}.out
     done
 
     #
@@ -679,13 +779,13 @@ EOF
     set +e
     grep "BLAS and smm yield different results" ${test_file}_${config_file_name}.out >& /dev/null
     if [ "$?" == "0" ]; then
-	echo "Library is miscompiled... removing lib/lib${library}.a"
+	echo "Library is miscompiled... removing ${archive}"
 	echo
 	rm -f ${archive}
     else
 	pathhere=`pwd -P`
 	echo "Done... check performance looking at ${test_file}_${config_file_name}.out"
-	echo "Final library can be linked as -L${pathhere}/lib -l${library}"
+	echo "Final library can be found at ${archive}"
 	echo
     fi
     

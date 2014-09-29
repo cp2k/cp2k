@@ -9,6 +9,7 @@
 ! 6) multrec 3
 ! 7) multrec 4
 ! 8) Vector version
+! 9) Intel Xeon Phi C intrinsics
 !
 MODULE multrec_gen
   USE mults
@@ -78,6 +79,17 @@ CONTAINS
 
     IF (PRESENT(stack_size_label)) THEN
        IF (stack_size_label/="") THEN
+          write(6,'(A)')                    "#ifdef __INTEL_OFFLOAD"
+          IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
+             write(6,'(A,I0,A,I0,A,I0,A)')  "!dir$ attributes offload:mic :: smm_" &
+                  //trstr(transpose_flavor,data_type)//"_", &
+                  M,"_",N,"_",K,TRIM(label)//"_buffer"
+          ELSE
+             write(6,'(A,I0,A,I0,A,I0,A)')  "!dir$ attributes offload:mic :: smm_" &
+                  //trstr(transpose_flavor,data_type)//"_", &
+                  M,"_",N,"_",K,TRIM(label)
+          ENDIF
+          write(6,'(A)')                    "#endif"
           write(6,'(A,I0,A,I0,A,I0,A)') "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                M,"_",N,"_",K,"_stack"//TRIM(label)//"("//TRIM(trparam(stack_size_label))//")"
           CALL write_stack_params(data_type,stack_size_label)
@@ -275,13 +287,14 @@ CONTAINS
      ENDDO
      IF (ANY(best_square<1)) ERROR STOP "tiny opts file needs sufficiently many square sizes"
 
-     IF (version.ge.1.and.version.le.7) THEN
-        IF (version.ne.3) THEN
+     IF ((version.ge.1.and.version.le.7).or.version.eq.9) THEN
+        IF (version.ne.3.and.version.ne.9) THEN
            write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                 M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
            ELSE
               write(6,'(A,I0,A,I0,A,I0,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                    M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
+              write (6,'(A)')                  "      USE, INTRINSIC :: ISO_C_BINDING"
            ENDIF
         CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.) 
      ENDIF
@@ -307,6 +320,9 @@ CONTAINS
      CASE(3)
        ! generation of the gemm version
        WRITE(6,'(A)') "      "//trdat(data_type)//", PARAMETER :: one=1"
+       write(6,'(A)') "#ifdef __INTEL_OFFLOAD"
+       write(6,'(A)') "!dir$ attributes offload:mic :: "//trgemm(data_type)
+       write(6,'(A)') "#endif"
        SELECT CASE(transpose_flavor)
        CASE(1)
          write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
@@ -338,11 +354,19 @@ CONTAINS
            ENDIF
 
         ENDIF
+     CASE(9)
+        write (6,'(A)')                "      INTERFACE"
+        write (6,'(A,I0,A,I0,A,I0,A)') "        SUBROUTINE dc_smm_dnn_",M,"_",N,"_",K,"(A,B,C) BIND(C)"
+        write (6,'(A)')                "          USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_PTR"
+        write (6,'(A)')                "          TYPE(C_PTR), VALUE               :: C, B, A"
+        write (6,'(A,I0,A,I0,A,I0)')   "        END SUBROUTINE dc_smm_dnn_",M,"_",N,"_",K
+        write (6,'(A)')                "      END INTERFACE"
+        write (6,'(A,I0,A,I0,A,I0,A)') "      CALL dc_smm_dnn_",M,"_",N,"_",K,"(C_LOC(A),C_LOC(B),C_LOC(C))"
      CASE DEFAULT
        ERROR STOP "MISSING CASE mult_versions"
      END SELECT
 
-     IF (version.ge.1.and.version.le.7) THEN
+     IF ((version.ge.1.and.version.le.7).or.version.eq.9) THEN
         write(6,'(A)') "   END SUBROUTINE"
         CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label)
      ENDIF
