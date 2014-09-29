@@ -107,21 +107,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a pw_env, if qs_env is given calls pw_env_rebuild
 !> \param pw_env the pw_env that gets created
-!> \param qs_env if given it is used to initialize the pw_env
-!> \param external_para_env if present, use this one instead of the qs_env one
-!>        so that e.g. a serial pw_env can be made.
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
+SUBROUTINE pw_env_create(pw_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(qs_environment_type), OPTIONAL, &
-      POINTER                                :: qs_env
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: external_para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_create', &
@@ -146,8 +139,6 @@ SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
             pw_env%interp_section)
        pw_env%auxbas_grid=-1
        pw_env%ref_count=1
-       IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,&
-                                 external_para_env=external_para_env,error=error)
     END IF
 
     CALL timestop(handle)

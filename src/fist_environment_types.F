@@ -78,7 +78,6 @@ MODULE fist_environment_types
     LOGICAL                                      :: qmmm
     LOGICAL                                      :: shell_model, shell_model_ad
     TYPE (qmmm_env_mm_type), POINTER             :: qmmm_env
-    TYPE (cell_type), POINTER                    :: cell
     TYPE (cell_type), POINTER                    :: cell_ref
     TYPE (ewald_environment_type), POINTER       :: ewald_env
     TYPE (ewald_pw_type),          POINTER       :: ewald_pw
@@ -87,7 +86,6 @@ MODULE fist_environment_types
     TYPE (cp_subsys_type), POINTER               :: subsys
     TYPE (fist_nonbond_env_type), POINTER        :: fist_nonbond_env
     TYPE(section_vals_type), POINTER             :: input
-    TYPE(cp_result_type),POINTER                 :: results
     TYPE(exclusion_type), DIMENSION(:), POINTER  :: exclusions
  END TYPE fist_environment_type
 
@@ -209,7 +207,6 @@ CONTAINS
     IF ( PRESENT ( input ) ) input => fist_env%input
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( qmmm_env )) qmmm_env => fist_env % qmmm_env
-    IF ( PRESENT ( cell ) ) cell => fist_env % cell
     IF ( PRESENT ( cell_ref ) ) cell_ref => fist_env % cell_ref
     IF ( PRESENT ( ewald_env ) ) ewald_env => fist_env % ewald_env
     IF ( PRESENT ( thermo ) ) thermo => fist_env % thermo
@@ -233,6 +230,7 @@ CONTAINS
                           core_particles=core_particles,&
                           multipoles=fist_multipoles,&
                           results=results,&
+                          cell=cell,&
                           error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
@@ -259,7 +257,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (fist_env%input)
-    NULLIFY (fist_env%cell)
     NULLIFY (fist_env%qmmm_env)
     NULLIFY (fist_env%cell_ref)
     NULLIFY (fist_env%ewald_env)
@@ -291,7 +288,6 @@ CONTAINS
 !> \param local_molecules ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
-!> \param cell ...
 !> \param cell_ref ...
 !> \param ewald_env ...
 !> \param fist_nonbond_env ...
@@ -310,7 +306,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fist_env_set( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
-                           molecule_set, cell, cell_ref, ewald_env,  &
+                           molecule_set, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
                            input, shell_model, shell_model_ad, exclusions, error )
 
@@ -325,7 +321,7 @@ CONTAINS
     TYPE(molecule_kind_type), OPTIONAL, &
       POINTER                                :: molecule_kind_set( : )
     TYPE(molecule_type), OPTIONAL, POINTER   :: molecule_set( : )
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
     TYPE(fist_nonbond_env_type), OPTIONAL, &
@@ -360,11 +356,6 @@ CONTAINS
        CALL qmmm_env_mm_retain(qmmm_env, error)
        CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
        fist_env%qmmm_env => qmmm_env
-    END IF
-    IF (PRESENT(cell)) THEN
-       CALL cell_retain(cell, error=error)
-       CALL cell_release(fist_env%cell,error=error)
-       fist_env%cell => cell
     END IF
     IF ( PRESENT ( ewald_env ) ) THEN
        CALL ewald_env_retain ( ewald_env, error = error )
@@ -535,7 +526,6 @@ CONTAINS
        fist_env%ref_count=fist_env%ref_count-1
        IF (fist_env%ref_count<1) THEN
           CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
-          CALL cell_release(fist_env%cell,error=error)
           CALL cell_release(fist_env%cell_ref,error=error)
           CALL ewald_pw_release(fist_env%ewald_pw,error=error)
           CALL ewald_env_release(fist_env%ewald_env,error=error)

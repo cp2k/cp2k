@@ -10,11 +10,11 @@ MODULE ipi_driver
                                              init_cell
   USE cp_external_control,             ONLY: external_control
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
                                              cp_subsys_type
   USE f77_interface,                   ONLY: default_para_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -28,7 +28,7 @@ MODULE ipi_driver
                                              mp_sync
   USE termination,                     ONLY: stop_program
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"                                               
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   
@@ -333,7 +333,7 @@ MODULE ipi_driver
           END DO
          END DO
          CALL init_cell(cpcell, hmat=cellh)
-         CALL force_env_set_cell(force_env,cell=cpcell,error=error)
+         CALL cp_subsys_set(subsys, cell=cpcell, error=error)
          
          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=error)
     

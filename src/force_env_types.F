@@ -26,14 +26,10 @@ MODULE force_env_types
   USE ep_f77,                          ONLY: ep_f77_get_energy,&
                                              ep_f77_get_main_qs_env,&
                                              ep_f77_release
-  USE ewald_environment_types,         ONLY: ewald_environment_type
-  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
-  USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_env_release,&
-                                             fist_env_set,&
                                              fist_environment_type
   USE fp_types,                        ONLY: fp_env_release,&
                                              fp_env_retain,&
@@ -60,14 +56,9 @@ MODULE force_env_types
                                              qmmm_env_qm_type,&
                                              qs_subsys
   USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_create
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -106,7 +97,6 @@ MODULE force_env_types
             force_env_get_pos,&
             force_env_get_vel,&
             force_env_set,&
-            force_env_set_cell,&
             multiple_fe_list
 
 ! *****************************************************************************
@@ -357,12 +347,13 @@ CONTAINS
     REAL(KIND=dp)                            :: eip_kinetic_energy, &
                                                 eip_potential_energy, &
                                                 penergy_mm, penergy_qm
+    TYPE(cp_subsys_type), POINTER            :: subsys_tmp
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
 
-    NULLIFY(ep_main_qs_env)
+    NULLIFY(ep_main_qs_env,subsys_tmp)
 
     failure=.FALSE.
 
@@ -375,7 +366,6 @@ CONTAINS
           CPPrecondition(ASSOCIATED(force_env%ep_env_id),cp_failure_level,routineP,error,failure)
           CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
           CALL get_qs_env(ep_main_qs_env,&
-                          cell=cell,&
                           cell_ref=cell_ref,&
                           use_ref_cell=use_ref_cell,&
                           input=input,&
@@ -390,7 +380,6 @@ CONTAINS
           CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CALL get_qs_env(force_env%qs_env,&
                           energy=qs_energy,&
-                          cell=cell,&
                           cell_ref=cell_ref,&
                           use_ref_cell=use_ref_cell,&
                           input=input,&
@@ -405,7 +394,6 @@ CONTAINS
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL fist_env_get(force_env%fist_env,&
                             thermo=thermo,&
-                            cell=cell,&
                             cell_ref=cell_ref,&
                             subsys=subsys,&
                             error=error)
@@ -419,7 +407,6 @@ CONTAINS
           CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
           CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
           CALL eip_env_get(force_env%eip_env,&
-                           cell=cell,&
                            cell_ref=cell_ref, &
                            use_ref_cell=use_ref_cell,&
                            eip_potential_energy=eip_potential_energy,&
@@ -432,11 +419,6 @@ CONTAINS
           IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
           CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
        CASE (use_qmmm)
-            IF (PRESENT(cell)) THEN
-                 CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                                    cell=cell,&
-                                    error=error)
-            ENDIF
             IF (PRESENT(cell_ref)) THEN
                  CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
                                     cell_ref=cell_ref,&
@@ -480,7 +462,6 @@ CONTAINS
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL get_mixed_env(force_env%mixed_env,&
                             mixed_energy=mixed_energy,&
-                            cell=cell,&
                             cell_ref=cell_ref,&
                             subsys=subsys,&
                             error=error)
@@ -530,6 +511,10 @@ CONTAINS
        END IF
        IF (PRESENT(additional_potential)) THEN
           additional_potential = force_env%additional_potential
+       END IF
+       IF (PRESENT(cell)) THEN
+          CALL force_env_get(force_env, subsys=subsys_tmp, error=error)
+          CALL cp_subsys_get(subsys_tmp, cell=cell, error=error)
        END IF
        IF (PRESENT(fp_env)) fp_env => force_env%fp_env
        IF (PRESENT(meta_env)) meta_env => force_env%meta_env
@@ -784,92 +769,6 @@ CONTAINS
 
   END SUBROUTINE force_env_set
 
-! *****************************************************************************
-!> \brief changes the cell of the system
-!> \param force_env the force environment where the cell should be changed
-!> \param cell the new cell
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      09.2003 created [fawzi]
-!> \author Fawzi Mohamed
-!> \note
-!>      for future use, each method should make the changes that it needs
-!>      to cope with the new cell
-! *****************************************************************************
-  RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
-
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_set_cell', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iforce_eval, my_group, &
-                                                nforce_eval
-    LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: my_error
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
-    TYPE(qs_ks_env_type), POINTER            :: new_ks_env
-
-    NULLIFY(ep_main_qs_env)
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-    CPPrecondition(cell%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       SELECT CASE(force_env%in_use)
-       CASE (use_qs_force)
-          NULLIFY ( new_ks_env )
-          CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
-          CALL set_qs_env(force_env%qs_env,cell=cell,error=error)
-          CALL qs_env_rebuild_pw_env( force_env % qs_env, error = error)
-          CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error = error )
-          CALL set_qs_env( force_env % qs_env, ks_env=new_ks_env ,error=error)
-          CALL qs_ks_release ( new_ks_env ,error=error)
-       CASE (use_ep_force)
-          NULLIFY ( new_ks_env )
-          CPPrecondition(ASSOCIATED(force_env%ep_env_id),cp_failure_level,routineP,error,failure)
-          CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
-          CALL set_qs_env(ep_main_qs_env,cell=cell,error=error)
-          CALL qs_env_rebuild_pw_env(ep_main_qs_env, error=error)
-          CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error=error)
-          CALL set_qs_env(ep_main_qs_env, ks_env=new_ks_env ,error=error)
-          CALL qs_ks_release ( new_ks_env ,error=error)
-          NULLIFY(ep_main_qs_env)
-       CASE (use_fist_force)
-          CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
-          CALL fist_env_get ( force_env%fist_env, ewald_pw = ewald_pw,  &
-                              ewald_env = ewald_env ,error=error)
-          CALL fist_env_set(force_env%fist_env, cell=cell, error=error)
-          CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-       CASE (use_eip_force)
-          CPAssert(.FALSE., cp_failure_level, routineP, error, failure)
-       CASE (use_mixed_force)
-          CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
-          nforce_eval = SIZE(force_env%sub_force_env)
-          my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
-          my_error = force_env%mixed_env%sub_error(my_group+1)
-          DO iforce_eval = 1, nforce_eval
-             IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-                CALL force_env_set_cell(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
-                     cell=cell, error=my_error)
-             END IF
-          END DO
-       CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown in_use flag value "//&
-CPSourceFileRef,&
-               error,failure)
-       END SELECT
-    END IF
-
-  END SUBROUTINE force_env_set_cell
 
 ! *****************************************************************************
 !> \brief returns the order of the multiple force_env

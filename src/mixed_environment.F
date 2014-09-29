@@ -17,6 +17,7 @@ MODULE mixed_environment
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_create
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
+                                             cp_subsys_set,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
@@ -173,10 +174,12 @@ CONTAINS
          force_env_section=force_env_section,&
          error=error )
 
+    CALL cp_subsys_set(subsys, cell=cell, error=error)
+
     ! set the mixed_env
     CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsys, error = error )
     CALL set_mixed_env ( mixed_env=mixed_env,&
-         cell=cell, cell_ref=cell_ref, &
+         cell_ref=cell_ref, &
          local_molecules=local_molecules,&
          local_particles=local_particles,&
          mixed_energy=mixed_energy ,error=error)

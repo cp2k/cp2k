@@ -143,7 +143,7 @@ CONTAINS
       thermo_baro_section, thermo_part_section, thermo_shell_section, &
       work_section
 
-    NULLIFY(qmmm_env)
+    NULLIFY(qmmm_env,cell)
     failure =.FALSE.
     CALL allocate_thermostats(thermostats, error)
     adiabatic_fast_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_FAST",error=error)

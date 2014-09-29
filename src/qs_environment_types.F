@@ -333,7 +333,7 @@ MODULE qs_environment_types
     INTEGER                                               :: sim_step
     TYPE(ga_environment_type), POINTER                    :: ga_env
     TYPE(ls_scf_env_type), POINTER                        :: ls_scf_env
-    TYPE(cell_type), POINTER                              :: cell, super_cell
+    TYPE(cell_type), POINTER                              :: super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(kpoint_type), POINTER                            :: kpoints
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -787,7 +787,6 @@ CONTAINS
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
     IF (PRESENT(ga_env)) ga_env => qs_env%ga_env
-    IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(mp2_env)) mp2_env => qs_env%mp2_env
     IF (PRESENT(kg_env)) kg_env => qs_env%kg_env
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
@@ -923,6 +922,7 @@ CONTAINS
                       atprop=atprop,&
                       virial=virial,&
                       results=results,&
+                      cell=cell,&
                       error=error)
 
     IF (PRESENT(qs_kind_set)) qs_kind_set => qs_env%qs_kind_set
@@ -972,7 +972,6 @@ CONTAINS
     NULLIFY (qs_env%ipiv)
     NULLIFY (qs_env%image_coeff)
     NULLIFY (qs_env%ga_env)
-    NULLIFY (qs_env%cell)
     NULLIFY (qs_env%super_cell)
     NULLIFY (qs_env%cell_ref)
     NULLIFY (qs_env%kpoints)
@@ -1118,7 +1117,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Set the QUICKSTEP environment.
 !> \param qs_env ...
-!> \param cell ...
 !> \param super_cell ...
 !> \param cell_ref ...
 !> \param use_ref_cell ...
@@ -1240,7 +1238,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,kpoints,dft_control,&
+  SUBROUTINE set_qs_env(qs_env,super_cell,cell_ref,use_ref_cell,kpoints,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
        sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,energy,force,harris_env,&
@@ -1260,7 +1258,7 @@ CONTAINS
        lri_env,lri_density,hfx_ri_env,dispersion_env,mp2_env,kg_env,WannierCentres,ga_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     TYPE(dft_control_type), OPTIONAL, &
@@ -1398,11 +1396,6 @@ CONTAINS
        CALL ga_env_retain(ga_env, error)
        CALL ga_env_release(qs_env%ga_env,error)
        qs_env%ga_env => ga_env
-    END IF
-    IF (PRESENT(cell)) THEN
-       CALL cell_retain(cell, error=error)
-       CALL cell_release(qs_env%cell,error=error)
-       qs_env%cell => cell
     END IF
     IF (PRESENT(nelectron_total)) qs_env%nelectron_total=nelectron_total
     IF (PRESENT(mp2_env)) qs_env%mp2_env=>mp2_env
@@ -1757,7 +1750,6 @@ CONTAINS
        qs_env%ref_count=qs_env%ref_count-1
        IF (qs_env%ref_count<1) THEN
           CALL ga_env_release(qs_env%ga_env,error=error)
-          CALL cell_release(qs_env%cell,error=error)
           CALL cell_release(qs_env%super_cell,error=error)
           CALL cell_release(qs_env%cell_ref,error=error)
           CALL kpoint_release(qs_env%kpoints,error=error)

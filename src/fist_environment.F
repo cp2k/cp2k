@@ -35,7 +35,7 @@ MODULE fist_environment
                                              ewald_env_set,&
                                              ewald_environment_type,&
                                              read_ewald_section
-  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
                                              ewald_pw_type
@@ -310,15 +310,15 @@ CONTAINS
     CALL ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, grid_print_section, error )
 
     ! Initialize ewald grids
-    CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
+    CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat, error)
 
     ! Possibly Initialize the multipole environment
     CALL create_multipole_type(multipoles, particle_set, subsys_section, ewald_env, error)
-    CALL cp_subsys_set(subsys, multipoles=multipoles, error=error)
+    CALL cp_subsys_set(subsys, multipoles=multipoles, cell=cell, error=error)
 
     ! Set the fist_env
     CALL fist_env_set ( fist_env=fist_env,&
-                        cell=cell, cell_ref=cell_ref, &
+                        cell_ref=cell_ref, &
                         local_molecules=local_molecules,&
                         local_particles=local_particles,&
                         ewald_env=ewald_env, ewald_pw=ewald_pw, &

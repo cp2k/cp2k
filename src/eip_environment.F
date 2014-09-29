@@ -20,6 +20,7 @@ MODULE eip_environment
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_create
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
+                                             cp_subsys_set,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
@@ -216,7 +217,8 @@ CONTAINS
 
     eip_env%eip_forces(:,:) = 0.0_dp
 
-    CALL eip_env_set(eip_env=eip_env, subsys=subsys, cell=cell, &
+    CALL cp_subsys_set(subsys, cell=cell, error=error)
+    CALL eip_env_set(eip_env=eip_env, subsys=subsys, &
                      cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                      local_molecules=local_molecules, &
                      local_particles=local_particles, error=error)

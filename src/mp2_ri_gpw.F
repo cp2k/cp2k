@@ -703,11 +703,11 @@ MODULE mp2_ri_gpw
     ! get stuff
     subsys=>qs_env%subsys
     particle_set => subsys%particles%els
-    CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, error=error)
+    CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
+                    cell=cell, error=error)
     molecule_set => subsys%molecules_new%els
     molecule_kind_set => subsys%molecule_kinds_new%els
     ! blacs_env => qs_env%blacs_env
-    cell=>qs_env%cell
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)

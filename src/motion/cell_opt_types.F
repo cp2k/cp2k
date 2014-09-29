@@ -101,7 +101,7 @@ CONTAINS
        CALL section_vals_val_get(geo_section,"PRESSURE_TOLERANCE",r_val=cell_env%pres_tol,error=error)
 
        ! First let's rotate the cell vectors in order to have an upper triangular matrix.
-       CALL get_ut_cell_matrix(force_env, error)
+       CALL get_ut_cell_matrix(cell, error)
 
        ! Compute the rotation matrix that give the cell vectors in the "canonical" orientation
        cell_env%rot_matrix = MATMUL(cell_env%ref_cell%hmat,cell%h_inv)

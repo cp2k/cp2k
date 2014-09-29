@@ -10,7 +10,6 @@
 !>      none
 ! *****************************************************************************
 MODULE gopt_f_methods
-
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -23,6 +22,7 @@ MODULE gopt_f_methods
                                              scaled_to_real
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
                                              cp_subsys_type,&
                                              pack_subsys_particles
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -33,7 +33,6 @@ MODULE gopt_f_methods
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_get_natom,&
                                              force_env_get_nparticle,&
-                                             force_env_set_cell,&
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
@@ -1056,7 +1055,7 @@ CONTAINS
           END DO
         END DO
         CALL init_cell(cell)
-        CALL force_env_set_cell(gopt_env%force_env,cell,error=error)
+        CALL cp_subsys_set(subsys,cell=cell,error=error)
 
         ! Retrieve particle coordinates for the current cell
         SELECT CASE (gopt_env%cell_method_id)

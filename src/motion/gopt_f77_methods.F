@@ -46,8 +46,7 @@
     USE f77_blas
     USE force_env_methods,               ONLY: force_env_calc_energy_force
     USE force_env_types,                 ONLY: force_env_get,&
-                                               force_env_get_nparticle,&
-                                               force_env_set_cell
+                                               force_env_get_nparticle
     USE geo_opt,                         ONLY: cp_geo_opt
     USE gopt_f_types,                    ONLY: gopt_f_type
     USE gopt_f_methods,                  ONLY: apply_cell_change

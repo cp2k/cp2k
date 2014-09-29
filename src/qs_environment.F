@@ -69,7 +69,7 @@ MODULE qs_environment
                                              ewald_env_set,&
                                              ewald_environment_type,&
                                              read_ewald_section
-  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
                                              ewald_pw_type
@@ -340,15 +340,11 @@ CONTAINS
     CALL qs_init_subsys(qs_env,my_subsys,my_cell,my_cell_ref,use_ref_cell,&
          root_section,subsys_section,my_qmmm,harris=harris_flag,error=error)
 
-    IF (.NOT.PRESENT(cell))        CALL cell_release(my_cell,error=error)
-    IF (.NOT.PRESENT(cell_ref))    CALL cell_release(my_cell_ref,error=error)
-    IF (.NOT.PRESENT(subsys)) CALL cp_subsys_release(my_subsys,error=error)
-
     ! kpoints
     CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
     kpoint_section => section_vals_get_subs_vals(qs_env%input,"DFT%KPOINTS",error=error)
     CALL read_kpoint_section(kpoints,kpoint_section,error)
-    CALL kpoint_initialize(kpoints, particle_set, qs_env%cell, error)
+    CALL kpoint_initialize(kpoints, particle_set, my_cell, error)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     CALL write_kpoint_info(kpoints,dft_section,error)
     kpoints%para_env => para_env
@@ -369,7 +365,7 @@ CONTAINS
       ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
       natom=SIZE(particle_set)
       CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                      qs_env%qs_kind_set, qs_env%dft_control, qs_env%cell, error=error)
+                      qs_env%qs_kind_set, qs_env%dft_control, my_cell, error=error)
       hfx_ri_section => section_vals_get_subs_vals(hfx_section,"HFX_RI",error=error)
       CALL section_vals_get(hfx_ri_section,explicit=do_hfx_ri,error=error)
       IF (do_hfx_ri) THEN
@@ -390,7 +386,7 @@ CONTAINS
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
          natom=SIZE(particle_set)
          CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                         qs_env%qs_kind_set, qs_env%dft_control, qs_env%cell, error=error)
+                         qs_env%qs_kind_set, qs_env%dft_control, my_cell, error=error)
        END IF
     END IF
 
@@ -455,6 +451,10 @@ CONTAINS
           END DO
        END IF
     END IF
+
+    IF (.NOT.PRESENT(cell))        CALL cell_release(my_cell,error=error)
+    IF (.NOT.PRESENT(cell_ref))    CALL cell_release(my_cell_ref,error=error)
+    IF (.NOT.PRESENT(subsys))      CALL cp_subsys_release(my_subsys,error=error)
 
   END SUBROUTINE qs_init
 
@@ -796,7 +796,6 @@ CONTAINS
 
     !   *** Set the current Quickstep environment ***
     CALL set_qs_env(qs_env=qs_env,&
-                    cell=cell,&
                     cell_ref=cell_ref,&
                     use_ref_cell=use_ref_cell,&
                     qmmm=qmmm,&
@@ -812,7 +811,7 @@ CONTAINS
     END IF
 
     CALL cp_subsys_set(subsys,local_molecules_new=local_molecules,&
-         local_particles=local_particles,error=error)
+         local_particles=local_particles,cell=cell,error=error)
 
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
@@ -887,7 +886,7 @@ CONTAINS
           CALL ewald_pw_create(ewald_pw,ewald_env,cell,cell_ref,&
                print_section=print_section,error=error)
           ! Initialize ewald grids
-          CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
+          CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat, error)
           ! Setup the nonbond environment (real space part of Ewald)
           CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
           ! Setup the maximum level of multipoles to be treated in the periodic SE scheme

@@ -16,6 +16,7 @@ MODULE fist_force
                                              get_atomic_kind
   USE atprop_types,                    ONLY: atprop_type
   USE cell_methods,                    ONLY: cell_type,&
+                                             init_cell,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -29,6 +30,7 @@ MODULE fist_force
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE ewalds,                          ONLY: ewald_evaluate,&
                                              ewald_print,&
@@ -197,6 +199,10 @@ CONTAINS
 
     CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
          do_ipol=do_ipol,error=error)
+
+    ! Initialize ewald grids
+    CALL init_cell(cell)
+    CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat, error)
 
     natoms = SIZE(particle_set)
     nlocal_particles = 0

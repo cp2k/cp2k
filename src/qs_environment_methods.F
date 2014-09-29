@@ -12,6 +12,7 @@
 ! *****************************************************************************
 MODULE qs_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_methods,                    ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type,&
@@ -60,7 +61,10 @@ MODULE qs_environment_methods
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_ks_methods,                   ONLY: qs_ks_create,&
+                                             qs_ks_did_change
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
@@ -117,6 +121,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -138,7 +143,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     failure = .FALSE.
 
     NULLIFY(qs_kind_set, atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
-         distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env)
+         distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env, cell)
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
@@ -149,6 +154,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
                     particle_set=particle_set,&
                     scf_control=scf_control,&
                     para_env=para_env,&
+                    cell=cell,&
                     error=error)
     CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -194,7 +200,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
        ! create 2d distribution
 
-       CALL distribute_molecules_2d(cell=qs_env%cell,&
+       CALL distribute_molecules_2d(cell=cell,&
                                     atomic_kind_set=atomic_kind_set,&
                                     qs_kind_set=qs_kind_set,&
                                     particle_set=particle_set,&
@@ -477,169 +483,183 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure, nlcc
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_p_type), POINTER                 :: external_vxc, rho_core, &
                                                 rho_nlcc, rho_nlcc_g, vee, &
                                                 vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: new_ks_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     ! rebuild pw_env
-    NULLIFY(dft_control)
-    CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control,error=error)
+    NULLIFY(dft_control, cell, new_ks_env)
 
+    CALL get_qs_env(qs_env, pw_env=new_pw_env, error=error)
     IF (.NOT.ASSOCIATED(new_pw_env)) THEN
-       CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
+       CALL pw_env_create(new_pw_env,error=error)
        CALL set_qs_env(qs_env,pw_env=new_pw_env,error=error)
        CALL pw_env_release(new_pw_env,error=error)
-    ELSE
+    ENDIF
+
+    CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control,&
+                    cell=cell, error=error)
+
+    IF(ANY(new_pw_env%cell_hmat/=cell%hmat)) THEN
+       ! only rebuild if nessecary
+       new_pw_env%cell_hmat = cell%hmat
        CALL pw_env_rebuild(new_pw_env,qs_env=qs_env,error=error)
-    END IF
 
-    ! reallocate rho_core
-    CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_core=rho_core,error=error)
-    CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
-    IF(dft_control%qs_control%gapw) THEN
-      IF (ASSOCIATED(rho_core)) THEN
-         CALL pw_release(rho_core%pw,error=error)
-         DEALLOCATE(rho_core,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF
-      IF(dft_control%qs_control%gapw_control%nopaw_as_gpw ) THEN
-        ALLOCATE(rho_core,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (.NOT.failure) THEN
-           CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-           CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
-                use_data=COMPLEXDATA1D, error=error)
-           rho_core%pw%in_space=RECIPROCALSPACE
-           CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
-        END IF
-      END IF
-    ELSE IF (dft_control%qs_control%semi_empirical) THEN
-    ELSE IF (dft_control%qs_control%dftb) THEN
-    ELSE IF (dft_control%qs_control%scptb) THEN
-    ELSE
-      IF (ASSOCIATED(rho_core)) THEN
-         CALL pw_release(rho_core%pw,error=error)
-         DEALLOCATE(rho_core,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ENDIF
-      ALLOCATE(rho_core,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      IF (.NOT.failure) THEN
-         CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
-              use_data=COMPLEXDATA1D, error=error)
-         rho_core%pw%in_space=RECIPROCALSPACE
-         CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
-      END IF
-    END IF
+       ! reallocate rho_core
+       CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_core=rho_core,error=error)
+       CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
+       IF(dft_control%qs_control%gapw) THEN
+         IF (ASSOCIATED(rho_core)) THEN
+            CALL pw_release(rho_core%pw,error=error)
+            DEALLOCATE(rho_core,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         END IF
+         IF(dft_control%qs_control%gapw_control%nopaw_as_gpw ) THEN
+           ALLOCATE(rho_core,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           IF (.NOT.failure) THEN
+              CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+              CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
+                   use_data=COMPLEXDATA1D, error=error)
+              rho_core%pw%in_space=RECIPROCALSPACE
+              CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+           END IF
+         END IF
+       ELSE IF (dft_control%qs_control%semi_empirical) THEN
+       ELSE IF (dft_control%qs_control%dftb) THEN
+       ELSE IF (dft_control%qs_control%scptb) THEN
+       ELSE
+         IF (ASSOCIATED(rho_core)) THEN
+            CALL pw_release(rho_core%pw,error=error)
+            DEALLOCATE(rho_core,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         ENDIF
+         ALLOCATE(rho_core,stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF (.NOT.failure) THEN
+            CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
+                 use_data=COMPLEXDATA1D, error=error)
+            rho_core%pw%in_space=RECIPROCALSPACE
+            CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+         END IF
+       END IF
 
-    ! reallocate vppl (realspace grid of local pseudopotential
-    IF (dft_control%qs_control%do_ppl_method==do_ppl_grid) THEN
-      NULLIFY(vppl)
-      CALL get_qs_env(qs_env,pw_env=new_pw_env,vppl=vppl,error=error)
-      IF (ASSOCIATED(vppl)) THEN
-         CALL pw_release(vppl%pw,error=error)
-         DEALLOCATE(vppl,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ENDIF
-      ALLOCATE(vppl,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      IF (.NOT.failure) THEN
-         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, use_data=REALDATA3D, error=error)
-         vppl%pw%in_space=REALSPACE
-         CALL set_qs_env(qs_env,vppl=vppl,error=error)
-      END IF
-    END IF
+       ! reallocate vppl (realspace grid of local pseudopotential
+       IF (dft_control%qs_control%do_ppl_method==do_ppl_grid) THEN
+         NULLIFY(vppl)
+         CALL get_qs_env(qs_env,pw_env=new_pw_env,vppl=vppl,error=error)
+         IF (ASSOCIATED(vppl)) THEN
+            CALL pw_release(vppl%pw,error=error)
+            DEALLOCATE(vppl,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         ENDIF
+         ALLOCATE(vppl,stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF (.NOT.failure) THEN
+            CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+            CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, use_data=REALDATA3D, error=error)
+            vppl%pw%in_space=REALSPACE
+            CALL set_qs_env(qs_env,vppl=vppl,error=error)
+         END IF
+       END IF
 
-    ! reallocate rho_nlcc
-    CALL has_nlcc(nlcc,qs_env,error)
-    IF (nlcc) THEN
-      ! right now, not working with gapw/gapw_xc, needs implementation in the GAPW XC routines
-      IF (dft_control%qs_control%gapw_xc .OR. dft_control%qs_control%gapw) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Non linear core correction for GAPW not implemented",&
-               error=error, error_level=cp_failure_level)
-      ENDIF
-      ! the realspace version
-      NULLIFY(rho_nlcc)
-      CALL get_qs_env(qs_env,pw_env=new_pw_env,rho_nlcc=rho_nlcc,error=error)
-      IF (ASSOCIATED(rho_nlcc)) THEN
-         CALL pw_release(rho_nlcc%pw,error=error)
-         DEALLOCATE(rho_nlcc,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ENDIF
-      ALLOCATE(rho_nlcc,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      IF (.NOT.failure) THEN
-         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc%pw, use_data=REALDATA3D, error=error)
-         rho_nlcc%pw%in_space=REALSPACE
-         CALL set_qs_env(qs_env,rho_nlcc=rho_nlcc,error=error)
-      END IF
-      ! the g-space version
-      NULLIFY(rho_nlcc_g)
-      CALL get_qs_env(qs_env,pw_env=new_pw_env,rho_nlcc_g=rho_nlcc_g,error=error)
-      IF (ASSOCIATED(rho_nlcc_g)) THEN
-         CALL pw_release(rho_nlcc_g%pw,error=error)
-         DEALLOCATE(rho_nlcc_g,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ENDIF
-      ALLOCATE(rho_nlcc_g,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      IF (.NOT.failure) THEN
-         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g%pw, use_data=COMPLEXDATA1D, error=error)
-         rho_nlcc_g%pw%in_space=RECIPROCALSPACE
-         CALL set_qs_env(qs_env,rho_nlcc_g=rho_nlcc_g,error=error)
-      END IF
-    END IF
+       ! reallocate rho_nlcc
+       CALL has_nlcc(nlcc,qs_env,error)
+       IF (nlcc) THEN
+         ! right now, not working with gapw/gapw_xc, needs implementation in the GAPW XC routines
+         IF (dft_control%qs_control%gapw_xc .OR. dft_control%qs_control%gapw) THEN
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Non linear core correction for GAPW not implemented",&
+                  error=error, error_level=cp_failure_level)
+         ENDIF
+         ! the realspace version
+         NULLIFY(rho_nlcc)
+         CALL get_qs_env(qs_env,pw_env=new_pw_env,rho_nlcc=rho_nlcc,error=error)
+         IF (ASSOCIATED(rho_nlcc)) THEN
+            CALL pw_release(rho_nlcc%pw,error=error)
+            DEALLOCATE(rho_nlcc,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         ENDIF
+         ALLOCATE(rho_nlcc,stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF (.NOT.failure) THEN
+            CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc%pw, use_data=REALDATA3D, error=error)
+            rho_nlcc%pw%in_space=REALSPACE
+            CALL set_qs_env(qs_env,rho_nlcc=rho_nlcc,error=error)
+         END IF
+         ! the g-space version
+         NULLIFY(rho_nlcc_g)
+         CALL get_qs_env(qs_env,pw_env=new_pw_env,rho_nlcc_g=rho_nlcc_g,error=error)
+         IF (ASSOCIATED(rho_nlcc_g)) THEN
+            CALL pw_release(rho_nlcc_g%pw,error=error)
+            DEALLOCATE(rho_nlcc_g,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         ENDIF
+         ALLOCATE(rho_nlcc_g,stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF (.NOT.failure) THEN
+            CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g%pw, use_data=COMPLEXDATA1D, error=error)
+            rho_nlcc_g%pw%in_space=RECIPROCALSPACE
+            CALL set_qs_env(qs_env,rho_nlcc_g=rho_nlcc_g,error=error)
+         END IF
+       END IF
 
 
-    ! reallocate vee: external electrostatic potential
-    IF (dft_control%apply_external_potential) THEN
-      NULLIFY(vee)
-      CALL get_qs_env(qs_env,pw_env=new_pw_env,vee=vee,error=error)
-      IF (ASSOCIATED(vee)) THEN
-         CALL pw_release(vee%pw,error=error)
-         DEALLOCATE(vee,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ENDIF
-      ALLOCATE(vee,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      IF (.NOT.failure) THEN
-         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vee%pw, use_data=REALDATA3D, error=error)
-         vee%pw%in_space=REALSPACE
-         CALL set_qs_env(qs_env,vee=vee,error=error)
-         dft_control%eval_external_potential=.TRUE.
-      END IF
-    END IF
+       ! reallocate vee: external electrostatic potential
+       IF (dft_control%apply_external_potential) THEN
+         NULLIFY(vee)
+         CALL get_qs_env(qs_env,pw_env=new_pw_env,vee=vee,error=error)
+         IF (ASSOCIATED(vee)) THEN
+            CALL pw_release(vee%pw,error=error)
+            DEALLOCATE(vee,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         ENDIF
+         ALLOCATE(vee,stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF (.NOT.failure) THEN
+            CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+            CALL pw_pool_create_pw(auxbas_pw_pool, vee%pw, use_data=REALDATA3D, error=error)
+            vee%pw%in_space=REALSPACE
+            CALL set_qs_env(qs_env,vee=vee,error=error)
+            dft_control%eval_external_potential=.TRUE.
+         END IF
+       END IF
 
-! ZMP Reallocate external_vxc: external vxc potential
-    IF (dft_control%apply_external_vxc) THEN
-      NULLIFY(external_vxc)
-      CALL get_qs_env(qs_env,pw_env=new_pw_env,external_vxc=external_vxc,error=error)
-      IF (ASSOCIATED(external_vxc)) THEN
-        CALL pw_release(external_vxc%pw,error=error)
-        DEALLOCATE(external_vxc,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ENDIF
-      ALLOCATE(external_vxc,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      IF (.NOT.failure) THEN
-        CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-        CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc%pw, use_data=REALDATA3D, error=error)
-        external_vxc%pw%in_space=REALSPACE
-        CALL set_qs_env(qs_env,external_vxc=external_vxc,error=error)
-        dft_control%read_external_vxc=.TRUE.
-      END IF
-    END IF
+   ! ZMP Reallocate external_vxc: external vxc potential
+       IF (dft_control%apply_external_vxc) THEN
+         NULLIFY(external_vxc)
+         CALL get_qs_env(qs_env,pw_env=new_pw_env,external_vxc=external_vxc,error=error)
+         IF (ASSOCIATED(external_vxc)) THEN
+           CALL pw_release(external_vxc%pw,error=error)
+           DEALLOCATE(external_vxc,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+         ENDIF
+         ALLOCATE(external_vxc,stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF (.NOT.failure) THEN
+           CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+           CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc%pw, use_data=REALDATA3D, error=error)
+           external_vxc%pw%in_space=REALSPACE
+           CALL set_qs_env(qs_env,external_vxc=external_vxc,error=error)
+           dft_control%read_external_vxc=.TRUE.
+         END IF
+       END IF
+
+       ! rebuild ks_env
+       CALL qs_ks_create(new_ks_env, qs_env, error=error )
+       CALL set_qs_env(qs_env, ks_env=new_ks_env, error=error)
+       CALL qs_ks_release(new_ks_env, error=error)
+    ENDIF
 
     CALL timestop(handle)
 

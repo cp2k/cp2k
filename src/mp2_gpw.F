@@ -70,7 +70,8 @@ MODULE mp2_gpw
   USE mp2_types,                       ONLY: mp2_type
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE pw_env_methods,                  ONLY: pw_env_create
+  USE pw_env_methods,                  ONLY: pw_env_create,&
+                                             pw_env_rebuild
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
@@ -283,7 +284,7 @@ MODULE mp2_gpw
     subsys=>qs_env%subsys
     particle_set => subsys%particles%els
     atomic_kind_set => subsys%atomic_kinds%els
-    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, error=error)
+    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, error=error)
     molecule_set => subsys%molecules_new%els
     molecule_kind_set => subsys%molecule_kinds_new%els
 
@@ -309,7 +310,6 @@ MODULE mp2_gpw
                                  error=error_sub)
 
     ! get a distribution_2d
-    cell=>qs_env%cell
     NULLIFY(distribution_2d_sub)
     CALL distribute_molecules_2d(cell=cell,&
                                  atomic_kind_set=atomic_kind_set,&
@@ -419,7 +419,8 @@ MODULE mp2_gpw
 
     ! a pw_env
     NULLIFY(pw_env_sub)
-    CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
+    CALL pw_env_create(pw_env_sub,error_sub)
+    CALL pw_env_rebuild(pw_env_sub,qs_env,para_env_sub,error_sub)
 
     CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
                     poisson_env=poisson_env,error=error_sub)

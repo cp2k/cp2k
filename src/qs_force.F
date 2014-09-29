@@ -8,7 +8,6 @@
 !> \author MK (12.06.2002)
 ! *****************************************************************************
 MODULE qs_force
-
   USE admm_methods,                    ONLY: calc_aux_mo_derivs_none,&
                                              calc_mixed_overlap_force
   USE admm_types,                      ONLY: admm_type
@@ -55,6 +54,7 @@ MODULE qs_force
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -183,6 +183,8 @@ CONTAINS
          virial=virial,&
          has_unit_metric=has_unit_metric,&
          energy=energy,error=error)
+
+    CALL qs_env_rebuild_pw_env(qs_env,error)
 
     natom = SIZE(particle_set)
 

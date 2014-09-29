@@ -68,6 +68,8 @@ MODULE ewald_environment_types
     ! continuous at a pair distance equal to rcut. this is ignored by the
     ! multipole code and is otherwise only active when SHIFT_CUTOFF is used.
     REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: interaction_cutoffs
+    ! store current cell, used to rebuild lazily.
+    REAL(KIND = dp), DIMENSION(3,3)          :: cell_hmat = -1.0_dp
   END TYPE ewald_environment_type
 
 ! *****************************************************************************
@@ -118,6 +120,7 @@ CONTAINS
 !> \param do_ipol ...
 !> \param max_ipol_iter ...
 !> \param interaction_cutoffs ...
+!> \param cell_hmat ...
 !> \param error ...
 !> \par History
 !>      11/03
@@ -126,7 +129,7 @@ CONTAINS
   SUBROUTINE ewald_env_get(ewald_env, ewald_type, alpha, eps_pol, epsilon, &
        gmax, ns_max, o_spline, group, para_env, id_nr, poisson_section, precs, &
        rcut, do_multipoles, max_multipole, do_ipol, max_ipol_iter, &
-       interaction_cutoffs, error)
+       interaction_cutoffs, cell_hmat, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps_pol, epsilon
@@ -143,6 +146,7 @@ CONTAINS
                                                 max_ipol_iter
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: interaction_cutoffs
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: cell_hmat
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -173,7 +177,7 @@ CONTAINS
     IF (PRESENT(poisson_section)) poisson_section => ewald_env%poisson_section
     IF (PRESENT(interaction_cutoffs)) interaction_cutoffs => &
       ewald_env%interaction_cutoffs
-
+    IF (PRESENT(cell_hmat)) cell_hmat = ewald_env%cell_hmat
   END SUBROUTINE ewald_env_get
 
 ! *****************************************************************************
@@ -191,6 +195,7 @@ CONTAINS
 !> \param id_nr ...
 !> \param poisson_section ...
 !> \param interaction_cutoffs ...
+!> \param cell_hmat ...
 !> \param error ...
 !> \par History
 !>      11/03
@@ -198,7 +203,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ewald_env_set(ewald_env, ewald_type, alpha, epsilon, eps_pol, &
        gmax, ns_max, precs, o_spline, para_env, id_nr, poisson_section, &
-       interaction_cutoffs, error)
+       interaction_cutoffs, cell_hmat, error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
@@ -213,6 +218,7 @@ CONTAINS
       POINTER                                :: poisson_section
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: interaction_cutoffs
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: cell_hmat
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -242,6 +248,7 @@ CONTAINS
        END IF
        IF (PRESENT(interaction_cutoffs)) ewald_env%interaction_cutoffs => &
          interaction_cutoffs
+       IF (PRESENT(cell_hmat)) ewald_env%cell_hmat = cell_hmat
     ENDIF
   END SUBROUTINE ewald_env_set
 

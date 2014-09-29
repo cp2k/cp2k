@@ -1,2 +1,4 @@
 # Revision of cp2k_debug
 UO2-4x4x4-core-shell-debug.inp
+# Refactoring: ewald_pw_grid_change() called at different point
+uo2_shell_npt_dsc.inp

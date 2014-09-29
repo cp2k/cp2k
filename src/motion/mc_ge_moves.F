@@ -29,8 +29,7 @@ MODULE mc_ge_moves
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_release,&
-                                             force_env_set_cell
+                                             force_env_release
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_release
@@ -1314,6 +1313,7 @@ CONTAINS
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell, cell_old, cell_test
     TYPE(cp_subsys_p_type), DIMENSION(:), &
       POINTER                                :: oldsys
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
@@ -1323,7 +1323,7 @@ CONTAINS
       CALL timeset(routineN,handle)
 
 ! nullify some pointers
-      NULLIFY(particles_old,cell,oldsys,cell_old,cell_test)
+      NULLIFY(particles_old,cell,oldsys,cell_old,cell_test,subsys)
 
 ! get some data from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,source=source,&
@@ -1434,8 +1434,8 @@ CONTAINS
          NULLIFY (cell_test(ibox)%cell)
          CALL cell_create(cell_test(ibox)%cell,hmat=hmat_test(:,:,ibox),&
               periodic=cell(ibox)%cell%perd,error=error)
-         CALL force_env_set_cell(force_env(ibox)%force_env,&
-              cell_test(ibox)%cell,error=error)
+         CALL force_env_get(force_env(ibox)%force_env, subsys=subsys, error=error)
+         CALL cp_subsys_set(subsys, cell=cell_test(ibox)%cell, error=error)
       ENDDO
 
       DO ibox=1,2
@@ -1584,8 +1584,8 @@ CONTAINS
 
 ! reset the cell and particle positions
          DO ibox=1,2
-            CALL force_env_set_cell(force_env(ibox)%force_env,&
-                 cell_old(ibox)%cell,error=error)
+            CALL force_env_get(force_env(ibox)%force_env, subsys=subsys, error=error)
+            CALL cp_subsys_set(subsys, cell=cell_old(ibox)%cell, error=error)
             DO iatom=1,nunits_tot(ibox)
                particles_old(ibox)%list%els(iatom)%r(1:3)=r_old(1:3,iatom,ibox)
             ENDDO

@@ -59,7 +59,6 @@ MODULE mixed_environment_types
 ! *****************************************************************************
   TYPE mixed_environment_type
      INTEGER :: id_nr, ref_count
-     TYPE ( cell_type ), POINTER                      :: cell
      TYPE ( cell_type ), POINTER                      :: cell_ref
      TYPE ( mixed_energy_type ), POINTER              :: mixed_energy
      TYPE ( cp_para_env_type ), POINTER               :: para_env
@@ -168,7 +167,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mixed_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( input ) ) input => mixed_env%input
-    IF ( PRESENT ( cell ) ) cell => mixed_env % cell
     IF ( PRESENT ( cell_ref ) ) cell_ref => mixed_env % cell_ref
     IF ( PRESENT ( mixed_energy ) ) mixed_energy => mixed_env % mixed_energy
     IF ( PRESENT ( para_env ) ) para_env => mixed_env % para_env
@@ -182,6 +180,7 @@ CONTAINS
                       molecule_kinds_new=molecule_kinds_new,&
                       molecules_new=molecules_new,&
                       results=results,&
+                      cell=cell,&
                       error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
@@ -204,7 +203,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (mixed_env%input)
-    NULLIFY (mixed_env%cell)
     NULLIFY (mixed_env%cell_ref)
     NULLIFY (mixed_env%mixed_energy)
     NULLIFY (mixed_env%subsys)
@@ -231,7 +229,6 @@ CONTAINS
 !> \param local_molecules ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
-!> \param cell ...
 !> \param cell_ref ...
 !> \param mixed_energy ...
 !> \param subsys ...
@@ -241,7 +238,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_mixed_env( mixed_env, atomic_kind_set, particle_set, &
                            local_particles, local_molecules, molecule_kind_set, &
-                           molecule_set, cell, cell_ref, mixed_energy, subsys, &
+                           molecule_set, cell_ref, mixed_energy, subsys, &
                            input, sub_para_env, error )
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
@@ -254,7 +251,7 @@ CONTAINS
     TYPE(molecule_kind_type), OPTIONAL, &
       POINTER                                :: molecule_kind_set( : )
     TYPE(molecule_type), OPTIONAL, POINTER   :: molecule_set( : )
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(mixed_energy_type), OPTIONAL, &
       POINTER                                :: mixed_energy
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
@@ -275,12 +272,6 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
-    IF (PRESENT(cell)) THEN
-       CALL cell_retain(cell, error=error)
-       CALL cell_release(mixed_env%cell,error=error)
-       mixed_env%cell => cell
-    END IF
 
     IF (PRESENT(cell_ref)) THEN
        CALL cell_retain(cell_ref, error=error)
@@ -426,7 +417,6 @@ CONTAINS
        CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
        mixed_env%ref_count=mixed_env%ref_count-1
        IF (mixed_env%ref_count<1) THEN
-          CALL cell_release(mixed_env%cell,error=error)
           ngroups = SIZE(mixed_env%sub_para_env)
           DO i = 1, ngroups
              IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN

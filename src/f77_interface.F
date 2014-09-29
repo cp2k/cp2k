@@ -43,6 +43,7 @@ MODULE f77_interface
                                              test_for_result
   USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
                                              cp_subsys_type,&
                                              unpack_subsys_particles
   USE eip_main,                        ONLY: eip_create_force_env
@@ -57,8 +58,8 @@ MODULE f77_interface
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_frc, force_env_get_natom, &
        force_env_get_nparticle, force_env_get_pos, force_env_get_vel, &
-       force_env_release, force_env_retain, force_env_set, &
-       force_env_set_cell, force_env_type, multiple_fe_list
+       force_env_release, force_env_retain, force_env_set, force_env_type, &
+       multiple_fe_list
   USE force_env_utils,                 ONLY: force_env_shake
   USE fp_types,                        ONLY: fp_env_create,&
                                              fp_env_read,&
@@ -1338,10 +1339,11 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    NULLIFY (f_env)
+    NULLIFY (f_env, cell, subsys)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
        NULLIFY (cell)
@@ -1353,7 +1355,8 @@ CPSourceFileRef,&
        IF (.NOT.failure) THEN
           cell%hmat = new_cell
           CALL init_cell(cell)
-          CALL force_env_set_cell(f_env%force_env, cell, error)
+          CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+          CALL cp_subsys_set(subsys, cell=cell, error=error)
        END IF
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)

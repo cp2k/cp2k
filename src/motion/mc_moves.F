@@ -24,7 +24,6 @@ MODULE mc_moves
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
                                              force_env_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type
@@ -1192,7 +1191,7 @@ END SUBROUTINE mc_conformation_change
       hmat_test(2,2)=new_cell_length(2)
       hmat_test(3,3)=new_cell_length(3)
       CALL cell_create(cell_test,hmat=hmat_test(:,:),periodic=cell%perd,error=error)
-      CALL force_env_set_cell(force_env,cell_test,error=error)
+      CALL cp_subsys_set(oldsys, cell=cell_test, error=error)
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass, using the minimum image (not all molecules are in
@@ -1246,7 +1245,7 @@ END SUBROUTINE mc_conformation_change
 !     end the timing
          CALL timestop(handle)
 ! reset the cell and particle positions
-         CALL force_env_set_cell(force_env,cell_old,error=error)
+         CALL cp_subsys_set(oldsys, cell=cell_old, error=error)
          DO iatom=1,nunits_tot(box_number)
             particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
          ENDDO
@@ -1331,7 +1330,7 @@ END SUBROUTINE mc_conformation_change
       ELSE
 
 ! reset the cell and particle positions
-         CALL force_env_set_cell(force_env,cell_old,error=error)
+         CALL cp_subsys_set(oldsys, cell=cell_old, error=error)
          DO iatom=1,nunits_tot(box_number)
             particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
          ENDDO

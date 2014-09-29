@@ -13,14 +13,12 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE force_env_methods
-
   USE atprop_types,                    ONLY: atprop_init,&
                                              atprop_type
   USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
-                                             compare_cells,&
                                              init_cell,&
                                              real_to_scaled,&
                                              scaled_to_real
@@ -46,6 +44,7 @@ MODULE force_env_methods
                                              cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
+                                             cp_subsys_set,&
                                              cp_subsys_type
   USE eip_environment_types,           ONLY: eip_env_retain,&
                                              eip_environment_type
@@ -63,8 +62,8 @@ MODULE force_env_methods
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_p_type, force_env_set, &
-       force_env_set_cell, force_env_type, use_eip_force, use_ep_force, &
-       use_fist_force, use_mixed_force, use_prog_name, use_qmmm, use_qs_force
+       force_env_type, use_eip_force, use_ep_force, use_fist_force, &
+       use_mixed_force, use_prog_name, use_qmmm, use_qs_force
   USE force_env_utils,                 ONLY: rescale_forces,&
                                              write_forces,&
                                              write_stress_tensor
@@ -207,7 +206,7 @@ CONTAINS
                                                 shell_particles
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY (logger, virial, subsys, atprop_env)
+    NULLIFY (logger, virial, subsys, atprop_env, cell)
     logger => cp_error_get_logger(error)
     failure = .FALSE.
     eval_ef = .TRUE.
@@ -230,9 +229,9 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL force_env_get(force_env,cell=cell,subsys=subsys,error=error)
+    CALL force_env_get(force_env,subsys=subsys,error=error)
     CALL force_env_set(force_env,additional_potential=0.0_dp,error=error)
-    CALL cp_subsys_get(subsys, virial=virial, atprop=atprop_env, error=error)
+    CALL cp_subsys_get(subsys, virial=virial, atprop=atprop_env, cell=cell, error=error)
     IF (virial%pv_availability) CALL zero_virial(virial,reset=.FALSE.)
 
     nat=force_env_get_natom(force_env,error=error)
@@ -364,7 +363,6 @@ CONTAINS
           IF (output_unit > 0) THEN
              CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
                                        i_val=ndigits,error=error)
-             CALL force_env_get(force_env,cell=cell,error=error)
              CALL write_stress_tensor(virial%pv_virial,output_unit,cell,ndigits,virial%pv_numer,&
                                       error=error)
           END IF
@@ -578,8 +576,7 @@ CONTAINS
                    CALL real_to_scaled(s,ref_pos_shell(i,1:3),cell_local)
                    CALL scaled_to_real(shell_particles%els(i)%r,s,cell)
                 END DO
-                ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
-                CALL force_env_set_cell(force_env,cell=cell,error=error)
+
                 ! Compute energies
                 CALL force_env_calc_energy_force(force_env,&
                                                  calc_force=.FALSE.,&
@@ -613,7 +610,6 @@ CONTAINS
        DO i=1,nshell
           shell_particles%els(i)%r = ref_pos_shell(i,:)
        END DO
-       CALL force_env_set_cell(force_env,cell=cell,error=error)
        CALL force_env_calc_energy_force(force_env,&
                                         calc_force=.FALSE.,&
                                         consistent_energies=.TRUE.,&
@@ -1274,13 +1270,12 @@ CPSourceFileRef,&
     INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
       natom, nforce_eval, source, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: dip_exists, failure, &
-                                                virial_consistent
+    LOGICAL                                  :: dip_exists, failure
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
       lambda, lerr, restraint_strength, restraint_target, sd
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
-    TYPE(cell_type), POINTER                 :: cell, cell_mix
+    TYPE(cell_type), POINTER                 :: cell_mix
     TYPE(cp_error_type)                      :: my_error
     TYPE(cp_logger_type), POINTER            :: logger, my_logger
     TYPE(cp_result_p_type), DIMENSION(:), &
@@ -1318,7 +1313,7 @@ CPSourceFileRef,&
                        results=results_mix,&
                        error=error)
     NULLIFY(map_index, glob_natoms, global_forces)
-    virial_consistent = .TRUE.
+
     nforce_eval = SIZE(force_env%sub_force_env)
     mixed_section => section_vals_get_subs_vals(force_env_section,"MIXED",error=error)
     mapping_section => section_vals_get_subs_vals(mixed_section,"MAPPING",error=error)
@@ -1355,11 +1350,11 @@ CPSourceFileRef,&
 
        ! Get all available subsys
        CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
-                          subsys=subsystems(iforce_eval)%subsys,cell=cell,error=my_error)
-       ! Check whether virial can be consistently used..
-       IF (virial_mix%pv_availability) THEN
-          virial_consistent = virial_consistent.AND.compare_cells(cell_mix, cell, my_error)
-       END IF
+                          subsys=subsystems(iforce_eval)%subsys, error=my_error)
+
+       ! all force_env share the same cell
+       CALL cp_subsys_set(subsystems(iforce_eval)%subsys, cell=cell_mix, error=error)
+
        ! Get available particles
        CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys,&
                           particles=particles(iforce_eval)%list,error=my_error)
@@ -1399,12 +1394,6 @@ CPSourceFileRef,&
        END IF
        CALL cp_error_check(my_error, failure)
     END DO
-    ! Final check on virial
-    CALL cp_assert(virial_consistent,cp_failure_level,cp_assertion_failed,&
-         routineP,"Mixed force_eval have different cells definition. Virial cannot be "//&
-         " defined in a consistent way. Check the CELL sections! "//&
- CPSourceFileRef,&
-         error,failure)
 
     ! Handling Parallel execution
     CALL mp_sync(force_env%para_env%group)

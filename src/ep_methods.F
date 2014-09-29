@@ -112,7 +112,8 @@ MODULE ep_methods
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
+                                             qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_env_retain,&
@@ -1612,6 +1613,8 @@ CONTAINS
          extension=".epLog",message=routineP//&
          " started",error=error)
     CALL cp_error_init(suberror,template_error=error)
+
+    CALL qs_env_rebuild_pw_env(qs_env,error)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&

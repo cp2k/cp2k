@@ -50,7 +50,6 @@ MODULE integrator
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: npe_f_ensemble,&
@@ -1487,7 +1486,6 @@ CONTAINS
     END IF
 
     ! Update forces
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -1708,7 +1706,6 @@ CPSourceFileRef,&
     IF(reftraj_env%info%variable_volume)THEN
        cell%hmat = h
        CALL init_cell(cell)
-       CALL force_env_set_cell(force_env, cell, error)
     END IF
 
     ![ADAPT] update input structure with new coordinates, make new labels
@@ -1939,7 +1936,6 @@ CPSourceFileRef,&
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
     ! Update forces (and stress)
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2203,7 +2199,6 @@ CPSourceFileRef,&
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
     ! Update forces
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2504,7 +2499,6 @@ CPSourceFileRef,&
     END IF
 
     ! Update forces
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics

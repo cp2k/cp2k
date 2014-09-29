@@ -8,7 +8,6 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE ewald_pw_methods
-  USE cell_types,                      ONLY: cell_type
   USE dg_rho0_types,                   ONLY: dg_rho0_get,&
                                              dg_rho0_init,&
                                              dg_rho0_set,&
@@ -18,6 +17,7 @@ MODULE ewald_pw_methods
                                              dg_type
   USE dgs,                             ONLY: dg_grid_change
   USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_env_set,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_set,&
@@ -50,32 +50,33 @@ MODULE ewald_pw_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_methods'
 
-  PUBLIC :: ewald_pw_grid_change
+  PUBLIC :: ewald_pw_grid_update
 
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Rescales pw_grids after a box change
+!> \brief Rescales pw_grids for given box, if nessecary
 !> \param ewald_pw ...
 !> \param ewald_env ...
-!> \param cell ...
+!> \param cell_hmat ...
 !> \param error ...
 !> \par History
 !>      none
 !> \author JGH (15-Mar-2001)
 ! *****************************************************************************
-SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
+SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat,  error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3, 3)           :: cell_hmat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_grid_change', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_grid_update', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ewald_type, o_spline, stat
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha
+    REAL(KIND=dp), DIMENSION(3, 3)           :: old_cell_hmat
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_poisson_parameter_type)          :: poisson_params
     TYPE(pw_poisson_type), POINTER           :: poisson_env
@@ -92,12 +93,19 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
                        alpha = alpha, o_spline = o_spline,&
-                       poisson_section=poisson_section,error=error)
+                       poisson_section=poisson_section,&
+                       cell_hmat=old_cell_hmat, error=error)
+
+  IF(ALL(cell_hmat==old_cell_hmat)) RETURN ! rebuild not needed
+
+  CALL ewald_env_set(ewald_env, cell_hmat=cell_hmat, error=error)
+
+
   SELECT CASE ( ewald_type )
   CASE ( do_ewald_ewald )
      CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool, &
                          dg = dg, poisson_env=poisson_env )
-     CALL pw_grid_change ( cell%hmat, pw_big_pool % pw_grid )
+     CALL pw_grid_change ( cell_hmat, pw_big_pool % pw_grid )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg ,error=error)
      CALL pw_poisson_release(poisson_env,error=error)
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg, &
@@ -110,8 +118,8 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
         CALL pw_poisson_create(poisson_env,error=error)
         CALL ewald_pw_set(ewald_pw, poisson_env=poisson_env,error=error)
      END IF
-     CALL pw_grid_change ( cell%hmat, pw_big_pool % pw_grid )
-     CALL dg_grid_change ( cell%hmat, pw_big_pool % pw_grid, pw_small_pool % pw_grid ,error=error)
+     CALL pw_grid_change ( cell_hmat, pw_big_pool % pw_grid )
+     CALL dg_grid_change ( cell_hmat, pw_big_pool % pw_grid, pw_small_pool % pw_grid ,error=error)
      CALL ewald_pw_rho0_setup ( ewald_env, pw_small_pool % pw_grid, dg ,error=error)
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool,  &
                          pw_small_pool = pw_small_pool, dg = dg, &
@@ -122,7 +130,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
      IF (.NOT.ASSOCIATED(poisson_env)) THEN
         CALL pw_poisson_create(poisson_env,error=error)
      END IF
-     CALL pw_grid_change ( cell%hmat, pw_big_pool % pw_grid )
+     CALL pw_grid_change ( cell_hmat, pw_big_pool % pw_grid )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, &
           poisson_env=poisson_env ,error=error)
   CASE ( do_ewald_none )
@@ -134,13 +142,13 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      pw_pools(1)%pool => pw_big_pool
      CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
-     CALL pw_poisson_set(poisson_env,cell_hmat=cell%hmat,parameters=poisson_params,&
+     CALL pw_poisson_set(poisson_env,cell_hmat=cell_hmat,parameters=poisson_params,&
           use_level=1,pw_pools=pw_pools,error=error)
      DEALLOCATE(pw_pools,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 
-END SUBROUTINE ewald_pw_grid_change
+END SUBROUTINE ewald_pw_grid_update
 
 ! *****************************************************************************
 !> \brief Calculates the Fourier transform of the "Ewald function"

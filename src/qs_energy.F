@@ -22,6 +22,7 @@ MODULE qs_energy
                                              qs_energies_init,&
                                              qs_energies_mp2,&
                                              qs_energies_properties
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -73,6 +74,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: run_rtp
+
+    CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
     CALL get_qs_env(qs_env=qs_env,run_rtp=run_rtp,error=error)
     IF(run_rtp)THEN

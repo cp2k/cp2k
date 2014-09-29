@@ -39,9 +39,7 @@ MODULE eip_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE virial_types,                    ONLY: virial_release,&
-                                             virial_type,&
-                                             zero_virial
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -101,11 +99,8 @@ MODULE eip_environment_types
     TYPE(cp_subsys_type), POINTER                    :: subsys
     TYPE(section_vals_type), POINTER                 :: eip_input, &
                                                         force_env_input
-    TYPE(cell_type), POINTER                         :: cell
     TYPE(cell_type), POINTER                         :: cell_ref
     LOGICAL                                          :: use_ref_cell
-    TYPE(virial_type), POINTER                       :: virial
-
   END TYPE eip_environment_type
 
 ! *****************************************************************************
@@ -195,14 +190,8 @@ CONTAINS
         !IF (ASSOCIATED(eip_env%force_env_input)) THEN
         !  CALL section_vals_release(eip_env%force_env_input, error=error)
         !END IF
-        IF (ASSOCIATED(eip_env%cell)) THEN
-          CALL cell_release(eip_env%cell, error=error)
-        END IF
         IF (ASSOCIATED(eip_env%cell_ref)) THEN
           CALL cell_release(eip_env%cell_ref, error=error)
-        END IF
-        IF (ASSOCIATED(eip_env%virial)) THEN
-          CALL virial_release(eip_env%virial, error=error)
         END IF
         DEALLOCATE(eip_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
@@ -325,6 +314,8 @@ CONTAINS
                          molecules_new=molecules_new, &
                          local_molecules_new=local_molecules, &
                          local_particles=local_particles, &
+                         virial=virial, &
+                         cell=cell, &
                          error=error)
       IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
       IF (PRESENT(particle_set)) particle_set => particles%els
@@ -333,10 +324,8 @@ CONTAINS
 
       IF (PRESENT(eip_input)) eip_input => eip_env%eip_input
       IF (PRESENT(force_env_input)) force_env_input => eip_env%force_env_input
-      IF (PRESENT(cell)) cell => eip_env%cell
       IF (PRESENT(cell_ref)) cell_ref => eip_env%cell_ref
       IF (PRESENT(use_ref_cell)) use_ref_cell = eip_env%use_ref_cell
-      IF (PRESENT(virial)) virial => eip_env%virial
     END IF
 
   END SUBROUTINE eip_env_get
@@ -362,29 +351,26 @@ CONTAINS
 !> \param local_molecules All molecules on this particular node
 !> \param eip_input the pointer to the EIP input section
 !> \param force_env_input Pointer to the force_env input section
-!> \param cell The simulation cell
 !> \param cell_ref The reference simulation cell
 !> \param use_ref_cell Logical which indicates if reference
 !>                      simulation cell is used
 !> \param eip_kinetic_energy The EIP kinetic energy
 !> \param eip_potential_energy The EIP potential energy
-!> \param virial Dummy virial pointer
-!>
-!>      For possible missing arguments see the attributes of
-!>      eip_environment_type
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>   For possible missing arguments see the attributes of eip_environment_type
 ! *****************************************************************************
   SUBROUTINE eip_env_set(eip_env, id_nr, eip_model, eip_energy, eip_energy_var, &
                          eip_forces, coord_avg, coord_var, count, subsys, &
                          atomic_kind_set, particle_set , local_particles, &
                          molecule_kind_set, molecule_set, local_molecules, &
-                         eip_input, force_env_input, cell, cell_ref, &
+                         eip_input, force_env_input, cell_ref, &
                          use_ref_cell, eip_kinetic_energy, eip_potential_energy, &
-                         virial, error)
+                         error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr, eip_model
@@ -407,11 +393,10 @@ CONTAINS
       POINTER                                :: local_molecules
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: eip_input, force_env_input
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: use_ref_cell
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eip_kinetic_energy, &
                                                 eip_potential_energy
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_set', &
@@ -501,18 +486,12 @@ CONTAINS
       IF (PRESENT(force_env_input)) THEN
         eip_env%force_env_input => force_env_input
       END IF
-      IF (PRESENT(cell)) THEN
-        CALL cell_retain(cell, error=error)
-        CALL cell_release(eip_env%cell,error=error)
-        eip_env%cell => cell
-      END IF
       IF (PRESENT(cell_ref)) THEN
         CALL cell_retain(cell_ref, error=error)
         CALL cell_release(eip_env%cell_ref,error=error)
         eip_env%cell_ref => cell_ref
       END IF
       IF (PRESENT(use_ref_cell)) eip_env%use_ref_cell = use_ref_cell
-      IF (PRESENT(virial)) eip_env%virial => virial
     END IF
   END SUBROUTINE eip_env_set
 
@@ -565,14 +544,8 @@ CONTAINS
       IF (ASSOCIATED(eip_env%force_env_input)) THEN
         CALL section_vals_release(eip_env%force_env_input, error=error)
       END IF
-      IF (ASSOCIATED(eip_env%cell)) THEN
-        CALL cell_release(eip_env%cell, error=error)
-      END IF
       IF (ASSOCIATED(eip_env%cell_ref)) THEN
         CALL cell_release(eip_env%cell_ref, error=error)
-      END IF
-      IF (ASSOCIATED(eip_env%virial)) THEN
-        CALL zero_virial(eip_env%virial)
       END IF
     ELSE
       CALL eip_env_create(eip_env, error=error)
@@ -611,9 +584,7 @@ CONTAINS
     NULLIFY(eip_env%subsys)
     NULLIFY(eip_env%eip_input)
     NULLIFY(eip_env%force_env_input)
-    NULLIFY(eip_env%cell)
     NULLIFY(eip_env%cell_ref)
-    NULLIFY(eip_env%virial)
 
     IF (.NOT. failure) THEN
       eip_env%ref_count = 1
