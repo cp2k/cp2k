@@ -1,6 +1,6 @@
-# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013
+# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2014
 # Program environments:
-# - module load PrgEnv-gnu ; module load fftw
+# - module load PrgEnv-gnu ; module load cray-libsci ; module load fftw
 
 CC       = cc
 CPP      = 
@@ -8,14 +8,10 @@ FC       = ftn
 LD       = ftn
 AR       = ar -r
 CPPFLAGS =
-DFLAGS   = -D__FFTW3 -D__HAS_smm_dnn -D__ELPA -D__HAS_NO_SHARED_GLIBC
+DFLAGS   = -D__FFTW3 -D__HAS_smm_dnn -D__HAS_NO_SHARED_GLIBC
 CFLAGS   = $(DFLAGS)
 FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
 	   -ffree-form -ffree-line-length-512 
-LDFLAGS  = $(FCFLAGS) -static
-MKL_LIB  = ${INTEL_PATH}/mkl/lib/intel64
-LIBS     = /project/cray/alazzaro/libsmm/gfortran_avx/libsmm_dnn.a -lfftw3 -lfftw3_threads \
-           -Wl,--start-group \
-	   ${MKL_LIB}/libmkl_gf_lp64.a ${MKL_LIB}/libmkl_sequential.a \
-	   ${MKL_LIB}/libmkl_core.a -Wl,--end-group -ldl
-
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -lfftw3 -lfftw3_threads
+LIBS    += /project/cray/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a

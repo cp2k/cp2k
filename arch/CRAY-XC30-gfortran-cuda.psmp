@@ -1,0 +1,20 @@
+# Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2014
+# Program environments:
+# - module load PrgEnv-gnu ; module load fftw ; module load cudatoolkit ; module load cray-libsci
+
+NVCC     = nvcc
+CC       = cc
+CPP      = 
+FC       = ftn
+LD       = ftn
+AR       = ar -r
+CPPFLAGS =
+DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__ACC -D__DBCSR_ACC
+CFLAGS   = $(DFLAGS)
+FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
+           -ffree-form -ffree-line-length-512
+LDFLAGS  = $(FCFLAGS)
+NVFLAGS  = $(DFLAGS) -O3 -arch sm_35
+LIBS   	 = -lfftw3 -lfftw3_threads
+LIBS     += /project/cray/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a 
+

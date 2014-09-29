@@ -1,6 +1,7 @@
 # Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2014
 # Program environments:
-# - module load PrgEnv-gnu ; module load cray-libsci ; module load fftw
+# - module load PrgEnv-cce ; module load cray-libsci ; module load fftw
+# Tested with CCE v8.3.x
 
 CC       = cc
 CPP      = 
@@ -10,8 +11,13 @@ AR       = ar -r
 CPPFLAGS =
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__HAS_NO_SHARED_GLIBC
 CFLAGS   = $(DFLAGS)
-FCFLAGS  = $(DFLAGS) -O3 -fopenmp -mavx -funroll-loops -ffast-math -ftree-vectorize \
-	   -ffree-form -ffree-line-length-512 
+FCFLAGS  = $(DFLAGS) -O2 -hfp2 -e0 -ez -emf -ffree -hnocaf -hnodwarf -M 7206,7207,7212
+FCFLAGS	+= -hnomodinline -Ovector1 -Oscalar1
 LDFLAGS  = $(FCFLAGS)
-LIBS     = -lfftw3 -lfftw3_threads 
+LIBS	 = -lfftw3 -lfftw3_threads 
 LIBS    += /project/cray/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a
+
+###########
+qs_grid_atom.o: qs_grid_atom.F
+	$(FC) -c $(subst fp2,fp0,$(FCFLAGS)) $<
+

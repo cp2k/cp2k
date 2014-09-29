@@ -1,11 +1,6 @@
 # Author: Alfio Lazzaro (alazzaro@cray.com), CRAY, 2013-2014
 # Program environments:
 # - module load PrgEnv-intel
-# Note that MKL FFTW can be used only with Intel compiler >=v14, otherwise the
-# version from fftw.org is needed for thread safety.
-# To avoid problems with thread pinning (Intel uses N+1 threads for a
-# N-threaded OMP run) aprun supports the option "-cc depth" in combination
-# with the env variable "export KMP_AFFINITY=compact"
 
 CC       = cc
 CPP      = 
@@ -15,8 +10,7 @@ AR       = ar -r
 CPPFLAGS =
 DFLAGS   = -D__MKL -D__FFTW3 -D__parallel -D__SCALAPACK -D__HAS_smm_dnn -D__HAS_NO_SHARED_GLIBC
 CFLAGS   = $(DFLAGS) -O2
-FCFLAGS  = $(DFLAGS) -O2 -openmp -openmp-threadprivate=compat \
-	   -pad -opt-prefetch -mavx -funroll-loops -fpp -free \
+FCFLAGS  = $(DFLAGS) -O2 -pad -opt-prefetch -mavx -funroll-loops -fpp -free \
            -nogen-interfaces \
 	   -I${MKLROOT}/include -I${MKLROOT}/include/fftw
 LDFLAGS  = $(FCFLAGS)
