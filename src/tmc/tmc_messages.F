@@ -1817,7 +1817,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'stop_whole_group', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dest_rank, stat
+    INTEGER                                  :: dest_rank, stat, act_rank
     LOGICAL                                  :: failure, flag
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rank_stoped
 
@@ -1839,13 +1839,15 @@ CONTAINS
         ! busy workers have to be canceled
         IF(worker_info(dest_rank)%busy) THEN
           stat = TMC_CANCELING_MESSAGE
-          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest_rank, &
+          act_rank = dest_rank
+          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=act_rank, &
                            para_env=para_env, tmc_params=tmc_params, &
                            error=error)
         ELSE
         ! send stop message
           stat = TMC_STATUS_FAILED
-          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest_rank, &
+          act_rank = dest_rank
+          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=act_rank, &
                            para_env=para_env, tmc_params=tmc_params, &
                            error=error)
         END IF
