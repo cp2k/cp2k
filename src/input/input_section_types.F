@@ -1074,10 +1074,7 @@ CONTAINS
        IF (PRESENT(ref_count)) ref_count=section_vals%ref_count
        IF (PRESENT(id_nr)) id_nr=section_vals%id_nr
        IF (PRESENT(section)) section => section_vals%section
-       IF (PRESENT(n_repetition)) THEN
-          n_repetition=SIZE(section_vals%values,2)
-          IF (.NOT.section_vals%section%required) n_repetition=MAX(1,n_repetition)
-       END IF
+       IF (PRESENT(n_repetition)) n_repetition=SIZE(section_vals%values,2)
        IF (PRESENT(n_subs_vals_rep)) n_subs_vals_rep=SIZE(section_vals%subs_vals,2)
        IF (PRESENT(explicit)) explicit=(SIZE(section_vals%values,2)>0)
     END IF

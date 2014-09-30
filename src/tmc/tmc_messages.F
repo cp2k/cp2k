@@ -1817,7 +1817,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'stop_whole_group', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dest_rank, stat, act_rank
+    INTEGER                                  :: act_rank, dest_rank, stat
     LOGICAL                                  :: failure, flag
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rank_stoped
 
