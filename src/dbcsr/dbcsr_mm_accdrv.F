@@ -389,7 +389,8 @@ MODULE dbcsr_mm_accdrv
              curr_posterior_stream = MOD(curr_posterior_stream, SIZE(posterior_streams)) + 1
              thread_privates%stack_buffers(i)%stream = posterior_streams(curr_posterior_stream)
           ENDIF
-          CALL acc_hostmem_allocate(thread_privates%stack_buffers(i)%hostmem, dbcsr_ps_width, mm_stack_size, thread_privates%stack_buffers(i)%stream)
+          CALL acc_hostmem_allocate(thread_privates%stack_buffers(i)%hostmem,&
+                 dbcsr_ps_width, mm_stack_size, thread_privates%stack_buffers(i)%stream)
           CALL acc_event_create(thread_privates%stack_buffers(i)%ready)
           CALL acc_event_create(thread_privates%stack_buffers(i)%calculated)
        END DO
