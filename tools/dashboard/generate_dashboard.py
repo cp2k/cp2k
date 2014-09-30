@@ -25,7 +25,7 @@ def main():
     config = ConfigParser.ConfigParser()
     config.read(config_file)
 
-    now = datetime.now().replace(microsecond=0)
+    now = datetime.utcnow().replace(microsecond=0)
 
     svn_info = check_output("svn info svn://svn.code.sf.net/p/cp2k/code/trunk".split())
     trunk_revision = int(re.search("Revision: (\d+)\n", svn_info).group(1))
