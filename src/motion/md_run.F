@@ -15,8 +15,13 @@ MODULE md_run
   USE barostat_types,                  ONLY: barostat_type,&
                                              create_barostat_type,&
                                              release_barostat_type
+#ifdef __PLUMED_CP2K
   USE cell_methods,                    ONLY: cell_type,&
-                                             pbc_cp2k_plumed_getset_cell
+                                             pbc_cp2k_plumed_getset_cell,&
+                                             pbc_cp2k_plumed
+#else
+  USE cell_methods,                    ONLY: cell_type
+#endif
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -223,8 +228,8 @@ CONTAINS
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(virial_type), POINTER               :: virial
-#ifdef PLUMED_CP2K
-    INTEGER                                  :: natom_plumed, nsp_plumed
+#ifdef __PLUMED_CP2K
+    INTEGER                                  :: natom_plumed, nsp_plumed, i_kinds
     INTEGER, DIMENSION(90)                   :: na_plumed
     REAL(KIND=dp)                            :: timestep_plumed
     REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
@@ -407,7 +412,7 @@ CONTAINS
        IF (ASSOCIATED(force_env%meta_env)) THEN
            ! Setup stuff for plumed if needed
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-#ifdef PLUMED_CP2K
+#ifdef __PLUMED_CP2K
                natom_plumed=subsys%particles%n_els
                nsp_plumed=subsys%atomic_kinds%n_els
                timestep_plumed=simpar%dt
@@ -480,7 +485,7 @@ CONTAINS
        CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
        itimes = reftraj%info%first_snapshot -1
        md_stride = reftraj%info%stride
-#ifdef PLUMED_CP2K
+#ifdef __PLUMED_CP2K
        IF (ASSOCIATED(force_env%meta_env)) THEN
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
                natom_plumed=subsys%particles%n_els
