@@ -1222,9 +1222,6 @@ CONTAINS
 !> \param WannierCentres ...
 !> \param ga_env ...
 !> \param error ...
-!> \param energy ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param force ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param use_ref_cell ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
