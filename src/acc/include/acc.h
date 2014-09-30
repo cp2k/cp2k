@@ -28,8 +28,8 @@ int acc_event_synchronize(void* event);
 // memory
 int acc_dev_mem_allocate(void **dev_mem, size_t n);
 int acc_dev_mem_deallocate(void *dev_mem);
-int acc_host_mem_allocate(void **host_mem, size_t n);
-int acc_host_mem_deallocate(void *host_mem);
+int acc_host_mem_allocate(void **host_mem, size_t n, void* stream);
+int acc_host_mem_deallocate(void *host_mem, void* stream);
 int acc_memcpy_h2d(const void *host_mem, void *dev_mem, size_t count, void* stream);
 int acc_memcpy_d2h(const void *dev_mem, void *host_mem, size_t count, void* stream);
 int acc_memcpy_d2d(const void *devmem_src, void *devmem_dst, size_t count, void* stream);

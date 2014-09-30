@@ -108,7 +108,7 @@ MODULE dbcsr_mm_accdrv
 
   TYPE stack_buffer_type
      TYPE(acc_devmem_type)                  :: devmem
-     INTEGER, DIMENSION(:,:), POINTER       :: hostmem
+     INTEGER, DIMENSION(:,:), POINTER       :: hostmem => Null()
      TYPE(acc_event_type)                   :: ready
      TYPE(acc_event_type)                   :: calculated
      TYPE(acc_stream_type)                  :: stream
@@ -168,8 +168,6 @@ MODULE dbcsr_mm_accdrv
     !$ ithread = OMP_GET_THREAD_NUM ()
     thread_privates => all_thread_privates(ithread)
 
-    CALL deallocate_streams(error)
-
     IF(ASSOCIATED(thread_privates%stack_buffers)) &
       CALL deallocate_stackbuffers(error)
 
@@ -184,6 +182,8 @@ MODULE dbcsr_mm_accdrv
     !How much memory is still allocated on the card?
     !istat = dbcsr_acc_dev_mem_info(mem_free, mem_avail)
     !WRITE (*,*) "after finalize acc mem: ",mem_free, mem_avail, istat
+
+    CALL deallocate_streams(error)
 
   END SUBROUTINE dbcsr_mm_accdrv_lib_finalize
 
@@ -382,9 +382,6 @@ MODULE dbcsr_mm_accdrv
        DO i=1, my_total_buffers
           CALL acc_devmem_allocate_bytes(thread_privates%stack_buffers(i)%devmem,&
                    int_4_size*dbcsr_ps_width*mm_stack_size)
-          CALL acc_hostmem_allocate(thread_privates%stack_buffers(i)%hostmem, dbcsr_ps_width, mm_stack_size)
-          CALL acc_event_create(thread_privates%stack_buffers(i)%ready)
-          CALL acc_event_create(thread_privates%stack_buffers(i)%calculated)
           IF(i <= my_priority_buffers) THEN
              curr_priority_stream = MOD(curr_priority_stream, SIZE(priority_streams)) + 1
              thread_privates%stack_buffers(i)%stream = priority_streams(curr_priority_stream)
@@ -392,6 +389,9 @@ MODULE dbcsr_mm_accdrv
              curr_posterior_stream = MOD(curr_posterior_stream, SIZE(posterior_streams)) + 1
              thread_privates%stack_buffers(i)%stream = posterior_streams(curr_posterior_stream)
           ENDIF
+          CALL acc_hostmem_allocate(thread_privates%stack_buffers(i)%hostmem, dbcsr_ps_width, mm_stack_size, thread_privates%stack_buffers(i)%stream)
+          CALL acc_event_create(thread_privates%stack_buffers(i)%ready)
+          CALL acc_event_create(thread_privates%stack_buffers(i)%calculated)
        END DO
       !$omp end critical(crit_setup_stackbuffers)
     END IF
@@ -416,7 +416,7 @@ MODULE dbcsr_mm_accdrv
 
    DO i=1, SIZE(stack_buffers)
       CALL acc_devmem_deallocate(stack_buffers(i)%devmem)
-      CALL acc_hostmem_deallocate(stack_buffers(i)%hostmem)
+      CALL acc_hostmem_deallocate(stack_buffers(i)%hostmem, stack_buffers(i)%stream)
       CALL acc_event_destroy(stack_buffers(i)%ready)
       CALL acc_event_destroy(stack_buffers(i)%calculated)
    END DO

@@ -1,0 +1,5 @@
+{
+"description": "OpenCL backend for accelerator api",
+"archive":"libcp2kaccopencl",
+"requires": ["../include"]
+}

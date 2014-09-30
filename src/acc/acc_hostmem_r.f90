@@ -10,16 +10,17 @@
 !> \param n size given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_alloc_r (host_mem, n)
+  SUBROUTINE acc_hostmem_alloc_r (host_mem, n, stream)
     REAL(kind=real_4), DIMENSION(:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*real_4_size)
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*real_4_size, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
 #else
-    STOP "acc_hostmem_alloc_r_4D: ACC not compiled in."
+    STOP "acc_hostmem_alloc_r: ACC not compiled in."
 #endif
   END SUBROUTINE acc_hostmem_alloc_r
 
@@ -32,17 +33,19 @@
 !> \param n2 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
+  SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2, stream)
     REAL(kind=real_4), DIMENSION(:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
+
     n_bytes = MAX(1,n1)*MAX(1,n2)*real_4_size
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
 #else
-    STOP "acc_hostmem_alloc_r_4D: ACC not compiled in."
+    STOP "acc_hostmem_alloc_r_2D: ACC not compiled in."
 #endif
   END SUBROUTINE acc_hostmem_alloc_r_2D
 
@@ -55,14 +58,16 @@ SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
 !> \param n3 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_alloc_r_3D (host_mem, n1, n2, n3)
+  SUBROUTINE acc_hostmem_alloc_r_3D (host_mem, n1, n2, n3, stream)
     REAL(kind=real_4), DIMENSION(:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
+
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*real_4_size
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3) /))
 #else
@@ -80,14 +85,16 @@ SUBROUTINE acc_hostmem_alloc_r_2D (host_mem, n1, n2)
 !> \param n4 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
+  SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4, stream)
     REAL(kind=real_4), DIMENSION(:,:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3, n4
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
+
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*MAX(1,n4)*real_4_size
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3),MAX(1,n4) /))
 #else
@@ -102,20 +109,16 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_r (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_r (host_mem, stream)
     REAL(kind=real_4), DIMENSION(:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_r', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_r: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1)), stream)
 #else
     STOP "acc_hostmem_dealloc_r: ACC not compiled in."
 #endif
@@ -127,20 +130,16 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_r_2D (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_r_2D (host_mem, stream)
     REAL(kind=real_4), DIMENSION(:,:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_r_2D', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_r_2D: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1)), stream)
 #else
     STOP "acc_hostmem_dealloc_r: ACC not compiled in."
 #endif
@@ -152,20 +151,16 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_r_3D (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_r_3D (host_mem, stream)
     REAL(kind=real_4), DIMENSION(:,:,:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_r_3D', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1,1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_r_3D: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1,1)), stream)
 #else
     STOP "acc_hostmem_dealloc_r: ACC not compiled in."
 #endif
@@ -177,20 +172,16 @@ SUBROUTINE acc_hostmem_alloc_r_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_r_4D (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_r_4D (host_mem, stream)
     REAL(kind=real_4), DIMENSION(:,:,:,:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_r_4D', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1,1,1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_r_4D: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1,1,1)), stream)
 #else
     STOP "acc_hostmem_dealloc_r: ACC not compiled in."
 #endif

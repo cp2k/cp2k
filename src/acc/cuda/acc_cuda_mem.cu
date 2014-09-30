@@ -47,7 +47,7 @@ extern "C" int acc_dev_mem_deallocate(void *dev_mem){
 
 
 /****************************************************************************/
-extern "C" int acc_host_mem_allocate(void **host_mem, size_t n){
+extern "C" int acc_host_mem_allocate(void **host_mem, size_t n, void *stream){
   cudaError_t cErr;
   unsigned int flag;
 
@@ -67,7 +67,7 @@ extern "C" int acc_host_mem_allocate(void **host_mem, size_t n){
 
 
 /****************************************************************************/
-extern "C" int acc_host_mem_deallocate(void *host_mem){
+extern "C" int acc_host_mem_deallocate(void *host_mem, void *stream){
   cudaError_t cErr;
 
   if (verbose_print)

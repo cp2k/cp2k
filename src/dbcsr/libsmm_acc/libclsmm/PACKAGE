@@ -1,0 +1,5 @@
+{
+"description": "OpenCL accelerated Small Matrix Multiplications",
+"archive": "libclsmm",
+"requires": ["kernels", "../include", ]
+}

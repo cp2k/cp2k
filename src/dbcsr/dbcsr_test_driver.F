@@ -13,6 +13,9 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_test_driver
+
+  USE acc_device,                      ONLY: acc_get_ndevices,&
+                                             acc_set_active_device
   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -94,6 +97,8 @@ PROGRAM dbcsr_test_driver
 
   !
   ! initialize libdbcsr
+  IF (acc_get_ndevices() > 0) &
+     CALL acc_set_active_device(MOD(mynode, acc_get_ndevices()))
   CALL dbcsr_init_lib (group=mp_comm, error=error)
   CALL dbcsr_set_default_config (error=error)
 

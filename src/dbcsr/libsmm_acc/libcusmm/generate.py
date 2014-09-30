@@ -149,14 +149,14 @@ def gen_process(plan):
     output += '#define dbcsr_type_complex_8  7\n\n'
 
     output += 'extern "C" int libsmm_acc_process '
-    output += '(int *param_stack, int stack_size, int nparams, int datatype,'
+    output += '(void *param_stack, int stack_size, int nparams, int datatype,'
     output += ' void *a_data, void *b_data, void *c_data,'
-    output += ' int m_max, int n_max, int k_max, int def_mnk, void* stream){\n'
+    output += ' int m_max, int n_max, int k_max, int def_mnk, void *stream){\n'
     output += 'cudaStream_t* custream = (cudaStream_t*) stream;\n'
     output += 'if(def_mnk!=1)\n'
     output += '  return(-1); // inhomogenous stacks not supported\n'
     output += 'if(datatype==dbcsr_type_real_8)\n'
-    output += '  return(libcusmm_process_d (param_stack, stack_size, *custream,'
+    output += '  return(libcusmm_process_d ((int *) param_stack, stack_size, *custream,'
     output += ' m_max, n_max, k_max,'
     output += '(double *) a_data, (double *) b_data, (double *) c_data));\n\n'
     output += 'return(-1); // datatype not supported\n'
@@ -239,12 +239,12 @@ def gen_transpose(sizes):
     output += "}\n\n\n"
 
     output += 'extern "C" int libsmm_acc_transpose '
-    output += '(int *trs_stack, int offset, int nblks, void *buffer,'
+    output += '(void *trs_stack, int offset, int nblks, void *buffer,'
     output += 'int datatype, int m, int n, void* stream) {\n'
     output += 'cudaStream_t* custream = (cudaStream_t*) stream;\n'
     output += 'if(datatype != dbcsr_type_real_8)\n'
     output += '  return 0; //transpose not needed\n'
-    output += 'return libcusmm_transpose_d(trs_stack, offset, nblks, (double*) buffer, m, n, custream);\n'
+    output += 'return libcusmm_transpose_d((int *) trs_stack, offset, nblks, (double *) buffer, m, n, custream);\n'
     output += '};\n'
 
     return(output)

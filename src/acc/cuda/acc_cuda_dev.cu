@@ -9,6 +9,9 @@
 #include "acc_cuda_error.h"
 #include "../include/acc.h"
 
+// for debug purpose
+static const int verbose_print = 1;
+
 /****************************************************************************/
 extern "C" int acc_get_ndevices(int *n_devices){
   cudaError_t cErr;
@@ -40,6 +43,12 @@ extern "C" int acc_set_active_device(int device_id){
   cErr = cudaFree(0);
   if (cuda_error_check (cErr))
     return -1;
+
+  if (verbose_print){
+    cErr = cudaDeviceSetLimit(cudaLimitPrintfFifoSize, (size_t) 1000000000);
+    if (cuda_error_check (cErr))
+      return -1;
+  }
 
   return 0;
 }

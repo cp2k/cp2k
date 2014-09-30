@@ -370,7 +370,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE acc_devmem_setzero_bytes(this, first_byte, last_byte, stream)
     TYPE(acc_devmem_type), INTENT(INOUT) :: this
-    INTEGER, INTENT(IN), OPTIONAL               :: first_byte, last_byte
+    INTEGER, INTENT(IN), OPTIONAL        :: first_byte, last_byte
     TYPE(acc_stream_type), INTENT(IN)    :: stream
 
 #if ! defined (__ACC)

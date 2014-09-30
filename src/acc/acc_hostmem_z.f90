@@ -10,16 +10,17 @@
 !> \param n size given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_alloc_z (host_mem, n)
+  SUBROUTINE acc_hostmem_alloc_z (host_mem, n, stream)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
 
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*(2*real_8_size))
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*(2*real_8_size), stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
 #else
-    STOP "acc_hostmem_alloc_z_4D: ACC not compiled in."
+    STOP "acc_hostmem_alloc_z: ACC not compiled in."
 #endif
   END SUBROUTINE acc_hostmem_alloc_z
 
@@ -32,17 +33,19 @@
 !> \param n2 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-SUBROUTINE acc_hostmem_alloc_z_2D (host_mem, n1, n2)
+  SUBROUTINE acc_hostmem_alloc_z_2D (host_mem, n1, n2, stream)
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
+
     n_bytes = MAX(1,n1)*MAX(1,n2)*(2*real_8_size)
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
 #else
-    STOP "acc_hostmem_alloc_z_4D: ACC not compiled in."
+    STOP "acc_hostmem_alloc_z_2D: ACC not compiled in."
 #endif
   END SUBROUTINE acc_hostmem_alloc_z_2D
 
@@ -55,14 +58,16 @@ SUBROUTINE acc_hostmem_alloc_z_2D (host_mem, n1, n2)
 !> \param n3 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_alloc_z_3D (host_mem, n1, n2, n3)
+  SUBROUTINE acc_hostmem_alloc_z_3D (host_mem, n1, n2, n3, stream)
     COMPLEX(kind=real_8), DIMENSION(:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
+
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*(2*real_8_size)
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3) /))
 #else
@@ -80,14 +85,16 @@ SUBROUTINE acc_hostmem_alloc_z_2D (host_mem, n1, n2)
 !> \param n4 sizes given in terms of item-count (not bytes!)
 !> \author  Ole Schuett
 ! *****************************************************************************
-SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
+  SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4, stream)
     COMPLEX(kind=real_8), DIMENSION(:,:,:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2, n3, n4
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 #if defined (__ACC)
     TYPE(C_PTR)                              :: host_mem_c_ptr
     INTEGER                                  :: n_bytes
+
     n_bytes = MAX(1,n1)*MAX(1,n2)*MAX(1,n3)*MAX(1,n4)*(2*real_8_size)
-    CALL acc_hostmem_alloc_raw(host_mem_c_ptr,n_bytes)
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3),MAX(1,n4) /))
 #else
@@ -102,20 +109,16 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_z (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_z (host_mem, stream)
     COMPLEX(kind=real_8), DIMENSION(:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_z: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1)), stream)
 #else
     STOP "acc_hostmem_dealloc_z: ACC not compiled in."
 #endif
@@ -127,20 +130,16 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_z_2D (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_z_2D (host_mem, stream)
     COMPLEX(kind=real_8), DIMENSION(:,:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z_2D', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_z_2D: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1)), stream)
 #else
     STOP "acc_hostmem_dealloc_z: ACC not compiled in."
 #endif
@@ -152,20 +151,16 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_z_3D (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_z_3D (host_mem, stream)
     COMPLEX(kind=real_8), DIMENSION(:,:,:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z_3D', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1,1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_z_3D: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1,1)), stream)
 #else
     STOP "acc_hostmem_dealloc_z: ACC not compiled in."
 #endif
@@ -177,20 +172,16 @@ SUBROUTINE acc_hostmem_alloc_z_4D (host_mem, n1, n2, n3, n4)
 !> \param host_mem pointer to array
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_hostmem_dealloc_z_4D (host_mem)
+  SUBROUTINE acc_hostmem_dealloc_z_4D (host_mem, stream)
     COMPLEX(kind=real_8), DIMENSION(:,:,:,:), &
       POINTER                                :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_z_4D', &
       routineP = moduleN//':'//routineN
-#if defined (__ACC)
-    INTEGER                                  :: istat
-#endif
 
     IF (SIZE (host_mem) == 0) RETURN
 #if defined (__ACC)
-    istat = cuda_host_mem_dealloc_cu(C_LOC(host_mem(1,1,1,1)))
-    IF (istat /= 0 ) &
-       STOP "acc_hostmem_dealloc_z_4D: Error deallocating host pinned memory"
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1,1,1)), stream)
 #else
     STOP "acc_hostmem_dealloc_z: ACC not compiled in."
 #endif

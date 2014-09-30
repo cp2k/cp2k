@@ -82,7 +82,7 @@ MODULE dbcsr_mm_sched
   ! *****************************************************************************
   TYPE dbcsr_mm_sched_type
     PRIVATE
-    TYPE(dbcsr_work_type), POINTER  :: product_wm
+    TYPE(dbcsr_work_type), POINTER  :: product_wm => Null()
     TYPE(dbcsr_mm_accdrv_type)      :: accdrv
     TYPE(dbcsr_mm_hostdrv_type)     :: hostdrv
     LOGICAL                         :: avoid_accdrv = .FALSE.
