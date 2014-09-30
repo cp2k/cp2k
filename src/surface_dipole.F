@@ -8,8 +8,6 @@ MODULE surface_dipole
 
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE f77_blas
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
@@ -34,6 +32,8 @@ MODULE surface_dipole
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -84,7 +84,6 @@ CONTAINS
                                                 vdip_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rhoavsurf
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -94,6 +93,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -102,7 +102,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, rho_core=rho_core, &
                rho0_s_gs=rho0_s_gs, cell=cell, pw_env=pw_env,  subsys=subsys, error=error)
-      CALL cp_subsys_get(subsys,particles=particles,error=error)
+      CALL qs_subsys_get(subsys,particles=particles,error=error)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,error=error)

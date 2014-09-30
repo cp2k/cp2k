@@ -17,7 +17,6 @@ MODULE efield_utils
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              efield_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get
   USE f77_blas
   USE input_constants,                 ONLY: constant_env,&
                                              gaussian_env,&
@@ -36,6 +35,7 @@ MODULE efield_utils
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -84,7 +84,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(cell, particles)
-    CALL cp_subsys_get(qs_env%subsys,particles=particles,error=error)
+    CALL qs_subsys_get(qs_env%subsys,particles=particles,error=error)
     v_efield_rspace%pw%cr3d=0.0_dp
 
     CALL get_qs_env(qs_env,cell=cell,energy=energy,rho=rho,error=error)

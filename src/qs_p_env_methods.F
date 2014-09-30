@@ -60,6 +60,7 @@ MODULE qs_p_env_methods
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: init_preconditioner
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
@@ -474,6 +475,7 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, lr_section
@@ -482,7 +484,7 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         logger, input,lr_section)
+         logger, input,lr_section, energy)
     logger => cp_error_get_logger(error)
     n_spins = qs_env%dft_control%nspins
 
@@ -494,7 +496,7 @@ END SUBROUTINE p_env_did_change
 
        CALL get_qs_env(qs_env,&
             mos=mos, matrix_s=matrix_s, para_env=para_env, ks_env=ks_env, rho=rho,&
-            input=input,error=error)
+            input=input,energy=energy,error=error)
        CALL mpools_get(qs_env%mpools,&
             ao_mo_fm_pools=ao_mo_fm_pools, error=error)
        ! def my_psi0
@@ -609,7 +611,7 @@ END SUBROUTINE p_env_did_change
           CALL section_vals_get(lr_section,explicit=was_present,error=error)
           IF(was_present) THEN
             WRITE(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
-            "Total energy ground state:                     ", qs_env%energy%total
+            "Total energy ground state:                     ", energy%total
           END IF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,lr_section,&

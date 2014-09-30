@@ -128,8 +128,8 @@ CONTAINS
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        dft_control=dft_control,&
                        particle_set=particles_qm,&
+                       natom=number_qm_atoms,&
                        error=error)
-       number_qm_atoms = SIZE(qs_env%subsys%particles%els)
        SELECT CASE (dft_control%qs_control%method_id)
        CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pdg,&
              do_method_pm3,do_method_pm6,do_method_mndod,do_method_pnnl)

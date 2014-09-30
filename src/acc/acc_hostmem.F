@@ -76,8 +76,8 @@ MODULE acc_hostmem
     TYPE(C_PTR)                              :: mem
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: n
-    INTEGER(KIND=C_INT)                      :: istat
     TYPE(C_PTR), VALUE                       :: stream_ptr
+    INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_host_mem_alloc_cu
   END INTERFACE
@@ -85,9 +85,8 @@ MODULE acc_hostmem
   INTERFACE
      FUNCTION cuda_host_mem_dealloc_cu(mem, stream_ptr) RESULT (istat) bind(C, name="acc_host_mem_deallocate")
        USE ISO_C_BINDING
-    TYPE(C_PTR), VALUE                       :: mem
+    TYPE(C_PTR), VALUE                       :: mem, stream_ptr
     INTEGER(KIND=C_INT)                      :: istat
-    TYPE(C_PTR), VALUE                       :: stream_ptr
 
      END FUNCTION cuda_host_mem_dealloc_cu
   END INTERFACE
@@ -109,6 +108,7 @@ CONTAINS
 !> \brief Helper-routine performing allocation of host-pinned cuda memory.
 !> \param host_mem_c_ptr pointer to allocated memory
 !> \param n_bytes number of bytes to allocate
+!> \param stream ...
 ! *****************************************************************************
 #if defined (__ACC)
  SUBROUTINE acc_hostmem_alloc_raw (host_mem_c_ptr, n_bytes, stream)
@@ -119,8 +119,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_alloc_raw', &
       routineP = moduleN//':'//routineN
 
-    TYPE(C_PTR)                              :: stream_cptr
     INTEGER                                  :: istat
+    TYPE(C_PTR)                              :: stream_cptr
 
     IF(.NOT. acc_stream_associated(stream)) &
          STOP "acc_hostmem_alloc_raw: stream not associated"
@@ -134,6 +134,11 @@ CONTAINS
 #endif
 
 #if defined (__ACC)
+! *****************************************************************************
+!> \brief ...
+!> \param host_mem_c_ptr ...
+!> \param stream ...
+! *****************************************************************************
   SUBROUTINE acc_hostmem_dealloc_raw (host_mem_c_ptr, stream)
     TYPE(C_PTR), INTENT(IN)                  :: host_mem_c_ptr
     TYPE(acc_stream_type), INTENT(IN)        :: stream
@@ -141,8 +146,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_raw', &
       routineP = moduleN//':'//routineN
 
-    TYPE(C_PTR)                              :: stream_cptr
     INTEGER                                  :: istat
+    TYPE(C_PTR)                              :: stream_cptr
 
     IF(.NOT. acc_stream_associated(stream)) &
          STOP "acc_hostmem_dealloc_raw: stream not associated"

@@ -33,8 +33,6 @@ MODULE qs_scf_post_se
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_all,&
@@ -91,6 +89,8 @@ MODULE qs_scf_post_se
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_occ_cubes,&
                                              qs_scf_post_unocc_cubes
   USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
@@ -154,7 +154,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -168,6 +167,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, loc_print_section, &
                                                 localize_section, print_key
@@ -196,7 +196,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set,&
             mos=mos,rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
             input=input, subsys=subsys, pw_env=pw_env, error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! Compute Atomic Charges
        CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
@@ -890,7 +890,6 @@ CPSourceFileRef,&
       POINTER                                :: ks_rmpv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -901,6 +900,7 @@ CPSourceFileRef,&
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
@@ -920,7 +920,7 @@ CPSourceFileRef,&
             qs_kind_set=qs_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,&
             input=input,cell=cell,subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)

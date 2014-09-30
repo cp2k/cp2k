@@ -38,7 +38,6 @@ MODULE mp2_ri_grad
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
@@ -206,7 +205,6 @@ MODULE mp2_ri_grad
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: L1_mu_i, L2_nu_a
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -231,9 +229,9 @@ MODULE mp2_ri_grad
     mo_coeff_o => mp2_env%ri_grad%mo_coeff_o
     mo_coeff_v => mp2_env%ri_grad%mo_coeff_v
     G_P_ia => mp2_env%ri_grad%G_P_ia
-    subsys=>qs_env%subsys
-    molecule_set => subsys%molecules_new%els
-    molecule_kind_set => subsys%molecule_kinds_new%els
+
+    CALL get_qs_env(qs_env, molecule_set=molecule_set, &
+                    molecule_kind_set=molecule_kind_set, error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)

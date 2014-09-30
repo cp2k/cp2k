@@ -10,7 +10,6 @@
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
 MODULE harris_force
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
@@ -48,8 +47,7 @@ MODULE harris_force
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: deallocate_qs_force,&
                                              duplicate_qs_force,&
                                              qs_force_type,&
@@ -60,6 +58,9 @@ MODULE harris_force
   USE qs_rho_methods,                  ONLY: diff_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_set,&
+                                             qs_subsys_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -137,6 +138,7 @@ CONTAINS
       POINTER                                :: force, force_tmp
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -150,7 +152,7 @@ CONTAINS
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
-            v_xc, harris_force, rho_r, ks_env, poisson_env, input, rho_ao)
+            v_xc, harris_force, rho_r, ks_env, poisson_env, input, rho_ao, subsys)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
 
@@ -165,7 +167,7 @@ CONTAINS
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
                       dft_control=dft_control, particle_set=particle_set, &
-                      input=input, error=error)
+                      input=input, subsys=subsys, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -417,9 +419,8 @@ CONTAINS
       END DO
 
       CALL deallocate_qs_force(force,error)
-      CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
-
-      CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+      CALL qs_subsys_set(subsys, force=force_tmp, error=error)
+      CALL qs_subsys_get(subsys, force=force, error=error)
       harris_force%f_total(:) = 0.0_dp
 
       DO iatom = 1, natom
@@ -519,6 +520,7 @@ CONTAINS
       POINTER                                :: force, force_tmp
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -532,7 +534,7 @@ CONTAINS
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
-            v_xc, harris_force, rho_r, ks_env, poisson_env, input)
+            v_xc, harris_force, rho_r, ks_env, poisson_env, input,  subsys)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -546,7 +548,7 @@ CONTAINS
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
                       dft_control=dft_control, particle_set=particle_set, &
-                      input=input, error=error)
+                      input=input, subsys=subsys, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -910,9 +912,8 @@ CONTAINS
       END DO
 
       CALL deallocate_qs_force(force,error)
-      CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
-
-      CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+      CALL qs_subsys_set(subsys, force=force_tmp, error=error)
+      CALL qs_subsys_get(subsys, force=force, error=error)
       harris_force%f_total(:) = 0.0_dp
 
       DO ikind = 1,SIZE(force)
@@ -1484,6 +1485,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force, force_tmp
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
 !   ------------------------------------------------------------------------
@@ -1491,7 +1493,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(rho, v_rspace_new, matrix_ks, auxbas_pw_pool, pw_env, &
             rho_core, force_tmp, v_tau_rspace, poisson_env, dft_control, input,&
-            xc_section)
+            xc_section, subsys)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1508,7 +1510,8 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      dft_control=dft_control, input=input, particle_set=particle_set, error=error)
+                      dft_control=dft_control, input=input, particle_set=particle_set,&
+                      subsys=subsys, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -1607,8 +1610,8 @@ CONTAINS
       END DO
 
       CALL deallocate_qs_force(force,error)
-      CALL set_qs_env(qs_env=qs_env, force=force_tmp,error=error)
-      CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+      CALL qs_subsys_set(subsys, force=force_tmp,error=error)
+      CALL qs_subsys_get(subsys, force=force, error=error)
 
       IF (unit_nr>0) THEN
         WRITE (unit_nr, *) ""

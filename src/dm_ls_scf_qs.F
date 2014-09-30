@@ -28,8 +28,6 @@ MODULE dm_ls_scf_qs
        dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular,&
                                              ls_mstruct_type,&
@@ -64,6 +62,8 @@ MODULE dm_ls_scf_qs
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -541,20 +541,20 @@ CONTAINS
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: tot_rho
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p_qs
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
 
     NULLIFY(pw_env,auxbas_pw_pool, pw_pools, particles, subsys)
 
     CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env, error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)     
+    CALL qs_subsys_get(subsys,particles=particles,error=error)     
 
     ! convert the density matrix (ls style) to QS style
     ALLOCATE(matrix_p_qs)

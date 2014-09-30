@@ -39,6 +39,7 @@ MODULE qmmm_se_energy
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -112,6 +113,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
@@ -124,10 +126,10 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (matrix_s, atomic_kind_set, qs_kind_set)
+    NULLIFY (matrix_s, atomic_kind_set, qs_kind_set, energy)
     NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, energy=energy, error=error)
     CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
@@ -241,7 +243,7 @@ CONTAINS
           END DO Atoms
        END DO Kinds
        CALL mp_sum(enuclear,para_env%group)
-       qs_env%energy%qmmm_nu = enuclear
+       energy%qmmm_nu = enuclear
        CALL semi_empirical_release(se_kind_mm,error)
     CASE(do_qmmm_none)
        ! Zero Matrix

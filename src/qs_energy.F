@@ -18,6 +18,7 @@ MODULE qs_energy
   USE f77_blas
   USE input_constants,                 ONLY: ehrenfest
   USE kinds,                           ONLY: dp
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
                                              qs_energies_init,&
                                              qs_energies_mp2,&
@@ -112,13 +113,14 @@ CONTAINS
 
     INTEGER                                  :: handle
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_energy_type), POINTER            :: energy
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, energy)
     CALL qs_energies_init(qs_env, calc_forces, error=error)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
 
     ! *** Perform a SCF run ***
     IF (dft_control%qs_control%do_ls_scf) THEN
@@ -144,7 +146,7 @@ CONTAINS
                                  just_energy=.TRUE.,error=error)
         ! add MP2 energy if necessary
         IF(ASSOCIATED(qs_env%mp2_env)) THEN
-          qs_env%energy%total = qs_env%energy%total + qs_env%energy%mp2
+          energy%total = energy%total + energy%mp2
         END IF
       END IF
     END IF
@@ -176,13 +178,14 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(dft_control,rtp,rtp_control,s_mat)
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    NULLIFY(dft_control,rtp,rtp_control,s_mat,energy)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
 
     rtp_control=>dft_control%rtp_control
     eps_ener=rtp_control%eps_ener
@@ -202,7 +205,7 @@ CONTAINS
        eps_ener=rtp_control%eps_ener
 
        CALL propagation_step(qs_env, rtp, rtp_control, error=error)
-       rtp%energy_new=qs_env%energy%total
+       rtp%energy_new=energy%total
 
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter=rtp%delta_iter,error=error)
        rtp%energy_old=rtp%energy_new

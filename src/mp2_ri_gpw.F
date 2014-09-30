@@ -43,7 +43,6 @@ MODULE mp2_ri_gpw
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
@@ -681,7 +680,6 @@ MODULE mp2_ri_gpw
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L_diag
     TYPE(cp_para_env_type), POINTER          :: para_env_exchange
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -701,12 +699,10 @@ MODULE mp2_ri_gpw
 
 
     ! get stuff
-    subsys=>qs_env%subsys
-    particle_set => subsys%particles%els
     CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
-                    cell=cell, error=error)
-    molecule_set => subsys%molecules_new%els
-    molecule_kind_set => subsys%molecule_kinds_new%els
+                    cell=cell, molecule_set=molecule_set,particle_set=particle_set,&
+                    molecule_kind_set=molecule_kind_set,error=error)
+
     ! blacs_env => qs_env%blacs_env
 
     nkind = SIZE(qs_kind_set)

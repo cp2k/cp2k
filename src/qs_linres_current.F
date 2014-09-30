@@ -53,8 +53,6 @@ MODULE qs_linres_current
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
@@ -115,6 +113,8 @@ MODULE qs_linres_current
                                              neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              rRc_xyz_der_ao
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs_grid_create, &
@@ -213,7 +213,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, psi_a_iB, psi_buf
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -230,6 +229,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: current_section
 
@@ -271,7 +271,7 @@ CONTAINS
                     dbcsr_dist=dbcsr_dist,&
                     error=error)
 
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
     gapw  = dft_control%qs_control%gapw
     nspins = dft_control%nspins

@@ -12,7 +12,6 @@ MODULE qs_external_potential
                                              get_atomic_kind
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
-  USE cp_subsys_types,                 ONLY: cp_subsys_get
   USE f77_blas
   USE force_fields_util,               ONLY: get_generic_info
   USE fparser,                         ONLY: evalf,&
@@ -35,6 +34,7 @@ MODULE qs_external_potential
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -81,7 +81,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     IF(qs_env%dft_control%apply_external_potential)THEN
        NULLIFY(cell, particles, v_ee, input, ext_pot_section)
-       CALL cp_subsys_get(qs_env%subsys,particles=particles,error=error)
+       CALL qs_subsys_get(qs_env%subsys,particles=particles,error=error)
        CALL get_qs_env(qs_env,cell=cell,vee=v_ee,input=input,error=error)
        ext_pot_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_POTENTIAL",error=error)
        CALL section_vals_val_get(ext_pot_section,"STATIC",l_val=static_potential,error=error)

@@ -59,8 +59,6 @@ MODULE ep_methods
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE ep_qs_methods,                   ONLY: ep_qs_create
   USE ep_qs_types,                     ONLY: ep_qs_release,&
                                              ep_qs_type
@@ -151,6 +149,9 @@ MODULE ep_methods
                                              qs_p_projection_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_set,&
+                                             qs_subsys_type
   USE qs_wf_history_methods,           ONLY: wfi_change_memory_depth,&
                                              wfi_create,&
                                              wfs_duplicate_snapshot
@@ -1578,7 +1579,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1592,6 +1592,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: print_section, qs_env_input
@@ -1624,9 +1625,11 @@ CONTAINS
          scf_control=scf_control,&
          ks_env=ks_env,&
          input=qs_env_input,&
-         energy=energy,error=error)
-    CALL get_qs_env(qs_env=qs_env,subsys=subsys,error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+         subsys=subsys,&
+         energy=energy,&
+         error=error)
+
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
 
     ! ensure storage of electronic kinetic energy
@@ -1667,7 +1670,7 @@ CONTAINS
        CALL allocate_qs_force(force,natom_of_kind,error)
        DEALLOCATE (natom_of_kind,STAT=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       CALL set_qs_env(qs_env,force=force,error=error)
+       CALL qs_subsys_set(subsys,force=force,error=error)
     END IF
     CALL zero_qs_force(force,error)
     CALL ep_force_zero(ep_env%force,error=error)
@@ -1790,7 +1793,7 @@ CONTAINS
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
     CALL qs_ks_update_qs_env(ks_env,qs_env,calculate_forces=.FALSE.,&
          just_energy=.FALSE.,error=error)
-    ep_env%energy%e0=ep_env%main_qs_env%energy%total
+    ep_env%energy%e0=energy%total
     unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",error=error)
     CALL print_qs_energies(qs_env,unit_nr,error)

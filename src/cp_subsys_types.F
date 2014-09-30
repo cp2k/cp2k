@@ -15,6 +15,7 @@ MODULE cp_subsys_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_release,&
                                              atprop_type
   USE cell_methods,                    ONLY: cell_release,&
@@ -41,14 +42,17 @@ MODULE cp_subsys_types
   USE mol_new_list_types,              ONLY: mol_new_list_release,&
                                              mol_new_list_retain,&
                                              mol_new_list_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: deallocate_global_constraint,&
-                                             global_constraint_type
+                                             global_constraint_type,&
+                                             molecule_type
   USE multipole_types,                 ONLY: multipole_type,&
                                              release_multipole_type,&
                                              retain_multipole_type
   USE particle_list_types,             ONLY: particle_list_release,&
                                              particle_list_retain,&
                                              particle_list_type
+  USE particle_types,                  ONLY: particle_type
   USE virial_types,                    ONLY: virial_release,&
                                              virial_type
 #include "./common/cp_common_uses.f90"
@@ -339,10 +343,14 @@ CONTAINS
 !> \param subsys the subsys you want info about
 !> \param ref_count ...
 !> \param atomic_kinds ...
+!> \param atomic_kind_set ...
 !> \param particles ...
+!> \param particle_set ...
 !> \param local_particles ...
 !> \param molecules_new ...
+!> \param molecule_set ...
 !> \param molecule_kinds_new ...
+!> \param molecule_kind_set ...
 !> \param local_molecules_new ...
 !> \param para_env ...
 !> \param colvar_p ...
@@ -367,9 +375,10 @@ CONTAINS
 !>      22.11.2010 (MK)
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_subsys_get(subsys, ref_count, atomic_kinds, particles,&
-                           local_particles, molecules_new, molecule_kinds_new,&
-                           local_molecules_new, para_env, colvar_p,&
+  SUBROUTINE cp_subsys_get(subsys, ref_count, atomic_kinds, atomic_kind_set, &
+                           particles, particle_set,&
+                           local_particles, molecules_new,molecule_set, molecule_kinds_new,&
+                           molecule_kind_set, local_molecules_new, para_env, colvar_p,&
                            shell_particles, core_particles, gci, multipoles,&
                            natom, nparticle, ncore, nshell, atprop, virial, &
                            results, cell, error)
@@ -377,14 +386,22 @@ CONTAINS
     INTEGER, INTENT(out), OPTIONAL           :: ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles
     TYPE(mol_new_list_type), OPTIONAL, &
       POINTER                                :: molecules_new
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_set
     TYPE(mol_kind_new_list_type), OPTIONAL, &
       POINTER                                :: molecule_kinds_new
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_molecules_new
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -422,10 +439,14 @@ CONTAINS
     IF (.NOT.failure) THEN
        IF (PRESENT(ref_count)) ref_count = subsys%ref_count
        IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
+       IF (PRESENT(atomic_kind_set)) atomic_kind_set => subsys%atomic_kinds%els
        IF (PRESENT(particles)) particles => subsys%particles
+       IF (PRESENT(particle_set)) particle_set => subsys%particles%els
        IF (PRESENT(local_particles)) local_particles => subsys%local_particles
        IF (PRESENT(molecules_new)) molecules_new => subsys%molecules_new
+       IF (PRESENT(molecule_set)) molecule_set => subsys%molecules_new%els
        IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => subsys%molecule_kinds_new
+       IF (PRESENT(molecule_kind_set)) molecule_kind_set => subsys%molecule_kinds_new%els
        IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
        IF (PRESENT(para_env)) para_env => subsys%para_env
        IF (PRESENT(colvar_p)) colvar_p => subsys%colvar_p

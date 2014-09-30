@@ -51,8 +51,6 @@ MODULE qs_scf_post_gpw
                                              get_results,&
                                              put_results
   USE cp_result_types,                 ONLY: cp_result_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE f77_blas
   USE hfx_ri_gemopt,                   ONLY: geminal_optimize
@@ -149,6 +147,8 @@ MODULE qs_scf_post_gpw
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type
   USE qs_scf_wfn_mix,                  ONLY: wfn_mix
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE stm_images,                      ONLY: th_stm_image
@@ -229,7 +229,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -247,6 +246,7 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env_homo, &
                                                 qs_loc_env_lumo
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, loc_print_section, &
                                                 localize_section, print_key, &
@@ -287,7 +287,7 @@ CONTAINS
             input=input, subsys=subsys, tddfpt_control=tddfpt_control, pw_env=pw_env,&
             particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
             qs_kind_set=qs_kind_set, error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        !    **** the kinetic energy
        IF (cp_print_key_should_output(logger%iter_info,input,&
@@ -1680,7 +1680,6 @@ CONTAINS
     LOGICAL                                  :: append_cube, do_elf, failure, &
                                                 gapw
     REAL(dp)                                 :: rho_cutoff
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1688,6 +1687,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: elf_section
 
     CALL timeset(routineN,handle)
@@ -1700,7 +1700,7 @@ CONTAINS
     IF(do_elf)THEN
       NULLIFY(dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys, elf_r)
       CALL get_qs_env(qs_env,dft_control=dft_control,  pw_env=pw_env, subsys=subsys, error=error)
-      CALL cp_subsys_get(subsys,particles=particles,error=error)
+      CALL qs_subsys_get(subsys,particles=particles,error=error)
 
       gapw=dft_control%qs_control%gapw
       IF(.NOT. gapw) THEN
@@ -2170,7 +2170,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -2187,6 +2186,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
@@ -2208,7 +2208,7 @@ CONTAINS
             rho=rho,matrix_ks=ks_rmpv,admm_env=admm_env,&
             scf_control=scf_control,matrix_s=matrix_s,&
             input=input,cell=cell,subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
@@ -2361,7 +2361,6 @@ CONTAINS
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(particle_list_type), POINTER        :: particles
@@ -2379,6 +2378,7 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
@@ -2402,7 +2402,7 @@ CONTAINS
             rho=rho,matrix_ks=ks_rmpv,&
             matrix_s=matrix_s,input=input,cell=cell,subsys=subsys,para_env=para_env,error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! Print the total density (electronic + core charge)
 

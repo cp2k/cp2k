@@ -9,7 +9,6 @@
 !> \author fschiff (01.2007)
 ! *****************************************************************************
 MODULE et_coupling
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
@@ -28,7 +27,6 @@ MODULE et_coupling
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_subsys_types,                 ONLY: cp_subsys_get
   USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -39,9 +37,9 @@ MODULE et_coupling
                                              int_size
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_p_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -93,9 +91,10 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: inverse_mat, SMO, Tinverse, &
                                                 tmp2
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: et_coupling_section
 
-    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, rest_MO)
+    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, rest_MO, energy)
 
     CALL timeset(routineN,handle)
 
@@ -257,9 +256,10 @@ CONTAINS
     CALL diamat_all (W_mat,eigenv,.TRUE.,error=error)
     tmp_mat=MATMUL(U,W_mat)
 
-    W_mat(1,1)=qs_env%energy%total
+    CALL get_qs_env(qs_env, energy=energy, error=error)
+    W_mat(1,1)=energy%total
     W_mat(2,2)=qs_env%et_coupling%energy
-    a(1)=(qs_env%energy%total+strength*Wbb)*Sda-strength*Wda
+    a(1)=(energy%total+strength*Wbb)*Sda-strength*Wda
     a(2)=(qs_env%et_coupling%energy+qs_env%et_coupling%e1*Waa)*Sda-qs_env%et_coupling%e1*Wda
     W_mat(1,2)=(a(1)+a(2))*0.5_dp
     W_mat(2,1)=W_mat(1,2)
@@ -321,10 +321,12 @@ CONTAINS
                                                 r, r1, shift
     REAL(kind=dp), DIMENSION(:), POINTER     :: coeff
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
 
     failure=.FALSE.
-      CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
     IF (qs_env%dft_control%qs_control%becke_restraint) THEN
 
@@ -333,11 +335,9 @@ CONTAINS
           dvol = becke_const%pw%pw_grid%dvol
           IF(calc_pot)THEN
 
-          NULLIFY(cell,particles,coeff)
-          CALL cp_subsys_get(qs_env%subsys,particles=particles,error=error)
+          NULLIFY(cell,particle_set,coeff,energy)
+          CALL get_qs_env(qs_env,cell=cell,particle_set=particle_set,error=error)
           becke_const%pw%cr3d=0.0_dp
-
-          CALL get_qs_env(qs_env,cell=cell,error=error)
 
           ALLOCATE (catom(qs_env%dft_control%qs_control%becke_control%natoms),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -354,23 +354,19 @@ CONTAINS
           np= becke_const%pw%pw_grid%npts
           shift=-REAL(MODULO(np,2),dp)*dr/2.0_dp
           coeff => qs_env%dft_control%qs_control%becke_control%coeff
-          ALLOCATE (cell_functions(particles%n_els),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "cell_functions",dp_size*particles%n_els)
+          ALLOCATE (cell_functions(SIZE(particle_set)))
           !calculate distances from target atom (only implemented for a diatomic system)
 
           DO i=1,3
              cell_v(i)=cell%hmat(i,i)
           END DO
 
-          ALLOCATE (R12(particles%n_els,particles%n_els),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "R12",dp_size*particles%n_els**2)
+          ALLOCATE (R12(SIZE(particle_set), SIZE(particle_set)))
 
-          DO iatom=1,particles%n_els-1
-             DO jatom=iatom+1,particles%n_els
-                r=particles%els(iatom)%r
-                r1=particles%els(jatom)%r
+          DO iatom=1,SIZE(particle_set)-1
+             DO jatom=iatom+1,SIZE(particle_set)
+                r=particle_set(iatom)%r
+                r1=particle_set(jatom)%r
                 DO i=1,3
                    r(i)=MODULO(r(i),cell%hmat(i,i))-cell%hmat(i,i)/2._dp
                    r1(i)=MODULO(r1(i),cell%hmat(i,i))-cell%hmat(i,i)/2._dp
@@ -389,17 +385,17 @@ CONTAINS
                    grid_p(3)=i*dr(3)+shift(3)
 
                    cell_functions=1.0_dp
-                   DO iatom=1,particles%n_els
-                      r=particles%els(iatom)%r
+                   DO iatom=1,SIZE(particle_set)
+                      r=particle_set(iatom)%r
                       DO ip=1,3
                          r(ip)=MODULO(r(ip),cell%hmat(ip,ip))-cell%hmat(ip,ip)/2._dp
                       END DO
                       dist_vec=(r-grid_p)-ANINT((r-grid_p)/cell_v)*cell_v
                       dist1=SQRT(DOT_PRODUCT(dist_vec,dist_vec))
                       IF(dist1.LE.6.0_dp)THEN
-                      DO jatom=1,particles%n_els
+                      DO jatom=1,SIZE(particle_set)
                          IF(jatom.NE.iatom)THEN
-                         r1=particles%els(jatom)%r
+                         r1=particle_set(jatom)%r
                          DO ip=1,3
                             r1(ip)=MODULO(r1(ip),cell%hmat(ip,ip))-cell%hmat(ip,ip)/2._dp
                          END DO
@@ -423,7 +419,7 @@ CONTAINS
                    END DO
 
                    sum_cell_f_all=0.0_dp
-                   DO ip=1,particles%n_els
+                   DO ip=1,SIZE(particle_set)
                       sum_cell_f_all=sum_cell_f_all+cell_functions(ip)
                    END DO
                    IF(ABS(sum_cell_f_all).LE.0.000001)THEN
@@ -449,9 +445,10 @@ CONTAINS
        DO i=1 , qs_env%dft_control%nspins
              dE=dE+accurate_sum(becke_const%pw%cr3d*qs_env%rho%rho_r(i)%pw%cr3d)*dvol
        END DO
+       CALL get_qs_env(qs_env,energy=energy,error=error)
        CALL mp_sum(dE,qs_env%para_env%group)
        qs_env%dft_control%qs_control%becke_control%becke_order_p=dE
-       qs_env%energy%becke=(dE-target_val)*strength
+       energy%becke=(dE-target_val)*strength
 
        IF(calculate_forces) CALL becke_force(qs_env,becke_const,error)
 
@@ -496,7 +493,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -511,22 +507,16 @@ CONTAINS
        target_val=qs_env%dft_control%qs_control%becke_control%TARGET
        strength=qs_env%dft_control%qs_control%becke_control%strength
 
-       NULLIFY(cell,particles)
-       CALL cp_subsys_get(qs_env%subsys,particles=particles,error=error)
-
+       NULLIFY(cell,particle_set)
        CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
-                       particle_set=particle_set,&
+                       natom=natom,particle_set=particle_set,&
                        cell=cell,rho=rho,force=force,error=error)
 
        ALLOCATE (catom(qs_env%dft_control%qs_control%becke_control%natoms),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "catom",dp_size*qs_env%dft_control%qs_control%becke_control%natoms)
-       ALLOCATE (is_constraint(particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "is_constraint",dp_size*particles%n_els)
-       ALLOCATE (coefficients(particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "coefficients",dp_size*particles%n_els)
+       ALLOCATE (is_constraint(natom))
+       ALLOCATE (coefficients(natom))
 
        is_constraint=.FALSE.
        DO i=1,qs_env%dft_control%qs_control%becke_control%natoms
@@ -535,7 +525,6 @@ CONTAINS
           coefficients(catom(i))= qs_env%dft_control%qs_control%becke_control%coeff(i)
        ENDDO
 
-       natom = SIZE(particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "atom_of_kind",natom*int_size)
@@ -560,41 +549,21 @@ CONTAINS
           cell_v(i)=cell%hmat(i,i)
        END DO
 
-       ALLOCATE (R12(particles%n_els,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "R12",dp_size*particles%n_els**2)
-       ALLOCATE (s_my_ij(particles%n_els,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "s_my_ij",dp_size*particles%n_els**2)
-       ALLOCATE (ds_dR(3,particles%n_els,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "ds_dR",dp_size*3*particles%n_els**2)
-       ALLOCATE (P_i(particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "P_i",dp_size*particles%n_els)
-       ALLOCATE (dw_dR(3,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "dw_dR",dp_size*3*particles%n_els)
-       ALLOCATE (integrated(3,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "integrated",dp_size*3*particles%n_els)
-       ALLOCATE (d_sum_Pm_dR(3,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "d_sum_Pm_dR",dp_size*3*particles%n_els)
-       ALLOCATE (d_sum_const_dR(3,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "d_sum_const_dR",dp_size*3*particles%n_els)
-       ALLOCATE (dP_i_dRj(3,particles%n_els,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "dP_i_dRj",dp_size*3*particles%n_els**2)
-       ALLOCATE (dP_i_dRi(3,particles%n_els),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "dP_i_dRi",dp_size*3*particles%n_els)
+       ALLOCATE (R12(natom,natom))
+       ALLOCATE (s_my_ij(natom, natom))
+       ALLOCATE (ds_dR(3,natom,natom))
+       ALLOCATE (P_i(natom))
+       ALLOCATE (dw_dR(3,natom))
+       ALLOCATE (integrated(3,natom))
+       ALLOCATE (d_sum_Pm_dR(3,natom))
+       ALLOCATE (d_sum_const_dR(3,natom))
+       ALLOCATE (dP_i_dRj(3,natom,natom))
+       ALLOCATE (dP_i_dRi(3,natom))
 
-       DO iatom=1,particles%n_els-1
-          DO jatom=iatom+1,particles%n_els
-             r=particles%els(iatom)%r
-             r1=particles%els(jatom)%r
+       DO iatom=1,natom-1
+          DO jatom=iatom+1,natom
+             r=particle_set(iatom)%r
+             r1=particle_set(jatom)%r
              DO i=1,3
                 r(i)=MODULO(r(i),cell%hmat(i,i))-cell%hmat(i,i)/2._dp
                 r1(i)=MODULO(r1(i),cell%hmat(i,i))-cell%hmat(i,i)/2._dp
@@ -618,8 +587,8 @@ CONTAINS
                 d_sum_const_dR=0.0_dp
                 P_i=1.0_dp
                 dP_i_dRi=0.0_dp
-                DO iatom=1,particles%n_els
-                   r=particles%els(iatom)%r
+                DO iatom=1,natom
+                   r=particle_set(iatom)%r
                    DO ip=1,3
                       r(ip)=MODULO(r(ip),cell%hmat(ip,ip))-cell%hmat(ip,ip)/2._dp
                    END DO
@@ -629,9 +598,9 @@ CONTAINS
                    IF(dist1.le.th)dist1=th
                    dr_i_dR(:)= dist_vec_i(:) / dist1
 !                   IF(dist1.le.0.00001)dr_i_dR=0.0_dp
-                   DO jatom=1,particles%n_els
+                   DO jatom=1,natom
                       IF (jatom.NE.iatom)THEN
-                         r1=particles%els(jatom)%r
+                         r1=particle_set(jatom)%r
                          DO ip=1,3
                             r1(ip)=MODULO(r1(ip),cell%hmat(ip,ip))-cell%hmat(ip,ip)/2._dp
                          END DO
@@ -669,7 +638,7 @@ CONTAINS
                       END IF
                    END DO
 
-                   DO jatom = 1,particles%n_els
+                   DO jatom = 1,natom
                       IF(iatom.NE.jatom)THEN
                          IF(ABS( s_my_ij(iatom,jatom) ).LE.th)s_my_ij(iatom,jatom)=s_my_ij(iatom,jatom)+th
 
@@ -683,7 +652,7 @@ CONTAINS
 
                    IF(is_constraint(iatom)) d_sum_const_dR(:,iatom)= d_sum_const_dR(:,iatom)+ dP_i_dRi(:,iatom)*&
                                                                      coefficients(iatom)
-                   DO jatom = 1,particles%n_els
+                   DO jatom = 1,natom
                       IF(iatom.NE.jatom)THEN
                          d_sum_Pm_dR(:,jatom)=d_sum_Pm_dR(:,jatom)+ dP_i_dRj(:,iatom,jatom)
 
@@ -699,7 +668,7 @@ CONTAINS
              END DO
 
              sum_Pm=0.0_dp
-             DO ip=1,particles%n_els
+             DO ip=1,natom
                 sum_Pm=sum_Pm+P_i(ip)
              END DO
 
@@ -708,7 +677,7 @@ CONTAINS
                 sum_cell_f_constr=sum_cell_f_constr+P_i(catom(ip))* qs_env%dft_control%qs_control%becke_control%coeff(ip)
              END DO
 
-             DO iatom=1,particles%n_els
+             DO iatom=1,natom
                 IF(ABS(sum_Pm).EQ.0.0_dp)THEN
                    dw_dR(:,iatom)=0.0_dp
                 ELSE
@@ -717,7 +686,7 @@ CONTAINS
                 END IF
              END DO
 
-                DO iatom=1,particles%n_els
+                DO iatom=1,natom
                    DO ispin=1 , qs_env%dft_control%nspins
                         integrated(:,iatom)=integrated(:,iatom) + dw_dR(:,iatom) * rho%rho_r(ispin)%pw%cr3d(k,j,i) * dvol
                    END DO

@@ -364,7 +364,7 @@ CONTAINS
           CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
           CALL get_qs_env(ep_main_qs_env,&
                           input=input,&
-                          subsys=subsys,&
+                          cp_subsys=subsys,&
                           error=error)
           NULLIFY(ep_main_qs_env)
           IF (PRESENT(potential_energy)) potential_energy = ep_f77_get_energy(force_env%ep_env_id)
@@ -376,7 +376,7 @@ CONTAINS
           CALL get_qs_env(force_env%qs_env,&
                           energy=qs_energy,&
                           input=input,&
-                          subsys=subsys,&
+                          cp_subsys=subsys,&
                           error=error)
           IF (PRESENT(potential_energy)) potential_energy = qs_energy%total
           CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)

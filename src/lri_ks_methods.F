@@ -23,8 +23,6 @@ MODULE lri_ks_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_get_lval,&
@@ -55,6 +53,8 @@ MODULE lri_ks_methods
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -266,8 +266,8 @@ CONTAINS
     INTEGER                                  :: output_unit, unit_nr
     LOGICAL                                  :: append_cube
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     NULLIFY(dft_section, logger, particles, subsys)
@@ -276,7 +276,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
  
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
        "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN
@@ -326,11 +326,11 @@ CONTAINS
     LOGICAL                                  :: append_cube
     REAL(KIND=dp)                            :: udvol
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: aux_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     NULLIFY(dft_section, logger, particles, subsys)
@@ -340,7 +340,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
  
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
          "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN

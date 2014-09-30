@@ -20,8 +20,6 @@ MODULE qs_linres_epr_nablavks
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE erf_fn,                          ONLY: erf,&
                                              erfc
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -78,6 +76,8 @@ MODULE qs_linres_epr_nablavks
 ! R0
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE termination,                     ONLY: stop_memory
@@ -136,7 +136,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -159,6 +158,7 @@ CONTAINS
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       POINTER                                :: nablavks_set
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -272,7 +272,7 @@ CONTAINS
                     poisson_env=poisson_env,&
                     error=error)
 
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
     gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc

@@ -29,6 +29,7 @@ MODULE qs_tddfpt_module
                                              section_vals_set_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
@@ -132,13 +133,14 @@ CONTAINS
     INTEGER                                  :: oe_corr, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: input, xc_fun_orig, xc_fun_tmp
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     failure = .FALSE.
-    NULLIFY(logger, scf_env, input)
+    NULLIFY(logger, scf_env, input, energy)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -164,9 +166,10 @@ CONTAINS
          error=error)
     CALL section_vals_release(xc_fun_tmp,error=error)
 
+    CALL get_qs_env(qs_env, energy=energy, error=error)
     CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
                                       ks_matrix=qs_env%matrix_ks, rho=qs_env%rho, &
-                                      energy=qs_env%energy,&
+                                      energy=energy,&
                                       calculate_forces=.FALSE.,&
                                       just_energy=.FALSE.,error=error)
 

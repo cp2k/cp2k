@@ -42,7 +42,6 @@ MODULE mp2_gpw
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -198,7 +197,6 @@ MODULE mp2_gpw
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_beta
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist_sub
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules_sub, &
@@ -281,12 +279,9 @@ MODULE mp2_gpw
                              blacs_repeatable,error=error_sub)
 
     ! get stuff
-    subsys=>qs_env%subsys
-    particle_set => subsys%particles%els
-    atomic_kind_set => subsys%atomic_kinds%els
-    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, error=error)
-    molecule_set => subsys%molecules_new%els
-    molecule_kind_set => subsys%molecule_kinds_new%els
+    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell,particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set, molecule_set=molecule_set,&
+                    molecule_kind_set=molecule_kind_set, error=error)
 
     ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
     eps_pgf_orb_old=qs_env%dft_control%qs_control%eps_pgf_orb

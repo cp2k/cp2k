@@ -33,6 +33,7 @@ MODULE se_core_matrix
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -117,6 +118,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -129,7 +131,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger)
+    NULLIFY(logger,energy)
     logger => cp_error_get_logger(error)
 
      NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,&
@@ -164,7 +166,9 @@ CONTAINS
                      matrix_s=matrix_s,&
                      atomic_kind_set=atomic_kind_set,&
                      qs_kind_set=qs_kind_set,&
-                     dft_control=dft_control,error=error)
+                     dft_control=dft_control,&
+                     energy=energy,&
+                     error=error)
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -250,7 +254,7 @@ CONTAINS
         nrt(ikind) = nr_a
 
      END DO
-     qs_env%energy%core_self    = econst
+     energy%core_self    = econst
 
      CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
      DO WHILE (neighbor_list_iterate(nl_iterator)==0)

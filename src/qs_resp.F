@@ -24,8 +24,6 @@ MODULE qs_resp
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k
   USE f77_blas
@@ -78,6 +76,8 @@ MODULE qs_resp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -139,10 +139,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(section_vals_type), POINTER         :: cons_section, input, &
@@ -177,7 +177,7 @@ CONTAINS
        !print info
        CALL print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per,error)
        
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
        natom=particles%n_els
        nvar=natom+resp_env%ncons
 
@@ -369,7 +369,7 @@ CONTAINS
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -605,7 +605,7 @@ CPSourceFileRef,&
   SUBROUTINE build_atom_list(section,subsys,atom_list,rep,error)
 
     TYPE(section_vals_type), POINTER         :: section
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_subsys_type), POINTER            :: subsys
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, INTENT(IN), OPTIONAL            :: rep
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -646,7 +646,7 @@ CPSourceFileRef,&
     ENDDO
     !check atom list
     num_atom=num_atom-1
-    max_index=SIZE(subsys%particles%els)
+    CALL qs_subsys_get(subsys, nparticle=max_index, error=error)
     CPPrecondition(SIZE(atom_list) /= 0,cp_failure_level,routineP,error,failure)
     index_in_range=(MAXVAL(atom_list)<= max_index)&
                          .AND.(MINVAL(atom_list) > 0)
@@ -1355,7 +1355,7 @@ CPSourceFileRef,&
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(section_vals_type), POINTER         :: rest_section
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(IN)                      :: natom
     TYPE(section_vals_type), POINTER         :: cons_section
     TYPE(particle_type), DIMENSION(:), &

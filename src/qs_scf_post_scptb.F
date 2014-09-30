@@ -21,8 +21,6 @@ MODULE qs_scf_post_scptb
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -35,6 +33,8 @@ MODULE qs_scf_post_scptb
                                              qs_ks_update_qs_env
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -104,12 +104,12 @@ CONTAINS
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: dft_section, input, print_key
 
     CALL timeset(routineN,handle)
@@ -126,7 +126,7 @@ CONTAINS
             rho=rho,matrix_ks=ks_rmpv,&
             matrix_s=matrix_s,input=input,cell=cell,subsys=subsys,error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! Print the total density (electronic + core charge)
        ! Not implemented so far.

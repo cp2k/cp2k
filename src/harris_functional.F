@@ -36,6 +36,7 @@ MODULE harris_functional
                                              pw_p_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -103,13 +104,14 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
+    NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, energy,&
             rho_core, rho, harris_energy, poisson_env, dft_control, input, xc_section)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -129,7 +131,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
       CALL get_qs_env(qs_env=qs_env, input=input, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      dft_control=dft_control, error=error)
+                      dft_control=dft_control, energy=energy, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
       ! check for nonlocal vdW functional
@@ -188,8 +190,8 @@ CONTAINS
 
       IF (my_EII_necessary) THEN
         IF (.NOT. fast_flag) THEN
-          qs_env%energy%core_overlap = 0.0_dp
-          qs_env%energy%core_self = 0.0_dp
+          energy%core_overlap = 0.0_dp
+          energy%core_self = 0.0_dp
 
           CALL calculate_ecore_overlap(qs_env=qs_env, para_env=para_env, &
                                        calculate_forces=.FALSE., &
@@ -197,8 +199,8 @@ CONTAINS
                                        error=error)
           CALL calculate_ecore_self(qs_env, E_self_core=harris_energy%Ecore_self,error=error)
         ELSE
-          harris_energy%Ecore_overlap = qs_env%energy%core_overlap
-          harris_energy%Ecore_self = qs_env%energy%core_self
+          harris_energy%Ecore_overlap = energy%core_overlap
+          harris_energy%Ecore_self = energy%core_self
         END IF
 
         harris_energy%EII = harris_energy%Ecore_overlap + harris_energy%Ecore_self + &

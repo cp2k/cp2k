@@ -19,8 +19,6 @@ MODULE qmmm_gpw_energy
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_spline_utils,                 ONLY: pw_prolongate_s3
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
   USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
@@ -62,6 +60,8 @@ MODULE qmmm_gpw_energy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -105,12 +105,12 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: input_section, &
                                                 interp_section, print_section
 
@@ -126,7 +126,7 @@ CONTAINS
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        subsys=subsys,&
                        error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
 
 
        CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)

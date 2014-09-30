@@ -71,6 +71,8 @@ MODULE qs_force
                                              mo_set_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_set,&
+                                             qs_subsys_type
   USE rt_propagation_utils,            ONLY: calc_c_mat_force
   USE rtp_admm_methods,                ONLY: rt_admm_force
   USE scf_control_types,               ONLY: scf_control_type
@@ -148,6 +150,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
@@ -172,6 +175,7 @@ CONTAINS
     NULLIFY (scf_control)
     NULLIFY (admm_env)
     NULLIFY (matrix_s_aux_fit_vs_orb)
+    NULLIFY (subsys)
 
     harris_flag = qs_env%use_harris
     CALL get_qs_env(qs_env=qs_env,&
@@ -182,6 +186,7 @@ CONTAINS
          scf_control=scf_control,&
          virial=virial,&
          has_unit_metric=has_unit_metric,&
+         subsys=subsys,&
          energy=energy,error=error)
 
     CALL qs_env_rebuild_pw_env(qs_env,error)
@@ -217,7 +222,7 @@ CONTAINS
        CALL allocate_qs_force(force,natom_of_kind,error)
        DEALLOCATE (natom_of_kind,STAT=istat)
        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-       CALL set_qs_env(qs_env,force=force,error=error)
+       CALL qs_subsys_set(subsys,force=force,error=error)
        IF (harris_flag) THEN
           NULLIFY(harris_force)
           CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)

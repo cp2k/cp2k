@@ -42,8 +42,6 @@ MODULE qs_loc_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -96,6 +94,8 @@ MODULE qs_loc_methods
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -942,7 +942,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
@@ -952,6 +951,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_subsys_type), POINTER            :: subsys
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -959,7 +959,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,subsys=subsys,error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
 
 

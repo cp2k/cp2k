@@ -463,13 +463,15 @@ CONTAINS
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
-    NULLIFY(atprop)
+    NULLIFY(atprop, energy)
     CALL timeset(routineN,handle)
 
     ! atomic energies using Mulliken partition
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,input=input,atprop=atprop,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,input=input,&
+                    atprop=atprop,energy=energy,error=error)
     IF (atprop%energy) THEN
        CALL qs_energies_mulliken(qs_env,error)
        IF ( .NOT.dft_control%qs_control%semi_empirical .AND. &
@@ -491,7 +493,7 @@ CONTAINS
     do_et=.FALSE.
     do_et=dft_control%qs_control%et_coupling_calc
     IF(do_et)THEN
-       qs_env%et_coupling%energy=qs_env%energy%total
+       qs_env%et_coupling%energy=energy%total
        qs_env%et_coupling%keep_matrix=.TRUE.
        qs_env%et_coupling%first_run=.TRUE.
        CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
