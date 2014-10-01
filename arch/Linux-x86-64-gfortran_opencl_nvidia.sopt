@@ -27,7 +27,6 @@ LIBS     = -L${FFTW3_PATH}/lib \
              -lOpenCL
 
 # PROG's ###############################################################
-PERL     = perl
 CPP      =
 CC       = gcc
 FC       = gfortran
