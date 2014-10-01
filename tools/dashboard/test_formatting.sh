@@ -10,8 +10,8 @@ svn revert -R .
 svn up
 svn info
 
-find ./src/ -type f                        -not -path "*/.svn/*" -print0 | xargs -0 md5sum > checksums.md5
-find ./src/ -type f -name "*instantiation" -not -path "*/.svn/*" -print0 | xargs -0 ./tools/instantiateTemplates.py
+find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.svn/*" -print0 | xargs -0 md5sum > checksums.md5
+find ./src/ -type f -name "*instantiation"       -not -path "*/.svn/*" -print0 | xargs -0 ./tools/instantiateTemplates.py
 
 cd makefiles
 make --jobs=20 pretty
