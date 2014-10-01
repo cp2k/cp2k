@@ -12,6 +12,8 @@ MODULE ps_wavelet_scaling_function
   USE lazy,                            ONLY: lazy_arrays
 #include "../common/cp_common_uses.f90"
 
+  IMPLICIT NONE
+
   PRIVATE
 
   PUBLIC :: scaling_function,&

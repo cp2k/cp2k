@@ -19,6 +19,8 @@ MODULE mdctrl_methods
   USE message_passing,                 ONLY: mp_abort
 #include "../common/cp_common_uses.f90"
 
+  IMPLICIT NONE
+
  PUBLIC :: mdctrl_callback
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mdctrl_methods'
