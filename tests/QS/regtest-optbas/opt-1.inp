@@ -6,7 +6,7 @@
 &END GLOBAL
 &OPTIMIZE_BASIS
 ! BASIS_TEMPLATE_FILE contains a basis set which is used as a starting point for optimization
-   BASIS_TEMPLATE_FILE ../BASIS_MOLOPT
+   BASIS_TEMPLATE_FILE ../../../data/BASIS_MOLOPT
 ! BASIS_WORK_FILE contains the basis set generated with the information below
    BASIS_WORK_FILE WORK_BASIS_STRUCTURE
 ! BASIS_OUTPUT_FILE contains the result basis and intermediate basis set. Can be directly used with CP2K 

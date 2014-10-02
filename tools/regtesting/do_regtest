@@ -576,6 +576,10 @@ printf "Copying tests into working directory ... "
 
 printf "done!\n"
 
+printf "Creating symbolic link of data directory ... "
+ln -s ${dir_base}/${cp2k_dir}/data ${dir_out}/data
+printf "done!\n"
+
 #
 # preprocess the restrict directories if the retest is enabled
 #

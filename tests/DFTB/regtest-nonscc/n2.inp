@@ -1,6 +1,6 @@
-#CPQA INCLUDE ../nonscc/nonscc_parameter
-#CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../nonscc/nn
+#CPQA INCLUDE ../../../data/nonscc/nonscc_parameter
+#CPQA INCLUDE ../../../data/uff_table
+#CPQA INCLUDE ../../../data/nonscc/nn
 &FORCE_EVAL
   &DFT
     &QS
@@ -9,7 +9,7 @@
         SELF_CONSISTENT    F
         ORTHOGONAL_BASIS   F   
         &PARAMETER
-          PARAM_FILE_PATH  ../nonscc
+          PARAM_FILE_PATH  ../../../data/nonscc
           SK_FILE   N N   nn
         &END PARAMETER
       &END DFTB

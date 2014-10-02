@@ -1,9 +1,9 @@
-#CPQA INCLUDE ../nonscc/nonscc_parameter
-#CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../nonscc/mos
-#CPQA INCLUDE ../nonscc/momo
-#CPQA INCLUDE ../nonscc/smo
-#CPQA INCLUDE ../nonscc/ss
+#CPQA INCLUDE ../../../data/nonscc/nonscc_parameter
+#CPQA INCLUDE ../../../data/uff_table
+#CPQA INCLUDE ../../../data/nonscc/mos
+#CPQA INCLUDE ../../../data/nonscc/momo
+#CPQA INCLUDE ../../../data/nonscc/smo
+#CPQA INCLUDE ../../../data/nonscc/ss
 &FORCE_EVAL
   &DFT
     &QS
@@ -13,7 +13,7 @@
         DISPERSION         T
         ORTHOGONAL_BASIS   F   
         &PARAMETER
-          PARAM_FILE_PATH  ../nonscc
+          PARAM_FILE_PATH  ../../../data/nonscc
           SK_FILE  Mo Mo  momo
           SK_FILE  Mo S   mos
           SK_FILE  S  Mo  smo

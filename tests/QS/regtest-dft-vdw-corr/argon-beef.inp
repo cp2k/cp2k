@@ -1,8 +1,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
    
     &MGRID
       CUTOFF 250
@@ -26,7 +26,7 @@
       &VDW_POTENTIAL
         &NON_LOCAL
             TYPE LMKLL
-            KERNEL_FILE_NAME ../vdW_kernel_table.dat
+            KERNEL_FILE_NAME ../../../data/vdW_kernel_table.dat
         &END NON_LOCAL
       &END VDW_POTENTIAL
     &END XC

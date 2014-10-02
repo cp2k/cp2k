@@ -1,9 +1,9 @@
-#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../../../data/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../scc/oo.spl
-#CPQA INCLUDE ../scc/oh.spl
-#CPQA INCLUDE ../scc/ho.spl
-#CPQA INCLUDE ../scc/hh.spl
+#CPQA INCLUDE ../../../data/scc/oo.spl
+#CPQA INCLUDE ../../../data/scc/oh.spl
+#CPQA INCLUDE ../../../data/scc/ho.spl
+#CPQA INCLUDE ../../../data/scc/hh.spl
 &FORCE_EVAL
   &DFT
     &QS
@@ -15,7 +15,7 @@
         DISPERSION         T
         &PARAMETER
           HB_SR_PARAM      3.56
-          PARAM_FILE_PATH  ../scc
+          PARAM_FILE_PATH  ../../../data/scc
           PARAM_FILE_NAME  scc_parameter
           UFF_FORCE_FIELD  ../uff_table
         &END PARAMETER

@@ -5,8 +5,8 @@
     &END
   &END
   &DFT
-    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       ! to be changed to 300, is possible on daint, but causes TRS4 problems
       CUTOFF 200

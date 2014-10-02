@@ -6,8 +6,8 @@
 &FORCE_EVAL
   METHOD QS
   &DFT
-    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       NGRIDS 1
       CUTOFF 100
@@ -27,7 +27,7 @@
          DISPERSION_FUNCTIONAL PAIR_POTENTIAL
          &PAIR_POTENTIAL
             TYPE DFTD3
-            PARAMETER_FILE_NAME ../dftd3.dat
+            PARAMETER_FILE_NAME ../../../data/dftd3.dat
             REFERENCE_FUNCTIONAL PBE
             &PRINT_DFTD
             &END

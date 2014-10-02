@@ -4,7 +4,7 @@
 !
 ! dinamica di una particella di Au 13
 !
-@SET PPATH ../ 
+@SET PPATH ../../../data 
 ! **** Global settings
 &GLOBAL
   PROJECT Au12_rmsd_AB_mtd

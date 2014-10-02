@@ -1,13 +1,13 @@
 #CPQA DEPENDS ch2o-3.inp
-#CPQA INCLUDE ../nonscc/nonscc_parameter
-#CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../nonscc/oo
-#CPQA INCLUDE ../nonscc/oc
-#CPQA INCLUDE ../nonscc/oh
-#CPQA INCLUDE ../nonscc/co
-#CPQA INCLUDE ../nonscc/cc
-#CPQA INCLUDE ../nonscc/ch
-#CPQA INCLUDE ../nonscc/hh
+#CPQA INCLUDE ../../../data/nonscc/nonscc_parameter
+#CPQA INCLUDE ../../../data/uff_table
+#CPQA INCLUDE ../../../data/nonscc/oo
+#CPQA INCLUDE ../../../data/nonscc/oc
+#CPQA INCLUDE ../../../data/nonscc/oh
+#CPQA INCLUDE ../../../data/nonscc/co
+#CPQA INCLUDE ../../../data/nonscc/cc
+#CPQA INCLUDE ../../../data/nonscc/ch
+#CPQA INCLUDE ../../../data/nonscc/hh
 &FORCE_EVAL
   &DFT
     RESTART_FILE_NAME  RESTART-ch2o-3
@@ -18,7 +18,7 @@
         DISPERSION         T
         ORTHOGONAL_BASIS   F   
         &PARAMETER
-          PARAM_FILE_PATH  ../nonscc
+          PARAM_FILE_PATH  ../../../data/nonscc
           PARAM_FILE_NAME  nonscc_parameter
           UFF_FORCE_FIELD  ../uff_table
         &END PARAMETER

@@ -1,9 +1,9 @@
-#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../../../data/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../scc/oo.spl
-#CPQA INCLUDE ../scc/oh.spl
-#CPQA INCLUDE ../scc/ho.spl
-#CPQA INCLUDE ../scc/hh.spl
+#CPQA INCLUDE ../../../data/scc/oo.spl
+#CPQA INCLUDE ../../../data/scc/oh.spl
+#CPQA INCLUDE ../../../data/scc/ho.spl
+#CPQA INCLUDE ../../../data/scc/hh.spl
 &FORCE_EVAL
   &DFT
     SUBCELLS 10.0
@@ -16,11 +16,11 @@
          DISPERSION         T
          HB_SR_GAMMA        T
          &PARAMETER
-            PARAM_FILE_PATH  ../scc
+            PARAM_FILE_PATH  ../../../data/scc
             PARAM_FILE_NAME  scc_parameter
             HB_SR_PARAM       4.85
             DISPERSION_TYPE  D3
-            DISPERSION_PARAMETER_FILE ../dftd3.dat
+            DISPERSION_PARAMETER_FILE ../../../data/dftd3.dat
             D3_SCALING  1.0 1.5 1.5
          &END PARAMETER
       &END DFTB

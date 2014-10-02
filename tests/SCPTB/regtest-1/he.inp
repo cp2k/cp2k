@@ -5,7 +5,7 @@
       &SCPTB
         DISPERSION .FALSE.
         DO_EWALD .FALSE.
-        PARAMETER_FILE_NAME ../nm12_parameters.xml
+        PARAMETER_FILE_NAME ../../../data/nm12_parameters.xml
         STO_NG 6
       &END SCPTB
     &END QS

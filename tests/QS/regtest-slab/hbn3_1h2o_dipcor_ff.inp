@@ -1,10 +1,7 @@
-@SET DPATH ..
-@SET WRKDIR ${DPATH}/regtest-slab
-@SET INPDIR ${DPATH}/regtest-slab
-##@SET DPATH /home/pci/marcella/data
+@SET DPATH ../../../data
 @SET PROJECT hbn3_1h2o_dipcor_ff
 @SET RESFILE hbn3_1h2o_dipcor_ff
-@SET XYZ ${INPDIR}/hbn3x_1h2o.xyz
+@SET XYZ hbn3x_1h2o.xyz
 
 @SET RUN  ENERGY_FORCE
 @SET TIME  80000
@@ -43,7 +40,7 @@
   &DFT
     BASIS_SET_FILE_NAME   ${DPATH}/BASIS_MOLOPT
     POTENTIAL_FILE_NAME   ${DPATH}/GTH_POTENTIALS
-    RESTART_FILE_NAME  ${WRKDIR}/${RESFILE}-RESTART.wfn
+    RESTART_FILE_NAME     ${RESFILE}-RESTART.wfn
     &MGRID
       NGRIDS 5
       CUTOFF 200

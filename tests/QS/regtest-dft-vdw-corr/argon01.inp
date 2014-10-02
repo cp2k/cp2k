@@ -6,8 +6,8 @@
 &FORCE_EVAL
   METHOD QS
   &DFT
-    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -33,7 +33,7 @@
          &NON_LOCAL
            TYPE DRSLL
            VERBOSE_OUTPUT
-           KERNEL_FILE_NAME ../vdW_kernel_table.dat
+           KERNEL_FILE_NAME ../../../data/vdW_kernel_table.dat
            CUTOFF  100
          &END NON_LOCAL
       &END vdW_POTENTIAL

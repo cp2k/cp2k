@@ -1,14 +1,14 @@
-#CPQA INCLUDE ../scc/scc_parameter
+#CPQA INCLUDE ../../../data/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../scc/oo.spl
-#CPQA INCLUDE ../scc/oc.spl
-#CPQA INCLUDE ../scc/oh.spl
-#CPQA INCLUDE ../scc/co.spl
-#CPQA INCLUDE ../scc/cc.spl
-#CPQA INCLUDE ../scc/ch.spl
-#CPQA INCLUDE ../scc/ho.spl
-#CPQA INCLUDE ../scc/hc.spl
-#CPQA INCLUDE ../scc/hh.spl
+#CPQA INCLUDE ../../../data/scc/oo.spl
+#CPQA INCLUDE ../../../data/scc/oc.spl
+#CPQA INCLUDE ../../../data/scc/oh.spl
+#CPQA INCLUDE ../../../data/scc/co.spl
+#CPQA INCLUDE ../../../data/scc/cc.spl
+#CPQA INCLUDE ../../../data/scc/ch.spl
+#CPQA INCLUDE ../../../data/scc/ho.spl
+#CPQA INCLUDE ../../../data/scc/hc.spl
+#CPQA INCLUDE ../../../data/scc/hh.spl
 &FORCE_EVAL
   &DFT
     &QS
@@ -19,7 +19,7 @@
         ORTHOGONAL_BASIS   F   
         DO_EWALD           F
         &PARAMETER
-          PARAM_FILE_PATH  ../scc
+          PARAM_FILE_PATH  ../../../data/scc
           PARAM_FILE_NAME  scc_parameter
         &END PARAMETER
       &END DFTB

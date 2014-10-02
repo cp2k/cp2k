@@ -38,8 +38,8 @@
   METHOD QS
   STRESS_TENSOR ANALYTICAL
   &DFT
-    BASIS_SET_FILE_NAME ../BASIS_MOLOPT
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       CUTOFF 100
     &END MGRID
@@ -59,7 +59,7 @@
          &PAIR_POTENTIAL
             TYPE DFTD3
             CALCULATE_C9_TERM .TRUE.
-            PARAMETER_FILE_NAME ../dftd3.dat
+            PARAMETER_FILE_NAME ../../../data/dftd3.dat
             REFERENCE_FUNCTIONAL PBE
             R_CUTOFF 8.
             EPS_CN 0.01

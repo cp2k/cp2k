@@ -10,8 +10,8 @@
        EPS_ITER 1.0E-9
        INITIAL_WFN SCF_WFN
     &END
-    BASIS_SET_FILE_NAME ../BASIS_SET
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/BASIS_SET
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       CUTOFF 280
     &END MGRID
@@ -43,7 +43,7 @@
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
           CUTOFF_RADIUS 2.0
-          T_C_G_DATA ../t_c_g.dat
+          T_C_G_DATA ../../../data/t_c_g.dat
         &END
         &MEMORY
           MAX_MEMORY 50

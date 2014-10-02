@@ -8,7 +8,7 @@
           &END
        &END
     &END PRINT
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       CUTOFF 280
       REL_CUTOFF 30

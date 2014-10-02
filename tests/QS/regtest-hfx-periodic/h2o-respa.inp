@@ -5,8 +5,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -29,7 +29,7 @@
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
           CUTOFF_RADIUS 3.4
-          T_C_G_DATA ../t_c_g.dat
+          T_C_G_DATA ../../../data/t_c_g.dat
         &END
         &MEMORY
           MAX_MEMORY  100
@@ -59,8 +59,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
       CUTOFF 200
     &END MGRID
