@@ -381,7 +381,9 @@ while (<$INPUT>) # While there are still lines to read in our INPUT file
 	foreach $paramtype ( sort keys %params )   # We need to sort the keys otherwise the output order of the hash is given in internal order 
 	{
 	    if (($matched{$paramtype} eq 0) && ($ampersand eq 0)) {
-		if ( $params{$paramtype} !~ m/UNMATCHED_PROCEDURE_ARGUMENT/) { # Must protect against updating an existing comment
+		if ($params{$paramtype} eq '!> \param '.$paramtype." ...\n") {
+		  # there was no comment, just drop parameter
+		} elsif ($params{$paramtype} !~ m/UNMATCHED_PROCEDURE_ARGUMENT/) { # Must protect against updating an existing comment
 		    chomp($params{$paramtype}); # Get rid of \n so UNMATCHED* text can be appended on. 
 		    print $OUTPUT $params{$paramtype} . " UNMATCHED_PROCEDURE_ARGUMENT: please check \n";
 		} else {
