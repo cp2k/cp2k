@@ -105,7 +105,7 @@ fi
 # Script that should handle any PATH or LD_LIBRARY_PATH issues
 source ${regtestdir}/setup_environment.sh
 
-datetime=$(date +%F_%H-%M-%S)
+datetime=$(date --utc +%F_%H-%M-%S)
 date=${datetime%_*}
 time=${datetime#*_}
 
