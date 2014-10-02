@@ -71,8 +71,8 @@ END SUBROUTINE
 FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
-    INTEGER                                  :: count
-    INTEGER, SAVE                            :: count_max, count_rate, &
+    INTEGER(KIND=int_8)                      :: count
+    INTEGER(KIND=int_8), SAVE                :: count_max, count_rate, &
                                                 cycles = -1, last_count
 
     !$ IF (.FALSE.) THEN
