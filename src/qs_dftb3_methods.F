@@ -126,7 +126,7 @@ CONTAINS
        CALL get_dftb_atom_param(dftb_kind,dudq=ua)
        DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
-          eb3 = eb3 + 1.0_dp/6.0_dp * ua * mcharge(iatom)**3
+          eb3 = eb3 - 1.0_dp/6.0_dp * ua * mcharge(iatom)**3
        END DO
     END DO
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,error=error)
@@ -165,7 +165,7 @@ CONTAINS
           CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
           !
-          gmij = 0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
+          gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
           NULLIFY(pblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                row=iatom,col=jatom,block=pblock,found=found)
@@ -215,7 +215,7 @@ CONTAINS
           jkind  = kind_of(jatom)
           CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
-          gmij = 0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
+          gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
           !
           NULLIFY(sblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
