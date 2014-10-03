@@ -66,10 +66,15 @@ write_makefile_header() {
     #
     # include Makefile for C intrinsics kernels for Intel Xeon Phi
     #
-    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_c_mic}") ]]; then
-	printf "DIR_MIC=../mic\n"
-	printf "TARGET_COMPILE_C_MIC=${target_compile_c_mic} \n"
-	printf "include \$(DIR_MIC)/Makefile\n\n"
+    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_offload}") ]]; then
+	printf "ROW_MAJOR := 0\n"
+	printf "INDICES_M := \$(DIMS)\n"
+	printf "INDICES_N := \$(DIMS)\n"
+	printf "INDICES_K := \$(DIMS)\n"
+	printf "DIR_KNC=../libxsmm\n"
+	printf "LIB_KNC=\$(LIBDIR_KNC)/libxsmm_\$(firstword \$(INDICES))__\$(lastword \$(INDICES)).a\n"
+	printf "NO_MAIN=1\n"
+	printf "include \$(DIR_KNC)/Makefile\n\n"
     fi
 
     #
@@ -86,8 +91,8 @@ write_makefile_header() {
     printf " ; ./\$< \n\n"
 
     printf "\$(EXE): \$(OBJFILES) \$(EXE:.x=.f90)"
-    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_c_mic}") ]]; then
-	printf " \$(LIBDIR_MIC)/\$(LIB_MIC)"
+    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_offload}") ]]; then
+	printf " \$(LIB_KNC)"
     fi
     printf "\n"
     if [ -n "${target_compile_offload}" ]; then
@@ -251,7 +256,7 @@ do_generate_small() {
 	    printf "\$(OUTDIR)/%%.f90: ../${tiny_file} \n"
 	    printf '\t .././small_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
 	    printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${tiny_file} "
-	    if [ -n "${target_compile_c_mic}" ]; then
+	    if [ -n "${target_compile_offload}" ]; then
 		printf "1 "
 	    fi
 	    printf "> \$@\n\n"
@@ -457,10 +462,14 @@ do_generate_lib() {
         #
         # include Makefile for C intrinsics kernels for Intel Xeon Phi
         #
-	if [ -n "${target_compile_c_mic}" ]; then
-	    printf "DIR_MIC=../mic\n"
-	    printf "TARGET_COMPILE_C_MIC=${target_compile_c_mic} \n"
-	    printf "include \$(DIR_MIC)/Makefile\n\n"
+	if [ -n "${target_compile_offload}" ]; then
+	    printf "ROW_MAJOR := 0\n"
+	    printf "INDICES_M := \$(DIMS)\n"
+	    printf "INDICES_N := \$(DIMS)\n"
+	    printf "INDICES_K := \$(DIMS)\n"
+	    printf "DIR_KNC=../libxsmm\n"
+	    printf "NO_MAIN=1\n"
+	    printf "include \$(DIR_KNC)/Makefile\n\n"
 	fi
 
 	#
@@ -483,8 +492,8 @@ do_generate_lib() {
 
 	printf "archive: ${archive} \n\n"
 	printf "${archive}: \$(OBJFILES) \$(OUTDIR)/\$(DRIVER)"
-	if [ -n "${target_compile_c_mic}" ]; then
-	    printf " \$(OBJFILES_MIC)"
+	if [ -n "${target_compile_offload}" ]; then
+	    printf " \$(OBJFILES_KNC)"
 	fi
 	printf "\n"
 	if [ -n "${target_compile_offload}" ]; then

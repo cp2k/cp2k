@@ -1,13 +1,13 @@
 #!/bin/bash -e
 
 #
-# Author: Alfio Lazzaro, alazzaro@cray.com (2013)
+# Author: Alfio Lazzaro, alazzaro@cray.com (2013-2014)
 # Script to generate LIBSMM library
 # Run ./generate -h to see the help
 #
 echo
 echo "Script to generate LIBSMM library."
-echo "Author: Alfio Lazzaro, alazzaro@cray.com (2013)"
+echo "Author: Alfio Lazzaro, alazzaro@cray.com (2013-2014)"
 echo
 
 #
@@ -37,7 +37,7 @@ show_help() {
     echo "                      Default value is \"${def_config_file}\"."
     echo "   -j <#>           : set the number of jobs for batch submission. Setting to zero means no batch submission."
     echo "                      Default value is \"${def_njobs}\"."
-    echo "   -s <SIMD type>   : SIMD registers type (sse, avx, mic). Use novec to not generate vector kernel."
+    echo "   -s <SIMD type>   : SIMD registers type (sse, avx, knc). Use novec to not generate vector kernel."
     echo "                      Default value is \"${def_SIMD}\"."
     echo "   -t <#>           : set the number of tasks per each node."
     echo "                      Default value is ${def_ntasks}."
@@ -190,7 +190,7 @@ case $cmd in
 	rm -fR run_check_*/
 	rm -f *.mod Makefile.* *.x *.o
 	rm -f *~
-	make -s -f mic/Makefile DIR_MIC=mic clean
+	make -s -f libxsmm/Makefile DIR_KNC=libxsmm realclean
 	if [ "$cmd" == "cleanall" ]; then
 	    rm -f *.out
 	    rm -fR lib
@@ -242,7 +242,7 @@ case `echo ${SIMD} | awk '{ print tolower($0)}'` in
     avx)
 	SIMD_size=32
 	;;
-    mic)
+    knc)
 	SIMD_size=64
 	;;
     *)

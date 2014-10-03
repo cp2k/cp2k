@@ -77,6 +77,10 @@ b) How to generate the library running a single job interactively.
 
 ====================================================================================================================
 c) How to generate the library for the Intel Xeon Phi in batch mode.
+   The Intel Xeon Phi optimization uses the library libxsmm, a special 
+   library based on C intrinsics optimized for the KNC (see
+   https://github.com/hfp/libxsmm).
+
    For this example we will use a cluster with SLURM, where each node has a
    Intel Xeon Phi card.
    Run "./generate -h" to see the meaning of the options.
@@ -84,8 +88,6 @@ c) How to generate the library for the Intel Xeon Phi in batch mode.
    Check if all options are OK for your case, in particular:
     - the target_compile variable with the flag "-offload-attribute-target=mic". 
     - the target_compile_offload variable with the flag "-offload=mandatory".
-    - the target_compile_c_mic variable to compile the C kernels based on
-      intrinsics with the flag "-offload-attribute-target=mic".
     - Set the MIC_OMP_NUM_THREADS variable to the number of cores on the card.
 
    Note that the library is produced by offloading the kernels to the Xeon

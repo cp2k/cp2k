@@ -11,7 +11,7 @@
 # be used.
 # Mandatory to add "-offload-attribute-target=mic"
 #
-target_compile="ftn -O2 -funroll-loops -vec-report2 -warn -offload-attribute-target=mic -fpp -finline-functions -nogen-interfaces -openmp"
+target_compile="ftn -O2 -funroll-loops -warn -offload-attribute-target=mic -fpp -finline-functions -nogen-interfaces -openmp"
 
 #
 # target compiler used to build the CPU driven code for the offload execution
@@ -19,15 +19,7 @@ target_compile="ftn -O2 -funroll-loops -vec-report2 -warn -offload-attribute-tar
 # You can reuse most of the flags defined in the target_compile variable.
 # Replace "-offload-attribute-target=mic" with "-offload=mandatory".
 #
-target_compile_offload="ftn -O2 -funroll-loops -vec-report2 -warn -offload=mandatory -watch=mic-cmd -fpp -finline-functions -nogen-interfaces -openmp"
-
-#
-# this variable sets the options for building the intrinsics C version of the
-# Intel Xeon Phi kernels (no generation if the variable is unset). You must
-# use a C compiler, while for the flags are valid the considerations described
-# in the previous target_compile variable. 
-#
-target_compile_c_mic="cc -O2 -funroll-loops -vec-report2 -offload-attribute-target=mic -finline-functions -openmp"
+target_compile_offload="ftn -O2 -funroll-loops -warn -offload=mandatory -watch=mic-cmd -fpp -finline-functions -nogen-interfaces -openmp"
 
 #
 # target dgemm link options... these are the options needed to link blas (e.g. -lblas)
@@ -37,9 +29,9 @@ target_compile_c_mic="cc -O2 -funroll-loops -vec-report2 -offload-attribute-targ
 blas_linking="-mkl=sequential"
 
 #
-# SIMD registers type (bytes): sse (16), avx (32), mic (64)
+# SIMD registers type (bytes): sse (16), avx (32), knc (64)
 #
-SIMD=mic
+SIMD=knc
 
 #
 # Number of threads to be used on the card.
