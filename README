@@ -1,20 +1,21 @@
 
-This is the CP2K software & test suite
+This is the CP2K software suite
 
- * COPYRIGHT: the license of under which CP2K can be distributed
+ * COPYRIGHT: The license of under which CP2K can be distributed
  * INSTALL: How to set up the program (mainly how to compile it)
  * README: This file
  * arch: Definitions for different architectures/compilers
- * doc: Documentation, mostly for developers
- * exe: where the executables will be located
- * lib: library built during compilation
- * makefile: the one and only Makefile
- * obj: Where the object and other compilation-time files
- * src: The source code; please see also the file 'INSTALL'
- * tests: Test inputs 
- * tools: Some small programs/scripts needed to compile the program
+ * makefiles: The one and only Makefile
+ * src: The source code
+ * tests: Inputs for regression tests
+ * tools: Mixed collection of useful scripts related to cp2k
+ * data: Simulation parameters e.g. basis sets and pseudopotentials
+
+Additional directories created during build process:
+ * lib: Libraries built during compilation
+ * obj: Objects and other intermediate compilation-time files
+ * exe: Where the executables will be located
 
 --
-for information have a look at :
-http://cp2k.org/
+For more information go to: http://cp2k.org
 
