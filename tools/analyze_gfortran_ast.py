@@ -68,8 +68,8 @@ def main():
 
     n = len(issues_shown)
     m = len(issues) - n
-    print "SUMMARY: Found %d issues (%d suppressed)"%(n, m)
-    print "STATUS: " + ("OK" if n==0 else "FAILED")
+    print "Summary: Found %d issues (%d suppressed)"%(n, m)
+    print "Status: " + ("OK" if n==0 else "FAILED")
 
 #===============================================================================
 def process_log_file(fn):
