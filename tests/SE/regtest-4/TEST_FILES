@@ -10,7 +10,7 @@
 5ring1.inp         3 1E-13
 5ring2.inp         3 1E-13
 5ring3.inp         3 1E-13
-6ring1.inp         3
+6ring1.inp         3 1E-13
 6ring2.inp         3
 6ring3.inp         3
 6ring4.inp                        3     5e-13
