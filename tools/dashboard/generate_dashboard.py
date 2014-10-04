@@ -14,16 +14,24 @@ from datetime import datetime, timedelta
 import subprocess
 import traceback
 from urllib2 import urlopen
+from os import path
+from pprint import pformat
 
 #===============================================================================
 def main():
-    if(len(sys.argv) != 2):
-        print("Usage update_dashboard.py <config-file>")
+    if(len(sys.argv) != 4):
+        print("Usage update_dashboard.py <config-file> <status-file> <output-file>")
         sys.exit(1)
 
-    config_file = sys.argv[1]
+    config_fn, status_fn, output_fn = sys.argv[1:]
+
     config = ConfigParser.ConfigParser()
-    config.read(config_file)
+    config.read(config_fn)
+
+    if(path.exists(status_fn)):
+        last_change = eval(open(status_fn).read())
+    else:
+        last_change = dict()
 
     now = datetime.utcnow().replace(microsecond=0)
 
@@ -36,7 +44,7 @@ def main():
     output += '<center><h1>CP2K DASHBOARD</h1>\n'
     output += '<table border="1">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
-    output += '<th>Revision</th><th>Date</th><th>Summary</th></tr>\n\n'
+    output += '<th>Revision</th><th>Summary</th><th>Since</th></tr>\n\n'
 
     for s in sorted(config.sections()):
         print "Working on: "+s
@@ -72,6 +80,8 @@ def main():
         else:
             output += '<td align="left">%s</td>'%name
         output += '<td align="left">%s</a></td>'%host
+
+        #Status
         if(report['status'] == "OK"):
             bgcolor = "#00FF00"
         elif(report['status'] == "FAILED"):
@@ -79,22 +89,42 @@ def main():
         else:
             bgcolor = "#d3d3d3"
         output += '<td bgcolor=%s><a href="%s">%s</a></td>'%(bgcolor, report_url, report['status'])
-        if(report.has_key('date')):
-            rev_url = "http://sourceforge.net/p/cp2k/code/%d/"%report['revision']
-            rev_delta = "(%d)"%(report['revision'] - trunk_revision)
-            output += '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, report['revision'], rev_delta)
-            output += '<td>%s</td>'%report['date']
+
+        #Revision
+        if(report.has_key('revision')):
+            output += ref_link(report['revision'], trunk_revision)
+            if(not last_change.has_key(s) or last_change[s][0]!=report['status']):
+                last_change[s] = (report['status'], report['revision'])
         else:
-            output += '<td>N/A</td><td>N/A</td>'
+            output += '<td>N/A</td>'
+
+        #Summary
         output += '<td align="left">%s</td>'%report['summary']
+
+        #Since
+        if(last_change.has_key(s)):
+            output += ref_link(last_change[s][1], trunk_revision)
+        else:
+            output += '<td>N/A</td>'
+
         output += '</tr>\n\n'
 
     output += '</table></center>\n'
     output += '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
     output += '</body></html>'
 
-    open("index.html", "w").write(output)
-    print("Wrote index.html")
+    open(status_fn, "w").write(pformat(last_change))
+    print("Wrote "+status_fn)
+
+    open(output_fn, "w").write(output)
+    print("Wrote: "+output_fn)
+
+#===============================================================================
+def ref_link(rev, trunk_rev):
+    rev_url = "http://sourceforge.net/p/cp2k/code/%d/"%rev
+    rev_delta = "(%d)"%(rev - trunk_rev)
+    output = '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, rev, rev_delta)
+    return(output)
 
 #===============================================================================
 def parse_regtest_report(report_txt):
