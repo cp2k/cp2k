@@ -1,0 +1,1113 @@
+ai_angmom.F.ast: Symbol "coset" in procedure "ai_angmom" is IMPLICIT-SAVE
+ai_angmom.F.ast: Symbol "ncoset" in procedure "ai_angmom" is IMPLICIT-SAVE
+ai_contraction.F.ast: Found CALL DGEMM in procedure "contraction_ab"
+ai_contraction.F.ast: Found CALL DGEMM in procedure "contraction_abc"
+ai_contraction.F.ast: Found CALL DGEMM in procedure "decontraction_ab"
+ai_coulomb.F.ast: Symbol "coset" in procedure "ai_coulomb" is IMPLICIT-SAVE
+ai_coulomb.F.ast: Symbol "ncoset" in procedure "ai_coulomb" is IMPLICIT-SAVE
+ai_coulomb_test.F.ast: Symbol "coset" in procedure "ai_coulomb_test" is IMPLICIT-SAVE
+ai_coulomb_test.F.ast: Symbol "nco" in procedure "ai_coulomb_test" is IMPLICIT-SAVE
+ai_coulomb_test.F.ast: Symbol "ncoset" in procedure "ai_coulomb_test" is IMPLICIT-SAVE
+ai_derivatives.F.ast: Symbol "coset" in procedure "ai_derivatives" is IMPLICIT-SAVE
+ai_derivatives.F.ast: Symbol "ncoset" in procedure "ai_derivatives" is IMPLICIT-SAVE
+ai_elec_field.F.ast: Symbol "coset" in procedure "ai_elec_field" is IMPLICIT-SAVE
+ai_elec_field.F.ast: Symbol "ncoset" in procedure "ai_elec_field" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "a" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "b" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "c" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "d" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "eta" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "fm" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "i0m" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "p" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "q" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "rho" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "t" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "w" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "xa" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "xb" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "xc" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "xd" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_eri_debug.F.ast: Symbol "xsi" in procedure "ai_eri_debug" is IMPLICIT-SAVE
+ai_fermi_contact.F.ast: Symbol "coset" in procedure "ai_fermi_contact" is IMPLICIT-SAVE
+ai_fermi_contact.F.ast: Symbol "ncoset" in procedure "ai_fermi_contact" is IMPLICIT-SAVE
+ai_geminals.F.ast: Symbol "coset" in procedure "ai_geminals" is IMPLICIT-SAVE
+ai_geminals.F.ast: Symbol "ncoset" in procedure "ai_geminals" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "a" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "ab" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "b" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "coset" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "detg" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "gm" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "i0m" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "kab" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "q" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "rho" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "t" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "xa" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "xb" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "xg" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_geminals_debug.F.ast: Symbol "xgm" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
+ai_kinetic.F.ast: Symbol "coset" in procedure "ai_kinetic" is IMPLICIT-SAVE
+ai_kinetic.F.ast: Symbol "ncoset" in procedure "ai_kinetic" is IMPLICIT-SAVE
+ai_moments.F.ast: Found CALL DGEMM in procedure "contract_cossin"
+ai_moments.F.ast: Symbol "coset" in procedure "ai_moments" is IMPLICIT-SAVE
+ai_moments.F.ast: Symbol "indco" in procedure "ai_moments" is IMPLICIT-SAVE
+ai_moments.F.ast: Symbol "ncoset" in procedure "ai_moments" is IMPLICIT-SAVE
+ai_oneelectron.F.ast: Symbol "coset" in procedure "ai_oneelectron" is IMPLICIT-SAVE
+ai_oneelectron.F.ast: Symbol "ncoset" in procedure "ai_oneelectron" is IMPLICIT-SAVE
+ai_os_rr.F.ast: Symbol "coset" in procedure "ai_os_rr" is IMPLICIT-SAVE
+ai_overlap.F.ast: Symbol "coset" in procedure "ai_overlap" is IMPLICIT-SAVE
+ai_overlap.F.ast: Symbol "ncoset" in procedure "ai_overlap" is IMPLICIT-SAVE
+ai_overlap3.F.ast: Symbol "coset" in procedure "ai_overlap3" is IMPLICIT-SAVE
+ai_overlap3.F.ast: Symbol "indco" in procedure "ai_overlap3" is IMPLICIT-SAVE
+ai_overlap3.F.ast: Symbol "ncoset" in procedure "ai_overlap3" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "a" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "b" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "c" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "g" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "p" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "sss" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "xa" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "xb" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "xc" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "xsi" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap3_debug.F.ast: Symbol "zeta" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
+ai_overlap_aabb.F.ast: Symbol "coset" in procedure "ai_overlap_aabb" is IMPLICIT-SAVE
+ai_overlap_aabb.F.ast: Symbol "indco" in procedure "ai_overlap_aabb" is IMPLICIT-SAVE
+ai_overlap_aabb.F.ast: Symbol "ncoset" in procedure "ai_overlap_aabb" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "a" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "b" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "p" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "ss" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "xa" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "xb" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "xsi" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_overlap_debug.F.ast: Symbol "zeta" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
+ai_spin_orbit.F.ast: Symbol "coset" in procedure "ai_spin_orbit" is IMPLICIT-SAVE
+ai_spin_orbit.F.ast: Symbol "ncoset" in procedure "ai_spin_orbit" is IMPLICIT-SAVE
+ai_verfc.F.ast: Symbol "coset" in procedure "ai_verfc" is IMPLICIT-SAVE
+ai_verfc.F.ast: Symbol "ncoset" in procedure "ai_verfc" is IMPLICIT-SAVE
+almo_scf.F.ast: Found CLOSE statement in procedure "almo_scf_xalmo_pcg"
+almo_scf.F.ast: Found OPEN statement in procedure "almo_scf_xalmo_pcg"
+ao_util.F.ast: Symbol "coset" in procedure "ao_util" is IMPLICIT-SAVE
+ao_util.F.ast: Symbol "indco" in procedure "ao_util" is IMPLICIT-SAVE
+ao_util.F.ast: Symbol "nco" in procedure "ao_util" is IMPLICIT-SAVE
+ao_util.F.ast: Symbol "ncoset" in procedure "ao_util" is IMPLICIT-SAVE
+ao_util.F.ast: Symbol "nso" in procedure "ao_util" is IMPLICIT-SAVE
+ao_util.F.ast: Symbol "nsoset" in procedure "ao_util" is IMPLICIT-SAVE
+ao_util.F.ast: Symbol "orbtramat" in procedure "ao_util" is IMPLICIT-SAVE
+atom.F.ast: Symbol "ptable" in procedure "atom" is IMPLICIT-SAVE
+atom_basis.F.ast: Symbol "ptable" in procedure "atom_basis" is IMPLICIT-SAVE
+atom_energy.F.ast: Symbol "ptable" in procedure "atom_energy" is IMPLICIT-SAVE
+atom_fit.F.ast: Symbol "ptable" in procedure "atom_fit" is IMPLICIT-SAVE
+atom_kind_orbitals.F.ast: Symbol "ptable" in procedure "atom_kind_orbitals" is IMPLICIT-SAVE
+atom_operators.F.ast: Symbol "ptable" in procedure "atom_operators" is IMPLICIT-SAVE
+atom_output.F.ast: Symbol "ptable" in procedure "atom_output" is IMPLICIT-SAVE
+atom_pseudo.F.ast: Symbol "ptable" in procedure "atom_pseudo" is IMPLICIT-SAVE
+atom_types.F.ast: Symbol "ptable" in procedure "atom_types" is IMPLICIT-SAVE
+atom_utils.F.ast: Symbol "ptable" in procedure "atom_utils" is IMPLICIT-SAVE
+atom_xc.F.ast: Found CLOSE statement in procedure "calculate_atom_vxc_lda"
+atom_xc.F.ast: Found OPEN statement in procedure "calculate_atom_vxc_lda"
+atom_xc.F.ast: Symbol "failure" in procedure "calculate_atom_ext_vxc" is IMPLICIT-SAVE
+atom_xc.F.ast: Symbol "failure" in procedure "calculate_atom_zmp" is IMPLICIT-SAVE
+basis_set_types.F.ast: Found CALL DGEMM in procedure "init_cphi_and_sphi"
+basis_set_types.F.ast: Symbol "coset" in procedure "basis_set_types" is IMPLICIT-SAVE
+basis_set_types.F.ast: Symbol "indco" in procedure "basis_set_types" is IMPLICIT-SAVE
+basis_set_types.F.ast: Symbol "nco" in procedure "basis_set_types" is IMPLICIT-SAVE
+basis_set_types.F.ast: Symbol "ncoset" in procedure "basis_set_types" is IMPLICIT-SAVE
+basis_set_types.F.ast: Symbol "nso" in procedure "basis_set_types" is IMPLICIT-SAVE
+basis_set_types.F.ast: Symbol "nsoset" in procedure "basis_set_types" is IMPLICIT-SAVE
+basis_set_types.F.ast: Symbol "orbtramat" in procedure "basis_set_types" is IMPLICIT-SAVE
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "apser"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "basym"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "betaln"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bfrac"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bgrat"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bpser"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bratio"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "brcmp1"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "brcomp"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bup"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "erfc1"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "esum"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "fpser"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln1"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "grat1"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "gsumln"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "psi"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "rexp"
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "rlog1"
+bfgs_optimizer.F.ast: Found CALL DSCAL in procedure "trust_radius"
+bfgs_optimizer.F.ast: Found GOTO statement in procedure "rat_fun_opt"
+cg_utils.F.ast: Found CALL DGEMV in procedure "findmin"
+core_ae.F.ast: Found CALL DGEMM in procedure "build_core_ae"
+core_ae.F.ast: Symbol "coset" in procedure "core_ae" is IMPLICIT-SAVE
+core_ae.F.ast: Symbol "indco" in procedure "core_ae" is IMPLICIT-SAVE
+core_ae.F.ast: Symbol "ncoset" in procedure "core_ae" is IMPLICIT-SAVE
+core_ppl.F.ast: Found CALL DGEMM in procedure "build_core_ppl"
+core_ppl.F.ast: Symbol "ncoset" in procedure "core_ppl" is IMPLICIT-SAVE
+core_ppnl.F.ast: Found CALL DGEMM in procedure "build_core_ppnl"
+core_ppnl.F.ast: Symbol "nco" in procedure "core_ppnl" is IMPLICIT-SAVE
+core_ppnl.F.ast: Symbol "ncoset" in procedure "core_ppnl" is IMPLICIT-SAVE
+cp2k_info.F.ast: Symbol "r_cwd" in procedure "cp2k_info" is IMPLICIT-SAVE
+cp2k_info.F.ast: Symbol "r_datx" in procedure "cp2k_info" is IMPLICIT-SAVE
+cp2k_info.F.ast: Symbol "r_host_name" in procedure "cp2k_info" is IMPLICIT-SAVE
+cp2k_info.F.ast: Symbol "r_pid" in procedure "cp2k_info" is IMPLICIT-SAVE
+cp2k_info.F.ast: Symbol "r_user_name" in procedure "cp2k_info" is IMPLICIT-SAVE
+cp2k_runs.F.ast: Symbol "empty_initial_variables" in procedure "cp2k_runs" is IMPLICIT-SAVE
+cp2k_shell.F.ast: Found GOTO statement in procedure "cp2k_shell"
+cp2k_shell.F.ast: Found OPEN statement in procedure "get_eof_stat"
+cp_cfm_basic_linalg.F.ast: Found CALL ZGEMM in procedure "cp_cfm_gemm"
+cp_cfm_basic_linalg.F.ast: Found CALL ZSCAL in procedure "cp_cfm_column_scale"
+cp_cfm_basic_linalg.F.ast: Found CALL ZTRMM in procedure "cp_cfm_triangular_multiply"
+cp_cfm_basic_linalg.F.ast: Found CALL ZTRSM in procedure "cp_cfm_triangular_multiply"
+cp_cfm_types.F.ast: Found CALL DCOPY in procedure "cp_cfm_create"
+cp_cfm_types.F.ast: Found CALL DCOPY in procedure "cp_cfm_to_cfm_matrix"
+cp_cfm_types.F.ast: Found CALL ZCOPY in procedure "cp_cfm_to_cfm_columns"
+cp_dbcsr_cholesky.F.ast: Found CALL DCOPY in procedure "cp_dbcsr_cholesky_restore"
+cp_dbcsr_cholesky.F.ast: Found CALL DTRMM in procedure "cp_dbcsr_cholesky_restore"
+cp_dbcsr_cholesky.F.ast: Found CALL DTRSM in procedure "cp_dbcsr_cholesky_restore"
+cp_dbcsr_cholesky.F.ast: Found CALL SCOPY in procedure "cp_dbcsr_cholesky_restore"
+cp_dbcsr_cholesky.F.ast: Found CALL STRMM in procedure "cp_dbcsr_cholesky_restore"
+cp_dbcsr_cholesky.F.ast: Found CALL STRSM in procedure "cp_dbcsr_cholesky_restore"
+cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "cp_dbcsr_pack_vec"
+cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_alltoall"
+cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_bcast"
+cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_build_u"
+cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_scale"
+cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "cp_dbcsr_mult_pack_vec_local"
+cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "cp_dbcsr_multiply_local_d"
+cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "packed_vec_bif_tech2"
+cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "packed_vec_scale"
+cp_dbcsr_operations.F.ast: Found CALL DGEMV in procedure "cp_dbcsr_multiply_local_d"
+cp_dbcsr_operations.F.ast: Found CALL DSCAL in procedure "packed_vec_build_u"
+cp_dbcsr_operations.F.ast: Found CALL SGEMM in procedure "cp_dbcsr_multiply_local_s"
+cp_dbcsr_output.F.ast: Symbol "nso" in procedure "cp_dbcsr_output" is IMPLICIT-SAVE
+cp_dbcsr_util.F.ast: Found CALL DAXPY in procedure "lanczos_alg_serial_d"
+cp_dbcsr_util.F.ast: Found CALL DCOPY in procedure "lanczos_alg_serial_d"
+cp_dbcsr_util.F.ast: Found CALL DSCAL in procedure "lanczos_alg_serial_d"
+cp_dbcsr_util.F.ast: Found CALL SAXPY in procedure "lanczos_alg_serial_s"
+cp_dbcsr_util.F.ast: Found CALL SCOPY in procedure "lanczos_alg_serial_s"
+cp_dbcsr_util.F.ast: Found CALL SSCAL in procedure "lanczos_alg_serial_s"
+cp_ddapc_methods.F.ast: Found CALL DGEMM in procedure "build_der_a_matrix_rows"
+cp_ddapc_util.F.ast: Found CALL DGEMM in procedure "get_ddapc"
+cp_files.F.ast: Found CLOSE statement in procedure "close_file"
+cp_files.F.ast: Found OPEN statement in procedure "open_file"
+cp_files.F.ast: Symbol "preconnected" in procedure "cp_files" is IMPLICIT-SAVE
+cp_fm_basic_linalg.F.ast: Found CALL DAXPY in procedure "cp_fm_scale_and_add"
+cp_fm_basic_linalg.F.ast: Found CALL DGEMM in procedure "cp_fm_gemm"
+cp_fm_basic_linalg.F.ast: Found CALL DGER in procedure "cp_fm_ger"
+cp_fm_basic_linalg.F.ast: Found CALL DSCAL in procedure "cp_fm_column_scale"
+cp_fm_basic_linalg.F.ast: Found CALL DSCAL in procedure "cp_fm_scale"
+cp_fm_basic_linalg.F.ast: Found CALL DSCAL in procedure "cp_fm_scale_and_add"
+cp_fm_basic_linalg.F.ast: Found CALL DSYMM in procedure "cp_fm_symm"
+cp_fm_basic_linalg.F.ast: Found CALL DSYRK in procedure "cp_fm_syrk"
+cp_fm_basic_linalg.F.ast: Found CALL DTRMM in procedure "cp_fm_triangular_multiply"
+cp_fm_basic_linalg.F.ast: Found CALL DTRSM in procedure "cp_fm_triangular_multiply"
+cp_fm_basic_linalg.F.ast: Found CALL SAXPY in procedure "cp_fm_scale_and_add"
+cp_fm_basic_linalg.F.ast: Found CALL SGEMM in procedure "cp_fm_gemm"
+cp_fm_basic_linalg.F.ast: Found CALL SSCAL in procedure "cp_fm_column_scale"
+cp_fm_basic_linalg.F.ast: Found CALL SSCAL in procedure "cp_fm_scale_and_add"
+cp_fm_cholesky.F.ast: Found CALL DCOPY in procedure "cp_fm_cholesky_restore"
+cp_fm_cholesky.F.ast: Found CALL DTRMM in procedure "cp_fm_cholesky_restore"
+cp_fm_cholesky.F.ast: Found CALL DTRSM in procedure "cp_fm_cholesky_restore"
+cp_fm_cholesky.F.ast: Found CALL SCOPY in procedure "cp_fm_cholesky_restore"
+cp_fm_cholesky.F.ast: Found CALL STRMM in procedure "cp_fm_cholesky_restore"
+cp_fm_cholesky.F.ast: Found CALL STRSM in procedure "cp_fm_cholesky_restore"
+cp_fm_diag.F.ast: Found CALL DAXPY in procedure "cp_fm_block_jacobi"
+cp_fm_diag.F.ast: Found CALL DCOPY in procedure "cp_fm_block_jacobi"
+cp_fm_diag.F.ast: Found CALL DSCAL in procedure "cp_fm_block_jacobi"
+cp_fm_struct.F.ast: Symbol "force_block_size" in procedure "cp_fm_struct" is IMPLICIT-SAVE
+cp_fm_struct.F.ast: Symbol "optimal_blacs_col_block_size" in procedure "cp_fm_struct" is IMPLICIT-SAVE
+cp_fm_struct.F.ast: Symbol "optimal_blacs_row_block_size" in procedure "cp_fm_struct" is IMPLICIT-SAVE
+cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_create"
+cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_set_all"
+cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_to_fm_columns"
+cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_to_fm_matrix"
+cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_to_fm_submat"
+cp_fm_types.F.ast: Found CALL SCOPY in procedure "cp_fm_create"
+cp_fm_types.F.ast: Found CALL SCOPY in procedure "cp_fm_set_all"
+cp_fm_types.F.ast: Found CALL SCOPY in procedure "cp_fm_to_fm_matrix"
+cp_fm_types.F.ast: Symbol "mm_type" in procedure "cp_fm_types" is IMPLICIT-SAVE
+cp_lbfgs.F.ast: Found CALL DAXPY in procedure "cauchy"
+cp_lbfgs.F.ast: Found CALL DAXPY in procedure "dtrsl"
+cp_lbfgs.F.ast: Found CALL DCOPY in procedure "cauchy"
+cp_lbfgs.F.ast: Found CALL DCOPY in procedure "formk"
+cp_lbfgs.F.ast: Found CALL DCOPY in procedure "lnsrlb"
+cp_lbfgs.F.ast: Found CALL DCOPY in procedure "mainlb"
+cp_lbfgs.F.ast: Found CALL DCOPY in procedure "matupd"
+cp_lbfgs.F.ast: Found CALL DCOPY in procedure "subsm"
+cp_lbfgs.F.ast: Found CALL DSCAL in procedure "cauchy"
+cp_lbfgs.F.ast: Found CALL DSCAL in procedure "mainlb"
+cp_lbfgs.F.ast: Found CALL DSCAL in procedure "subsm"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "cauchy"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "dcsrch"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "dpofa"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "dtrsl"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "hpsolb"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "lnsrlb"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "mainlb"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "prn3lb"
+cp_lbfgs.F.ast: Found GOTO statement in procedure "subsm"
+cp_lbfgs.F.ast: Found OPEN statement in procedure "mainlb"
+cp_log_handling.F.ast: Symbol "stack_pointer" in procedure "cp_log_handling" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "comm_thread" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "memory" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "mpi_reorder" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "mpi_sched" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "print_branch" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "print_full" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "print_proc" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "print_resume" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "print_thread" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "print_thread_cur" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "process" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "thread" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "use_mempol" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_ma_interface.F.ast: Symbol "use_sched" in procedure "cp_ma_interface" is IMPLICIT-SAVE
+cp_parser_types.F.ast: Symbol "empty_initial_variables" in procedure "cp_parser_types" is IMPLICIT-SAVE
+cp_symmetry.F.ast: Symbol "pgrd" in procedure "cp_symmetry" is IMPLICIT-SAVE
+cp_symmetry.F.ast: Symbol "pgrp" in procedure "cp_symmetry" is IMPLICIT-SAVE
+dbcsr_api.F.ast: Symbol "array_i1d_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "dbcsr_data_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "dbcsr_distribution_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "dbcsr_error_type" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "dbcsr_iterator" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "dbcsr_mp_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "dbcsr_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "dbcsr_scalar_type" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_api.F.ast: Symbol "heap_t" in procedure "dbcsr_api" is IMPLICIT-TYPE
+dbcsr_blas_operations.F.ast: Found CALL CCOPY in procedure "dbcsr_blas_copy"
+dbcsr_blas_operations.F.ast: Found CALL CGEMM in procedure "dbcsr_blas_gemm"
+dbcsr_blas_operations.F.ast: Found CALL CSCAL in procedure "dbcsr_blas_scal"
+dbcsr_blas_operations.F.ast: Found CALL DCOPY in procedure "dbcsr_blas_copy"
+dbcsr_blas_operations.F.ast: Found CALL DGEMM in procedure "dbcsr_blas_gemm"
+dbcsr_blas_operations.F.ast: Found CALL DSCAL in procedure "dbcsr_blas_scal"
+dbcsr_blas_operations.F.ast: Found CALL SCOPY in procedure "dbcsr_blas_copy"
+dbcsr_blas_operations.F.ast: Found CALL SGEMM in procedure "dbcsr_blas_gemm"
+dbcsr_blas_operations.F.ast: Found CALL SSCAL in procedure "dbcsr_blas_scal"
+dbcsr_blas_operations.F.ast: Found CALL ZCOPY in procedure "dbcsr_blas_copy"
+dbcsr_blas_operations.F.ast: Found CALL ZGEMM in procedure "dbcsr_blas_gemm"
+dbcsr_blas_operations.F.ast: Found CALL ZSCAL in procedure "dbcsr_blas_scal"
+dbcsr_block_access.F.ast: Found CALL CAXPY in procedure "dbcsr_put_block_c"
+dbcsr_block_access.F.ast: Found CALL CCOPY in procedure "dbcsr_get_2d_block_c"
+dbcsr_block_access.F.ast: Found CALL CCOPY in procedure "dbcsr_put_block_c"
+dbcsr_block_access.F.ast: Found CALL DAXPY in procedure "dbcsr_put_block_d"
+dbcsr_block_access.F.ast: Found CALL DCOPY in procedure "dbcsr_get_2d_block_d"
+dbcsr_block_access.F.ast: Found CALL DCOPY in procedure "dbcsr_put_block_d"
+dbcsr_block_access.F.ast: Found CALL SAXPY in procedure "dbcsr_put_block_s"
+dbcsr_block_access.F.ast: Found CALL SCOPY in procedure "dbcsr_get_2d_block_s"
+dbcsr_block_access.F.ast: Found CALL SCOPY in procedure "dbcsr_put_block_s"
+dbcsr_block_access.F.ast: Found CALL ZAXPY in procedure "dbcsr_put_block_z"
+dbcsr_block_access.F.ast: Found CALL ZCOPY in procedure "dbcsr_get_2d_block_z"
+dbcsr_block_access.F.ast: Found CALL ZCOPY in procedure "dbcsr_put_block_z"
+dbcsr_config.F.ast: Symbol "external_timeset" in procedure "dbcsr_config" is IMPLICIT-SAVE
+dbcsr_config.F.ast: Symbol "external_timestop" in procedure "dbcsr_config" is IMPLICIT-SAVE
+dbcsr_dist_operations.F.ast: Symbol "idid" in procedure "dbcsr_dist_operations" is IMPLICIT-SAVE
+dbcsr_error_handling.F.ast: Symbol "external_timeset" in procedure "dbcsr_error_handling" is IMPLICIT-SAVE
+dbcsr_error_handling.F.ast: Symbol "external_timestop" in procedure "dbcsr_error_handling" is IMPLICIT-SAVE
+dbcsr_mm_hostdrv.F.ast: Found CALL CGEMM in procedure "blas_process_mm_stack_c"
+dbcsr_mm_hostdrv.F.ast: Found CALL DGEMM in procedure "blas_process_mm_stack_d"
+dbcsr_mm_hostdrv.F.ast: Found CALL SGEMM in procedure "blas_process_mm_stack_s"
+dbcsr_mm_hostdrv.F.ast: Found CALL ZGEMM in procedure "blas_process_mm_stack_z"
+dbcsr_operations_low.F.ast: Found CALL DCOPY in procedure "dbcsr_init_random"
+dbcsr_test_multiply.F.ast: Found CALL CGEMM in procedure "dbcsr_check_multiply"
+dbcsr_test_multiply.F.ast: Found CALL DGEMM in procedure "dbcsr_check_multiply"
+dbcsr_test_multiply.F.ast: Found CALL SGEMM in procedure "dbcsr_check_multiply"
+dbcsr_test_multiply.F.ast: Found CALL ZGEMM in procedure "dbcsr_check_multiply"
+distribution_1d_types.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "distribution_1d_build_gdist"
+distribution_2d_types.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "distribution_2d_build_gdist"
+dkh_main.F.ast: Found CALL DGEMM in procedure "dkh_atom_transformation"
+dkh_main.F.ast: Found CALL DGEMM in procedure "dkh_diag"
+dkh_main.F.ast: Found CALL DGEMM in procedure "even2c_a"
+dkh_main.F.ast: Found CALL DGEMM in procedure "even3b_a"
+dkh_main.F.ast: Found CALL DGEMM in procedure "even4a"
+dkh_main.F.ast: Found CALL DGEMM in procedure "even4a_a"
+dkh_main.F.ast: Found CALL DGEMM in procedure "mat_muld_a"
+dkh_main.F.ast: Found CALL DGEMM in procedure "mat_mulm_a"
+domain_submatrix_methods.F.ast: Found CALL DGEMM in procedure "multiply_submatrices_once"
+eip_silicon.F.ast: Found GOTO statement in procedure "eip_bazant_silicon"
+eip_silicon.F.ast: Found GOTO statement in procedure "eip_lenosky_silicon"
+eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_b"
+eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_l"
+eip_silicon.F.ast: Found OPEN statement in procedure "eip_bazant_silicon"
+eip_silicon.F.ast: Found OPEN statement in procedure "eip_lenosky_silicon"
+environment.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "read_global_section"
+environment.F.ast: Symbol "r_host_name" in procedure "environment" is IMPLICIT-SAVE
+environment.F.ast: Symbol "r_pid" in procedure "environment" is IMPLICIT-SAVE
+environment.F.ast: Symbol "r_user_name" in procedure "environment" is IMPLICIT-SAVE
+ep_methods.F.ast: Found CALL DCOPY in procedure "ep_env_transfer_psi0"
+ep_methods.F.ast: Symbol "empty_initial_variables" in procedure "ep_methods" is IMPLICIT-SAVE
+ep_methods.F.ast: Symbol "ep_envs" in procedure "ep_methods" is IMPLICIT-SAVE
+erf_fn.F.ast: Found GOTO statement in procedure "calerf"
+ewald_spline_util.F.ast: Found CALL DGEMM in procedure "eval_pw_tablr"
+external_potential_types.F.ast: Symbol "co" in procedure "external_potential_types" is IMPLICIT-SAVE
+external_potential_types.F.ast: Symbol "coset" in procedure "external_potential_types" is IMPLICIT-SAVE
+external_potential_types.F.ast: Symbol "nco" in procedure "external_potential_types" is IMPLICIT-SAVE
+external_potential_types.F.ast: Symbol "ncoset" in procedure "external_potential_types" is IMPLICIT-SAVE
+external_potential_types.F.ast: Symbol "nso" in procedure "external_potential_types" is IMPLICIT-SAVE
+external_potential_types.F.ast: Symbol "orbtramat" in procedure "external_potential_types" is IMPLICIT-SAVE
+external_potential_types.F.ast: Symbol "ptable" in procedure "external_potential_types" is IMPLICIT-SAVE
+f77_blas_extra.F.ast: Found GOTO statement in procedure "czcopy"
+f77_blas_extra.F.ast: Found GOTO statement in procedure "dscopy"
+f77_blas_extra.F.ast: Found GOTO statement in procedure "sdcopy"
+f77_blas_extra.F.ast: Found GOTO statement in procedure "zccopy"
+f77_blas_generic.F.ast: Symbol "bl_asum" in procedure "f77_blas_generic" is IMPLICIT-TYPE
+f77_blas_generic.F.ast: Symbol "bl_dot" in procedure "f77_blas_generic" is IMPLICIT-TYPE
+f77_blas_generic.F.ast: Symbol "bl_dotc" in procedure "f77_blas_generic" is IMPLICIT-TYPE
+f77_blas_generic.F.ast: Symbol "bl_dotu" in procedure "f77_blas_generic" is IMPLICIT-TYPE
+f77_blas_generic.F.ast: Symbol "bl_iamax" in procedure "f77_blas_generic" is IMPLICIT-TYPE
+f77_blas_generic.F.ast: Symbol "bl_nrm2" in procedure "f77_blas_generic" is IMPLICIT-TYPE
+f77_blas_poison.F.ast: Symbol "kind" in procedure "zdotc" is IMPLICIT-TYPE
+f77_blas_poison.F.ast: Symbol "kind" in procedure "zdotu" is IMPLICIT-TYPE
+f77_interface.F.ast: Symbol "empty_initial_variables" in procedure "f77_interface" is IMPLICIT-SAVE
+f77_interface.F.ast: Symbol "mpi_mapping_method" in procedure "f77_interface" is IMPLICIT-SAVE
+farming_methods.F.ast: Found CLOSE statement in procedure "farming_parse_input"
+farming_methods.F.ast: Found OPEN statement in procedure "farming_parse_input"
+fast.F.ast: Found CALL ZGERU in procedure "rankup"
+fast.F.ast: Found CALL ZSCAL in procedure "rankup"
+fftw3_lib.F.ast: Found GOTO statement in procedure "sortint"
+fist_pol_scf.F.ast: Symbol "debug_this_module" in procedure "fist_pol_scf" is IMPLICIT-SAVE
+force_fields_input.F.ast: Symbol "potential_single_allocation" in procedure "force_fields_input" is IMPLICIT-SAVE
+gauss_colloc.F.ast: Found GOTO statement in procedure "collocgauss"
+gauss_colloc.F.ast: Found GOTO statement in procedure "collocgaussflat"
+gauss_colloc.F.ast: Found GOTO statement in procedure "integrategauss"
+gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfull"
+gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfullflat"
+glbopt_callback.F.ast: Symbol "failure" in procedure "glbopt_md_callback" is IMPLICIT-SAVE
+gle_system_dynamics.F.ast: Found CALL DGEMM in procedure "gle_particles"
+graph.F.ast: Found CLOSE statement in procedure "graph"
+graph.F.ast: Found OPEN statement in procedure "graph"
+graph_methods.F.ast: Found CLOSE statement in procedure "fes_path"
+graph_methods.F.ast: Found OPEN statement in procedure "fes_cube_write"
+graph_methods.F.ast: Found OPEN statement in procedure "fes_path"
+graph_methods.F.ast: Symbol "ptable" in procedure "graph_methods" is IMPLICIT-SAVE
+graphcon.F.ast: Found GOTO statement in procedure "all_permutations"
+grid_fast.F.ast: Symbol "huge" in procedure "integrate_gf_npbc" is IMPLICIT-TYPE
+grid_fast.F.ast: Symbol "sum" in procedure "integrate_core_5" is IMPLICIT-TYPE
+hartree_local_methods.F.ast: Found CALL DAXPY in procedure "vh_1c_atom_integrals"
+hartree_local_methods.F.ast: Symbol "indso" in procedure "hartree_local_methods" is IMPLICIT-SAVE
+hartree_local_methods.F.ast: Symbol "nsoset" in procedure "hartree_local_methods" is IMPLICIT-SAVE
+header.F.ast: Symbol "r_cwd" in procedure "header" is IMPLICIT-SAVE
+header.F.ast: Symbol "r_datx" in procedure "header" is IMPLICIT-SAVE
+header.F.ast: Symbol "r_host_name" in procedure "header" is IMPLICIT-SAVE
+header.F.ast: Symbol "r_pid" in procedure "header" is IMPLICIT-SAVE
+header.F.ast: Symbol "r_user_name" in procedure "header" is IMPLICIT-SAVE
+hfx_derivatives.F.ast: Found CLOSE statement in procedure "derivatives_four_center"
+hfx_derivatives.F.ast: Found OPEN statement in procedure "derivatives_four_center"
+hfx_derivatives.F.ast: Symbol "nco" in procedure "hfx_derivatives" is IMPLICIT-SAVE
+hfx_derivatives.F.ast: Symbol "ncoset" in procedure "hfx_derivatives" is IMPLICIT-SAVE
+hfx_derivatives.F.ast: Symbol "nso" in procedure "hfx_derivatives" is IMPLICIT-SAVE
+hfx_energy_potential.F.ast: Found CLOSE statement in procedure "integrate_four_center"
+hfx_energy_potential.F.ast: Found OPEN statement in procedure "integrate_four_center"
+hfx_energy_potential.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "integrate_four_center"
+hfx_energy_potential.F.ast: Symbol "nco" in procedure "hfx_energy_potential" is IMPLICIT-SAVE
+hfx_energy_potential.F.ast: Symbol "ncoset" in procedure "hfx_energy_potential" is IMPLICIT-SAVE
+hfx_energy_potential.F.ast: Symbol "nso" in procedure "hfx_energy_potential" is IMPLICIT-SAVE
+hfx_libint_interface.F.ast: Symbol "nco" in procedure "hfx_libint_interface" is IMPLICIT-SAVE
+hfx_libint_wrapper.F.ast: Symbol "nco" in procedure "hfx_libint_wrapper" is IMPLICIT-SAVE
+hfx_load_balance_methods.F.ast: Found CLOSE statement in procedure "hfx_recursive_load_balance"
+hfx_load_balance_methods.F.ast: Found OPEN statement in procedure "hfx_recursive_load_balance"
+hfx_screening_methods.F.ast: Symbol "ncoset" in procedure "hfx_screening_methods" is IMPLICIT-SAVE
+hfx_types.F.ast: Symbol "nco" in procedure "hfx_types" is IMPLICIT-SAVE
+hfx_types.F.ast: Symbol "ncoset" in procedure "hfx_types" is IMPLICIT-SAVE
+hfx_types.F.ast: Symbol "nso" in procedure "hfx_types" is IMPLICIT-SAVE
+input_cp2k_read.F.ast: Symbol "empty_initial_variables" in procedure "input_cp2k_read" is IMPLICIT-SAVE
+input_section_types.F.ast: Found CLOSE statement in procedure "section_describe_html"
+input_section_types.F.ast: Found OPEN statement in procedure "section_describe_html"
+ipi_driver.F.ast: Symbol "hasdata" in procedure "run_driver" is IMPLICIT-SAVE
+ipi_driver.F.ast: Symbol "ionode" in procedure "run_driver" is IMPLICIT-SAVE
+k290.F.ast: Found GOTO statement in procedure "atftm1"
+k290.F.ast: Found GOTO statement in procedure "bzdefi"
+k290.F.ast: Found GOTO statement in procedure "bzrduc"
+k290.F.ast: Found GOTO statement in procedure "checkrlv3"
+k290.F.ast: Found GOTO statement in procedure "garbag"
+k290.F.ast: Found GOTO statement in procedure "mesh"
+k290.F.ast: Found GOTO statement in procedure "pgl1"
+k290.F.ast: Found GOTO statement in procedure "primlatt"
+k290.F.ast: Found GOTO statement in procedure "remove"
+k290.F.ast: Found GOTO statement in procedure "sppt2"
+k290.F.ast: Symbol "icst" in procedure "k290" is IMPLICIT-SAVE
+k290.F.ast: Symbol "pgrd" in procedure "k290" is IMPLICIT-SAVE
+k290.F.ast: Symbol "pgrp" in procedure "k290" is IMPLICIT-SAVE
+k290.F.ast: Symbol "rname_cubic" in procedure "k290" is IMPLICIT-SAVE
+k290.F.ast: Symbol "rname_hexa" in procedure "k290" is IMPLICIT-SAVE
+kg_environment.F.ast: Found CLOSE statement in procedure "write_to_file"
+kg_environment.F.ast: Found OPEN statement in procedure "write_to_file"
+kg_tnadd_mat.F.ast: Found CALL DGEMM in procedure "build_tnadd_mat"
+kg_tnadd_mat.F.ast: Symbol "ncoset" in procedure "kg_tnadd_mat" is IMPLICIT-SAVE
+library_tests.F.ast: Found CALL DGEMM in procedure "matmul_test"
+library_tests.F.ast: Symbol "max_memory" in procedure "library_tests" is IMPLICIT-SAVE
+library_tests.F.ast: Symbol "runtest" in procedure "library_tests" is IMPLICIT-SAVE
+lri_debug_integrals.F.ast: Symbol "coset" in procedure "lri_debug_integrals" is IMPLICIT-SAVE
+lri_debug_integrals.F.ast: Symbol "indco" in procedure "lri_debug_integrals" is IMPLICIT-SAVE
+lri_debug_integrals.F.ast: Symbol "ncoset" in procedure "lri_debug_integrals" is IMPLICIT-SAVE
+lri_environment_methods.F.ast: Found CALL DGEMM in procedure "ab_contract"
+lri_environment_methods.F.ast: Found CALL DGEMM in procedure "abc_contract"
+lri_environment_methods.F.ast: Found CALL DGEMM in procedure "abcd_contract"
+lri_environment_methods.F.ast: Symbol "ncoset" in procedure "lri_environment_methods" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "memory" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "my_info" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "print_proc" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "print_thread" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "process" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "thread" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "thread_mapping" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_affinity.F.ast: Symbol "topology" in procedure "ma_affinity" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "comm_thread" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "memory" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "mpi_reorder" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "mpi_sched" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "print_branch" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "print_full" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "print_proc" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "print_resume" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "print_thread" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "print_thread_cur" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "process" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "thread" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "use_mempol" in procedure "ma_config" is IMPLICIT-SAVE
+ma_config.F.ast: Symbol "use_sched" in procedure "ma_config" is IMPLICIT-SAVE
+ma_process_mapping.F.ast: Symbol "allocated_topology" in procedure "ma_process_mapping" is IMPLICIT-SAVE
+ma_process_mapping.F.ast: Symbol "net_topology" in procedure "ma_process_mapping" is IMPLICIT-SAVE
+ma_topology.F.ast: Symbol "allocated_topology" in procedure "ma_topology" is IMPLICIT-SAVE
+ma_topology.F.ast: Symbol "comm_graph" in procedure "ma_topology" is IMPLICIT-SAVE
+ma_topology.F.ast: Symbol "max_nodes" in procedure "ma_topology" is IMPLICIT-SAVE
+ma_topology.F.ast: Symbol "net_topology" in procedure "ma_topology" is IMPLICIT-SAVE
+machine.F.ast: Found OPEN statement in procedure "read_energy"
+machine_architecture.F.ast: Symbol "topology" in procedure "machine_architecture" is IMPLICIT-SAVE
+machine_internal.F.ast: Found CLOSE statement in procedure "m_memory_details"
+machine_internal.F.ast: Found OPEN statement in procedure "m_memory"
+machine_internal.F.ast: Found OPEN statement in procedure "m_memory_details"
+mc_control.F.ast: Symbol "empty_initial_variables" in procedure "mc_control" is IMPLICIT-SAVE
+mdctrl_methods.F.ast: Symbol "failure" in procedure "mdctrl_callback" is IMPLICIT-SAVE
+message_passing.F.ast: Found CLOSE statement in procedure "mp_file_close"
+message_passing.F.ast: Found OPEN statement in procedure "mp_file_open"
+message_passing.F.ast: Symbol "mp_perf_stack" in procedure "message_passing" is IMPLICIT-SAVE
+message_passing.F.ast: Symbol "stack_pointer" in procedure "message_passing" is IMPLICIT-SAVE
+mltfftsg_tools.F.ast: Found CALL DSCAL in procedure "scaled"
+mltfftsg_tools.F.ast: Symbol "abs" in procedure "mltfftsg" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "atan" in procedure "ctrig" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "cmplx" in procedure "mltfftsg" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "cos" in procedure "ctrig" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "max" in procedure "mltfftsg" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "min" in procedure "mltfftsg" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "mod" in procedure "mltfftsg" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "real" in procedure "ctrig" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "reshape" in procedure "ctrig" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "sin" in procedure "ctrig" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "transpose" in procedure "zgetmo" is IMPLICIT-TYPE
+mm_mapping_library.F.ast: Symbol "amber_map" in procedure "mm_mapping_library" is IMPLICIT-SAVE
+mm_mapping_library.F.ast: Symbol "charmm_map" in procedure "mm_mapping_library" is IMPLICIT-SAVE
+mm_mapping_library.F.ast: Symbol "gromos_map" in procedure "mm_mapping_library" is IMPLICIT-SAVE
+mode_selective.F.ast: Found CALL DGEMM in procedure "evaluate_h_update_b"
+mode_selective.F.ast: Found CALL DGEMM in procedure "rest_guess"
+motion_utils.F.ast: Symbol "r_datx" in procedure "motion_utils" is IMPLICIT-SAVE
+motion_utils.F.ast: Symbol "r_host_name" in procedure "motion_utils" is IMPLICIT-SAVE
+motion_utils.F.ast: Symbol "r_user_name" in procedure "motion_utils" is IMPLICIT-SAVE
+mp2_direct_method.F.ast: Found CALL DGEMM in procedure "transform_virtual_orbitals_and_accumulate"
+mp2_direct_method.F.ast: Found CLOSE statement in procedure "mp2_canonical_direct_single_batch"
+mp2_direct_method.F.ast: Found OPEN statement in procedure "mp2_canonical_direct_single_batch"
+mp2_direct_method.F.ast: Symbol "ncoset" in procedure "mp2_direct_method" is IMPLICIT-SAVE
+mp2_optimize_ri_basis.F.ast: Symbol "indco" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
+mp2_optimize_ri_basis.F.ast: Symbol "nco" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
+mp2_optimize_ri_basis.F.ast: Symbol "ncoset" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
+mp2_optimize_ri_basis.F.ast: Symbol "nso" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
+mp2_ri_gpw.F.ast: Found CALL DGEMM in procedure "calculate_lmin1"
+mp2_ri_gpw.F.ast: Found CALL DGEMM in procedure "mp2_ri_gpw_compute_en"
+mp2_ri_gpw.F.ast: Symbol "ncoset" in procedure "mp2_ri_gpw" is IMPLICIT-SAVE
+mp2_ri_grad.F.ast: Found CALL DGEMM in procedure "calc_ri_mp2_nonsep"
+mp2_ri_grad.F.ast: Symbol "ncoset" in procedure "mp2_ri_grad" is IMPLICIT-SAVE
+mp2_ri_libint.F.ast: Found CLOSE statement in procedure "calc_lai_libint"
+mp2_ri_libint.F.ast: Found OPEN statement in procedure "calc_lai_libint"
+mp2_ri_libint.F.ast: Symbol "nco" in procedure "mp2_ri_libint" is IMPLICIT-SAVE
+mp2_ri_libint.F.ast: Symbol "ncoset" in procedure "mp2_ri_libint" is IMPLICIT-SAVE
+mp2_ri_libint.F.ast: Symbol "nso" in procedure "mp2_ri_libint" is IMPLICIT-SAVE
+mulliken.F.ast: Symbol "se_orbital_pointer" in procedure "mulliken" is IMPLICIT-SAVE
+neb_opt_utils.F.ast: Found CALL DGEMM in procedure "accept_diis_step"
+neb_opt_utils.F.ast: Symbol "acceptance_factor" in procedure "neb_opt_utils" is IMPLICIT-SAVE
+optimize_basis.F.ast: Symbol "empty_initial_variables" in procedure "optimize_basis" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "co" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "coset" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "indco" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "indso" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "nco" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "ncoset" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "nso" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "nsoset" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "so" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_pointers.F.ast: Symbol "soset" in procedure "orbital_pointers" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "c2s_tramat" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "co" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "nco" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "ncoset" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "nso" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "nsoset" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "orbtramat" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+orbital_transformation_matrices.F.ast: Symbol "s2c_tramat" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
+pair_potential.F.ast: Symbol "potential_single_allocation" in procedure "pair_potential" is IMPLICIT-SAVE
+pair_potential_types.F.ast: Symbol "potential_single_allocation" in procedure "pair_potential_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "a1p0" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "a1p127" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "a1p76" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "a2p0" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "a2p127" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "a2p76" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "inv_a1" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+parallel_rng_types.F.ast: Symbol "inv_a2" in procedure "parallel_rng_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Found CALL DGEMM in procedure "build_projector"
+paw_proj_set_types.F.ast: Symbol "indco" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Symbol "indso" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Symbol "nco" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Symbol "ncoset" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Symbol "nso" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Symbol "nsoset" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Symbol "orbtramat" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+periodic_table.F.ast: Symbol "ptable" in procedure "periodic_table" is IMPLICIT-SAVE
+pint_gle.F.ast: Found CALL DGEMM in procedure "pint_gle_step"
+pint_normalmode.F.ast: Found CALL DGEMM in procedure "normalmode_f2uf"
+pint_normalmode.F.ast: Found CALL DGEMM in procedure "normalmode_u2x"
+pint_normalmode.F.ast: Found CALL DGEMM in procedure "normalmode_x2u"
+population_analyses.F.ast: Symbol "nso" in procedure "population_analyses" is IMPLICIT-SAVE
+powell.F.ast: Found GOTO statement in procedure "newuoa"
+powell.F.ast: Found GOTO statement in procedure "newuob"
+ps_wavelet_fft3d.F.ast: Found GOTO statement in procedure "ctrig"
+ps_wavelet_fft3d.F.ast: Symbol "am" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "angle" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ap" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "bb" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "bm" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "bp" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ci2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ci3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ci4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ci5" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ci6" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ci7" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ci8" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cm" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cos" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cos2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cos4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cp" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cp_error_type" in procedure "ps_wavelet_fft3d" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cp_logger_type" in procedure "ps_wavelet_fft3d" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cr2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cr3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cr4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cr5" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cr6" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cr7" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "cr8" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "dm" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "dpp" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "i" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ia" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ias" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ib" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ic" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "isign" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "isign" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "itrig" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "itt" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "itt" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "j" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "j" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "m" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "mm" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "mod" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "n" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "n" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nfft" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nh" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin5" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin6" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin7" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nin8" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nn" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout5" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout6" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout7" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "nout8" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "now" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "now" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r25" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r34" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r5" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r6" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r7" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "r8" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "rt2i" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s25" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s34" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s5" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s6" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s7" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "s8" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "sin" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "sin2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "sin4" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "trig" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "trig" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "trigc" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "trigs" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "twopi" in procedure "ctrig" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ui1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ui2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ui3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ur1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ur2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "ur3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "vi1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "vi2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "vi3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "vr1" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "vr2" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "vr3" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "zin" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_fft3d.F.ast: Symbol "zout" in procedure "fftstp" is IMPLICIT-TYPE
+ps_wavelet_scaling_function.F.ast: Found CALL DCOPY in procedure "scaling_function"
+ps_wavelet_scaling_function.F.ast: Found CALL DCOPY in procedure "wavelet_function"
+ps_wavelet_util.F.ast: Found GOTO statement in procedure "f_fft_dimensions"
+ps_wavelet_util.F.ast: Found GOTO statement in procedure "p_fft_dimensions"
+ps_wavelet_util.F.ast: Found GOTO statement in procedure "s_fft_dimensions"
+pw_grids.F.ast: Symbol "grid_tag" in procedure "pw_grids" is IMPLICIT-SAVE
+pw_spline_utils.F.ast: Found CALL DCOPY in procedure "add_coarse2fine"
+pw_spline_utils.F.ast: Found CALL DCOPY in procedure "add_fine2coarse"
+pw_spline_utils.F.ast: Found CALL DSCAL in procedure "pw_spline_scale_deriv"
+pw_spline_utils.F.ast: Found GOTO statement in procedure "pw_nn_compose_r_no_pbc"
+pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_nn_smear_g"
+pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_spline2_evaluate_values_g"
+pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_spline3_evaluate_values_g"
+qmmm_force_mixing.F.ast: Symbol "debug_this_module" in procedure "qmmm_force_mixing" is IMPLICIT-SAVE
+qmmm_pw_grid.F.ast: Symbol "qmmm_grid_tag" in procedure "qmmm_pw_grid" is IMPLICIT-SAVE
+qmmm_se_energy.F.ast: Symbol "se_orbital_pointer" in procedure "qmmm_se_energy" is IMPLICIT-SAVE
+qmmm_se_forces.F.ast: Symbol "se_orbital_pointer" in procedure "qmmm_se_forces" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Found CALL DAXPY in procedure "calculate_rho_elec"
+qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_drho_elec"
+qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_lri_rho_elec"
+qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_rho_elec"
+qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_wavefunction"
+qs_collocate_density.F.ast: Found CALL DGEMM in procedure "collocate_atomic_charge_density"
+qs_collocate_density.F.ast: Symbol "coset" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "debug_count" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "indco" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "nco" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "ncoset" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "nso" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "nsoset" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "orbtramat" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_core_hamiltonian.F.ast: Symbol "ncoset" in procedure "qs_core_hamiltonian" is IMPLICIT-SAVE
+qs_dftb_matrices.F.ast: Symbol "iptr" in procedure "qs_dftb_matrices" is IMPLICIT-SAVE
+qs_dispersion_pairpot.F.ast: Found GOTO statement in procedure "limit"
+qs_efield_berry.F.ast: Found CALL DGEMM in procedure "contract_all"
+qs_efield_berry.F.ast: Symbol "indco" in procedure "qs_efield_berry" is IMPLICIT-SAVE
+qs_efield_berry.F.ast: Symbol "ncoset" in procedure "qs_efield_berry" is IMPLICIT-SAVE
+qs_elec_field.F.ast: Found CALL DGEMM in procedure "build_efg_matrix"
+qs_elec_field.F.ast: Symbol "ncoset" in procedure "qs_elec_field" is IMPLICIT-SAVE
+qs_electric_field_gradient.F.ast: Symbol "indso" in procedure "qs_electric_field_gradient" is IMPLICIT-SAVE
+qs_electric_field_gradient.F.ast: Symbol "nsoset" in procedure "qs_electric_field_gradient" is IMPLICIT-SAVE
+qs_epr_hyp.F.ast: Symbol "ptable" in procedure "qs_epr_hyp" is IMPLICIT-SAVE
+qs_fermi_contact.F.ast: Found CALL DGEMM in procedure "build_fermi_contact_matrix"
+qs_fermi_contact.F.ast: Symbol "ncoset" in procedure "qs_fermi_contact" is IMPLICIT-SAVE
+qs_geminals.F.ast: Found CALL DCOPY in procedure "geminal_coulomb_diaginv"
+qs_geminals.F.ast: Found CALL DGEMM in procedure "gemgau_integral_atom_calc"
+qs_geminals.F.ast: Symbol "indco" in procedure "qs_geminals" is IMPLICIT-SAVE
+qs_geminals.F.ast: Symbol "nco" in procedure "qs_geminals" is IMPLICIT-SAVE
+qs_geminals.F.ast: Symbol "ncoset" in procedure "qs_geminals" is IMPLICIT-SAVE
+qs_gspace_mixing.F.ast: Found CALL DGEMM in procedure "broyden_mixing_new"
+qs_gspace_mixing.F.ast: Found CALL DGEMV in procedure "broyden_mixing"
+qs_gspace_mixing.F.ast: Found CALL ZGEMM in procedure "multisecant_mixing"
+qs_gspace_mixing.F.ast: Found CALL ZGEMV in procedure "multisecant_mixing"
+qs_harmonics_atom.F.ast: Symbol "indco" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_harmonics_atom.F.ast: Symbol "indso" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_harmonics_atom.F.ast: Symbol "nco" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_harmonics_atom.F.ast: Symbol "ncoset" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_harmonics_atom.F.ast: Symbol "nso" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_harmonics_atom.F.ast: Symbol "nsoset" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_harmonics_atom.F.ast: Symbol "orbtramat" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_harmonics_atom.F.ast: Symbol "soset" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
+qs_integrate_potential_low.F.ast: Symbol "coset" in procedure "qs_integrate_potential_low" is IMPLICIT-SAVE
+qs_integrate_potential_low.F.ast: Symbol "ncoset" in procedure "qs_integrate_potential_low" is IMPLICIT-SAVE
+qs_integrate_potential_product.F.ast: Found CALL DGEMM in procedure "integrate_v_rspace"
+qs_integrate_potential_product.F.ast: Symbol "debug_count" in procedure "qs_integrate_potential_product" is IMPLICIT-SAVE
+qs_integrate_potential_product.F.ast: Symbol "ncoset" in procedure "qs_integrate_potential_product" is IMPLICIT-SAVE
+qs_integrate_potential_single.F.ast: Found CALL DGEMM in procedure "integrate_v_rspace_one_center"
+qs_integrate_potential_single.F.ast: Symbol "coset" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
+qs_integrate_potential_single.F.ast: Symbol "nco" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
+qs_integrate_potential_single.F.ast: Symbol "ncoset" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
+qs_integrate_potential_single.F.ast: Symbol "nso" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
+qs_integrate_potential_single.F.ast: Symbol "nsoset" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
+qs_integrate_potential_single.F.ast: Symbol "orbtramat" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
+qs_kind_types.F.ast: Symbol "nco" in procedure "qs_kind_types" is IMPLICIT-SAVE
+qs_kind_types.F.ast: Symbol "ncoset" in procedure "qs_kind_types" is IMPLICIT-SAVE
+qs_kinetic.F.ast: Symbol "ncoset" in procedure "qs_kinetic" is IMPLICIT-SAVE
+qs_ks_atom.F.ast: Found CALL DGEMM in procedure "add_vhxca_forces"
+qs_ks_atom.F.ast: Found CALL DGEMM in procedure "add_vhxca_to_ks"
+qs_linres_atom_current.F.ast: Found CALL DAXPY in procedure "calculate_jrho_atom_coeff"
+qs_linres_atom_current.F.ast: Found CALL DCOPY in procedure "calculate_jrho_atom_coeff"
+qs_linres_atom_current.F.ast: Symbol "indso" in procedure "qs_linres_atom_current" is IMPLICIT-SAVE
+qs_linres_atom_current.F.ast: Symbol "nsoset" in procedure "qs_linres_atom_current" is IMPLICIT-SAVE
+qs_linres_current.F.ast: Found CALL DCOPY in procedure "box_atoms_new"
+qs_linres_current.F.ast: Found CALL DGEMM in procedure "calculate_jrho_resp"
+qs_linres_current.F.ast: Symbol "ncoset" in procedure "qs_linres_current" is IMPLICIT-SAVE
+qs_linres_op.F.ast: Symbol "coset" in procedure "qs_linres_op" is IMPLICIT-SAVE
+qs_loc_utils.F.ast: Found CALL DROT in procedure "rotate_rmat_real"
+qs_loc_utils.F.ast: Found CALL DROT in procedure "rotate_zij_real"
+qs_loc_utils.F.ast: Symbol "ncoset" in procedure "qs_loc_utils" is IMPLICIT-SAVE
+qs_localization_methods.F.ast: Found CALL DCOPY in procedure "jacobi_rot_para"
+qs_localization_methods.F.ast: Found CALL DGEMM in procedure "initialize_weights"
+qs_localization_methods.F.ast: Found CALL DGEMM in procedure "jacobi_rot_para"
+qs_localization_methods.F.ast: Found CALL ZROT in procedure "rotate_rmat"
+qs_localization_methods.F.ast: Found CALL ZROT in procedure "rotate_zij"
+qs_localization_methods.F.ast: Found GOTO statement in procedure "jacobi_rot_para"
+qs_mo_io.F.ast: Found CALL DGEMM in procedure "write_mo_set_to_output_unit"
+qs_mo_io.F.ast: Symbol "indco" in procedure "qs_mo_io" is IMPLICIT-SAVE
+qs_mo_io.F.ast: Symbol "nco" in procedure "qs_mo_io" is IMPLICIT-SAVE
+qs_mo_io.F.ast: Symbol "nso" in procedure "qs_mo_io" is IMPLICIT-SAVE
+qs_mo_io.F.ast: Symbol "orbtramat" in procedure "qs_mo_io" is IMPLICIT-SAVE
+qs_modify_pab_block.F.ast: Symbol "coset" in procedure "qs_modify_pab_block" is IMPLICIT-SAVE
+qs_moments.F.ast: Found CALL DGEMM in procedure "build_local_magmom_matrix"
+qs_moments.F.ast: Found CALL DGEMM in procedure "build_local_moment_matrix"
+qs_moments.F.ast: Symbol "indco" in procedure "qs_moments" is IMPLICIT-SAVE
+qs_moments.F.ast: Symbol "ncoset" in procedure "qs_moments" is IMPLICIT-SAVE
+qs_neighbor_lists.F.ast: Symbol "ptable" in procedure "qs_neighbor_lists" is IMPLICIT-SAVE
+qs_oce_methods.F.ast: Found CALL DAXPY in procedure "proj_blk"
+qs_oce_methods.F.ast: Found CALL DGEMM in procedure "build_oce_block"
+qs_oce_methods.F.ast: Found CALL DGEMM in procedure "proj_blk"
+qs_oce_methods.F.ast: Found CALL DGER in procedure "proj_blk"
+qs_oce_methods.F.ast: Symbol "indco" in procedure "qs_oce_methods" is IMPLICIT-SAVE
+qs_oce_methods.F.ast: Symbol "nco" in procedure "qs_oce_methods" is IMPLICIT-SAVE
+qs_oce_methods.F.ast: Symbol "ncoset" in procedure "qs_oce_methods" is IMPLICIT-SAVE
+qs_oce_methods.F.ast: Symbol "nso" in procedure "qs_oce_methods" is IMPLICIT-SAVE
+qs_oce_methods.F.ast: Symbol "orbtramat" in procedure "qs_oce_methods" is IMPLICIT-SAVE
+qs_operators_ao.F.ast: Found CALL DGEMM in procedure "build_ang_mom_matrix"
+qs_operators_ao.F.ast: Found CALL DGEMM in procedure "build_lin_mom_matrix"
+qs_operators_ao.F.ast: Found CALL DGEMM in procedure "p_xyz_ao"
+qs_operators_ao.F.ast: Found CALL DGEMM in procedure "rrc_xyz_ao"
+qs_operators_ao.F.ast: Found CALL DGEMM in procedure "rrc_xyz_der_ao"
+qs_operators_ao.F.ast: Symbol "coset" in procedure "qs_operators_ao" is IMPLICIT-SAVE
+qs_operators_ao.F.ast: Symbol "ncoset" in procedure "qs_operators_ao" is IMPLICIT-SAVE
+qs_outer_scf.F.ast: Found GOTO statement in procedure "outer_loop_optimize"
+qs_overlap.F.ast: Symbol "indco" in procedure "qs_overlap" is IMPLICIT-SAVE
+qs_overlap.F.ast: Symbol "ncoset" in procedure "qs_overlap" is IMPLICIT-SAVE
+qs_p_sparse_psi.F.ast: Found CALL DCOPY in procedure "p_proj_transfer_blacs_to_f"
+qs_pdos.F.ast: Symbol "nso" in procedure "qs_pdos" is IMPLICIT-SAVE
+qs_pdos.F.ast: Symbol "nsoset" in procedure "qs_pdos" is IMPLICIT-SAVE
+qs_rho0_ggrid.F.ast: Symbol "indco" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
+qs_rho0_ggrid.F.ast: Symbol "nco" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
+qs_rho0_ggrid.F.ast: Symbol "ncoset" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
+qs_rho0_ggrid.F.ast: Symbol "nso" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
+qs_rho0_ggrid.F.ast: Symbol "nsoset" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
+qs_rho0_ggrid.F.ast: Symbol "orbtramat" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
+qs_rho0_methods.F.ast: Symbol "indco" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
+qs_rho0_methods.F.ast: Symbol "indso" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
+qs_rho0_methods.F.ast: Symbol "nco" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
+qs_rho0_methods.F.ast: Symbol "ncoset" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
+qs_rho0_methods.F.ast: Symbol "nso" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
+qs_rho0_methods.F.ast: Symbol "nsoset" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
+qs_rho0_methods.F.ast: Symbol "orbtramat" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
+qs_rho_atom_methods.F.ast: Symbol "indso" in procedure "qs_rho_atom_methods" is IMPLICIT-SAVE
+qs_rho_atom_methods.F.ast: Symbol "nsoset" in procedure "qs_rho_atom_methods" is IMPLICIT-SAVE
+qs_scf_diagonalization.F.ast: Symbol "cone" in procedure "do_general_diag_kp" is IMPLICIT-SAVE
+qs_scf_diagonalization.F.ast: Symbol "czero" in procedure "do_general_diag_kp" is IMPLICIT-SAVE
+qs_scf_diagonalization.F.ast: Symbol "ione" in procedure "do_general_diag_kp" is IMPLICIT-SAVE
+qs_scf_lanczos.F.ast: Found CALL DGEMM in procedure "lanczos_refinement_2v"
+qs_scf_post_gpw.F.ast: Symbol "indso" in procedure "qs_scf_post_gpw" is IMPLICIT-SAVE
+qs_spin_orbit.F.ast: Found CALL DGEMM in procedure "build_pso_matrix"
+qs_spin_orbit.F.ast: Symbol "ncoset" in procedure "qs_spin_orbit" is IMPLICIT-SAVE
+qs_tddfpt_utils.F.ast: Found CALL DCOPY in procedure "co_initial_guess"
+qs_vxc_atom.F.ast: Found CALL DAXPY in procedure "dgavtaudgb"
+qs_vxc_atom.F.ast: Found CALL DAXPY in procedure "gavxcgb_gc"
+qs_vxc_atom.F.ast: Found CALL DAXPY in procedure "gavxcgb_nogc"
+qs_vxc_atom.F.ast: Found CALL DGEMM in procedure "gavxcgb_nogc"
+qs_vxc_atom.F.ast: Symbol "indso" in procedure "qs_vxc_atom" is IMPLICIT-SAVE
+qs_vxc_atom.F.ast: Symbol "nsoset" in procedure "qs_vxc_atom" is IMPLICIT-SAVE
+realspace_grid_types.F.ast: Found CALL DCOPY in procedure "rs_pw_transfer"
+realspace_grid_types.F.ast: Found CALL DCOPY in procedure "rs_pw_transfer_replicated"
+reference_manager.F.ast: Symbol "thebib" in procedure "reference_manager" is IMPLICIT-SAVE
+replica_types.F.ast: Symbol "rep_envs" in procedure "replica_types" is IMPLICIT-SAVE
+rt_matrix_exp.F.ast: Found CALL DGEMM in procedure "arnoldi"
+rt_propagation_utils.F.ast: Symbol "ncoset" in procedure "rt_propagation_utils" is IMPLICIT-SAVE
+rt_propagation_utils.F.ast: Symbol "one" in procedure "calc_c_mat_force_ls" is IMPLICIT-SAVE
+rt_propagation_utils.F.ast: Symbol "one" in procedure "calc_s_derivs" is IMPLICIT-SAVE
+rt_propagation_utils.F.ast: Symbol "zero" in procedure "calc_c_mat_force_ls" is IMPLICIT-SAVE
+rt_propagation_utils.F.ast: Symbol "zero" in procedure "calc_s_derivs" is IMPLICIT-SAVE
+scp_diis_utils.F.ast: Found GOTO statement in procedure "store_hist"
+scp_dispersion.F.ast: Symbol "se_orbital_pointer" in procedure "scp_dispersion" is IMPLICIT-SAVE
+scp_fock_matrix_integrals.F.ast: Symbol "se_orbital_pointer" in procedure "scp_fock_matrix_integrals" is IMPLICIT-SAVE
+scptb_core_matrix.F.ast: Symbol "ncoset" in procedure "scptb_core_matrix" is IMPLICIT-SAVE
+scptb_ks_matrix.F.ast: Symbol "c2s_tramat" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
+scptb_ks_matrix.F.ast: Symbol "indso" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
+scptb_ks_matrix.F.ast: Symbol "ncoset" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
+scptb_ks_matrix.F.ast: Symbol "nsoset" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
+scptb_parameters.F.ast: Symbol "ptable" in procedure "scptb_parameters" is IMPLICIT-SAVE
+se_fock_matrix_coulomb_ga.F.ast: Symbol "se_orbital_pointer" in procedure "se_fock_matrix_coulomb_ga" is IMPLICIT-SAVE
+se_fock_matrix_coulomb_mpi.F.ast: Symbol "se_orbital_pointer" in procedure "se_fock_matrix_coulomb_mpi" is IMPLICIT-SAVE
+se_fock_matrix_integrals.F.ast: Symbol "se_orbital_pointer" in procedure "se_fock_matrix_integrals" is IMPLICIT-SAVE
+se_ga_tools.F.ast: Found GOTO statement in procedure "grid_factor"
+semi_empirical_expns3_methods.F.ast: Symbol "indexa" in procedure "semi_empirical_expns3_methods" is IMPLICIT-SAVE
+semi_empirical_int3_utils.F.ast: Symbol "clm_d" in procedure "semi_empirical_int3_utils" is IMPLICIT-SAVE
+semi_empirical_int3_utils.F.ast: Symbol "indexb" in procedure "semi_empirical_int3_utils" is IMPLICIT-SAVE
+semi_empirical_int_ana.F.ast: Symbol "ijkl_ind" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
+semi_empirical_int_ana.F.ast: Symbol "ijkl_sym" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
+semi_empirical_int_ana.F.ast: Symbol "inddd" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
+semi_empirical_int_ana.F.ast: Symbol "inddp" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
+semi_empirical_int_ana.F.ast: Symbol "indexa" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
+semi_empirical_int_ana.F.ast: Symbol "indexb" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
+semi_empirical_int_ana.F.ast: Symbol "indpp" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "alm" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "clm_d" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "clm_sp" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "ijkl_ind" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "ijkl_sym" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "inddd" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "inddp" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "indexa" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "indexb" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "indpp" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "int_ij" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "int_kl" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "int_onec2el" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "se_map_alm" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_arrays.F.ast: Symbol "se_orbital_pointer" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
+semi_empirical_int_debug.F.ast: Symbol "indexb" in procedure "rot_2el_2c_first_debug" is IMPLICIT-SAVE
+semi_empirical_int_gks.F.ast: Symbol "indexb" in procedure "semi_empirical_int_gks" is IMPLICIT-SAVE
+semi_empirical_int_num.F.ast: Symbol "ijkl_ind" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
+semi_empirical_int_num.F.ast: Symbol "ijkl_sym" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
+semi_empirical_int_num.F.ast: Symbol "inddd" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
+semi_empirical_int_num.F.ast: Symbol "inddp" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
+semi_empirical_int_num.F.ast: Symbol "indexa" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
+semi_empirical_int_num.F.ast: Symbol "indexb" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
+semi_empirical_int_num.F.ast: Symbol "indpp" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
+semi_empirical_int_utils.F.ast: Symbol "clm_d" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
+semi_empirical_int_utils.F.ast: Symbol "clm_sp" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
+semi_empirical_int_utils.F.ast: Symbol "ijkl_ind" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
+semi_empirical_int_utils.F.ast: Symbol "indexa" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
+semi_empirical_int_utils.F.ast: Symbol "indexb" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
+semi_empirical_mpole_methods.F.ast: Symbol "alm" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
+semi_empirical_mpole_methods.F.ast: Symbol "indexa" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
+semi_empirical_mpole_methods.F.ast: Symbol "indexb" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
+semi_empirical_mpole_methods.F.ast: Symbol "se_map_alm" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
+semi_empirical_par_utils.F.ast: Symbol "int_ij" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
+semi_empirical_par_utils.F.ast: Symbol "int_kl" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
+semi_empirical_par_utils.F.ast: Symbol "int_onec2el" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
+semi_empirical_par_utils.F.ast: Symbol "nod" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
+semi_empirical_par_utils.F.ast: Symbol "nop" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
+semi_empirical_par_utils.F.ast: Symbol "nos" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
+semi_empirical_parameters.F.ast: Symbol "aab_pm6" in procedure "semi_empirical_parameters" is IMPLICIT-SAVE
+semi_empirical_parameters.F.ast: Symbol "ptable" in procedure "semi_empirical_parameters" is IMPLICIT-SAVE
+semi_empirical_parameters.F.ast: Symbol "xab_pm6" in procedure "semi_empirical_parameters" is IMPLICIT-SAVE
+smm.F.ast: Found CALL CGEMM in procedure "smm_cnn"
+smm.F.ast: Found CALL CGEMM in procedure "smm_cnt"
+smm.F.ast: Found CALL CGEMM in procedure "smm_ctn"
+smm.F.ast: Found CALL CGEMM in procedure "smm_ctt"
+smm.F.ast: Found CALL DGEMM in procedure "smm_dnn"
+smm.F.ast: Found CALL DGEMM in procedure "smm_dnt"
+smm.F.ast: Found CALL DGEMM in procedure "smm_dtn"
+smm.F.ast: Found CALL DGEMM in procedure "smm_dtt"
+smm.F.ast: Found CALL SGEMM in procedure "smm_snn"
+smm.F.ast: Found CALL SGEMM in procedure "smm_snt"
+smm.F.ast: Found CALL SGEMM in procedure "smm_stn"
+smm.F.ast: Found CALL SGEMM in procedure "smm_stt"
+smm.F.ast: Found CALL ZGEMM in procedure "smm_znn"
+smm.F.ast: Found CALL ZGEMM in procedure "smm_znt"
+smm.F.ast: Found CALL ZGEMM in procedure "smm_ztn"
+smm.F.ast: Found CALL ZGEMM in procedure "smm_ztt"
+smm.F.ast: Symbol "kind" in procedure "smm_cnn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_cnt" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_ctn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_ctt" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_dnn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_dnt" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_dtn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_dtt" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_snn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_snt" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_stn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_stt" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_znn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_znt" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_ztn" is IMPLICIT-TYPE
+smm.F.ast: Symbol "kind" in procedure "smm_ztt" is IMPLICIT-TYPE
+soft_basis_set.F.ast: Symbol "indco" in procedure "soft_basis_set" is IMPLICIT-SAVE
+soft_basis_set.F.ast: Symbol "nco" in procedure "soft_basis_set" is IMPLICIT-SAVE
+soft_basis_set.F.ast: Symbol "ncoset" in procedure "soft_basis_set" is IMPLICIT-SAVE
+soft_basis_set.F.ast: Symbol "nso" in procedure "soft_basis_set" is IMPLICIT-SAVE
+spherical_harmonics.F.ast: Symbol "cg_table" in procedure "spherical_harmonics" is IMPLICIT-SAVE
+spherical_harmonics.F.ast: Symbol "lmax" in procedure "spherical_harmonics" is IMPLICIT-SAVE
+spherical_harmonics.F.ast: Symbol "osq2" in procedure "spherical_harmonics" is IMPLICIT-SAVE
+spherical_harmonics.F.ast: Symbol "sq2" in procedure "spherical_harmonics" is IMPLICIT-SAVE
+statistical_methods.F.ast: Found GOTO statement in procedure "alnorm"
+statistical_methods.F.ast: Found GOTO statement in procedure "poly"
+swarm_mpi.F.ast: Found CLOSE statement in procedure "logger_init_master"
+swarm_mpi.F.ast: Found OPEN statement in procedure "logger_finalize"
+termination.F.ast: Symbol "error_unit" in procedure "termination" is IMPLICIT-SAVE
+tmc_dot_tree.F.ast: Symbol "debug" in procedure "tmc_dot_tree" is IMPLICIT-SAVE
+topology_pdb.F.ast: Symbol "r_datx" in procedure "topology_pdb" is IMPLICIT-SAVE
+topology_pdb.F.ast: Symbol "r_host_name" in procedure "topology_pdb" is IMPLICIT-SAVE
+topology_pdb.F.ast: Symbol "r_user_name" in procedure "topology_pdb" is IMPLICIT-SAVE
+topology_util.F.ast: Symbol "amber_map" in procedure "topology_util" is IMPLICIT-SAVE
+topology_util.F.ast: Symbol "charmm_map" in procedure "topology_util" is IMPLICIT-SAVE
+topology_util.F.ast: Symbol "gromos_map" in procedure "topology_util" is IMPLICIT-SAVE
+xas_methods.F.ast: Found GOTO statement in procedure "xas"
+xas_methods.F.ast: Symbol "ncoset" in procedure "xas_methods" is IMPLICIT-SAVE
+xas_methods.F.ast: Symbol "ptable" in procedure "xas_methods" is IMPLICIT-SAVE
+xc.F.ast: Found CALL DAXPY in procedure "xc_vxc_pw_create"
+xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
+xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
+xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
+xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
+xc_b97.F.ast: Symbol "params_b97_grimme" in procedure "xc_b97" is IMPLICIT-SAVE
+xc_b97.F.ast: Symbol "params_b97_mardirossian" in procedure "xc_b97" is IMPLICIT-SAVE
+xc_b97.F.ast: Symbol "params_b97_orig" in procedure "xc_b97" is IMPLICIT-SAVE
+xc_cs1.F.ast: Symbol "debug_flag" in procedure "xc_cs1" is IMPLICIT-SAVE
+xc_cs1.F.ast: Symbol "eps_rho" in procedure "xc_cs1" is IMPLICIT-SAVE
+xc_cs1.F.ast: Symbol "fsig" in procedure "xc_cs1" is IMPLICIT-SAVE
+xc_derivatives.F.ast: Found GOTO statement in procedure "xc_functional_eval"
+xc_exchange_gga.F.ast: Symbol "cx" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_exchange_gga.F.ast: Symbol "eps_rho" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_exchange_gga.F.ast: Symbol "fact" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_exchange_gga.F.ast: Symbol "flda" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_exchange_gga.F.ast: Symbol "flsd" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_exchange_gga.F.ast: Symbol "sfac" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_exchange_gga.F.ast: Symbol "t13" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_exchange_gga.F.ast: Symbol "tact" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
+xc_f90_types_m.F.ast: Symbol "selected_real_kind" in procedure "xc_f90_types_m" is IMPLICIT-TYPE
+xc_f90_types_m.F.ast: Symbol "xc_f90_pointer_t" in procedure "xc_f90_types_m" is IMPLICIT-TYPE
+xc_ke_gga.F.ast: Symbol "b" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "b_lda" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "b_lsd" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "cf" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "eps_rho" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "fact" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "flda" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "flsd" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "sfac" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "t13" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_ke_gga.F.ast: Symbol "tact" in procedure "xc_ke_gga" is IMPLICIT-SAVE
+xc_pade.F.ast: Symbol "debug_flag" in procedure "xc_pade" is IMPLICIT-SAVE
+xc_pade.F.ast: Symbol "eps_rho" in procedure "xc_pade" is IMPLICIT-SAVE
+xc_perdew86.F.ast: Symbol "debug_flag" in procedure "xc_perdew86" is IMPLICIT-SAVE
+xc_perdew86.F.ast: Symbol "eps_rho" in procedure "xc_perdew86" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "a" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "a1" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "b1" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "b2" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "b3" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "b4" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "c0" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "c1" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "c2" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "c3" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "d0" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "d1" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "eps_rho" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_wang.F.ast: Symbol "initialized" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "a" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "b" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "b1" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "b2" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "c" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "d" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "eps_rho" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "ga" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_perdew_zunger.F.ast: Symbol "initialized" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
+xc_tfw.F.ast: Symbol "cf" in procedure "xc_tfw" is IMPLICIT-SAVE
+xc_tfw.F.ast: Symbol "eps_rho" in procedure "xc_tfw" is IMPLICIT-SAVE
+xc_tfw.F.ast: Symbol "flda" in procedure "xc_tfw" is IMPLICIT-SAVE
+xc_tfw.F.ast: Symbol "flsd" in procedure "xc_tfw" is IMPLICIT-SAVE
+xc_tfw.F.ast: Symbol "fvw" in procedure "xc_tfw" is IMPLICIT-SAVE
+xc_thomas_fermi.F.ast: Symbol "cf" in procedure "xc_thomas_fermi" is IMPLICIT-SAVE
+xc_thomas_fermi.F.ast: Symbol "eps_rho" in procedure "xc_thomas_fermi" is IMPLICIT-SAVE
+xc_thomas_fermi.F.ast: Symbol "flda" in procedure "xc_thomas_fermi" is IMPLICIT-SAVE
+xc_thomas_fermi.F.ast: Symbol "flsd" in procedure "xc_thomas_fermi" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "b" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "ba" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "bf" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "c" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "ca" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "cf" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "eps_rho" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "x0" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "x0a" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_vwn.F.ast: Symbol "x0f" in procedure "xc_vwn" is IMPLICIT-SAVE
+xc_xalpha.F.ast: Symbol "eps_rho" in procedure "xc_xalpha" is IMPLICIT-SAVE
+xc_xalpha.F.ast: Symbol "flda" in procedure "xc_xalpha" is IMPLICIT-SAVE
+xc_xalpha.F.ast: Symbol "flsd" in procedure "xc_xalpha" is IMPLICIT-SAVE
+xc_xalpha.F.ast: Symbol "xparam" in procedure "xc_xalpha" is IMPLICIT-SAVE
+xc_xbeef.F.ast: Symbol "m" in procedure "xbeef_lda_calc" is IMPLICIT-SAVE
+xc_xbeef.F.ast: Symbol "m" in procedure "xbeef_lsd_calc" is IMPLICIT-SAVE
+xml_parser.F.ast: Found CLOSE statement in procedure "xml_close"
+xml_parser.F.ast: Found OPEN statement in procedure "xml_open"
+xml_parser.F.ast: Symbol "report_details_" in procedure "xml_parser" is IMPLICIT-SAVE
+xml_parser.F.ast: Symbol "report_errors_" in procedure "xml_parser" is IMPLICIT-SAVE
+xml_parser.F.ast: Symbol "report_lun_" in procedure "xml_parser" is IMPLICIT-SAVE
+xray_diffraction.F.ast: Found CALL DGEMM in procedure "calculate_rhotot_elec_gspace"
+xray_diffraction.F.ast: Symbol "nco" in procedure "xray_diffraction" is IMPLICIT-SAVE
+xray_diffraction.F.ast: Symbol "ncoset" in procedure "xray_diffraction" is IMPLICIT-SAVE
+xray_diffraction.F.ast: Symbol "nso" in procedure "xray_diffraction" is IMPLICIT-SAVE
+xray_diffraction.F.ast: Symbol "nsoset" in procedure "xray_diffraction" is IMPLICIT-SAVE
+xray_diffraction.F.ast: Symbol "orbtramat" in procedure "xray_diffraction" is IMPLICIT-SAVE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_0_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_0_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_0_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_1_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_1_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_1_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_0" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_1" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_0" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_1" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_0" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_1" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_0_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_0_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_0_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_1_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_1_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_1_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_0" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_1" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_0" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_1" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_4" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_0" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_1" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_2" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_3" is IMPLICIT-TYPE
+xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_4" is IMPLICIT-TYPE
