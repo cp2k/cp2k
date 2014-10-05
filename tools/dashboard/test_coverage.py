@@ -55,7 +55,7 @@ def main():
 
     assert("Total:" in lines[-2])
     total_coverage = float(lines[-2].split("|")[1].split("%")[0])
-    print "Summary: Checked %d files, total coverage is at %.f%%."%(len(coverage), total_coverage)
+    print "Summary: Found %d issues, total coverage is at %.f%%."%(issues, total_coverage)
     print "Status: "+ ("OK" if(issues==0) else "FAILED")
 
     open(ref_fn, "w").write(pformat(new_ref_coverage))
