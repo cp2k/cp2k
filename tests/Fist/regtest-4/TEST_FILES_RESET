@@ -368,3 +368,5 @@ nh3_bfgs_r.inp
 nh3_wat-restraint-fixd-3.inp
 #restore EPCC's cuda regtest
 H2O-meta-combine.inp
+#reduce number of MD steps
+H2O-meta-combine.inp
