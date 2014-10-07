@@ -16,6 +16,7 @@ import traceback
 from urllib2 import urlopen
 from os import path
 from pprint import pformat
+from xml.dom import minidom
 
 #===============================================================================
 def main():
@@ -33,10 +34,16 @@ def main():
     else:
         last_change = dict()
 
-    now = datetime.utcnow().replace(microsecond=0)
-
     svn_info = check_output("svn info svn://svn.code.sf.net/p/cp2k/code/trunk".split())
-    trunk_revision = int(re.search("Revision: (\d+)\n", svn_info).group(1))
+    trunk_revision = int(re.search('Last Changed Rev: (\d+)\n', svn_info).group(1))
+
+    # find latest revision that should have been tested by now
+    now = datetime.utcnow().replace(microsecond=0)
+    freshness_threshold = now - timedelta(hours=25)
+    log = svn_log()
+    revs_beyond_threshold = [r for r, d in log if d < freshness_threshold]
+    threshold_rev = revs_beyond_threshold[0]
+    print "threshold_rev: ", threshold_rev
 
     output  = '<html>\n'
     output += '<head><meta http-equiv="refresh" content="200"></head>\n'
@@ -64,9 +71,7 @@ def main():
             else:
                 raise(Exception("Unkown report_type"))
 
-            report_age = now - report['date']
-            report_fresh = report['revision']==trunk_revision or report_age<timedelta(hours=25)
-            if(not report_fresh):
+            if(report['revision'] < threshold_rev):
                 report['status'] = "OUTDATED"
         except:
             print traceback.print_exc()
@@ -92,7 +97,7 @@ def main():
 
         #Revision
         if(report.has_key('revision')):
-            output += ref_link(report['revision'], trunk_revision)
+            output += rev_link(report['revision'], trunk_revision)
             if(not last_change.has_key(s) or last_change[s][0]!=report['status']):
                 last_change[s] = (report['status'], report['revision'])
         else:
@@ -103,7 +108,7 @@ def main():
 
         #Since
         if(last_change.has_key(s)):
-            output += ref_link(last_change[s][1], trunk_revision)
+            output += rev_link(last_change[s][1], trunk_revision)
         else:
             output += '<td>N/A</td>'
 
@@ -120,7 +125,21 @@ def main():
     print("Wrote: "+output_fn)
 
 #===============================================================================
-def ref_link(rev, trunk_rev):
+def svn_log(limit=100):
+    # xml version contains nice UTC timestamp
+    cmd = "svn log --limit %d svn://svn.code.sf.net/p/cp2k/code/trunk --xml"%limit
+    log_xml = check_output(cmd.split())
+    dom = minidom.parseString(log_xml)
+    revisions = []
+    for entry in dom.getElementsByTagName("logentry"):
+        rev_num = int(entry.attributes['revision'].value)
+        rev_date_str = entry.getElementsByTagName('date')[0].firstChild.nodeValue
+        rev_date = datetime.strptime(rev_date_str[:19], '%Y-%m-%dT%H:%M:%S')
+        revisions.append( (rev_num, rev_date) )
+    return(revisions)
+
+#===============================================================================
+def rev_link(rev, trunk_rev):
     rev_url = "http://sourceforge.net/p/cp2k/code/%d/"%rev
     rev_delta = "(%d)"%(rev - trunk_rev)
     output = '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, rev, rev_delta)
@@ -129,12 +148,9 @@ def ref_link(rev, trunk_rev):
 #===============================================================================
 def parse_regtest_report(report_txt):
     report = dict()
-    report_date = re.search("\nDate: (.*)\n", report_txt).group(1)
-    report_time = re.search("\nTime: (.*)\n", report_txt).group(1)
     report['revision']  = int(re.search("revision (\d+)\.\n", report_txt).group(1))
-    report['date'] = datetime.strptime(report_date+' '+report_time, '%Y-%m-%d %H:%M:%S')
 
-    m = re.search("GREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
+    m = re.search("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
     runtime_errors = int(m.group(1))
     wrong_results  = int(m.group(2))
     correct_tests  = int(m.group(3))
@@ -159,15 +175,12 @@ def parse_regtest_report(report_txt):
 
     return(report)
 
-
 #===============================================================================
 def parse_generic_report(report_txt):
     report = dict()
-    date_str = re.search("(^|\n)Date: (.*)\n", report_txt).group(2)
-    report['revision']  = int(re.search("\nRevision: (\d+)\n", report_txt).group(1))
-    report['date'] = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S+00:00')
-    report['summary'] = re.search("\nSummary: (.+)\n", report_txt).group(1)
-    report['status'] = re.search("\nStatus: (.+)\n", report_txt).group(1)
+    report['revision']  = int(re.search("(^|\n)Revision: (\d+)\n", report_txt).group(2))
+    report['summary'] = re.search("(^|\n)Summary: (.+)\n", report_txt).group(2)
+    report['status'] = re.search("(^|\n)Status: (.+)\n", report_txt).group(2)
 
     return(report)
 
@@ -178,5 +191,6 @@ def check_output(command):
     assert(p.wait() == 0)
     return(output)
 
+#===============================================================================
 main()
 #EOF
