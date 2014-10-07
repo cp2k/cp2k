@@ -535,3 +535,6 @@ H2O-harris.inp
 H2O-geoopt.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 H2O-fixed.inp
+# Merge of POTENTIAL files
+K2.inp
+Ne_debug.inp

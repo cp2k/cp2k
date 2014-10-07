@@ -1,0 +1,163 @@
+################################################################################
+#
+# All-electron (full nuclear potential) definitions in the GTH-format:
+#
+# Element symbol  Name of the potential  Alias names
+# n_elec(s)  n_elec(p)  n_elec(d)  ...
+# r_loc   0
+#
+# n_elec   : Number of electrons for each angular momentum quantum number
+#            (electronic configuration -> s p d ...)
+# r_loc    : Radius for the local part defined by the Gaussian function
+#            exponent alpha_erf
+#
+################################################################################
+#
+H ALLELECTRON ALL
+    1    0    0
+     0.20000000    0
+#
+He ALLELECTRON ALL
+    2    0    0 
+     0.20000000    0
+#
+Li ALLELECTRON ALL
+    3    0    0 
+     0.40000000    0
+#
+Be ALLELECTRON ALL
+    4    0    0 
+     0.32500000    0
+#
+B ALLELECTRON ALL
+    4    1    0
+     0.43392956    0
+#
+C ALLELECTRON ALL
+    4    2    0
+     0.34883045    0
+#
+N ALLELECTRON ALL
+    4    3    0
+     0.28917923    0
+#
+O ALLELECTRON ALL
+    4    4    0
+     0.24762086    0
+#
+F ALLELECTRON ALL
+    4    5    0
+     0.21852465    0
+#
+Ne ALLELECTRON ALL
+    4    6    0
+     0.19000000    0
+#
+Na ALLELECTRON ALL
+    5    6    0
+     0.24631780    0
+#
+Mg ALLELECTRON ALL
+    6    6    0
+     0.21094954    0
+#
+Al ALLELECTRON ALL
+    6    7    0
+     0.45000000    0
+#
+Si ALLELECTRON ALL
+    6    8    0
+     0.44000000    0
+#
+P ALLELECTRON ALL
+    6    9    0
+     0.43000000    0
+#
+S ALLELECTRON ALL
+    6   10    0
+     0.42000000    0
+#
+Cl ALLELECTRON ALL
+    6   11    0
+     0.41000000    0
+#
+Ar ALLELECTRON ALL
+    6   12    0
+     0.40000000    0
+#
+K ALLELECTRON ALL
+    7   12    0
+     0.40000000    0
+#
+Ca ALLELECTRON ALL
+    8   12    0
+     0.39000000
+#
+Sc ALLELECTRON ALL
+    8   12    1
+     0.38500000
+#
+Ti ALLELECTRON ALL
+    8   12    2
+     0.3800000
+#
+V  ALLELECTRON ALL
+    8   12    3
+     0.37500000
+#
+Cr ALLELECTRON ALL
+    8   12    4
+     0.37000000
+#
+Mn ALLELECTRON ALL
+    8   12    5
+     0.36500000
+#
+Fe  ALLELECTRON ALL
+    8   12    6
+     0.36000000
+#
+Co  ALLELECTRON ALL
+    8   12    7
+     0.35500000
+#
+Ni  ALLELECTRON ALL
+    8   12    8
+     0.35000000
+#
+Cu ALLELECTRON ALL
+    8   12    9
+     0.53000000
+#
+Zn ALLELECTRON ALL
+    8   12   10
+     0.34000000
+#
+Ga ALLELECTRON ALL
+    8   13   10
+     0.49000000
+#
+Ge ALLELECTRON ALL
+    8   14   10
+     0.54000000
+#
+As ALLELECTRON ALL
+    8   15   10
+     0.52000000
+#
+Se ALLELECTRON ALL
+    8   16   10
+     0.51000000
+#
+Br ALLELECTRON ALL
+    8   17   10
+     0.50000000
+#
+Kr ALLELECTRON ALL
+    8   18   10
+     0.50000000
+#
+I  ALLELECTRON ALL
+   10   23   20
+     0.50000000
+#

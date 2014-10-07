@@ -1087,3 +1087,5 @@ h2o-otdiag-lsd.inp
 H2-geo-4.inp
 # numerics
 Cu.inp
+# Merge of POTENTIAL files
+test-pdb.inp

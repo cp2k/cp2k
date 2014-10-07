@@ -1,16 +1,12 @@
 ################################################################################
 #
-# Potential data base file for CP2K (Quickstep)
-#
-# History: - Creation (06/2013)
-#
-################################################################################
-#
 # Non-linear core corrected pseudopotentials of Goedecker, Teter and Hutter (GTH)
 # -----------------------------------------------------
 #
-# Literature: - A. Willand, YO. Kvashnin, L. Genovese, A. Vázquez-Mayagoitia,
-#               AK. Dep, A. Sadeghi, T. Deutsch, and S.Goedecker
+# History:    - Creation (06/2013)
+#
+# Literature: - A. Willand, Y. O. Kvashnin, L. Genovese, A. Vazquez-Mayagoitia,
+#               A. K. Deb, A. Sadeghi, T. Deutsch, and S. Goedecker,
 #               J. Chem. Phys. 138, 104109 (2013)
 #             - S. Goedecker, M. Teter, and J. Hutter,
 #               Phys. Rev. B 54, 1703 (1996)
@@ -51,7 +47,7 @@
 # PBE functional
 #
 ################################################################################
-
+#
 Al GTH-NLCC-PBE-q3
    2 1  
         0.35000000  2     -1.20404111     -2.14848844 
@@ -129,4 +125,5 @@ Si GTH-NLCC-PBE-q4
    2                                                 
         0.42179461  2      2.87392223      0.02558827
                                            2.59458148
-        0.48800255  1      2.47962806     
+        0.48800255  1      2.47962806
+#

@@ -992,3 +992,5 @@ H2O-ata.inp
 dynamics.inp
 # numerics
 He2H-.inp
+# Merge of POTENTIAL files
+rsgrid-dist-1.inp
