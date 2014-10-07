@@ -11,6 +11,7 @@
 MODULE rt_propagation
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -176,6 +177,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: i
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -183,9 +186,12 @@ CONTAINS
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(matrix_s)
+
     CALL get_qs_env(qs_env,&
-         rtp=rtp,&
-         error=error)
+                    rtp=rtp,&
+                    matrix_s=matrix_s,&
+                    error=error)
     rtp_control=>qs_env%dft_control%rtp_control
 
     IF(.NOT.rtp%linear_scaling) THEN
@@ -194,7 +200,7 @@ CONTAINS
        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
          IF (rtp_control%apply_delta_pulse) THEN
             IF(qs_env%dft_control%qs_control%dftb)&
-               CALL build_dftb_overlap(qs_env,1,qs_env%matrix_s,error)
+               CALL build_dftb_overlap(qs_env,1,matrix_s,error)
             IF (rtp_control%periodic) THEN
               CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
             ELSE
@@ -426,11 +432,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: homo, ispin, stat
+    INTEGER                                  :: homo, ispin
     LOGICAL                                  :: energy_consistency, failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+
+    NULLIFY(matrix_s)
 
     SELECT CASE(rtp_control%initial_wfn)
     CASE(use_scf_wfn)
@@ -442,10 +452,9 @@ CONTAINS
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
             consistent_energies=energy_consistency,error=error)
        qs_env%run_rtp=.TRUE.
-       ALLOCATE(qs_env%rtp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
+       ALLOCATE(qs_env%rtp)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,matrix_s(1)%matrix,&
                            rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
 
     CASE(use_restart_wfn,use_rt_restart)
@@ -477,9 +486,9 @@ CONTAINS
              END DO
           END IF
        ENDIF
-       ALLOCATE(qs_env%rtp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
+       ALLOCATE(qs_env%rtp)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,matrix_s(1)%matrix,&
                            rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
        CALL get_restart_wfn(qs_env,error)
 

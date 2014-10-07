@@ -45,7 +45,8 @@ MODULE cp_ddapc
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -111,6 +112,9 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(pw_p_type)                          :: v_spin_ddapc_rest_g
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
+
+    NULLIFY(v_hartree_rspace)
 
     CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)
@@ -119,6 +123,8 @@ CONTAINS
     logger         => cp_error_get_logger(error)
     ddapc_restraint_is_spin =.FALSE.
     et_coupling_calc        =.FALSE.
+
+    CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace, error=error)
 
     IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
        ddapc_size=SIZE(qs_env%dft_control%qs_control%ddapc_restraint_control)
@@ -167,8 +173,8 @@ CONTAINS
 
     ! CJM Copying the real-space Hartree potential to KS_ENV
     IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
-       CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw, error=error)
-       CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol, error=error)
+       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace, error=error)
+       CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol, error=error)
        IF (explicit_potential) THEN
           CALL pw_transfer(v_spin_ddapc_rest_g%pw,v_spin_ddapc_rest_r%pw, error=error)
           CALL pw_scale(v_spin_ddapc_rest_r%pw,v_spin_ddapc_rest_r%pw%pw_grid%dvol, error=error)

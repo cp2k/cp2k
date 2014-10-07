@@ -103,7 +103,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, natom, &
                                                 ncol_global, nspins, &
                                                 output_unit
-    LOGICAL                                  :: failure, scp_nddo
+    LOGICAL                                  :: failure, s_mstruct_changed, &
+                                                scp_nddo
     REAL(KIND=dp)                            :: ecoul, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -133,11 +134,10 @@ CONTAINS
     NULLIFY(atomic_kind_set, scp_env, energy_scp, scp_store_int_env, atprop)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
-         para_env=para_env, se_store_int_env=store_int_env, &
-         atomic_kind_set=atomic_kind_set, atprop=atprop,&
+         para_env=para_env, se_store_int_env=store_int_env, atprop=atprop,&
+         atomic_kind_set=atomic_kind_set, s_mstruct_changed=s_mstruct_changed,&
          error=error)
 
     SELECT CASE (dft_control%qs_control%method_id)
@@ -184,7 +184,7 @@ CONTAINS
        END IF
 
        ! Compute Exchange and Coulomb terms
-       CALL semi_empirical_si_initialize(store_int_env, ks_env%s_mstruct_changed, error)
+       CALL semi_empirical_si_initialize(store_int_env, s_mstruct_changed, error)
        CALL build_fock_matrix_exchange(qs_env,ks_matrix,matrix_p,calculate_forces,&
             store_int_env,error)
        CALL build_fock_matrix_coulomb(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
@@ -193,10 +193,10 @@ CONTAINS
 ! Add the SCP energies and additional contribution to fock matrix if requested
        IF ( scp_nddo ) THEN
 !         WRITE ( *, * ) ' SCP KS_ENV%s_mstruct_changed', ks_env%s_mstruct_changed
-          CALL semi_empirical_si_initialize(scp_store_int_env, ks_env%s_mstruct_changed, error)
+          CALL semi_empirical_si_initialize(scp_store_int_env, s_mstruct_changed, error)
           CALL build_delta_fock_matrix (qs_env, ks_matrix,matrix_p,energy,&
                calculate_forces,just_energy,scp_store_int_env,error)
-          CALL semi_empirical_si_finalize(scp_store_int_env, ks_env%s_mstruct_changed, error)
+          CALL semi_empirical_si_finalize(scp_store_int_env, s_mstruct_changed, error)
        END IF
 
        ! Long Range Electrostatic
@@ -211,7 +211,7 @@ CONTAINS
                  calculate_forces,error)
           END IF
        END IF
-       CALL semi_empirical_si_finalize(store_int_env, ks_env%s_mstruct_changed, error)
+       CALL semi_empirical_si_finalize(store_int_env, s_mstruct_changed, error)
 
        IF(atprop%energy) THEN
          atprop%atecoul = 0.5_dp*atprop%atecoul

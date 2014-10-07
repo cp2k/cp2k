@@ -41,11 +41,12 @@ MODULE qmmm_se_energy
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
@@ -116,6 +117,7 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -127,9 +129,14 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     NULLIFY (matrix_s, atomic_kind_set, qs_kind_set, energy)
-    NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm)
+    NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm, ks_env)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, energy=energy, error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    matrix_s=matrix_s,&
+                    energy=energy,&
+                    error=error)
+
     CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
@@ -137,7 +144,7 @@ CONTAINS
                               sab_nl=qs_env%sab_orb,&
                               error=error)
 
-    CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+    CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
     CALL get_qs_env(qs_env=qs_env,&
                     se_taper=se_taper,&
                     atomic_kind_set=atomic_kind_set,&

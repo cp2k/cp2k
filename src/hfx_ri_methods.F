@@ -202,8 +202,10 @@ CONTAINS
     output_unit = cp_logger_get_default_io_unit(logger)
 
     NULLIFY(ks_env)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
-    s_mstruct_changed = ks_env%s_mstruct_changed
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    error=error)
 
     ! calcluate expansion coefficients
     CALL optimize_ri_coeff (qs_env,s_mstruct_changed,.TRUE.,error)

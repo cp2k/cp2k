@@ -55,7 +55,8 @@ MODULE preconditioner
                                              init_preconditioner,&
                                              preconditioner_p_type,&
                                              preconditioner_type
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
@@ -1651,6 +1652,8 @@ END SUBROUTINE make_full_all_ortho
                                                 my_has_unit_metric, &
                                                 my_mixed_precision, &
                                                 use_mo_coeff_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: kinetic
     TYPE(cp_dbcsr_type), POINTER             :: matrix_t, mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
@@ -1662,7 +1665,7 @@ END SUBROUTINE make_full_all_ortho
     my_mixed_precision = .FALSE.
     IF(PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
 
-    NULLIFY(matrix_t, mo_coeff_b, mo_coeff)
+    NULLIFY(matrix_t, mo_coeff_b, mo_coeff, kinetic)
 
     IF(qs_env%dft_control%qs_control%semi_empirical .OR. qs_env%dft_control%qs_control%dftb) THEN
       IF(prec_type==ot_precond_full_kinetic) THEN
@@ -1672,7 +1675,8 @@ END SUBROUTINE make_full_all_ortho
       matrix_t => matrix_s(1)%matrix
     ELSE
       CPPrecondition(.NOT. my_has_unit_metric,cp_failure_level,routineP,error,failure)
-      matrix_t => qs_env%kinetic(1)%matrix
+      CALL get_qs_env(qs_env, kinetic=kinetic, error=error)
+      matrix_t => kinetic(1)%matrix
     END IF
 
     SELECT CASE(prec_type)

@@ -32,12 +32,13 @@ MODULE scptb_core_matrix
   USE particle_types,                  ONLY: particle_type
   USE qs_core_hamiltonian,             ONLY: dump_info_core_hamiltonian
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_kinetic,                      ONLY: build_kinetic_matrix
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -109,6 +110,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scptb_parameter_p_type), &
       DIMENSION(:), POINTER                  :: scptb_kind_param
@@ -120,7 +122,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,matrix_p )
+    NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,matrix_p,ks_env )
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -131,7 +133,9 @@ CONTAINS
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     virial=virial,&
-                    para_env=para_env,error=error)
+                    para_env=para_env,&
+                    ks_env=ks_env,&
+                    error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -337,7 +341,7 @@ CONTAINS
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
-    CALL set_qs_env(qs_env=qs_env,&
+    CALL set_ks_env(ks_env,&
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
@@ -396,6 +400,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(scptb_parameter_p_type), &
       DIMENSION(:), POINTER                  :: scptb_kind_param
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a
@@ -406,7 +411,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (qs_kind_set,sab_orb)
+    NULLIFY (qs_kind_set,sab_orb,ks_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
@@ -414,7 +419,10 @@ CONTAINS
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     virial=virial,&
-                    para_env=para_env,error=error)
+                    para_env=para_env,&
+                    ks_env=ks_env,&
+                    error=error)
+
     CALL get_kpoint_info(kpoint=kpoints,&
                          index_to_cell=index_to_cell,&
                          cell_to_index=cell_to_index,&
@@ -471,7 +479,7 @@ CONTAINS
        CALL cp_dbcsr_add(gamma_s(1)%matrix,matrix_s(1,ic)%matrix,&
                    alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
     END DO
-    CALL set_qs_env(qs_env=qs_env,matrix_s=gamma_s,error=error)
+    CALL set_ks_env(ks_env, matrix_s=gamma_s, error=error)
 
     ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

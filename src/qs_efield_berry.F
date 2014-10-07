@@ -114,10 +114,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: s_mstruct_changed
 
     CALL timeset(routineN,handle)
+    CALL get_qs_env(qs_env, s_mstruct_changed=s_mstruct_changed, error=error)
+
     IF(qs_env%dft_control%apply_period_efield)THEN
-       IF(calculate_forces.OR.ks_env%s_mstruct_changed)&
+       IF(calculate_forces.OR.s_mstruct_changed)&
             CALL qs_efield_integrals (qs_env,calculate_forces,error)
        CALL qs_efield_mo_derivatives(qs_env,calculate_forces,error)
     END IF

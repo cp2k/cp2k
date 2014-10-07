@@ -93,7 +93,6 @@ MODULE qs_ks_methods
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
-                                             pw_pool_retain,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -110,8 +109,7 @@ MODULE qs_ks_methods
   USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                              integrate_rho_nlcc,&
@@ -124,7 +122,7 @@ MODULE qs_ks_methods
   USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+                                             set_ks_env
   USE qs_ks_utils,                     ONLY: &
        calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, &
        ep_v_core, low_spin_roks, print_densities, print_detailed_energy, &
@@ -159,7 +157,7 @@ MODULE qs_ks_methods
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
-  PUBLIC :: qs_ks_create, qs_ks_did_change,  calc_rho_tot_gspace, &
+  PUBLIC :: qs_ks_did_change,  calc_rho_tot_gspace, &
        qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix, calculate_w_matrix_ot,&
        qs_ks_allocate_basics
 !***
@@ -174,64 +172,6 @@ MODULE qs_ks_methods
   END TYPE qs_potential_type
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief allocates and initializes the given ks_env.
-!> \param ks_env the ks env to be initialized
-!> \param qs_env the qs environment
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      05.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE qs_ks_create(ks_env, qs_env, error)
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, stat
-    LOGICAL                                  :: failure
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-    CPPreconditionNoFail(.NOT.ASSOCIATED(ks_env),cp_failure_level,routineP,error)
-    ALLOCATE(ks_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF (.NOT.failure) THEN
-
-       NULLIFY( pw_env, auxbas_pw_pool, pw_pools)
-       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
-       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,error=error)
-
-       ks_env%s_mstruct_changed=.TRUE.
-       ks_env%rho_changed=.TRUE.
-       ks_env%potential_changed=.TRUE.
-       ks_env%forces_up_to_date=.FALSE.
-       ks_env%n_evals=0
-       ks_env%ref_count=1
-
-    END IF
-
-    IF (.NOT.failure) THEN
-       ks_env%auxbas_pw_pool=>auxbas_pw_pool
-       CALL pw_pool_retain(ks_env%auxbas_pw_pool,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool, ks_env%v_hartree_rspace%pw,&
-            use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    END IF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE qs_ks_create
 
 ! *****************************************************************************
 !> \brief routine where the real calculations are made: the
@@ -264,6 +204,7 @@ CONTAINS
 !>      make rho, energy and qs_charges optional, defaulting
 !>      to qs_env components?
 ! *****************************************************************************
+
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
                                           rho,energy,calculate_forces,&
                                           just_energy,print_active,rho_xc,error)
@@ -292,10 +233,9 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, &
-                                                matrix_p_aux_fit, matrix_s, &
-                                                mo_derivs, my_rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_ks, &
+      matrix_ks_aux_fit, matrix_p, matrix_p_aux_fit, matrix_s, &
+      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, my_rho
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -305,7 +245,7 @@ CONTAINS
       POINTER                                :: mo_array, mos_aux_fit
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
-      v_sic_rspace, v_spin_ddapc_rest_r
+      v_hartree_rspace, v_sic_rspace, v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
@@ -326,14 +266,14 @@ CONTAINS
     NULLIFY(admm_env, becke, cell, dft_control, ep_qs_env, logger, &
          mo_array, mo_coeff, mo_coeff_aux_fit, mo_derivs, mos_aux_fit, my_rho, &
          my_rho_xc, rho_struct, para_env, pw_env, &
-         virial, vppl_rspace)
+         virial, vppl_rspace, v_hartree_rspace%pw)
     NULLIFY(adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section)
     NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool, &
          poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit, &
-         v_tau_rspace,v_tau_rspace_aux_fit)
+         v_tau_rspace,v_tau_rspace_aux_fit,matrix_vxc,matrix_ks,matrix_ks_aux_fit,&
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     logger => cp_error_get_logger(error)
     my_print = .TRUE.
@@ -343,12 +283,18 @@ CONTAINS
          dft_control=dft_control,&
          matrix_h=matrix_h,&
          matrix_s=matrix_s,&
+         matrix_vxc=matrix_vxc,&
+         matrix_ks=matrix_ks,&
+         matrix_ks_aux_fit=matrix_ks_aux_fit,&
+         matrix_s_aux_fit=matrix_s_aux_fit,&
+         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
          pw_env=pw_env,&
          cell=cell,&
          para_env=para_env,&
          input=input,&
          virial=virial,&
          ep_qs_env=ep_qs_env,&
+         v_hartree_rspace=v_hartree_rspace%pw,&
          error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -478,8 +424,8 @@ CONTAINS
           dft_control%qs_control%ddapc_explicit_potential      = .FALSE.
           dft_control%qs_control%ddapc_restraint_is_spin = .FALSE.
           IF (.NOT. just_energy) THEN
-             CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw, error=error)
-             CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol,&
+             CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
+             CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol,&
                   error=error)
           END IF
        END IF
@@ -527,18 +473,18 @@ CONTAINS
                                       qmmm_energy=energy%qmmm_el,&
                                       error=error)
              IF (qs_env%qmmm_env_qm%image_charge) THEN
-               CALL calculate_image_pot(v_hartree_rspace=ks_env%v_hartree_rspace,&
+               CALL calculate_image_pot(v_hartree_rspace=v_hartree_rspace,&
                                        rho_hartree_gspace=rho_tot_gspace,&
                                        energy=energy,&
                                        qmmm_env=qs_env%qmmm_env_qm,&
                                        qs_env=qs_env,error=error)
                IF (.NOT.just_energy) THEN
-                  CALL add_image_pot_to_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                  CALL add_image_pot_to_hartree_pot(v_hartree=v_hartree_rspace,&
                                                  v_metal=qs_env%ks_qmmm_env%v_metal_rspace,&
                                                  qs_env=qs_env,error=error)
                   IF(calculate_forces) THEN
                     CALL  integrate_potential_devga_rspace(&
-                                  potential=ks_env%v_hartree_rspace,coeff=qs_env%image_coeff,&
+                                  potential=v_hartree_rspace,coeff=qs_env%image_coeff,&
                                   forces=qs_env%qmmm_env_qm%image_charge_pot%image_forcesMM,&
                                   qmmm_env=qs_env%qmmm_env_qm,qs_env=qs_env,error=error)
                   ENDIF
@@ -546,7 +492,7 @@ CONTAINS
                   CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw,error=error)
              END IF
           IF (.NOT.just_energy) THEN
-             CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace,&
                   v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,scale=1.0_dp,&
                   error=error)
           END IF
@@ -611,7 +557,7 @@ CONTAINS
               just_energy=just_energy_xc, error=error)
          IF(edisp /= 0.0_dp) energy%dispersion = edisp
          IF (qs_env%requires_matrix_vxc) THEN
-            CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=qs_env%matrix_vxc, error=error)
+            CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=matrix_vxc, error=error)
          ENDIF
 
          IF (gapw .OR. gapw_xc) THEN
@@ -665,7 +611,7 @@ CONTAINS
                 CALL ep_v_core(qs_env,ep_qs_env,nspins,error=error)
              ELSE
                 ! Getting nuclear force contribution from the core charge density
-                CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
+                CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
              END IF
           END IF
 
@@ -714,7 +660,7 @@ CONTAINS
        END IF
        IF(gapw) THEN
           ! Integrals of the Hartree potential with g0_soft
-          CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
+          CALL integrate_vhg0_rspace(qs_env,v_hartree_rspace, &
                                      calculate_forces, error=error)
        END IF
 
@@ -769,12 +715,12 @@ CONTAINS
            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
            IF(.NOT.qs_env%run_rtp)THEN
               CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                   mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
-                   qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
+                   mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, matrix_s,&
+                   matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
                    matrix_p_aux_fit, matrix_p, error)
            ELSE
               CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                   mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                   mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, matrix_s,&
                    matrix_p_aux_fit, matrix_p, error)
 
            END IF
@@ -888,7 +834,8 @@ CONTAINS
       POINTER                                :: lri_v_int
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho_tot_gspace, &
-                                                v_hartree_gspace
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -903,10 +850,9 @@ CONTAINS
             pw_env, xc_section)
     NULLIFY(auxbas_pw_pool, matrix_h, matrix_p, poisson_env, pw_pools, v_rspace_new, &
             v_tau_rspace)
-    NULLIFY(atomic_kind_set, lri_env, lri_density, lri_v_int)
+    NULLIFY(atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     my_print = .TRUE.
     IF(PRESENT(print_active)) my_print = print_active
@@ -920,6 +866,7 @@ CONTAINS
          pw_env=pw_env,&
          para_env=para_env,&
          input=input,&
+         v_hartree_rspace=v_hartree_rspace%pw,&
          error=error)
 
     nspins=dft_control%nspins
@@ -956,8 +903,8 @@ CONTAINS
                              v_hartree_gspace%pw,error=error)
 
        IF (.NOT. just_energy) THEN
-          CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw, error=error)
-          CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol,&
+          CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
+          CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol,&
                error=error)
        END IF
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
@@ -987,7 +934,7 @@ CONTAINS
         DO ispin=1,nspins
          v_rspace_new(ispin)%pw%cr3d  =&
                   v_rspace_new(ispin)%pw%pw_grid%dvol * v_rspace_new(ispin)%pw%cr3d + &
-                  ks_env%v_hartree_rspace%pw%cr3d 
+                  v_hartree_rspace%pw%cr3d
         ENDDO
       ENDIF
       ! NO TAU YET
@@ -1009,7 +956,7 @@ CONTAINS
 
        IF (calculate_forces ) THEN
            ! Getting nuclear force contribution from the core charge density
-            CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
+            CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
            ! Getting electronic force contribution from fitted LRI charge density
             matrix_p =>qs_env%rho%rho_ao
             CALL calculate_lri_forces(lri_env,lri_density,qs_env,matrix_p,atomic_kind_set,error)
@@ -1126,6 +1073,8 @@ CONTAINS
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure, uniform_occupation
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_aux_fit, &
@@ -1138,10 +1087,13 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control, mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, &
             mo_derivs_aux_fit, mo_derivs_tmp, mos_aux_fit,&
-            occupation_numbers)
+            occupation_numbers, matrix_ks_aux_fit)
 
 
-    CALL get_qs_env(qs_env,dft_control=dft_control,mos=mo_array,error=error)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    mos=mo_array,&
+                    error=error)
 
     IF(dft_control%do_admm) THEN !fm->dbcsr
        NULLIFY(mo_derivs_tmp)!fm->dbcsr
@@ -1162,15 +1114,18 @@ CONTAINS
              0.0_dp,mo_derivs(ispin)%matrix, error=error)
 
        IF( dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&
-              mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
+         CALL get_qs_env(qs_env,&
+                         mos_aux_fit=mos_aux_fit,&
+                         mo_derivs_aux_fit=mo_derivs_aux_fit,&
+                         matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                         error=error)
          CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
 
          CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,&
               mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
          CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, &
               mo_coeff, mo_coeff_aux_fit, mo_derivs_tmp, mo_derivs_aux_fit, &
-              qs_env%matrix_ks_aux_fit, error=error)
+              matrix_ks_aux_fit, error=error)
          CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)!fm->dbcsr
        END IF
 
@@ -1233,9 +1188,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: c_forces, did_update, &
-                                                do_kpoints, energy_only, &
-                                                failure
+    LOGICAL :: c_forces, did_update, do_kpoints, energy_only, failure, &
+      forces_up_to_date, potential_changed, rho_changed, s_mstruct_changed
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_t
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -1264,14 +1218,19 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env,do_kpoints=do_kpoints,error=error)
+    CALL get_qs_env(qs_env,&
+                    do_kpoints=do_kpoints,&
+                    rho_changed=rho_changed,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    potential_changed=potential_changed,&
+                    forces_up_to_date=forces_up_to_date,&
+                    error=error)
 
     IF (.NOT. failure) THEN
-       IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR. &
-            ks_env%potential_changed .OR. &
-            (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
+       IF (rho_changed .OR. s_mstruct_changed .OR. &
+            potential_changed .OR. &
+            (c_forces.AND..NOT.forces_up_to_date)) THEN
           did_update=.TRUE.
 
           NULLIFY(energy,rho,dft_control)
@@ -1304,7 +1263,7 @@ CONTAINS
           END IF
 
           ! the ks matrix will be rebuilt so this is fine now
-          ks_env%potential_changed=.FALSE.
+          CALL set_ks_env(ks_env, potential_changed=.FALSE., error=error)
           IF ( dft_control%qs_control%semi_empirical ) THEN
              CALL build_se_fock_matrix_control(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks,rho=rho,energy=energy,&
@@ -1344,9 +1303,11 @@ CONTAINS
                   print_active=print_active,error=error)
           END IF
           IF(.NOT.energy_only) THEN
-             ks_env%rho_changed=.FALSE.
-             ks_env%s_mstruct_changed=.FALSE.
-             ks_env%forces_up_to_date=ks_env%forces_up_to_date.or.c_forces
+             CALL set_ks_env(ks_env,&
+                             rho_changed=.FALSE.,&
+                             s_mstruct_changed=.FALSE.,&
+                             forces_up_to_date=forces_up_to_date.or.c_forces,&
+                             error=error)
           END IF
        END IF
     END IF
@@ -1401,27 +1362,24 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(rho_changed)) THEN
-          IF (rho_changed) ks_env%rho_changed=.TRUE.
+          IF (rho_changed) CALL set_ks_env(ks_env, rho_changed=.TRUE., error=error)
        END IF
        IF (PRESENT(potential_changed)) THEN
-          IF (potential_changed) ks_env%potential_changed=.TRUE.
+          IF (potential_changed) CALL set_ks_env(ks_env, potential_changed=.TRUE., error=error)
        END IF
        IF (PRESENT(s_mstruct_changed)) THEN
           IF (s_mstruct_changed) THEN
-             ks_env%s_mstruct_changed=.TRUE.
+             CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE., error=error)
           END IF
        END IF
        IF (PRESENT(full_reset)) THEN
-          IF (full_reset) THEN
-             ks_env%potential_changed=.TRUE.
-             ks_env%s_mstruct_changed=.TRUE.
-          END IF
+          IF (full_reset) &
+             CALL set_ks_env(ks_env,potential_changed=.TRUE.,&
+                                    s_mstruct_changed=.TRUE.,&
+                                    error=error)
        END IF
-       IF (ks_env%s_mstruct_changed.OR.ks_env%potential_changed.or.&
-            ks_env%rho_changed) ks_env%forces_up_to_date=.FALSE.
     END IF
 
     CALL  timestop(handle)
@@ -1673,7 +1631,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: index_to_cell
     LOGICAL                                  :: do_kpoints
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_s, matrix_s_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrixkp_ks
     TYPE(cp_dbcsr_type), POINTER             :: refmatrix
@@ -1681,9 +1640,13 @@ CONTAINS
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    NULLIFY(dft_control,ks_env)
-    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints,&
-                    dft_control=dft_control,ks_env=ks_env,error=error)
+    NULLIFY(dft_control,ks_env,matrix_s, matrix_s_aux_fit)
+    CALL get_qs_env(qs_env,&
+                    do_kpoints=do_kpoints,&
+                    dft_control=dft_control,&
+                    matrix_s=matrix_s,&
+                    ks_env=ks_env,&
+                    error=error)
 
     IF(do_kpoints) THEN
 
@@ -1695,7 +1658,7 @@ CONTAINS
           CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,error=error)
           ncount = SIZE(index_to_cell,2)
           CALL cp_dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, ncount, error)
-          refmatrix => qs_env%matrix_s(1)%matrix
+          refmatrix => matrix_s(1)%matrix
           DO ispin=1,dft_control%nspins
              DO ic=1,ncount
                 ALLOCATE(matrixkp_ks(ispin,ic)%matrix)
@@ -1720,7 +1683,7 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
        IF (.NOT.ASSOCIATED(matrix_ks)) THEN
           CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
-          refmatrix => qs_env%matrix_s(1)%matrix
+          refmatrix => matrix_s(1)%matrix
           DO ispin=1,dft_control%nspins
              ALLOCATE(matrix_ks(ispin)%matrix)
              CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
@@ -1742,7 +1705,7 @@ CONTAINS
              CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
              CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
           ENDDO
-          CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+          CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
        END IF
 
     END IF
@@ -1750,9 +1713,12 @@ CONTAINS
     ! Allocate matrix_ks_aux_fit if requested and put it in the QS environment
     IF( dft_control%do_admm) THEN
        NULLIFY(matrix_ks_aux_fit)
-       CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+       CALL get_qs_env(qs_env,&
+                       matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                       matrix_s_aux_fit=matrix_s_aux_fit,&
+                       error=error)
        IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
-          refmatrix => qs_env%matrix_s_aux_fit(1)%matrix
+          refmatrix => matrix_s_aux_fit(1)%matrix
           CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
           DO ispin=1,dft_control%nspins
              ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
@@ -1767,15 +1733,8 @@ CONTAINS
                   error=error)
              CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
           ENDDO
-          CALL set_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+          CALL set_ks_env(ks_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
        END IF
-    END IF
-
-    ! allocate the ks_env
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
     END IF
 
   END SUBROUTINE qs_ks_allocate_basics

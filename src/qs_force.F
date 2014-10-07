@@ -56,8 +56,7 @@ MODULE qs_force
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_force_types,                  ONLY: allocate_qs_force,&
@@ -65,7 +64,8 @@ MODULE qs_force
                                              zero_qs_force
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -129,11 +129,9 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, &
-                                                matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb, &
-                                                matrix_w, mo_derivs
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_aux_fit, &
+      matrix_p_mp2, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
+      matrix_w, matrix_w_mp2, mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -167,9 +165,11 @@ CONTAINS
     NULLIFY (harris_env)
     NULLIFY (ks_env)
     NULLIFY (mos)
-    NULLIFY (matrix_ks)
     NULLIFY (matrix_s)
     NULLIFY (matrix_w)
+    NULLIFY (matrix_p_mp2)
+    NULLIFY (matrix_ks_aux_fit)
+    NULLIFY (matrix_w_mp2)
     NULLIFY (particle_set)
     NULLIFY (rho)
     NULLIFY (scf_control)
@@ -177,17 +177,22 @@ CONTAINS
     NULLIFY (matrix_s_aux_fit_vs_orb)
     NULLIFY (subsys)
 
-    harris_flag = qs_env%use_harris
-    CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
-         dft_control=dft_control,&
-         force=force,harris_env=harris_env,&
-         particle_set=particle_set,&
-         scf_control=scf_control,&
-         virial=virial,&
-         has_unit_metric=has_unit_metric,&
-         subsys=subsys,&
-         energy=energy,error=error)
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    force=force,&
+                    harris_env=harris_env,&
+                    use_harris=harris_flag,&
+                    particle_set=particle_set,&
+                    scf_control=scf_control,&
+                    virial=virial,&
+                    has_unit_metric=has_unit_metric,&
+                    subsys=subsys,&
+                    energy=energy,&
+                    matrix_p_mp2=matrix_p_mp2,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    matrix_w_mp2=matrix_w_mp2,&
+                    error=error)
 
     CALL qs_env_rebuild_pw_env(qs_env,error)
 
@@ -231,20 +236,15 @@ CONTAINS
     END IF
     CALL zero_qs_force(force,error)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         matrix_s=matrix_s,&
-         has_unit_metric=has_unit_metric,&
-         error=error)
-
     CALL qs_energies(qs_env,calc_forces=.TRUE.,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
-         ks_env=ks_env,&
-         matrix_ks=matrix_ks,&
-         matrix_s=matrix_s,&
-         matrix_w=matrix_w,&
-         mo_derivs=mo_derivs,&
-         rho=rho,error=error)
+                    ks_env=ks_env,&
+                    matrix_s=matrix_s,&
+                    matrix_w=matrix_w,&
+                    mo_derivs=mo_derivs,&
+                    rho=rho,&
+                    error=error)
 
     IF (qs_env%run_rtp) THEN
        CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
@@ -255,7 +255,7 @@ CONTAINS
                name="W MATRIX",error=error)
           CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
        END DO
-       CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+       CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
 
        CALL calc_c_mat_force(qs_env,error)
        IF(qs_env%dft_control%do_admm)&
@@ -314,16 +314,20 @@ CONTAINS
           CALL external_e_potential(qs_env,error)
        END IF
 
-          ! Compute grid-based forces
-          CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                                   qs_env=qs_env,&
-                                   calculate_forces=.TRUE.,error=error)
-   
+       ! Compute grid-based forces
+       CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                                qs_env=qs_env,&
+                                calculate_forces=.TRUE.,error=error)
+
        IF(ASSOCIATED(qs_env%mp2_env)) THEN
+          CALL get_qs_env(qs_env,&
+                       matrix_p_mp2=matrix_p_mp2,&
+                       matrix_w_mp2=matrix_w_mp2,&
+                       error=error)
          ! with MP2 we have to recalculate the SCF energy with the
          ! correct density
          DO ispin=1, qs_env%dft_control%nspins
-           CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, qs_env%matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
+           CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
          END DO
          CALL qs_rho_update_rho(qs_env%rho, qs_env=qs_env, error=error)
          CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&
@@ -334,7 +338,8 @@ CONTAINS
                                   just_energy=.TRUE.,error=error)
          energy%total = energy%total + energy%mp2
          ! deallocate mp2_W 
-         CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_w_mp2,error=error)
+         CALL cp_dbcsr_deallocate_matrix_set(matrix_w_mp2,error=error)
+         CALL set_ks_env(ks_env,matrix_w_mp2=Null(),error=error)
        END IF
 
        ! Add forces resulting from wavefunction fitting
@@ -342,21 +347,20 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,&
                matrix_s_aux_fit=matrix_s_aux_fit,&
                matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+               matrix_ks_aux_fit=matrix_ks_aux_fit,&
+               mos_aux_fit=mos_aux_fit,&
                mos=mos,&
                admm_env=admm_env,&
                error=error)
-          DO ispin=1,nspin             
+          DO ispin=1,nspin
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff)
              ! if no purification we need to calculate the H matrix for forces
              IF (admm_env%purification_method==do_admm_purify_none) THEN
-                CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&
-                     error=error)
                 CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
                 CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
-                     mo_coeff, mo_coeff_aux_fit, &
-                     qs_env%matrix_ks_aux_fit, error=error)
-                IF(.FALSE.) CALL cp_fm_write(admm_env%H(ispin)%matrix, handle, .TRUE., .FALSE., error)            
+                     mo_coeff, mo_coeff_aux_fit, matrix_ks_aux_fit, error=error)
+                IF(.FALSE.) CALL cp_fm_write(admm_env%H(ispin)%matrix, handle, .TRUE., .FALSE., error)
              END IF
 
              use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -483,7 +487,7 @@ CONTAINS
     END IF
 
     CALL cp_dbcsr_deallocate_matrix_set(matrix_w,error=error)
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+    CALL set_ks_env(ks_env,matrix_w=Null(),error=error)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"atom_of_kind")

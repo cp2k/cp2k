@@ -146,6 +146,8 @@ MODULE qs_environment
        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, &
        init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, &
        write_qs_kind_set
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -252,6 +254,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
@@ -260,7 +263,12 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
          qs_kind_set, harris_section, kpoint_section, dft_section, ga_env, &
-         subsys)
+         subsys, ks_env)
+
+    ALLOCATE(ks_env)
+    CALL set_qs_env(qs_env,ks_env=ks_env,error=error)
+    CALL qs_ks_release(ks_env, error=error)
+
     para_env=>qs_env%para_env
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
        subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)

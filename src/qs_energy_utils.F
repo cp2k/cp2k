@@ -41,6 +41,7 @@ MODULE qs_energy_utils
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -51,8 +52,7 @@ MODULE qs_energy_utils
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_external_density,             ONLY: external_read_density
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
@@ -61,7 +61,8 @@ MODULE qs_energy_utils
                                              calculate_w_matrix_ot,&
                                              qs_ks_allocate_basics,&
                                              qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_linres_module,                ONLY: linres_calculation_low
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
@@ -115,54 +116,56 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: ispin
     LOGICAL                                  :: do_kpoints, failure, &
                                                 has_unit_metric, molecule_only
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, matrix_w, &
                                                 matrix_w_mp2
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     failure = .FALSE.
+    NULLIFY(ks_env, matrix_w, matrix_w_mp2, matrix_s, dft_control)
 
     CALL qs_energies_init_kg(qs_env,molecule_only,error)
-
     CALL qs_energies_init_hamiltonians(qs_env,calc_forces,molecule_only,error)
-
     CALL qs_ks_allocate_basics(qs_env,error)
 
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    has_unit_metric=has_unit_metric,&
+                    do_kpoints=do_kpoints,&
+                    matrix_w=matrix_w,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    error=error)
+
     ! need forces ?
-    CALL get_qs_env(qs_env=qs_env, has_unit_metric=has_unit_metric, error=error)
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
-       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, error=error)
        IF(do_kpoints) THEN
           CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
        ELSE
-          CALL get_qs_env(qs_env=qs_env, matrix_w=matrix_w, matrix_s=matrix_s, &
-               dft_control=dft_control, error=error)
           CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
           DO ispin=1,dft_control%nspins
-             ALLOCATE(matrix_w(ispin)%matrix,STAT=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             ALLOCATE(matrix_w(ispin)%matrix)
              CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
              CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
                   name="W MATRIX",error=error)
              CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
           END DO
-          CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+          CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
           IF (ASSOCIATED(qs_env%mp2_env)) THEN
              ! create the MP2 energy weighted density matrix
-             NULLIFY(matrix_w_mp2)
              CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins,error=error)
              DO ispin=1,dft_control%nspins
-                ALLOCATE(matrix_w_mp2(ispin)%matrix,STAT=stat)
-                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+                ALLOCATE(matrix_w_mp2(ispin)%matrix)
                 CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix,error=error)
                 CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix_s(1)%matrix,&
                      name="W MATRIX MP2",error=error)
                 CALL cp_dbcsr_set(matrix_w_mp2(ispin)%matrix,0.0_dp,error=error)
              END DO
-             CALL set_qs_env(qs_env=qs_env,matrix_w_mp2=matrix_w_mp2,error=error)
+             CALL set_ks_env(ks_env,matrix_w_mp2=matrix_w_mp2,error=error)
           END IF
        ENDIF
     ENDIF
@@ -383,7 +386,8 @@ CONTAINS
     LOGICAL                                  :: has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, &
-                                                matrix_w, mo_derivs
+                                                matrix_w, matrix_w_mp2, &
+                                                mo_derivs
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -400,6 +404,7 @@ CONTAINS
             ks_env=ks_env,&
             matrix_ks=matrix_ks,&
             matrix_s=matrix_s,&
+            matrix_w_mp2=matrix_w_mp2,&
             mo_derivs=mo_derivs,&
             scf_control=scf_control,&
             mos=mos,&
@@ -433,7 +438,7 @@ CONTAINS
           END IF
           ! if MP2 time to update the W matrix with the MP2 contribution
           IF(ASSOCIATED(qs_env%mp2_env)) THEN
-            CALL cp_dbcsr_add(matrix_w(ispin)%matrix, qs_env%matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp, error)
+            CALL cp_dbcsr_add(matrix_w(ispin)%matrix, matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp, error)
           END IF
        END DO
     END IF
@@ -462,6 +467,7 @@ CONTAINS
     LOGICAL                                  :: do_et
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type)                          :: v_hartree_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
@@ -469,15 +475,22 @@ CONTAINS
     NULLIFY(atprop, energy)
     CALL timeset(routineN,handle)
 
+    NULLIFY(v_hartree_rspace%pw)
+
     ! atomic energies using Mulliken partition
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,input=input,&
-                    atprop=atprop,energy=energy,error=error)
+    CALL get_qs_env(qs_env,&
+                   dft_control=dft_control,&
+                   input=input,&
+                   atprop=atprop,&
+                   energy=energy,&
+                   v_hartree_rspace=v_hartree_rspace%pw,&
+                   error=error)
     IF (atprop%energy) THEN
        CALL qs_energies_mulliken(qs_env,error)
        IF ( .NOT.dft_control%qs_control%semi_empirical .AND. &
             .NOT.dft_control%qs_control%dftb) THEN
          ! Nuclear charge correction
-         CALL integrate_v_core_rspace(qs_env%ks_env%v_hartree_rspace,qs_env,error=error)
+         CALL integrate_v_core_rspace(v_hartree_rspace,qs_env,error=error)
          ! Kohn-Sham Functional corrections
        END IF
        CALL atprop_array_add(atprop%atener,atprop%ateb,error)

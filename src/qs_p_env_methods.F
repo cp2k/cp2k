@@ -139,6 +139,8 @@ CONTAINS
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
                                                 natom, spin, stat
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
@@ -150,7 +152,9 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
 
     failure=.FALSE.
-    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools)
+    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools, matrix_s)
+
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
 
     ALLOCATE(p_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -199,7 +203,7 @@ CONTAINS
           DO spin=1, n_spins
              ALLOCATE(p_env%p1(spin)%matrix)
              CALL cp_dbcsr_init(p_env%p1(spin)%matrix,error=error)
-             CALL cp_dbcsr_copy(p_env%p1(spin)%matrix,qs_env%matrix_s(1)%matrix,&
+             CALL cp_dbcsr_copy(p_env%p1(spin)%matrix,matrix_s(1)%matrix,&
                   name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                   "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))),error=error)
              CALL cp_dbcsr_set(p_env%p1(spin)%matrix,0.0_dp,error=error)
@@ -466,7 +470,7 @@ END SUBROUTINE p_env_did_change
     LOGICAL                                  :: failure, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -484,7 +488,7 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         logger, input,lr_section, energy)
+         logger, input,lr_section, energy, matrix_ks)
     logger => cp_error_get_logger(error)
     n_spins = qs_env%dft_control%nspins
 
@@ -495,8 +499,16 @@ END SUBROUTINE p_env_did_change
        p_env%iter=p_env%iter+1
 
        CALL get_qs_env(qs_env,&
-            mos=mos, matrix_s=matrix_s, para_env=para_env, ks_env=ks_env, rho=rho,&
-            input=input,energy=energy,error=error)
+                       ks_env=ks_env,&
+                       mos=mos,&
+                       matrix_s=matrix_s,&
+                       matrix_ks=matrix_ks,&
+                       para_env=para_env,&
+                       rho=rho,&
+                       input=input,&
+                       energy=energy,&
+                       error=error)
+
        CALL mpools_get(qs_env%mpools,&
             ao_mo_fm_pools=ao_mo_fm_pools, error=error)
        ! def my_psi0
@@ -623,7 +635,7 @@ END SUBROUTINE p_env_did_change
        !-----------------------------------------------------------------------|
        DO spin=1, n_spins
           ! S_psi0 = k times psi0d
-          CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_ks(spin)%matrix, &
+          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, p_env%n_mo(spin),error=error)
           IF (PRESENT(Hrho_psi0d)) THEN
@@ -744,6 +756,8 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, ncol
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: k_p
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: tmp
@@ -753,7 +767,7 @@ END SUBROUTINE p_env_did_change
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(tmp)
+    NULLIFY(tmp, matrix_ks, matrix_s)
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -762,12 +776,15 @@ END SUBROUTINE p_env_did_change
     CPPrecondition(spin<=qs_env%dft_control%nspins,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, &
-                    para_env=para_env, error=error)
+                    para_env=para_env,&
+                    matrix_s=matrix_s,&
+                    matrix_ks=matrix_ks,&
+                    error=error)
     CALL mpools_get(qs_env%mpools, maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
          error=error)
     CALL fm_pool_create_fm(maxao_maxmo_fm_pool, tmp, error=error)
 
-    k_p => qs_env%matrix_ks(spin)%matrix
+    k_p => matrix_ks(spin)%matrix
     CALL cp_fm_get_info(v, ncol_global=ncol,error=error)
 
     IF (p_env%orthogonal_orbitals) THEN
@@ -780,7 +797,7 @@ END SUBROUTINE p_env_did_change
 
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp,error=error)
-    CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, tmp, &
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tmp, &
          res, p_env%n_mo(spin), alpha=1.0_dp,beta=1.0_dp,error=error)
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp,error=error); NULLIFY(tmp)
 

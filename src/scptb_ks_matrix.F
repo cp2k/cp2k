@@ -186,7 +186,6 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( .NOT. failure ) THEN
 

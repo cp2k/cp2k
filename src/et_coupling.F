@@ -12,7 +12,8 @@ MODULE et_coupling
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                              cp_fm_transpose
@@ -83,6 +84,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: a, b, S_det
     REAL(KIND=dp), DIMENSION(2)              :: eigenv
     REAL(KIND=dp), DIMENSION(2, 2)           :: S_mat, tmp_mat, U, W_mat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rest_MO
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -94,7 +97,7 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: et_coupling_section
 
-    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, rest_MO, energy)
+    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, rest_MO, energy, matrix_s)
 
     CALL timeset(routineN,handle)
 
@@ -149,7 +152,8 @@ CONTAINS
 
 !   calculate MO-overlap
 
-    CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix,qs_env%et_coupling%et_mo_coeff(i)%matrix,&
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)
     CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,&
          qs_env%mos(i)%mo_set%mo_coeff,&

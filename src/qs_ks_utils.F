@@ -841,19 +841,23 @@ CONTAINS
     REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r, &
                                                 trace, trace_tmp
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: input, scf_section
 
-    NULLIFY(qs_charges, qs_kind_set, cell, input, logger, scf_section)
+    NULLIFY(qs_charges, qs_kind_set, cell, input, logger, scf_section, matrix_s)
     logger => cp_error_get_logger(error)
 
-    CALL get_qs_env(qs_env=qs_env, &
-         qs_kind_set=qs_kind_set, &
-         cell=cell,qs_charges=qs_charges,&
-         input=input,error=error)
+    CALL get_qs_env(qs_env,&
+                    qs_kind_set=qs_kind_set, &
+                    cell=cell,qs_charges=qs_charges,&
+                    input=input,&
+                    matrix_s=matrix_s,&
+                    error=error)
     CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
@@ -866,7 +870,7 @@ CONTAINS
     trace=0
     IF(BTEST(cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",error=error),cp_p_file)) THEN
       DO ispin=1,qs_env%dft_control%nspins
-         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,qs_env%matrix_s(1)%matrix,trace_tmp,error=error)
+         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace_tmp,error=error)
          trace=trace+trace_tmp
       END DO
     ENDIF
@@ -1175,18 +1179,23 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: v_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (auxbas_pw_pool,dft_control,pw_env)
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         pw_env=pw_env,&
-         error=error)
+    NULLIFY (auxbas_pw_pool,dft_control,pw_env,matrix_ks_aux_fit,v_rspace%pw)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    pw_env=pw_env,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    v_hartree_rspace=v_rspace%pw,&
+                    error=error)
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
     gapw=dft_control%qs_control%gapw
@@ -1214,14 +1223,12 @@ CONTAINS
                   gapw=gapw_xc,error=error)
 
              ! Now the Hartree potential to be integrated with the full basis
-             v_rspace_new(ispin)%pw%cr3d  =&
-                ks_env%v_hartree_rspace%pw%cr3d
+             v_rspace_new(ispin)%pw%cr3d  = v_rspace%pw%cr3d
           ELSE
          ! Add v_hartree + v_xc = v_rspace_new
             v_rspace_new(ispin)%pw%cr3d  =&
                  v_rspace_new(ispin)%pw%pw_grid%dvol * &
-                 v_rspace_new(ispin)%pw%cr3d + &
-                 ks_env%v_hartree_rspace%pw%cr3d
+                 v_rspace_new(ispin)%pw%cr3d + v_rspace%pw%cr3d
           END IF ! gapw_xc
           IF(dft_control%qs_control%ddapc_explicit_potential)THEN
              IF (dft_control%qs_control%ddapc_restraint_is_spin) THEN
@@ -1299,10 +1306,9 @@ CONTAINS
        DO ispin=1,nspins
           ! the efield contribution
           IF(dft_control%apply_efield_field)THEN
-             ks_env%v_hartree_rspace%pw%cr3d= ks_env%v_hartree_rspace%pw%cr3d +&
-                  v_efield_rspace%pw%cr3d
+             v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_efield_rspace%pw%cr3d
           END IF
-          CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+          CALL integrate_v_rspace(v_rspace=v_rspace,&
                p=my_rho(ispin),h=ks_matrix(ispin),&
                qs_env=qs_env, &
                calculate_forces=calculate_forces,&
@@ -1340,7 +1346,7 @@ CONTAINS
           ! Add potential to ks_matrix aux_fit
           CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin),&
                                   p=qs_env%rho_aux_fit%rho_ao(ispin),&
-                                  h=qs_env%matrix_ks_aux_fit(ispin),&
+                                  h=matrix_ks_aux_fit(ispin),&
                                   qs_env=qs_env, &
                                   calculate_forces=calculate_forces,&
                                   gapw=gapw_xc,&
@@ -1568,7 +1574,7 @@ CONTAINS
                                error=error)
     ENDIF
 
-    CALL pw_pool_give_back_pw(ks_env%auxbas_pw_pool,v_xc_rspace%pw,&
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_xc_rspace%pw,&
                                  error=error)
 
     CALL timestop(handle)

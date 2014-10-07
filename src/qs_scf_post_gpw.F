@@ -2358,7 +2358,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
+      POINTER                                :: ks_rmpv, matrix_s, matrix_vxc
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -2374,6 +2374,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
@@ -2389,18 +2390,27 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
          atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, matrix_s, &
-         dft_section, xc_section, input, particles, subsys)
+         dft_section, xc_section, input, particles, subsys, matrix_vxc,v_hartree_rspace)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control, &
-            atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
-            particle_set=particle_set,&
-            rho=rho,matrix_ks=ks_rmpv,&
-            matrix_s=matrix_s,input=input,cell=cell,subsys=subsys,para_env=para_env,error=error)
+       CALL get_qs_env(qs_env,&
+                       dft_control=dft_control, &
+                       atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
+                       particle_set=particle_set,&
+                       rho=rho,matrix_ks=ks_rmpv,&
+                       matrix_s=matrix_s,&
+                       matrix_vxc=matrix_vxc,&
+                       input=input,&
+                       cell=cell,&
+                       subsys=subsys,&
+                       para_env=para_env,&
+                       v_hartree_rspace=v_hartree_rspace,&
+                       error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
@@ -2775,9 +2785,9 @@ CONTAINS
           CALL pw_env_get(pw_env, error=error)
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
                extension=".cube",middle_name="v_hartree",file_position=my_pos_cube,error=error)
-          udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
+          udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
 
-          CALL pw_copy(qs_env%ks_env%v_hartree_rspace%pw,aux_r%pw, error=error)
+          CALL pw_copy(v_hartree_rspace,aux_r%pw, error=error)
           CALL pw_scale(aux_r%pw,udvol,error=error)
 
           CALL cp_pw_to_cube(aux_r%pw,unit_nr,"HARTREE POTENTIAL",particles=particles,&
@@ -2810,12 +2820,12 @@ CONTAINS
           END IF
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, error=error)
-          udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
+          udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
           DO id=1,3
             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%EFIELD_CUBE",&
               extension=".cube",middle_name="efield_"//cdir(id),file_position=my_pos_cube,error=error)
 
-            CALL pw_transfer(qs_env%ks_env%v_hartree_rspace%pw,aux_g%pw, error=error)
+            CALL pw_transfer(v_hartree_rspace,aux_g%pw, error=error)
             nd=0
             nd(id)=1
             CALL pw_derive(aux_g%pw,nd,error=error)
@@ -2881,7 +2891,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(qs_env%matrix_vxc(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin)%matrix,4,6,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&

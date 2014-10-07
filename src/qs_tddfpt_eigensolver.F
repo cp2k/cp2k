@@ -6,7 +6,8 @@
 ! *****************************************************************************
 MODULE qs_tddfpt_eigensolver
   USE cp_control_types,                ONLY: tddfpt_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
@@ -191,6 +192,8 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_difference, evals_tmp
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evals
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type)                       :: Atilde, Us
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: R, X
@@ -210,9 +213,13 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger, &
-            tilde_fm_struct, Atilde%matrix, Us%matrix)
+            tilde_fm_struct, Atilde%matrix, Us%matrix, matrix_s)
 
-    CALL get_qs_env(qs_env, tddfpt_control=tddfpt_control,error=error)
+    CALL get_qs_env(qs_env,&
+                    matrix_s=matrix_s,&
+                    tddfpt_control=tddfpt_control,&
+                    error=error)
+
     logger    => cp_error_get_logger(error)
     output_unit  = cp_logger_get_default_io_unit(logger)
     n_ev      = tddfpt_control%n_ev
@@ -374,7 +381,7 @@ CONTAINS
           DO j=1, tddfpt_control%n_reortho
              CALL reorthogonalize(b(k,:), b, Sb, R, k-1,error=error) ! R is temp
           END DO
-          CALL normalize(b(k,:), R, qs_env%matrix_s,error=error) ! R is temp
+          CALL normalize(b(k,:), R, matrix_s,error=error) ! R is temp
           DO spin=1, nspins
              CALL cp_fm_to_fm(b(k,spin)%matrix, X(spin)%matrix,error=error)
           END DO
@@ -382,7 +389,7 @@ CONTAINS
                qs_env%dft_control%tddfpt_control%do_kernel,error=error)
           CALL p_postortho(p_env, qs_env, Ab(k,:),error=error)
           DO spin=1, nspins
-             CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
+             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                   b(k,spin)%matrix, &
                   Sb(k,spin)%matrix, &
                   p_env%n_mo(spin),error=error)

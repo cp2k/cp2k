@@ -112,10 +112,13 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, n_rep_hf, &
                                                 natoms, nspins
-    LOGICAL                                  :: do_hfx, failure
+    LOGICAL                                  :: do_hfx, failure, &
+                                                s_mstruct_changed
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_p_aux_fit
+      POINTER                                :: matrix_p, matrix_p_aux_fit, &
+                                                matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -126,7 +129,8 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
-         mos_aux_fit, para_env, particle_set, xc_section)
+         mos_aux_fit, para_env, particle_set, xc_section, matrix_s_aux_fit, &
+         matrix_s_aux_fit_vs_orb)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
@@ -146,9 +150,15 @@ CONTAINS
     END IF
 
     nspins=dft_control%nspins
-    CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,&
-                    mos=mos,admm_env=admm_env,&
-                    para_env=para_env,error=error)
+    CALL get_qs_env(qs_env,&
+                    mos_aux_fit=mos_aux_fit,&
+                    mos=mos,&
+                    admm_env=admm_env,&
+                    matrix_s_aux_fit=matrix_s_aux_fit,&
+                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                    para_env=para_env,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    error=error)
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
     IF ( n_rep_hf > 1 ) THEN
@@ -175,15 +185,15 @@ CONTAINS
     ENDIF
 
     CALL admm_fit_mo_coeffs(qs_env, admm_env, para_env, &
-                            qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
-                            mos, mos_aux_fit, ks_env%s_mstruct_changed, error=error)
+                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
+                            mos, mos_aux_fit, s_mstruct_changed, error=error)
 
     DO ispin=1,nspins
        matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
        matrix_p => qs_env%rho%rho_ao
        !TODO why is qs_env%matrix_s_aux_fit an array?
        CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, matrix_p(ispin)%matrix, &
-                                          matrix_p_aux_fit(ispin)%matrix, qs_env%matrix_s_aux_fit(1)%matrix,&
+                                          matrix_p_aux_fit(ispin)%matrix, matrix_s_aux_fit(1)%matrix,&
                                           ispin,nspins,error=error)
        CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
             rho=qs_env%rho_aux_fit%rho_r(ispin),&
@@ -238,11 +248,11 @@ CONTAINS
     INTEGER                                  :: handle, ikind, irep, ispin, &
                                                 mspin, n_rep_hf, nspins, stat
     LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, do_hfx_ri, &
-      failure, hfx_treat_lsd_in_core, use_virial
+      failure, hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks_orb, &
-                                                rho_ao_orb
+      POINTER                                :: matrix_h, matrix_ks_aux_fit, &
+                                                matrix_ks_orb, rho_ao_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -261,7 +271,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(auxbas_pw_pool, dft_control, force, hfx_sections, hfx_ri_section, input, &
-            matrix_h, para_env, poisson_env, pw_env, virial)
+            matrix_h, para_env, poisson_env, pw_env, virial, matrix_ks_aux_fit)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -270,6 +280,8 @@ CONTAINS
          para_env=para_env,&
          pw_env=pw_env,&
          virial=virial,&
+         matrix_ks_aux_fit=matrix_ks_aux_fit,&
+         s_mstruct_changed=s_mstruct_changed,&
          error=error)
 
     nspins=dft_control%nspins
@@ -290,7 +302,7 @@ CONTAINS
     ! *** Initialize the auxiliary ks matrix to zero if required
     IF( dft_control%do_admm ) THEN
       DO ispin = 1,nspins
-         CALL cp_dbcsr_set(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
+         CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
       END DO
     END IF
     DO ispin = 1,nspins
@@ -343,7 +355,7 @@ CONTAINS
           ! Finally the real hfx calulation
           DO ispin = 1,mspin
              CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
-                                        para_env, ks_env%s_mstruct_changed, irep, distribute_fock_matrix,&
+                                        para_env, s_mstruct_changed, irep, distribute_fock_matrix,&
                                         ispin=ispin, error=error)
           END DO
        

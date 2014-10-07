@@ -553,7 +553,8 @@ CONTAINS
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: mo_eigenvalues
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: orbital_density_matrix
+      POINTER                                :: matrix_ks, &
+                                                orbital_density_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_coeff, single_mo_coeff
     TYPE(grid_atom_type), POINTER            :: atomic_grid
@@ -588,7 +589,7 @@ CONTAINS
             atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, &
             harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
             r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, &
-            mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, &
+            mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, matrix_ks,&
             orbital_density_matrix, orb_rho_set_h, orb_rho_set_s, vxc_SAOP_h, vxc_SAOP_s)
 
     ! tau is needed for fill_rho_set, but should never be used
@@ -599,7 +600,9 @@ CONTAINS
                             mos=molecular_orbitals, &
                             atomic_kind_set=atomic_kind_set, &
                             qs_kind_set=qs_kind_set, &
-                            rho_atom_set=rho_atom_set,error=error)
+                            rho_atom_set=rho_atom_set,&
+                            matrix_ks=matrix_ks,&
+                            error=error)
 
     xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     CALL section_vals_retain(xc_section_orig,error=error)
@@ -1064,7 +1067,7 @@ CONTAINS
 
     END DO
 
-    CALL update_ks_atom(qs_env, qs_env%matrix_ks,rho_structure%rho_ao,.FALSE.,error=error)
+    CALL update_ks_atom(qs_env, matrix_ks,rho_structure%rho_ao,.FALSE.,error=error)
 
     !---------!
     ! Cleanup !

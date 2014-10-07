@@ -726,14 +726,17 @@ CPSourceFileRef,&
              "Nonperiodic solution for RESP charges (i.e. nonperiodic"//&
              " Poisson solver) can only be used with section NONPERIODC_SYS")
     ENDIF
-    CALL get_qs_env(qs_env=qs_env,input=input,particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    particle_set=particle_set,&
+                    v_hartree_rspace=v_hartree_pw,&
+                    error=error)
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
                                                 error=error)
     print_key => section_vals_get_subs_vals(resp_section,&
                                             "PRINT%V_RESP_CUBE",error=error)
     logger => cp_error_get_logger(error)
 
-    v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
     bo=v_hartree_pw%pw_grid%bounds_local
     gbo=v_hartree_pw%pw_grid%bounds
     np=v_hartree_pw%pw_grid%npts
@@ -1011,8 +1014,12 @@ CPSourceFileRef,&
     NULLIFY(atomic_kind_set,v_hartree_pw,para_env,logger,input,particle_set,&
             resp_section)   
  
-    CALL get_qs_env(qs_env,input=input,particle_set=particle_set,&
-                    atomic_kind_set=atomic_kind_set,para_env=para_env,&
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    para_env=para_env,&
+                    v_hartree_rspace=v_hartree_pw,&
                     error=error)
 
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
@@ -1026,7 +1033,6 @@ CPSourceFileRef,&
                                      file_form="FORMATTED",& 
                                      error=error)
 
-    v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
     bo=v_hartree_pw%pw_grid%bounds_local
     gbo=v_hartree_pw%pw_grid%bounds
     dh=v_hartree_pw%pw_grid%dh
@@ -1175,7 +1181,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     NULLIFY(v_hartree_pw)
-    v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
+    CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_pw, error=error)
     dvol=v_hartree_pw%pw_grid%dvol
     !multiply v_hartree and va_rspace and calculate the vector rhs
     !taking into account that v_hartree has opposite site; remove v_qmmm       
@@ -1668,16 +1674,21 @@ CPSourceFileRef,&
                                                 v_resp_gspace, v_resp_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(section_vals_type), POINTER         :: input, print_key, resp_section
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(auxbas_pw_pool,logger,pw_env,poisson_env,input,print_key,&
-            para_env,resp_section)
+            para_env,resp_section,v_hartree_rspace)
     normalize_factor=SQRT((resp_env%eta/pi)**3)
-    CALL get_qs_env(qs_env=qs_env,input=input,para_env=para_env,&
-                    pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    para_env=para_env,&
+                    pw_env=pw_env,&
+                    v_hartree_rspace=v_hartree_rspace,&
+                    error=error)
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
                                                 error=error)
     print_key => section_vals_get_subs_vals(resp_section,&
@@ -1752,9 +1763,9 @@ CPSourceFileRef,&
      jx = resp_env%fitpoints(1,ip)
      jy = resp_env%fitpoints(2,ip)
      jz = resp_env%fitpoints(3,ip)
-     sum_diff=sum_diff+(qs_env%ks_env%v_hartree_rspace%pw%cr3d(jx,jy,jz)-&
+     sum_diff=sum_diff+(v_hartree_rspace%cr3d(jx,jy,jz)-&
               v_resp_rspace%pw%cr3d(jx,jy,jz))**2
-     sum_hartree=sum_hartree+qs_env%ks_env%v_hartree_rspace%pw%cr3d(jx,jy,jz)**2 
+     sum_hartree=sum_hartree+v_hartree_rspace%cr3d(jx,jy,jz)**2 
     ENDDO
      CALL mp_sum(sum_diff,para_env%group)
      CALL mp_sum(sum_hartree,para_env%group)

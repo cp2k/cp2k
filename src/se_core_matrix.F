@@ -35,11 +35,12 @@ MODULE se_core_matrix
   USE physcon,                         ONLY: evolt
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -123,6 +124,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
@@ -135,46 +137,45 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
      NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,&
-               diagmat_h,diagmat_p,particle_set, matrix_p )
+               diagmat_h,diagmat_p,particle_set, matrix_p, ks_env)
+
+     CALL get_qs_env(qs_env,&
+                     matrix_s=matrix_s,&
+                     matrix_h=matrix_h,&
+                     ks_env=ks_env,&
+                     particle_set=particle_set,&
+                     atomic_kind_set=atomic_kind_set,&
+                     qs_kind_set=qs_kind_set,&
+                     dft_control=dft_control,&
+                     energy=energy,&
+                     force=force,&
+                     virial=virial,&
+                     rho=rho,&
+                     sab_orb=sab_orb,&
+                     error=error)
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
         CALL build_overlap_matrix(qs_env,nderivative=1, matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               sab_nl=qs_env%sab_orb,&
                               error=error)
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-        CALL get_qs_env(qs_env=qs_env, virial=virial, error=error)
+        CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
         CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
                               sab_nl=qs_env%sab_orb,&
                               error=error)
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+        CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
         use_virial = .FALSE.
      END IF
 
-     CALL get_qs_env(qs_env=qs_env,&
-                     matrix_h=matrix_h,&
-                     matrix_s=matrix_s,&
-                     atomic_kind_set=atomic_kind_set,&
-                     qs_kind_set=qs_kind_set,&
-                     dft_control=dft_control,&
-                     energy=energy,&
-                     error=error)
-
      IF(calculate_forces) THEN
-       CALL get_qs_env(qs_env=qs_env,&
-                       particle_set=particle_set,&
-                       rho=rho,&
-                       force=force,error=error)
        matrix_p => rho%rho_ao
 
        IF (SIZE(matrix_p) == 2) THEN
@@ -208,8 +209,6 @@ CONTAINS
      CALL cp_dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
      CALL cp_dbcsr_set(diagmat_h, 0.0_dp, error=error)
      CALL cp_dbcsr_replicate_all(diagmat_h,error=error)
-
-     CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
      ! kh might be set in qs_control
      itype = get_se_type(dft_control%qs_control%method_id)
@@ -414,7 +413,7 @@ CONTAINS
      CALL cp_dbcsr_sum_replicated(diagmat_h, error=error)
      CALL cp_dbcsr_distribute(diagmat_h,error=error)
      CALL cp_dbcsr_add(matrix_h(1)%matrix, diagmat_h,1.0_dp,1.0_dp,error=error)
-     CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
+     CALL set_ks_env(ks_env,matrix_h=matrix_h,error=error)
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN

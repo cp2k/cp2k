@@ -152,8 +152,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: h_core_sparse, p_rmpv, &
-                                                s_sparse
+      POINTER                                :: h_core_sparse, matrix_ks, &
+                                                p_rmpv, s_sparse
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: denmat
     TYPE(cp_dbcsr_type)                      :: mo_dbcsr, mo_tmp_dbcsr
@@ -182,7 +182,7 @@ CONTAINS
     NULLIFY(atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set,&
          qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
          scf_control, dft_control, p_rmpv, ortho, work2, work1, &
-         s_sparse, scf_control, dft_control, h_core_sparse)
+         s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks)
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
     NULLIFY (atom_list, elec_conf, scp_env)
@@ -194,7 +194,8 @@ CONTAINS
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
-         has_unit_metric=has_unit_metric, do_kpoints=do_kpoints, error=error)
+         has_unit_metric=has_unit_metric, do_kpoints=do_kpoints, &
+         matrix_ks=matrix_ks, error=error)
 
     nspin=dft_control%nspins
     p_rmpv => qs_env%rho%rho_ao
@@ -932,7 +933,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        ! diagonalization
        DO ispin = 1,qs_env%dft_control%nspins
-          CALL copy_dbcsr_to_fm(qs_env%matrix_ks(ispin)%matrix,&
+          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
                              qs_env%scf_env%scf_work1(ispin)%matrix,&
                              error=error)
        END DO

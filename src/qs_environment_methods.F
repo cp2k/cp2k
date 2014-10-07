@@ -48,7 +48,8 @@ MODULE qs_environment_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
-                                             pw_release
+                                             pw_release,&
+                                             pw_type
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
@@ -61,10 +62,10 @@ MODULE qs_environment_methods
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type,&
+                                             set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
@@ -261,27 +262,33 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(para_env, dft_control,particle_set,distribution_2d)
+    NULLIFY(para_env, dft_control,particle_set,distribution_2d, ks_env)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-         particle_set=particle_set, matrix_ks=matrix_ks, matrix_ks_aux_fit=matrix_ks_aux_fit, &
-         distribution_2d=distribution_2d,&
-         error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    para_env=para_env,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    matrix_ks=matrix_ks,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    distribution_2d=distribution_2d,&
+                    error=error)
 
     ! *** deallocate matrices that will have the wrong structure ***
     CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error=error)
-    CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
+    CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
 
 
     IF( dft_control%do_admm) THEN
       ! *** deallocate matrices that will have the wrong structure ***
       CALL cp_dbcsr_deallocate_matrix_set(matrix_ks_aux_fit,error=error)
-      CALL set_qs_env(qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+      CALL set_ks_env(ks_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
     END IF
 
     IF(dft_control%qs_control%gapw) THEN
@@ -490,14 +497,15 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
                                                 rho_nlcc, rho_nlcc_g, vee, &
                                                 vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_ks_env_type), POINTER            :: new_ks_env
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     ! rebuild pw_env
-    NULLIFY(dft_control, cell, new_ks_env)
+    NULLIFY(dft_control, cell, ks_env, v_hartree_rspace)
 
-    CALL get_qs_env(qs_env, pw_env=new_pw_env, error=error)
+    CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=new_pw_env, error=error)
     IF (.NOT.ASSOCIATED(new_pw_env)) THEN
        CALL pw_env_create(new_pw_env,error=error)
        CALL set_qs_env(qs_env,pw_env=new_pw_env,error=error)
@@ -655,10 +663,14 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
          END IF
        END IF
 
-       ! rebuild ks_env
-       CALL qs_ks_create(new_ks_env, qs_env, error=error )
-       CALL set_qs_env(qs_env, ks_env=new_ks_env, error=error)
-       CALL qs_ks_release(new_ks_env, error=error)
+       CALL get_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace, error=error)
+       IF (ASSOCIATED(v_hartree_rspace)) &
+          CALL pw_release(v_hartree_rspace, error=error)
+       CALL get_qs_env(qs_env,pw_env=new_pw_env,error=error)
+       CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace,&
+            use_data=REALDATA3D, in_space=REALSPACE, error=error)
+       CALL set_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace, error=error)
     ENDIF
 
     CALL timestop(handle)

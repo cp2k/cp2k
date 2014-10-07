@@ -267,7 +267,7 @@ MODULE hfx_derivatives
     with_mp2_density=.FALSE.
     IF(ASSOCIATED(qs_env%mp2_env)) with_mp2_density=.TRUE.
 
-    IF(with_mp2_density) rho_ao_mp2=>qs_env%matrix_p_mp2
+    IF(with_mp2_density) CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_mp2, error=error)
     is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1)%matrix).EQ.dbcsr_type_antisymmetric
 
     CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &

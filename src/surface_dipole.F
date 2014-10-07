@@ -13,7 +13,6 @@ MODULE surface_dipole
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
@@ -26,14 +25,14 @@ MODULE surface_dipole
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                             qs_subsys_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -85,24 +84,31 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rhoavsurf
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: vdip_r, wf_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
-             pw_pools,subsys,particles)
+             pw_pools,subsys,v_hartree_rspace)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, rho_core=rho_core, &
-               rho0_s_gs=rho0_s_gs, cell=cell, pw_env=pw_env,  subsys=subsys, error=error)
-      CALL qs_subsys_get(subsys,particles=particles,error=error)
+      CALL get_qs_env(qs_env,&
+                      dft_control=dft_control,&
+                      rho=rho,&
+                      rho_core=rho_core, &
+                      rho0_s_gs=rho0_s_gs,&
+                      cell=cell,&
+                      pw_env=pw_env,&
+                      subsys=subsys,&
+                      v_hartree_rspace=v_hartree_rspace,&
+                      error=error)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,error=error)
@@ -224,7 +230,7 @@ CONTAINS
      DO i = ilayer_min+1,ilayer_min+ngrid(idir_surfdip)
        hh = REAL((i - ilayer_min),dp)*dh(idir_surfdip,idir_surfdip)
        vdip = vdip_fac*(-0.5_dp+(hh/ cell%hmat(idir_surfdip,idir_surfdip)))*&
-                    ks_env%v_hartree_rspace%pw%pw_grid%dvol/surfarea
+                    v_hartree_rspace%pw_grid%dvol/surfarea
         IF(i>iup) THEN
           irho =  i - ngrid(idir_surfdip)
         ELSE
@@ -254,7 +260,7 @@ CONTAINS
      END IF
 
 !    Add the dipole potential to the hartree potential on the realspace grid
-     ks_env%v_hartree_rspace%pw%cr3d =  ks_env%v_hartree_rspace%pw%cr3d + vdip_r%pw%cr3d
+     v_hartree_rspace%cr3d =  v_hartree_rspace%cr3d + vdip_r%pw%cr3d
 
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,vdip_r%pw, error=error)

@@ -104,10 +104,13 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, n_rep_hf, &
                                                 nspins
-    LOGICAL                                  :: do_hfx, failure
+    LOGICAL                                  :: do_hfx, failure, &
+                                                s_mstruct_changed
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_p_aux_fit
+      POINTER                                :: matrix_p, matrix_p_aux_fit, &
+                                                matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -119,7 +122,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
-         mos_aux_fit, para_env)
+         mos_aux_fit, para_env,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
@@ -139,9 +142,17 @@ CONTAINS
     END IF
 
     nspins=dft_control%nspins
-    CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,&
-                    rtp=rtp,mos=mos,admm_env=admm_env,&
-                    para_env=para_env,error=error)
+    CALL get_qs_env(qs_env,&
+                    mos_aux_fit=mos_aux_fit,&
+                    rtp=rtp,&
+                    mos=mos,&
+                    admm_env=admm_env,&
+                    para_env=para_env,&
+                    matrix_s_aux_fit=matrix_s_aux_fit,&
+                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    error=error)
+
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
     IF ( n_rep_hf > 1 ) THEN
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -151,9 +162,9 @@ CONTAINS
     END IF
     CALL get_rtp(rtp=rtp,admm_mos=rtp_coeff_aux_fit,error=error)
     CALL rtp_admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
-                            qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
+                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
                             mos, mos_aux_fit,rtp,rtp_coeff_aux_fit,&
-                            ks_env%s_mstruct_changed, error=error)
+                            s_mstruct_changed, error=error)
 
     DO ispin=1,nspins
        matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao

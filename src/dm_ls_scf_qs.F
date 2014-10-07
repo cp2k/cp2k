@@ -51,16 +51,14 @@ MODULE dm_ls_scf_qs
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+                                             set_ks_env
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
@@ -373,14 +371,8 @@ CONTAINS
           CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
-       CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
     ENDIF
-    ! and ks_env
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
-    END IF
 
     CALL timestop(handle)
 
@@ -540,6 +532,8 @@ CONTAINS
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: tot_rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p_qs
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -551,15 +545,20 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(pw_env,auxbas_pw_pool, pw_pools, particles, subsys)
+    NULLIFY(pw_env,auxbas_pw_pool, pw_pools, particles, subsys, matrix_ks)
 
-    CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env, error=error)
-    CALL qs_subsys_get(subsys,particles=particles,error=error)     
+    CALL get_qs_env(qs_env,&
+                    subsys=subsys,&
+                    pw_env=pw_env,&
+                    matrix_ks=matrix_ks,&
+                    error=error)
+
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
     ! convert the density matrix (ls style) to QS style
     ALLOCATE(matrix_p_qs)
     CALL cp_dbcsr_init(matrix_p_qs,error=error) !initialization
-    CALL cp_dbcsr_copy(matrix_p_qs,qs_env%matrix_ks(1)%matrix,error=error)
+    CALL cp_dbcsr_copy(matrix_p_qs,matrix_ks(1)%matrix,error=error)
     CALL cp_dbcsr_set(matrix_p_qs,0.0_dp,error=error) !zero matrix creation   
     CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls,ls_scf_env%ls_mstruct,error=error) 
 

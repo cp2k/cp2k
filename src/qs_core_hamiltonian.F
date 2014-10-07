@@ -112,6 +112,8 @@ MODULE qs_core_hamiltonian
                                              get_qs_kind_set,&
                                              qs_kind_type
   USE qs_kinetic,                      ONLY: build_kinetic_matrix
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
@@ -183,6 +185,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
@@ -217,6 +220,7 @@ CONTAINS
     NULLIFY (matrix_w)
     NULLIFY (matrix_p)
     NULLIFY (para_env)
+    NULLIFY (ks_env)
 
     ! is this a orbital-free method calculation
     ofdft = qs_env%dft_control%qs_control%ofgpw
@@ -247,7 +251,9 @@ CONTAINS
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
                     virial=virial,&
-                    para_env=para_env,error=error)
+                    para_env=para_env,&
+                    ks_env=ks_env,&
+                    error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -367,7 +373,7 @@ CONTAINS
                                    basis_set_id_b=use_aux_fit_basis_set, &
                                    sab_nl=sab_aux_fit,&
                                    error=error)
-         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
+         CALL set_ks_env(ks_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, error=error)
          CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit_vs_orb,&
                                    matrix_name="MIXED_OVERLAP",&
@@ -375,7 +381,7 @@ CONTAINS
                                    basis_set_id_b=use_orb_basis_set, &
                                    sab_nl=sab_aux_fit_vs_orb,&
                                    error=error)
-         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
+         CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
        END IF
     END IF
 
@@ -462,11 +468,12 @@ CONTAINS
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
-    CALL set_qs_env(qs_env=qs_env,&
+    CALL set_qs_env(qs_env, oce=oce, error=error)
+    CALL set_ks_env(ks_env,&
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
-                    oce=oce,error=error)
+                    error=error)
 
     IF(qs_env%rel_control%rel_method /= rel_none)THEN
        IF(qs_env%rel_control%rel_transformation /= rel_trans_atom)THEN

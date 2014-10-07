@@ -45,13 +45,13 @@ MODULE qs_dftb_matrices
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -158,6 +158,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(virial_type), POINTER               :: virial
 
@@ -182,13 +183,18 @@ CONTAINS
     NULLIFY(logger, virial, atprop)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (matrix_h,matrix_s,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,qs_kind_set,sab_orb)
+    NULLIFY (matrix_h,matrix_s,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,&
+             qs_kind_set,sab_orb,ks_env)
+
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_h=matrix_h,matrix_s=matrix_s,atprop=atprop,&
-                    dft_control=dft_control,error=error)
+                    matrix_h=matrix_h,&
+                    matrix_s=matrix_s,atprop=atprop,&
+                    dft_control=dft_control,&
+                    ks_env=ks_env,&
+                    error=error)
     
     dftb_control => dft_control%qs_control%dftb_control
     ! Allocate the overlap and Hamiltonian matrix
@@ -196,8 +202,8 @@ CONTAINS
     IF(dftb_control%self_consistent .AND. calculate_forces)nderivatives=1
     CALL setup_matrices(qs_env,nderivatives,matrix_s,"OVERLAP",error)
     CALL setup_matrices(qs_env,0,matrix_h,"CORE HAMILTONIAN",error)
-    CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-    CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
+    CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
+    CALL set_ks_env(ks_env,matrix_h=matrix_h,error=error)
 
     NULLIFY (dftb_potential)
     CALL get_qs_env(qs_env=qs_env,&
@@ -538,7 +544,7 @@ CONTAINS
         DO i=1,SIZE(gamma_matrix)
            CALL cp_dbcsr_finalize(gamma_matrix(i)%matrix,error=error)
         ENDDO
-        CALL set_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,error=error)
+        CALL set_ks_env(ks_env,gamma_matrix=gamma_matrix,error=error)
      ENDIF
      DO i=1,SIZE(matrix_s)
         CALL cp_dbcsr_finalize(matrix_s(i)%matrix,error=error)
@@ -664,16 +670,16 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF ( .NOT. failure ) THEN
 
-       CALL get_qs_env(qs_env=qs_env,&
-            dft_control=dft_control,&
-            atomic_kind_set=atomic_kind_set,&
-            qs_kind_set=qs_kind_set,&
-            matrix_h=matrix_h,&
-            para_env=para_env,error=error)
+       CALL get_qs_env(qs_env,&
+                       dft_control=dft_control,&
+                       atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
+                       matrix_h=matrix_h,&
+                       para_env=para_env,&
+                       error=error)
 
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
        nspins=dft_control%nspins

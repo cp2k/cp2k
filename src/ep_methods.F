@@ -123,11 +123,10 @@ MODULE ep_methods
                                              zero_qs_force
   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+                                             set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -693,15 +692,6 @@ CONTAINS
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
     CALL qs_env_update_s_mstruct(qs_env, error=error)
 
-    !  *** init the ks_env
-
-    CALL get_qs_env(qs_env, ks_env=ks_env,error=error)
-    IF (.not.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
-    END IF
-
     !   *** Initializes the MOs ***
     CALL get_qs_env(qs_env,mos=mos,error=error)
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
@@ -719,7 +709,11 @@ CONTAINS
     END IF
 
     !   *** Allocate k and put it in the QS environment ***
-    CALL get_qs_env(qs_env,dft_control=dft_control,matrix_s=matrix_s,error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
+                    matrix_s=matrix_s,&
+                    error=error)
 
     CALL cp_dbcsr_allocate_matrix_set(matrix_ks,dft_control%nspins,error=error)
     DO ispin=1,dft_control%nspins
@@ -729,7 +723,7 @@ CONTAINS
             "KOHN-SHAM MATRIX-"//ADJUSTL(cp_to_string(ispin)),error=error)
     END DO
 
-    CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+    CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
 
     CALL calculate_ecore_self(qs_env,error=error)
     CALL calculate_ecore_overlap(qs_env,para_env,.FALSE.,error=error)
@@ -1529,16 +1523,8 @@ CONTAINS
                "KOHN-SHAM_MATRIX", error=error)
        ENDDO
 
-       CALL set_qs_env(qs_env=qs_env,&
-            matrix_ks=matrix_ks,error=error)
+       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
 
-    END IF
-
-    !   *** allocate the ks env **
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
     END IF
 
     CALL timestop(handle)
@@ -1572,7 +1558,8 @@ CONTAINS
       DIMENSION(:)                           :: rotatedC0
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, matrix_w
+      POINTER                                :: kinetic, matrix_ks, matrix_s, &
+                                                matrix_w
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi0
@@ -1604,7 +1591,7 @@ CONTAINS
 
     NULLIFY (atomic_kind_set, dft_control, force, ks_env, mos, matrix_ks, &
          matrix_s, matrix_w, particle_set, rho, scf_control,para_env,&
-         blacs_env,orbitals)
+         blacs_env,orbitals, kinetic)
 
     globenv => ep_env%globenv
     qs_env => ep_env%main_qs_env
@@ -1627,7 +1614,13 @@ CONTAINS
          input=qs_env_input,&
          subsys=subsys,&
          energy=energy,&
+         matrix_ks=matrix_ks,&
+         matrix_s=matrix_s,&
+         kinetic=kinetic,&
+         mos=mos,&
+         rho=rho,&
          error=error)
+
 
     CALL qs_subsys_get(subsys,particles=particles,error=error)
 
@@ -1841,10 +1834,10 @@ CONTAINS
        CALL make_preconditioner(ep_env%precond(ispin)%preconditioner,&
             ot_precond_full_kinetic,&
             ot_precond_solver_default,&
-            ep_env%main_qs_env%matrix_ks(ispin)%matrix,&
-            ep_env%main_qs_env%matrix_s(1)%matrix,&
-            ep_env%main_qs_env%kinetic(1)%matrix,&
-            ep_env%main_qs_env%mos(ispin)%mo_set,0.2_dp,error=error)
+            matrix_ks(ispin)%matrix,&
+            matrix_s(1)%matrix,&
+            kinetic(1)%matrix,&
+            mos(ispin)%mo_set,0.2_dp,error=error)
        ! same precond for both spins
        DO ispin=2,dft_control%nspins
           ep_env%precond(ispin)%preconditioner => &
@@ -1954,13 +1947,6 @@ CONTAINS
        END DO
     END IF
 
-    CALL get_qs_env(qs_env=qs_env,&
-         ks_env=ks_env,&
-         matrix_ks=matrix_ks,&
-         matrix_s=matrix_s,&
-         mos=mos,&
-         rho=rho,error=error)
-
     ! forces
     ! Build W matrix (from the orthonormality constraint lambda C^T S C)
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
@@ -2001,7 +1987,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
     END IF
 
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+    CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
 
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",message=routineP//&
@@ -2096,7 +2082,7 @@ CONTAINS
 
     CALL cp_dbcsr_deallocate_matrix_set( matrix_w, error=error )
 
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+    CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)

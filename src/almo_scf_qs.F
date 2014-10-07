@@ -61,16 +61,14 @@ MODULE almo_scf_qs
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -606,14 +604,8 @@ CONTAINS
                qs_env%sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
-       CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
     ENDIF
-    ! and ks_env
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
-    END IF
 
 !CALL timestop(handle1)
 

@@ -28,7 +28,8 @@ MODULE qs_tddfpt_utils
                                              cp_fm_to_fm
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed
@@ -116,11 +117,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_spins, spin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+
+    NULLIFY(matrix_s)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
 
     n_spins = qs_env%dft_control%nspins
     IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
-          CALL copy_dbcsr_to_fm(qs_env%matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
+          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
           CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix,error=error)
           CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix,error=error)
        END DO
@@ -307,15 +313,18 @@ CONTAINS
                                                 summed_contributions
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: homo_coeff_col, lumo_coeff_col
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: S_lumos
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(tddfpt_control_type)                :: t_control
 
-    NULLIFY(S_lumos, logger)
+    NULLIFY(S_lumos, logger, matrix_s)
     failure = .FALSE.
     logger    => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
 
     IF (output_unit>0) WRITE (output_unit,*)
     IF (output_unit>0) WRITE (output_unit,*)
@@ -333,7 +342,7 @@ CONTAINS
        nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
        CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
                          "S times lumos", error=error)
-       CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
+       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
                               S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp,error=error)
     END DO
 

@@ -396,7 +396,7 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: stogto_overlap
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: kinetic, matrix_ks, matrix_s
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 excvec_overlap, mo_coeff, &
                                                 uno_orbs
@@ -415,7 +415,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks, qs_kind_set)
+    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks, qs_kind_set, kinetic)
     NULLIFY(cell,particle_set,local_preconditioner,vecbuffer,vecbuffer2)
     NULLIFY(dft_control,loc_section,mos,mo_coeff,eigenvalues)
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
@@ -425,10 +425,16 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         cell=cell,dft_control=dft_control,&
-         matrix_ks=matrix_ks, matrix_s=matrix_s,mos=mos,&
-         particle_set=particle_set,qs_kind_set=qs_kind_set,error=error)
+    CALL get_qs_env(qs_env,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    kinetic=kinetic,&
+                    mos=mos,&
+                    particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
+                    error=error)
 
     ! Some elements from the xas_env
     CALL get_xas_env(xas_env=xas_env,&
@@ -555,7 +561,7 @@ CONTAINS
             solver_type=ot_precond_solver_default, &
             matrix_h=matrix_ks(1)%matrix, &
             matrix_s=matrix_s(1)%matrix,&
-            matrix_t=qs_env%kinetic(1)%matrix, &
+            matrix_t=kinetic(1)%matrix, &
             convert_precond_to_dbcsr=.TRUE.,&
             mo_set=mos(1)%mo_set,energy_gap=0.2_dp,error=error)
 
