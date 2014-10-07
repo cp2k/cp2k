@@ -196,6 +196,12 @@ PROGRAM cp2k
                (.NOT.arg_att(1:1) == "-")) THEN
               input_file_name=arg_att
               has_input=.TRUE.
+           ELSEIF(has_input.AND.&
+               (.NOT.arg_att(1:1) == "-")) THEN
+              WRITE (output_unit,"(/,T2,A)")&
+               "Error: Tried to specify two input files"
+              command_line_error=.TRUE.
+              EXIT arg_loop
            END IF
         END SELECT
      END DO arg_loop
