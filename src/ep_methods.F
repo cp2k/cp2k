@@ -1614,9 +1614,6 @@ CONTAINS
          input=qs_env_input,&
          subsys=subsys,&
          energy=energy,&
-         matrix_ks=matrix_ks,&
-         matrix_s=matrix_s,&
-         kinetic=kinetic,&
          mos=mos,&
          rho=rho,&
          error=error)
@@ -1831,6 +1828,11 @@ CONTAINS
        CALL init_preconditioner(ep_env%precond(ispin)%preconditioner,&
             para_env=para_env,&
             blacs_env=blacs_env,error=error)
+       CALL get_qs_env(qs_env,&
+                       matrix_ks=matrix_ks,&
+                       matrix_s=matrix_s,&
+                       kinetic=kinetic,&
+                       error=error)
        CALL make_preconditioner(ep_env%precond(ispin)%preconditioner,&
             ot_precond_full_kinetic,&
             ot_precond_solver_default,&
@@ -1966,6 +1968,7 @@ CONTAINS
          extension=".epLog",message=routineP//&
          " creating w_matrix main_qs_env",error=error)
     nspin = SIZE(mos)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
     CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
     DO ispin=1,nspin
        ALLOCATE(matrix_w(ispin)%matrix)
