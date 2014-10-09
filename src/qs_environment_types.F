@@ -353,11 +353,7 @@ MODULE qs_environment_types
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
-    TYPE(pw_p_type), POINTER                              :: rho_core
-    TYPE(pw_p_type), POINTER                              :: vppl
-    TYPE(pw_p_type), POINTER                              :: rho_nlcc
-    TYPE(pw_p_type), POINTER                              :: rho_nlcc_g
-    TYPE(pw_p_type), POINTER                              :: vee
+
     ! ZMP adding variables
     TYPE(qs_rho_type), POINTER                            :: rho_external
     TYPE(pw_p_type), POINTER                              :: external_vxc
@@ -818,11 +814,6 @@ CONTAINS
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
     IF (PRESENT(rel_control)) rel_control => qs_env%rel_control
-    IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
-    IF (PRESENT(rho_nlcc)) rho_nlcc => qs_env%rho_nlcc
-    IF (PRESENT(rho_nlcc_g)) rho_nlcc_g => qs_env%rho_nlcc_g
-    IF (PRESENT(vppl)) vppl => qs_env%vppl
-    IF (PRESENT(vee)) vee => qs_env%vee
     ! ZMP pointing vectors
     IF (PRESENT(rho_external)) rho_external => qs_env%rho_external
     IF (PRESENT(external_vxc)) external_vxc => qs_env%external_vxc
@@ -903,29 +894,34 @@ CONTAINS
                       cp_subsys=cp_subsys,&
                       error=error)
 
-          CALL get_ks_env(qs_env%ks_env,&
-                          v_hartree_rspace=v_hartree_rspace,&
-                          s_mstruct_changed=s_mstruct_changed,&
-                          rho_changed=rho_changed,&
-                          potential_changed=potential_changed,&
-                          forces_up_to_date=forces_up_to_date,&
-                          matrix_h=matrix_h,&
-                          matrix_ks=matrix_ks,&
-                          matrix_vxc=matrix_vxc,&
-                          matrix_ks_aux_fit=matrix_ks_aux_fit,&
-                          kinetic=kinetic,&
-                          matrix_s=matrix_s,&
-                          matrix_s_aux_fit=matrix_s_aux_fit,&
-                          matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
-                          matrix_w=matrix_w,&
-                          matrix_w_mp2=matrix_w_mp2,&
-                          matrix_p_mp2=matrix_p_mp2,&
-                          gamma_matrix=gamma_matrix,&
-                          rho=rho,&
-                          rho_buffer=rho_buffer,&
-                          rho_xc=rho_xc,&
-                          rho_aux_fit=rho_aux_fit,&
-                          error=error)
+    CALL get_ks_env(qs_env%ks_env,&
+                    v_hartree_rspace=v_hartree_rspace,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    rho_changed=rho_changed,&
+                    potential_changed=potential_changed,&
+                    forces_up_to_date=forces_up_to_date,&
+                    matrix_h=matrix_h,&
+                    matrix_ks=matrix_ks,&
+                    matrix_vxc=matrix_vxc,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    kinetic=kinetic,&
+                    matrix_s=matrix_s,&
+                    matrix_s_aux_fit=matrix_s_aux_fit,&
+                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                    matrix_w=matrix_w,&
+                    matrix_w_mp2=matrix_w_mp2,&
+                    matrix_p_mp2=matrix_p_mp2,&
+                    gamma_matrix=gamma_matrix,&
+                    rho=rho,&
+                    rho_buffer=rho_buffer,&
+                    rho_xc=rho_xc,&
+                    rho_aux_fit=rho_aux_fit,&
+                    rho_core=rho_core,&
+                    rho_nlcc=rho_nlcc,&
+                    rho_nlcc_g=rho_nlcc_g,&
+                    vppl=vppl,&
+                    vee=vee,&
+                    error=error)
 
     IF (PRESENT(natom)) natom=SIZE(particles%els)
     IF (PRESENT(nkind)) nkind=SIZE(atomic_kinds%els)
@@ -1003,11 +999,6 @@ CONTAINS
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%rel_control)
     NULLIFY (qs_env%qs_charges)
-    NULLIFY (qs_env%rho_nlcc)
-    NULLIFY (qs_env%rho_nlcc_g)
-    NULLIFY (qs_env%rho_core)
-    NULLIFY (qs_env%vppl)
-    NULLIFY (qs_env%vee)
     ! ZMP initializing arrays
     NULLIFY (qs_env%rho_external)
     NULLIFY (qs_env%external_vxc)
@@ -1127,7 +1118,6 @@ CONTAINS
 !> \param ewald_pw ...
 !> \param mpools ...
 !> \param mpools_aux_fit ...
-!> \param vee ...
 !> \param rho_external ...
 !> \param external_vxc ...
 !> \param mask ...
@@ -1135,10 +1125,6 @@ CONTAINS
 !> \param scf_control ...
 !> \param rel_control ...
 !> \param qs_charges ...
-!> \param vppl ...
-!> \param rho_core ...
-!> \param rho_nlcc ...
-!> \param rho_nlcc_g ...
 !> \param ks_env ...
 !> \param ks_qmmm_env ...
 !> \param wf_history ...
@@ -1204,9 +1190,9 @@ CONTAINS
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
        sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,harris_env,&
-       pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,vee,&
+       pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,&
        rho_external,external_vxc,mask,&
-       kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,rho_nlcc, rho_nlcc_g, ks_env,&
+       kinetic,scf_control,rel_control,qs_charges,ks_env,&
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        task_list_zmp,&
        distribution_2d,dbcsr_dist,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
@@ -1236,7 +1222,6 @@ CONTAINS
     TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools, mpools_aux_fit
-    TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_external
     TYPE(pw_p_type), OPTIONAL, POINTER       :: external_vxc, mask
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1246,8 +1231,6 @@ CONTAINS
     TYPE(rel_control_type), OPTIONAL, &
       POINTER                                :: rel_control
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
-    TYPE(pw_p_type), OPTIONAL, POINTER       :: vppl, rho_core, rho_nlcc, &
-                                                rho_nlcc_g
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
     TYPE(qs_ks_qmmm_env_type), OPTIONAL, &
       POINTER                                :: ks_qmmm_env
@@ -1435,11 +1418,6 @@ CONTAINS
        CALL linres_control_release(qs_env%linres_control,error=error)
        qs_env%linres_control => linres_control
     END IF
-    IF (PRESENT(rho_core)) qs_env%rho_core => rho_core
-    IF (PRESENT(rho_nlcc)) qs_env%rho_nlcc => rho_nlcc
-    IF (PRESENT(rho_nlcc_g)) qs_env%rho_nlcc_g => rho_nlcc_g
-    IF (PRESENT(vppl)) qs_env%vppl => vppl
-    IF (PRESENT(vee)) qs_env%vee => vee
     ! ZMP associating variables
     IF (PRESENT(rho_external)) THEN ! accepts also null pointers !
        IF (ASSOCIATED(rho_external)) CALL qs_rho_retain(rho_external,error=error)
@@ -1881,18 +1859,6 @@ CONTAINS
           CALL ewald_pw_release(qs_env%ewald_pw, error=error)
           CALL cp_para_env_release(qs_env%para_env,error=error)
           CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
-          IF (ASSOCIATED(qs_env%rho_nlcc_g)) THEN
-             CALL pw_release(qs_env%rho_nlcc_g%pw,error=error)
-             DEALLOCATE(qs_env%rho_nlcc_g)
-          ENDIF
-          IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
-             CALL pw_release(qs_env%rho_nlcc%pw,error=error)
-             DEALLOCATE(qs_env%rho_nlcc)
-          ENDIF
-          IF (ASSOCIATED(qs_env%rho_core)) THEN
-             CALL pw_release(qs_env%rho_core%pw,error=error)
-             DEALLOCATE(qs_env%rho_core)
-          ENDIF
           IF (ASSOCIATED(qs_env%image_matrix)) THEN
              DEALLOCATE(qs_env%image_matrix)
           ENDIF
@@ -1901,14 +1867,6 @@ CONTAINS
           ENDIF
           IF (ASSOCIATED(qs_env%image_coeff)) THEN
              DEALLOCATE(qs_env%image_coeff)
-          ENDIF
-          IF (ASSOCIATED(qs_env%vppl)) THEN
-             CALL pw_release(qs_env%vppl%pw,error=error)
-             DEALLOCATE(qs_env%vppl)
-          ENDIF
-          IF (ASSOCIATED(qs_env%vee)) THEN
-             CALL pw_release(qs_env%vee%pw,error=error)
-             DEALLOCATE(qs_env%vee)
           ENDIF
           ! ZMP
           IF(ASSOCIATED(qs_env%rho_external)) THEN

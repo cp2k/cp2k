@@ -250,7 +250,7 @@ CONTAINS
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
-    TYPE(pw_p_type), POINTER                 :: vppl_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_nlcc, vee, vppl_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -271,7 +271,7 @@ CONTAINS
     NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool, &
          poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit, &
          v_tau_rspace,v_tau_rspace_aux_fit,matrix_vxc,matrix_ks,matrix_ks_aux_fit,&
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb)
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
 
@@ -295,6 +295,8 @@ CONTAINS
          virial=virial,&
          ep_qs_env=ep_qs_env,&
          v_hartree_rspace=v_hartree_rspace%pw,&
+         vee=vee,&
+         rho_nlcc=rho_nlcc,&
          error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -457,8 +459,8 @@ CONTAINS
           ! Compute the energy due to the external potential
           ee_ener=0.0_dp
           DO ispin=1,nspins
-             ee_ener=ee_ener+accurate_sum(qs_env%vee%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*&
-                  qs_env%vee%pw%pw_grid%dvol
+             ee_ener=ee_ener+accurate_sum(vee%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*&
+                  vee%pw%pw_grid%dvol
           END DO
           CALL mp_sum(ee_ener,qs_env%para_env%group)
           ! the sign accounts for the charge of the electrons
@@ -584,7 +586,7 @@ CONTAINS
           END DO
        END IF
 
-       IF(ASSOCIATED(qs_env%rho_nlcc) .AND. calculate_forces)THEN
+       IF(ASSOCIATED(rho_nlcc) .AND. calculate_forces)THEN
           CPPrecondition(.NOT.(gapw .OR. gapw_xc),cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins
              CALL integrate_rho_nlcc(v_rspace_new(ispin),qs_env,error=error)

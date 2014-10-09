@@ -1184,19 +1184,23 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: v_rspace
+    TYPE(pw_p_type), POINTER                 :: vee
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_aux_fit
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (auxbas_pw_pool,dft_control,pw_env,matrix_ks_aux_fit,v_rspace%pw, rho_aux_fit)
+    NULLIFY (auxbas_pw_pool,dft_control,pw_env,matrix_ks_aux_fit,v_rspace%pw,&
+             rho_aux_fit, vee)
+
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
                     pw_env=pw_env,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     v_hartree_rspace=v_rspace%pw,&
                     rho_aux_fit=rho_aux_fit,&
+                    vee=vee,&
                     error=error)
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
@@ -1258,7 +1262,7 @@ CONTAINS
           ! External electrostatic potential
           IF(dft_control%apply_external_potential)THEN
              CALL qmmm_modify_hartree_pot(v_hartree=v_rspace_new(ispin),&
-                  v_qmmm=qs_env%vee,scale=-1.0_dp,error=error)
+                  v_qmmm=vee,scale=-1.0_dp,error=error)
           END IF
           !
           IF(do_ppl)THEN

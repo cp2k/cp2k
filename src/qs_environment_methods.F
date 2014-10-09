@@ -263,11 +263,14 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, &
+                                                rho_nlcc_g, vppl
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(para_env, dft_control,particle_set,distribution_2d, ks_env)
+    NULLIFY(para_env, dft_control,particle_set,distribution_2d, ks_env, &
+            rho_core, vppl, rho_nlcc, rho_nlcc_g)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -279,6 +282,10 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
                     matrix_ks=matrix_ks,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     distribution_2d=distribution_2d,&
+                    rho_core=rho_core,&
+                    vppl=vppl,&
+                    rho_nlcc=rho_nlcc,&
+                    rho_nlcc_g=rho_nlcc_g,&
                     error=error)
 
     ! *** deallocate matrices that will have the wrong structure ***
@@ -296,17 +303,17 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
       IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
         ! *** updates rho core ***
-        CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
         CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
         CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
         IF (.NOT. failure) THEN
-           CALL calculate_rho_core(qs_env%rho_core, &
+           CALL calculate_rho_core(rho_core, &
                 qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
         END IF
       ELSE
-        IF (ASSOCIATED(qs_env%rho_core)) THEN
-          CALL pw_release(qs_env%rho_core%pw,error=error)
-          DEALLOCATE(qs_env%rho_core)
+        IF (ASSOCIATED(rho_core)) THEN
+          CALL pw_release(rho_core%pw,error=error)
+          DEALLOCATE(rho_core)
         ENDIF
       ENDIF
       ! force analytic ppl calculation
@@ -319,11 +326,11 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       !??
     ELSE
       ! *** updates rho core ***
-      CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
       CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
       CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
       IF (.NOT. failure) THEN
-         CALL calculate_rho_core(qs_env%rho_core, &
+         CALL calculate_rho_core(rho_core, &
               qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
       END IF
     END IF
@@ -331,22 +338,22 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     ! calculate local pseudopotential on grid
     do_ppl = dft_control%qs_control%do_ppl_method==do_ppl_grid
     IF ( do_ppl ) THEN
-      CPPrecondition(ASSOCIATED(qs_env%vppl),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(vppl),cp_failure_level,routineP,error,failure)
       CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
       CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
       IF (.NOT. failure) THEN
-         CALL calculate_ppl_grid(qs_env%vppl,qs_env,error=error)
+         CALL calculate_ppl_grid(vppl,qs_env,error=error)
       END IF
     END IF
 
     ! compute the rho_nlcc
-    IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
-      CPPrecondition(ASSOCIATED(qs_env%rho_nlcc),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(qs_env%rho_nlcc_g),cp_failure_level,routineP,error,failure)
+    IF (ASSOCIATED(rho_nlcc)) THEN
+      CPPrecondition(ASSOCIATED(rho_nlcc),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(rho_nlcc_g),cp_failure_level,routineP,error,failure)
       CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
       CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
-      CALL calculate_rho_nlcc(qs_env%rho_nlcc, qs_env,error=error)
-      CALL pw_transfer(qs_env%rho_nlcc%pw,qs_env%rho_nlcc_g%pw,error=error)
+      CALL calculate_rho_nlcc(rho_nlcc, qs_env,error=error)
+      CALL pw_transfer(rho_nlcc%pw,rho_nlcc_g%pw,error=error)
     ENDIF
 
     ! allocates and creates the task_list
@@ -538,7 +545,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
               CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
                    use_data=COMPLEXDATA1D, error=error)
               rho_core%pw%in_space=RECIPROCALSPACE
-              CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+              CALL set_ks_env(ks_env, rho_core=rho_core,error=error)
            END IF
          END IF
        ELSE IF (dft_control%qs_control%semi_empirical) THEN
@@ -557,7 +564,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
                  use_data=COMPLEXDATA1D, error=error)
             rho_core%pw%in_space=RECIPROCALSPACE
-            CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+            CALL set_ks_env(ks_env, rho_core=rho_core,error=error)
          END IF
        END IF
 
@@ -576,7 +583,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
             CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
             CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, use_data=REALDATA3D, error=error)
             vppl%pw%in_space=REALSPACE
-            CALL set_qs_env(qs_env,vppl=vppl,error=error)
+            CALL set_ks_env(ks_env,vppl=vppl,error=error)
          END IF
        END IF
 
@@ -603,7 +610,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
             CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc%pw, use_data=REALDATA3D, error=error)
             rho_nlcc%pw%in_space=REALSPACE
-            CALL set_qs_env(qs_env,rho_nlcc=rho_nlcc,error=error)
+            CALL set_ks_env(ks_env,rho_nlcc=rho_nlcc,error=error)
          END IF
          ! the g-space version
          NULLIFY(rho_nlcc_g)
@@ -619,7 +626,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
             CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g%pw, use_data=COMPLEXDATA1D, error=error)
             rho_nlcc_g%pw%in_space=RECIPROCALSPACE
-            CALL set_qs_env(qs_env,rho_nlcc_g=rho_nlcc_g,error=error)
+            CALL set_ks_env(ks_env,rho_nlcc_g=rho_nlcc_g,error=error)
          END IF
        END IF
 
@@ -639,7 +646,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
             CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
             CALL pw_pool_create_pw(auxbas_pw_pool, vee%pw, use_data=REALDATA3D, error=error)
             vee%pw%in_space=REALSPACE
-            CALL set_qs_env(qs_env,vee=vee,error=error)
+            CALL set_ks_env(ks_env,vee=vee,error=error)
             dft_control%eval_external_potential=.TRUE.
          END IF
        END IF

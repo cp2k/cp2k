@@ -12,7 +12,8 @@ MODULE qs_ks_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type
   USE f77_blas
-  USE pw_types,                        ONLY: pw_release,&
+  USE pw_types,                        ONLY: pw_p_type,&
+                                             pw_release,&
                                              pw_type
   USE qs_rho_types,                    ONLY: qs_rho_create,&
                                              qs_rho_release,&
@@ -75,6 +76,11 @@ MODULE qs_ks_types
                                                              rho_buffer => Null(),&
                                                              rho_xc => Null(),&
                                                              rho_aux_fit => Null()
+    TYPE(pw_p_type), POINTER                              :: rho_core => Null(),&
+                                                             vppl => Null(),&
+                                                             rho_nlcc => Null(),&
+                                                             rho_nlcc_g => Null(),&
+                                                             vee => Null()
 
   END TYPE qs_ks_env_type
 
@@ -137,6 +143,11 @@ END SUBROUTINE qs_ks_env_create
 !> \param rho_aux_fit ...
 !> \param rho_buffer ...
 !> \param rho_xc ...
+!> \param vppl ...
+!> \param rho_core ...
+!> \param rho_nlcc ...
+!> \param rho_nlcc_g ...
+!> \param vee ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -146,6 +157,7 @@ END SUBROUTINE qs_ks_env_create
                         kinetic,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,&
                         matrix_w,matrix_w_mp2,matrix_p_mp2,gamma_matrix,&
                         rho, rho_aux_fit, rho_buffer, rho_xc,&
+                        vppl, rho_core, rho_nlcc, rho_nlcc_g, vee,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -160,6 +172,8 @@ END SUBROUTINE qs_ks_env_create
       matrix_p_mp2, gamma_matrix
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_aux_fit, rho_buffer, &
                                                 rho_xc
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: vppl, rho_core, rho_nlcc, &
+                                                rho_nlcc_g, vee
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
@@ -186,7 +200,11 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(rho_aux_fit)) rho_aux_fit => ks_env%rho_aux_fit
      IF (PRESENT(rho_buffer)) rho_buffer => ks_env%rho_buffer
      IF (PRESENT(rho_xc)) rho_xc => ks_env%rho_xc
-
+     IF (PRESENT(rho_core)) rho_core => ks_env%rho_core
+     IF (PRESENT(rho_nlcc)) rho_nlcc => ks_env%rho_nlcc
+     IF (PRESENT(rho_nlcc_g)) rho_nlcc_g => ks_env%rho_nlcc_g
+     IF (PRESENT(vppl)) vppl => ks_env%vppl
+     IF (PRESENT(vee)) vee => ks_env%vee
   END SUBROUTINE get_ks_env
 
 
@@ -210,6 +228,11 @@ END SUBROUTINE qs_ks_env_create
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
 !> \param gamma_matrix ...
+!> \param vppl ...
+!> \param rho_core ...
+!> \param rho_nlcc ...
+!> \param rho_nlcc_g ...
+!> \param vee ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
@@ -218,6 +241,7 @@ END SUBROUTINE qs_ks_env_create
                         matrix_h,matrix_ks,matrix_vxc,matrix_ks_aux_fit,&
                         kinetic,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,&
                         matrix_w,matrix_w_mp2,matrix_p_mp2,gamma_matrix,&
+                        vppl, rho_core, rho_nlcc, rho_nlcc_g, vee,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -230,6 +254,8 @@ END SUBROUTINE qs_ks_env_create
       matrix_ks, matrix_vxc, matrix_ks_aux_fit, kinetic, matrix_s, &
       matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, &
       matrix_p_mp2, gamma_matrix
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: vppl, rho_core, rho_nlcc, &
+                                                rho_nlcc_g, vee
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
@@ -254,6 +280,11 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(matrix_p_mp2)) ks_env%matrix_p_mp2 => matrix_p_mp2
      IF (PRESENT(gamma_matrix)) ks_env%gamma_matrix => gamma_matrix
      IF (PRESENT(kinetic)) ks_env%kinetic => kinetic
+     IF (PRESENT(rho_core)) ks_env%rho_core => rho_core
+     IF (PRESENT(rho_nlcc)) ks_env%rho_nlcc => rho_nlcc
+     IF (PRESENT(rho_nlcc_g)) ks_env%rho_nlcc_g => rho_nlcc_g
+     IF (PRESENT(vppl)) ks_env%vppl => vppl
+     IF (PRESENT(vee)) ks_env%vee => vee
 
   END SUBROUTINE set_ks_env
 
@@ -316,6 +347,27 @@ END SUBROUTINE qs_ks_env_create
             CALL qs_rho_release(ks_env%rho_xc, error=error)
           IF(ASSOCIATED(ks_env%rho_aux_fit))&
             CALL qs_rho_release(ks_env%rho_aux_fit, error=error)
+
+          IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
+             CALL pw_release(ks_env%rho_nlcc_g%pw,error=error)
+             DEALLOCATE(ks_env%rho_nlcc_g)
+          ENDIF
+          IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
+             CALL pw_release(ks_env%rho_nlcc%pw,error=error)
+             DEALLOCATE(ks_env%rho_nlcc)
+          ENDIF
+          IF (ASSOCIATED(ks_env%rho_core)) THEN
+             CALL pw_release(ks_env%rho_core%pw,error=error)
+             DEALLOCATE(ks_env%rho_core)
+          ENDIF
+          IF (ASSOCIATED(ks_env%vppl)) THEN
+             CALL pw_release(ks_env%vppl%pw,error=error)
+             DEALLOCATE(ks_env%vppl)
+          ENDIF
+          IF (ASSOCIATED(ks_env%vee)) THEN
+             CALL pw_release(ks_env%vee%pw,error=error)
+             DEALLOCATE(ks_env%vee)
+          ENDIF
 
           DEALLOCATE(ks_env)
        END IF

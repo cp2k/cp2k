@@ -175,6 +175,7 @@ MODULE mp2_cphf
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: dvg(3), pot_g, rho_g, rho_r, &
                                                 temp_pw_g
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -196,7 +197,7 @@ MODULE mp2_cphf
     dimen=nmo
     virtual=dimen-homo
     NULLIFY(input,pw_env,matrix_s,blacs_env,rho,energy,force,virial,matrix_w_mp2,&
-            matrix_p_mp2,matrix_ks)
+            matrix_p_mp2,matrix_ks,rho_core)
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
                     pw_env=pw_env,&
@@ -210,6 +211,7 @@ MODULE mp2_cphf
                     energy=energy,&
                     force=force,&
                     virial=virial,&
+                    rho_core=rho_core,&
                     error=error)
 
     ! check if we have to calculate the virial
@@ -609,7 +611,7 @@ MODULE mp2_cphf
       ! and associated potential
       CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
       ! don't forget the core density
-      CALL pw_axpy(qs_env%rho_core%pw, rho_g%pw, error=error)
+      CALL pw_axpy(rho_core%pw, rho_g%pw, error=error)
       CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
 
       ! finally update virial with the volume contribution

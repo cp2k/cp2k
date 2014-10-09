@@ -135,6 +135,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
                                                 rho_g, rho_m_gspace, &
                                                 rho_m_rspace, rho_r, tau
+    TYPE(pw_p_type), POINTER                 :: rho_nlcc, rho_nlcc_g
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, vdw_pw_pool, &
                                                 xc_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
@@ -147,7 +148,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, vdw_pw_pool, cell, my_vxc_rho, &
             tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
-            rho_m_gspace)
+            rho_m_gspace, rho_nlcc, rho_nlcc_g)
 
     my_just_energy=.FALSE.
     IF (PRESENT(just_energy)) my_just_energy=just_energy
@@ -158,8 +159,15 @@ CONTAINS
        do_adiabatic_rescaling = .TRUE.
     END IF
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
-         pw_env=pw_env, cell=cell, virial=virial, error=error)
+    CALL get_qs_env(qs_env,&
+                   dft_control=dft_control, &
+                   pw_env=pw_env,&
+                   cell=cell,&
+                   virial=virial,&
+                   rho_nlcc=rho_nlcc,&
+                   rho_nlcc_g=rho_nlcc_g,&
+                   error=error)
+
     compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
 
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
@@ -283,11 +291,11 @@ CONTAINS
           END IF
 
           ! add the nlcc densities
-          IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
+          IF (ASSOCIATED(rho_nlcc)) THEN
              factor=1.0_dp
              DO ispin=1,dft_control%nspins
-                CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
-                CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc%pw,   rho_r(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
              ENDDO
           ENDIF
 
@@ -312,11 +320,11 @@ CONTAINS
           END IF
 
           ! remove the nlcc densities (keep stuff in original state)
-          IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
+          IF (ASSOCIATED(rho_nlcc)) THEN
              factor=-1.0_dp
              DO ispin=1,dft_control%nspins
-                CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
-                CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc%pw,   rho_r(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
              ENDDO
           ENDIF
 
