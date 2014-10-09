@@ -366,8 +366,7 @@ CONTAINS
 
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
           IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
-             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
           END IF
 
        END IF
@@ -375,8 +374,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
           IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
-             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
           END IF
        END IF
     END IF
@@ -423,7 +421,6 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
      IF (PRESENT(grid_changed)) THEN
         IF (grid_changed) THEN
            IF(ASSOCIATED(p_env%rho1_xc)) THEN
-             NULLIFY(p_env%rho1_xc%rho_ao)
              CALL qs_rho_release(p_env%rho1_xc,error=error)
            END IF
            CALL qs_rho_release(p_env%rho1,error=error)

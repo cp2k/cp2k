@@ -747,10 +747,10 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     do_admm = dft_control%do_admm
     CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
+
     IF(gapw_xc) THEN
       CALL qs_rho_rebuild(qs_env%rho_xc,qs_env=qs_env,&
-         rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, gapw_xc=gapw_xc, error=error)
-      qs_env%rho_xc%rho_ao => qs_env%rho%rho_ao
+         rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
     END IF
     IF(do_admm) THEN
       CALL qs_rho_rebuild(qs_env%rho_aux_fit,qs_env=qs_env,&

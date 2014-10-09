@@ -1320,16 +1320,14 @@ CONTAINS
 
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
           IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
-             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
           END IF
        END IF
 
        IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
           IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
-             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
           END IF
        END IF
     END IF

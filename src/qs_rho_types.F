@@ -137,22 +137,10 @@ CONTAINS
        CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
-          IF (ASSOCIATED(rho_struct%rho_ao)) THEN
-             ! What is the rational behind this?
-             IF(rho_struct%soft_valid) THEN
-               NULLIFY(rho_struct%rho_ao)
-             ELSE
-               CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
-             ENDIF
-          END IF
-          IF (ASSOCIATED(rho_struct%rho_ao_kp)) THEN
-             ! What is the rational behind this?
-             IF(rho_struct%soft_valid) THEN
-               NULLIFY(rho_struct%rho_ao_kp)
-             ELSE
-               CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_kp,error=error)
-             ENDIF
-          END IF
+          IF (ASSOCIATED(rho_struct%rho_ao))&
+             CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
+          IF (ASSOCIATED(rho_struct%rho_ao_kp))&
+             CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_kp,error=error)
           IF (ASSOCIATED(rho_struct%rho_r)) THEN
              DO i=1,SIZE(rho_struct%rho_r)
                 CALL pw_release(rho_struct%rho_r(i)%pw,error=error)

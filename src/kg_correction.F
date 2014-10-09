@@ -161,7 +161,7 @@ CONTAINS
     density_matrix => qs_env%rho%rho_ao
 
     ! allocate and initialize the density 
-    CALL qs_rho_rebuild(rho_struct, qs_env, gapw_xc=my_gapw_xc, rebuild_grids=.TRUE., error=error)
+    CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_grids=.TRUE., error=error)
 
     ! loop over all subsets
     DO isub=1,kg_env%nsubsets

@@ -164,7 +164,6 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
           CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
           IF(ASSOCIATED(p_env%rho1_xc)) THEN
-            NULLIFY(p_env%rho1_xc%rho_ao)
             CALL qs_rho_release(p_env%rho1_xc,error=error)
           ENDIF
           CALL qs_rho_release(p_env%rho1,error=error)

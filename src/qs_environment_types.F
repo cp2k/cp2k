@@ -1896,7 +1896,6 @@ CONTAINS
              CALL hartree_local_release(qs_env%hartree_local,error=error)
           END IF
           IF(ASSOCIATED(qs_env%rho_xc)) THEN
-             NULLIFY(qs_env%rho_xc%rho_ao)
              CALL qs_rho_release(qs_env%rho_xc, error=error)
           END IF
           CALL qs_rho_release(qs_env%rho, error=error)
