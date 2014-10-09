@@ -16,7 +16,6 @@ MODULE qs_ks_types
                                              pw_type
   USE qs_rho_types,                    ONLY: qs_rho_create,&
                                              qs_rho_release,&
-                                             qs_rho_retain,&
                                              qs_rho_type
 #include "./common/cp_common_uses.f90"
 
@@ -211,10 +210,6 @@ END SUBROUTINE qs_ks_env_create
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
 !> \param gamma_matrix ...
-!> \param rho ...
-!> \param rho_aux_fit ...
-!> \param rho_buffer ...
-!> \param rho_xc ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
@@ -223,7 +218,6 @@ END SUBROUTINE qs_ks_env_create
                         matrix_h,matrix_ks,matrix_vxc,matrix_ks_aux_fit,&
                         kinetic,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,&
                         matrix_w,matrix_w_mp2,matrix_p_mp2,gamma_matrix,&
-                        rho, rho_aux_fit, rho_buffer, rho_xc,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -236,8 +230,6 @@ END SUBROUTINE qs_ks_env_create
       matrix_ks, matrix_vxc, matrix_ks_aux_fit, kinetic, matrix_s, &
       matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, &
       matrix_p_mp2, gamma_matrix
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_aux_fit, rho_buffer, &
-                                                rho_xc
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
@@ -262,27 +254,6 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(matrix_p_mp2)) ks_env%matrix_p_mp2 => matrix_p_mp2
      IF (PRESENT(gamma_matrix)) ks_env%gamma_matrix => gamma_matrix
      IF (PRESENT(kinetic)) ks_env%kinetic => kinetic
-
-     IF (PRESENT(rho)) THEN ! accepts also null pointers !
-      IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
-      CALL qs_rho_release(ks_env%rho,error=error)
-      ks_env%rho => rho
-     END IF
-     IF (PRESENT(rho_aux_fit)) THEN ! accepts also null pointers !
-       IF (ASSOCIATED(rho_aux_fit)) CALL qs_rho_retain(rho_aux_fit,error=error)
-       CALL qs_rho_release(ks_env%rho_aux_fit,error=error)
-       ks_env%rho_aux_fit => rho_aux_fit
-     END IF
-     IF (PRESENT(rho_buffer)) THEN ! accepts also null pointers !
-       IF (ASSOCIATED(rho_buffer)) CALL qs_rho_retain(rho_buffer,error=error)
-       CALL qs_rho_release(ks_env%rho_buffer,error=error)
-       ks_env%rho_buffer => rho_buffer
-     END IF
-     IF (PRESENT(rho_xc)) THEN ! accepts also null pointers !
-       IF (ASSOCIATED(rho_xc)) CALL qs_rho_retain(rho_xc,error=error)
-       CALL qs_rho_release(ks_env%rho_xc,error=error)
-       ks_env%rho_xc => rho_xc
-     END IF
 
   END SUBROUTINE set_ks_env
 
