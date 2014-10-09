@@ -1185,16 +1185,18 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho_aux_fit
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (auxbas_pw_pool,dft_control,pw_env,matrix_ks_aux_fit,v_rspace%pw)
+    NULLIFY (auxbas_pw_pool,dft_control,pw_env,matrix_ks_aux_fit,v_rspace%pw, rho_aux_fit)
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
                     pw_env=pw_env,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     v_hartree_rspace=v_rspace%pw,&
+                    rho_aux_fit=rho_aux_fit,&
                     error=error)
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
@@ -1345,7 +1347,7 @@ CONTAINS
              v_rspace_new_aux_fit(ispin)%pw%cr3d
           ! Add potential to ks_matrix aux_fit
           CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin),&
-                                  p=qs_env%rho_aux_fit%rho_ao(ispin),&
+                                  p=rho_aux_fit%rho_ao(ispin),&
                                   h=matrix_ks_aux_fit(ispin),&
                                   qs_env=qs_env, &
                                   calculate_forces=calculate_forces,&

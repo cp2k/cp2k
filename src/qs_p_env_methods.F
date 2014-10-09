@@ -81,7 +81,8 @@ MODULE qs_p_env_methods
   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_release,&
                                              qs_rho_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
@@ -188,6 +189,9 @@ CONTAINS
        p_env%gnorm_old=0.0_dp
        p_env%etotal=0.0_dp
        p_env%gradient=0.0_dp
+
+       CALL qs_rho_create(p_env%rho1, error)
+       CALL qs_rho_create(p_env%rho1_xc, error)
 
        IF (PRESENT(kpp1_env)) THEN
           p_env%kpp1_env => kpp1_env
@@ -369,13 +373,6 @@ CONTAINS
              CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
           END IF
 
-       END IF
-
-       IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
-          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
-          IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
-          END IF
        END IF
     END IF
     CALL timestop(handle)
@@ -587,12 +584,12 @@ END SUBROUTINE p_env_did_change
              CALL get_mo_set(mos(spin)%mo_set,lfomo=lfomo,&
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
-                CALL cp_dbcsr_set(qs_env%rho%rho_ao(spin)%matrix,0.0_dp,error=error)
-                CALL cp_dbcsr_plus_fm_fm_t(qs_env%rho%rho_ao(spin)%matrix,&
+                CALL cp_dbcsr_set(rho%rho_ao(spin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_plus_fm_fm_t(rho%rho_ao(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
                      ncol=p_env%n_mo(spin),error=error)
-                CALL cp_dbcsr_scale(qs_env%rho%rho_ao(spin)%matrix,alpha_scalar=maxocc,&
+                CALL cp_dbcsr_scale(rho%rho_ao(spin)%matrix,alpha_scalar=maxocc,&
                      error=error)
              ELSE
                 CALL cp_unimplemented_error(fromWhere=routineP,&
@@ -602,12 +599,10 @@ END SUBROUTINE p_env_did_change
           END DO
 
           ! updates rho
-          CALL qs_rho_update_rho(rho_struct=qs_env%rho, &
-               qs_env=qs_env, error=error)
+          CALL qs_rho_update_rho(rho_struct=rho, qs_env=qs_env, error=error)
 
           ! tells ks_env that p changed
-          CALL qs_ks_did_change(ks_env=ks_env,&
-               rho_changed=.TRUE., error=error)
+          CALL qs_ks_did_change(ks_env=ks_env, rho_changed=.TRUE., error=error)
 
        END IF
 

@@ -29,7 +29,8 @@ MODULE kg_correction
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_release,&
                                              qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE timings,                         ONLY: timeset,&
@@ -134,12 +135,12 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(qs_rho_type), POINTER               :: old_rho, rho_struct
 
     CALL timeset(routineN, handle)
 
-    NULLIFY(vxc_rho, vxc_tau, rho_struct)
- 
+    NULLIFY(vxc_rho, vxc_tau, old_rho, rho_struct)
+
     kg_env => qs_env%kg_env
 
     my_gapw = .FALSE.
@@ -151,16 +152,23 @@ CONTAINS
     ekin_mol = 0.0_dp
 
     ! get set of molecules, natom, dft_control, pw_env
-    CALL get_qs_env(qs_env, matrix_h=matrix_h, natom=natom, dft_control=dft_control, pw_env=pw_env, error=error)
+    CALL get_qs_env(qs_env,&
+                    rho=old_rho,&
+                    matrix_h=matrix_h,&
+                    natom=natom,&
+                    dft_control=dft_control,&
+                    pw_env=pw_env,&
+                    error=error)
 
     nspins = dft_control%nspins
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
 
     ! get the density matrix
-    density_matrix => qs_env%rho%rho_ao
+    density_matrix => old_rho%rho_ao
 
     ! allocate and initialize the density 
+    CALL qs_rho_create(rho_struct, error)
     CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_grids=.TRUE., error=error)
 
     ! loop over all subsets
@@ -258,16 +266,18 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: density_matrix, tnadd_matrix
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(qs_rho_type), POINTER               :: rho
+
+    NULLIFY(rho, kg_env, density_matrix, tnadd_matrix)
 
     CALL timeset(routineN, handle)
-
-    kg_env => qs_env%kg_env
+    CALL get_qs_env(qs_env, kg_env=kg_env, rho=rho, error=error)
 
     nspins = SIZE(ks_matrix)
     ! get the density matrix
-    density_matrix => qs_env%rho%rho_ao
+    density_matrix => rho%rho_ao
     ! get the tnadd matrix
-    tnadd_matrix => qs_env%kg_env%tnadd_mat
+    tnadd_matrix => kg_env%tnadd_mat
 
     ekin_mol = 0.0_dp
     DO ispin=1,nspins

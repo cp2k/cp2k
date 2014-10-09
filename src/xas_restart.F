@@ -422,7 +422,7 @@ CPSourceFileRef,&
 
     IF(xas_env%mixing_method>1) THEN
        CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom,error=error)
-       CALL mixing_init(xas_env%mixing_method,qs_env%rho,xas_env%mixing_store,&
+       CALL mixing_init(xas_env%mixing_method,rho,xas_env%mixing_store,&
                            qs_env%para_env,rho_atom=rho_atom,error=error)
     END IF
 

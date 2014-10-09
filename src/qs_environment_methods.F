@@ -69,6 +69,7 @@ MODULE qs_environment_methods
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_environment,                 ONLY: scp_nddo_init
@@ -739,27 +740,37 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     INTEGER                                  :: handle
     LOGICAL                                  :: do_admm, gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit, &
+                                                rho_external, rho_xc
 
+    NULLIFY(rho)
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,error=error)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    rho=rho,&
+                    rho_xc=rho_xc,&
+                    rho_aux_fit=rho_aux_fit,&
+                    rho_external=rho_external,&
+                    error=error)
+
     gapw_xc=dft_control%qs_control%gapw_xc
     do_admm = dft_control%do_admm
-    CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
+    CALL qs_rho_rebuild(rho,qs_env=qs_env,&
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
 
     IF(gapw_xc) THEN
-      CALL qs_rho_rebuild(qs_env%rho_xc,qs_env=qs_env,&
+      CALL qs_rho_rebuild(rho_xc,qs_env=qs_env,&
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
     END IF
     IF(do_admm) THEN
-      CALL qs_rho_rebuild(qs_env%rho_aux_fit,qs_env=qs_env,&
+      CALL qs_rho_rebuild(rho_aux_fit,qs_env=qs_env,&
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
                           basis_set_id=use_aux_fit_basis_set, error=error)
     END IF
 ! ZMP rebuilding external density
     IF (dft_control%apply_external_density) THEN
-      CALL qs_rho_rebuild(qs_env%rho_external,qs_env=qs_env,&
+      CALL qs_rho_rebuild(rho_external,qs_env=qs_env,&
                            rebuild_grids=rebuild_grids, &
                            error=error)
       dft_control%read_external_density=.TRUE.

@@ -124,13 +124,14 @@ CONTAINS
       POINTER                                :: mos, mos_aux_fit
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
          mos_aux_fit, para_env, particle_set, xc_section, matrix_s_aux_fit, &
-         matrix_s_aux_fit_vs_orb)
+         matrix_s_aux_fit_vs_orb, rho, rho_aux_fit)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
@@ -158,6 +159,8 @@ CONTAINS
                     matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                     para_env=para_env,&
                     s_mstruct_changed=s_mstruct_changed,&
+                    rho=rho,&
+                    rho_aux_fit=rho_aux_fit,&
                     error=error)
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
@@ -189,16 +192,15 @@ CONTAINS
                             mos, mos_aux_fit, s_mstruct_changed, error=error)
 
     DO ispin=1,nspins
-       matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
-       matrix_p => qs_env%rho%rho_ao
-       !TODO why is qs_env%matrix_s_aux_fit an array?
+       matrix_p_aux_fit => rho_aux_fit%rho_ao
+       matrix_p => rho%rho_ao
        CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, matrix_p(ispin)%matrix, &
                                           matrix_p_aux_fit(ispin)%matrix, matrix_s_aux_fit(1)%matrix,&
                                           ispin,nspins,error=error)
-       CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
-            rho=qs_env%rho_aux_fit%rho_r(ispin),&
-            rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
-            total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
+       CALL calculate_rho_elec(matrix_p=rho_aux_fit%rho_ao(ispin)%matrix,&
+            rho=rho_aux_fit%rho_r(ispin),&
+            rho_gspace=rho_aux_fit%rho_g(ispin),&
+            total_rho=rho_aux_fit%tot_rho_r(ispin),&
             qs_env=qs_env,soft_valid=.FALSE.,&
             basis_set_id=use_aux_fit_basis_set, error=error)
     END DO
@@ -206,8 +208,8 @@ CONTAINS
 
     CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
 
-    qs_env%rho_aux_fit%rho_r_valid=.TRUE.
-    qs_env%rho_aux_fit%rho_g_valid=.TRUE.
+    rho_aux_fit%rho_r_valid=.TRUE.
+    rho_aux_fit%rho_g_valid=.TRUE.
 
     CALL timestop(handle)
 

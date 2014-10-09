@@ -75,6 +75,7 @@ MODULE qs_initial_guess
                                              mo_set_restrict,&
                                              set_mo_occupation
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              eigensolver_simple
   USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
@@ -172,6 +173,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
@@ -182,7 +184,7 @@ CONTAINS
     NULLIFY(atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set,&
          qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
          scf_control, dft_control, p_rmpv, ortho, work2, work1, &
-         s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks)
+         s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks, rho)
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
     NULLIFY (atom_list, elec_conf, scp_env)
@@ -195,10 +197,10 @@ CONTAINS
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          has_unit_metric=has_unit_metric, do_kpoints=do_kpoints, &
-         matrix_ks=matrix_ks, error=error)
+         matrix_ks=matrix_ks, rho=rho, error=error)
 
     nspin=dft_control%nspins
-    p_rmpv => qs_env%rho%rho_ao
+    p_rmpv => rho%rho_ao
 
     work1 => scf_env%scf_work1
     work2 => scf_env%scf_work2
@@ -570,7 +572,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
           ! We fit a function to the square root of the density
-          CALL qs_rho_update_rho(qs_env%rho,qs_env,error=error)
+          CALL qs_rho_update_rho(rho,qs_env,error=error)
           CPPostcondition(1==0,cp_failure_level,routineP,error,failure)
 !         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
 !         DO ispin=1,nspin
@@ -953,7 +955,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                 smear=scf_control%smear,&
                                 error=error)
          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       qs_env%rho%rho_ao(ispin)%matrix,&
+                                       rho%rho_ao(ispin)%matrix,&
                                        error=error)
        END DO
 
@@ -966,8 +968,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                cp_assertion_failed,routineP,CPSourceFileRef)
        ELSE
           ! copy gamma point density matrix guess
-          p_rmpv => qs_env%rho%rho_ao
-          denmat => qs_env%rho%rho_ao_kp
+          p_rmpv => rho%rho_ao
+          denmat => rho%rho_ao_kp
           DO ispin = 1,qs_env%dft_control%nspins
              DO ic=1,SIZE(denmat,2)
                 CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)

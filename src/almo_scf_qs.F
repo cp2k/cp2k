@@ -76,6 +76,7 @@ MODULE almo_scf_qs
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -546,6 +547,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input
 
 ! This variable might not be necessary
@@ -560,7 +562,7 @@ CONTAINS
 !   TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN,handle)
-
+    NULLIFY(rho)
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -585,9 +587,10 @@ CONTAINS
                     has_unit_metric=has_unit_metric,&
                     para_env=para_env,&
                     nelectron_spin=nelectron_spin,&
+                    rho=rho,&
 !                    scf_control=scf_control,&
 !                    scf_env=scf_env,&
-!                    mos=mo_array,&                  
+!                    mos=mo_array,&
                     error=error)
 
     nspin=dft_control%nspins
@@ -613,21 +616,21 @@ CONTAINS
  
     ! create an initial guess
     DO ispin=1,nspin
-       CALL cp_dbcsr_set(qs_env%rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-          CALL calculate_mopac_dm(qs_env%rho%rho_ao(ispin)%matrix,&
+          CALL calculate_mopac_dm(rho%rho_ao(ispin)%matrix,&
                matrix_s(1)%matrix, has_unit_metric, &
                dft_control, particle_set, atomic_kind_set, qs_kind_set,&
                ispin, nspin, nelectron_spin(ispin),&
                para_env, error)
        ELSE
-          CALL calculate_atomic_block_dm(qs_env%rho%rho_ao(ispin)%matrix,&
+          CALL calculate_atomic_block_dm(rho%rho_ao(ispin)%matrix,&
                matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
                ispin, nspin, nelectron_spin(ispin), unit_nr, error)
        ENDIF
 
        ! copy the atomic-block dm into matrix_p_blk
-       CALL matrix_qs_to_almo(qs_env%rho%rho_ao(ispin)%matrix,&
+       CALL matrix_qs_to_almo(rho%rho_ao(ispin)%matrix,&
                               almo_scf_env%matrix_p_blk(ispin),almo_scf_env,&
                               .FALSE.,error)
        CALL cp_dbcsr_filter(almo_scf_env%matrix_p_blk(ispin),&
@@ -658,14 +661,14 @@ CONTAINS
 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              qs_env%rho%rho_ao(ispin)%matrix,&
+                              rho%rho_ao(ispin)%matrix,&
                               almo_scf_env,error)
     ENDDO
 !CALL timestop(handle34)
 !CALL timestop(handle3)
 !CALL timeset("init_qs.p2f",handle4)
 
-    CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
     CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
          calculate_forces=.FALSE., just_energy=.FALSE.,error=error)
@@ -703,22 +706,24 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspin
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
 
+    NULLIFY(rho)
     CALL timeset(routineN,handle)
 
     nspin=almo_scf_env%nspins
-    CALL get_qs_env(qs_env, energy=energy, error=error)
+    CALL get_qs_env(qs_env, energy=energy, rho=rho, error=error)
 
     ! set the new density matrix 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              qs_env%rho%rho_ao(ispin)%matrix,&
+                              rho%rho_ao(ispin)%matrix,&
                               almo_scf_env,&
                               error)
     END DO
 
     ! compute the corresponding KS matrix and new energy
-    CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
     CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
          calculate_forces=.FALSE.,just_energy=.FALSE.,&
@@ -777,13 +782,14 @@ CONTAINS
                                                 matrix_sigma_sqrt_inv, &
                                                 matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_rho_type), POINTER               :: rho
 
 !TYPE(mo_set_p_type), DIMENSION(:), &
 !      POINTER                             :: mo_array
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-
+    NULLIFY(rho)
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -795,7 +801,9 @@ CONTAINS
     IF (unit_nr>0) THEN
        WRITE(unit_nr,*) "orthogonalize occupied orbitals"
     ENDIF
-    
+
+    CALL get_qs_env(qs_env, rho=rho, error=error)
+
 !!! RZK-warning this procedure is not fail safe:
 !!! make sure that MOs, overlaps, and DM are all consistent
     DO ispin=1,almo_scf_env%nspins
@@ -842,7 +850,7 @@ CONTAINS
 !CALL cp_dbcsr_print(qs_env%mos(ispin)%mo_set%mo_coeff_b,error=error)       
        ! return density matrix
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              qs_env%rho%rho_ao(ispin)%matrix,&
+                              rho%rho_ao(ispin)%matrix,&
                               almo_scf_env,error)
 !CALL cp_dbcsr_print(qs_env%rho%rho_ao(ispin)%matrix,error=error)       
 

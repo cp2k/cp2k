@@ -328,19 +328,25 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
 
     failure=.FALSE.
+    NULLIFY(cell,particle_set,coeff,energy,rho)
     CALL timeset(routineN,handle)
 
     IF (qs_env%dft_control%qs_control%becke_restraint) THEN
+          CALL get_qs_env(qs_env,&
+                          cell=cell,&
+                          particle_set=particle_set,&
+                          rho=rho,&
+                          error=error)
 
           target_val=qs_env%dft_control%qs_control%becke_control%target
           strength=qs_env%dft_control%qs_control%becke_control%strength
           dvol = becke_const%pw%pw_grid%dvol
           IF(calc_pot)THEN
 
-          NULLIFY(cell,particle_set,coeff,energy)
-          CALL get_qs_env(qs_env,cell=cell,particle_set=particle_set,error=error)
+
           becke_const%pw%cr3d=0.0_dp
 
           ALLOCATE (catom(qs_env%dft_control%qs_control%becke_control%natoms),STAT=istat)
@@ -447,7 +453,7 @@ CONTAINS
 
        dE=0.0_dp
        DO i=1 , qs_env%dft_control%nspins
-             dE=dE+accurate_sum(becke_const%pw%cr3d*qs_env%rho%rho_r(i)%pw%cr3d)*dvol
+             dE=dE+accurate_sum(becke_const%pw%cr3d*rho%rho_r(i)%pw%cr3d)*dvol
        END DO
        CALL get_qs_env(qs_env,energy=energy,error=error)
        CALL mp_sum(dE,qs_env%para_env%group)

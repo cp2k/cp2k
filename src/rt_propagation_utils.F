@@ -9,7 +9,6 @@
 ! *****************************************************************************
 
 MODULE  rt_propagation_utils
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type,&
@@ -55,6 +54,7 @@ MODULE  rt_propagation_utils
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_methods,          ONLY: calc_update_rho_sparse
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -264,15 +264,16 @@ MODULE  rt_propagation_utils
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
-    NULLIFY(atomic_kind_set,qs_kind_set,mo_array,particle_set)
+    NULLIFY(atomic_kind_set,qs_kind_set,mo_array,particle_set,rho_struct)
 
     CALL get_qs_env(qs_env,qs_kind_set=qs_kind_set,&
          atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, &
-         input=input,rtp=rtp,dft_control=dft_control,&
+         input=input,rtp=rtp,dft_control=dft_control,rho=rho_struct,&
          error=error)
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -283,7 +284,7 @@ MODULE  rt_propagation_utils
 
     id_nr=0
     nspin=SIZE(mo_array)
-    p_rmpv => qs_env%rho%rho_ao
+    p_rmpv => rho_struct%rho_ao
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
     SELECT CASE(dft_control%rtp_control%initial_wfn)
     CASE(use_restart_wfn)

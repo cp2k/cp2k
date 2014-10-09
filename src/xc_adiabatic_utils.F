@@ -89,18 +89,22 @@ CONTAINS
       scale_dEx1, scale_dEx2, total_energy_xc
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho_xc
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_sections, input, &
                                                 xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(para_env, dft_control, adiabatic_rescaling_section, hfx_sections, input, xc_section)
+    NULLIFY(para_env, dft_control, adiabatic_rescaling_section, hfx_sections,&
+            input, xc_section, rho_xc)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         para_env=para_env,&
-         input=input,error=error)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    input=input,&
+                    rho_xc=rho_xc,&
+                    error=error)
 
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
@@ -150,11 +154,11 @@ CONTAINS
           ! Calculate vxc and rescale it
           xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
           IF (gapw_xc) THEN
-            CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho_xc, xc_section=xc_section, &
+            CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_xc, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                  just_energy=just_energy ,adiabatic_rescale_factor=scale_dDFA, error=error)
           ELSE
-            CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+            CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                  just_energy=just_energy, adiabatic_rescale_factor=scale_dDFA, error=error)
           END IF

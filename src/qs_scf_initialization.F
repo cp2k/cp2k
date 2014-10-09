@@ -84,7 +84,8 @@ MODULE qs_scf_initialization
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_type
   USE qs_scf_diagonalization,          ONLY: diag_subspace_allocate
   USE qs_scf_lanczos,                  ONLY: krylov_space_allocate
   USE qs_scf_output,                   ONLY: qs_scf_initial_info
@@ -1018,6 +1019,7 @@ CONTAINS
         IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
           CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
                 error=error)
+          CALL qs_rho_create(qs_env%wf_history%past_states(1)%snapshot%rho_frozen, error)
           CALL duplicate_rho_type(rho_input=rho, &
                 rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
                 qs_env=qs_env, error=error)
@@ -1064,16 +1066,19 @@ CONTAINS
     LOGICAL                                  :: failure, orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(mo_coeff )
+    NULLIFY(mo_coeff, rho)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+
+    CALL get_qs_env(qs_env, rho=rho, error=error)
 
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
@@ -1110,7 +1115,7 @@ CONTAINS
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,error=error)
           IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
-            CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+            CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
             CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                  error=error)
           END IF
@@ -1121,10 +1126,10 @@ CONTAINS
           IF(qs_env % dft_control % qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env,&
                  rho_atom_set=rho_atom,error=error)
-            CALL mixing_init(qs_env%scf_env%mixing_method,qs_env%rho,qs_env%scf_env%mixing_store,&
+            CALL mixing_init(qs_env%scf_env%mixing_method,rho,qs_env%scf_env%mixing_store,&
                            qs_env%para_env,rho_atom=rho_atom,error=error)
           ELSE
-            CALL mixing_init(qs_env%scf_env%mixing_method,qs_env%rho,qs_env%scf_env%mixing_store,&
+            CALL mixing_init(qs_env%scf_env%mixing_method,rho,qs_env%scf_env%mixing_store,&
                            qs_env%para_env,error=error)
           END IF
        END IF

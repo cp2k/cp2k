@@ -188,7 +188,7 @@ CONTAINS
                     virial=virial,&
                     has_unit_metric=has_unit_metric,&
                     subsys=subsys,&
-                    energy=energy,&
+                    energy=energy,&     
                     matrix_p_mp2=matrix_p_mp2,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     matrix_w_mp2=matrix_w_mp2,&
@@ -327,9 +327,9 @@ CONTAINS
          ! with MP2 we have to recalculate the SCF energy with the
          ! correct density
          DO ispin=1, qs_env%dft_control%nspins
-           CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
+           CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
          END DO
-         CALL qs_rho_update_rho(qs_env%rho, qs_env=qs_env, error=error)
+         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
          CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&
                                s_mstruct_changed=qs_env%mp2_env%ri_mp2%free_hfx_buffer,&
                                error=error)

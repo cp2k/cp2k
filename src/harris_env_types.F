@@ -20,7 +20,8 @@ MODULE harris_env_types
   USE harris_force_types,              ONLY: harris_force_clear,&
                                              harris_force_release,&
                                              harris_force_type
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_release,&
                                              qs_rho_type
 #include "./common/cp_common_uses.f90"
 
@@ -363,11 +364,11 @@ CONTAINS
       last_harris_id=last_harris_id+1
       harris_env%id_nr = last_harris_id
       !CALL harris_env_clear(harris_env, natom=natom, nspins=nspins, error=error)
-      NULLIFY(harris_env%rho)
-      NULLIFY(harris_env%rho_diff)
+      NULLIFY(harris_env%rho, harris_env%rho_diff)
+      CALL qs_rho_create(harris_env%rho, error)
+      CALL qs_rho_create(harris_env%rho_diff, error)
       harris_env%natom = natom
       harris_env%nspins = nspins
-
     END IF
   END SUBROUTINE harris_env_create
 

@@ -164,9 +164,14 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      dft_control=dft_control, particle_set=particle_set, &
-                      input=input, subsys=subsys, error=error)
+      CALL get_qs_env(qs_env,&
+                      atomic_kind_set=atomic_kind_set,&
+                      force=force, &
+                      dft_control=dft_control,&
+                      particle_set=particle_set, &
+                      input=input,&
+                      subsys=subsys,&
+                      error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -220,8 +225,13 @@ CONTAINS
 
       CALL zero_qs_force(force,error)
 
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      ks_env=ks_env, matrix_ks=matrix_ks, error=error)
+      CALL get_qs_env(qs_env,&
+                      pw_env=pw_env,&
+                      rho=rho,&
+                      rho_core=rho_core, &
+                      ks_env=ks_env,&
+                      matrix_ks=matrix_ks,&
+                      error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -248,11 +258,11 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
 
-      rho_ao => qs_env%rho%rho_ao
+      rho_ao => rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -307,7 +317,7 @@ CONTAINS
 
       DO ispin = 1,nspins
         v_xc(ispin)%pw%cr3d = v_xc(ispin)%pw%cr3d * v_xc(ispin)%pw%pw_grid%dvol
-        v_rspace_new(ispin)%pw%cr3d = (qs_env%rho%rho_r(ispin)%pw%cr3d &
+        v_rspace_new(ispin)%pw%cr3d = (rho%rho_r(ispin)%pw%cr3d &
                                     - harris_env%rho%rho_r(ispin)%pw%cr3d) &
                                     * v_xc(ispin)%pw%cr3d
         CALL pw_release(v_xc(ispin)%pw, error=error)
@@ -321,7 +331,7 @@ CONTAINS
       ! + v_hartree[rho_out-rho_in]
       CALL pw_zero(rho_tot_gspace%pw, error=error)
       DO ispin = 1,nspins
-        CALL pw_axpy(qs_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
+        CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
         CALL pw_axpy(harris_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw,alpha=-1._dp,error=error)
         ! this original code seems to be wrong for spin polarized cases (overwrites rho_tot_gspace)
         ! CALL pw_subtract(qs_env%rho%rho_g(ispin)%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
@@ -389,7 +399,7 @@ CONTAINS
       ! *** The forces due to n_core *** !
       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw,error=error)
       DO ispin = 1,nspins
-        CALL pw_axpy(qs_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
+        CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
         ! old code seems to be wrong for spin polarized case
         ! CALL pw_add(rho_core%pw, qs_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
@@ -625,11 +635,11 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
 
-      rho_ao => qs_env%rho%rho_ao
+      rho_ao => rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -655,7 +665,7 @@ CONTAINS
 
       ! ** Force computation of f_V  ** !
       DO ispin = 1,nspins
-        CALL pw_poisson_solve(poisson_env, qs_env%rho%rho_g(ispin)%pw, ehartree=Ehartree, &
+        CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, ehartree=Ehartree, &
                               vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
@@ -719,7 +729,7 @@ CONTAINS
 
       ! + v_hartree[rho_out]
       DO ispin = 1,nspins
-        CALL pw_poisson_solve(poisson_env, qs_env%rho%rho_g(ispin)%pw, ehartree=Ehartree, &
+        CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, ehartree=Ehartree, &
                                vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
@@ -805,7 +815,7 @@ CONTAINS
       CALL zero_qs_force(force,error)
 
       ! *** The forces due to exchange and correlation *** !
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
 
@@ -1288,7 +1298,7 @@ CONTAINS
                                    error=error)
 
       NULLIFY(v_rspace_new)
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy = .FALSE., error=error)
 

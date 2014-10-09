@@ -37,6 +37,7 @@ MODULE qs_tddfpt_module
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
   USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE qs_tddfpt_eigensolver,           ONLY: eigensolver
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
@@ -140,13 +141,14 @@ CONTAINS
       POINTER                                :: matrix_ks
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: input, xc_fun_orig, xc_fun_tmp
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     failure = .FALSE.
-    NULLIFY(logger, scf_env, input, energy, matrix_ks)
+    NULLIFY(logger, scf_env, input, energy, matrix_ks, rho)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -162,6 +164,7 @@ CONTAINS
                     scf_env=scf_env,&
                     input=input,&
                     matrix_ks=matrix_ks,&
+                    rho=rho,&
                     error=error)
 
     !----------------------!
@@ -178,7 +181,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env, energy=energy, error=error)
     CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
-                                      ks_matrix=matrix_ks, rho=qs_env%rho, &
+                                      ks_matrix=matrix_ks, rho=rho, &
                                       energy=energy,&
                                       calculate_forces=.FALSE.,&
                                       just_energy=.FALSE.,error=error)

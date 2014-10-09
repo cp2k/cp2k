@@ -157,7 +157,7 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       POINTER                                :: nablavks_set
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
@@ -199,6 +199,7 @@ CONTAINS
     NULLIFY(pwy) ! R0
     NULLIFY(pwz) ! R0
     NULLIFY(rho)
+    NULLIFY(rho_xc)
     NULLIFY(rho0_atom_set)
     NULLIFY(rho_atom_set)
     NULLIFY(rhoz_set)
@@ -262,6 +263,7 @@ CONTAINS
                     particle_set=particle_set,&
                     pw_env=pw_env,&
                     rho=rho,&
+                    rho_xc=rho_xc,&
                     rho_atom_set=rho_atom_set,&
                     rho0_atom_set=rho0_atom_set,&
                     rhoz_set=rhoz_set,&
@@ -916,11 +918,11 @@ CONTAINS
     ! a possible vdW section in xc_section will be ignored
 
     IF (gapw_xc) THEN
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho_xc, xc_section=xc_section,&
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_xc, xc_section=xc_section,&
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
            error=error)
     ELSE
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section,&
+      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section,&
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
            error=error)
     END IF

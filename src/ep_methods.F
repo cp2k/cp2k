@@ -1938,7 +1938,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO0",&
                extension=".cube",middle_name="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                log_filename=.FALSE.,error=error)
-          CALL cp_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, unit_nr=unit_nr,&
+          CALL cp_pw_to_cube (rho%rho_r(1)%pw, unit_nr=unit_nr,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                particles=particles,&
                stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&

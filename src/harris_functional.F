@@ -139,7 +139,6 @@ CONTAINS
       CPPrecondition(.NOT.(vdw==xc_vdw_fun_nonloc), cp_failure_level, routineP, error, failure)
 
       nspins = dft_control%nspins
-
       CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho, &
                               qs_env=qs_env, error=error)
 

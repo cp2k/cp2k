@@ -28,7 +28,7 @@ MODULE qs_rho_types
 
   PUBLIC :: qs_rho_p_type, qs_rho_type
   PUBLIC :: qs_rho_retain, qs_rho_release,&
-            qs_rho_get
+            qs_rho_get, qs_rho_clear, qs_rho_create
 
 ! *****************************************************************************
 !> \brief keeps the density in various representations, keeping track of
@@ -57,22 +57,26 @@ MODULE qs_rho_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_rho_type
-     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: rho_ao_kp
-     TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_r
-     TYPE(pw_p_type), DIMENSION(:), POINTER :: drho_g, drho_r
-     TYPE(pw_p_type), DIMENSION(:), POINTER :: tau_g, tau_r
-     LOGICAL ::  rho_g_valid, &
-          rho_r_valid, &
-          drho_r_valid, &
-          drho_g_valid, &
-          tau_r_valid, &
-          tau_g_valid, &
-          soft_valid
-     INTEGER :: ref_count, &
-          id_nr, &
-          rebuild_each
-     REAL(KIND = dp), DIMENSION(:), POINTER :: tot_rho_r, tot_rho_g
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao => Null()
+     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: rho_ao_kp => Null()
+     TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g  => Null(),&
+                                               rho_r  => Null(),&
+                                               drho_g => Null(),&
+                                               drho_r => Null(),&
+                                               tau_g  => Null(),&
+                                               tau_r  => Null()
+     LOGICAL                                :: rho_g_valid  = .FALSE., &
+                                               rho_r_valid  = .FALSE., &
+                                               drho_r_valid = .FALSE., &
+                                               drho_g_valid = .FALSE., &
+                                               tau_r_valid  = .FALSE., &
+                                               tau_g_valid  = .FALSE., &
+                                               soft_valid   = .FALSE.
+     INTEGER                                :: ref_count = -1, &
+                                               id_nr = -1, &
+                                               rebuild_each = -1
+     REAL(KIND = dp), DIMENSION(:), POINTER :: tot_rho_r => Null(),&
+                                               tot_rho_g => Null()
   END TYPE qs_rho_type
 
 ! *****************************************************************************
@@ -80,7 +84,32 @@ MODULE qs_rho_types
     TYPE(qs_rho_type), POINTER         :: rho
   END TYPE qs_rho_p_type
 
+
+ INTEGER, PRIVATE, SAVE :: last_rho_id_nr = 0
+
 CONTAINS
+
+! *****************************************************************************
+!> \brief Allocates a new instance of rho.
+!> \param rho ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+ SUBROUTINE qs_rho_create(rho, error)
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_create', &
+      routineP = moduleN//':'//routineN
+
+   IF(ASSOCIATED(rho)) STOP routineP//" rho already associated"
+
+   ALLOCATE(rho)
+   last_rho_id_nr=last_rho_id_nr+1
+   rho%id_nr=last_rho_id_nr
+   rho%rebuild_each=5
+   rho%ref_count=1
+ END SUBROUTINE qs_rho_create
 
 ! *****************************************************************************
 !> \brief retains a rho_struct by increasing the reference count by one
@@ -128,7 +157,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -137,66 +165,76 @@ CONTAINS
        CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
-          IF (ASSOCIATED(rho_struct%rho_ao))&
-             CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
-          IF (ASSOCIATED(rho_struct%rho_ao_kp))&
-             CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_kp,error=error)
-          IF (ASSOCIATED(rho_struct%rho_r)) THEN
-             DO i=1,SIZE(rho_struct%rho_r)
-                CALL pw_release(rho_struct%rho_r(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_struct%rho_r,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED(rho_struct%drho_r)) THEN
-             DO i=1,SIZE(rho_struct%drho_r)
-                CALL pw_release(rho_struct%drho_r(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_struct%drho_r,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED(rho_struct%drho_g)) THEN
-             DO i=1,SIZE(rho_struct%drho_g)
-                CALL pw_release(rho_struct%drho_g(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_struct%drho_g,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED(rho_struct%tau_r)) THEN
-             DO i=1,SIZE(rho_struct%tau_r)
-                CALL pw_release(rho_struct%tau_r(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_struct%tau_r,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED(rho_struct%rho_g)) THEN
-             DO i=1,SIZE(rho_struct%rho_g)
-                CALL pw_release(rho_struct%rho_g(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_struct%rho_g,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED(rho_struct%tau_g)) THEN
-             DO i=1,SIZE(rho_struct%tau_g)
-                CALL pw_release(rho_struct%tau_g(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_struct%tau_g,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          END IF
-          IF (ASSOCIATED(rho_struct%tot_rho_r)) THEN
-             DEALLOCATE(rho_struct%tot_rho_r,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          ENDIF
-          IF (ASSOCIATED(rho_struct%tot_rho_g)) THEN
-             DEALLOCATE(rho_struct%tot_rho_g,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          ENDIF
-          DEALLOCATE(rho_struct,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CALL qs_rho_clear(rho_struct, error)
+          DEALLOCATE(rho_struct)
        END IF
     END IF
     NULLIFY(rho_struct)
-  END SUBROUTINE qs_rho_release
+ END SUBROUTINE qs_rho_release
+
+
+! *****************************************************************************
+!> \brief Deallocates all components, whithout deallocating rho_struct itself.
+!> \param rho_struct ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE qs_rho_clear(rho_struct, error)
+    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_clear', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+    IF (ASSOCIATED(rho_struct%rho_r)) THEN
+       DO i=1,SIZE(rho_struct%rho_r)
+          CALL pw_release(rho_struct%rho_r(i)%pw,error=error)
+       END DO
+       DEALLOCATE(rho_struct%rho_r)
+    END IF
+    IF (ASSOCIATED(rho_struct%drho_r)) THEN
+       DO i=1,SIZE(rho_struct%drho_r)
+          CALL pw_release(rho_struct%drho_r(i)%pw,error=error)
+       END DO
+       DEALLOCATE(rho_struct%drho_r)
+    END IF
+    IF (ASSOCIATED(rho_struct%drho_g)) THEN
+       DO i=1,SIZE(rho_struct%drho_g)
+          CALL pw_release(rho_struct%drho_g(i)%pw,error=error)
+       END DO
+       DEALLOCATE(rho_struct%drho_g)
+    END IF
+    IF (ASSOCIATED(rho_struct%tau_r)) THEN
+       DO i=1,SIZE(rho_struct%tau_r)
+          CALL pw_release(rho_struct%tau_r(i)%pw,error=error)
+       END DO
+       DEALLOCATE(rho_struct%tau_r)
+    END IF
+    IF (ASSOCIATED(rho_struct%rho_g)) THEN
+       DO i=1,SIZE(rho_struct%rho_g)
+          CALL pw_release(rho_struct%rho_g(i)%pw,error=error)
+       END DO
+       DEALLOCATE(rho_struct%rho_g)
+    END IF
+    IF (ASSOCIATED(rho_struct%tau_g)) THEN
+       DO i=1,SIZE(rho_struct%tau_g)
+          CALL pw_release(rho_struct%tau_g(i)%pw,error=error)
+       END DO
+       DEALLOCATE(rho_struct%tau_g)
+    END IF
+
+    IF (ASSOCIATED(rho_struct%rho_ao))&
+       CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
+    IF (ASSOCIATED(rho_struct%rho_ao_kp))&
+       CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_kp,error=error)
+    IF (ASSOCIATED(rho_struct%tot_rho_r))&
+       DEALLOCATE(rho_struct%tot_rho_r)
+    IF (ASSOCIATED(rho_struct%tot_rho_g))&
+       DEALLOCATE(rho_struct%tot_rho_g)
+
+  END SUBROUTINE qs_rho_clear
 
 ! *****************************************************************************
 !> \brief this function should be called wehn something changes to update the

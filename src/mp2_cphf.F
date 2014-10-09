@@ -84,7 +84,8 @@ MODULE mp2_cphf
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_release,&
                                              qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -302,6 +303,7 @@ MODULE mp2_cphf
 
     ! create a working rho environment
     NULLIFY(rho_work)
+    CALL qs_rho_create(rho_work, error)
     CALL qs_rho_rebuild(rho=rho_work, qs_env=qs_env, rebuild_ao=.TRUE., rebuild_grids=.FALSE., error=error)
 
     ! here we check if we have to reallocate the HFX container
@@ -568,7 +570,7 @@ MODULE mp2_cphf
        force(ikind)%rho_core=0.0_dp
     ENDDO
     ! right contribution
-    CALL integrate_v_rspace(v_rspace=rho_r,p=qs_env%rho%rho_ao(1),h=matrix_ks(1),&
+    CALL integrate_v_rspace(v_rspace=rho_r,p=rho%rho_ao(1),h=matrix_ks(1),&
                             qs_env=qs_env,calculate_forces=.TRUE.,error=error)
 
     IF(use_virial) THEN
@@ -597,7 +599,7 @@ MODULE mp2_cphf
       END DO
  
       ! calculate total SCF density and potential
-      CALL calculate_rho_elec(matrix_p=qs_env%rho%rho_ao(1)%matrix,&
+      CALL calculate_rho_elec(matrix_p=rho%rho_ao(1)%matrix,&
                               rho=rho_r,&
                               rho_gspace=rho_g,&
                               total_rho=tot_rho_r,&
@@ -636,7 +638,7 @@ MODULE mp2_cphf
     END IF
 
     DO ispin=1, qs_env%dft_control%nspins
-      CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
+      CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
     END DO
 
     ! release stuff

@@ -347,22 +347,6 @@ MODULE qs_environment_types
                                                              sab_aux_fit_asymm, sab_lrc,&
                                                              sab_almo
     TYPE(harris_env_type), POINTER                        :: harris_env
-    !TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h,&
-    !                                                         matrix_ks,&
-    !                                                         matrix_vxc,&
-    !                                                         matrix_s,&
-    !                                                         kinetic,&
-    !                                                         matrix_w,&
-    !                                                         matrix_w_mp2,&
-    !                                                         matrix_p_mp2,&
-    !                                                         gamma_matrix,&
-    !                                                         matrix_s_aux_fit,&
-    !                                                         matrix_s_aux_fit_vs_orb,&
-    !                                                         matrix_ks_aux_fit
-    TYPE(qs_rho_type), POINTER                            :: rho,&
-                                                             rho_buffer,&
-                                                             rho_xc,&
-                                                             rho_aux_fit
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(rel_control_type), POINTER                       :: rel_control
     TYPE(scp_environment_type), POINTER                   :: scp_env
@@ -826,10 +810,6 @@ CONTAINS
     IF (PRESENT(sab_almo)) sab_almo =>  qs_env%sab_almo
     IF (PRESENT(use_harris)) use_harris = qs_env%use_harris
     IF (PRESENT(harris_env)) harris_env => qs_env%harris_env
-    IF (PRESENT(rho)) rho => qs_env%rho
-    IF (PRESENT(rho_aux_fit)) rho_aux_fit => qs_env%rho_aux_fit
-    IF (PRESENT(rho_buffer)) rho_buffer => qs_env%rho_buffer
-    IF (PRESENT(rho_xc)) rho_xc => qs_env%rho_xc
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(ewald_env)) ewald_env => qs_env%ewald_env
     IF (PRESENT(ewald_pw)) ewald_pw => qs_env%ewald_pw
@@ -941,6 +921,10 @@ CONTAINS
                           matrix_w_mp2=matrix_w_mp2,&
                           matrix_p_mp2=matrix_p_mp2,&
                           gamma_matrix=gamma_matrix,&
+                          rho=rho,&
+                          rho_buffer=rho_buffer,&
+                          rho_xc=rho_xc,&
+                          rho_aux_fit=rho_aux_fit,&
                           error=error)
 
     IF (PRESENT(natom)) natom=SIZE(particles%els)
@@ -1013,10 +997,6 @@ CONTAINS
     NULLIFY (qs_env%harris_env)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%mpools_aux_fit)
-    NULLIFY (qs_env%rho)
-    NULLIFY (qs_env%rho_aux_fit)
-    NULLIFY (qs_env%rho_buffer)
-    NULLIFY (qs_env%rho_xc)
     NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%ewald_env)
     NULLIFY (qs_env%ewald_pw)
@@ -1147,14 +1127,10 @@ CONTAINS
 !> \param ewald_pw ...
 !> \param mpools ...
 !> \param mpools_aux_fit ...
-!> \param rho ...
 !> \param vee ...
 !> \param rho_external ...
 !> \param external_vxc ...
 !> \param mask ...
-!> \param rho_aux_fit ...
-!> \param rho_buffer ...
-!> \param rho_xc ...
 !> \param kinetic ...
 !> \param scf_control ...
 !> \param rel_control ...
@@ -1228,9 +1204,9 @@ CONTAINS
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
        sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,harris_env,&
-       pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,&
+       pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,vee,&
        rho_external,external_vxc,mask,&
-       rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,rho_nlcc, rho_nlcc_g, ks_env,&
+       kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,rho_nlcc, rho_nlcc_g, ks_env,&
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        task_list_zmp,&
        distribution_2d,dbcsr_dist,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
@@ -1260,12 +1236,9 @@ CONTAINS
     TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools, mpools_aux_fit
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
     TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_external
     TYPE(pw_p_type), OPTIONAL, POINTER       :: external_vxc, mask
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_aux_fit, rho_buffer, &
-                                                rho_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
@@ -1431,26 +1404,6 @@ CONTAINS
     IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
     IF (PRESENT(rtp)) qs_env%rtp=>rtp
     IF (PRESENT(efield)) qs_env%efield=>efield
-    IF (PRESENT(rho)) THEN ! accepts also null pointers !
-      IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
-      CALL qs_rho_release(qs_env%rho,error=error)
-      qs_env%rho => rho
-    END IF
-    IF (PRESENT(rho_aux_fit)) THEN ! accepts also null pointers !
-      IF (ASSOCIATED(rho_aux_fit)) CALL qs_rho_retain(rho_aux_fit,error=error)
-      CALL qs_rho_release(qs_env%rho_aux_fit,error=error)
-      qs_env%rho_aux_fit => rho_aux_fit
-    END IF
-    IF (PRESENT(rho_buffer)) THEN ! accepts also null pointers !
-      IF (ASSOCIATED(rho_buffer)) CALL qs_rho_retain(rho_buffer,error=error)
-      CALL qs_rho_release(qs_env%rho_buffer,error=error)
-      qs_env%rho_buffer => rho_buffer
-    END IF
-    IF (PRESENT(rho_xc)) THEN ! accepts also null pointers !
-      IF (ASSOCIATED(rho_xc)) CALL qs_rho_retain(rho_xc,error=error)
-      CALL qs_rho_release(qs_env%rho_xc,error=error)
-      qs_env%rho_xc => rho_xc
-    END IF
 
     IF (PRESENT(pw_env)) THEN ! accept also null pointers?
       CALL pw_env_retain(pw_env,error=error)
@@ -1895,12 +1848,6 @@ CONTAINS
           IF (ASSOCIATED(qs_env%hartree_local)) THEN
              CALL hartree_local_release(qs_env%hartree_local,error=error)
           END IF
-          IF(ASSOCIATED(qs_env%rho_xc)) THEN
-             CALL qs_rho_release(qs_env%rho_xc, error=error)
-          END IF
-          CALL qs_rho_release(qs_env%rho, error=error)
-          CALL qs_rho_release(qs_env%rho_aux_fit, error=error)
-          CALL qs_rho_release(qs_env%rho_buffer,error=error)
           CALL scf_c_release(qs_env%scf_control, error=error)
           CALL rel_c_release(qs_env%rel_control, error=error)
 

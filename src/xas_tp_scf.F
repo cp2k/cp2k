@@ -254,7 +254,7 @@ CONTAINS
        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                  broyden_mixing_new_nr,multisecant_mixing_nr)
           ! Compute the difference p_out-p_in
-          CALL self_consistency_check(qs_env%rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+          CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
                 delta= scf_env%iter_delta, error=error)
        CASE(no_mixing_nr)
        CASE DEFAULT

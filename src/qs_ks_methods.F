@@ -707,10 +707,13 @@ CONTAINS
 
        !** merge the auxiliary KS matrix and the primary one
        IF( dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env,mos=mo_array,error=error)
+         CALL get_qs_env(qs_env,&
+                         mos=mo_array,&
+                         mos_aux_fit=mos_aux_fit,&
+                         rho=rho_struct,&
+                         error=error)
+         matrix_p => rho_struct%rho_ao
          DO ispin=1,nspins
-           matrix_p =>qs_env%rho%rho_ao
-           CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
            IF(.NOT.qs_env%run_rtp)THEN
@@ -958,7 +961,7 @@ CONTAINS
            ! Getting nuclear force contribution from the core charge density
             CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
            ! Getting electronic force contribution from fitted LRI charge density
-            matrix_p =>qs_env%rho%rho_ao
+            matrix_p => rho%rho_ao
             CALL calculate_lri_forces(lri_env,lri_density,qs_env,matrix_p,atomic_kind_set,error)
        END IF
 
