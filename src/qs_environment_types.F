@@ -81,9 +81,7 @@ MODULE qs_environment_types
   USE kg_environment_types,            ONLY: kg_env_release,&
                                              kg_environment_type
   USE kinds,                           ONLY: dp
-  USE kpoint_types,                    ONLY: kpoint_create,&
-                                             kpoint_release,&
-                                             kpoint_type
+  USE kpoint_types,                    ONLY: kpoint_type
   USE lri_environment_types,           ONLY: lri_density_release,&
                                              lri_density_type,&
                                              lri_env_release,&
@@ -207,7 +205,6 @@ MODULE qs_environment_types
 !> \param id_nr identification number, guarateed to be unique
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param cell the simulation cell (box)
-!> \param kpoints information on the kpoints used
 !> \param image_matrix matrix needed for the image charge approach within QM/MM
 !> \param image_coeff coefficients of the image charges within QM/MM
 !> \param ipiv auxiliary matrix needed for solving linear system of equations
@@ -300,7 +297,6 @@ MODULE qs_environment_types
     TYPE(ga_environment_type), POINTER                    :: ga_env
     TYPE(ls_scf_env_type), POINTER                        :: ls_scf_env
     TYPE(cell_type), POINTER                              :: super_cell
-    TYPE(kpoint_type), POINTER                            :: kpoints
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
@@ -740,10 +736,6 @@ CONTAINS
     IF (PRESENT(mp2_env)) mp2_env => qs_env%mp2_env
     IF (PRESENT(kg_env)) kg_env => qs_env%kg_env
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
-    IF (PRESENT(kpoints)) kpoints => qs_env%kpoints
-    IF (PRESENT(do_kpoints)) THEN
-       do_kpoints = (qs_env%kpoints%nkp > 0)
-    END IF
     IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
     IF (PRESENT(qmmm_periodic)) qmmm_periodic = qs_env%qmmm_periodic
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
@@ -883,6 +875,8 @@ CONTAINS
                     sab_tbe=sab_tbe,&
                     sab_core=sab_core,&
                     sab_almo=sab_almo,&
+                    kpoints=kpoints,&
+                    do_kpoints=do_kpoints,&
                     error=error)
 
     IF (PRESENT(natom)) natom=SIZE(particles%els)
@@ -932,7 +926,6 @@ CONTAINS
     NULLIFY (qs_env%image_coeff)
     NULLIFY (qs_env%ga_env)
     NULLIFY (qs_env%super_cell)
-    NULLIFY (qs_env%kpoints)
     NULLIFY (qs_env%dft_control)
     NULLIFY (qs_env%mos)
     NULLIFY (qs_env%mos_aux_fit)
@@ -1006,7 +999,6 @@ CONTAINS
     CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
                              globenv%blacs_grid_layout,&
                              globenv%blacs_repeatable,error=error)
-    CALL kpoint_create(qs_env%kpoints,error)
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
@@ -1035,7 +1027,6 @@ CONTAINS
 !> \brief   Set the QUICKSTEP environment.
 !> \param qs_env ...
 !> \param super_cell ...
-!> \param kpoints ...
 !> \param dft_control ...
 !> \param mos ...
 !> \param mos_aux_fit ...
@@ -1114,7 +1105,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_qs_env(qs_env,super_cell,kpoints,dft_control,&
+  SUBROUTINE set_qs_env(qs_env,super_cell,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,harris_env,&
        pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,&
        rho_external,external_vxc,mask,&
@@ -1131,7 +1122,6 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: super_cell
-    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1265,7 +1255,6 @@ CONTAINS
        qs_env%dft_control => dft_control
     END IF
     !
-    IF (PRESENT(kpoints)) qs_env%kpoints = kpoints
     IF (PRESENT(qmmm)) qs_env%qmmm = qmmm
     IF (PRESENT(qmmm_periodic)) qs_env%qmmm_periodic = qmmm_periodic
     IF (PRESENT(mos)) qs_env%mos => mos
@@ -1541,7 +1530,6 @@ CONTAINS
        IF (qs_env%ref_count<1) THEN
           CALL ga_env_release(qs_env%ga_env,error=error)
           CALL cell_release(qs_env%super_cell,error=error)
-          CALL kpoint_release(qs_env%kpoints,error=error)
           CALL dft_control_release(qs_env%dft_control, error=error)
           IF (ASSOCIATED(qs_env%mos)) THEN
              DO i=1,SIZE(qs_env%mos)

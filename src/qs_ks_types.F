@@ -12,6 +12,9 @@ MODULE qs_ks_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type
   USE f77_blas
+  USE kpoint_types,                    ONLY: kpoint_create,&
+                                             kpoint_release,&
+                                             kpoint_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release,&
                                              pw_type
@@ -75,11 +78,14 @@ MODULE qs_ks_types
 !>        when self-consistent polarization (SCP) is included
 !> \param sab_almo: neighbor lists to create ALMO delocalization template
 !>
+!> \param kpoints information on the kpoints used
+!>
 !> \par History
 !>      04.2002 created [fawzi]
 !>      10.2002 introduced pools, uses updated rho as input,
 !>              removed most temporary variables, renamed may vars,
 !>              began conversion to LSD [fawzi]
+!>      10.2014 Moved many components from qs_env here [Ole Schuett]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_ks_env_type
@@ -137,6 +143,7 @@ MODULE qs_ks_types
                                                              sab_lrc => Null(),&
                                                              sab_almo => Null()
 
+    TYPE(kpoint_type), POINTER                            :: kpoints => Null()
   END TYPE qs_ks_env_type
 
 ! *****************************************************************************
@@ -171,6 +178,7 @@ SUBROUTINE qs_ks_env_create(ks_env, error)
     CALL qs_rho_create(ks_env%rho_aux_fit, error)
     CALL qs_rho_create(ks_env%rho_xc, error)
     CALL qs_rho_create(ks_env%rho_buffer, error)
+    CALL kpoint_create(ks_env%kpoints,error)
 END SUBROUTINE qs_ks_env_create
 
 
@@ -220,6 +228,8 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_scp ...
 !> \param sab_vdw ...
 !> \param sab_almo ...
+!> \param kpoints ...
+!> \param do_kpoints ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -234,6 +244,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
+                        kpoints, do_kpoints,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -255,6 +266,8 @@ END SUBROUTINE qs_ks_env_create
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
       sab_scp, sab_vdw, sab_almo
+    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
+    LOGICAL, OPTIONAL                        :: do_kpoints
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
@@ -305,6 +318,10 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_core)) sab_core =>  ks_env%sab_core
      IF (PRESENT(sab_almo)) sab_almo =>  ks_env%sab_almo
 
+     IF (PRESENT(kpoints)) kpoints => ks_env%kpoints
+     IF (PRESENT(do_kpoints)) THEN
+       do_kpoints = (ks_env%kpoints%nkp > 0)
+     END IF
   END SUBROUTINE get_ks_env
 
 
@@ -530,6 +547,7 @@ END SUBROUTINE qs_ks_env_create
           CALL release_sab(ks_env%sab_lrc)
           CALL release_sab(ks_env%sab_almo)
 
+          CALL kpoint_release(ks_env%kpoints,error=error)
           DEALLOCATE(ks_env)
        END IF
     END IF

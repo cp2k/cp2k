@@ -908,7 +908,6 @@ CONTAINS
     NULLIFY(para_env)
     para_env=>qs_env%para_env
 
-    do_kpoints = (qs_env%kpoints%nkp > 0)
     s_minus_half_available = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -918,6 +917,7 @@ CONTAINS
          mos=mos,matrix_ks=matrix_ks, rho=rho,&
          matrix_h=matrix_h,matrix_s=matrix_s,&
          nelectron_total=scf_env%nelectron,&
+         do_kpoints=do_kpoints,&
          error=error)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set)

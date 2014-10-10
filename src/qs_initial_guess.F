@@ -51,6 +51,7 @@ MODULE qs_initial_guess
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  USE kpoint_types,                    ONLY: kpoint_type
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
@@ -166,6 +167,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
@@ -187,17 +189,29 @@ CONTAINS
          s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks, rho)
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
-    NULLIFY (atom_list, elec_conf, scp_env)
+    NULLIFY (atom_list, elec_conf, scp_env, kpoints)
     edftb = 0.0_dp
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
-         particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
-         matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
-         scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
-         has_unit_metric=has_unit_metric, do_kpoints=do_kpoints, &
-         matrix_ks=matrix_ks, rho=rho, error=error)
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    particle_set=particle_set,&
+                    mos=mo_array,&
+                    matrix_s=s_sparse,&
+                    matrix_h=h_core_sparse,&
+                    input=input,&
+                    scp_env=scp_env,&
+                    scf_control=scf_control,&
+                    id_nr=qs_env_id,&
+                    dft_control=dft_control,&
+                    has_unit_metric=has_unit_metric,&
+                    do_kpoints=do_kpoints,&
+                    kpoints=kpoints,&
+                    matrix_ks=matrix_ks,&
+                    rho=rho,&
+                    error=error)
 
     nspin=dft_control%nspins
     p_rmpv => rho%rho_ao
@@ -301,7 +315,7 @@ CPSourceFileRef,&
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            natom_mismatch=natom_mismatch, kpoints=qs_env%kpoints, error=error)
+            natom_mismatch=natom_mismatch, kpoints=kpoints, error=error)
 
        IF (natom_mismatch) THEN
          density_guess = safe_density_guess
@@ -352,7 +366,7 @@ CPSourceFileRef,&
              j = last_read -i
              CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
                   id_nr=j,multiplicity=dft_control%multiplicity,&
-                  dft_section=dft_section, kpoints=qs_env%kpoints, error=error)
+                  dft_section=dft_section, kpoints=kpoints, error=error)
 
              DO ispin=1,nspin
                 IF (scf_control%level_shift /= 0.0_dp) THEN

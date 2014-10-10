@@ -76,6 +76,7 @@ MODULE qs_scf
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_types,                    ONLY: kpoint_type
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_send
@@ -262,6 +263,7 @@ CONTAINS
     TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -285,7 +287,7 @@ CONTAINS
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
-            scf_section, para_env, results)
+            scf_section, para_env, results, kpoints)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -307,6 +309,7 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos,&
                     input=input, dft_control=dft_control, scf_control=scf_control,&
                     do_kpoints=do_kpoints,&
+                    kpoints=kpoints,&
                     results=results,&
                     error=error)
 
@@ -445,7 +448,7 @@ CONTAINS
           ! Write WaveFunction restart file
           CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
                             atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
-                            kpoints=qs_env%kpoints,error=error)
+                            kpoints=kpoints,error=error)
 
           ! Exit if we have finished with the SCF inner loop
           IF (exit_inner_loop) THEN
