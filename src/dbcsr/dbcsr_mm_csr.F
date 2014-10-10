@@ -62,12 +62,12 @@ MODULE dbcsr_mm_csr
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-  !> \var max_stack_block_size  The maximal block size to be specially
-  !>                            treated.
+!> \var max_stack_block_size  The maximal block size to be specially
+!>                            treated.
   INTEGER, PARAMETER :: max_stack_block_size = HUGE (INT (0))
 
 
- ! *****************************************************************************
+! *****************************************************************************
   TYPE dbcsr_mm_csr_type
      PRIVATE
      TYPE(hash_table_type), DIMENSION(:), POINTER  :: c_hashes => Null()
@@ -103,7 +103,7 @@ MODULE dbcsr_mm_csr
      INTEGER :: prime=0
   END TYPE hash_table_type
 
- ! *****************************************************************************
+! *****************************************************************************
   PUBLIC :: dbcsr_mm_csr_type
   PUBLIC :: dbcsr_mm_csr_lib_init,   dbcsr_mm_csr_lib_finalize
   PUBLIC :: dbcsr_mm_csr_phaseout

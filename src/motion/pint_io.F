@@ -62,15 +62,12 @@ MODULE pint_io
 
   CONTAINS
 
-  ! ***************************************************************************
-  !> \brief  Writes out a line of text to the default output unit.
-  !> \author Lukasz Walewski
-  !> \date   2009-07-10
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes out a line of text to the default output unit.
 !> \param line ...
 !> \param error ...
+!> \date   2009-07-10
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE pint_write_line(line,error)
 
@@ -97,18 +94,15 @@ MODULE pint_io
   END SUBROUTINE pint_write_line
 
 
-  ! ***************************************************************************
-  !> \brief Write out the trajectory of the centroid (positions and velocities)
-  !> \author fawzi
-  !> \par History
-  !>      various bug fixes - hforbert
-  !>      2010-11-25 rewritten, added support for velocity printing,
-  !>                 calc of the stddev of the beads turned off [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief Write out the trajectory of the centroid (positions and velocities)
 !> \param pint_env ...
 !> \param error ...
+!> \par History
+!>      various bug fixes - hforbert
+!>      2010-11-25 rewritten, added support for velocity printing,
+!>                 calc of the stddev of the beads turned off [lwalewski]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -273,16 +267,13 @@ MODULE pint_io
     RETURN
   END SUBROUTINE pint_write_centroids
 
-  ! ***************************************************************************
-  !> \brief  Write out the trajectory of the beads (positions and velocities)
-  !> \author hforbert
-  !> \par    History
-  !>         2010-11-25 added support for velocity printing [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write out the trajectory of the beads (positions and velocities)
 !> \param pint_env ...
 !> \param error ...
+!> \par    History
+!>         2010-11-25 added support for velocity printing [lwalewski]
+!> \author hforbert
 ! *****************************************************************************
   SUBROUTINE pint_write_trajectory(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -444,15 +435,12 @@ MODULE pint_io
     RETURN
   END SUBROUTINE pint_write_trajectory
 
-  ! ***************************************************************************
-  !> \brief  Write center of mass (COM) position according to PINT%PRINT%COM
-  !> \author Lukasz Walewski
-  !> \date   2010-02-17
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write center of mass (COM) position according to PINT%PRINT%COM
 !> \param pint_env ...
 !> \param error ...
+!> \date   2010-02-17
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE pint_write_com( pint_env, error )
 
@@ -521,20 +509,15 @@ MODULE pint_io
     RETURN
   END SUBROUTINE pint_write_com
 
-  ! ***************************************************************************
-  !> \brief  Writes out the energies according to PINT%PRINT%ENERGY
-  !> \author fawzi
-  !> \param  pint_env path integral environment
-  !> \param  error variable to control error logging, stopping,...
-  !>         see module cp_error_handling
-  !> \par    History
-  !>           various bug fixes [hforbert]
-  !>           2009-11-16 energy components calc moved out of here [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param error ...
+! ***************************************************************************
+!> \brief  Writes out the energies according to PINT%PRINT%ENERGY
+!> \param  pint_env path integral environment
+!> \param  error variable to control error logging, stopping,...
+!>         see module cp_error_handling
+!> \par    History
+!>           various bug fixes [hforbert]
+!>           2009-11-16 energy components calc moved out of here [lwalewski]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_write_ener(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -618,17 +601,14 @@ MODULE pint_io
   END SUBROUTINE pint_write_ener
 
 
-  ! ***************************************************************************
-  !> \brief  Write step info to the output file.
-  !> \date   2009-11-16
-  !> \author Lukasz Walewski
-  !> \par History
-  !>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write step info to the output file.
 !> \param pint_env ...
 !> \param error ...
+!> \date   2009-11-16
+!> \par History
+!>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE pint_write_step_info( pint_env, error )
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -687,15 +667,12 @@ MODULE pint_io
     RETURN
   END SUBROUTINE pint_write_step_info
 
-  ! ***************************************************************************
-  !> \brief  Write radii of gyration according to PINT%PRINT%CENTROID_GYR
-  !> \author Lukasz Walewski
-  !> \date   2011-01-07
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write radii of gyration according to PINT%PRINT%CENTROID_GYR
 !> \param pint_env ...
 !> \param error ...
+!> \date   2011-01-07
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE pint_write_rgyr( pint_env, error )
 

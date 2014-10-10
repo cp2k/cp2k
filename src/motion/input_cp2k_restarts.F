@@ -1049,19 +1049,16 @@ CONTAINS
 
   END SUBROUTINE update_motion_pint
 
-  ! ***************************************************************************
-  !> \brief  Update HELIUM section in the input structure.
-  !> \date   2009-11-12
-  !> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
-  !> \descr  Transfer the current helium state from the runtime environment
-  !>         to the input structure, so that it can be used for I/O, etc.
-  !> \note   Moved from the helium_io module directly, might be done better way
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Update HELIUM section in the input structure.
 !> \param motion_section ...
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-12
+!> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
+!> \descr  Transfer the current helium state from the runtime environment UNKNOWN_DOXYGEN_COMMENT
+!>         to the input structure, so that it can be used for I/O, etc. UNKNOWN_DOXYGEN_COMMENT
+!> \note   Moved from the helium_io module directly, might be done better way
 ! *****************************************************************************
   SUBROUTINE update_motion_helium(motion_section, helium, error)
 

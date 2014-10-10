@@ -38,19 +38,15 @@ MODULE pint_normalmode
 
 CONTAINS
 
-  ! ***************************************************************************
-  !> \brief creates the data needed for a normal mode transformation
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief creates the data needed for a normal mode transformation
 !> \param normalmode_env ...
 !> \param normalmode_section ...
 !> \param p ...
 !> \param kT ...
-!> \param error ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_env_create(normalmode_env,normalmode_section,p,kT,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
@@ -128,17 +124,12 @@ CONTAINS
     END IF
   END SUBROUTINE normalmode_env_create
 
-  ! ***************************************************************************
-  !> \brief releases the normalmode environment
-  !> \param normalmode_env the normalmode_env to release
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param normalmode_env ...
-!> \param error ...
+! ***************************************************************************
+!> \brief releases the normalmode environment
+!> \param normalmode_env the normalmode_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_release(normalmode_env,error)
 
@@ -170,17 +161,12 @@ CONTAINS
     RETURN
   END SUBROUTINE normalmode_release
 
-  ! ***************************************************************************
-  !> \brief retains a normalmode_env
-  !> \param normalmode_env the normalmode_env to retain
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param normalmode_env ...
-!> \param error ...
+! ***************************************************************************
+!> \brief retains a normalmode_env
+!> \param normalmode_env the normalmode_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_retain(normalmode_env,error)
 
@@ -203,26 +189,18 @@ CONTAINS
     RETURN
   END SUBROUTINE normalmode_retain
 
-  ! ***************************************************************************
-  !> \brief initializes the masses and fictitious masses compatible with the
-  !>      normal mode information
-  !> \param normalmode_env the definition of the normal mode transformation
-  !> \param masses *input* the masses of the particles
-  !> \param mass_beads masses of the beads
-  !> \param mass_fict the fictitious masses
-  !> \param Q masses of the nose thermostats
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param normalmode_env ...
+! ***************************************************************************
+!> \brief initializes the masses and fictitious masses compatible with the
+!>      normal mode information
+!> \param normalmode_env the definition of the normal mode transformation
 !> \param mass ...
-!> \param mass_beads ...
-!> \param mass_fict ...
-!> \param Q ...
-!> \param error ...
+!> \param mass_beads masses of the beads
+!> \param mass_fict the fictitious masses
+!> \param Q masses of the nose thermostats
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \param masses *input* the masses of the particles UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_init_masses(normalmode_env,mass,mass_beads,mass_fict,&
      Q,error)
@@ -270,22 +248,15 @@ CONTAINS
     RETURN
   END SUBROUTINE normalmode_init_masses
 
-  ! ***************************************************************************
-  !> \brief Transforms from the x into the u variables using a normal mode
-  !>      transformation for the positions
-  !> \param normalmode_env the environment for the normal mode transformation
-  !> \param ux will contain the u variable
-  !> \param x the positions to transform
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param normalmode_env ...
-!> \param ux ...
-!> \param x ...
-!> \param error ...
+! ***************************************************************************
+!> \brief Transforms from the x into the u variables using a normal mode
+!>      transformation for the positions
+!> \param normalmode_env the environment for the normal mode transformation
+!> \param ux will contain the u variable
+!> \param x the positions to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_x2u(normalmode_env,ux,x,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
@@ -312,22 +283,15 @@ CONTAINS
     RETURN
   END SUBROUTINE normalmode_x2u
 
-  ! ***************************************************************************
-  !> \brief transform from the u variable to the x (back normal mode
-  !>      transformation for the positions)
-  !> \param normalmode_env the environment for the normal mode transformation
-  !> \param ux the u variable (positions to be backtransformed)
-  !> \param x will contain the positions
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param normalmode_env ...
-!> \param ux ...
-!> \param x ...
-!> \param error ...
+! ***************************************************************************
+!> \brief transform from the u variable to the x (back normal mode
+!>      transformation for the positions)
+!> \param normalmode_env the environment for the normal mode transformation
+!> \param ux the u variable (positions to be backtransformed)
+!> \param x will contain the positions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_u2x(normalmode_env,ux,x,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
@@ -354,21 +318,14 @@ CONTAINS
     RETURN
   END SUBROUTINE normalmode_u2x
 
-  ! ***************************************************************************
-  !> \brief normalmode transformation for the forces
-  !> \param normalmode_env the environment for the normal mode transformation
-  !> \param uf will contain the forces for the transformed variables afterwards
-  !> \param f the forces to transform
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param normalmode_env ...
-!> \param uf ...
-!> \param f ...
-!> \param error ...
+! ***************************************************************************
+!> \brief normalmode transformation for the forces
+!> \param normalmode_env the environment for the normal mode transformation
+!> \param uf will contain the forces for the transformed variables afterwards
+!> \param f the forces to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_f2uf(normalmode_env,uf,f,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
@@ -395,24 +352,16 @@ CONTAINS
     RETURN
   END SUBROUTINE normalmode_f2uf
 
-  ! ***************************************************************************
-  !> \brief calculates the harmonic force in the normal mode basis
-  !> \param normalmode_env the normal mode environment
-  !> \param mass_beads the masses of the beads
-  !> \param ux the positions of the beads in the staging basis
-  !> \param uf_h the harmonic forces (not accelerations)
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Harald Forbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param normalmode_env ...
-!> \param mass_beads ...
-!> \param ux ...
-!> \param uf_h ...
+! ***************************************************************************
+!> \brief calculates the harmonic force in the normal mode basis
+!> \param normalmode_env the normal mode environment
+!> \param mass_beads the masses of the beads
+!> \param ux the positions of the beads in the staging basis
+!> \param uf_h the harmonic forces (not accelerations)
 !> \param e_h ...
-!> \param error ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_calc_uf_h(normalmode_env,mass_beads,ux,uf_h,e_h,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env

@@ -64,15 +64,12 @@ MODULE helium_io
   CONTAINS
 
 
-  ! ***************************************************************************
-  !> \brief  Write helium parameters to the output unit.
-  !> \author Lukasz Walewski
-  !> \date   2009-06-03
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write helium parameters to the output unit.
 !> \param helium ...
 !> \param error ...
+!> \date   2009-06-03
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_setup( helium, error )
 
@@ -243,15 +240,12 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_setup
 
-  ! ***************************************************************************
-  !> \brief  Writes out a line of text to the default output unit.
-  !> \author Lukasz Walewski
-  !> \date   2009-07-10
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes out a line of text to the default output unit.
 !> \param line ...
 !> \param error ...
+!> \date   2009-07-10
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_line(line,error)
 
@@ -277,15 +271,12 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_line
 
-  ! ***************************************************************************
-  !> \brief  Writes out helium energies according to HELIUM%PRINT%ENERGY
-  !> \author Lukasz Walewski
-  !> \date   2009-06-08
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes out helium energies according to HELIUM%PRINT%ENERGY
 !> \param helium ...
 !> \param error ...
+!> \date   2009-06-08
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_energy( helium, error )
 
@@ -361,15 +352,12 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_energy
 
-  ! ***************************************************************************
-  !> \brief  Writes out helium energies according to HELIUM%PRINT%SDENSITY
-  !> \author Lukasz Walewski
-  !> \date   2010-06-15
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes out helium energies according to HELIUM%PRINT%SDENSITY
 !> \param helium ...
 !> \param error ...
+!> \date   2010-06-15
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_sdensity( helium, error )
 
@@ -410,17 +398,14 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_sdensity
 
-  ! ***************************************************************************
-  !> \brief  Writes out helium winding number according to HELIUM%PRINT%WNUMBER
-  !> \author Lukasz Walewski
-  !> \date   2009-10-19
-  !> \par    History
-  !>         2010-06-15 output W for each He environment/processor [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes out helium winding number according to HELIUM%PRINT%WNUMBER
 !> \param helium ...
 !> \param error ...
+!> \date   2009-10-19
+!> \par    History
+!>         2010-06-15 output W for each He environment/processor [lwalewski]
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_wnumber( helium, error )
 
@@ -475,15 +460,12 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_wnumber
 
-  ! ***************************************************************************
-  !> \brief  Writes out acceptance counts according to HELIUM%PRINT%ACCEPTS
-  !> \author Lukasz Walewski
-  !> \date   2010-05-27
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes out acceptance counts according to HELIUM%PRINT%ACCEPTS
 !> \param helium ...
 !> \param error ...
+!> \date   2010-05-27
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_accepts( helium, error )
 
@@ -546,15 +528,12 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_accepts
 
-  ! ***************************************************************************
-  !> \brief  Writes out permutation state according to HELIUM%PRINT%PERM
-  !> \author Lukasz Walewski
-  !> \date   2010-06-07
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes out permutation state according to HELIUM%PRINT%PERM
 !> \param helium ...
 !> \param error ...
+!> \date   2010-06-07
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_perm( helium, error )
 
@@ -616,20 +595,17 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_perm
 
-  ! ***************************************************************************
-  !> \brief  Writes helium configuration according to HELIUM%PRINT%COORDINATES
-  !> \author Lukasz Walewski
-  !> \date   2009-07-16
-  !> \note   particle_types->write_particle_coordinates is of no use here,
-  !>         since it does not support atom connectivity information needed
-  !>         for helium paths
-  !> \par    History
-  !>         2010-02-15 output from all processors added [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Writes helium configuration according to HELIUM%PRINT%COORDINATES
 !> \param helium ...
 !> \param error ...
+!> \date   2009-07-16
+!> \par    History
+!>         2010-02-15 output from all processors added [lwalewski]
+!> \author Lukasz Walewski
+!> \note   particle_types->write_particle_coordinates is of no use here,
+!>         since it does not support atom connectivity information needed
+!>         for helium paths
 ! *****************************************************************************
   SUBROUTINE helium_write_coordinates( helium, error )
 
@@ -856,15 +832,12 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_coordinates
 
-  ! ***************************************************************************
-  !> \brief  Write helium RDF according to HELIUM%PRINT%RDF
-  !> \author Lukasz Walewski
-  !> \date   2009-07-23
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write helium RDF according to HELIUM%PRINT%RDF
 !> \param helium ...
 !> \param error ...
+!> \date   2009-07-23
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_rdf( helium, error )
 
@@ -918,18 +891,15 @@ MODULE helium_io
   END SUBROUTINE helium_write_rdf
 
 
-  ! ***************************************************************************
-  !> \brief  Write helium densities according to HELIUM%PRINT%RHO
-  !> \author Lukasz Walewski
-  !> \date   2011-06-21
-  !> \par    History
-  !>         2011-11-11 output of any number of density estimators to different
-  !>                    files according to helium%rho_num
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write helium densities according to HELIUM%PRINT%RHO
 !> \param helium ...
 !> \param error ...
+!> \date   2011-06-21
+!> \par    History
+!>         2011-11-11 output of any number of density estimators to different
+!>                    files according to helium%rho_num
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_rho( helium, error )
 
@@ -1042,15 +1012,12 @@ MODULE helium_io
   END SUBROUTINE helium_write_rho
 
 
-  ! ***************************************************************************
-  !> \brief  Write helium permutation length according to HELIUM%PRINT%PLENGTH
-  !> \author Lukasz Walewski
-  !> \date   2010-06-07
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write helium permutation length according to HELIUM%PRINT%PLENGTH
 !> \param helium ...
 !> \param error ...
+!> \date   2010-06-07
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_plength( helium, error )
 
@@ -1102,15 +1069,12 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_plength
 
-  ! ***************************************************************************
-  !> \brief  Write helium force according to HELIUM%PRINT%FORCE
-  !> \author Lukasz Walewski
-  !> \date   2010-01-27
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write helium force according to HELIUM%PRINT%FORCE
 !> \param helium ...
 !> \param error ...
+!> \date   2010-01-27
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_write_force( helium, error )
 
@@ -1181,20 +1145,17 @@ MODULE helium_io
     RETURN
   END SUBROUTINE helium_write_force
 
-  ! ***************************************************************************
-  !> \brief  Write instantaneous helium forces
-  !> \author Lukasz Walewski
-  !> \date   2010-01-29
-  !>
-  !> Collects instantaneous helium forces from all processors on
-  !> logger%para_env%source and writes them to files - one file per processor.
-  !> This subroutine does message passing, frequent calls can slow down your
-  !> code significantly.
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Write instantaneous helium forces
 !> \param helium ...
 !> \param error ...
+!> \date   2010-01-29
+!> \author Lukasz Walewski
+!>
+!> \note UNKNOWN_COMMENT  Collects instantaneous helium forces from all processors on
+!> \note UNKNOWN_COMMENT  logger%para_env%source and writes them to files - one file per processor.
+!> \note UNKNOWN_COMMENT  This subroutine does message passing, frequent calls can slow down your
+!> \note UNKNOWN_COMMENT  code significantly.
 ! *****************************************************************************
   SUBROUTINE helium_write_force_inst( helium, error )
 

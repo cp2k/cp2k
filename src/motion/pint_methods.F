@@ -110,22 +110,19 @@ MODULE pint_methods
 
 CONTAINS
 
-  ! ***************************************************************************
-  !> \brief  Create a path integral environment
-  !> \author fawzi
-  !> \note   Might return an unassociated pointer in parallel on the processors
-  !>         that are not needed.
-  !> \par    History
-  !>           Fixed some bugs [hforbert]
-  !>           Added normal mode transformation [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Create a path integral environment
 !> \param pint_env ...
 !> \param input ...
 !> \param input_declaration ...
 !> \param para_env ...
 !> \param error ...
+!> \par    History
+!>           Fixed some bugs [hforbert]
+!>           Added normal mode transformation [hforbert]
+!> \author fawzi
+!> \note   Might return an unassociated pointer in parallel on the processors
+!>         that are not needed.
 ! *****************************************************************************
   SUBROUTINE pint_create(pint_env,input,input_declaration,para_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -430,17 +427,12 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_create
 
-  ! ***************************************************************************
-  !> \brief Retain a path integral environment
-  !> \param pint_env the pint_env to retain
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Fawzi Mohamed
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param error ...
+! ***************************************************************************
+!> \brief Retain a path integral environment
+!> \param pint_env the pint_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE pint_retain(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -461,19 +453,14 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_retain
 
-  ! ***************************************************************************
-  !> \brief Release a path integral environment
-  !> \param pint_env the pint_env to release
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author Fawzi Mohamed
-  !> \par History
-  !>      Added normal mode transformation [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param error ...
+! ***************************************************************************
+!> \brief Release a path integral environment
+!> \param pint_env the pint_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation [hforbert]
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE pint_release(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -566,20 +553,14 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_release
 
-  ! ***************************************************************************
-  !> \brief Tests the path integral methods
-  !> \param para_env parallel environment
-  !> \param input the input to test
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param input ...
+! ***************************************************************************
+!> \brief Tests the path integral methods
+!> \param para_env parallel environment
+!> \param input the input to test
 !> \param input_declaration ...
-!> \param error ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_test(para_env,input,input_declaration,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -647,25 +628,19 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_test
 
-  ! ***************************************************************************
-  !> \brief  Perform a path integral simulation
-  !> \param  para_env parallel environment
-  !> \param  input the input to test
-  !> \param  error variable to control error logging, stopping,...
-  !>         see module cp_error_handling
-  !> \author Fawzi Mohamed
-  !> \par    History
-  !>         2003-11 created [fawzi]
-  !>         2009-12-14 globenv parameter added to handle soft exit
-  !>           requests [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param input ...
+! ***************************************************************************
+!> \brief  Perform a path integral simulation
+!> \param  para_env parallel environment
+!> \param  input the input to test
 !> \param input_declaration ...
 !> \param globenv ...
-!> \param error ...
+!> \param  error variable to control error logging, stopping,...
+!>         see module cp_error_handling
+!> \par    History
+!>         2003-11 created [fawzi]
+!>         2009-12-14 globenv parameter added to handle soft exit
+!>           requests [lwalewski]
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE do_pint_run( para_env, input, input_declaration, globenv, error )
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -773,18 +748,15 @@ CONTAINS
     RETURN
   END SUBROUTINE do_pint_run
 
-  ! ***************************************************************************
-  !> \brief  Reads the restart, initializes the beads, etc.
-  !> \author Fawzi Mohamed
-  !> \par    History
-  !>           11.2003 created [fawzi]
-  !>           actually ASSIGN input pointer [hforbert]
-  !>           2010-12-16 turned into a wrapper routine [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Reads the restart, initializes the beads, etc.
 !> \param pint_env ...
 !> \param error ...
+!> \par    History
+!>           11.2003 created [fawzi]
+!>           actually ASSIGN input pointer [hforbert]
+!>           2010-12-16 turned into a wrapper routine [lwalewski]
+!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE pint_init(pint_env, error)
 
@@ -812,24 +784,21 @@ CONTAINS
   END SUBROUTINE pint_init
 
 
-  ! ***************************************************************************
-  !> \brief  Assign initial postions to the beads.
-  !> \author Lukasz Walewski
-  !> \date   2010-12-15
-  !> \descr  Initialization is done in the following way:
-  !>           1. assign all beads with the same classical positions from
-  !>              FORCE_EVAL (hot start)
-  !>           2. spread the beads around classical positions as if they were
-  !>              free particles (if requested)
-  !>           3. replace positions generated in steps 1-2 with the explicit
-  !>              ones if they are explicitly given in the input structure
-  !>           4. apply Gaussian noise to the positions generated so far (if
-  !>              requested)
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Assign initial postions to the beads.
 !> \param pint_env ...
 !> \param error ...
+!> \date   2010-12-15
+!> \author Lukasz Walewski
+!> \descr  Initialization is done in the following way: UNKNOWN_DOXYGEN_COMMENT
+!>           1. assign all beads with the same classical positions from UNKNOWN_DOXYGEN_COMMENT
+!>              FORCE_EVAL (hot start) UNKNOWN_DOXYGEN_COMMENT
+!>           2. spread the beads around classical positions as if they were UNKNOWN_DOXYGEN_COMMENT
+!>              free particles (if requested) UNKNOWN_DOXYGEN_COMMENT
+!>           3. replace positions generated in steps 1-2 with the explicit UNKNOWN_DOXYGEN_COMMENT
+!>              ones if they are explicitly given in the input structure UNKNOWN_DOXYGEN_COMMENT
+!>           4. apply Gaussian noise to the positions generated so far (if UNKNOWN_DOXYGEN_COMMENT
+!>              requested) UNKNOWN_DOXYGEN_COMMENT
 ! *****************************************************************************
   SUBROUTINE pint_init_x( pint_env, error )
 
@@ -1003,33 +972,28 @@ CONTAINS
   END SUBROUTINE pint_init_x
 
 
-  ! ***************************************************************************
-  !> \brief  Initialize velocities
-  !> \param  pint_env the pint env in which you should initialize the
-  !>         velocity
-  !> \param  error variable to control error logging, stopping,...
-  !>         see module cp_error_handling
-  !> \par    History
-  !>         2010-12-16 gathered all velocity-init code here [lwalewski]
-  !>         2011-04-05 added centroid velocity initialization [lwalewski]
-  !>         2011-12-19 removed optional parameter kT, target temperature is
-  !>                    now determined from the input directly [lwalewski]
-  !> \note   Initialization is done according to the following protocol:
-  !>         1. set all the velocities to FORCE_EVAL%SUBSYS%VELOCITY if present
-  !>         2. scale the velocities according to the actual temperature
-  !>            (has no effect if vels not present in 1.)
-  !>         3. draw vels for the remaining dof from MB distribution
-  !>            (all or non-centroid modes only depending on 1.)
-  !>         4. add random noise to the centroid vels if CENTROID_SPEED == T
-  !>         5. set the vels for all dof to 0.0 if VELOCITY_QUENCH == T
-  !>         6. set the vels according to the explicit values from the input
-  !>            if present
-  !> \author fawzi
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param error ...
+! ***************************************************************************
+!> \brief  Initialize velocities
+!> \param  pint_env the pint env in which you should initialize the
+!>         velocity
+!> \param  error variable to control error logging, stopping,...
+!>         see module cp_error_handling
+!> \par    History
+!>         2010-12-16 gathered all velocity-init code here [lwalewski]
+!>         2011-04-05 added centroid velocity initialization [lwalewski]
+!>         2011-12-19 removed optional parameter kT, target temperature is
+!>                    now determined from the input directly [lwalewski]
+!> \author fawzi
+!> \note   Initialization is done according to the following protocol:
+!>         1. set all the velocities to FORCE_EVAL%SUBSYS%VELOCITY if present
+!>         2. scale the velocities according to the actual temperature
+!>            (has no effect if vels not present in 1.)
+!>         3. draw vels for the remaining dof from MB distribution
+!>            (all or non-centroid modes only depending on 1.)
+!>         4. add random noise to the centroid vels if CENTROID_SPEED == T
+!>         5. set the vels for all dof to 0.0 if VELOCITY_QUENCH == T
+!>         6. set the vels according to the explicit values from the input
+!>            if present
 ! *****************************************************************************
   SUBROUTINE pint_init_v( pint_env, error )
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1277,17 +1241,14 @@ CPSourceFileRef,&
   END SUBROUTINE pint_init_v
 
 
-  ! ***************************************************************************
-  !> \brief  Assign initial postions and velocities to the thermostats.
-  !> \author Lukasz Walewski
-  !> \date   2010-12-15
-  !> \note   Extracted from pint_init
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Assign initial postions and velocities to the thermostats.
 !> \param pint_env ...
 !> \param kT ...
 !> \param error ...
+!> \date   2010-12-15
+!> \author Lukasz Walewski
+!> \note   Extracted from pint_init
 ! *****************************************************************************
   SUBROUTINE pint_init_t( pint_env, kT, error )
 
@@ -1400,18 +1361,15 @@ CPSourceFileRef,&
   END SUBROUTINE pint_init_t
 
 
-  ! ***************************************************************************
-  !> \brief  Prepares the forces, etc. to perform an MD step
-  !> \author fawzi
-  !> \par    History
-  !>           Added nh_energy calculation [hforbert]
-  !>           Bug fixes for no thermostats [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Prepares the forces, etc. to perform an MD step
 !> \param pint_env ...
 !> \param helium_solvent ...
 !> \param error ...
+!> \par    History
+!>           Added nh_energy calculation [hforbert]
+!>           Bug fixes for no thermostats [hforbert]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_init_f( pint_env, helium_solvent, error )
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1485,23 +1443,20 @@ CPSourceFileRef,&
   END SUBROUTINE pint_init_f
 
 
-  ! ***************************************************************************
-  !> \brief  Perform the PIMD simulation (main MD loop)
-  !> \author Fawzi Mohamed
-  !> \note   Everything should be read for an md step.
-  !> \par    History
-  !>         2003-11 created [fawzi]
-  !>         renamed from pint_run to pint_do_run because of conflicting name
-  !>           of pint_run in input_constants [hforbert]
-  !>         2009-12-14 globenv parameter added to handle soft exit
-  !>           requests [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Perform the PIMD simulation (main MD loop)
 !> \param pint_env ...
 !> \param globenv ...
 !> \param helium ...
 !> \param error ...
+!> \par    History
+!>         2003-11 created [fawzi]
+!>         renamed from pint_run to pint_do_run because of conflicting name
+!>           of pint_run in input_constants [hforbert]
+!>         2009-12-14 globenv parameter added to handle soft exit
+!>           requests [lwalewski]
+!> \author Fawzi Mohamed
+!> \note   Everything should be read for an md step.
 ! *****************************************************************************
   SUBROUTINE pint_do_run(pint_env, globenv, helium, error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1577,17 +1532,14 @@ CPSourceFileRef,&
   END SUBROUTINE pint_do_run
 
 
-  ! ***************************************************************************
-  !> \brief  Does an MD step (and nrespa harmonic evaluations)
-  !> \author fawzi
-  !> \par    History
-  !>           various bug fixes [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Does an MD step (and nrespa harmonic evaluations)
 !> \param pint_env ...
 !> \param helium_solvent ...
 !> \param error ...
+!> \par    History
+!>           various bug fixes [hforbert]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_step(pint_env,helium_solvent,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1760,15 +1712,12 @@ CPSourceFileRef,&
   END SUBROUTINE pint_step
 
 
-  ! ***************************************************************************
-  !> \brief  Calculate the energy components (private wrapper function)
-  !> \author Lukasz Walewski
-  !> \date   2011-01-07
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Calculate the energy components (private wrapper function)
 !> \param pint_env ...
 !> \param error ...
+!> \date   2011-01-07
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE pint_calc_energy( pint_env, error )
 
@@ -1804,21 +1753,16 @@ CPSourceFileRef,&
     RETURN
   END SUBROUTINE pint_calc_energy
 
-  ! ***************************************************************************
-  !> \brief  Calculate the harmonic force in the u basis
-  !> \param  pint_env the path integral environment in which the harmonic
-  !>         forces should be calculated
-  !> \param  error variable to control error logging, stopping,...
-  !>         see module cp_error_handling
-  !> \author fawzi
-  !> \par    History
-  !>           Added normal mode transformation [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
+! ***************************************************************************
+!> \brief  Calculate the harmonic force in the u basis
+!> \param  pint_env the path integral environment in which the harmonic
+!>         forces should be calculated
 !> \param e_h ...
-!> \param error ...
+!> \param  error variable to control error logging, stopping,...
+!>         see module cp_error_handling
+!> \par    History
+!>           Added normal mode transformation [hforbert]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_calc_uf_h(pint_env,e_h,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1854,27 +1798,19 @@ CPSourceFileRef,&
     RETURN
   END SUBROUTINE pint_calc_uf_h
 
-  ! ***************************************************************************
-  !> \brief calculates the force (and energy) in each bead, returns the sum
-  !>      of the potential energy
-  !> \param pint_env path integral environment on which you want to calculate
-  !>        the forces
-  !> \param x positions at which you want to evaluate the forces
-  !> \param f the forces
-  !> \param e potential energy on each bead
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  !> \par    History
-  !>           2009-06-15 moved helium calls out from here [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param x ...
-!> \param f ...
-!> \param e ...
-!> \param error ...
+! ***************************************************************************
+!> \brief calculates the force (and energy) in each bead, returns the sum
+!>      of the potential energy
+!> \param pint_env path integral environment on which you want to calculate
+!>        the forces
+!> \param x positions at which you want to evaluate the forces
+!> \param f the forces
+!> \param e potential energy on each bead
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par    History
+!>           2009-06-15 moved helium calls out from here [lwalewski]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1923,20 +1859,16 @@ CPSourceFileRef,&
     RETURN
   END SUBROUTINE pint_calc_f
 
-  ! ***************************************************************************
-  !> \brief  Calculate the kinetic energy of the beads (in the u variables)
-  !> \param  error variable to control error logging, stopping,...
-  !>         see module cp_error_handling
-  !> \author fawzi
-  !> \par    History
-  !>         Bug fix to give my_uv a default location if not given in call [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Calculate the kinetic energy of the beads (in the u variables)
 !> \param pint_env ...
 !> \param uv ...
 !> \param e_k ...
-!> \param error ...
+!> \param  error variable to control error logging, stopping,...
+!>         see module cp_error_handling
+!> \par    History
+!>         Bug fix to give my_uv a default location if not given in call [hforbert]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_calc_e_kin_beads_u(pint_env,uv,e_k,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -1974,17 +1906,14 @@ CPSourceFileRef,&
     RETURN
   END SUBROUTINE pint_calc_e_kin_beads_u
 
-  ! ***************************************************************************
-  !> \brief  Calculate the virial estimator of the real (quantum) kinetic energy
-  !> \author hforbert
-  !> \note   This subroutine modifies pint_env%energy(e_kin_virial_id) global
-  !>         variable [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Calculate the virial estimator of the real (quantum) kinetic energy
 !> \param pint_env ...
 !> \param e_vir ...
 !> \param error ...
+!> \author hforbert
+!> \note   This subroutine modifies pint_env%energy(e_kin_virial_id) global
+!>         variable [lwalewski]
 ! *****************************************************************************
   SUBROUTINE pint_calc_e_vir(pint_env,e_vir,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -2023,18 +1952,13 @@ CPSourceFileRef,&
     RETURN
   END SUBROUTINE pint_calc_e_vir
 
-  ! ***************************************************************************
-  !> \brief calculates the energy (potential and kinetic) of the Nose-Hoover
-  !>      chain thermostats
-  !> \param pint_env the path integral environment
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param error ...
+! ***************************************************************************
+!> \brief calculates the energy (potential and kinetic) of the Nose-Hoover
+!>      chain thermostats
+!> \param pint_env the path integral environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_calc_nh_energy(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env

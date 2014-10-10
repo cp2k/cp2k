@@ -154,25 +154,17 @@ CONTAINS
     END SELECT
   END SUBROUTINE b97_ref
 
-  ! *****************************************************************************
-  !> \brief return various information on the functional
-  !> \param b97_params section selecting the varius parameters for the functional
-  !> \param reference string with the reference of the actual functional
-  !> \param shortform string with the shortform of the functional name
-  !> \param needs the components needed by this functional are set to
-  !>        true (does not set the unneeded components to false)
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
-!> \param b97_params ...
-!> \param reference ...
-!> \param shortform ...
-!> \param needs ...
+!> \brief return various information on the functional
+!> \param b97_params section selecting the varius parameters for the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE b97_lda_info(b97_params,reference,shortform, needs, max_deriv,&
        error)
@@ -204,25 +196,17 @@ CONTAINS
 
   END SUBROUTINE b97_lda_info
 
-  ! *****************************************************************************
-  !> \brief return various information on the functional
-  !> \param b97_params section selecting the varius parameters for the functional
-  !> \param reference string with the reference of the actual functional
-  !> \param shortform string with the shortform of the functional name
-  !> \param needs the components needed by this functional are set to
-  !>        true (does not set the unneeded components to false)
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
-!> \param b97_params ...
-!> \param reference ...
-!> \param shortform ...
-!> \param needs ...
+!> \brief return various information on the functional
+!> \param b97_params section selecting the varius parameters for the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
 !> \param max_deriv ...
-!> \param error ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE b97_lsd_info(b97_params,reference,shortform, needs, max_deriv,&
        error)
@@ -254,25 +238,18 @@ CONTAINS
 
   END SUBROUTINE b97_lsd_info
 
-  ! *****************************************************************************
-  !> \brief evaluates the b97 correlation functional for lda
-  !> \param rho_set the density where you want to evaluate the functional
-  !> \param deriv_set place where to store the functional derivatives (they are
-  !>        added to the derivatives)
-  !> \param grad_deriv degree of the derivative that should be evalated,
-  !>        if positive all the derivatives up to the given degree are evaluated,
-  !>        if negative only the given degree is calculated
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
-!> \param rho_set ...
-!> \param deriv_set ...
-!> \param grad_deriv ...
+!> \brief evaluates the b97 correlation functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
 !> \param b97_params ...
-!> \param error ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE b97_lda_eval(rho_set,deriv_set,grad_deriv,b97_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -405,19 +382,15 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE b97_lda_eval
 
-  ! *****************************************************************************
-  !> \brief evaluates the b 97 xc functional for lsd
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
+!> \brief evaluates the b 97 xc functional for lsd
 !> \param rho_set ...
 !> \param deriv_set ...
 !> \param grad_deriv ...
 !> \param b97_params ...
-!> \param error ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE b97_lsd_eval(rho_set,deriv_set,grad_deriv,b97_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set

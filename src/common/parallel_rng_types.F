@@ -688,13 +688,7 @@ CONTAINS
 
   END SUBROUTINE dump_rng_stream
 
-  ! ***************************************************************************
-  !> \par History
-  !>      2009-11-04 changed bg, cg and ig type from INTEGER, DIMENSION(3, 2)
-  !>      to REAL(KIND=dp), DIMENSION(3, 2) [lwalewski]
-  !>      2009-11-09 getting the buffer and buffer_filled components
-  !>      added [lwalewski]
-  ! ***************************************************************************
+! ***************************************************************************
 ! *****************************************************************************
 !> \brief ...
 !> \param rng_stream ...
@@ -708,6 +702,11 @@ CONTAINS
 !> \param buffer ...
 !> \param buffer_filled ...
 !> \param error ...
+!> \par History
+!>      2009-11-04 changed bg, cg and ig type from INTEGER, DIMENSION(3, 2)
+!>      to REAL(KIND=dp), DIMENSION(3, 2) [lwalewski]
+!>      2009-11-09 getting the buffer and buffer_filled components
+!>      added [lwalewski]
 ! *****************************************************************************
   SUBROUTINE get_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             antithetic,extended_precision,&
@@ -1477,11 +1476,7 @@ CONTAINS
 
   END FUNCTION rn53
 
-  ! ***************************************************************************
-  !> \par History
-  !>      2009-11-09 setting the buffer and buffer_filled components
-  !>      added [lwalewski]
-  ! *****************************************************************************
+! ***************************************************************************
 ! *****************************************************************************
 !> \brief ...
 !> \param rng_stream ...
@@ -1496,6 +1491,9 @@ CONTAINS
 !> \param buffer ...
 !> \param buffer_filled ...
 !> \param error ...
+!> \par History
+!>      2009-11-09 setting the buffer and buffer_filled components
+!>      added [lwalewski]
 ! *****************************************************************************
   SUBROUTINE set_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             seed,antithetic,extended_precision,&

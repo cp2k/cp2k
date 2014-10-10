@@ -27,24 +27,17 @@ MODULE pint_transformations
 
 CONTAINS
 
-  ! ***************************************************************************
-  !> \brief Transforms from the x into the u variables
-  !>      (at the moment a staging transformation for the positions)
-  !> \param pint_env the path integral environment
-  !> \param ux will contain the u variable (defaults to pint_env%ux)
-  !> \param x the positions to transform (defaults to pint_env%x)
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  !> \par History
-  !>      Added normal mode transformation [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param ux ...
-!> \param x ...
-!> \param error ...
+! ***************************************************************************
+!> \brief Transforms from the x into the u variables
+!>      (at the moment a staging transformation for the positions)
+!> \param pint_env the path integral environment
+!> \param ux will contain the u variable (defaults to pint_env%ux)
+!> \param x the positions to transform (defaults to pint_env%x)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation [hforbert]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_x2u(pint_env,ux,x,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -81,23 +74,16 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_x2u
 
-  ! ***************************************************************************
-  !> \brief transform from the u variable to the x (inverse of x2u)
-  !> \param pint_env path integral environment
-  !> \param ux the u variable (positions to be backtransformed)
-  !> \param x will contain the positions
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  !> \par History
-  !>      Added normal mode transformation by hforbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param ux ...
-!> \param x ...
-!> \param error ...
+! ***************************************************************************
+!> \brief transform from the u variable to the x (inverse of x2u)
+!> \param pint_env path integral environment
+!> \param ux the u variable (positions to be backtransformed)
+!> \param x will contain the positions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation by hforbert
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_u2x(pint_env,ux,x,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -134,26 +120,19 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_u2x
 
-  ! ***************************************************************************
-  !> \brief transformation x to u for the forces
-  !> \param pint_env the path integral environment
-  !> \param uf will contain the accelerations for the transformed variables
-  !>        afterwards
-  !> \param f the forces to transform
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
-  !> \author fawzi
-  !> \par History
-  !>      Added normal mode transformation [hforbert]
-  !>      Divide forces by the number of beads, since the replication
-  !>        environment (should) give raw forces [hforbert]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param pint_env ...
-!> \param uf ...
-!> \param f ...
-!> \param error ...
+! ***************************************************************************
+!> \brief transformation x to u for the forces
+!> \param pint_env the path integral environment
+!> \param uf will contain the accelerations for the transformed variables
+!>        afterwards
+!> \param f the forces to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation [hforbert]
+!>      Divide forces by the number of beads, since the replication
+!>        environment (should) give raw forces [hforbert]
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE pint_f2uf(pint_env,uf,f,error)
     TYPE(pint_env_type), POINTER             :: pint_env

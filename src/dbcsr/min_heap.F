@@ -133,17 +133,11 @@ CONTAINS
     heap%n = 0
   END SUBROUTINE heap_release
 
-  !> \brief Fill heap with given keys and values
-  !> \param[in,out] heap  Heap to fill.
-  !> \param[in] keys      Keys to store in heap
-  !> \param[in] values    Values (i.e., costs) of the keys.
-  !> \param[out] error    Error occurred.
-! *****************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param keys ...
-!> \param values ...
-!> \param error ...
+!> \brief Fill heap with given keys and values
+!> \param[in,out] heap  Heap to fill.
+!> \param[in] keys      Keys to store in heap
+!> \param[in] values    Values (i.e., costs) of the keys.
+!> \param[out] error    Error occurred.
 ! *****************************************************************************
   SUBROUTINE heap_fill (heap, keys, values, error)
     TYPE(heap_t), INTENT(INOUT)              :: heap

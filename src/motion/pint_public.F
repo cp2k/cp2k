@@ -30,18 +30,15 @@ MODULE pint_public
 
   CONTAINS
 
-  ! ***************************************************************************
-  !> \brief  Return the center of mass of the PI system
-  !> \author Lukasz Walewski
-  !> \date   2009-07-24
-  !> \par    History
-  !>           2009-11-30 fixed serious bug in pint_env%x indexing [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Return the center of mass of the PI system
 !> \param pint_env ...
 !> \param error ...
 !> \retval com_r ...
+!> \date   2009-07-24
+!> \par    History
+!>           2009-11-30 fixed serious bug in pint_env%x indexing [lwalewski]
+!> \author Lukasz Walewski
 ! *****************************************************************************
   FUNCTION pint_com_pos(pint_env,error) RESULT(com_r)
 
@@ -78,16 +75,13 @@ MODULE pint_public
     RETURN
   END FUNCTION pint_com_pos
 
-  ! ***************************************************************************
-  !> \brief  Return the center of geometry of the PI system
-  !> \author Lukasz Walewski
-  !> \date   2009-11-30
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Return the center of geometry of the PI system
 !> \param pint_env ...
 !> \param error ...
 !> \retval cntrd_r ...
+!> \date   2009-11-30
+!> \author Lukasz Walewski
 ! *****************************************************************************
   FUNCTION pint_cog_pos(pint_env,error) RESULT(cntrd_r)
 
@@ -117,23 +111,20 @@ MODULE pint_public
     RETURN
   END FUNCTION pint_cog_pos
 
-  ! ***************************************************************************
-  !> \brief  Given the number of beads n and the variance t returns the
-  !>         positions of the beads for a non-interacting particle.
-  !> \author Lukasz Walewski
-  !> \date   2010-12-13
-  !> \descr  This routine implements Levy argorithm (see e.g. Rev. Mod. Phys.
-  !>         67 (1995) 279, eq. 5.35) and requires that n is a power of 2. The
-  !>         resulting bead positions are centered around (0,0,0).
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Given the number of beads n and the variance t returns the
+!>         positions of the beads for a non-interacting particle.
 !> \param n ...
 !> \param t ...
 !> \param rng_gaussian ...
 !> \param x ...
 !> \param nout ...
 !> \param error ...
+!> \date   2010-12-13
+!> \author Lukasz Walewski
+!> \descr  This routine implements Levy argorithm (see e.g. Rev. Mod. Phys. UNKNOWN_DOXYGEN_COMMENT
+!>         67 (1995) 279, eq. 5.35) and requires that n is a power of 2. The UNKNOWN_DOXYGEN_COMMENT
+!>         resulting bead positions are centered around (0,0,0). UNKNOWN_DOXYGEN_COMMENT
 ! *****************************************************************************
   SUBROUTINE pint_free_part_bead_x( n, t, rng_gaussian, x, nout, error)
 !
@@ -227,20 +218,17 @@ MODULE pint_public
   END SUBROUTINE pint_free_part_bead_x
 
 
-  ! ***************************************************************************
-  !> \brief  Perform a Brownian walk of length n around x0 with the variance v.
-  !> \author Lukasz Walewski
-  !> \date   2011-01-06
-  !> \descr  This routine implements Levy argorithm (Phys. Rev. 143 (1966) 58)
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Perform a Brownian walk of length n around x0 with the variance v.
 !> \param x0 ...
 !> \param n ...
 !> \param v ...
 !> \param x ...
 !> \param rng_gaussian ...
 !> \param error ...
+!> \date   2011-01-06
+!> \author Lukasz Walewski
+!> \descr  This routine implements Levy argorithm (Phys. Rev. 143 (1966) 58) UNKNOWN_DOXYGEN_COMMENT
 ! *****************************************************************************
   SUBROUTINE pint_levy_walk( x0, n, v, x, rng_gaussian, error )
 

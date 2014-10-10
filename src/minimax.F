@@ -26,18 +26,15 @@
 
    CONTAINS
 
- ! *****************************************************************************
- !> \brief Check that the range for the minimax approximation is not too small
- !>        for the chosen number of integration point, or that the number of 
- !>        integration point is not exceeding the maximum allowed by the actual 
- !>        implementation.
- !> \author Mauro Del Ben 
- ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
+!> \brief Check that the range for the minimax approximation is not too small
+!>        for the chosen number of integration point, or that the number of 
+!>        integration point is not exceeding the maximum allowed by the actual 
+!>        implementation.
 !> \param k ...
 !> \param Rc ...
 !> \param ierr ...
+!> \author Mauro Del Ben 
 ! *****************************************************************************
    SUBROUTINE check_range(k,Rc,ierr)
     INTEGER                                  :: k
@@ -88,20 +85,17 @@
 
    END SUBROUTINE check_range
 
- ! *****************************************************************************
- !> \brief The a_i and w_i coefficient are stored in aw such that the first 1:K 
- !>        elements correspond to a_i and the K+1:2k correspond to w_i.   
- !>        All a_i and w_i have been fitted with a 12th order polynomial as 
- !>        a function of Rc for each value of K.
- !> \author Mauro Del Ben 
- ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
+!> \brief The a_i and w_i coefficient are stored in aw such that the first 1:K 
+!>        elements correspond to a_i and the K+1:2k correspond to w_i.   
+!>        All a_i and w_i have been fitted with a 12th order polynomial as 
+!>        a function of Rc for each value of K.
 !> \param k ...
 !> \param Rc ...
 !> \param aw ...
 !> \param ierr ...
 !> \param error ...
+!> \author Mauro Del Ben 
 ! *****************************************************************************
    SUBROUTINE get_minimax_coeff(k,Rc,aw,ierr,error)
     INTEGER                                  :: k
