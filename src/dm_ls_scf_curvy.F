@@ -43,20 +43,17 @@ MODULE dm_ls_scf_curvy
 
 CONTAINS
 
-  ! *****************************************************************************
-  !> \brief driver routine for Head-Gordon curvy step approach  
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief driver routine for Head-Gordon curvy step approach  
 !> \param ls_scf_env ...
 !> \param energy ...
 !> \param check_conv ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE dm_ls_curvy_optimization(ls_scf_env,energy,check_conv,error)
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     REAL(KIND=dp)                            :: energy
@@ -146,21 +143,18 @@ CONTAINS
 
   END SUBROUTINE dm_ls_curvy_optimization
 
-  ! *****************************************************************************
-  !> \brief low level routine for Head-Gordons curvy step approach  
-  !>        computes gradients, performs a cg and line search, 
-  !>        and evaluates the BCH series to obtain the new P matrix
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief low level routine for Head-Gordons curvy step approach  
+!>        computes gradients, performs a cg and line search, 
+!>        and evaluates the BCH series to obtain the new P matrix
 !> \param curvy_data ...
 !> \param ls_scf_env ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE optimization_step(curvy_data,ls_scf_env,error)
     TYPE(ls_scf_curvy_type)                  :: curvy_data
     TYPE(ls_scf_env_type)                    :: ls_scf_env
@@ -222,21 +216,17 @@ CONTAINS
 
   END SUBROUTINE optimization_step
 
-  ! *****************************************************************************
-  !> \brief Perform a 6pnt-2D line search for spin polarized calculations.  
-  !>        Fit a 2D parabolic function to 6 points
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
-
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief Perform a 6pnt-2D line search for spin polarized calculations.  
+!>        Fit a 2D parabolic function to 6 points
 !> \param energies ...
 !> \param step_size ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE line_search_2d(energies,step_size,error)
     REAL(KIND=dp)                            :: energies(6), step_size(2)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -287,18 +277,16 @@ CONTAINS
     
   END SUBROUTINE line_search_2d    
 
-  ! *****************************************************************************
-  !> \brief Perform a 3pnt line search   
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
+!> \brief Perform a 3pnt line search   
 !> \param energies ...
 !> \param step_size ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE line_search_3pnt(energies,step_size,error)
     REAL(KIND=dp)                            :: energies(3), step_size(2)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -342,16 +330,9 @@ CONTAINS
     ENDIF
   END SUBROUTINE line_search_3pnt
 
-  ! *****************************************************************************
-  !> \brief Get a new search direction. Iterate to obtain a Newton like step 
-  !>        Refine with a CG update of the search direction   
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief Get a new search direction. Iterate to obtain a Newton like step 
+!>        Refine with a CG update of the search direction   
 !> \param matrix_p ...
 !> \param matrix_ks ...
 !> \param matrix_dp ...
@@ -362,7 +343,11 @@ CONTAINS
 !> \param cg_denom ...
 !> \param min_shift ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE compute_direction_newton(matrix_p,matrix_ks,matrix_dp,eps_filter,fix_shift,&
                                       curvy_shift,cg_numer,cg_denom,min_shift,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p, matrix_ks, matrix_dp
@@ -507,16 +492,9 @@ CONTAINS
 
               
 
-  ! *****************************************************************************
-  !> \brief compute the optimal step size of the current cycle and update the 
-  !>        matrices needed to solve the system of linear equations
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief compute the optimal step size of the current cycle and update the 
+!>        matrices needed to solve the system of linear equations
 !> \param Ax ...
 !> \param res ...
 !> \param cg ...
@@ -526,7 +504,11 @@ CONTAINS
 !> \param at_limit ...
 !> \param unit_nr ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE compute_cg_matrices(Ax,res,cg,deltp,tmp,eps_filter,at_limit,unit_nr,error)          
     TYPE(cp_dbcsr_type)                      :: Ax, res, cg, deltp, tmp
     REAL(KIND=dp)                            :: eps_filter
@@ -581,24 +563,20 @@ CONTAINS
      
   END SUBROUTINE compute_cg_matrices
 
-  ! *****************************************************************************
-  !> \brief Only for 2D line serach. Use saved P-components to construct new
-  !>        test density matrix. Takes care as well, whether step_size
-  !>        increased or decreased during 2nd step and combines matrices accordingly
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
-     
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief Only for 2D line serach. Use saved P-components to construct new
+!>        test density matrix. Takes care as well, whether step_size
+!>        increased or decreased during 2nd step and combines matrices accordingly
 !> \param matrix_p ...
 !> \param matrix_psave ...
 !> \param lsstep ...
 !> \param DOUBLE ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+     
   SUBROUTINE new_p_from_save(matrix_p,matrix_psave,lsstep,DOUBLE,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p
     TYPE(cp_dbcsr_type), DIMENSION(:, :)     :: matrix_psave
@@ -632,24 +610,19 @@ CONTAINS
    
   END SUBROUTINE new_p_from_save
 
-  ! *****************************************************************************
-  !> \brief computes a commutator exploiting symmetry RES=k*[A,B]=k*[AB-(AB)T]  
-  !> \param eps_filter   filtering threshold for sparse matrices 
-  !> \param prefac      prefactor k in above equation 
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
- 
 ! *****************************************************************************
-!> \brief ...
+!> \brief computes a commutator exploiting symmetry RES=k*[A,B]=k*[AB-(AB)T]  
 !> \param a ...
 !> \param b ...
 !> \param res ...
-!> \param eps_filter ...
-!> \param prefac ...
+!> \param eps_filter   filtering threshold for sparse matrices 
+!> \param prefac      prefactor k in above equation 
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE commutator_symm(a,b,res,eps_filter,prefac,error)
     TYPE(cp_dbcsr_type)                      :: a, b, res
     REAL(KIND=dp)                            :: eps_filter, prefac
@@ -675,18 +648,10 @@ CONTAINS
      CALL timestop(handle)
   END SUBROUTINE commutator_symm
  
-  ! *****************************************************************************
-  !> \brief Use the BCH update to get the new idempotent P
-  !>        Numerics don't allow for perfect idempotency, therefore a mc weeny 
-  !>        step is used to make sure we stay close to the idempotent surface  
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
- 
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief Use the BCH update to get the new idempotent P
+!>        Numerics don't allow for perfect idempotency, therefore a mc weeny 
+!>        step is used to make sure we stay close to the idempotent surface  
 !> \param matrix_p_in ...
 !> \param matrix_p_out ...
 !> \param matrix_dp ...
@@ -696,7 +661,11 @@ CONTAINS
 !> \param BCH_saved ...
 !> \param n_bch_hist ...
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+ 
   SUBROUTINE update_p_exp(matrix_p_in,matrix_p_out,matrix_dp,matrix_BCH,threshold,step_size,&
                           BCH_saved,n_bch_hist,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p_in, matrix_p_out, &
@@ -795,24 +764,18 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE update_p_exp
 
-  ! *****************************************************************************
-  !> \brief performs a tranformation of a matrix back to/into orthonormal basis  
-  !>        in case of P a scaling of 0.5 has to be applied for closed shell case
-  !> \param matrix       matrix to be transformed
-  !> \param matrix_trafo transformation matrix
-  !> \param eps_filter   filtering threshold for sparse matrices 
-  !> \par History
-  !>       2012.05 created [Florian Schiffmann]
-  !> \author Florian Schiffmann
-  ! *****************************************************************************
-
 ! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param matrix_trafo ...
-!> \param eps_filter ...
+!> \brief performs a tranformation of a matrix back to/into orthonormal basis  
+!>        in case of P a scaling of 0.5 has to be applied for closed shell case
+!> \param matrix       matrix to be transformed
+!> \param matrix_trafo transformation matrix
+!> \param eps_filter   filtering threshold for sparse matrices 
 !> \param error ...
+!> \par History
+!>       2012.05 created [Florian Schiffmann]
+!> \author Florian Schiffmann
 ! *****************************************************************************
+
   SUBROUTINE transform_matrix_orth(matrix,matrix_trafo,eps_filter,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix
     TYPE(cp_dbcsr_type)                      :: matrix_trafo
