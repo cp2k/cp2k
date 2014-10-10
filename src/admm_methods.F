@@ -72,6 +72,7 @@ MODULE admm_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_force
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1033,13 +1034,17 @@ MODULE admm_methods
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_type), POINTER             :: matrix_w_q, matrix_w_s
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_aux_fit, &
+                                                sab_aux_fit_asymm, &
+                                                sab_aux_fit_vs_orb
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    NULLIFY(matrix_w_q, matrix_w_s)
+    NULLIFY(matrix_w_q, matrix_w_s, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb)
 
     nao_aux_fit = admm_env%nao_aux_fit
     nao_orb = admm_env%nao_orb
@@ -1058,6 +1063,9 @@ MODULE admm_methods
     ! *** Create sparse work matrices
     CALL get_qs_env(qs_env=qs_env,&
                     neighbor_list_id=neighbor_list_id,&
+                    sab_aux_fit=sab_aux_fit,&
+                    sab_aux_fit_asymm=sab_aux_fit_asymm,&
+                    sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                     error=error)
 
     ALLOCATE(matrix_w_s)
@@ -1070,7 +1078,7 @@ MODULE admm_methods
          cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
          error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
+    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,sab_aux_fit_asymm,error=error)
 
     ALLOCATE(matrix_w_q)
     CALL cp_dbcsr_init(matrix_w_q, error=error)
@@ -1158,10 +1166,10 @@ MODULE admm_methods
     admm_force = 0.0_dp
     CALL build_overlap_force(qs_env, admm_force,&
          basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
-         sab_nl=qs_env%sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
+         sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
     CALL build_overlap_force(qs_env, admm_force,&
          basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
-         sab_nl=qs_env%sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
+         sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
     ! add forces
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     force=force,error=error)

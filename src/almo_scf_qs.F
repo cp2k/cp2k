@@ -538,6 +538,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -559,7 +561,7 @@ CONTAINS
 !   TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN,handle)
-    NULLIFY(rho)
+    NULLIFY(rho, sab_orb)
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -585,6 +587,7 @@ CONTAINS
                     para_env=para_env,&
                     nelectron_spin=nelectron_spin,&
                     rho=rho,&
+                    sab_orb=sab_orb,&
 !                    scf_control=scf_control,&
 !                    scf_env=scf_env,&
 !                    mos=mo_array,&
@@ -600,8 +603,7 @@ CONTAINS
           CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
           CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,&
                template=matrix_s(1)%matrix,error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,&
-               qs_env%sab_orb,error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
        CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)

@@ -83,6 +83,7 @@ MODULE mp2_cphf
                                              integrate_v_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_rho_types,                    ONLY: qs_rho_create,&
                                              qs_rho_release,&
@@ -172,6 +173,8 @@ MODULE mp2_cphf
       POINTER                                :: integral_containers
     TYPE(hfx_container_type), POINTER        :: maxval_container
     TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: dvg(3), pot_g, rho_g, rho_r, &
                                                 temp_pw_g
@@ -197,7 +200,7 @@ MODULE mp2_cphf
     dimen=nmo
     virtual=dimen-homo
     NULLIFY(input,pw_env,matrix_s,blacs_env,rho,energy,force,virial,matrix_w_mp2,&
-            matrix_p_mp2,matrix_ks,rho_core)
+            matrix_p_mp2,matrix_ks,rho_core,sab_orb)
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
                     pw_env=pw_env,&
@@ -212,6 +215,7 @@ MODULE mp2_cphf
                     force=force,&
                     virial=virial,&
                     rho_core=rho_core,&
+                    sab_orb=sab_orb,&
                     error=error)
 
     ! check if we have to calculate the virial
@@ -261,7 +265,7 @@ MODULE mp2_cphf
            row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
            col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
            nblks=0, nze=0, error=error)
-      CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix,qs_env%sab_orb,error=error)
+      CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix,sab_orb,error=error)
       CALL cp_dbcsr_set(mat_mu_nu(ispin)%matrix,0.0_dp,error=error)
     END DO
 

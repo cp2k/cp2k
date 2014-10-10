@@ -63,6 +63,7 @@ MODULE rtp_admm_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_force
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -731,11 +732,20 @@ CONTAINS
       POINTER                                :: tmp_aux_aux, tmp_aux_mo, &
                                                 tmp_aux_mo1, tmp_aux_nao
     TYPE(cp_fm_struct_type), POINTER         :: mstruct
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_aux_fit_asymm, &
+                                                sab_aux_fit_vs_orb
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
+    NULLIFY(sab_aux_fit_asymm, sab_aux_fit_vs_orb)
     failure = .FALSE.
 !   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix",error=error)
+
+    CALL get_qs_env(qs_env,&
+                    sab_aux_fit_asymm=sab_aux_fit_asymm,&
+                    sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
+                    error=error)
 
     ALLOCATE(matrix_w_s)
     CALL cp_dbcsr_init (matrix_w_s, error)
@@ -747,7 +757,7 @@ CONTAINS
          cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
          error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
+    CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,sab_aux_fit_asymm,error=error)
 
     ALLOCATE(matrix_w_q)
     CALL cp_dbcsr_init(matrix_w_q, error=error)
@@ -811,10 +821,10 @@ CONTAINS
        admm_force = 0.0_dp
        CALL build_overlap_force(qs_env, admm_force,&
             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
-            sab_nl=qs_env%sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
+            sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
        CALL build_overlap_force(qs_env, admm_force,&
             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
-            sab_nl=qs_env%sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
+            sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
        ! add forces
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                        force=force,error=error)

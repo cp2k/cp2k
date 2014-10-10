@@ -15,7 +15,6 @@
 !> \author Matthias Krack (08.10.1999,26.03.2002,16.06.2003)
 ! *****************************************************************************
 MODULE qs_neighbor_lists
-
   USE almo_scf_types,                  ONLY: almo_max_cutoff_multiplier
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -28,6 +27,7 @@ MODULE qs_neighbor_lists
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -67,11 +67,13 @@ MODULE qs_neighbor_lists
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: &
        add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, &
        deallocate_neighbor_list_set, get_iterator_info, &
@@ -379,6 +381,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -402,6 +405,7 @@ CONTAINS
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
@@ -412,7 +416,7 @@ CONTAINS
 
     NULLIFY (atomic_kind_set, qs_kind_set, cell, neighbor_list_section,&
              distribution_1d, distribution_2d, gth_potential, orb_basis_set,&
-             particle_set, molecule_set)
+             particle_set, molecule_set, dft_control,ks_env)
 
     NULLIFY (sab_orb)
     NULLIFY (sac_ae)
@@ -432,6 +436,19 @@ CONTAINS
     NULLIFY (soo_list)
     NULLIFY (sab_almo)
 
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    cell=cell,&
+                    kpoints=kpoints,&
+                    distribution_2d=distribution_2d,&
+                    local_particles=distribution_1d,&
+                    particle_set=particle_set,&
+                    molecule_set=molecule_set,&
+                    dft_control=dft_control,&
+                    error=error)
+
     neighbor_list_section => section_vals_get_subs_vals(force_env_section,"DFT%PRINT%NEIGHBOR_LISTS",error=error)
 
     molecule_only = .FALSE.
@@ -441,17 +458,9 @@ CONTAINS
     ! new version implies new sparsity of the matrices
 
     last_qs_neighbor_list_id_nr=last_qs_neighbor_list_id_nr+1
-    CALL set_qs_env(qs_env=qs_env,neighbor_list_id=last_qs_neighbor_list_id_nr,error=error)
+    CALL set_ks_env(ks_env=ks_env,neighbor_list_id=last_qs_neighbor_list_id_nr,error=error)
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    qs_kind_set=qs_kind_set,&
-                    cell=cell,&
-                    kpoints=kpoints,&
-                    distribution_2d=distribution_2d,&
-                    local_particles=distribution_1d,&
-                    particle_set=particle_set,&
-                    molecule_set=molecule_set,&
+    CALL get_ks_env(ks_env=ks_env,&
                     sab_orb=sab_orb,&
                     sab_aux_fit=sab_aux_fit,&
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
@@ -471,12 +480,12 @@ CONTAINS
                     error=error)
 
     dokp = (kpoints%nkp > 0)
-    nddo = qs_env%dft_control%qs_control%semi_empirical
-    dftb = qs_env%dft_control%qs_control%dftb
-    scptb = qs_env%dft_control%qs_control%scptb
-    almo = qs_env%dft_control%qs_control%do_almo_scf
-    lrigpw = (qs_env%dft_control%qs_control%method_id == do_method_lrigpw)
-    lri_optbas = qs_env%dft_control%qs_control%lri_optbas
+    nddo = dft_control%qs_control%semi_empirical
+    dftb = dft_control%qs_control%dftb
+    scptb = dft_control%qs_control%scptb
+    almo = dft_control%qs_control%do_almo_scf
+    lrigpw = (dft_control%qs_control%method_id == do_method_lrigpw)
+    lri_optbas = dft_control%qs_control%lri_optbas
 
     CALL get_atomic_kind_set(atomic_kind_set, maxatom=maxatom)
     CALL get_qs_kind_set(qs_kind_set, paw_atom_present=paw_atom_present,&
@@ -626,7 +635,7 @@ CONTAINS
     CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
     CALL build_neighbor_lists(sab_orb,particle_set,atom2d,cell,pair_radius,&
                               mic=mic,subcells=subcells,molecular=molecule_only,name="sab_orb",error=error)
-    CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
+    CALL set_ks_env(ks_env=ks_env,sab_orb=sab_orb,error=error)
     CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
          "/SAB_ORB","sab_orb","ORBITAL ORBITAL",error)
 
@@ -637,7 +646,7 @@ CONTAINS
     IF (.NOT. (nddo .OR. dftb .OR. scptb)) THEN
        CALL build_neighbor_lists(sab_all,particle_set,atom2d,cell,pair_radius,&
             mic=mic,symmetric=.FALSE.,subcells=subcells,molecular=molecule_only,name="sab_all",error=error)
-       CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_all=sab_all,error=error)
     ENDIF
 
     ! Build the core-core overlap neighbor lists
@@ -645,13 +654,13 @@ CONTAINS
        CALL pair_radius_setup(core_present,core_present,core_radius,core_radius,pair_radius,error)
        CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,mic=mic,subcells=subcells,&
                                  operator_type="PP",name="sab_core",error=error)
-       CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_core=sab_core,error=error)
        CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_CORE","sab_core","CORE CORE",error)
     ENDIF
 
 
-    IF( qs_env%dft_control%do_admm ) THEN
+    IF(dft_control%do_admm) THEN
        CALL pair_radius_setup(aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,pair_radius,error)
        CALL build_neighbor_lists(sab_aux_fit,particle_set,atom2d,cell,pair_radius,&
                                  mic=mic,molecular=molecule_only,subcells=subcells,name="sab_aux_fit",error=error)
@@ -663,9 +672,9 @@ CONTAINS
                                  mic=mic,symmetric=.FALSE.,molecular=molecule_only,subcells=subcells,&
                                  name="sab_aux_fit_vs_orb",error=error)
 
-       CALL set_qs_env(qs_env=qs_env,sab_aux_fit=sab_aux_fit,error=error)
-       CALL set_qs_env(qs_env=qs_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
-       CALL set_qs_env(qs_env=qs_env,sab_aux_fit_asymm=sab_aux_fit_asymm,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_aux_fit=sab_aux_fit,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_aux_fit_asymm=sab_aux_fit_asymm,error=error)
 
        CALL write_neighbor_lists(sab_aux_fit,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_AUX_FIT","sab_aux_fit","AUX_FIT_ORBITAL AUX_FIT_ORBITAL",error)
@@ -679,7 +688,7 @@ CONTAINS
           CALL pair_radius_setup(orb_present,ppl_present,orb_radius,ppl_radius,pair_radius,error)
           CALL build_neighbor_lists(sac_ppl,particle_set,atom2d,cell,pair_radius,&
                subcells=subcells,operator_type="ABC",name="sac_ppl",error=error)
-          CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
+          CALL set_ks_env(ks_env=ks_env,sac_ppl=sac_ppl,error=error)
           CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,neighbor_list_section,&
                "/SAC_PPL","sac_ppl","ORBITAL GTH-PPL",error)
        END IF
@@ -688,7 +697,7 @@ CONTAINS
           CALL pair_radius_setup(orb_present,ppnl_present,orb_radius,ppnl_radius,pair_radius,error)
           CALL build_neighbor_lists(sap_ppnl,particle_set,atom2d,cell,pair_radius,&
                subcells=subcells,operator_type="ABBA",name="sap_ppnl",error=error)
-          CALL set_qs_env(qs_env=qs_env,sap_ppnl=sap_ppnl,error=error)
+          CALL set_ks_env(ks_env=ks_env,sap_ppnl=sap_ppnl,error=error)
           CALL write_neighbor_lists(sap_ppnl,particle_set,cell,para_env,neighbor_list_section,&
                "/SAP_PPNL","sap_ppnl","ORBITAL GTH-PPNL",error)
        END IF
@@ -701,7 +710,7 @@ CONTAINS
           CALL pair_radius_setup(orb_present,oce_present,orb_radius,oce_radius,pair_radius,error)
           CALL build_neighbor_lists(sap_oce,particle_set,atom2d,cell,pair_radius,&
                subcells=subcells,operator_type="ABBA",name="sap_oce",error=error)
-          CALL set_qs_env(qs_env=qs_env,sap_oce=sap_oce,error=error)
+          CALL set_ks_env(ks_env=ks_env,sap_oce=sap_oce,error=error)
           CALL write_neighbor_lists(sap_oce,particle_set,cell,para_env,neighbor_list_section,&
                "/SAP_OCE","sap_oce","ORBITAL(A) PAW-PRJ",error)
        END IF
@@ -712,7 +721,7 @@ CONTAINS
        CALL pair_radius_setup(orb_present,all_present,orb_radius,all_pot_rad,pair_radius,error)
        CALL build_neighbor_lists(sac_ae,particle_set,atom2d,cell,pair_radius,&
             subcells=subcells,operator_type="ABC",name="sac_ae",error=error)
-       CALL set_qs_env(qs_env=qs_env,sac_ae=sac_ae,error=error)
+       CALL set_ks_env(ks_env=ks_env,sac_ae=sac_ae,error=error)
        CALL write_neighbor_lists(sac_ae,particle_set,cell,para_env,neighbor_list_section,&
                "/SAC_AE","sac_ae","ORBITAL ERFC POTENTIAL",error)
     END IF
@@ -720,10 +729,10 @@ CONTAINS
     IF (nddo) THEN
        ! Semi-empirical neighbor lists
        default_present = .TRUE.
-       c_radius = qs_env%dft_control%qs_control%se_control%cutoff_cou
+       c_radius = dft_control%qs_control%se_control%cutoff_cou
        ! Build the neighbor lists for the Hartree terms
        CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
-       IF (qs_env%dft_control%qs_control%se_control%do_ewald_gks)  THEN
+       IF (dft_control%qs_control%se_control%do_ewald_gks)  THEN
          ! Use MIC for the periodic code of GKS
          CALL build_neighbor_lists(sab_se,particle_set,atom2d,cell,pair_radius,mic=mic,&
               subcells=subcells,name="sab_se",error=error)
@@ -731,18 +740,18 @@ CONTAINS
          CALL build_neighbor_lists(sab_se,particle_set,atom2d,cell,pair_radius,&
               subcells=subcells,name="sab_se",error=error)
        END IF
-       CALL set_qs_env(qs_env=qs_env,sab_se=sab_se,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_se=sab_se,error=error)
        CALL write_neighbor_lists(sab_se,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_SE","sab_se","HARTREE INTERACTIONS",error)
 
        ! If requested build the SE long-range correction neighbor list
-       IF ((qs_env%dft_control%qs_control%se_control%do_ewald).AND.&
-           (qs_env%dft_control%qs_control%se_control%integral_screening/=do_se_IS_slater)) THEN
-          c_radius = qs_env%dft_control%qs_control%se_control%cutoff_lrc
+       IF ((dft_control%qs_control%se_control%do_ewald).AND.&
+           (dft_control%qs_control%se_control%integral_screening/=do_se_IS_slater)) THEN
+          c_radius = dft_control%qs_control%se_control%cutoff_lrc
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_lrc,particle_set,atom2d,cell,pair_radius,&
                subcells=subcells,name="sab_lrc",error=error)
-          CALL set_qs_env(qs_env=qs_env,sab_lrc=sab_lrc,error=error)
+          CALL set_ks_env(ks_env=ks_env,sab_lrc=sab_lrc,error=error)
           CALL write_neighbor_lists(sab_lrc,particle_set,cell,para_env,neighbor_list_section,&
                "/SAB_LRC","sab_lrc","SE LONG-RANGE CORRECTION",error)
        END IF
@@ -750,19 +759,19 @@ CONTAINS
 
     IF (dftb) THEN
        ! Build the neighbor lists for the DFTB Ewald methods
-       IF ( qs_env%dft_control%qs_control%dftb_control%do_ewald ) THEN
+       IF (dft_control%qs_control%dftb_control%do_ewald) THEN
           CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
           CALL ewald_env_get ( ewald_env, alpha=alpha )
           c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
           CALL pair_radius_setup(orb_present,orb_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_tbe,particle_set,atom2d,cell,pair_radius,mic=mic,&
                subcells=subcells,name="sab_tbe",error=error)
-          CALL set_qs_env(qs_env=qs_env,sab_tbe=sab_tbe,error=error)
+          CALL set_ks_env(ks_env=ks_env,sab_tbe=sab_tbe,error=error)
        END IF
 
        ! Build the neighbor lists for the DFTB vdW pair potential
-       IF ( qs_env%dft_control%qs_control%dftb_control%dispersion ) THEN
-          IF ( qs_env%dft_control%qs_control%dftb_control%dispersion_type == dispersion_uff ) THEN
+       IF (dft_control%qs_control%dftb_control%dispersion) THEN
+          IF (dft_control%qs_control%dftb_control%dispersion_type == dispersion_uff) THEN
              DO ikind = 1, nkind
                 CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom)
                 CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
@@ -772,7 +781,7 @@ CONTAINS
              CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
              CALL build_neighbor_lists(sab_vdw,particle_set,atom2d,cell,pair_radius,&
                   subcells=subcells,name="sab_vdw",error=error)
-             CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+             CALL set_ks_env(ks_env=ks_env,sab_vdw=sab_vdw,error=error)
           END IF
        END IF
     END IF
@@ -813,11 +822,11 @@ CONTAINS
        CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
        CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,mic=mic,&
             subcells=subcells,name="sab_core",error=error)
-       CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_core=sab_core,error=error)
        CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
             "/SAB_CORE","sab_core","CORE INTERACTIONS",error)
        ! Build the neighbor lists for the SCPTB Ewald methods
-       IF ( qs_env%dft_control%qs_control%scptb_control%do_ewald ) THEN
+       IF (dft_control%qs_control%scptb_control%do_ewald) THEN
           ! Ewald with alpha
           CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,error=error)
           CALL ewald_env_get ( ewald_env, alpha=alpha )
@@ -825,7 +834,7 @@ CONTAINS
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_tbe,particle_set,atom2d,cell,pair_radius,mic=mic,&
                subcells=subcells,name="sab_tbe",error=error)
-          CALL set_qs_env(qs_env=qs_env,sab_tbe=sab_tbe,error=error)
+          CALL set_ks_env(ks_env=ks_env,sab_tbe=sab_tbe,error=error)
           ! Correction term for Gaussians
           DO ikind = 1, nkind
              CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
@@ -836,7 +845,7 @@ CONTAINS
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_scp,particle_set,atom2d,cell,pair_radius,mic=mic,&
                subcells=subcells,name="sab_scp",error=error)
-          CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
+          CALL set_ks_env(ks_env=ks_env,sab_scp=sab_scp,error=error)
        END IF
     END IF
     IF(lrigpw .OR. lri_optbas) THEN
@@ -862,7 +871,7 @@ CONTAINS
        CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
        CALL build_neighbor_lists(sab_almo,particle_set,atom2d,cell,pair_radius,&
             subcells=subcells,operator_type="PP",name="sab_almo",error=error)
-       CALL set_qs_env(qs_env=qs_env,sab_almo=sab_almo,error=error)
+       CALL set_ks_env(ks_env=ks_env,sab_almo=sab_almo,error=error)
     ENDIF
 
     ! Print particle distribution

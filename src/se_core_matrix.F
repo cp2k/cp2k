@@ -160,7 +160,7 @@ CONTAINS
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
-                              sab_nl=qs_env%sab_orb,&
+                              sab_nl=sab_orb,&
                               error=error)
         CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -169,7 +169,7 @@ CONTAINS
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
-                              sab_nl=qs_env%sab_orb,&
+                              sab_nl=sab_orb,&
                               error=error)
         CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
         use_virial = .FALSE.

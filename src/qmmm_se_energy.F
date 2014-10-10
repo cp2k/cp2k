@@ -47,6 +47,7 @@ MODULE qmmm_se_energy
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
@@ -112,6 +113,8 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
     TYPE(qs_energy_type), POINTER            :: energy
@@ -129,19 +132,20 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     NULLIFY (matrix_s, atomic_kind_set, qs_kind_set, energy)
-    NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm, ks_env)
+    NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm, ks_env, sab_orb)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
                     matrix_s=matrix_s,&
                     energy=energy,&
+                    sab_orb=sab_orb,&
                     error=error)
 
     CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
-                              sab_nl=qs_env%sab_orb,&
+                              sab_nl=sab_orb,&
                               error=error)
 
     CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)

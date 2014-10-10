@@ -59,6 +59,7 @@ MODULE dm_ls_scf_qs
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -341,8 +342,11 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
+    NULLIFY(sab_orb)
     CALL timeset(routineN,handle)
 
     ! get a useful output_unit
@@ -358,6 +362,7 @@ CONTAINS
                            matrix_s=matrix_s,&
                            matrix_ks=matrix_ks,&
                            ks_env=ks_env,&
+                           sab_orb=sab_orb,&
                            error=error)
 
     nspin=dft_control%nspins
@@ -369,7 +374,7 @@ CONTAINS
           ALLOCATE(matrix_ks(ispin)%matrix)
           CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
           CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,template=matrix_s(1)%matrix,error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
        CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
