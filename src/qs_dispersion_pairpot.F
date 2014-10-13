@@ -883,15 +883,15 @@ CONTAINS
       dcc6bcc, dcc6caa, dcc6cac, dcnab, dd, de6, de8, de91, de921, de922, &
       dea, devdw, dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, e8, &
       e8tot, e9, e9tot, elrc6, elrc8, elrc9, eps_cn, er, evdw, f0ab, fac, &
-      fdab6, fdab8, fdabc, fdmp, gnorm, nab, nabc, r0, r0ab, r2ab, r2abc, &
-      r2bc, r2ca, r6, r8, rabc, rc2, rcc, rcova, rcovb, rcut, rs6, rs8, s1, &
-      s2, s3, s6, s8, s9, xp
+      fac0, fdab6, fdab8, fdabc, fdmp, gnorm, nab, nabc, r0, r0ab, r2ab, &
+      r2abc, r2bc, r2ca, r6, r8, rabc, rc2, rcc, rcova, rcovb, rcut, rs6, &
+      rs8, s1, s2, s3, s6, s8, s9, xp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c6d2, cnkind, cnumbers, &
                                                 cnumfix, radd2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rcpbc
-    REAL(KIND=dp), DIMENSION(3)              :: fdij, fdik, ra, rab, rb, rbc, &
-                                                rc, rc0, rca, rij, rik, &
+    REAL(KIND=dp), DIMENSION(3)              :: fdij, fdik, ra, rab, rb, rb0, &
+                                                rbc, rc, rc0, rca, rij, rik, &
                                                 sab_max
     REAL(KIND=dp), DIMENSION(3, 3)           :: dvirial
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atener
@@ -917,9 +917,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
-
-!deb
-!deb
 
     CALL timeset(routineN,handle)
 
@@ -1361,8 +1358,9 @@ CONTAINS
                    CALL get_iterator_info(nl_iterator,cell=cell_b)
                    hashb = cellhash(cell_b,ncell,error)
                    is000 = (ALL(cell_b == 0))
+                   rb0(:) = MATMUL(cell%hmat,cell_b)
                    ra(:) = pbc(particle_set(iatom)%r(:),cell)
-                   rb(:) = pbc(particle_set(jatom)%r(:),cell)+MATMUL(cell%hmat,cell_b)
+                   rb(:) = pbc(particle_set(jatom)%r(:),cell)+rb0
                    r2ab = SUM( (ra-rb)**2 )
                    DO icx=-ncell(1),ncell(1)
                       DO icy=-ncell(2),ncell(2)
@@ -1371,26 +1369,35 @@ CONTAINS
                            cell_c(2) = icy
                            cell_c(3) = icz
                            hashc = cellhash(cell_c,ncell,error)
-                           IF ( hashc < hashb ) CYCLE
-                           IF(hashb == hashc) THEN
-                             kstart = jatom+1
-                             IF(is000) kstart=MAX(jatom+1,iatom+1)
+                           IF(is000 .AND. (ALL(cell_c == 0))) THEN
+                              ! CASE 1: all atoms in (000), use only ordered triples
+                              kstart=MAX(jatom+1,iatom+1)
+                              fac0 = 1.0_dp
+                           ELSE IF(is000) THEN
+                              ! CASE 2: AB in (000), C in other cell
+                              !         This case covers also all instances with BC in same
+                              !         cell not (000)
+                              kstart=1
+                              fac0 = 1.0_dp
                            ELSE
-                             kstart=1
+                              ! These are case 2 again, cycle
+                              IF ( hashc == hashb ) CYCLE
+                              IF ( ALL(cell_c == 0) ) CYCLE
+                              ! CASE 3: A in (000) and B and C in different cells
+                              kstart=1
+                              fac0 = 1.0_dp/3.0_dp
                            END IF
                            rc0=MATMUL(cell%hmat,cell_c)
                            DO katom=kstart,natom
                               kkind=kind_of(katom)
                               IF (ghost(kkind) .OR. .NOT.dodisp(kkind)) CYCLE
-                              rc(1) = rcpbc(1,katom)+rc0(1)
-                              rc(2) = rcpbc(2,katom)+rc0(2)
-                              rc(3) = rcpbc(3,katom)+rc0(3)
+                              rc(:) = rcpbc(:,katom)+rc0(:)
                               r2bc = SUM( (rb-rc)**2 )
                               IF (r2bc >= rc2) CYCLE
                               r2ca = SUM( (rc-ra)**2 )
                               IF (r2ca >= rc2) CYCLE
                               r2abc = r2ab*r2bc*r2ca
-                              IF (r2abc <= 0.001) CYCLE
+                              IF (r2abc <= 0.001_dp) CYCLE
                               ! this is an empirical scaling
                               IF (r2abc <= 0.01*rc2*rc2*rc2) THEN
                                  kkind=kind_of(katom)
@@ -1400,6 +1407,7 @@ CONTAINS
                                  fac = 1._dp
                                  IF(iatom==jatom .OR. iatom==katom .OR. jatom==katom) fac = 0.5_dp
                                  IF(iatom==jatom .AND. iatom==katom) fac = 1._dp/3._dp
+                                 fac = fac*fac0
                                  nabc=nabc+1._dp
                                  IF (dispersion_env%c9cnst) THEN
                                    CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
@@ -2819,7 +2827,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rab, rcova, rcovb, k1
     REAL(KIND=dp), INTENT(OUT)               :: cnab, dcnab
 
-    REAL(KIND=dp)                            :: ee, rco, rr
+    REAL(KIND=dp)                            :: dfz, ee, fz, rco, rr
 
 ! covalent distance in Bohr
 
@@ -2829,8 +2837,11 @@ CONTAINS
     ! than MHGs inverse damping
     ! factor k2 already included into rcov
     ee = EXP(-k1*(rr-1.0_dp))
-    cnab=1._dp/(1._dp+ee)
-    dcnab = -cnab*cnab*k1*rr/rab*ee
+    ! force the function to zero using a second step function
+    fz = 0.5_dp*(1.0_dp - TANH(rab-2.0_dp*rco))
+    dfz = 0.5_dp*((TANH(rab-2.0_dp*rco))**2 - 1.0_dp)
+    cnab = 1.0_dp/(1.0_dp+ee) * fz 
+    dcnab = -cnab*cnab*k1*rr/rab*ee + 1.0_dp/(1.0_dp+ee)*dfz
 
   END SUBROUTINE cnparam_d3
 

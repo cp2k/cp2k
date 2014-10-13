@@ -261,3 +261,9 @@ c2h2_emd_mix.inp
 # change of sign for 3rd order term
 h2o-6.inp
 h2o-7.inp
+# new C9 code, new CN function
+h2o_disp1.inp
+h2o_disp2.inp
+h2o_disp3.inp
+h2o-6.inp
+h2o-7.inp
