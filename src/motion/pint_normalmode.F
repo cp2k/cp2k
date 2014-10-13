@@ -193,13 +193,12 @@ CONTAINS
 !> \brief initializes the masses and fictitious masses compatible with the
 !>      normal mode information
 !> \param normalmode_env the definition of the normal mode transformation
-!> \param mass ...
+!> \param mass *input* the masses of the particles
 !> \param mass_beads masses of the beads
 !> \param mass_fict the fictitious masses
 !> \param Q masses of the nose thermostats
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param masses *input* the masses of the particles UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Harald Forbert
 ! *****************************************************************************
   SUBROUTINE normalmode_init_masses(normalmode_env,mass,mass_beads,mass_fict,&

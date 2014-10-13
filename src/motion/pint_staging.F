@@ -146,13 +146,12 @@ CONTAINS
 !> \brief initializes the masses and fictitious masses compatibly with the
 !>      staging information
 !> \param staging_env the definition of the staging transformation
-!> \param mass ...
+!> \param mass *input* the masses of the particles 
 !> \param mass_beads masses of the beads
 !> \param mass_fict the fictitious masses
 !> \param Q masses of the nose thermostats
 !> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \param masses *input* the masses of the particles UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!>        see module cp_error_handling 
 !> \par History
 !>      11.2003 created [fawzi]
 !> \author Fawzi Mohamed

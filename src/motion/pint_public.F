@@ -228,7 +228,7 @@ MODULE pint_public
 !> \param error ...
 !> \date   2011-01-06
 !> \author Lukasz Walewski
-!> \descr  This routine implements Levy argorithm (Phys. Rev. 143 (1966) 58) UNKNOWN_DOXYGEN_COMMENT
+!> \note  This routine implements Levy argorithm (Phys. Rev. 143 (1966) 58)
 ! *****************************************************************************
   SUBROUTINE pint_levy_walk( x0, n, v, x, rng_gaussian, error )
 
