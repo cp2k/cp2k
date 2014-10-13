@@ -362,6 +362,7 @@ CONTAINS
 !> \param nparticle ...
 !> \param ncore ...
 !> \param nshell ...
+!> \param nkind ...
 !> \param atprop ...
 !> \param virial ...
 !> \param results ...
@@ -380,7 +381,7 @@ CONTAINS
                            local_particles, molecules_new,molecule_set, molecule_kinds_new,&
                            molecule_kind_set, local_molecules_new, para_env, colvar_p,&
                            shell_particles, core_particles, gci, multipoles,&
-                           natom, nparticle, ncore, nshell, atprop, virial, &
+                           natom, nparticle, ncore, nshell, nkind, atprop, virial, &
                            results, cell, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: ref_count
@@ -415,7 +416,7 @@ CONTAINS
       POINTER                                :: gci
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
     INTEGER, INTENT(out), OPTIONAL           :: natom, nparticle, ncore, &
-                                                nshell
+                                                nshell, nkind
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
@@ -458,6 +459,7 @@ CONTAINS
        IF (PRESENT(atprop)) atprop => subsys%atprop
        IF (PRESENT(results)) results => subsys%results
        IF (PRESENT(cell)) cell => subsys%cell
+       IF (PRESENT(nkind)) nkind=SIZE(subsys%atomic_kinds%els)
 
        IF (PRESENT(natom).OR.PRESENT(nparticle).OR.PRESENT(nshell)) THEN
           ! An atomic particle set should be present in each subsystem at the moment

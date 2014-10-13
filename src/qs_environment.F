@@ -148,7 +148,8 @@ MODULE qs_environment
        write_qs_kind_set
   USE qs_ks_types,                     ONLY: qs_ks_env_create,&
                                              qs_ks_env_type,&
-                                             qs_ks_release
+                                             qs_ks_release,&
+                                             set_ks_env
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
@@ -266,9 +267,6 @@ CONTAINS
          qs_kind_set, harris_section, kpoint_section, dft_section, ga_env, &
          subsys, ks_env)
 
-    CALL qs_ks_env_create(ks_env, error=error)
-    CALL set_qs_env(qs_env,ks_env=ks_env,error=error)
-    CALL qs_ks_release(ks_env, error=error)
 
     para_env=>qs_env%para_env
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
@@ -307,7 +305,9 @@ CONTAINS
                           cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref, &
                           error=error)
 
-    CALL set_qs_env(qs_env, subsys=subsys, error=error)
+    CALL qs_ks_env_create(ks_env, error=error)
+    CALL set_ks_env(ks_env, subsys=subsys, error=error)
+    CALL set_qs_env(qs_env, ks_env=ks_env, error=error)
 
     CALL qs_subsys_get(subsys,&
                        cell=my_cell,&
@@ -438,6 +438,7 @@ CONTAINS
     END IF
 
     CALL qs_subsys_release(subsys, error=error)
+    CALL qs_ks_release(ks_env, error=error)
   END SUBROUTINE qs_init
 
 ! *****************************************************************************

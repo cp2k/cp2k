@@ -147,6 +147,7 @@ CONTAINS
 !> \param nparticle ...
 !> \param ncore ...
 !> \param nshell ...
+!> \param nkind ...
 !> \param atprop ...
 !> \param virial ...
 !> \param results ...
@@ -164,7 +165,7 @@ CONTAINS
                            molecule_kinds_new,molecule_kind_set,&
                            local_molecules_new, para_env, colvar_p,&
                            shell_particles, core_particles, gci, multipoles,&
-                           natom, nparticle, ncore, nshell, atprop, virial, &
+                           natom, nparticle, ncore, nshell, nkind, atprop, virial, &
                            results, cell, cell_ref, use_ref_cell, energy, force,&
                            qs_kind_set,cp_subsys,error)
     TYPE(qs_subsys_type), POINTER            :: subsys
@@ -199,7 +200,7 @@ CONTAINS
       POINTER                                :: gci
     TYPE(multipole_type), OPTIONAL, POINTER  :: multipoles
     INTEGER, INTENT(out), OPTIONAL           :: natom, nparticle, ncore, &
-                                                nshell
+                                                nshell, nkind
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
@@ -234,6 +235,7 @@ CONTAINS
                        gci=gci,&
                        multipoles=multipoles,&
                        natom=natom,&
+                       nkind=nkind,&
                        nparticle=nparticle,&
                        ncore=ncore,&
                        nshell=nshell,&
@@ -267,9 +269,9 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
 SUBROUTINE qs_subsys_set(subsys,cp_subsys,&
-                           local_particles,local_molecules_new,cell,&
-                           cell_ref, use_ref_cell, energy, force,&
-                           qs_kind_set, error)
+                         local_particles,local_molecules_new,cell,&
+                         cell_ref, use_ref_cell, energy, force,&
+                         qs_kind_set, error)
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: cp_subsys
     TYPE(distribution_1d_type), OPTIONAL, &

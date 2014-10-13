@@ -25,7 +25,6 @@ MODULE qs_external_potential
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_p_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -34,7 +33,6 @@ MODULE qs_external_potential
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE qs_subsys_types,                 ONLY: qs_subsys_get
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -72,17 +70,14 @@ CONTAINS
     LOGICAL                                  :: failure, static_potential
     REAL(kind=dp)                            :: dvol, efunc
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_p_type), POINTER                 :: v_ee
     TYPE(section_vals_type), POINTER         :: ext_pot_section, input
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     IF(qs_env%dft_control%apply_external_potential)THEN
-       NULLIFY(cell, particles, v_ee, input, ext_pot_section)
-       CALL qs_subsys_get(qs_env%subsys,particles=particles,error=error)
-       CALL get_qs_env(qs_env,cell=cell,vee=v_ee,input=input,error=error)
+       NULLIFY(v_ee, input, ext_pot_section)
+       CALL get_qs_env(qs_env,vee=v_ee,input=input,error=error)
        ext_pot_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_POTENTIAL",error=error)
        CALL section_vals_val_get(ext_pot_section,"STATIC",l_val=static_potential,error=error)
 

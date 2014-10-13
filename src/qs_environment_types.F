@@ -12,7 +12,6 @@
 MODULE qs_environment_types
   USE admm_types,                      ONLY: admm_env_release,&
                                              admm_type
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_type
   USE cell_methods,                    ONLY: cell_release,&
@@ -86,13 +85,10 @@ MODULE qs_environment_types
                                              lri_density_type,&
                                              lri_env_release,&
                                              lri_environment_type
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE mp2_types,                       ONLY: mp2_env_release,&
                                              mp2_type
-  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
@@ -146,10 +142,7 @@ MODULE qs_environment_types
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              scf_env_release,&
                                              scf_env_retain
-  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                             qs_subsys_release,&
-                                             qs_subsys_retain,&
-                                             qs_subsys_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_type
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
                                              wfi_retain
@@ -239,7 +232,6 @@ MODULE qs_environment_types
 !> \param scf_env place where temporary information used in the scf is stored
 !> \param mpools all the pools of matrixes
 !> \param distribution_ 2d: distribution of the atom pairs between the processors
-!> \param subsys the particles, molecules,... of this environment
 !> \param local_rho_set contains the atomic, compensations and core densities
 !>                       and the local parts of the xc terms
 !> \param hartree_local contains the 1, 2 and 3 centers coulomb terms
@@ -325,7 +317,6 @@ MODULE qs_environment_types
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools_aux_fit
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(dbcsr_distribution_obj), POINTER                 :: dbcsr_dist
-    TYPE(qs_subsys_type), POINTER                         :: subsys
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(local_rho_type), POINTER                         :: local_rho_set
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
@@ -715,17 +706,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(mol_new_list_type), POINTER         :: molecules_new
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(rho0_mpole_type), POINTER           :: rho0_m
 
     failure=.FALSE.
-    NULLIFY(atomic_kinds, particles, molecules_new,molecule_kinds_new)
+    NULLIFY(rho0_m)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qs_env%subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env%ks_env),cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(nelectron_total)) nelectron_total=qs_env%nelectron_total
@@ -762,7 +748,6 @@ CONTAINS
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
-    IF (PRESENT(subsys)) subsys => qs_env%subsys
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
     IF (PRESENT(dbcsr_dist)) dbcsr_dist => qs_env%dbcsr_dist
@@ -811,25 +796,19 @@ CONTAINS
     END IF
 
     IF(PRESENT(xas_env)) xas_env => qs_env%xas_env
-
-    CALL qs_subsys_get(qs_env%subsys,&
-                      atomic_kinds=atomic_kinds,&
-                      local_molecules_new=local_molecules,&
-                      local_particles=local_particles,&
-                      particles=particles,&
-                      molecule_kinds_new=molecule_kinds_new,&
-                      molecules_new=molecules_new,&
-                      atprop=atprop,&
-                      virial=virial,&
-                      results=results,&
-                      cell=cell,&
-                      cell_ref=cell_ref,&
-                      use_ref_cell=use_ref_cell,&
-                      energy=energy,&
-                      force=force,&
-                      qs_kind_set=qs_kind_set,&
-                      cp_subsys=cp_subsys,&
-                      error=error)
+    IF (PRESENT(input)) input => qs_env%input
+    IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
+    IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
+    IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
+    IF (PRESENT(x_data)) x_data => qs_env%x_data
+    IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling
+    IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
+    IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
+    IF (PRESENT(efield)) efield => qs_env%efield
+    IF (PRESENT(task_list)) task_list => qs_env%task_list
+    IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => qs_env%task_list_aux_fit
+    IF (PRESENT(task_list_soft)) task_list_soft => qs_env%task_list_soft
+    IF (PRESENT(WannierCentres)) WannierCentres => qs_env%WannierCentres
 
     CALL get_ks_env(qs_env%ks_env,&
                     v_hartree_rspace=v_hartree_rspace,&
@@ -877,28 +856,26 @@ CONTAINS
                     sab_almo=sab_almo,&
                     kpoints=kpoints,&
                     do_kpoints=do_kpoints,&
+                    local_molecules=local_molecules,&
+                    local_particles=local_particles,&
+                    atprop=atprop,&
+                    virial=virial,&
+                    results=results,&
+                    cell=cell,&
+                    cell_ref=cell_ref,&
+                    use_ref_cell=use_ref_cell,&
+                    energy=energy,&
+                    force=force,&
+                    qs_kind_set=qs_kind_set,&
+                    subsys=subsys,&
+                    cp_subsys=cp_subsys,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
+                    molecule_kind_set=molecule_kind_set,&
+                    molecule_set=molecule_set,&
+                    natom=natom,&
+                    nkind=nkind,&
                     error=error)
-
-    IF (PRESENT(natom)) natom=SIZE(particles%els)
-    IF (PRESENT(nkind)) nkind=SIZE(atomic_kinds%els)
-    IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
-    IF (PRESENT(particle_set)) particle_set => particles%els
-    IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
-    IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
-    IF (PRESENT(input)) input => qs_env%input
-    IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
-    IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
-    IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
-    IF (PRESENT(x_data)) x_data => qs_env%x_data
-    IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling
-    IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
-    IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
-    IF (PRESENT(efield)) efield => qs_env%efield
-    IF (PRESENT(task_list)) task_list => qs_env%task_list
-    IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => qs_env%task_list_aux_fit
-    IF (PRESENT(task_list_soft)) task_list_soft => qs_env%task_list_soft
-
-    IF (PRESENT(WannierCentres)) WannierCentres => qs_env%WannierCentres
 
   END SUBROUTINE get_qs_env
 
@@ -949,7 +926,6 @@ CONTAINS
     NULLIFY (qs_env%scf_env)
     NULLIFY (qs_env%distribution_2d)
     NULLIFY (qs_env%dbcsr_dist)
-    NULLIFY (qs_env%subsys)
     NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%oce)
     NULLIFY (qs_env%local_rho_set)
@@ -993,7 +969,6 @@ CONTAINS
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
-    NULLIFY (qs_env%subsys)
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
     CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
@@ -1057,7 +1032,6 @@ CONTAINS
 !> \param distribution_2d ...
 !> \param dbcsr_dist ...
 !> \param input ...
-!> \param subsys ...
 !> \param oce ...
 !> \param rho_atom_set ...
 !> \param rho0_atom_set ...
@@ -1112,7 +1086,7 @@ CONTAINS
        kinetic,scf_control,rel_control,qs_charges,ks_env,&
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        task_list_zmp,&
-       distribution_2d,dbcsr_dist,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
+       distribution_2d,dbcsr_dist,input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin, efield,&
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
@@ -1158,7 +1132,6 @@ CONTAINS
       POINTER                                :: dbcsr_dist
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(qs_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
@@ -1430,11 +1403,6 @@ CONTAINS
        CALL fist_nonbond_env_release(qs_env%se_nonbond_env,error)
        qs_env%se_nonbond_env => se_nonbond_env
     END IF
-    IF (PRESENT(subsys)) THEN
-       CALL qs_subsys_release(qs_env%subsys,error)
-       CALL qs_subsys_retain(subsys, error=error)
-       qs_env%subsys => subsys
-    END IF
     IF( PRESENT(admm_env) ) qs_env%admm_env => admm_env
     IF( PRESENT(lri_env) ) qs_env%lri_env => lri_env
     IF( PRESENT(lri_density) ) qs_env%lri_density => lri_density
@@ -1658,7 +1626,6 @@ CONTAINS
              CALL cp_dbcsr_distribution_release(qs_env%dbcsr_dist)
              DEALLOCATE(qs_env%dbcsr_dist)
           ENDIF
-          CALL qs_subsys_release(qs_env%subsys,error=error)
           CALL section_vals_release(qs_env%input,error=error)
           CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
           CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)

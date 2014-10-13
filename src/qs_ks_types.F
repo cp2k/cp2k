@@ -9,20 +9,37 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_ks_types
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atprop_types,                    ONLY: atprop_type
+  USE cell_methods,                    ONLY: cell_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type
+  USE cp_result_types,                 ONLY: cp_result_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE kpoint_types,                    ONLY: kpoint_create,&
                                              kpoint_release,&
                                              kpoint_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release,&
                                              pw_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_create,&
                                              qs_rho_release,&
                                              qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_release,&
+                                             qs_subsys_retain,&
+                                             qs_subsys_type
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -79,6 +96,7 @@ MODULE qs_ks_types
 !> \param sab_almo: neighbor lists to create ALMO delocalization template
 !>
 !> \param kpoints information on the kpoints used
+!> \param subsys the particles, molecules,... of this environment
 !>
 !> \par History
 !>      04.2002 created [fawzi]
@@ -144,6 +162,7 @@ MODULE qs_ks_types
                                                              sab_almo => Null()
 
     TYPE(kpoint_type), POINTER                            :: kpoints => Null()
+    TYPE(qs_subsys_type), POINTER                         :: subsys => Null()
   END TYPE qs_ks_env_type
 
 ! *****************************************************************************
@@ -230,6 +249,25 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_almo ...
 !> \param kpoints ...
 !> \param do_kpoints ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param cell ...
+!> \param cell_ref ...
+!> \param use_ref_cell ...
+!> \param particle_set ...
+!> \param energy ...
+!> \param force ...
+!> \param local_particles ...
+!> \param local_molecules ...
+!> \param molecule_kind_set ...
+!> \param molecule_set ...
+!> \param subsys ...
+!> \param cp_subsys ...
+!> \param virial ...
+!> \param results ...
+!> \param atprop ...
+!> \param nkind ...
+!> \param natom ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -245,6 +283,10 @@ END SUBROUTINE qs_ks_env_create
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
                         kpoints, do_kpoints,&
+                        atomic_kind_set,qs_kind_set,cell,cell_ref,use_ref_cell,&
+                        particle_set,energy,force,local_particles,local_molecules,&
+                        molecule_kind_set,molecule_set,subsys,cp_subsys,virial,results,atprop,&
+                        nkind, natom,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -268,10 +310,35 @@ END SUBROUTINE qs_ks_env_create
       sab_scp, sab_vdw, sab_almo
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     LOGICAL, OPTIONAL                        :: do_kpoints
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: qs_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, OPTIONAL                        :: use_ref_cell
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles, &
+                                                local_molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_set
+    TYPE(qs_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: cp_subsys
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(cp_result_type), OPTIONAL, POINTER  :: results
+    TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
+    INTEGER, OPTIONAL                        :: nkind, natom
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
      IF(ks_env%ref_count<1) STOP "get_ks_env: ks_env%ref_count<1"
+     IF(.NOT. ASSOCIATED(ks_env%subsys)) STOP "get_ks_env: subsys not associated"
 
      IF (PRESENT(s_mstruct_changed)) s_mstruct_changed = ks_env%s_mstruct_changed
      IF (PRESENT(rho_changed)) rho_changed = ks_env%rho_changed
@@ -322,6 +389,29 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(do_kpoints)) THEN
        do_kpoints = (ks_env%kpoints%nkp > 0)
      END IF
+
+     IF (PRESENT(subsys)) subsys => ks_env%subsys
+     CALL qs_subsys_get(ks_env%subsys,&
+                        local_molecules_new=local_molecules,&
+                        local_particles=local_particles,&
+                        atprop=atprop,&
+                        virial=virial,&
+                        results=results,&
+                        cell=cell,&
+                        cell_ref=cell_ref,&
+                        use_ref_cell=use_ref_cell,&
+                        energy=energy,&
+                        force=force,&
+                        qs_kind_set=qs_kind_set,&
+                        cp_subsys=cp_subsys,&
+                        atomic_kind_set=atomic_kind_set,&
+                        particle_set=particle_set,&
+                        molecule_kind_set=molecule_kind_set,&
+                        molecule_set=molecule_set,&
+                        natom=natom,&
+                        nkind=nkind,&
+                        error=error)
+
   END SUBROUTINE get_ks_env
 
 
@@ -367,6 +457,7 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_scp ...
 !> \param sab_vdw ...
 !> \param sab_almo ...
+!> \param subsys ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
@@ -380,6 +471,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
+                        subsys,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -399,6 +491,7 @@ END SUBROUTINE qs_ks_env_create
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
       sab_scp, sab_vdw, sab_almo
+    TYPE(qs_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
@@ -447,6 +540,11 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_core)) ks_env%sab_core => sab_core
      IF (PRESENT(sab_almo)) ks_env%sab_almo => sab_almo
 
+     IF (PRESENT(subsys)) THEN
+       CALL qs_subsys_release(ks_env%subsys,error)
+       CALL qs_subsys_retain(subsys, error=error)
+       ks_env%subsys => subsys
+    END IF
   END SUBROUTINE set_ks_env
 
 ! *****************************************************************************
@@ -548,6 +646,7 @@ END SUBROUTINE qs_ks_env_create
           CALL release_sab(ks_env%sab_almo)
 
           CALL kpoint_release(ks_env%kpoints,error=error)
+          CALL qs_subsys_release(ks_env%subsys,error=error)
           DEALLOCATE(ks_env)
        END IF
     END IF

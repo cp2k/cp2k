@@ -25,7 +25,6 @@ MODULE efield_utils
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_p_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -35,7 +34,6 @@ MODULE efield_utils
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_subsys_types,                 ONLY: qs_subsys_get
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -75,19 +73,18 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol, efield_ener, field(3)
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(cell, particles)
-    CALL qs_subsys_get(qs_env%subsys,particles=particles,error=error)
-    v_efield_rspace%pw%cr3d=0.0_dp
+    CALL get_qs_env(qs_env,&
+                    energy=energy,&
+                    rho=rho,&
+                    error=error)
 
-    CALL get_qs_env(qs_env,cell=cell,energy=energy,rho=rho,error=error)
+    v_efield_rspace%pw%cr3d=0.0_dp
 
     bo_local=v_efield_rspace%pw%pw_grid%bounds_local
     bo_global=v_efield_rspace%pw%pw_grid%bounds
