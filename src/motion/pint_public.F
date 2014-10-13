@@ -122,9 +122,9 @@ MODULE pint_public
 !> \param error ...
 !> \date   2010-12-13
 !> \author Lukasz Walewski
-!> \descr  This routine implements Levy argorithm (see e.g. Rev. Mod. Phys. UNKNOWN_DOXYGEN_COMMENT
-!>         67 (1995) 279, eq. 5.35) and requires that n is a power of 2. The UNKNOWN_DOXYGEN_COMMENT
-!>         resulting bead positions are centered around (0,0,0). UNKNOWN_DOXYGEN_COMMENT
+!> \note  This routine implements Levy argorithm (see e.g. Rev. Mod. Phys.
+!>         67 (1995) 279, eq. 5.35) and requires that n is a power of 2. The
+!>         resulting bead positions are centered around (0,0,0).
 ! *****************************************************************************
   SUBROUTINE pint_free_part_bead_x( n, t, rng_gaussian, x, nout, error)
 !

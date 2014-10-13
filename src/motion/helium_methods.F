@@ -846,10 +846,10 @@ MODULE helium_methods
 !>         removed refereces to pint_env_type data structure [lwalewski]
 !>         2009-11-10 init/restore coords, perm, RNG and forces [lwalewski]
 !> \author hforbert
-!> \descr  Initializes helium coordinates either as random positions or from UNKNOWN_DOXYGEN_COMMENT
-!>         HELIUM%COORD section if it's present in the input file. UNKNOWN_DOXYGEN_COMMENT
-!>         Initializes helium permutation state as identity permutation or UNKNOWN_DOXYGEN_COMMENT
-!>         from HELIUM%PERM section if it's present in the input file. UNKNOWN_DOXYGEN_COMMENT
+!> \note   Initializes helium coordinates either as random positions or from
+!>         HELIUM%COORD section if it's present in the input file.
+!>         Initializes helium permutation state as identity permutation or
+!>         from HELIUM%PERM section if it's present in the input file.
 ! *****************************************************************************
   SUBROUTINE helium_init( helium, pint_env, error )
 
@@ -1126,9 +1126,9 @@ MODULE helium_methods
 !> \param error ...
 !> \date   2009-11-10
 !> \author Lukasz Walewski
-!> \descr  The forces are calculated based on both the helium and the solute UNKNOWN_DOXYGEN_COMMENT
-!>         positions, hence this function should be called AFTER UNKNOWN_DOXYGEN_COMMENT
-!>         helium_coord_init/restore. UNKNOWN_DOXYGEN_COMMENT
+!> \note  The forces are calculated based on both the helium and the solute
+!>         positions, hence this function should be called AFTER
+!>         helium_coord_init/restore.
 ! *****************************************************************************
   SUBROUTINE helium_force_init( helium, pint_env, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1231,8 +1231,8 @@ MODULE helium_methods
 !> \param error ...
 !> \date   2009-11-05
 !> \author Lukasz Walewski
-!> \descr  Assign the identity permutation at each processor. Inverse UNKNOWN_DOXYGEN_COMMENT
-!>         permutation array gets assigned as well. UNKNOWN_DOXYGEN_COMMENT
+!> \note  Assign the identity permutation at each processor. Inverse
+!>         permutation array gets assigned as well.
 ! *****************************************************************************
   SUBROUTINE helium_perm_init( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1264,9 +1264,9 @@ MODULE helium_methods
 !>         2010-07-22 accomodate additional cpus in the runtime wrt the
 !>                    restart [lwalewski]
 !> \author Lukasz Walewski
-!> \descr  Transfer permutation state from the input tree to the runtime UNKNOWN_DOXYGEN_COMMENT
-!>         data structures on each processor. Inverse permutation array is UNKNOWN_DOXYGEN_COMMENT
-!>         recalculated according to the restored permutation state. UNKNOWN_DOXYGEN_COMMENT
+!> \note  Transfer permutation state from the input tree to the runtime
+!>         data structures on each processor. Inverse permutation array is
+!>         recalculated according to the restored permutation state.
 ! *****************************************************************************
   SUBROUTINE helium_perm_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1362,9 +1362,9 @@ MODULE helium_methods
 !> \param error ...
 !> \date   2009-11-04
 !> \author Lukasz Walewski
-!> \todo   This function shouldn't create (allocate) objects! Only UNKNOWN_DOXYGEN_COMMENT
-!>         initialization, i.e. setting the seed values etc, should be done UNKNOWN_DOXYGEN_COMMENT
-!>         here, allocation should be moved to helium_create UNKNOWN_DOXYGEN_COMMENT
+!> \note   This function shouldn't create (allocate) objects! Only
+!>         initialization, i.e. setting the seed values etc, should be done
+!>         here, allocation should be moved to helium_create
 ! *****************************************************************************
   SUBROUTINE helium_rng_state_init( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1857,11 +1857,11 @@ MODULE helium_methods
 !> \param helium ...
 !> \param pint_env ...
 !> \author Lukasz Walewski
-!> \descr The simulation cell for the solvated molecule is taken from force_env UNKNOWN_DOXYGEN_COMMENT
-!>        which should assure that we get proper cell dimensions regardless of UNKNOWN_DOXYGEN_COMMENT
-!>        the method used for the solute (QS, FIST). Helium solvent needs the UNKNOWN_DOXYGEN_COMMENT
-!>        solute's cell dimensions to calculate the solute-solvent distances UNKNOWN_DOXYGEN_COMMENT
-!>        correctly. UNKNOWN_DOXYGEN_COMMENT
+!> \note The simulation cell for the solvated molecule is taken from force_env
+!>        which should assure that we get proper cell dimensions regardless of
+!>        the method used for the solute (QS, FIST). Helium solvent needs the
+!>        solute's cell dimensions to calculate the solute-solvent distances
+!>        correctly.
 !> \note  At the moment only orthorhombic cells are supported.
 ! *****************************************************************************
   SUBROUTINE helium_set_solute_cell(helium, pint_env)

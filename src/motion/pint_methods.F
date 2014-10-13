@@ -790,15 +790,15 @@ CONTAINS
 !> \param error ...
 !> \date   2010-12-15
 !> \author Lukasz Walewski
-!> \descr  Initialization is done in the following way: UNKNOWN_DOXYGEN_COMMENT
-!>           1. assign all beads with the same classical positions from UNKNOWN_DOXYGEN_COMMENT
-!>              FORCE_EVAL (hot start) UNKNOWN_DOXYGEN_COMMENT
-!>           2. spread the beads around classical positions as if they were UNKNOWN_DOXYGEN_COMMENT
-!>              free particles (if requested) UNKNOWN_DOXYGEN_COMMENT
-!>           3. replace positions generated in steps 1-2 with the explicit UNKNOWN_DOXYGEN_COMMENT
-!>              ones if they are explicitly given in the input structure UNKNOWN_DOXYGEN_COMMENT
-!>           4. apply Gaussian noise to the positions generated so far (if UNKNOWN_DOXYGEN_COMMENT
-!>              requested) UNKNOWN_DOXYGEN_COMMENT
+!> \note  Initialization is done in the following way:
+!>           1. assign all beads with the same classical positions from
+!>              FORCE_EVAL (hot start)
+!>           2. spread the beads around classical positions as if they were
+!>              free particles (if requested)
+!>           3. replace positions generated in steps 1-2 with the explicit
+!>              ones if they are explicitly given in the input structure
+!>           4. apply Gaussian noise to the positions generated so far (if
+!>              requested)
 ! *****************************************************************************
   SUBROUTINE pint_init_x( pint_env, error )
 
