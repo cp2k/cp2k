@@ -30,9 +30,9 @@ def main():
     config.read(config_fn)
 
     if(path.exists(status_fn)):
-        last_change = eval(open(status_fn).read())
+        last_ok = eval(open(status_fn).read())
     else:
-        last_change = dict()
+        last_ok = dict()
 
     svn_info = check_output("svn info svn://svn.code.sf.net/p/cp2k/code/trunk".split())
     trunk_revision = int(re.search('Last Changed Rev: (\d+)\n', svn_info).group(1))
@@ -76,7 +76,7 @@ def main():
         except:
             print traceback.print_exc()
             report = dict()
-            report['status'] = "UNKOWN"  
+            report['status'] = "UNKOWN"
             report['summary'] = "Could not retrieve and parse report"
 
         output += '<tr align="center">'
@@ -84,7 +84,7 @@ def main():
             output += '<td align="left"><a href="%s">%s</a></td>'%(link_url, name)
         else:
             output += '<td align="left">%s</td>'%name
-        output += '<td align="left">%s</a></td>'%host
+        output += '<td align="left">%s</td>'%host
 
         #Status
         if(report['status'] == "OK"):
@@ -98,8 +98,8 @@ def main():
         #Revision
         if(report.has_key('revision')):
             output += rev_link(report['revision'], trunk_revision)
-            if(not last_change.has_key(s) or last_change[s][0]!=report['status']):
-                last_change[s] = (report['status'], report['revision'])
+            if(report['status'] == "OK"):
+                last_ok[s] = report['revision']
         else:
             output += '<td>N/A</td>'
 
@@ -107,10 +107,13 @@ def main():
         output += '<td align="left">%s</td>'%report['summary']
 
         #Since
-        if(last_change.has_key(s)):
-            output += rev_link(last_change[s][1], trunk_revision)
+        if(report['status'] != "OK"):
+            if(last_ok.has_key(s)):
+                output += rev_link(last_ok[s]+1, trunk_revision)
+            else:
+                output += '<td>N/A</td>'
         else:
-            output += '<td>N/A</td>'
+            output += '<td></td>'
 
         output += '</tr>\n\n'
 
@@ -118,7 +121,7 @@ def main():
     output += '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
     output += '</body></html>'
 
-    open(status_fn, "w").write(pformat(last_change))
+    open(status_fn, "w").write(pformat(last_ok))
     print("Wrote "+status_fn)
 
     open(output_fn, "w").write(output)
