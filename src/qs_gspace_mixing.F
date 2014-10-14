@@ -474,6 +474,7 @@ CONTAINS
                                                 natom, ng, nspin
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: alpha, f_mix
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
@@ -482,13 +483,13 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mixing_store%kerker_factor),cp_failure_level,routineP,error,failure)
 
     CALL timeset(routineN,handle)
+    NULLIFY(cc_new, dft_control)
 
-    NULLIFY(cc_new)
-
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
 
-    gapw = qs_env%dft_control%qs_control%gapw
+    gapw = dft_control%qs_control%gapw
     alpha = mixing_store%alpha
 
     DO ispin = 1,nspin
@@ -748,6 +749,7 @@ CONTAINS
                                                 valh, vals, w0
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: c, g
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
@@ -756,9 +758,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mixing_store%rhoin),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store%rhoin_old),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store%drho_buffer),cp_failure_level,routineP,error,failure)
-
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
 
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
     nspin = SIZE(rho%rho_g,1)
     ng = SIZE(mixing_store%res_buffer(1,1)%cc)
 
@@ -766,7 +769,7 @@ CONTAINS
     beta=mixing_store%beta
     w0 = mixing_store%broy_w0
     nbuffer = mixing_store%nbuffer
-    gapw = qs_env%dft_control%qs_control%gapw
+    gapw = dft_control%qs_control%gapw
 
     ib = MODULO(mixing_store%ncall,nbuffer) + 1
     mixing_store%ncall = mixing_store%ncall + 1
@@ -1844,6 +1847,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: refmatrix
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -1855,12 +1859,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(sab_orb, scf_env, matrix_s)
-    CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
-         scf_env=scf_env, &
-         matrix_s=matrix_s, &
-         do_kpoints=do_kpoints, &
-         error=error)
+    NULLIFY(sab_orb, scf_env, matrix_s, dft_control)
+    CALL get_qs_env(qs_env,&
+                    sab_orb=sab_orb, &
+                    scf_env=scf_env, &
+                    matrix_s=matrix_s, &
+                    do_kpoints=do_kpoints, &
+                    dft_control=dft_control,&
+                    error=error)
     refmatrix => matrix_s(1)%matrix
 
 !   *** allocate p_mix_new ***
@@ -1933,7 +1939,7 @@ CONTAINS
           NULLIFY(mixing_store%rhoin(ispin)%cc)
         END DO
       END IF
-      IF(qs_env % dft_control % qs_control%gapw) THEN
+      IF(dft_control%qs_control%gapw) THEN
         CALL get_qs_env(qs_env=qs_env,&
                rho_atom_set=rho_atom,error=error)
         natom = SIZE(rho_atom)
@@ -2010,7 +2016,7 @@ CONTAINS
           NULLIFY(mixing_store%last_res(ispin)%cc)
         END DO
       END IF
-      IF(qs_env % dft_control % qs_control%gapw) THEN
+      IF(dft_control%qs_control%gapw) THEN
         IF(.NOT. ASSOCIATED(mixing_store%cpc_h_old)) THEN
           ALLOCATE(mixing_store%cpc_h_old(natom,nspins),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

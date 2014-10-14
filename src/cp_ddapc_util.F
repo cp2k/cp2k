@@ -109,12 +109,14 @@ CONTAINS
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
             radii, inp_radii, particle_set, qs_charges)
+
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
     allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation.OR.&
                          qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
                          qs_env%cp_ddapc_ewald%do_decoupling.OR.&
                          qs_env%cp_ddapc_ewald%do_restraint
-    unimplemented =      qs_env%dft_control%qs_control%semi_empirical.OR.&
-                         qs_env%dft_control%qs_control%dftb
+    unimplemented =      dft_control%qs_control%semi_empirical.OR.&
+                         dft_control%qs_control%dftb
     IF (allocate_ddapc_env.AND.unimplemented) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="DDAP charges work only with GPW/GAPW code.", &

@@ -16,6 +16,7 @@ MODULE qs_ks_atom
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -123,6 +124,7 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_h, mat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
@@ -146,17 +148,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(qs_kind_set,atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
-    NULLIFY(mat_h, mat_p ,orb_basis)
-
-    my_tddft = .FALSE.
-    IF (PRESENT(tddft)) my_tddft = tddft
-    factor = 1.0_dp
-    IF (my_tddft) THEN
-       IF (qs_env%dft_control%nspins == 1) THEN
-          factor = 2.0_dp
-       END IF
-    END IF
-    nspins = qs_env%dft_control%nspins
+    NULLIFY(mat_h, mat_p ,orb_basis, dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
            qs_kind_set=qs_kind_set,&
@@ -166,13 +158,26 @@ CONTAINS
            para_env=para_env,&
            rho_atom_set=rho_atom,&
            virial=virial,&
-           sab_orb=sab_orb,error=error)
+           sab_orb=sab_orb,&
+           dft_control=dft_control,&
+           error=error)
+
+
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
+    factor = 1.0_dp
+    IF (my_tddft) THEN
+       IF (dft_control%nspins == 1) THEN
+          factor = 2.0_dp
+       END IF
+    END IF
+    nspins = dft_control%nspins
 
     IF (my_tddft) THEN
        rho_atom   => p_env%local_rho_set%rho_atom_set
     END IF
 
-    eps_cpc = qs_env%dft_control%qs_control%gapw_control%eps_cpc
+    eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
     CALL get_qs_kind_set(qs_kind_set,maxsgf=max_nsgf,maxgtops=max_gau)

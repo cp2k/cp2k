@@ -13,6 +13,7 @@
 MODULE lri_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
@@ -223,13 +224,15 @@ CONTAINS
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: my_skip
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: rho_core
 
-    NULLIFY (rho_core)
+    NULLIFY (rho_core, dft_control)
     my_skip = .FALSE.
     IF (PRESENT(skip_nuclear_density)) my_skip=skip_nuclear_density
     CALL get_qs_env(qs_env=qs_env,&
                     rho_core=rho_core,&
+                    dft_control=dft_control,&
                     error=error)
 
     IF (.NOT.my_skip) THEN
@@ -238,7 +241,7 @@ CONTAINS
     ELSE
        CALL pw_axpy(lri_rho_g(1)%pw, rho_tot_gspace%pw, error=error)
     END IF
-    DO ispin=2, qs_env%dft_control%nspins
+    DO ispin=2, dft_control%nspins
        CALL pw_axpy(lri_rho_g(ispin)%pw, rho_tot_gspace%pw, error=error)
     END DO
  

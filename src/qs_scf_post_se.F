@@ -249,7 +249,7 @@ CONTAINS
 
        ! Makes the MOs eigenstates, computes eigenvalues, write cubes
        IF (do_mo_cubes .AND. (nhomo/=0)) THEN
-          IF (qs_env%dft_control%restricted) THEN
+          IF (dft_control%restricted) THEN
              !
              ! The issue is that one state is different from the others,
              ! so we certainly can't rotate all N+1 alpha states among themselves
@@ -324,7 +324,7 @@ CPSourceFileRef,&
        !  - Possibly gets wannier functions
        !  - Possibly gets molecular states
        IF (p_loc) THEN
-          IF (qs_env%dft_control%restricted) THEN
+          IF (dft_control%restricted) THEN
              IF (output_unit>0) WRITE(output_unit,*) &
               " Unclear how we define MOs / localization in the restricted case ... skipping"
           ELSE

@@ -844,12 +844,13 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: input, scf_section
 
-    NULLIFY(qs_charges, qs_kind_set, cell, input, logger, scf_section, matrix_s)
+    NULLIFY(qs_charges, qs_kind_set, cell, input, logger, scf_section, matrix_s, dft_control)
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env,&
@@ -857,19 +858,21 @@ CONTAINS
                     cell=cell,qs_charges=qs_charges,&
                     input=input,&
                     matrix_s=matrix_s,&
+                    dft_control=dft_control,&
                     error=error)
+
     CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
               extension=".scfLog",error=error)
 
-    n_electrons = n_electrons - qs_env%dft_control%charge
+    n_electrons = n_electrons - dft_control%charge
     tot_rho_r = accurate_sum(rho%tot_rho_r)
 
     trace=0
     IF(BTEST(cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",error=error),cp_p_file)) THEN
-      DO ispin=1,qs_env%dft_control%nspins
+      DO ispin=1,dft_control%nspins
          CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace_tmp,error=error)
          trace=trace+trace_tmp
       END DO
@@ -884,12 +887,12 @@ CONTAINS
            REAL(n_electrons,dp),&
            "Core density on regular grids:",&
            qs_charges%total_rho_core_rspace,&
-           qs_charges%total_rho_core_rspace - REAL(n_electrons+qs_env%dft_control%charge,dp)
+           qs_charges%total_rho_core_rspace - REAL(n_electrons+dft_control%charge,dp)
     END IF
-    IF(qs_env%dft_control%qs_control%gapw ) THEN
+    IF(dft_control%qs_control%gapw ) THEN
        tot1_h =  qs_charges%total_rho1_hard(1)
        tot1_s =  qs_charges%total_rho1_soft(1)
-       DO ispin=2,qs_env%dft_control%nspins
+       DO ispin=2,dft_control%nspins
           tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
           tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
        END DO
@@ -908,10 +911,10 @@ CONTAINS
        END IF
        qs_charges%background=tot_rho_r+ tot1_h - tot1_s+&
                                     qs_charges%total_rho_core_rspace
-    ELSE IF( qs_env%dft_control%qs_control%gapw_xc) THEN
+    ELSE IF(dft_control%qs_control%gapw_xc) THEN
        tot1_h =  qs_charges%total_rho1_hard(1)
        tot1_s =  qs_charges%total_rho1_soft(1)
-       DO ispin=2,qs_env%dft_control%nspins
+       DO ispin=2, dft_control%nspins
           tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
           tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
        END DO
@@ -990,13 +993,13 @@ CONTAINS
            "Exchange-correlation energy:                   ",energy%exc + energy%exc_aux_fit
       ELSE
 !ZMP to print some variables at each step
-        IF( qs_env%dft_control%apply_external_density ) THEN
+        IF(dft_control%apply_external_density) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
              "DOING ZMP CALCULATION FROM EXTERNAL DENSITY    "
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
              "Core Hamiltonian energy:                       ",energy%core,&
              "Hartree energy:                                ",energy%hartree
-        ELSE IF(  qs_env%dft_control%apply_external_vxc ) THEN
+        ELSE IF(dft_control%apply_external_vxc ) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
              "DOING ZMP READING EXTERNAL VXC                 "
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
@@ -1010,7 +1013,7 @@ CONTAINS
           END IF
       END IF
 
-      IF( qs_env%dft_control%apply_external_density ) THEN
+      IF(dft_control%apply_external_density) THEN
         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
              "Integral of the (density * v_xc):              ",energy%exc
       END IF
@@ -1250,9 +1253,9 @@ CONTAINS
                      +v_spin_ddapc_rest_r%pw%cr3d
              END IF
           END IF
-          IF(qs_env%dft_control%qs_control%becke_restraint)THEN
+          IF(dft_control%qs_control%becke_restraint)THEN
              v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                  +becke%becke_pot%pw%cr3d*qs_env%dft_control%qs_control%becke_control%strength
+                  +becke%becke_pot%pw%cr3d*dft_control%qs_control%becke_control%strength
           END IF
           ! the efield contribution
           IF(dft_control%apply_efield_field)THEN
@@ -1483,6 +1486,7 @@ CONTAINS
     LOGICAL                                  :: do_zmp_read, failure, &
                                                 fermi_amaldi
     REAL(KIND=dp)                            :: factor, lambda, total_rho
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho_eff_gspace, v_xc_gspace, &
                                                 v_xc_rspace
@@ -1498,13 +1502,15 @@ CONTAINS
     NULLIFY (auxbas_pw_pool)
     NULLIFY (pw_env)
     NULLIFY (poisson_env)
-    NULLIFY(v_rspace_new)
+    NULLIFY (v_rspace_new)
+    NULLIFY (dft_control)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
                     ks_env=ks_env,&
                     rho=rho,&
                     input=input,&
                     nelectron_spin=nelectron_spin,&
+                    dft_control=dft_control,&
                     error=error)
     CALL pw_env_get(pw_env=pw_env,&
                     auxbas_pw_pool=auxbas_pw_pool,&
@@ -1519,7 +1525,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL pw_zero(v_rspace_new(1)%pw, error=error)
-    do_zmp_read=qs_env%dft_control%apply_external_vxc
+    do_zmp_read=dft_control%apply_external_vxc
     IF (do_zmp_read) THEN
       CALL pw_copy(qs_env%external_vxc%pw,v_rspace_new(1)%pw, error=error)
       exc = 0.0_dp

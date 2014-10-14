@@ -12,6 +12,7 @@
 MODULE hfx_communication
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_iterator,&
                                              cp_dbcsr_iterator_blocks_left,&
@@ -359,6 +360,7 @@ MODULE hfx_communication
     REAL(dp), DIMENSION(:), POINTER          :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
@@ -367,15 +369,17 @@ MODULE hfx_communication
 
 !! All shared data is saved in i_thread = 1!
 
+    NULLIFY(dft_control)
     actual_x_data => qs_env%x_data(irep, 1)
     basis_parameter => actual_x_data%basis_parameter
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
+                    dft_control=dft_control,&
                     error=error)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
     natom = SIZE(particle_set,1)
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

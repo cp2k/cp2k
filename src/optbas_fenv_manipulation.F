@@ -183,13 +183,14 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
                     mos=mos,nelectron_spin=nelectron_spin,&
                     mos_aux_fit=mos_aux_fit,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
                     scf_control=scf_control,&
-                   particle_set=particle_set,&
+                    particle_set=particle_set,&
 !                   matrix_s=matrix_s,&
                     admm_env=admm_env,&
                     error=error)
@@ -238,21 +239,23 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(rho)
+    NULLIFY(rho, dft_control)
+
     CALL qs_energies_init(qs_env,.FALSE.,error)
-    CALL get_qs_env(qs_env, rho=rho, error=error)
-    DO ispin=1,qs_env%dft_control%nspins
+    CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, error=error)
+    DO ispin=1, dft_control%nspins
        CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set,rho%rho_ao(ispin)%matrix,error=error)
     END DO
     CALL qs_rho_update_rho(rho, qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
     qs_env%requires_mo_derivs=.FALSE.
-    qs_env%dft_control%do_admm=.FALSE.
+    dft_control%do_admm=.FALSE.
     CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
             error=error)
-    qs_env%dft_control%do_admm=.TRUE.
+    dft_control%do_admm=.TRUE.
 
    END SUBROUTINE calculate_ks_matrix
 

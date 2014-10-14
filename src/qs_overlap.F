@@ -14,7 +14,6 @@
 !> \author Matthias Krack (03.09.2001,25.06.2003)
 ! *****************************************************************************
 MODULE qs_overlap
-
   USE ai_contraction,                  ONLY: block_add,&
                                              contraction,&
                                              decontraction,&
@@ -25,6 +24,7 @@ MODULE qs_overlap
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
@@ -163,6 +163,7 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list_a, &
                                                 basis_set_list_b
@@ -176,6 +177,7 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
+     NULLIFY(dft_control)
      failure = .FALSE.
 
      CALL timeset(routineN,handle)
@@ -194,8 +196,13 @@ CONTAINS
      END IF
 
      NULLIFY (atomic_kind_set)
-     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
-                     qs_kind_set=qs_kind_set,dbcsr_dist=dbcsr_dist,error=error)
+     CALL get_qs_env(qs_env,&
+                     atomic_kind_set=atomic_kind_set,&
+                     natom=natom,&
+                     qs_kind_set=qs_kind_set,&
+                     dbcsr_dist=dbcsr_dist,&
+                     dft_control=dft_control,&
+                     error=error)
 
      nkind = SIZE(qs_kind_set)
 
@@ -415,14 +422,14 @@ CONTAINS
            DO ic=1,ncount
               CALL cp_dbcsr_finalize(matrixkp_s(i,ic)%matrix, error=error)
               CALL cp_dbcsr_filter(matrixkp_s(i,ic)%matrix, &
-                   qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
+                   dft_control%qs_control%eps_filter_matrix, error=error)
            ENDDO
         ENDDO
      ELSE
         DO i = 1,maxs
            CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
            CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
-                qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
+                dft_control%qs_control%eps_filter_matrix, error=error)
         ENDDO
      END IF
 

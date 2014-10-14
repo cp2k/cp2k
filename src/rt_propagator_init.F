@@ -212,12 +212,18 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: eigvec_H, H_fm, S_half, &
                                                 S_inv_fm, S_minus_half, tmp, &
                                                 tmp_mat_H
+    TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
-
+    NULLIFY(dft_control)
     failure=.FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=s_mat,error=error)
+    CALL get_qs_env(qs_env,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=s_mat,&
+                    dft_control=dft_control,&
+                    error=error)
+
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
 
     CALL cp_fm_create(S_inv_fm,&
@@ -248,7 +254,7 @@ CONTAINS
 
     ndim=S_inv_fm%matrix_struct%nrow_global
     scale=1.0_dp
-    IF(qs_env%dft_control%rtp_control%propagator==do_etrs) scale=2.0_dp
+    IF(dft_control%rtp_control%propagator==do_etrs) scale=2.0_dp
     t=-t/scale
 
     ! Create the overlap matrices
@@ -279,9 +285,9 @@ CONTAINS
     CALL cp_fm_release(eigvec_H,error)
     CALL cp_fm_release(tmp,error)
 
-    IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)method=1
-    IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)method=2
-    emd=(.NOT.qs_env%dft_control%rtp_control%fixed_ions)
+    IF(dft_control%rtp_control%mat_exp==do_taylor)method=1
+    IF(dft_control%rtp_control%mat_exp==do_pade)method=2
+    emd=(.NOT.dft_control%rtp_control%fixed_ions)
 
     DO ispin=1,SIZE(matrix_ks)
 
@@ -299,7 +305,7 @@ CONTAINS
        max_eval=MAXVAL(eigval_H)
        norm2=2.0_dp*MAX(ABS(min_eval),ABS(max_eval))
        CALL get_nsquare_norder(norm2,rtp%orders(1,ispin),rtp%orders(2,ispin),&
-            qs_env%dft_control%rtp_control%eps_exp,method ,emd,error)
+            dft_control%rtp_control%eps_exp,method ,emd,error)
     END DO
 
     DEALLOCATE(eigval_H,stat=stat)
@@ -343,10 +349,19 @@ CONTAINS
       POINTER                                :: matrix_ks, s_mat
     TYPE(cp_dbcsr_type), POINTER             :: s_half, s_minus_half, tmp, &
                                                 tmp2
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    NULLIFY(dft_control)
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_ks=matrix_ks,matrix_s=s_mat,error=error)
+    CALL get_qs_env(qs_env,&
+                    rtp=rtp,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=s_mat,&
+                    dft_control=dft_control,&
+                    error=error)
+
     CALL get_rtp(rtp=rtp,dt=t,error=error)
 
     NULLIFY(s_half)
@@ -366,12 +381,12 @@ CONTAINS
     CALL cp_dbcsr_init(tmp2,error=error)
     CALL cp_dbcsr_create(tmp2,template=s_mat(1)%matrix,matrix_type="N",error=error)
     scale=1.0_dp
-    IF(qs_env%dft_control%rtp_control%propagator==do_etrs)scale=2.0_dp
+    IF(dft_control%rtp_control%propagator==do_etrs)scale=2.0_dp
     t=-t/scale
-    emd=(.NOT.qs_env%dft_control%rtp_control%fixed_ions)
+    emd=(.NOT.dft_control%rtp_control%fixed_ions)
 
-    IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)method=1
-    IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)method=2
+    IF(dft_control%rtp_control%mat_exp==do_taylor)method=1
+    IF(dft_control%rtp_control%mat_exp==do_pade)method=2
     CALL matrix_sqrt_Newton_Schulz(s_half,s_minus_half,s_mat(1)%matrix,rtp%filter_eps,&
          rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
     DO ispin=1,SIZE(matrix_ks)
@@ -383,7 +398,7 @@ CONTAINS
             max_iter=rtp%lanzcos_max_iter, converged=converged, error=error)
        norm2=2.0_dp*MAX(ABS(min_ev),ABS(max_ev))
        CALL get_nsquare_norder(norm2,rtp%orders(1,ispin),rtp%orders(2,ispin),&
-            qs_env%dft_control%rtp_control%eps_exp,method,emd,error)
+            dft_control%rtp_control%eps_exp,method,emd,error)
     END DO
 
     CALL cp_dbcsr_deallocate_matrix(s_half,error=error)

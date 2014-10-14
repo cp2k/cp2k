@@ -504,7 +504,7 @@ MODULE mp2_ri_grad
                                                o1=na1-1,&
                                                o2=0,&
                                                map_consistent=.TRUE.,&
-                                               eps_gvg_rspace=qs_env%dft_control%qs_control%eps_gvg_rspace,&
+                                               eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
                                                use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
@@ -767,7 +767,7 @@ MODULE mp2_ri_grad
                                                o1=na1-1,&
                                                o2=0,&
                                                map_consistent=.TRUE.,&
-                                               eps_gvg_rspace=qs_env%dft_control%qs_control%eps_gvg_rspace,&
+                                               eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
                                                use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&

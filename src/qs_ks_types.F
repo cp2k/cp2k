@@ -12,6 +12,9 @@ MODULE qs_ks_types
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_type
   USE cell_methods,                    ONLY: cell_type
+  USE cp_control_types,                ONLY: dft_control_release,&
+                                             dft_control_retain,&
+                                             dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type
   USE cp_result_types,                 ONLY: cp_result_type
@@ -163,6 +166,7 @@ MODULE qs_ks_types
 
     TYPE(kpoint_type), POINTER                            :: kpoints => Null()
     TYPE(qs_subsys_type), POINTER                         :: subsys => Null()
+    TYPE(dft_control_type), POINTER                       :: dft_control => Null()
   END TYPE qs_ks_env_type
 
 ! *****************************************************************************
@@ -268,6 +272,7 @@ END SUBROUTINE qs_ks_env_create
 !> \param atprop ...
 !> \param nkind ...
 !> \param natom ...
+!> \param dft_control ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -286,7 +291,7 @@ END SUBROUTINE qs_ks_env_create
                         atomic_kind_set,qs_kind_set,cell,cell_ref,use_ref_cell,&
                         particle_set,energy,force,local_particles,local_molecules,&
                         molecule_kind_set,molecule_set,subsys,cp_subsys,virial,results,atprop,&
-                        nkind, natom,&
+                        nkind, natom, dft_control,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -334,6 +339,8 @@ END SUBROUTINE qs_ks_env_create
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     INTEGER, OPTIONAL                        :: nkind, natom
+    TYPE(dft_control_type), OPTIONAL, &
+      POINTER                                :: dft_control
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
@@ -384,6 +391,7 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_tbe)) sab_tbe =>  ks_env%sab_tbe
      IF (PRESENT(sab_core)) sab_core =>  ks_env%sab_core
      IF (PRESENT(sab_almo)) sab_almo =>  ks_env%sab_almo
+     IF (PRESENT(dft_control)) dft_control => ks_env%dft_control
 
      IF (PRESENT(kpoints)) kpoints => ks_env%kpoints
      IF (PRESENT(do_kpoints)) THEN
@@ -458,6 +466,7 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_vdw ...
 !> \param sab_almo ...
 !> \param subsys ...
+!> \param dft_control ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
@@ -471,7 +480,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
-                        subsys,&
+                        subsys,dft_control,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -492,6 +501,8 @@ END SUBROUTINE qs_ks_env_create
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
       sab_scp, sab_vdw, sab_almo
     TYPE(qs_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(dft_control_type), OPTIONAL, &
+      POINTER                                :: dft_control
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
@@ -544,6 +555,11 @@ END SUBROUTINE qs_ks_env_create
        CALL qs_subsys_release(ks_env%subsys,error)
        CALL qs_subsys_retain(subsys, error=error)
        ks_env%subsys => subsys
+    END IF
+    IF (PRESENT(dft_control)) THEN
+       CALL dft_control_retain(dft_control, error=error)
+       CALL dft_control_release(ks_env%dft_control, error=error)
+       ks_env%dft_control => dft_control
     END IF
   END SUBROUTINE set_ks_env
 
@@ -644,6 +660,7 @@ END SUBROUTINE qs_ks_env_create
           CALL release_sab(ks_env%sab_aux_fit_asymm)
           CALL release_sab(ks_env%sab_lrc)
           CALL release_sab(ks_env%sab_almo)
+          CALL dft_control_release(ks_env%dft_control, error=error)
 
           CALL kpoint_release(ks_env%kpoints,error=error)
           CALL qs_subsys_release(ks_env%subsys,error=error)

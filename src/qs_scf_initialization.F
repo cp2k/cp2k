@@ -1066,19 +1066,20 @@ CONTAINS
     LOGICAL                                  :: failure, orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(mo_coeff, rho)
+    NULLIFY(mo_coeff, rho, dft_control)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env, rho=rho, error=error)
+    CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, error=error)
 
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
@@ -1123,7 +1124,7 @@ CONTAINS
 
        ! Some preparation for the mixing
        IF(qs_env%scf_env%mixing_method>1) THEN
-          IF(qs_env % dft_control % qs_control%gapw) THEN
+          IF(dft_control % qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env,&
                  rho_atom_set=rho_atom,error=error)
             CALL mixing_init(qs_env%scf_env%mixing_method,rho,qs_env%scf_env%mixing_store,&

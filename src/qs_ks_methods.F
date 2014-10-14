@@ -330,7 +330,7 @@ CONTAINS
     CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
 
     ! Setup the possible usage of DDAPC charges
-    do_ddapc = qs_env%dft_control%qs_control%ddapc_restraint.OR.&
+    do_ddapc = dft_control%qs_control%ddapc_restraint.OR.&
                qs_env%cp_ddapc_ewald%do_decoupling.OR.&
                qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
                qs_env%cp_ddapc_ewald%do_solvation
@@ -550,7 +550,7 @@ CONTAINS
        END IF
 
        ! zmp 
-       IF (qs_env%dft_control%apply_external_density .OR. qs_env%dft_control%apply_external_vxc) THEN
+       IF (dft_control%apply_external_density .OR. dft_control%apply_external_vxc) THEN
          energy%exc = 0.
          CALL calculate_zmp_potential(qs_env, v_rspace_new, rho, exc=energy%exc,error=error)
        ELSE
@@ -596,7 +596,7 @@ CONTAINS
        ENDIF
 
        ! calculate KG correction
-       IF (qs_env%dft_control%qs_control%do_kg.AND.just_energy) THEN
+       IF (dft_control%qs_control%do_kg.AND.just_energy) THEN
 
          CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, v_tau_rspace, ekin_mol, &
                              calculate_forces, error)
@@ -638,14 +638,11 @@ CONTAINS
                 v_efield_rspace,v_sic_rspace,v_spin_ddapc_rest_r,&
                 becke,calculate_forces,error=error)
 
-          IF (qs_env%dft_control%qs_control%do_kg) THEN
-       
+          IF (dft_control%qs_control%do_kg) THEN
             CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, v_tau_rspace, ekin_mol, &
                                 calculate_forces, error)
-
             ! substract kg corr from the total energy
             energy%exc = energy%exc - ekin_mol
-
           END IF
 
        END IF  ! .NOT. just energy
@@ -654,7 +651,7 @@ CONTAINS
            CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_r%pw,&
                                         error=error)
        ENDIF
-       IF (calculate_forces.AND.qs_env%dft_control%qs_control%becke_restraint)&
+       IF (calculate_forces.AND.dft_control%qs_control%becke_restraint)&
            CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,&
                                         error=error)
        IF(dft_control%apply_efield_field)THEN
@@ -691,7 +688,7 @@ CONTAINS
        DO ispin=1,nspins
           IF(.FALSE.)WRITE(*,*) 'before',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
           CALL cp_dbcsr_filter(ks_matrix(ispin)%matrix,&
-               qs_env%dft_control%qs_control%eps_filter_matrix,&
+               dft_control%qs_control%eps_filter_matrix,&
                error=error)
           IF(.FALSE.)WRITE(*,*) 'after',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
        ENDDO
@@ -1018,20 +1015,23 @@ CONTAINS
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure, my_skip
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(qs_charges_type), POINTER           :: qs_charges
 
-    NULLIFY (rho_core, rho0_s_gs)
+    NULLIFY (rho_core, rho0_s_gs, dft_control)
     my_skip = .FALSE.
     IF (PRESENT(skip_nuclear_density)) my_skip=skip_nuclear_density
     CALL get_qs_env(qs_env=qs_env,&
                     rho_core=rho_core,&
                     rho0_s_gs=rho0_s_gs,&
-                    qs_charges=qs_charges,error=error)
+                    qs_charges=qs_charges,&
+                    dft_control=dft_control,&
+                    error=error)
 
     IF (.NOT.my_skip) THEN
-       IF(qs_env%dft_control%qs_control%gapw ) THEN
-           IF( qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+       IF(dft_control%qs_control%gapw) THEN
+           IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
               CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
               CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw, error=error)
               CALL pw_axpy(rho_core%pw,rho_tot_gspace%pw, error=error)
@@ -1048,7 +1048,7 @@ CONTAINS
     ELSE
        CALL pw_axpy(rho%rho_g(1)%pw, rho_tot_gspace%pw, error=error)
     END IF
-    DO ispin=2, qs_env%dft_control%nspins
+    DO ispin=2, dft_control%nspins
        CALL pw_axpy(rho%rho_g(ispin)%pw, rho_tot_gspace%pw, error=error)
     END DO
     IF (.NOT.my_skip) &

@@ -106,6 +106,7 @@ MODULE  rt_propagation_utils
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: C_mat, S_der, s_derivs
     TYPE(cp_dbcsr_type), POINTER             :: B_mat, tmp_mat, tmp_mat2
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
@@ -124,6 +125,7 @@ MODULE  rt_propagation_utils
     NULLIFY (particle_set)
     NULLIFY (rtp)
     NULLIFY (s_derivs)
+    NULLIFY (dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
                     rtp=rtp,&
@@ -132,6 +134,7 @@ MODULE  rt_propagation_utils
                     neighbor_list_id=neighbor_list_id,&
                     sab_orb=sab_orb,&
                     force=force,&
+                    dft_control=dft_control,&
                     error=error)
 
     CALL get_rtp(rtp=rtp,B_mat=B_mat,C_mat=C_mat,S_der=S_der,error=error)
@@ -146,7 +149,7 @@ MODULE  rt_propagation_utils
 
     IF(rtp%iter<2) THEN
        ! calculate the overlap derivative matrices
-       IF(qs_env%dft_control%qs_control%dftb)THEN
+       IF(dft_control%qs_control%dftb)THEN
           CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
        ELSE
           CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
@@ -539,6 +542,7 @@ MODULE  rt_propagation_utils
                                                 SinvH
     TYPE(cp_dbcsr_type), POINTER             :: S_inv, S_minus_half, tmp, &
                                                 tmp2, tmp3
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -547,15 +551,18 @@ MODULE  rt_propagation_utils
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
-
     failure=.FALSE.
+    NULLIFY(rtp,particle_set,atomic_kind_set,dft_control)
 
-    rtp_control=>qs_env%dft_control%rtp_control
+    CALL get_qs_env(qs_env,&
+                    rtp=rtp,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    force=force,&
+                    dft_control=dft_control,&
+                    error=error)
 
-    NULLIFY(rtp,particle_set,atomic_kind_set)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,particle_set=particle_set,&
-                 atomic_kind_set=atomic_kind_set,force=force,error=error)
-
+    rtp_control=>dft_control%rtp_control
     CALL get_rtp(rtp=rtp,C_mat=C_mat,S_der=S_der,S_inv=S_inv,&
                  SinvH=SinvH,SinvB=SinvB,error=error)
 

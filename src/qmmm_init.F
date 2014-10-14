@@ -16,6 +16,7 @@ MODULE qmmm_init
                                              set_atomic_kind
   USE cell_methods,                    ONLY: cell_type,&
                                              read_cell
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -58,7 +59,8 @@ MODULE qmmm_init
                                              qmmm_env_mm_type,&
                                              qmmm_env_qm_type,&
                                              qmmm_links_type
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
@@ -467,10 +469,13 @@ CONTAINS
 
     LOGICAL                                  :: check
     REAL(KIND=dp)                            :: maxchrg
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+   NULLIFY(dft_control)
 
    IF (.NOT.qmmm_env_qm%periodic) RETURN
-   check=(qs_env%dft_control%qs_control%semi_empirical.OR.&
-          qs_env%dft_control%qs_control%dftb)
+   CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+   check=(dft_control%qs_control%semi_empirical.OR.dft_control%qs_control%dftb)
 
    CALL cp_assert(.NOT.check,cp_failure_level,cp_assertion_failed,routineP,&
            " QM/MM periodic calculations possible only with GPW. Not yet implemented for "//&

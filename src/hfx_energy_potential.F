@@ -10,7 +10,6 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_energy_potential
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: cite_reference,&
@@ -18,6 +17,7 @@ MODULE hfx_energy_potential
                                              guidon2009
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_trace,&
@@ -283,6 +283,10 @@ MODULE hfx_energy_potential
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
     LOGICAL                                  :: do_print_load_balance_info,is_anti_symmetric
+    TYPE(dft_control_type),  &
+      POINTER                                :: dft_control
+
+    NULLIFY(dft_control)
 
 #if defined(__USE_PAT)
     INTEGER :: istat
@@ -445,7 +449,7 @@ MODULE hfx_energy_potential
 !$OMP         spherical_estimate,nbits,buffer_left,buffer_start,buffer_size,max_contraction_val,tmp_r_1,tmp_r_2,&
 !$OMP         tmp_screen_pgf1,tmp_screen_pgf2,cartesian_estimate,bintime_stop,iw,memsize_after,storage_counter_integrals,&
 !$OMP         stor_count_int_disk,stor_count_max_val,ene_x_aa,ene_x_bb,mb_size_p,mb_size_f,mb_size_buffers,afac,ene_x_aa_diag,&
-!$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8)
+!$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8,dft_control)
 
 
     ln_10 = LOG(10.0_dp)
@@ -512,6 +516,7 @@ MODULE hfx_energy_potential
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
+                    dft_control=dft_control,&
                     error=error)
 
     natom = SIZE(particle_set,1)
@@ -568,7 +573,7 @@ MODULE hfx_energy_potential
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

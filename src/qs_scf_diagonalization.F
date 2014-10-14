@@ -11,7 +11,6 @@
 !>      05.2009
 ! *****************************************************************************
 MODULE qs_scf_diagonalization
-
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_fm
   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
@@ -19,6 +18,7 @@ MODULE qs_scf_diagonalization
                                              cp_cfm_release,&
                                              cp_cfm_to_fm,&
                                              cp_cfm_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
@@ -577,6 +577,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: c0, chc, evec, mo_coeff, work
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
@@ -584,7 +585,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
-         mo_occupations, work)
+         mo_occupations, work, dft_control)
 
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIAG_SUB_SCF",&
@@ -620,15 +621,19 @@ CONTAINS
     subspace_env%p_matrix_mix => scf_env%p_mix_new
 
     NULLIFY(matrix_ks, energy, para_env, matrix_s)
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,energy=energy, &
-          matrix_s=matrix_s,&
-          para_env=para_env, error=error)
+    CALL get_qs_env(qs_env,&
+                    matrix_ks=matrix_ks,&
+                    energy=energy, &
+                    matrix_s=matrix_s,&
+                    para_env=para_env,&
+                    dft_control=dft_control,&
+                    error=error)
 
     ! mixing storage allocation
     IF (subspace_env%mixing_method>=gspace_mixing_nr) THEN
          CALL mixing_allocate(qs_env,subspace_env%mixing_method,subspace_env%mixing_store,&
               nspins=nspin,error=error)
-         IF(qs_env % dft_control % qs_control%gapw) THEN
+         IF(dft_control%qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env,&
                  rho_atom_set=rho_atom,error=error)
             CALL mixing_init(subspace_env%mixing_method,rho,subspace_env%mixing_store,&

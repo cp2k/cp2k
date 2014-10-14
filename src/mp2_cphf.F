@@ -538,7 +538,7 @@ MODULE mp2_cphf
     CALL copy_fm_to_dbcsr(W_mo, matrix_w_mp2(1)%matrix, keep_sparsity=.TRUE.,error=error)
 
     ! create mp2 DBCSR density
-    CALL cp_dbcsr_allocate_matrix_set(matrix_p_mp2,qs_env%dft_control%nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_p_mp2,dft_control%nspins,error=error)
     DO ispin=1, dft_control%nspins
        ALLOCATE(matrix_p_mp2(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_p_mp2(ispin)%matrix,error=error)
@@ -643,7 +643,7 @@ MODULE mp2_cphf
       CALL timestop(handle2)
     END IF
 
-    DO ispin=1, qs_env%dft_control%nspins
+    DO ispin=1, dft_control%nspins
       CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
     END DO
 

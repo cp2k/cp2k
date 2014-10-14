@@ -108,6 +108,7 @@ CONTAINS
     LOGICAL                                  :: failure, orthonormal_basis, &
                                                 should_output
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
@@ -115,12 +116,13 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    NULLIFY (input)
+    NULLIFY (input, dft_control)
 
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     input=input,&
+                    dft_control=dft_control,&
                     error=error)
 
     CALL cite_reference(Dudarev1997)
@@ -145,7 +147,7 @@ CONTAINS
 
     ! Select DFT+U method
 
-    SELECT CASE (qs_env%dft_control%plus_u_method_id)
+    SELECT CASE (dft_control%plus_u_method_id)
     CASE (plus_u_lowdin)
       IF (orthonormal_basis) THEN
         ! For an orthonormal basis the Lowdin method and the Mulliken method

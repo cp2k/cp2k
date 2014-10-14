@@ -17,6 +17,7 @@ MODULE cp2k_runs
                                              compile_revision,&
                                              cp2k_version,&
                                              cp2k_year
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config,&
                                              cp_dbcsr_print_config
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
@@ -112,6 +113,7 @@ MODULE cp2k_runs
   USE pint_methods,                    ONLY: do_pint_run
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                              pw_cuda_init
+  USE qs_environment_types,            ONLY: get_qs_env
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE reference_manager,               ONLY: print_all_references,&
@@ -177,6 +179,7 @@ CONTAINS
     TYPE(cp_error_type)                      :: error, suberror
     TYPE(cp_logger_type), POINTER            :: logger, sublogger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -186,7 +189,7 @@ CONTAINS
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(para_env, f_env)
+    NULLIFY(para_env, f_env, dft_control)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.,error=error)
 
@@ -405,7 +408,8 @@ CONTAINS
                   "Real time propagation needs METHOD QS. "//&
                   CPSourceFileRef,&
                   suberror,failure)
-             force_env%qs_env%dft_control%rtp_control%fixed_ions=.TRUE.
+             CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+             dft_control%rtp_control%fixed_ions=.TRUE.
              CALL rt_prop_setup(force_env,error)
           CASE (ehrenfest)
              IF(method_name_id /= do_qs) &
@@ -413,7 +417,8 @@ CONTAINS
                   "Ehrenfest dynamics needs METHOD QS "//&
                   CPSourceFileRef,&
                   suberror,failure)
-             force_env%qs_env%dft_control%rtp_control%fixed_ions=.FALSE.
+             CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+             dft_control%rtp_control%fixed_ions=.FALSE.
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (bsse_run)
              CALL do_bsse_calculation(force_env, globenv, error=suberror)

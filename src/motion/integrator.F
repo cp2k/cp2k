@@ -37,6 +37,7 @@ MODULE integrator
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_read_line
@@ -81,6 +82,7 @@ MODULE integrator
                                              femtoseconds
   USE qmmm_update,                     ONLY: qmmm_update_force_mixing_env
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
+  USE qs_environment_types,            ONLY: get_qs_env
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
   USE shell_opt,                       ONLY: optimize_shell_core
@@ -416,6 +418,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(force_env_type), POINTER            :: force_env
@@ -444,7 +447,7 @@ CONTAINS
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
     NULLIFY (atomic_kinds, local_particles, molecules, molecule_kind_set, molecule_set, particle_set)
     NULLIFY (shell_particles, shell_particle_set, core_particles, &
-            core_particle_set, thermostat_shell)
+            core_particle_set, thermostat_shell, dft_control)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
          para_env=para_env, ehrenfest_md=ehrenfest_md, error=error)
@@ -532,7 +535,8 @@ CONTAINS
             core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,&
             should_deall_vel=.FALSE.,error=error )
        tmp%vel=v_old
-       n_iter=force_env%qs_env%dft_control%rtp_control%max_iter
+       CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+       n_iter=dft_control%rtp_control%max_iter
     ELSE
        n_iter=1
     END IF

@@ -721,12 +721,14 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
-    NULLIFY(virial, atprop)
+    NULLIFY(virial, atprop, dft_control)
+
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
 
     !If gapw, check for gpw kinds
     skip_fcore = .FALSE.
-    IF(qs_env%dft_control%qs_control%gapw) THEN
-      IF(.NOT. qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
+    IF(dft_control%qs_control%gapw) THEN
+      IF(.NOT. dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
     END IF
 
     failure = .FALSE.

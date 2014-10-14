@@ -10,11 +10,11 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_derivatives
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&
                                              cp_dbcsr_p_type,&
                                              dbcsr_type_antisymmetric
@@ -263,6 +263,10 @@ MODULE hfx_derivatives
     LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
     LOGICAL                                  :: do_print_load_balance_info
     LOGICAL                                  :: with_mp2_density, is_anti_symmetric
+    TYPE(dft_control_type), &
+      POINTER                                :: dft_control
+
+    NULLIFY(dft_control)
 
     with_mp2_density=.FALSE.
     IF(ASSOCIATED(qs_env%mp2_env)) with_mp2_density=.TRUE.
@@ -270,8 +274,15 @@ MODULE hfx_derivatives
     IF(with_mp2_density) CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_mp2, error=error)
     is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1)%matrix).EQ.dbcsr_type_antisymmetric
 
-    CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
-                    cell=cell, error=error)
+    CALL get_qs_env(qs_env,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    error=error)
+
+    nspins = dft_control%nspins
+
     !! One atom systems have no contribution to forces
     IF( SIZE(particle_set,1) == 1) THEN
       IF( .NOT. use_virial ) RETURN
@@ -363,7 +374,8 @@ MODULE hfx_derivatives
 !$OMP                                  shm_atomic_pair_list,&
 !$OMP                                  shm_pmax_atom,&
 !$OMP                                  use_virial,&
-!$OMP                                  do_print_load_balance_info)&
+!$OMP                                  do_print_load_balance_info,&
+!$OMP                                  nspins)&
 !$OMP  PRIVATE(actual_x_data,atomic_kind_set,atomic_offset_ac,atomic_offset_ad,atomic_offset_bc,&
 !$OMP  atomic_offset_bd,atom_of_kind,basis_info,&
 !$OMP  basis_parameter,bins_left,bintime_start,bintime_stop,bits_max_val,buffer_left,buffer_overflow,buffer_size,&
@@ -385,7 +397,7 @@ MODULE hfx_derivatives
 !$OMP  nbits,nblocks,ncob,ncos_max,ncpu,neris_incore,neris_onthefly,neris_tmp,&
 !$OMP  neris_total,nimages,nints,nneighbors,npgfa,npgfb,npgfc,npgfd,&
 !$OMP  nprim_ints,n_processes,nseta,nsetb,nsgfa,nsgfb,nsgfc,nsgfd,&
-!$OMP  nsgfl_a,nsgfl_b,nsgfl_c,nsgfl_d,nsgf_max,nspins,offset_ac_set,offset_ad_set,&
+!$OMP  nsgfl_a,nsgfl_b,nsgfl_c,nsgfl_d,nsgf_max,offset_ac_set,offset_ad_set,&
 !$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_mp2,pad_buf,pad_buf_beta,pad_buf_mp2,&
 !$OMP  particle_set,pbc_buf,pbc_buf_beta,pbc_buf_mp2,pbd_buf,pbd_buf_beta,pbd_buf_mp2,pgf_list_ij,&
 !$OMP  pgf_list_kl,pgf_product_list,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
@@ -467,8 +479,6 @@ MODULE hfx_derivatives
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
-
-    nspins = qs_env%dft_control%nspins
 
     !! Create helper arrray for mapping local basis functions to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)

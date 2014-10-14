@@ -9,6 +9,7 @@
 ! *****************************************************************************
 MODULE qs_external_density
   USE cell_types,                      ONLY: cell_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
                                              open_file
@@ -75,6 +76,7 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_rho_type), POINTER               :: rho_external
@@ -86,14 +88,16 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
+    NULLIFY(cell, rs_rho_ext, input, ext_den_section, rs_descs, dft_control)
+    CALL get_qs_env(qs_env,&
+                    cell=cell,&
+                    rho_external=rho_external,&
+                    input=input,&
+                    pw_env=pw_env,&
+                    dft_control=dft_control,&
+                    error=error)
 
-    IF (qs_env%dft_control%apply_external_density) THEN
-
-      NULLIFY(cell, rs_rho_ext, input, ext_den_section, rs_descs)
-
-      CALL get_qs_env(qs_env,cell=cell,rho_external=rho_external,input=input,&
-                      pw_env=pw_env,error=error)
-
+    IF (dft_control%apply_external_density) THEN
       gridlevel_info=>pw_env%gridlevel_info
 
       CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
@@ -117,7 +121,7 @@ CONTAINS
       num_pe  = rho_external%rho_r(1)%pw%pw_grid%para%group_size   
       tag     = 1
 
-      IF (qs_env%dft_control%read_external_density) THEN
+      IF (dft_control%read_external_density) THEN
 
         DO i =1,3
           dr(i) = rs_descs(igrid_level)%rs_desc%dh(i,i)  
@@ -236,16 +240,22 @@ CONTAINS
     REAL(kind=dp)                            :: dvol
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: vxc_ext
     TYPE(section_vals_type), POINTER         :: ext_vxc_section, input
 
     failure=.FALSE.
+    NULLIFY(cell, vxc_ext, input, ext_vxc_section, dft_control)
     CALL timeset(routineN,handle)
-    IF (qs_env%dft_control%apply_external_vxc) THEN
-      NULLIFY(cell, vxc_ext, input, ext_vxc_section)
-      CALL get_qs_env(qs_env,cell=cell,external_vxc=vxc_ext,input=input,error=error)
+    CALL get_qs_env(qs_env,&
+                    cell=cell,&
+                    external_vxc=vxc_ext,&
+                    input=input,&
+                    dft_control=dft_control,&
+                    error=error)
+    IF (dft_control%apply_external_vxc) THEN
       ext_vxc_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_VXC",error=error)
-      IF (qs_env%dft_control%read_external_vxc) THEN
+      IF (dft_control%read_external_vxc) THEN
         dr=vxc_ext%pw%pw_grid%dr
         dvol=vxc_ext%pw%pw_grid%dvol
         vxc_ext%pw%cr3d=0.0_dp
@@ -285,7 +295,7 @@ CONTAINS
           ENDDO
         ENDDO
         CALL close_file(unit_number=extunit)
-        qs_env%dft_control%read_external_vxc = .FALSE.
+        dft_control%read_external_vxc = .FALSE.
       END IF
     END IF
     CALL timestop(handle)

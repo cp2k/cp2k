@@ -20,6 +20,7 @@ MODULE mp2_ri_libint
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -557,6 +558,7 @@ MODULE mp2_ri_libint
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_L
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -592,6 +594,7 @@ MODULE mp2_ri_libint
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
 
     log10_eps_schwarz=log_zero
@@ -600,8 +603,12 @@ MODULE mp2_ri_libint
 
     logger => cp_error_get_logger(error)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-                    qs_kind_set=qs_kind_set, cell=cell, error=error)
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    error=error)
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(qs_kind_set,1)
@@ -743,7 +750,7 @@ MODULE mp2_ri_libint
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

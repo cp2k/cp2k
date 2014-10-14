@@ -71,10 +71,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: inv_vol
+    TYPE(dft_control_type), POINTER          :: dft_control
 
-    IF(qs_env%dft_control%qs_control%becke_restraint)THEN
+    NULLIFY(dft_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+
+    IF(dft_control%qs_control%becke_restraint)THEN
     !***** Check if becke potential is needed to constrain charges *****
-       becke => qs_env%dft_control%qs_control%becke_control
+       becke => dft_control%qs_control%becke_control
        IF(becke%need_pot.OR.calculate_forces)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,becke%becke_pot%pw,use_data=REALDATA3D,&
                in_space=REALSPACE,error=error)
@@ -90,7 +94,7 @@ CONTAINS
           CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol,error=error)
        ENDIF
 
-       IF(qs_env%dft_control%qs_control%et_coupling_calc)THEN
+       IF(dft_control%qs_control%et_coupling_calc)THEN
           IF(qs_env%et_coupling%keep_matrix)THEN
              IF(qs_env%et_coupling%first_run)THEN
                 NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)
@@ -106,8 +110,8 @@ CONTAINS
                 CALL integrate_v_rspace(becke%becke_pot,&
                      h=qs_env%et_coupling%rest_mat(1),&
                      qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-                qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%becke_control%becke_order_p
-                qs_env%et_coupling%e1=qs_env%dft_control%qs_control%becke_control%strength
+                qs_env%et_coupling%order_p=dft_control%qs_control%becke_control%becke_order_p
+                qs_env%et_coupling%e1=dft_control%qs_control%becke_control%strength
                 qs_env%et_coupling%keep_matrix=.FALSE.
              ELSE
                 NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)

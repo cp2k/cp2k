@@ -8,8 +8,8 @@
 !>      09-JUL-2002, TCH, development started
 ! *****************************************************************************
 MODULE qs_tddfpt_utils
-
-  USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
@@ -119,12 +119,13 @@ CONTAINS
     INTEGER                                  :: n_spins, spin
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
 
-    NULLIFY(matrix_s)
-    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+    NULLIFY(matrix_s, dft_control)
 
-    n_spins = qs_env%dft_control%nspins
-    IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
+    n_spins = dft_control%nspins
+    IF (dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
           CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
           CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix,error=error)
@@ -182,16 +183,19 @@ CONTAINS
     REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: guess, lumos
     REAL(KIND=DP), DIMENSION(:), POINTER     :: orbital_eigenvalues
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
                                                 sorter_pointer, sorter_start
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
 ! number of vectors to initialize
 
+    NULLIFY(dft_control)
     failure=.FALSE.
 
-    tddfpt_control => qs_env%dft_control%tddfpt_control
-    n_spins = qs_env%dft_control%nspins
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    tddfpt_control => dft_control%tddfpt_control
+    n_spins = dft_control%nspins
     energies = 0.0_dp
 
     IF (.NOT.ASSOCIATED(tddfpt_control%lumos)) THEN
@@ -318,20 +322,21 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: S_lumos
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type)                :: t_control
 
-    NULLIFY(S_lumos, logger, matrix_s)
+    NULLIFY(S_lumos, logger, matrix_s, dft_control)
     failure = .FALSE.
     logger    => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
-    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
 
     IF (output_unit>0) WRITE (output_unit,*)
     IF (output_unit>0) WRITE (output_unit,*)
 
-    t_control = qs_env%dft_control%tddfpt_control
+    t_control = dft_control%tddfpt_control
     n_ev      = t_control%n_ev
-    n_spins   = qs_env%dft_control%nspins
+    n_spins   = dft_control%nspins
 
     ALLOCATE(S_lumos(n_spins), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

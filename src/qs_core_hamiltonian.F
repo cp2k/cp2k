@@ -77,6 +77,7 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
@@ -170,6 +171,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(lri_environment_type), POINTER      :: lri_env
@@ -221,17 +223,7 @@ CONTAINS
     NULLIFY (matrix_p)
     NULLIFY (para_env)
     NULLIFY (ks_env)
-
-    ! is this a orbital-free method calculation
-    ofdft = qs_env%dft_control%qs_control%ofgpw
-    ! is this a LRI method calculation
-    lrigpw = qs_env%dft_control%qs_control%lrigpw
-    ! is this a KG method calculation using atomic TNADD potentials
-    IF (qs_env%dft_control%qs_control%do_kg) THEN
-       kgpot = (qs_env%kg_env%tnadd_method==kg_tnadd_atomic)
-    ELSE
-       kgpot = .FALSE.
-    END IF
+    NULLIFY (dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -253,7 +245,19 @@ CONTAINS
                     virial=virial,&
                     para_env=para_env,&
                     ks_env=ks_env,&
+                    dft_control=dft_control,&
                     error=error)
+
+    ! is this a orbital-free method calculation
+    ofdft = dft_control%qs_control%ofgpw
+    ! is this a LRI method calculation
+    lrigpw = dft_control%qs_control%lrigpw
+    ! is this a KG method calculation using atomic TNADD potentials
+    IF (dft_control%qs_control%do_kg) THEN
+       kgpot = (qs_env%kg_env%tnadd_method==kg_tnadd_atomic)
+    ELSE
+       kgpot = .FALSE.
+    END IF
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -318,15 +322,15 @@ CONTAINS
 
     ! the delta pulse in the periodic case needs the momentum operator,
     ! which is equivalent to the derivative of the overlap matrix
-    IF (ASSOCIATED(qs_env%dft_control%rtp_control)) THEN
-       IF (qs_env%dft_control%rtp_control%apply_delta_pulse .AND. &
-           qs_env%dft_control%rtp_control%periodic) THEN
+    IF (ASSOCIATED(dft_control%rtp_control)) THEN
+       IF (dft_control%rtp_control%apply_delta_pulse .AND. &
+           dft_control%rtp_control%periodic) THEN
            nders = 1
        ENDIF
     ENDIF
 
     ! filter for new matrices
-    eps_filter = qs_env%dft_control%qs_control%eps_filter_matrix
+    eps_filter = dft_control%qs_control%eps_filter_matrix
 
     maxder = ncoset(nder)
 
@@ -364,7 +368,7 @@ CONTAINS
                                  sab_nl=sab_orb,&
                                  eps_filter=eps_filter,&
                                  error=error)
-       IF( qs_env%dft_control%do_admm) THEN
+       IF(dft_control%do_admm) THEN
          NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, error=error)
          CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit,&
@@ -402,11 +406,11 @@ CONTAINS
     END IF
 
     !   *** Allocate the matrix of coefficients for one center expansions
-    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
+    IF(dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
        CALL create_oce_set(oce,error=error)
        CALL allocate_oce_set(oce,natom,nkind,maxder,error=error)
        ! force analytic ppl calcuation for GAPW methods
-       qs_env%dft_control%qs_control%do_ppl_method=do_ppl_analytic
+       dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF
 
     CALL get_qs_kind_set(qs_kind_set,&
@@ -429,7 +433,7 @@ CONTAINS
 
     ! *** compute the ppl contribution to the core hamiltonian ***
     IF (ppl_present) THEN
-      IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
+      IF(dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
         CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
       END IF
@@ -442,13 +446,13 @@ CONTAINS
     END IF
 
     ! *** compute the ppnl contribution to the core hamiltonian ***
-    eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
+    eps_ppnl = dft_control%qs_control%eps_ppnl
     CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
     ! *** GAPW one-center-expansion (oce) matrices
-    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
-      eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
+    IF(dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+      eps_fit  = dft_control%qs_control%gapw_control%eps_fit
       IF (ASSOCIATED(sap_oce)) &
          CALL build_oce_matrices(oce%intac,calculate_forces,nder,qs_kind_set,particle_set,&
               sap_oce,eps_fit,error)

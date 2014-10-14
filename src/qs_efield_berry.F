@@ -115,11 +115,16 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: s_mstruct_changed
+    TYPE(dft_control_type), POINTER          :: dft_control
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
-    CALL get_qs_env(qs_env, s_mstruct_changed=s_mstruct_changed, error=error)
+    CALL get_qs_env(qs_env,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    dft_control=dft_control,&
+                    error=error)
 
-    IF(qs_env%dft_control%apply_period_efield)THEN
+    IF(dft_control%apply_period_efield)THEN
        IF(calculate_forces.OR.s_mstruct_changed)&
             CALL qs_efield_integrals (qs_env,calculate_forces,error)
        CALL qs_efield_mo_derivatives(qs_env,calculate_forces,error)

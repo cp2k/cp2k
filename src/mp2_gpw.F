@@ -279,19 +279,25 @@ MODULE mp2_gpw
                              blacs_repeatable,error=error_sub)
 
     ! get stuff
-    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell,particle_set=particle_set,&
-                    atomic_kind_set=atomic_kind_set, molecule_set=molecule_set,&
-                    molecule_kind_set=molecule_kind_set, error=error)
+    CALL get_qs_env(qs_env,&
+                    qs_kind_set=qs_kind_set,&
+                    cell=cell,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    molecule_set=molecule_set,&
+                    molecule_kind_set=molecule_kind_set,&
+                    dft_control=dft_control,&
+                    error=error)
 
     ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
-    eps_pgf_orb_old=qs_env%dft_control%qs_control%eps_pgf_orb
-    eps_rho_rspace_old=qs_env%dft_control%qs_control%eps_rho_rspace
-    eps_gvg_rspace_old=qs_env%dft_control%qs_control%eps_gvg_rspace
+    eps_pgf_orb_old=dft_control%qs_control%eps_pgf_orb
+    eps_rho_rspace_old=dft_control%qs_control%eps_rho_rspace
+    eps_gvg_rspace_old=dft_control%qs_control%eps_gvg_rspace
     ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
-    qs_env%dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
-    qs_env%dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
-    qs_env%dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
-    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
+    dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
+    dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
+    dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
 
     ! get a distribution_1d
     NULLIFY(local_particles_sub,local_molecules_sub)
@@ -395,22 +401,22 @@ MODULE mp2_gpw
     END IF
 
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
-    progression_factor=qs_env%dft_control%qs_control%progression_factor
-    n_multigrid=SIZE(qs_env%dft_control%qs_control%e_cutoff)
+    progression_factor=dft_control%qs_control%progression_factor
+    n_multigrid=SIZE(dft_control%qs_control%e_cutoff)
     ALLOCATE(e_cutoff_old(n_multigrid), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    e_cutoff_old(:)=qs_env%dft_control%qs_control%e_cutoff
-    cutoff_old=qs_env%dft_control%qs_control%cutoff
+    e_cutoff_old(:)=dft_control%qs_control%e_cutoff
+    cutoff_old=dft_control%qs_control%cutoff
 
-    qs_env%dft_control%qs_control%cutoff=mp2_env%mp2_gpw%cutoff*0.5_dp
-    qs_env%dft_control%qs_control%e_cutoff(1)=qs_env%dft_control%qs_control%cutoff
+    dft_control%qs_control%cutoff=mp2_env%mp2_gpw%cutoff*0.5_dp
+    dft_control%qs_control%e_cutoff(1)=dft_control%qs_control%cutoff
     DO i_multigrid=2, n_multigrid
-      qs_env%dft_control%qs_control%e_cutoff(i_multigrid) = qs_env%dft_control%qs_control%e_cutoff(i_multigrid-1) &
+      dft_control%qs_control%e_cutoff(i_multigrid) = dft_control%qs_control%e_cutoff(i_multigrid-1) &
           / progression_factor
     END DO
 
-    relative_cutoff_old=qs_env%dft_control%qs_control%relative_cutoff
-    qs_env%dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp
+    relative_cutoff_old=dft_control%qs_control%relative_cutoff
+    dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp
 
     ! a pw_env
     NULLIFY(pw_env_sub)
@@ -423,7 +429,7 @@ MODULE mp2_gpw
 
     ! now we need a task list, hard code skip_load_balance_distributed
     NULLIFY(task_list_sub)
-    skip_load_balance_distributed=qs_env%dft_control%qs_control%skip_load_balance_distributed
+    skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     CALL allocate_task_list(task_list_sub,error_sub)
     CALL generate_qs_task_list(qs_env, task_list_sub, &
                  reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
@@ -727,15 +733,15 @@ MODULE mp2_gpw
     !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 
     ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
-    qs_env%dft_control%qs_control%eps_pgf_orb=eps_pgf_orb_old
-    qs_env%dft_control%qs_control%eps_rho_rspace=eps_rho_rspace_old
-    qs_env%dft_control%qs_control%eps_gvg_rspace=eps_gvg_rspace_old
-    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
+    dft_control%qs_control%eps_pgf_orb=eps_pgf_orb_old
+    dft_control%qs_control%eps_rho_rspace=eps_rho_rspace_old
+    dft_control%qs_control%eps_gvg_rspace=eps_gvg_rspace_old
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
 
     ! restore the initial value of the cutoff
-    qs_env%dft_control%qs_control%e_cutoff=e_cutoff_old
-    qs_env%dft_control%qs_control%cutoff=cutoff_old
-    qs_env%dft_control%qs_control%relative_cutoff=relative_cutoff_old
+    dft_control%qs_control%e_cutoff=e_cutoff_old
+    dft_control%qs_control%cutoff=cutoff_old
+    dft_control%qs_control%relative_cutoff=relative_cutoff_old
 
     CALL cp_blacs_env_release(blacs_env_sub, error=error_sub)
 

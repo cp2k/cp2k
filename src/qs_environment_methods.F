@@ -192,7 +192,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
        ENDIF
 
        ! If we use auxiliary density matrix methods rebuild fm_pools
-       IF( qs_env%dft_control%do_admm ) THEN
+       IF(dft_control%do_admm) THEN
          CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao_aux_fit,&
                                   basis_set_id=use_aux_fit_basis_set)
          CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
@@ -404,8 +404,8 @@ SUBROUTINE qs_create_task_list(qs_env, error)
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-
-    dft_control => qs_env%dft_control
+    NULLIFY(dft_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
     skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) ) THEN

@@ -11,6 +11,7 @@
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
@@ -1656,18 +1657,19 @@ END SUBROUTINE make_full_all_ortho
       POINTER                                :: kinetic
     TYPE(cp_dbcsr_type), POINTER             :: matrix_t, mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
-
+    NULLIFY(matrix_t, mo_coeff_b, mo_coeff, kinetic, dft_control)
     failure = .FALSE.
     my_has_unit_metric = .FALSE.
     IF(PRESENT(has_unit_metric)) my_has_unit_metric = has_unit_metric
     my_mixed_precision = .FALSE.
     IF(PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
 
-    NULLIFY(matrix_t, mo_coeff_b, mo_coeff, kinetic)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
-    IF(qs_env%dft_control%qs_control%semi_empirical .OR. qs_env%dft_control%qs_control%dftb) THEN
+    IF(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
       IF(prec_type==ot_precond_full_kinetic) THEN
           msg="Full_kinetic not available for semi-empirical methods"
           CPErrorMessage(cp_failure_level,routineP,TRIM(msg),error)

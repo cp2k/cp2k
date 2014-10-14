@@ -258,7 +258,7 @@ CONTAINS
        CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
 
        CALL calc_c_mat_force(qs_env,error)
-       IF(qs_env%dft_control%do_admm)&
+       IF(dft_control%do_admm)&
           CALL rt_admm_force(qs_env,error)
     END IF
 
@@ -326,7 +326,7 @@ CONTAINS
                        error=error)
          ! with MP2 we have to recalculate the SCF energy with the
          ! correct density
-         DO ispin=1, qs_env%dft_control%nspins
+         DO ispin=1, dft_control%nspins
            CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -440,7 +440,7 @@ CONTAINS
           !  *** add the volume terms of the virial ***
           IF ((.NOT.virial%pv_numer) .AND. &
               (.NOT.(dft_control%qs_control%dftb .OR. &
-                     qs_env%dft_control%qs_control%scptb .OR. &
+                     dft_control%qs_control%scptb .OR. &
                      dft_control%qs_control%semi_empirical))) THEN
              DO dir=1, 3
                 virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc  &

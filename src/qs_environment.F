@@ -248,6 +248,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
     TYPE(kpoint_type), POINTER               :: kpoints
@@ -265,7 +266,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
          qs_kind_set, harris_section, kpoint_section, dft_section, ga_env, &
-         subsys, ks_env)
+         subsys, ks_env, dft_control)
 
 
     para_env=>qs_env%para_env
@@ -346,11 +347,12 @@ CONTAINS
     do_hfx =.FALSE.
     hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_section,explicit=do_hfx,error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
     IF (do_hfx) THEN
       ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
       natom=SIZE(particle_set)
       CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                      qs_kind_set, qs_env%dft_control, my_cell, error=error)
+                      qs_kind_set, dft_control, my_cell, error=error)
       hfx_ri_section => section_vals_get_subs_vals(hfx_section,"HFX_RI",error=error)
       CALL section_vals_get(hfx_ri_section,explicit=do_hfx_ri,error=error)
       IF (do_hfx_ri) THEN
@@ -371,11 +373,11 @@ CONTAINS
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
          natom=SIZE(particle_set)
          CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                         qs_kind_set, qs_env%dft_control, my_cell, error=error)
+                         qs_kind_set, dft_control, my_cell, error=error)
        END IF
     END IF
 
-    IF (qs_env%dft_control%qs_control%do_kg) THEN
+    IF (dft_control%qs_control%do_kg) THEN
       CALL cite_reference(Iannuzzi2006)
       CALL kg_env_create(qs_env%kg_env, qs_env%input, error)
     END IF
@@ -386,7 +388,7 @@ CONTAINS
     IF (do_et) CALL et_coupling_create(qs_env%et_coupling,error=error)
 
     ! lri env
-    IF (method_id == do_method_lrigpw.OR.qs_env%dft_control%qs_control%lri_optbas) THEN
+    IF (method_id == do_method_lrigpw.OR.dft_control%qs_control%lri_optbas) THEN
        NULLIFY(lri_env)
        CALL lri_env_create(lri_env,error)
        ! initialize the basic basis sets (orb and ri)
@@ -420,7 +422,7 @@ CONTAINS
     CALL set_qs_env ( qs_env, ga_env=ga_env, error=error )
     CALL se_ga_pair_list_init ( qs_env, error )
 
-    IF (qs_env%dft_control%qs_control%do_ls_scf) THEN
+    IF (dft_control%qs_control%do_ls_scf) THEN
        CALL ls_scf_create(qs_env,error)
     ENDIF
 
@@ -512,6 +514,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -553,6 +556,7 @@ CONTAINS
     NULLIFY (scf_control)
     NULLIFY (dft_section)
     NULLIFY (et_coupling_section)
+    NULLIFY (ks_env)
     dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
     et_coupling_section =>  section_vals_get_subs_vals(qs_env%input,"PROPERTIES%ET_COUPLING",error=error)
@@ -781,7 +785,6 @@ CONTAINS
     !   *** Set the current Quickstep environment ***
     CALL set_qs_env(qs_env=qs_env,&
                     qmmm=qmmm,&
-                    dft_control=dft_control,&
                     scf_control=scf_control,&
                     wf_history=wf_history,&
                     error=error)
@@ -792,6 +795,9 @@ CONTAINS
                        energy=energy,&
                        force=force,&
                        error=error)
+
+    CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
+    CALL set_ks_env(ks_env, dft_control=dft_control, error=error)
 
     IF (harris_flag) THEN
        CALL set_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
@@ -813,8 +819,8 @@ CONTAINS
 
     ! decide what conditions need mo_derivs
     ! right now, this only appears to be OT
-    IF (qs_env%dft_control%qs_control%do_ls_scf .OR. &
-        qs_env%dft_control%qs_control%do_almo_scf) THEN
+    IF (dft_control%qs_control%do_ls_scf .OR. &
+        dft_control%qs_control%do_almo_scf) THEN
       CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
     ELSE
       IF (scf_control%use_ot) THEN
@@ -1209,8 +1215,8 @@ CONTAINS
     ENDIF
 
     ! no point in allocating these things here ?
-    IF (qs_env%dft_control%qs_control%do_ls_scf .OR. &
-        qs_env%dft_control%qs_control%do_almo_scf) THEN
+    IF (dft_control%qs_control%do_ls_scf .OR. &
+        dft_control%qs_control%do_almo_scf) THEN
       NULLIFY(mos)
     ELSE
       ALLOCATE (mos(dft_control%nspins),STAT=istat)
@@ -1301,8 +1307,8 @@ CONTAINS
     CALL write_symmetry(particle_set,cell,subsys_section,error)
 
     ! Print the SCF parameters
-    IF ((.NOT. qs_env%dft_control%qs_control%do_ls_scf) .AND. &
-        (.NOT. qs_env%dft_control%qs_control%do_almo_scf) ) THEN
+    IF ((.NOT. dft_control%qs_control%do_ls_scf) .AND. &
+        (.NOT. dft_control%qs_control%do_almo_scf) ) THEN
        CALL scf_c_write_parameters(scf_control,dft_section,error=error)
     ENDIF
 

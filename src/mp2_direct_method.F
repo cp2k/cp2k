@@ -10,10 +10,10 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2_direct_method
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -209,6 +209,7 @@ MODULE mp2_direct_method
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -240,7 +241,8 @@ MODULE mp2_direct_method
       POINTER                                :: particle_set
 
     CALL timeset(routineN,handle)
- 
+    NULLIFY(dft_control)
+
     ! The Integ_MP2 will contain the (ia|jb) integrals, necessary for example
     ! for the RI-MP2 basis optimization. In this case the number of ij batches 
     ! has to be equal to 1 (all integrals over molecular orbitals are compituted
@@ -256,7 +258,11 @@ MODULE mp2_direct_method
 
     logger => cp_error_get_logger(error)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    error=error)
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(atomic_kind_set,1)
@@ -395,7 +401,7 @@ MODULE mp2_direct_method
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

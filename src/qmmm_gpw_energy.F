@@ -12,6 +12,7 @@
 MODULE qmmm_gpw_energy
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -105,6 +106,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -118,13 +120,14 @@ CONTAINS
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     IF (.NOT.failure) THEN
-       NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section)
+       NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section, dft_control)
        CALL get_qs_env(qs_env=qs_env,&
                        pw_env=pw_env,&
                        para_env=para_env,&
                        input=input_section,&
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        subsys=subsys,&
+                       dft_control=dft_control,&
                        error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
@@ -139,7 +142,7 @@ CONTAINS
        ! Initializing vectors:
        !        Zeroing v_qmmm_rspace
        CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw,error=error)
-       IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+       IF (dft_control%qs_control%semi_empirical) THEN
           ! SEMIEMPIRICAL
           SELECT CASE(qmmm_env%qmmm_coupl_type)
           CASE(do_qmmm_coulomb,do_qmmm_none)
@@ -156,7 +159,7 @@ CONTAINS
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
-       ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
+       ELSEIF (dft_control%qs_control%dftb) THEN
           ! DFTB
           CALL cp_unimplemented_error(fromWhere=routineP, &
           message="QM/MM electrostatic coupling not yet implemented for DFTB.", &

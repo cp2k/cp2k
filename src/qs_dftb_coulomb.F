@@ -8,7 +8,6 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE qs_dftb_coulomb
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init,&
@@ -16,6 +15,7 @@ MODULE qs_dftb_coulomb
   USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_iterator,&
@@ -152,6 +152,7 @@ CONTAINS
       POINTER                                :: gamma_matrix, matrix_p, &
                                                 matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -168,7 +169,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(gamma_matrix, matrix_p, matrix_s, virial, atprop)
+    NULLIFY(gamma_matrix, matrix_p, matrix_s, virial, atprop, dft_control)
 
     failure=.FALSE.
     use_virial=.FALSE.
@@ -184,9 +185,14 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     gmcharge = 0._dp
 
-    CALL get_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,&
-                    particle_set=particle_set,cell=cell,&
-                    virial=virial,atprop=atprop,error=error)
+    CALL get_qs_env(qs_env,&
+                    gamma_matrix=gamma_matrix,&
+                    particle_set=particle_set,&
+                    cell=cell,&
+                    virial=virial,&
+                    atprop=atprop,&
+                    dft_control=dft_control,&
+                    error=error)
 
     IF ( calculate_forces ) THEN
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -234,7 +240,7 @@ CONTAINS
     END IF
 
     ! 1/R contribution
-    do_ewald = qs_env%dft_control%qs_control%dftb_control%do_ewald
+    do_ewald = dft_control%qs_control%dftb_control%do_ewald
     IF (do_ewald) THEN
       ! Ewald sum
       NULLIFY(ewald_env,ewald_pw)
@@ -397,7 +403,7 @@ CONTAINS
     DEALLOCATE(gmcharge,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF ( qs_env%dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
+    IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
        ! Diagonal 3rd order correction (DFTB3)
        CALL build_dftb3_diagonal(qs_env,ks_matrix,rho,mcharge,energy,&
                calculate_forces,just_energy,error)

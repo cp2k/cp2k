@@ -145,17 +145,17 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
+    TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
     CALL timeset(routineN,handle)
-
-    n_spins = qs_env%dft_control%nspins
-
     failure=.FALSE.
-    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools, matrix_s)
+    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools, matrix_s, dft_control)
 
-    CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
+
+    n_spins = dft_control%nspins
 
     ALLOCATE(p_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -270,10 +270,10 @@ CONTAINS
        !----------------------!
        ! GAPW initializations !
        !----------------------!
-       IF (qs_env%dft_control%qs_control%gapw) THEN
+       IF (dft_control%qs_control%gapw) THEN
           CALL local_rho_set_create(p_env%local_rho_set,error=error)
           CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set,error=error)
-          CALL init_rho0(qs_env, qs_env%dft_control%qs_control%gapw_control, &
+          CALL init_rho0(qs_env, dft_control%qs_control%gapw_control, &
                          .TRUE., p_env%local_rho_set, error)
           CALL hartree_local_create(p_env%hartree_local,error=error)
           CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
@@ -471,6 +471,7 @@ END SUBROUTINE p_env_did_change
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_energy_type), POINTER            :: energy
@@ -482,27 +483,27 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         logger, input,lr_section, energy, matrix_ks)
+         logger, input,lr_section, energy, matrix_ks, dft_control)
     logger => cp_error_get_logger(error)
-    n_spins = qs_env%dft_control%nspins
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    mos=mos,&
+                    matrix_s=matrix_s,&
+                    matrix_ks=matrix_ks,&
+                    para_env=para_env,&
+                    rho=rho,&
+                    input=input,&
+                    energy=energy,&
+                    dft_control=dft_control,&
+                    error=error)
+
+    n_spins = dft_control%nspins
     IF (.NOT. failure) THEN
        p_env%iter=p_env%iter+1
-
-       CALL get_qs_env(qs_env,&
-                       ks_env=ks_env,&
-                       mos=mos,&
-                       matrix_s=matrix_s,&
-                       matrix_ks=matrix_ks,&
-                       para_env=para_env,&
-                       rho=rho,&
-                       input=input,&
-                       energy=energy,&
-                       error=error)
-
        CALL mpools_get(qs_env%mpools,&
             ao_mo_fm_pools=ao_mo_fm_pools, error=error)
        ! def my_psi0
@@ -703,6 +704,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: n_spins, spin
     LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
@@ -710,8 +712,10 @@ END SUBROUTINE p_env_did_change
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    NULLIFY(dft_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
-    n_spins = qs_env%dft_control%nspins
+    n_spins = dft_control%nspins
     DO spin=1, n_spins
        CALL p_op_l1_spin(p_env, qs_env, spin, v(spin)%matrix,&
             res(spin)%matrix,error)
@@ -754,24 +758,26 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: tmp
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
     CALL timeset(routineN,handle)
-
-    NULLIFY(tmp, matrix_ks, matrix_s)
+    NULLIFY(tmp, matrix_ks, matrix_s, dft_control)
     failure = .FALSE.
-
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(0<spin,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spin<=qs_env%dft_control%nspins,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, &
                     para_env=para_env,&
                     matrix_s=matrix_s,&
                     matrix_ks=matrix_ks,&
+                    dft_control=dft_control,&
                     error=error)
+
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(0<spin,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spin<=dft_control%nspins,cp_failure_level,routineP,error,failure)
+
     CALL mpools_get(qs_env%mpools, maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
          error=error)
     CALL fm_pool_create_fm(maxao_maxmo_fm_pool, tmp, error=error)
@@ -839,26 +845,25 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
-
     failure=.FALSE.
+    NULLIFY(dft_control, rho)
 
-    gapw=qs_env%dft_control%qs_control%gapw
-    gapw_xc=qs_env%dft_control%qs_control%gapw_xc
+    CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, error=error)
+
+    gapw=dft_control%qs_control%gapw
+    gapw_xc=dft_control%qs_control%gapw_xc
     my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
     my_beta=0.0_dp
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
-    NULLIFY(dft_control, rho)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
        CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
-
-       CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, error=error)
        n_spins = dft_control%nspins
 
        DO ispin=1, SIZE(p1)
@@ -941,11 +946,10 @@ END SUBROUTINE p_env_did_change
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env, dft_control=dft_control,&
-            error=error)
+       CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
        CALL mpools_get(qs_env%mpools,maxmo_maxmo_fm_pool=maxmo_maxmo_fm_pool,&
             error=error)
-       n_spins = qs_env%dft_control%nspins
+       n_spins = dft_control%nspins
        maxmo_maxmo_fmstruct => fm_pool_get_el_struct(maxmo_maxmo_fm_pool,error=error)
        CALL cp_fm_struct_get(maxmo_maxmo_fmstruct, nrow_global=nmo2,ncol_global=maxnmo,error=error)
        CPPrecondition(SIZE(v)>=n_spins,cp_failure_level,routineP,error,failure)

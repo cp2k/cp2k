@@ -10,6 +10,7 @@
 
 MODULE rt_propagation_output
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_binary_write, &
        cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, &
@@ -98,6 +99,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -107,15 +109,24 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 rtp_section
 
-    NULLIFY(logger)
+    NULLIFY(logger, dft_control)
 
     logger => cp_error_get_logger(error)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
-         atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
+    CALL get_qs_env(qs_env,&
+                    rtp=rtp,&
+                    matrix_s=matrix_s,&
+                    input=input,&
+                    rho=rho,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    dft_control=dft_control,&
+                    error=error)
+
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
     CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
-    n_electrons = n_electrons - qs_env%dft_control%charge
+    n_electrons = n_electrons - dft_control%charge
 
     tot_rho_r = accurate_sum(rho%tot_rho_r)
 
@@ -170,7 +181,7 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
     IF(rtp%converged)THEN
-       IF(qs_env%dft_control%qs_control%dftb)THEN
+       IF(dft_control%qs_control%dftb)THEN
           IF (rtp%linear_scaling) THEN
              CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
              IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,particle_set,dft_section,&
@@ -510,17 +521,18 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(input)
+    NULLIFY(input, dft_control)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
-    CALL get_qs_env(qs_env,input=input,error=error)
+    CALL get_qs_env(qs_env, input=input, dft_control=dft_control, error=error)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    IF(qs_env%dft_control%qs_control%dftb)THEN
+    IF(dft_control%qs_control%dftb)THEN
        CALL scf_post_calculation_dftb(dft_section, qs_env=qs_env, error=error) 
     ELSE
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)

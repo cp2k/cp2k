@@ -73,15 +73,18 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol, efield_ener, field(3)
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
+    NULLIFY(dft_control)
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,&
                     energy=energy,&
                     rho=rho,&
+                    dft_control=dft_control,&
                     error=error)
 
     v_efield_rspace%pw%cr3d=0.0_dp
@@ -92,7 +95,7 @@ CONTAINS
     dvol=v_efield_rspace%pw%pw_grid%dvol
     dr=v_efield_rspace%pw%pw_grid%dr
 
-    CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
+    CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
 
     DO k=bo_local(1,3),bo_local(2,3)
        DO j=bo_local(1,2),bo_local(2,2)
@@ -105,7 +108,7 @@ CONTAINS
        END DO
     END DO
     efield_ener=0.0_dp
-    DO i=1,qs_env%dft_control%nspins
+    DO i=1,dft_control%nspins
        efield_ener=efield_ener+accurate_sum(v_efield_rspace%pw%cr3d*rho%rho_r(i)%pw%cr3d)*dvol
     END DO
     CALL mp_sum(efield_ener,qs_env%para_env%group)
@@ -199,6 +202,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -207,8 +211,10 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
-    IF(qs_env%dft_control%apply_efield_field)THEN
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    IF(dft_control%apply_efield_field)THEN
 
        failure=.FALSE.
 
@@ -224,7 +230,7 @@ CONTAINS
             error=error)
        efield_ener=0.0_dp
        nkind = SIZE(atomic_kind_set)
-       CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
+       CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
 
        DO ikind=1,SIZE(atomic_kind_set)
           CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list,natom=natom)

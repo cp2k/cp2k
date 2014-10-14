@@ -16,7 +16,8 @@ MODULE rt_propagation_methods
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_control_types,                ONLY: rtp_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             rtp_control_type
   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
@@ -306,14 +307,16 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 propagator_matrix
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
+    CALL get_qs_env(qs_env, rtp=rtp, dft_control=dft_control, error=error)
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,exp_H_old=exp_H_old,&
                  propagator_matrix=propagator_matrix,dt=dt,error=error)
-    rtp_control=>qs_env%dft_control%rtp_control
+    rtp_control=>dft_control%rtp_control
 
     prefac=-0.5_dp*dt
 
@@ -352,14 +355,18 @@ CONTAINS
       POINTER                                :: matrix_ks, SinvB, SinvH
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym, tmp
     TYPE(cp_dbcsr_type), POINTER             :: B_mat, S_inv, S_minus_half
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
-
-    rtp_control=>qs_env%dft_control%rtp_control
-
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)
+    CALL get_qs_env(qs_env,&
+                    matrix_ks=matrix_ks,&
+                    rtp=rtp,&
+                    dft_control=dft_control,&
+                    error=error)
+    rtp_control=>dft_control%rtp_control
     CALL get_rtp(rtp=rtp,S_inv=S_inv,S_minus_half=S_minus_half,dt=t,error=error)
     CALL cp_dbcsr_init(matrix_ks_nosym,error=error)
     CALL cp_dbcsr_create(matrix_ks_nosym,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
@@ -378,12 +385,12 @@ CONTAINS
           CALL cp_dbcsr_multiply("N","N",one,S_inv,matrix_ks_nosym,zero,exp_H(im)%matrix,&
                filter_eps=rtp%filter_eps,error=error)
        ENDIF
-       IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
+       IF(.NOT.dft_control%rtp_control%fixed_ions)THEN
           CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
           CALL cp_dbcsr_copy(SinvH(ispin)%matrix,exp_H(im)%matrix,error=error)
        END IF
     END DO
-    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions.OR.rtp%do_hfx)THEN
+    IF(.NOT.dft_control%rtp_control%fixed_ions.OR.rtp%do_hfx)THEN
        CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
        IF(rtp%do_hfx)THEN
           DO ispin=1,SIZE(matrix_ks)
@@ -394,7 +401,7 @@ CONTAINS
                      error=error)
 
              ! take care of the EMD case and add the velocity scaled S_derivative
-             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)&
+             IF(.NOT.dft_control%rtp_control%fixed_ions)&
                 CALL cp_dbcsr_add(matrix_ks_nosym,B_mat,1.0_dp,-1.0_dp,error=error)
             
              IF(rtp_control%orthonormal) THEN
@@ -407,7 +414,7 @@ CONTAINS
                      filter_eps=rtp%filter_eps,error=error)
              ENDIF
 
-             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)&
+             IF(.NOT.dft_control%rtp_control%fixed_ions)&
                 CALL cp_dbcsr_copy(SinvB(ispin)%matrix,exp_H(re)%matrix,error=error)
           END DO
        ELSE
@@ -758,14 +765,20 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (rho,ks_env,mos,rtp)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,rtp=rtp,error=error)
+    NULLIFY (rho,ks_env,mos,rtp,dft_control)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    rho=rho,&
+                    rtp=rtp,&
+                    dft_control=dft_control,&
+                    error=error)
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
     DO i=1,SIZE(mos)/2
        re=2*i-1 ; im =2*i
@@ -786,7 +799,7 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env, error=error)
 
     IF(rtp%do_hfx)THEN
-       CALL calculate_P_imaginary(rtp,qs_env%dft_control%do_admm,error)
+       CALL calculate_P_imaginary(rtp,dft_control%do_admm,error)
     END IF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -817,16 +830,21 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_new
     TYPE(cp_dbcsr_type), POINTER             :: S_minus_half, tmp, tmp2
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(rho,ks_env,rtp,tmp,tmp2,dft_control)
     CALL timeset(routineN,handle)
-
-    rtp_control=>qs_env%dft_control%rtp_control
-    NULLIFY(rho,ks_env,rtp,tmp,tmp2)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,rtp=rtp,error=error)
+    CALL get_qs_env(qs_env,&
+                   ks_env=ks_env,&
+                   rho=rho,&
+                   rtp=rtp,&
+                   dft_control=dft_control,&
+                   error=error)
+    rtp_control=>dft_control%rtp_control
     CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
     IF(rtp_control%orthonormal) THEN
        CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error)
@@ -942,22 +960,23 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1, fm_tmp2
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(rho_hist, dft_control)
     CALL timeset(routineN,handle)
     CALL cite_reference(Kolafa2004)
+    CALL get_qs_env(qs_env,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    error=error)
 
-    rtp_control=>qs_env%dft_control%rtp_control
-    NULLIFY(rho_hist)
+    rtp_control=>dft_control%rtp_control
     IF(rtp%linear_scaling) THEN
        CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
     ELSE
        CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
     ENDIF
-
-    CALL get_qs_env(qs_env,&
-         matrix_s=matrix_s,&
-         error=error)
 
     naspc=MIN(rtp%istep,aspc_order)
     IF(rtp%linear_scaling)THEN

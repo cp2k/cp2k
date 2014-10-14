@@ -5,6 +5,7 @@
 
 ! *****************************************************************************
 MODULE qs_tddfpt_types
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_give_back_fm
@@ -18,7 +19,8 @@ MODULE qs_tddfpt_types
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_memory
@@ -66,9 +68,13 @@ CONTAINS
 
     INTEGER                                  :: i, n_ev, n_spins, spin, stat
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(dft_control_type), POINTER          :: dft_control
 
-    n_ev    = qs_env%dft_control%tddfpt_control%n_ev
-    n_spins = qs_env%dft_control%nspins
+    NULLIFY(dft_control)
+
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    n_ev    = dft_control%tddfpt_control%n_ev
+    n_spins = dft_control%nspins
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=t_env%ao_mo_fm_pools,error=error)
 
     ALLOCATE (t_env%evals(n_ev),STAT=stat)

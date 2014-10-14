@@ -17,7 +17,6 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_wf_history_methods
-
   USE bibliography,                    ONLY: Kolafa2004,&
                                              VandeVondele2005a,&
                                              cite_reference
@@ -1221,12 +1220,13 @@ END SUBROUTINE wfi_change_memory_depth
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
-    NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
+    NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools, dft_control)
     CALL timeset(routineN,handle)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1240,6 +1240,7 @@ END SUBROUTINE wfi_change_memory_depth
             scf_env=scf_env,&
             scf_control=scf_control,&
             matrix_s=matrix_s,&
+            dft_control=dft_control,&
             error=error)
        CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
             error=error)
@@ -1253,7 +1254,7 @@ END SUBROUTINE wfi_change_memory_depth
 
        CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
        smearing_is_used = .FALSE.
-       IF (qs_env%dft_control%smear) THEN
+       IF (dft_control%smear) THEN
            smearing_is_used = .TRUE.
        END IF
 

@@ -98,6 +98,7 @@ CONTAINS
 
     INTEGER                                  :: aspc_order
     LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -107,10 +108,11 @@ CONTAINS
                                                 motion_section
 
     failure=.FALSE.
-    NULLIFY(qs_env,rtp_control)
+    NULLIFY(qs_env,rtp_control,dft_control)
 
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv,error=error)
-    rtp_control=>qs_env%dft_control%rtp_control
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    rtp_control=>dft_control%rtp_control
 
 
     ! Takes care that an initial wavefunction/density is available
@@ -181,25 +183,27 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
-    NULLIFY(matrix_s)
+    NULLIFY(matrix_s,dft_control)
 
     CALL get_qs_env(qs_env,&
                     rtp=rtp,&
                     matrix_s=matrix_s,&
+                    dft_control=dft_control,&
                     error=error)
-    rtp_control=>qs_env%dft_control%rtp_control
+    rtp_control=>dft_control%rtp_control
 
     IF(.NOT.rtp%linear_scaling) THEN
        CALL get_qs_env(qs_env,mos=mos,error=error)
        CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
          IF (rtp_control%apply_delta_pulse) THEN
-            IF(qs_env%dft_control%qs_control%dftb)&
+            IF(dft_control%qs_control%dftb)&
                CALL build_dftb_overlap(qs_env,1,matrix_s,error)
             IF (rtp_control%periodic) THEN
               CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
@@ -246,18 +250,22 @@ CONTAINS
     INTEGER                                  :: i
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(dft_control)
+
      CALL get_qs_env(qs_env,&
-         mos=mos,&
-         rtp=rtp,&
-         energy=energy,&
-         error=error)
-     rtp_control=>qs_env%dft_control%rtp_control
+                     mos=mos,&
+                     rtp=rtp,&
+                     energy=energy,&
+                     dft_control=dft_control,&
+                     error=error)
+     rtp_control=>dft_control%rtp_control
 
      IF(.NOT.rtp%linear_scaling) THEN 
         CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
@@ -439,8 +447,10 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(dft_control_type), POINTER          :: dft_control
 
-    NULLIFY(matrix_s)
+    NULLIFY(matrix_s,dft_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
     SELECT CASE(rtp_control%initial_wfn)
     CASE(use_scf_wfn)
@@ -454,7 +464,7 @@ CONTAINS
        qs_env%run_rtp=.TRUE.
        ALLOCATE(qs_env%rtp)
        CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,matrix_s(1)%matrix,&
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
                            rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
 
     CASE(use_restart_wfn,use_rt_restart)
@@ -470,7 +480,7 @@ CONTAINS
                      error=error)
              END IF
           END DO
-          IF(qs_env%dft_control%do_admm) THEN
+          IF(dft_control%do_admm) THEN
              CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
                   error=error)
              CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,error,failure)
@@ -488,7 +498,7 @@ CONTAINS
        ENDIF
        ALLOCATE(qs_env%rtp)
        CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,matrix_s(1)%matrix,&
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
                            rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
        CALL get_restart_wfn(qs_env,error)
 

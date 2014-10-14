@@ -218,7 +218,17 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, qs_kind_set, &
        pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
        mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
-       vdw_grid, super_ref_grid, my_cell, rs_grids)
+       vdw_grid, super_ref_grid, my_cell, rs_grids, dispersion_env)
+
+  CALL get_qs_env(qs_env=qs_env,&
+                  dft_control=dft_control,&
+                  qs_kind_set=qs_kind_set,&
+                  cell_ref=cell_ref,&
+                  cell=cell,&
+                  para_env=para_env,&
+                  input=input,&
+                  dispersion_env=dispersion_env,&
+                  error=error)
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -247,7 +257,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
         ALLOCATE(pw_env%gridlevel_info,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
-     IF(qs_env%dft_control%qs_control%gapw) THEN
+     IF(dft_control%qs_control%gapw) THEN
         CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
         CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
@@ -271,12 +281,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
 
   IF (.NOT.failure) THEN
-     NULLIFY(dispersion_env)
-     CALL get_qs_env(qs_env=qs_env,&
-          dft_control=dft_control,qs_kind_set=qs_kind_set,&
-          cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
-          dispersion_env=dispersion_env,&
-          error=error)
      IF (PRESENT(external_para_env)) THEN
         para_env=>external_para_env
         CPPostcondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)

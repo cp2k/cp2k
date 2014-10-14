@@ -16,6 +16,7 @@ MODULE rt_delta_pulse
                                              cp_cfm_release,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_filter,&
@@ -105,14 +106,23 @@ CONTAINS
                                                 mat_tmp, momentum, oo_1, &
                                                 oo_2, S_chol, S_inv_fm, tmpS, &
                                                 virtuals
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(rt_prop_type), POINTER              :: rtp
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
 
     ! we need the overlap and ks matrix for a full diagionalization
-    CALL get_qs_env(qs_env, cell=cell, mos=mos, rtp=rtp, matrix_s=matrix_s, matrix_ks=matrix_ks, error=error)
+    CALL get_qs_env(qs_env,&
+                    cell=cell,&
+                    mos=mos,&
+                    rtp=rtp,&
+                    matrix_s=matrix_s,&
+                    matrix_ks=matrix_ks,&
+                    dft_control=dft_control,&
+                    error=error)
     CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
     CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol", error=error)
     CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm", error=error)
@@ -156,10 +166,10 @@ CONTAINS
        CALL cp_fm_set_all( mos_new(2*ispin-1)%matrix,0.0_dp,error=error)
 
        ! the prefactor (strength of the electric field)
-       kvec(:) = cell%h_inv(1,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(1)+&
-                 cell%h_inv(2,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(2)+&
-                 cell%h_inv(3,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(3)
-       kvec = - kvec * twopi * qs_env%dft_control%rtp_control%delta_pulse_scale
+       kvec(:) = cell%h_inv(1,:)*dft_control%rtp_control%delta_pulse_direction(1)+&
+                 cell%h_inv(2,:)*dft_control%rtp_control%delta_pulse_direction(2)+&
+                 cell%h_inv(3,:)*dft_control%rtp_control%delta_pulse_direction(3)
+       kvec = - kvec * twopi * dft_control%rtp_control%delta_pulse_scale
 
        DO idir=1,3
           factor= kvec(idir)
@@ -294,15 +304,23 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mat_S, oo_1, oo_2, S_inv_fm, &
                                                 tmp
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(rt_prop_type), POINTER              :: rtp
+
+    NULLIFY(dft_control)
 
     CALL timeset(routineN,handle)
 
     ! we need the inverse overlap
 
-    CALL get_qs_env(qs_env, mos=mos, rtp=rtp, matrix_s=matrix_s, error=error)
+    CALL get_qs_env(qs_env,&
+                    mos=mos,&
+                    rtp=rtp,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    error=error)
     CALL get_rtp(rtp=rtp,S_inv=S_inv,error=error)
 
     CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat", error=error)
@@ -324,12 +342,12 @@ CONTAINS
     CALL get_qs_env(qs_env, cell=cell, error=error)
 
     ! direction ... unscaled, this will yield a exp(ikr) that is periodic with the cell
-    kvec(:) = cell%h_inv(1,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(1)+&
-              cell%h_inv(2,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(2)+&
-              cell%h_inv(3,:)*qs_env%dft_control%rtp_control%delta_pulse_direction(3)
+    kvec(:) = cell%h_inv(1,:)*dft_control%rtp_control%delta_pulse_direction(1)+&
+              cell%h_inv(2,:)*dft_control%rtp_control%delta_pulse_direction(2)+&
+              cell%h_inv(3,:)*dft_control%rtp_control%delta_pulse_direction(3)
     kvec = - kvec * twopi
     ! scaling will make the things not periodic with the cell, which would only be good for gas phase systems ?
-    kvec(:) = qs_env%dft_control%rtp_control%delta_pulse_scale * kvec
+    kvec(:) = dft_control%rtp_control%delta_pulse_scale * kvec
 
     ALLOCATE(cosmat, sinmat)
     CALL cp_dbcsr_init(cosmat, error=error)

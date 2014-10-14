@@ -183,7 +183,7 @@ CONTAINS
                              maxsgf=max_nsgf,&
                              maxgtops=max_gau)
 
-    eps_cpc = qs_env%dft_control%qs_control%gapw_control%eps_cpc
+    eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
     idir2 = 1
     IF(idir.NE.iB) THEN

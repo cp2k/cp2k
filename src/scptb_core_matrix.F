@@ -14,6 +14,7 @@
 MODULE scptb_core_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
@@ -100,6 +101,7 @@ CONTAINS
                                                 matrix_t, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -122,7 +124,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,matrix_p,ks_env )
+    NULLIFY(rho,force,atomic_kind_set,qs_kind_set,sab_orb,matrix_p,ks_env,dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -135,6 +137,7 @@ CONTAINS
                     virial=virial,&
                     para_env=para_env,&
                     ks_env=ks_env,&
+                    dft_control=dft_control,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
@@ -171,7 +174,7 @@ CONTAINS
     END IF
 
     ! filter for new matrices
-    eps_filter = qs_env%dft_control%qs_control%eps_filter_matrix
+    eps_filter = dft_control%qs_control%eps_filter_matrix
 
     maxder = ncoset(nder)
 
@@ -391,6 +394,7 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_s, matrix_t
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -411,7 +415,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (qs_kind_set,sab_orb,ks_env)
+    NULLIFY(qs_kind_set,sab_orb,ks_env,dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
@@ -421,6 +425,7 @@ CONTAINS
                     virial=virial,&
                     para_env=para_env,&
                     ks_env=ks_env,&
+                    dft_control=dft_control,&
                     error=error)
 
     CALL get_kpoint_info(kpoint=kpoints,&
@@ -438,7 +443,7 @@ CONTAINS
     nder = 0
 
     ! filter for new matrices
-    eps_filter = qs_env%dft_control%qs_control%eps_filter_matrix
+    eps_filter = dft_control%qs_control%eps_filter_matrix
 
     ! S matrix
     CALL build_overlap_matrix(qs_env,nderivative=nder,matrixkp_s=matrix_s,&

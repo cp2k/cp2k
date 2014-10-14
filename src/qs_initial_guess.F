@@ -333,7 +333,7 @@ CPSourceFileRef,&
 
              IF(has_unit_metric) THEN
                CALL make_basis_simple(mo_coeff,nmo,error=error)
-             ELSEIF(qs_env%dft_control%smear)THEN
+             ELSEIF(dft_control%smear)THEN
                CALL make_basis_lowdin(vmatrix=mo_coeff,ncol=nmo,&
                     matrix_s=s_sparse(1)%matrix,error=error)
              ELSE
@@ -884,7 +884,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
-          CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, has_unit_metric, qs_env%dft_control,&
+          CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, has_unit_metric, dft_control,&
                                   particle_set, atomic_kind_set, qs_kind_set, ispin, nspin, nelectron,  qs_env%para_env, error)
 
           ! The orbital transformation method (OT) requires not only an
@@ -948,7 +948,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
             just_energy=.FALSE., error=error)
 
        ! diagonalization
-       DO ispin = 1,qs_env%dft_control%nspins
+       DO ispin=1, dft_control%nspins
           CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
                              qs_env%scf_env%scf_work1(ispin)%matrix,&
                              error=error)
@@ -957,7 +957,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        qs_env%scf_env%iter_method = "Mixing/Diag"
        qs_env%scf_env%iter_delta = 0.0_dp
 
-       DO ispin = 1,qs_env%dft_control%nspins
+       DO ispin=1, dft_control%nspins
          CALL eigensolver(matrix_ks_fm=qs_env%scf_env%scf_work1(ispin)%matrix, &
                           mo_set=mo_array(ispin)%mo_set,&
                           ortho=qs_env%scf_env%ortho, &
@@ -984,7 +984,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           ! copy gamma point density matrix guess
           p_rmpv => rho%rho_ao
           denmat => rho%rho_ao_kp
-          DO ispin = 1,qs_env%dft_control%nspins
+          DO ispin=1, dft_control%nspins
              DO ic=1,SIZE(denmat,2)
                 CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)
              END DO

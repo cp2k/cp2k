@@ -163,7 +163,7 @@ CONTAINS
        Forces(:,:)               = 0.0_dp
        Forces_added_charges(:,:) = 0.0_dp
     END IF
-    IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+    IF (dft_control%qs_control%semi_empirical) THEN
        ! SEMIEMPIRICAL
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
@@ -180,7 +180,7 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-    ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
+    ELSEIF (dft_control%qs_control%dftb) THEN
        ! DFTB
        CALL cp_unimplemented_error(fromWhere=routineP, &
                message="QM/MM forces not yet implemented for DFTB.", &
@@ -271,8 +271,8 @@ CONTAINS
        IF(qmmm_env%added_charges%num_mm_atoms/=0) CALL mp_sum(Forces_added_charges,para_env%group)
        ! Debug Forces
        IF (debug_this_module) THEN
-          IF ( (qs_env%dft_control%qs_control%semi_empirical).OR.&
-               (qs_env%dft_control%qs_control%dftb))THEN
+          IF ( (dft_control%qs_control%semi_empirical).OR.&
+               (dft_control%qs_control%dftb))THEN
              WRITE(iw,*)"NO DEBUG AVAILABLE in module"//TRIM(routineN)
           ELSE
              ! Print Out Forces
@@ -297,8 +297,8 @@ CONTAINS
        ENDIF
     END IF
     ! Give back rho_tot_t to auxbas_pool only for GPW/GAPW
-    IF  ((.NOT.qs_env%dft_control%qs_control%semi_empirical).AND.&
-         (.NOT.qs_env%dft_control%qs_control%dftb)) THEN
+    IF  ((.NOT.dft_control%qs_control%semi_empirical).AND.&
+         (.NOT.dft_control%qs_control%dftb)) THEN
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
             accept_non_compatible=.TRUE.,error=error)
     END IF

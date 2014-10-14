@@ -511,11 +511,11 @@ CONTAINS
     ENDDO!fm -> dbcsr
 
 
-    IF(qs_env%dft_control%qs_control%becke_restraint)THEN
+    IF(dft_control%qs_control%becke_restraint)THEN
        CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,&
-            qs_env%dft_control%qs_control%becke_control%becke_pot%pw,error=error)
-       qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
+            dft_control%qs_control%becke_control%becke_pot%pw,error=error)
+       dft_control%qs_control%becke_control%need_pot=.TRUE.
     END IF
     CALL cp_rm_iter_level(logger%iter_info,level_name="QS_SCF",error=error)
     CALL timestop(handle)

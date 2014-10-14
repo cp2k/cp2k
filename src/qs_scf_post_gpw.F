@@ -21,8 +21,7 @@ MODULE qs_scf_post_gpw
                                              get_cell,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             tddfpt_control_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
@@ -251,7 +250,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, loc_print_section, &
                                                 localize_section, print_key, &
                                                 stm_section
-    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     CALL timeset(routineN,handle)
 
@@ -264,7 +262,7 @@ CONTAINS
     NULLIFY(admm_env, dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo,qs_loc_env_lumo, scf_control, &
          unoccupied_orbs,unoccupied_orbs_stm,  mo_eigenvalues, unoccupied_evals, unoccupied_evals_stm,  molecule_set, mo_derivs,&
-         tddfpt_control, subsys, particles, input, print_key, kinetic_m,marked_states)
+         subsys, particles, input, print_key, kinetic_m,marked_states)
     NULLIFY(homo_localized, lumo_localized,lumo_ptr)
 
     has_homo=.FALSE.
@@ -284,7 +282,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
-            input=input, subsys=subsys, tddfpt_control=tddfpt_control, pw_env=pw_env,&
+            input=input, subsys=subsys, pw_env=pw_env,&
             particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
             qs_kind_set=qs_kind_set, error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
@@ -428,7 +426,7 @@ CONTAINS
        !  - Possibly gets wannier functions
        !  - Possibly gets molecular states
        IF (p_loc_homo) THEN
-          IF (qs_env%dft_control%restricted) THEN
+          IF (dft_control%restricted) THEN
              IF (output_unit>0) WRITE(output_unit,*) &
                   " Unclear how we define MOs / localization in the restricted case ... skipping"
           ELSE
@@ -542,12 +540,12 @@ CONTAINS
 
           ! Save the info for tddfpt calculation
           IF (dft_control%do_tddfpt_calculation) THEN
-             ALLOCATE(tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins),stat=istat)
+             ALLOCATE(dft_control%tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins),stat=istat)
              DO ispin=1, dft_control%nspins
-                tddfpt_control%lumos_eigenvalues(1:nlumos,ispin) = &
+                dft_control%tddfpt_control%lumos_eigenvalues(1:nlumos,ispin) = &
                      unoccupied_evals(ispin)%array(1:nlumos)
              END DO
-             tddfpt_control%lumos => unoccupied_orbs
+             dft_control%tddfpt_control%lumos => unoccupied_orbs
           END IF
 
           IF(p_loc_lumo)THEN
