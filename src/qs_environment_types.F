@@ -84,9 +84,7 @@ MODULE qs_environment_types
   USE mp2_types,                       ONLY: mp2_env_release,&
                                              mp2_type
   USE particle_types,                  ONLY: particle_type
-  USE pw_env_types,                    ONLY: pw_env_release,&
-                                             pw_env_retain,&
-                                             pw_env_type
+  USE pw_env_types,                    ONLY: pw_env_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release,&
                                              pw_type
@@ -254,7 +252,6 @@ MODULE qs_environment_types
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(rel_control_type), POINTER                       :: rel_control
     TYPE(scp_environment_type), POINTER                   :: scp_env
-    TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
 
@@ -679,7 +676,6 @@ CONTAINS
     IF (PRESENT(mos_aux_fit)) mos_aux_fit => qs_env%mos_aux_fit
     IF (PRESENT(use_harris)) use_harris = qs_env%use_harris
     IF (PRESENT(harris_env)) harris_env => qs_env%harris_env
-    IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(ewald_env)) ewald_env => qs_env%ewald_env
     IF (PRESENT(ewald_pw)) ewald_pw => qs_env%ewald_pw
     IF (PRESENT(mpools)) mpools => qs_env%mpools
@@ -825,6 +821,7 @@ CONTAINS
                     dft_control=dft_control,&
                     dbcsr_dist=dbcsr_dist,&
                     distribution_2d=distribution_2d,&
+                    pw_env=pw_env,&
                     error=error)
 
   END SUBROUTINE get_qs_env
@@ -858,7 +855,6 @@ CONTAINS
     NULLIFY (qs_env%harris_env)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%mpools_aux_fit)
-    NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%ewald_env)
     NULLIFY (qs_env%ewald_pw)
     NULLIFY (qs_env%scf_control)
@@ -954,7 +950,6 @@ CONTAINS
 !> \param qmmm ...
 !> \param qmmm_periodic ...
 !> \param harris_env ...
-!> \param pw_env ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
 !> \param mpools ...
@@ -1025,7 +1020,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_qs_env(qs_env,super_cell,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,harris_env,&
-       pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,&
+       ewald_env,ewald_pw,mpools,mpools_aux_fit,&
        rho_external,external_vxc,mask,&
        kinetic,scf_control,rel_control,qs_charges,ks_env,&
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
@@ -1044,7 +1039,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: mos, mos_aux_fit
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
-    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
     TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
@@ -1187,11 +1181,6 @@ CONTAINS
     IF (PRESENT(rtp)) qs_env%rtp=>rtp
     IF (PRESENT(efield)) qs_env%efield=>efield
 
-    IF (PRESENT(pw_env)) THEN ! accept also null pointers?
-      CALL pw_env_retain(pw_env,error=error)
-      CALL pw_env_release(qs_env%pw_env,error=error)
-      qs_env%pw_env => pw_env
-    END IF
     IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
       CALL ewald_env_retain(ewald_env,error=error)
       CALL ewald_env_release(qs_env%ewald_env,error=error)
@@ -1504,7 +1493,6 @@ CONTAINS
           IF(ASSOCIATED(qs_env%xas_env)) THEN
              CALL xas_env_release(qs_env%xas_env,error=error)
           END IF
-          CALL pw_env_release(qs_env%pw_env, error=error)
           CALL ewald_env_release(qs_env%ewald_env, error=error)
           CALL ewald_pw_release(qs_env%ewald_pw, error=error)
           CALL cp_para_env_release(qs_env%para_env,error=error)

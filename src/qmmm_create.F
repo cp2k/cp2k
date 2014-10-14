@@ -50,6 +50,7 @@ MODULE qmmm_create
                                              section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qmmm_force_mixing,               ONLY: setup_force_mixing_qmmm_sections,&
                                              update_force_mixing_labels
   USE qmmm_init,                       ONLY: &
@@ -65,7 +66,8 @@ MODULE qmmm_create
        force_mixing_extended_subsys, primary_subsys, qmmm_env_mm_create, &
        qmmm_env_mm_release, qmmm_env_mm_type, qmmm_env_qm_create, &
        qmmm_env_qm_release, qmmm_env_qm_type, qmmm_links_type, qs_subsys
-  USE qs_environment_types,            ONLY: qs_environment_type,&
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
                                              set_qs_env
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE termination,                     ONLY: stop_program
@@ -247,6 +249,7 @@ CONTAINS
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env_mm
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
@@ -262,7 +265,7 @@ CONTAINS
          qs_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm, fist_env,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
          fist_scale_charge_link, print_section, fist_nonbond_env, &
-         print_gen, logger, mm_el_pot_radius_corr, super_cell)
+         print_gen, logger, mm_el_pot_radius_corr, super_cell, pw_env)
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
        ! citations
@@ -532,8 +535,9 @@ CPSourceFileRef,&
        !
        ! Initialize the qmmm_pw_grid
        !
+       CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
        CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
-                              pw_env=qs_env%pw_env,&
+                              pw_env=pw_env,&
                               cell=qm_cell_small,&
                               error=error)
        !
@@ -553,7 +557,7 @@ CPSourceFileRef,&
        ! Preparing for PBC...
        !
        CALL setup_origin_mm_cell(qmmm_section, qmmm_env_qm, mm_cell, qm_cell_small,&
-            dr=qs_env%pw_env%pw_pools(qs_env%pw_env%auxbas_grid)%pool%pw_grid%dr,&
+            dr=pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid%dr,&
             error=error)
 
        CALL cell_release(qm_cell_small, error)

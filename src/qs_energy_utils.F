@@ -38,7 +38,8 @@ MODULE qs_energy_utils
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
   USE mp2,                             ONLY: mp2_main
-  USE pw_env_types,                    ONLY: pw_env_get
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: pw_p_type
@@ -475,12 +476,13 @@ CONTAINS
     LOGICAL                                  :: do_et
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: v_hartree_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
-    NULLIFY(atprop, energy)
+    NULLIFY(atprop, energy, pw_env)
     CALL timeset(routineN,handle)
 
     NULLIFY(v_hartree_rspace%pw)
@@ -492,6 +494,7 @@ CONTAINS
                    atprop=atprop,&
                    energy=energy,&
                    v_hartree_rspace=v_hartree_rspace%pw,&
+                   pw_env=pw_env,&
                    error=error)
     IF (atprop%energy) THEN
        CALL qs_energies_mulliken(qs_env,error)
@@ -543,7 +546,7 @@ CONTAINS
                                 just_energy=.TRUE.,error=error)
        CALL calc_et_coupling(qs_env,error)
        IF(dft_control%qs_control%becke_restraint)THEN
-          CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+          CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,&
                dft_control%qs_control%becke_control%becke_pot%pw,error=error)
                dft_control%qs_control%becke_control%need_pot=.TRUE.

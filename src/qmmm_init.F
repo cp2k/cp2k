@@ -50,6 +50,7 @@ MODULE qmmm_init
   USE pair_potential_types,            ONLY: pair_potential_reallocate
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
@@ -334,17 +335,19 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxchrg
     REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius, maxradius2
+    TYPE(pw_env_type), POINTER               :: pw_env
 
     failure=.FALSE.
     stat=0
-    NULLIFY(maxradius, maxradius2)
+    NULLIFY(maxradius, maxradius2, pw_env)
 
     maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
+    CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
     IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   qm_cell_small=qm_cell_small,&
                                   para_env=para_env,&
-                                  pw_env=qs_env%pw_env,&
+                                  pw_env=pw_env,&
                                   mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
                                   mm_el_pot_radius_corr=qmmm_env_qm%mm_el_pot_radius_corr,&
                                   qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
@@ -360,7 +363,7 @@ CONTAINS
        CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
                                      qm_cell_small=qm_cell_small,&
                                      para_env=para_env,&
-                                     pw_env=qs_env%pw_env,&
+                                     pw_env=pw_env,&
                                      mm_el_pot_radius=added_charges%mm_el_pot_radius,&
                                      mm_el_pot_radius_corr=added_charges%mm_el_pot_radius_corr,&
                                      qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&

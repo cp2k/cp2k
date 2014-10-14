@@ -6,6 +6,7 @@
 ! *****************************************************************************
 !> \par History
 !>      11.2002 created [fawzi]
+!>      10.2014 Moved many components from qs_env to here [Ole Schuett]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_ks_types
@@ -32,6 +33,9 @@ MODULE qs_ks_types
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_release,&
+                                             pw_env_retain,&
+                                             pw_env_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release,&
                                              pw_type
@@ -177,6 +181,7 @@ MODULE qs_ks_types
     TYPE(dft_control_type), POINTER                       :: dft_control => Null()
     TYPE(dbcsr_distribution_obj), POINTER                 :: dbcsr_dist => Null()
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d => Null()
+    TYPE(pw_env_type), POINTER                            :: pw_env => Null()
   END TYPE qs_ks_env_type
 
 ! *****************************************************************************
@@ -285,6 +290,7 @@ END SUBROUTINE qs_ks_env_create
 !> \param dft_control ...
 !> \param dbcsr_dist ...
 !> \param distribution_2d ...
+!> \param pw_env ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -303,7 +309,7 @@ END SUBROUTINE qs_ks_env_create
                         atomic_kind_set,qs_kind_set,cell,cell_ref,use_ref_cell,&
                         particle_set,energy,force,local_particles,local_molecules,&
                         molecule_kind_set,molecule_set,subsys,cp_subsys,virial,results,atprop,&
-                        nkind, natom, dft_control,dbcsr_dist,distribution_2d,&
+                        nkind, natom, dft_control,dbcsr_dist,distribution_2d,pw_env,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -357,6 +363,7 @@ END SUBROUTINE qs_ks_env_create
       POINTER                                :: dbcsr_dist
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
@@ -410,6 +417,7 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(dft_control)) dft_control => ks_env%dft_control
      IF (PRESENT(dbcsr_dist)) dbcsr_dist => ks_env%dbcsr_dist
      IF (PRESENT(distribution_2d)) distribution_2d => ks_env%distribution_2d
+     IF (PRESENT(pw_env)) pw_env => ks_env%pw_env
 
      IF (PRESENT(kpoints)) kpoints => ks_env%kpoints
      IF (PRESENT(do_kpoints)) THEN
@@ -487,6 +495,7 @@ END SUBROUTINE qs_ks_env_create
 !> \param dft_control ...
 !> \param dbcsr_dist ...
 !> \param distribution_2d ...
+!> \param pw_env ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
@@ -500,7 +509,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
-                        subsys,dft_control,dbcsr_dist,distribution_2d,&
+                        subsys,dft_control,dbcsr_dist,distribution_2d,pw_env,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -527,6 +536,7 @@ END SUBROUTINE qs_ks_env_create
       POINTER                                :: dbcsr_dist
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
@@ -597,6 +607,11 @@ END SUBROUTINE qs_ks_env_create
        CALL distribution_2d_release(ks_env%distribution_2d,error=error)
        ks_env%distribution_2d => distribution_2d
     ENDIF
+    IF (PRESENT(pw_env)) THEN
+      CALL pw_env_retain(pw_env,error=error)
+      CALL pw_env_release(ks_env%pw_env,error=error)
+      ks_env%pw_env => pw_env
+    END IF
   END SUBROUTINE set_ks_env
 
 ! *****************************************************************************
@@ -704,9 +719,9 @@ END SUBROUTINE qs_ks_env_create
           CALL release_sab(ks_env%sab_lrc)
           CALL release_sab(ks_env%sab_almo)
           CALL dft_control_release(ks_env%dft_control, error=error)
-
           CALL kpoint_release(ks_env%kpoints,error=error)
           CALL qs_subsys_release(ks_env%subsys,error=error)
+          CALL pw_env_release(ks_env%pw_env, error=error)
           DEALLOCATE(ks_env)
        END IF
     END IF

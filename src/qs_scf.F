@@ -84,7 +84,8 @@ MODULE qs_scf
   USE preconditioner,                  ONLY: prepare_preconditioner,&
                                              restart_preconditioner
   USE preconditioner_types,            ONLY: destroy_preconditioner
-  USE pw_env_types,                    ONLY: pw_env_get
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
   USE qs_block_davidson_types,         ONLY: block_davidson_deallocate
@@ -268,6 +269,7 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
@@ -287,7 +289,7 @@ CONTAINS
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
-            scf_section, para_env, results, kpoints)
+            scf_section, para_env, results, kpoints, pw_env)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -311,6 +313,7 @@ CONTAINS
                     do_kpoints=do_kpoints,&
                     kpoints=kpoints,&
                     results=results,&
+                    pw_env=pw_env,&
                     error=error)
 
     ! Defining SCP logicals
@@ -512,7 +515,7 @@ CONTAINS
 
 
     IF(dft_control%qs_control%becke_restraint)THEN
-       CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,&
             dft_control%qs_control%becke_control%becke_pot%pw,error=error)
        dft_control%qs_control%becke_control%need_pot=.TRUE.

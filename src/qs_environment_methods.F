@@ -266,6 +266,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, &
                                                 rho_nlcc_g, vppl
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -273,7 +274,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(para_env, dft_control,particle_set,distribution_2d, ks_env, &
-            rho_core, vppl, rho_nlcc, rho_nlcc_g)
+            rho_core, vppl, rho_nlcc, rho_nlcc_g, pw_env)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -289,6 +290,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
                     vppl=vppl,&
                     rho_nlcc=rho_nlcc,&
                     rho_nlcc_g=rho_nlcc_g,&
+                    pw_env=pw_env,&
                     error=error)
 
     ! *** deallocate matrices that will have the wrong structure ***
@@ -307,8 +309,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
         ! *** updates rho core ***
         CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
-        CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
-        CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
         IF (.NOT. failure) THEN
            CALL calculate_rho_core(rho_core, &
                 qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
@@ -330,8 +331,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     ELSE
       ! *** updates rho core ***
       CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
-      CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
       IF (.NOT. failure) THEN
          CALL calculate_rho_core(rho_core, &
               qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
@@ -342,8 +342,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     do_ppl = dft_control%qs_control%do_ppl_method==do_ppl_grid
     IF ( do_ppl ) THEN
       CPPrecondition(ASSOCIATED(vppl),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
-      CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
       IF (.NOT. failure) THEN
          CALL calculate_ppl_grid(vppl,qs_env,error=error)
       END IF
@@ -353,8 +352,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     IF (ASSOCIATED(rho_nlcc)) THEN
       CPPrecondition(ASSOCIATED(rho_nlcc),cp_failure_level,routineP,error,failure)
       CPPrecondition(ASSOCIATED(rho_nlcc_g),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
-      CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
       CALL calculate_rho_nlcc(rho_nlcc, qs_env,error=error)
       CALL pw_transfer(rho_nlcc%pw,rho_nlcc_g%pw,error=error)
     ENDIF
@@ -519,7 +517,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=new_pw_env, error=error)
     IF (.NOT.ASSOCIATED(new_pw_env)) THEN
        CALL pw_env_create(new_pw_env,error=error)
-       CALL set_qs_env(qs_env,pw_env=new_pw_env,error=error)
+       CALL set_ks_env(ks_env, pw_env=new_pw_env, error=error)
        CALL pw_env_release(new_pw_env,error=error)
     ENDIF
 
