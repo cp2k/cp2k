@@ -16,10 +16,15 @@ MODULE qs_ks_types
                                              dft_control_retain,&
                                              dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_p_type
+                                             cp_dbcsr_distribution_release,&
+                                             cp_dbcsr_p_type,&
+                                             dbcsr_distribution_obj
   USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_retain,&
+                                             distribution_2d_type
   USE f77_blas
   USE kpoint_types,                    ONLY: kpoint_create,&
                                              kpoint_release,&
@@ -100,6 +105,9 @@ MODULE qs_ks_types
 !>
 !> \param kpoints information on the kpoints used
 !> \param subsys the particles, molecules,... of this environment
+!> \param dft_control object that contains the values of various parameters
+!>        relevant to a dft calculation
+!> \param distribution_2d: distribution of the atom pairs between the processors
 !>
 !> \par History
 !>      04.2002 created [fawzi]
@@ -167,6 +175,8 @@ MODULE qs_ks_types
     TYPE(kpoint_type), POINTER                            :: kpoints => Null()
     TYPE(qs_subsys_type), POINTER                         :: subsys => Null()
     TYPE(dft_control_type), POINTER                       :: dft_control => Null()
+    TYPE(dbcsr_distribution_obj), POINTER                 :: dbcsr_dist => Null()
+    TYPE(distribution_2d_type), POINTER                   :: distribution_2d => Null()
   END TYPE qs_ks_env_type
 
 ! *****************************************************************************
@@ -273,6 +283,8 @@ END SUBROUTINE qs_ks_env_create
 !> \param nkind ...
 !> \param natom ...
 !> \param dft_control ...
+!> \param dbcsr_dist ...
+!> \param distribution_2d ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -291,7 +303,7 @@ END SUBROUTINE qs_ks_env_create
                         atomic_kind_set,qs_kind_set,cell,cell_ref,use_ref_cell,&
                         particle_set,energy,force,local_particles,local_molecules,&
                         molecule_kind_set,molecule_set,subsys,cp_subsys,virial,results,atprop,&
-                        nkind, natom, dft_control,&
+                        nkind, natom, dft_control,dbcsr_dist,distribution_2d,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -341,6 +353,10 @@ END SUBROUTINE qs_ks_env_create
     INTEGER, OPTIONAL                        :: nkind, natom
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
+    TYPE(dbcsr_distribution_obj), OPTIONAL, &
+      POINTER                                :: dbcsr_dist
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
@@ -392,6 +408,8 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_core)) sab_core =>  ks_env%sab_core
      IF (PRESENT(sab_almo)) sab_almo =>  ks_env%sab_almo
      IF (PRESENT(dft_control)) dft_control => ks_env%dft_control
+     IF (PRESENT(dbcsr_dist)) dbcsr_dist => ks_env%dbcsr_dist
+     IF (PRESENT(distribution_2d)) distribution_2d => ks_env%distribution_2d
 
      IF (PRESENT(kpoints)) kpoints => ks_env%kpoints
      IF (PRESENT(do_kpoints)) THEN
@@ -467,6 +485,8 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_almo ...
 !> \param subsys ...
 !> \param dft_control ...
+!> \param dbcsr_dist ...
+!> \param distribution_2d ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
@@ -480,7 +500,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
-                        subsys,dft_control,&
+                        subsys,dft_control,dbcsr_dist,distribution_2d,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -503,6 +523,10 @@ END SUBROUTINE qs_ks_env_create
     TYPE(qs_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
+    TYPE(dbcsr_distribution_obj), OPTIONAL, &
+      POINTER                                :: dbcsr_dist
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
@@ -561,6 +585,18 @@ END SUBROUTINE qs_ks_env_create
        CALL dft_control_release(ks_env%dft_control, error=error)
        ks_env%dft_control => dft_control
     END IF
+    IF (PRESENT(dbcsr_dist)) THEN
+       IF(ASSOCIATED(ks_env%dbcsr_dist)) THEN
+          CALL cp_dbcsr_distribution_release(ks_env%dbcsr_dist)
+          DEALLOCATE(ks_env%dbcsr_dist)
+       ENDIF
+       ks_env%dbcsr_dist => dbcsr_dist
+    ENDIF
+    IF (PRESENT(distribution_2d)) THEN
+       CALL distribution_2d_retain(distribution_2d,error=error)
+       CALL distribution_2d_release(ks_env%distribution_2d,error=error)
+       ks_env%distribution_2d => distribution_2d
+    ENDIF
   END SUBROUTINE set_ks_env
 
 ! *****************************************************************************
@@ -642,6 +678,13 @@ END SUBROUTINE qs_ks_env_create
           IF (ASSOCIATED(ks_env%vee)) THEN
              CALL pw_release(ks_env%vee%pw,error=error)
              DEALLOCATE(ks_env%vee)
+          ENDIF
+          IF(ASSOCIATED(ks_env%dbcsr_dist)) THEN
+             CALL cp_dbcsr_distribution_release(ks_env%dbcsr_dist)
+             DEALLOCATE(ks_env%dbcsr_dist)
+          ENDIF
+          IF (ASSOCIATED(ks_env%distribution_2d)) THEN
+             CALL distribution_2d_release(ks_env%distribution_2d,error=error)
           ENDIF
 
           CALL release_sab(ks_env%sab_orb)

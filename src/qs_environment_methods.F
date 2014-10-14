@@ -137,6 +137,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
@@ -145,7 +146,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     failure = .FALSE.
 
     NULLIFY(qs_kind_set, atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
-         distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env, cell)
+         distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env, cell, ks_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
@@ -157,7 +158,9 @@ SUBROUTINE qs_env_setup(qs_env,error)
                     scf_control=scf_control,&
                     para_env=para_env,&
                     cell=cell,&
+                    ks_env=ks_env,&
                     error=error)
+
     CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
@@ -214,11 +217,11 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
        ! and use it to create the dbcsr_dist, which should be the sole user of distribution_2d by now.
        ALLOCATE(dbcsr_dist)
-       CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
-       CALL set_qs_env(qs_env,dbcsr_dist=dbcsr_dist,error=error)
+       CALL cp_dbcsr_dist2d_to_dist(distribution_2d, dbcsr_dist, error)
+       CALL set_ks_env(ks_env, dbcsr_dist=dbcsr_dist, error=error)
 
        ! also keep distribution_2d in qs_env
-       CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
+       CALL set_ks_env(ks_env, distribution_2d=distribution_2d, error=error)
        CALL distribution_2d_release(distribution_2d, error=error)
 
        ! SCP

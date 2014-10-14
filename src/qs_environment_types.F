@@ -20,10 +20,8 @@ MODULE qs_environment_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             tddfpt_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_distribution_release,&
-                                             cp_dbcsr_p_type,&
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_release_p,&
                                              dbcsr_distribution_obj
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
@@ -39,9 +37,7 @@ MODULE qs_environment_types
   USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_release,&
-                                             distribution_2d_retain,&
-                                             distribution_2d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                              ls_scf_release
   USE ep_qs_types,                     ONLY: ep_qs_release,&
@@ -192,44 +188,6 @@ MODULE qs_environment_types
             set_qs_env
 
 ! *****************************************************************************
-!> \brief contains all the info needed by quickstep to do dft scf
-!> \param id_nr identification number, guarateed to be unique
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param cell the simulation cell (box)
-!> \param image_matrix matrix needed for the image charge approach within QM/MM
-!> \param image_coeff coefficients of the image charges within QM/MM
-!> \param ipiv auxiliary matrix needed for solving linear system of equations
-!>        within the QM/MM image charge approach
-!> \param calc_image_preconditioner LOGICAL which indicates if the preconditioner
-!>        matrix is calculated when determining the coefficients of the image
-!>        charges iteratively by CG
-!> \param dft_control object that contains the values of various parameters
-!>        relevant to a dft calculation
-!> \param mos the molecular orbitals, in LSD array with the different spins
-!> \param mos_aux_fit molecular orbitals for admm
-!> \param energy place where the energies calculated are stored
-!> \param scf_control various parameters relevant to the scf cycle
-!> \param rel_control various parameters relevant to the relativistic calclation
-!> \param pw_env various things to create and get info on the grids used
-!>        by qs
-!> \param ewald_env information to perform ewald summation (used by DFTB)
-!> \param ewald_pw information on pw used to perform ewald summation (used by DFTB)
-!> \param para_env parallel environement that should be  used to do the qs
-!>        related calculations
-!> \param blacs_env parallel environement needed by scalapack (full matrixes)
-!>
-!> \param rhoext a realspace grid with the external density 
-!> \param external_vxc a realspace grid with the external vxc 
-!> \param mask a realspace mask function to exclude pseuo region
-!>
-!> \param qs_charges an object where to put the charges that are present on
-!>        the various grids
-!> \param ks_env environement for the calculation of the Kohn Sham matrix
-!> \param wf_history place where the snapshots of the previous states are
-!>        stored (used during the md to extrapolate the new starting point)
-!> \param scf_env place where temporary information used in the scf is stored
-!> \param mpools all the pools of matrixes
-!> \param distribution_ 2d: distribution of the atom pairs between the processors
 !> \param local_rho_set contains the atomic, compensations and core densities
 !>                       and the local parts of the xc terms
 !> \param hartree_local contains the 1, 2 and 3 centers coulomb terms
@@ -266,6 +224,7 @@ MODULE qs_environment_types
 !>      08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
 !> \author Matthias Krack & fawzi
 ! *****************************************************************************
+
   TYPE qs_environment_type
     INTEGER :: id_nr, ref_count
     LOGICAL :: qmmm, qmmm_periodic
@@ -312,8 +271,6 @@ MODULE qs_environment_types
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools_aux_fit
-    TYPE(distribution_2d_type), POINTER                   :: distribution_2d
-    TYPE(dbcsr_distribution_obj), POINTER                 :: dbcsr_dist
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(local_rho_type), POINTER                         :: local_rho_set
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
@@ -469,7 +426,50 @@ CONTAINS
 !> \param mo_derivs ...
 !> \param mo_derivs_aux_fit ...
 !> \param mo_loc_history ...
-!> \param !tddfpt_control ...
+!> \param nkind ...
+!> \param natom ...
+!> \param nelectron_total ...
+!> \param nelectron_spin ...
+!> \param efield ...
+!> \param neighbor_list_id ...
+!> \param linres_control ...
+!> \param xas_env ...
+!> \param virial ...
+!> \param cp_ddapc_env ...
+!> \param cp_ddapc_ewald ...
+!> \param outer_scf_history ...
+!> \param outer_scf_ihistory ...
+!> \param ep_qs_env ...
+!> \param x_data ...
+!> \param et_coupling ...
+!> \param dftb_potential ...
+!> \param results ...
+!> \param scp_env ...
+!> \param se_taper ...
+!> \param se_store_int_env ...
+!> \param se_nddo_mpole ...
+!> \param se_nonbond_env ...
+!> \param admm_env ...
+!> \param lri_env ...
+!> \param lri_density ...
+!> \param hfx_ri_env ...
+!> \param dispersion_env ...
+!> \param vee ...
+!> \param rho_external ...
+!> \param external_vxc ...
+!> \param mask ...
+!> \param mp2_env ...
+!> \param kg_env ...
+!> \param WannierCentres ...
+!> \param ga_env ...
+!> \param atprop ...
+!> \param ls_scf_env ...
+!> \param v_hartree_rspace ...
+!> \param s_mstruct_changed ...
+!> \param rho_changed ...
+!> \param potential_changed ...
+!> \param forces_up_to_date ...
+!> \param error ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -486,9 +486,7 @@ CONTAINS
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,cp_subsys,oce,rho_atom_set,&
        task_list,task_list_zmp,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,do_kpoints,has_unit_metric,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history,&
-       !tddfpt_control,
-       nkind,natom,nelectron_total,nelectron_spin,efield,&
+       mo_derivs_aux_fit, mo_loc_history,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
@@ -661,9 +659,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(rho0_mpole_type), POINTER           :: rho0_m
 
-!TYPE(tddfpt_control_type), OPTIONAL, &
-!  POINTER                                :: tddfpt_control
-
     failure=.FALSE.
     NULLIFY(rho0_m)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -704,15 +699,12 @@ CONTAINS
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
     IF (PRESENT(para_env)) para_env => qs_env%para_env
-    IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
-    IF (PRESENT(dbcsr_dist)) dbcsr_dist => qs_env%dbcsr_dist
     IF (PRESENT(oce)) oce =>  qs_env%oce
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
     IF (PRESENT(has_unit_metric)) has_unit_metric = qs_env%has_unit_metric
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
     IF (PRESENT(mo_derivs_aux_fit)) mo_derivs_aux_fit => qs_env%mo_derivs_aux_fit
     IF (PRESENT(mo_loc_history)) mo_loc_history => qs_env%mo_loc_history
-    !IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
     IF (PRESENT(se_taper)) se_taper => qs_env%se_taper
     IF (PRESENT(se_store_int_env)) se_store_int_env => qs_env%se_store_int_env
@@ -831,6 +823,8 @@ CONTAINS
                     natom=natom,&
                     nkind=nkind,&
                     dft_control=dft_control,&
+                    dbcsr_dist=dbcsr_dist,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
   END SUBROUTINE get_qs_env
@@ -879,8 +873,6 @@ CONTAINS
     NULLIFY (qs_env%ks_qmmm_env)
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
-    NULLIFY (qs_env%distribution_2d)
-    NULLIFY (qs_env%dbcsr_dist)
     NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%oce)
     NULLIFY (qs_env%local_rho_set)
@@ -983,8 +975,6 @@ CONTAINS
 !> \param task_list_aux_fit ...
 !> \param task_list_soft ...
 !> \param task_list_zmp ...
-!> \param distribution_2d ...
-!> \param dbcsr_dist ...
 !> \param input ...
 !> \param oce ...
 !> \param rho_atom_set ...
@@ -1040,7 +1030,7 @@ CONTAINS
        kinetic,scf_control,rel_control,qs_charges,ks_env,&
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        task_list_zmp,&
-       distribution_2d,dbcsr_dist,input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
+       input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin, efield,&
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
@@ -1078,10 +1068,6 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: use_harris
     TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_aux_fit, &
                                                 task_list_soft, task_list_zmp
-    TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                :: distribution_2d
-    TYPE(dbcsr_distribution_obj), OPTIONAL, &
-      POINTER                                :: dbcsr_dist
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
@@ -1296,18 +1282,6 @@ CONTAINS
     IF (PRESENT(ecoul_1c)) THEN
         CALL set_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
     END IF
-    IF (PRESENT(distribution_2d)) THEN
-       CALL distribution_2d_retain(distribution_2d,error=error)
-       CALL distribution_2d_release(qs_env%distribution_2d,error=error)
-       qs_env%distribution_2d => distribution_2d
-    ENDIF
-    IF (PRESENT(dbcsr_dist)) THEN
-       IF(ASSOCIATED(qs_env%dbcsr_dist)) THEN
-          CALL cp_dbcsr_distribution_release(qs_env%dbcsr_dist)
-          DEALLOCATE(qs_env%dbcsr_dist)
-       ENDIF
-       qs_env%dbcsr_dist => dbcsr_dist
-    ENDIF
     IF (PRESENT(input)) THEN
        CALL section_vals_retain(input,error=error)
        CALL section_vals_release(qs_env%input,error=error)
@@ -1565,13 +1539,6 @@ CONTAINS
           CALL scf_env_release(qs_env%scf_env, error=error)
           CALL mpools_release(qs_env%mpools,error=error)
           CALL mpools_release(qs_env%mpools_aux_fit,error=error)
-          IF (ASSOCIATED(qs_env%distribution_2d)) THEN
-             CALL distribution_2d_release(qs_env%distribution_2d,error=error)
-          ENDIF
-          IF(ASSOCIATED(qs_env%dbcsr_dist)) THEN
-             CALL cp_dbcsr_distribution_release(qs_env%dbcsr_dist)
-             DEALLOCATE(qs_env%dbcsr_dist)
-          ENDIF
           CALL section_vals_release(qs_env%input,error=error)
           CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
           CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
