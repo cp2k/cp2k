@@ -1316,7 +1316,6 @@ CONTAINS
 !> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param para_env the parallel environement for the qs_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
