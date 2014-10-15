@@ -57,6 +57,8 @@ MODULE qs_subsys_types
   TYPE qs_subsys_type
      PRIVATE
      INTEGER                                               :: ref_count = 1
+     INTEGER                                               :: nelectron_total = -1
+     INTEGER                                               :: nelectron_spin(2) = -1
      TYPE(cp_subsys_type), POINTER                         :: cp_subsys => Null()
      TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set => Null()
      TYPE(cell_type), POINTER                              :: cell_ref => Null()
@@ -158,6 +160,8 @@ CONTAINS
 !> \param force ...
 !> \param qs_kind_set ...
 !> \param cp_subsys ...
+!> \param nelectron_total ...
+!> \param nelectron_spin ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_subsys_get(subsys, atomic_kinds, atomic_kind_set, particles,particle_set,&
@@ -167,7 +171,8 @@ CONTAINS
                            shell_particles, core_particles, gci, multipoles,&
                            natom, nparticle, ncore, nshell, nkind, atprop, virial, &
                            results, cell, cell_ref, use_ref_cell, energy, force,&
-                           qs_kind_set,cp_subsys,error)
+                           qs_kind_set,cp_subsys,nelectron_total,nelectron_spin,&
+                           error)
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
@@ -212,6 +217,8 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: qs_kind_set
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: cp_subsys
+    INTEGER, OPTIONAL                        :: nelectron_total
+    INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_subsys_get', &
@@ -251,6 +258,8 @@ CONTAINS
      IF (PRESENT(force)) force => subsys%force
      IF (PRESENT(qs_kind_set)) qs_kind_set => subsys%qs_kind_set
      IF (PRESENT(cp_subsys)) cp_subsys => subsys%cp_subsys
+     IF (PRESENT(nelectron_total)) nelectron_total=subsys%nelectron_total
+     IF (PRESENT(nelectron_spin))  nelectron_spin=subsys%nelectron_spin
   END SUBROUTINE qs_subsys_get
 
 
@@ -266,12 +275,15 @@ CONTAINS
 !> \param energy ...
 !> \param force ...
 !> \param qs_kind_set ...
+!> \param nelectron_total ...
+!> \param nelectron_spin ...
 !> \param error ...
 ! *****************************************************************************
 SUBROUTINE qs_subsys_set(subsys,cp_subsys,&
                          local_particles,local_molecules_new,cell,&
                          cell_ref, use_ref_cell, energy, force,&
-                         qs_kind_set, error)
+                         qs_kind_set, nelectron_total, nelectron_spin,&
+                         error)
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: cp_subsys
     TYPE(distribution_1d_type), OPTIONAL, &
@@ -284,6 +296,8 @@ SUBROUTINE qs_subsys_set(subsys,cp_subsys,&
       OPTIONAL, POINTER                      :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: qs_kind_set
+    INTEGER, OPTIONAL                        :: nelectron_total
+    INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_subsys_set', &
@@ -313,7 +327,8 @@ SUBROUTINE qs_subsys_set(subsys,cp_subsys,&
     ! compiler (present in at least 10.0.025). A testcase has been submitted to intel.
     IF (PRESENT(force)) subsys%force => force
     IF (PRESENT(qs_kind_set)) subsys%qs_kind_set => qs_kind_set
-
+    IF (PRESENT(nelectron_total)) subsys%nelectron_total = nelectron_total
+    IF (PRESENT(nelectron_spin)) subsys%nelectron_spin = nelectron_spin
 END SUBROUTINE qs_subsys_set
 
 END MODULE qs_subsys_types

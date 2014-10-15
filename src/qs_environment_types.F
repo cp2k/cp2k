@@ -229,8 +229,6 @@ MODULE qs_environment_types
     LOGICAL :: run_rtp
     LOGICAL :: linres_run
     LOGICAL :: calc_image_preconditioner
-    INTEGER :: nelectron_total
-    INTEGER :: nelectron_spin(2)
     REAL(KIND=dp)                                         :: sim_time
     REAL(KIND=dp) :: start_time, target_time
     REAL(KIND=dp),DIMENSION(:,:),POINTER                  :: image_matrix
@@ -655,8 +653,6 @@ CONTAINS
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env%ks_env),cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(nelectron_total)) nelectron_total=qs_env%nelectron_total
-    IF (PRESENT(nelectron_spin))  nelectron_spin=qs_env%nelectron_spin
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
     IF (PRESENT(ga_env)) ga_env => qs_env%ga_env
@@ -814,6 +810,8 @@ CONTAINS
                     pw_env=pw_env,&
                     para_env=para_env,&
                     blacs_env=blacs_env,&
+                    nelectron_total=nelectron_total,&
+                    nelectron_spin=nelectron_spin,&
                     error=error)
 
   END SUBROUTINE get_qs_env
@@ -895,17 +893,9 @@ CONTAINS
 
     qs_env%outer_scf_ihistory=0
     qs_env%broyden_adaptive_sigma=-1.0_dp
-    qs_env%nelectron_total=-1
-    qs_env%nelectron_spin=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
-    !TODO
-    !CALL cp_para_env_retain(para_env,error=error)
-    !qs_env%para_env => para_env
-    !CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
-    !                         globenv%blacs_grid_layout,&
-    !                         globenv%blacs_repeatable,error=error)
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
@@ -974,8 +964,6 @@ CONTAINS
 !> \param mo_derivs ...
 !> \param mo_derivs_aux_fit ...
 !> \param mo_loc_history ...
-!> \param nelectron_total ...
-!> \param nelectron_spin ...
 !> \param efield ...
 !> \param linres_control ...
 !> \param xas_env ...
@@ -1016,7 +1004,7 @@ CONTAINS
        task_list_zmp,&
        input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin, efield,&
+       mo_derivs_aux_fit, mo_loc_history, efield,&
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
@@ -1073,8 +1061,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs_aux_fit, &
                                                 mo_loc_history
-    INTEGER, OPTIONAL                        :: nelectron_total
-    INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(efield_berry_type), OPTIONAL, &
       POINTER                                :: efield
     TYPE(linres_control_type), OPTIONAL, &
@@ -1134,10 +1120,8 @@ CONTAINS
        CALL ga_env_release(qs_env%ga_env,error)
        qs_env%ga_env => ga_env
     END IF
-    IF (PRESENT(nelectron_total)) qs_env%nelectron_total=nelectron_total
     IF (PRESENT(mp2_env)) qs_env%mp2_env=>mp2_env
     IF (PRESENT(kg_env)) qs_env%kg_env => kg_env
-    IF (PRESENT(nelectron_spin))  qs_env%nelectron_spin=nelectron_spin
     IF (PRESENT(super_cell)) THEN
        CALL cell_retain(super_cell, error=error)
        CALL cell_release(qs_env%super_cell,error=error)

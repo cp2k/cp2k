@@ -516,13 +516,18 @@ CONTAINS
 
     INTEGER                                  :: i, im, ispin, &
                                                 nelectron_spin_real, re
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
     REAL(KIND=dp)                            :: e_homo, e_lumo, e_mu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_new, &
                                                 rho_old
     TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
 
-    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
+    CALL get_qs_env(qs_env,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    nelectron_spin=nelectron_spin,&
+                    error=error)
     CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,rho_new=rho_new,error=error)
     !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
     CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
@@ -539,7 +544,7 @@ CONTAINS
     DO ispin=1,SIZE(matrix_ks)
        re=2*ispin-1
        im=2*ispin
-       nelectron_spin_real=qs_env%nelectron_spin(ispin)
+       nelectron_spin_real=nelectron_spin(ispin)
        IF(SIZE(matrix_ks)==1) nelectron_spin_real=nelectron_spin_real/2
        CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
             nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&

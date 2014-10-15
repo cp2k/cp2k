@@ -301,6 +301,8 @@ END SUBROUTINE qs_ks_env_create
 !> \param pw_env ...
 !> \param para_env ...
 !> \param blacs_env ...
+!> \param nelectron_total ...
+!> \param nelectron_spin ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -320,7 +322,7 @@ END SUBROUTINE qs_ks_env_create
                         particle_set,energy,force,local_particles,local_molecules,&
                         molecule_kind_set,molecule_set,subsys,cp_subsys,virial,results,atprop,&
                         nkind, natom, dft_control,dbcsr_dist,distribution_2d,pw_env,&
-                        para_env,blacs_env,&
+                        para_env,blacs_env, nelectron_total, nelectron_spin,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -379,6 +381,8 @@ END SUBROUTINE qs_ks_env_create
       POINTER                                :: para_env
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
+    INTEGER, OPTIONAL                        :: nelectron_total
+    INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
@@ -461,6 +465,8 @@ END SUBROUTINE qs_ks_env_create
                         molecule_set=molecule_set,&
                         natom=natom,&
                         nkind=nkind,&
+                        nelectron_total=nelectron_total,&
+                        nelectron_spin=nelectron_spin,&
                         error=error)
 
   END SUBROUTINE get_ks_env

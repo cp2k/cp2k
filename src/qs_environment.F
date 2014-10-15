@@ -1146,7 +1146,10 @@ CONTAINS
     END IF
 
     ! store the number of electrons once an for all
-    CALL set_qs_env(qs_env,nelectron_total=nelectron,nelectron_spin=nelectron_spin,error=error)
+    CALL qs_subsys_set(subsys,&
+                       nelectron_total=nelectron,&
+                       nelectron_spin=nelectron_spin,&
+                       error=error)
 
     ! Check and set number of added (unoccupied) MOs
     CALL cp_assert((scf_control%added_mos(1) <= n_ao - n_mo(1)),cp_warning_level,&
