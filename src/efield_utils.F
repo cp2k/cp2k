@@ -9,14 +9,13 @@
 
 
 MODULE efield_utils
-
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              efield_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: constant_env,&
                                              gaussian_env,&
@@ -73,11 +72,12 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol, efield_ener, field(3)
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, para_env)
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
@@ -85,6 +85,7 @@ CONTAINS
                     energy=energy,&
                     rho=rho,&
                     dft_control=dft_control,&
+                    para_env=para_env,&
                     error=error)
 
     v_efield_rspace%pw%cr3d=0.0_dp
@@ -111,7 +112,7 @@ CONTAINS
     DO i=1,dft_control%nspins
        efield_ener=efield_ener+accurate_sum(v_efield_rspace%pw%cr3d*rho%rho_r(i)%pw%cr3d)*dvol
     END DO
-    CALL mp_sum(efield_ener,qs_env%para_env%group)
+    CALL mp_sum(efield_ener,para_env%group)
     energy%efield=efield_ener
     CALL timestop(handle)
 

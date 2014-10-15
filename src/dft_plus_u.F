@@ -22,6 +22,7 @@ MODULE dft_plus_u
   USE bibliography,                    ONLY: Dudarev1997,&
                                              Dudarev1998,&
                                              cite_reference
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_diag, &
@@ -46,6 +47,7 @@ MODULE dft_plus_u
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: low_print_level,&
                                              plus_u_lowdin,&
@@ -245,12 +247,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: q_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v, &
                                                 sm_w
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -293,6 +297,8 @@ CONTAINS
     NULLIFY (sm_v)
     NULLIFY (sm_w)
     NULLIFY (v_block)
+    NULLIFY (para_env)
+    NULLIFY (blacs_env)
 
     failure = .FALSE.
 
@@ -309,6 +315,8 @@ CONTAINS
                     particle_set=particle_set,&
                     rho=rho,&
                     scf_env=scf_env,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -376,8 +384,8 @@ CONTAINS
     IF ((.NOT.ASSOCIATED(fm_work1)).OR.&
         (.NOT.ASSOCIATED(fm_work2))) THEN
       CALL cp_fm_struct_create(fmstruct=fmstruct,&
-                               para_env=qs_env%para_env,&
-                               context=qs_env%blacs_env,&
+                               para_env=para_env,&
+                               context=blacs_env,&
                                nrow_global=nsgf,&
                                ncol_global=nsgf,&
                                error=error)
@@ -448,15 +456,12 @@ CONTAINS
                       matrix_c=fm_work2,&
                       error=error)
       IF (debug) THEN
-        CALL cp_dbcsr_write_sparse_matrix(sm_p,4,6,qs_env,qs_env%para_env,&
-                                       output_unit=output_unit,&
-                                       error=error)
-        CALL write_fm_with_basis_info(fm_s_half,4,6,qs_env,qs_env%para_env,&
-                                      output_unit=output_unit,&
-                                      error=error)
-        CALL write_fm_with_basis_info(fm_work2,4,6,qs_env,qs_env%para_env,&
-                                      output_unit=output_unit,&
-                                      error=error)
+        CALL cp_dbcsr_write_sparse_matrix(sm_p,4,6,qs_env,para_env,&
+                                       output_unit=output_unit,error=error)
+        CALL write_fm_with_basis_info(fm_s_half,4,6,qs_env,para_env,&
+                                      output_unit=output_unit,error=error)
+        CALL write_fm_with_basis_info(fm_work2,4,6,qs_env,para_env,&
+                                      output_unit=output_unit,error=error)
       END IF ! debug
 
       ! Copy occupation matrix to sparse matrix format, finally we are only
@@ -730,7 +735,7 @@ CONTAINS
           ! Consider print requests
 
           IF (should_output.AND.(print_level > low_print_level)) THEN
-            CALL mp_sum(q_matrix,qs_env%para_env%group)
+            CALL mp_sum(q_matrix, para_env%group)
             IF (output_unit > 0) THEN
               ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
               CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
@@ -783,7 +788,7 @@ CONTAINS
               CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
               q_work(:,:) = 0.0_dp
               IF (ASSOCIATED(q_block)) q_work(:,:) = q_block(:,:)
-              CALL mp_sum(q_work,qs_env%para_env%group)
+              CALL mp_sum(q_work, para_env%group)
               IF (output_unit > 0) THEN
                 norb = SIZE(q_work,1)
                 WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
@@ -846,7 +851,7 @@ CONTAINS
 
     ! Collect the energy contributions from all processes
 
-    CALL mp_sum(energy%dft_plus_u,qs_env%para_env%group)
+    CALL mp_sum(energy%dft_plus_u, para_env%group)
 
     CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
                    cp_assertion_failed,routineP,&
@@ -948,6 +953,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -986,6 +992,7 @@ CONTAINS
     NULLIFY (sm_s)
     NULLIFY (sm_v)
     NULLIFY (v_block)
+    NULLIFY (para_env)
 
     failure = .FALSE.
 
@@ -1000,6 +1007,7 @@ CONTAINS
                     energy=energy,&
                     particle_set=particle_set,&
                     rho=rho,&
+                    para_env=para_env,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -1387,7 +1395,7 @@ CONTAINS
           ! Consider print requests
 
           IF (should_output.AND.(print_level > low_print_level)) THEN
-            CALL mp_sum(q_matrix,qs_env%para_env%group)
+            CALL mp_sum(q_matrix, para_env%group)
             IF (output_unit > 0) THEN
               ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
               CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
@@ -1440,7 +1448,7 @@ CONTAINS
               CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
               q_work(:,:) = 0.0_dp
               IF (ASSOCIATED(q_block)) q_work(:,:) = q_block(:,:)
-              CALL mp_sum(q_work,qs_env%para_env%group)
+              CALL mp_sum(q_work, para_env%group)
               IF (output_unit > 0) THEN
                 norb = SIZE(q_work,1)
                 WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
@@ -1540,7 +1548,7 @@ CONTAINS
 
     ! Collect the energy contributions from all processes
 
-    CALL mp_sum(energy%dft_plus_u,qs_env%para_env%group)
+    CALL mp_sum(energy%dft_plus_u, para_env%group)
 
     CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
                    cp_assertion_failed,routineP,&
@@ -1633,6 +1641,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_s, sm_w
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -1665,6 +1674,7 @@ CONTAINS
     NULLIFY (sm_p)
     NULLIFY (sm_s)
     NULLIFY (w_block)
+    NULLIFY (para_env)
 
     failure = .FALSE.
 
@@ -1675,6 +1685,7 @@ CONTAINS
                     energy=energy,&
                     particle_set=particle_set,&
                     rho=rho,&
+                    para_env=para_env,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -1813,7 +1824,7 @@ CONTAINS
 
       CALL cp_dbcsr_iterator_stop(iter)
 
-      CALL mp_sum(trps,qs_env%para_env%group)
+      CALL mp_sum(trps, para_env%group)
 
       ! q <- Trace(PS)
 
@@ -1959,7 +1970,7 @@ CONTAINS
           ! Consider print requests
 
           IF (should_output.AND.(print_level > low_print_level)) THEN
-            CALL mp_sum(q_ii,qs_env%para_env%group)
+            CALL mp_sum(q_ii, para_env%group)
             IF (output_unit > 0) THEN
               DO isb=1,nsb
                 WRITE (UNIT=output_unit,FMT="(T3,I6,2X,I6,2X,10F8.3)")&
@@ -1981,7 +1992,7 @@ CONTAINS
       END DO ! next atomic kind "ikind"
 
       IF (.NOT.just_energy) THEN
-        CALL mp_sum(dEdq,qs_env%para_env%group)
+        CALL mp_sum(dEdq, para_env%group)
       END IF
 
       ! Add V(i,j)[U] to V(i,j)[DFT]
@@ -2112,7 +2123,7 @@ CONTAINS
 
     ! Collect the energy contributions from all processes
 
-    CALL mp_sum(energy%dft_plus_u,qs_env%para_env%group)
+    CALL mp_sum(energy%dft_plus_u, para_env%group)
 
     CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
                    cp_assertion_failed,routineP,&

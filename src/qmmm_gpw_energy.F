@@ -146,7 +146,7 @@ CONTAINS
           ! SEMIEMPIRICAL
           SELECT CASE(qmmm_env%qmmm_coupl_type)
           CASE(do_qmmm_coulomb,do_qmmm_none)
-             CALL build_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,qs_env%para_env,error)
+             CALL build_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
              IF( qmmm_env%qmmm_coupl_type==do_qmmm_none) THEN
                 IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                      "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"

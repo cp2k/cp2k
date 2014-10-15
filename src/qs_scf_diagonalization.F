@@ -704,7 +704,7 @@ CONTAINS
 
       IF(subspace_env%mixing_method==direct_mixing_nr) THEN
          CALL scf_env_density_mixing(subspace_env%p_matrix_mix, &
-              scf_env%mixing_store, rho%rho_ao, qs_env%para_env, iter_delta, iloop, &
+              scf_env%mixing_store, rho%rho_ao, para_env, iter_delta, iloop, &
               error=error)
       ELSE
           CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,&
@@ -719,7 +719,7 @@ CONTAINS
       ! Mixing in reciprocal space
       IF(subspace_env%mixing_method>=gspace_mixing_nr) THEN
          CALL gspace_mixing(qs_env, scf_env, subspace_env%mixing_store, &
-            rho, qs_env%para_env, error=error)
+            rho, para_env, error=error)
       END IF
 
       ene_diff =  energy%total-ene_old

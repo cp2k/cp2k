@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis
   USE admm_methods,                    ONLY: admm_fit_mo_coeffs
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
@@ -302,7 +303,7 @@ CONTAINS
                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                         matrix_s_aux_fit=matrix_s_aux_fit,&
                         error=error)
-        CALL admm_fit_mo_coeffs(qs_env, qs_env%admm_env, qs_env%para_env, matrix_s_aux_fit,&
+        CALL admm_fit_mo_coeffs(qs_env, qs_env%admm_env, para_env, matrix_s_aux_fit,&
                                 matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit,&
                                 geometry_did_change=.TRUE. , error=error)
         CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,matrix_s_aux_fit_vs_orb(1)%matrix,&
@@ -368,6 +369,7 @@ CONTAINS
     INTEGER                                  :: bas_id, handle, icalc, ierr, &
                                                 mp_id, set_id, stat
     LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_error_type), ALLOCATABLE, &
@@ -378,7 +380,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_file
 
     CALL timeset(routineN,handle)
-    NULLIFY(matrix_s)
+    NULLIFY(matrix_s, blacs_env)
 
     mp_id=opt_bas%opt_id
     CALL m_getcwd(main_dir)
@@ -417,9 +419,9 @@ CONTAINS
        CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,&
                                     force_env_section=qs_env%input,error=error)
        CALL calculate_overlap(qs_env,"S_AB",error)
-       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env, error=error)
        CALL calculate_overlap_inverse(matrix_s(1)%matrix,matrix_s_inv(icalc)%matrix,&
-                                      para_env,qs_env%blacs_env,error)
+                                      para_env,blacs_env,error)
        CALL calculate_ks_matrix(qs_env,suberror(icalc))
 
        CALL create_opt_admm_env(qs_env,error)

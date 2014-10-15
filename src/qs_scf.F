@@ -295,7 +295,6 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    para_env=>qs_env%para_env
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -314,6 +313,7 @@ CONTAINS
                     kpoints=kpoints,&
                     results=results,&
                     pw_env=pw_env,&
+                    para_env=para_env,&
                     error=error)
 
     ! Defining SCP logicals

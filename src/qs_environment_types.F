@@ -17,9 +17,7 @@ MODULE qs_environment_types
   USE cell_methods,                    ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release,&
-                                             cp_blacs_env_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_release_p,&
@@ -31,8 +29,6 @@ MODULE qs_environment_types
                                              cp_ddapc_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -252,9 +248,6 @@ MODULE qs_environment_types
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(rel_control_type), POINTER                       :: rel_control
     TYPE(scp_environment_type), POINTER                   :: scp_env
-    TYPE(cp_para_env_type), POINTER                       :: para_env
-    TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
-
     ! ZMP adding variables
     TYPE(qs_rho_type), POINTER                            :: rho_external
     TYPE(pw_p_type), POINTER                              :: external_vxc
@@ -680,21 +673,18 @@ CONTAINS
     IF (PRESENT(ewald_pw)) ewald_pw => qs_env%ewald_pw
     IF (PRESENT(mpools)) mpools => qs_env%mpools
     IF (PRESENT(mpools_aux_fit)) mpools_aux_fit => qs_env%mpools_aux_fit
-    IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
     IF (PRESENT(rel_control)) rel_control => qs_env%rel_control
     ! ZMP pointing vectors
     IF (PRESENT(rho_external)) rho_external => qs_env%rho_external
     IF (PRESENT(external_vxc)) external_vxc => qs_env%external_vxc
     IF (PRESENT(mask)) mask => qs_env%mask
-
     IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
     IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
     IF (PRESENT(ks_qmmm_env)) ks_qmmm_env => qs_env%ks_qmmm_env
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
-    IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(oce)) oce =>  qs_env%oce
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
     IF (PRESENT(has_unit_metric)) has_unit_metric = qs_env%has_unit_metric
@@ -822,6 +812,8 @@ CONTAINS
                     dbcsr_dist=dbcsr_dist,&
                     distribution_2d=distribution_2d,&
                     pw_env=pw_env,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
                     error=error)
 
   END SUBROUTINE get_qs_env
@@ -829,21 +821,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Initialise the QUICKSTEP environment.
 !> \param qs_env ...
-!> \param para_env ...
 !> \param globenv ...
 !> \param error ...
 !> \date    25.01.2002
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE init_qs_env(qs_env,para_env,globenv,error)
+  SUBROUTINE init_qs_env(qs_env,globenv,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%ls_scf_env)
     NULLIFY (qs_env%image_matrix)
     NULLIFY (qs_env%ipiv)
@@ -869,7 +858,6 @@ CONTAINS
     NULLIFY (qs_env%ks_qmmm_env)
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
-    NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%oce)
     NULLIFY (qs_env%local_rho_set)
     NULLIFY (qs_env%hartree_local)
@@ -912,11 +900,12 @@ CONTAINS
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
-    CALL cp_para_env_retain(para_env,error=error)
-    qs_env%para_env => para_env
-    CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
-                             globenv%blacs_grid_layout,&
-                             globenv%blacs_repeatable,error=error)
+    !TODO
+    !CALL cp_para_env_retain(para_env,error=error)
+    !qs_env%para_env => para_env
+    !CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,&
+    !                         globenv%blacs_grid_layout,&
+    !                         globenv%blacs_repeatable,error=error)
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
@@ -1324,17 +1313,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocates and intitializes a qs_env
 !> \param qs_env the object to create
-!> \param para_env the parallel environement for the qs_env
 !> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param para_env the parallel environement for the qs_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_env_create(qs_env,para_env,globenv,error)
+  SUBROUTINE qs_env_create(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1349,8 +1337,7 @@ CONTAINS
     ALLOCATE(qs_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL init_qs_env(qs_env,para_env=para_env,&
-            globenv=globenv, error=error)
+       CALL init_qs_env(qs_env, globenv=globenv, error=error)
     END IF
   END SUBROUTINE qs_env_create
 
@@ -1495,8 +1482,6 @@ CONTAINS
           END IF
           CALL ewald_env_release(qs_env%ewald_env, error=error)
           CALL ewald_pw_release(qs_env%ewald_pw, error=error)
-          CALL cp_para_env_release(qs_env%para_env,error=error)
-          CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
           IF (ASSOCIATED(qs_env%image_matrix)) THEN
              DEALLOCATE(qs_env%image_matrix)
           ENDIF

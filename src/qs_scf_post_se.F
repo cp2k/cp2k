@@ -14,6 +14,7 @@ MODULE qs_scf_post_se
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -145,6 +146,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
@@ -175,7 +177,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! Writes the data that is already available in qs_env
-    para_env=>qs_env%para_env
     CALL write_available_results(qs_env,scf_env,error)
 
     failure=.FALSE.
@@ -183,7 +184,7 @@ CONTAINS
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env, scf_control, &
          unoccupied_orbs, mo_eigenvalues, unoccupied_evals, fm_struct_tmp, &
-         molecule_set, subsys, particles, input, print_key)
+         molecule_set, subsys, particles, input, print_key, para_env, blacs_env)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -193,9 +194,20 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     ! Here we start with data that needs a postprocessing...
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set,&
-            mos=mos,rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
-            input=input, subsys=subsys, pw_env=pw_env, error=error)
+       CALL get_qs_env(qs_env,&
+                       dft_control=dft_control,&
+                       molecule_set=molecule_set,&
+                       mos=mos,&
+                       rho=rho,&
+                       matrix_ks=ks_rmpv,&
+                       scf_control=scf_control,&
+                       matrix_s=matrix_s,&
+                       input=input,&
+                       subsys=subsys,&
+                       pw_env=pw_env,&
+                       para_env=para_env,&
+                       blacs_env=blacs_env,&
+                       error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! Compute Atomic Charges
@@ -414,7 +426,7 @@ CPSourceFileRef,&
              nlumos=MAX(1,MIN(nlumo,nao-homo))
              IF (nlumo==-1) nlumos=nao-homo
              ALLOCATE(unoccupied_evals(ispin)%array(nlumos))
-             CALL cp_fm_struct_create(fm_struct_tmp,para_env=qs_env%para_env,context=qs_env%blacs_env, &
+             CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
                                                     nrow_global=n,ncol_global=nlumos,error=error)
              CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp,name="lumos",error=error)
              CALL cp_fm_struct_release(fm_struct_tmp,error=error)
@@ -908,18 +920,27 @@ CPSourceFileRef,&
     failure=.FALSE.
     NULLIFY(cell, dft_control, mos, atomic_kind_set, particle_set, rho, &
          ks_rmpv, scf_control, dft_section, molecule_set, input, &
-         particles, subsys)
-    para_env=>qs_env%para_env
+         particles, subsys, para_env)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
-            mos=mos,atomic_kind_set=atomic_kind_set,&
-            qs_kind_set=qs_kind_set,particle_set=particle_set,&
-            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,&
-            input=input,cell=cell,subsys=subsys,error=error)
+       CALL get_qs_env(qs_env,&
+                       dft_control=dft_control,&
+                       molecule_set=molecule_set, &
+                       mos=mos,&
+                       atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
+                       particle_set=particle_set,&
+                       rho=rho,&
+                       matrix_ks=ks_rmpv,&
+                       scf_control=scf_control,&
+                       input=input,&
+                       cell=cell,&
+                       subsys=subsys,&
+                       para_env=para_env,&
+                       error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! *** if the dft_section tells you to do so, write last wavefunction to screen

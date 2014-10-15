@@ -17,6 +17,7 @@ MODULE mp2
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: DelBen2012,&
                                              cite_reference
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
                                              cp_dbcsr_p_type,&
@@ -134,6 +135,7 @@ MODULE mp2
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux, &
                                                 matrix_s
@@ -167,19 +169,31 @@ MODULE mp2
 
 !$  INTEGER :: omp_get_max_threads
 
-    NULLIFY(virial, dft_control)
+    NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
 
     CALL cite_reference(DelBen2012)
 
-    CALL get_qs_env(qs_env=qs_env, input=input, atomic_kind_set=atomic_kind_set, &
-                  qs_kind_set=qs_kind_set, dft_control=dft_control,&
-                  particle_set=particle_set, para_env=para_env,   &
-                  energy=energy, rho=rho, mos=mos, scf_env=scf_env,virial=virial,&
-                  matrix_ks=matrix_ks, matrix_s=matrix_s, matrix_ks_aux_fit=matrix_ks_aux,&
-                  mp2_env=mp2_env, admm_env=admm_env, error=error)
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
+                    energy=energy,&
+                    rho=rho,&
+                    mos=mos,&
+                    scf_env=scf_env,virial=virial,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    matrix_ks_aux_fit=matrix_ks_aux,&
+                    mp2_env=mp2_env,&
+                    admm_env=admm_env,&
+                    error=error)
 
     unit_nr = cp_print_key_unit_nr(logger,input,"DFT%XC%WF_CORRELATION%MP2_INFO",&
                                    extension=".mp2Log",error=error)
@@ -270,7 +284,7 @@ MODULE mp2
     NULLIFY(fm_matrix_work)
     NULLIFY(fm_struct)
     CALL cp_dbcsr_get_info(matrix_s(1)%matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
-    CALL cp_fm_struct_create(fm_struct,context=qs_env%blacs_env,nrow_global=nfullrows_total,&
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
                              ncol_global=nfullcols_total,para_env=para_env,error=error)
     CALL cp_fm_create(fm_matrix_s,fm_struct,name="fm_matrix_s",error=error)
     CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_matrix_s, error=error)
@@ -309,7 +323,7 @@ MODULE mp2
     CALL mpools_create(mpools=my_mpools,error=error)
     CALL mpools_rebuild_fm_pools(mpools=my_mpools,&
                                  mos=mos_mp2,&
-                                 blacs_env=qs_env%blacs_env,&
+                                 blacs_env=blacs_env,&
                                  para_env=para_env,&
                                  error=error)
 

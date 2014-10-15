@@ -277,6 +277,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(local_atoms_type), ALLOCATABLE, &
@@ -291,7 +292,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
     CALL timeset(routineN, handle)
-
+    NULLIFY(para_env)
     failure = .FALSE.
 
     molecule_only = .FALSE.
@@ -305,6 +306,7 @@ CONTAINS
                     molecule_set=molecule_set,&
                     local_particles=distribution_1d,&
                     particle_set=particle_set,&
+                    para_env=para_env,&
                     error=error)
 
     ! Allocate work storage
@@ -354,10 +356,10 @@ CONTAINS
        neighbor_list_section => section_vals_get_subs_vals(qs_env%input,"DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS",error=error) 
 
        IF (molecule_only) THEN
-         CALL write_neighbor_lists(sab_orb,particle_set,cell,qs_env%para_env,neighbor_list_section,&
+         CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
               "/SAB_ORB_MOLECULAR","sab_orb","MOLECULAR SUBSET NEIGHBORLIST",error)
        ELSE
-         CALL write_neighbor_lists(sab_orb,particle_set,cell,qs_env%para_env,neighbor_list_section,&
+         CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
               "/SAB_ORB_FULL","sab_orb","FULL NEIGHBORLIST",error)
        END IF
 
@@ -377,7 +379,7 @@ CONTAINS
             subcells=subcells,operator_type="ABC",name="sac_kin",error=error)
        neighbor_list_section => section_vals_get_subs_vals(qs_env%input,&
                                          "DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS",error=error) 
-       CALL write_neighbor_lists(sac_kin,particle_set,cell,qs_env%para_env,neighbor_list_section,&
+       CALL write_neighbor_lists(sac_kin,particle_set,cell,para_env,neighbor_list_section,&
               "/SAC_KIN","sac_kin","ORBITAL kin energy potential",error)
     END IF
 

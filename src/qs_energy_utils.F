@@ -192,15 +192,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isubset, natom
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
 
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control)
+    NULLIFY(dft_control,para_env)
     molecule_only = .FALSE.
 
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env, error=error)
     IF (dft_control%qs_control%do_kg) THEN
 
       ! create neighbor lists with molecular blocks
@@ -228,7 +229,7 @@ CONTAINS
          ! allocate the subset list
          IF (.NOT.ASSOCIATED(qs_env%kg_env%subset_of_mol)) ALLOCATE(qs_env%kg_env%subset_of_mol(SIZE(molecule_set)))
 
-         CALL kg_build_subsets(qs_env%kg_env, qs_env%para_env, error)
+         CALL kg_build_subsets(qs_env%kg_env, para_env, error)
 
          DO isubset=1,qs_env%kg_env%nsubsets
            ! build the (new) molecular neighborlist of the current subset

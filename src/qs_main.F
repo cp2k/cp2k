@@ -99,8 +99,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env
-    CALL qs_env_create(qs_env,para_env,globenv,error=error)
-    CALL qs_init( qs_env, root_section, cp_subsys=subsys, cell=cell, cell_ref=cell_ref,&
+    CALL qs_env_create(qs_env,globenv,error=error)
+    CALL qs_init(qs_env, para_env, globenv, root_section, cp_subsys=subsys, cell=cell, cell_ref=cell_ref,&
          qmmm=qmmm, qmmm_periodic=qmmm_periodic,qmmm_env_qm=qmmm_env_qm,&
          force_env_section=force_env_section,&
          subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)

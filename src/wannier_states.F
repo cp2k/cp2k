@@ -31,7 +31,8 @@ MODULE wannier_states
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE molecule_types_new,              ONLY: molecule_type
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
@@ -102,12 +103,12 @@ CONTAINS
 !-----------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
+    NULLIFY(logger, para_env)
     failure = .FALSE.
 
-    para_env => qs_env % para_env
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
     nproc = para_env%num_pe
 
-    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
     CALL cp_fm_get_info(mo_localized, &

@@ -26,7 +26,8 @@ MODULE dkh_main
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: a_fine
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -112,12 +113,14 @@ CONTAINS
     INTEGER                                  :: handle, i
     REAL(KIND=dp)                            :: velit
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: aa, e, ev0t, rr, tt
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: matrix_full
     TYPE(cp_fm_type), POINTER :: matrix_aux, matrix_aux2, matrix_eig, &
       matrix_ev1, matrix_ev2, matrix_ev3, matrix_ev4, matrix_pe1p, &
       matrix_rev, matrix_se, matrix_sinv
 
     CALL timeset(routineN,handle)
+    NULLIFY(blacs_env)
     !-----------------------------------------------------------------------
     !     Define velocity of light
     !-----------------------------------------------------------------------
@@ -128,9 +131,9 @@ CONTAINS
     !-----------------------------------------------------------------------
     !     Construct the matrix structure
     !-----------------------------------------------------------------------
-
+    CALL get_qs_env(qs_env, blacs_env=blacs_env, error=error)
     CALL cp_fm_struct_create( fmstruct = matrix_full,&
-         context = qs_env%blacs_env,&
+         context = blacs_env,&
          nrow_global = n,&
          ncol_global = n,&
          error = error)

@@ -23,7 +23,9 @@ MODULE qs_environment
                                              Iannuzzi2007,&
                                              cite_reference
   USE cell_methods,                    ONLY: cell_type
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_retain,&
                                              cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
@@ -70,6 +72,7 @@ MODULE qs_environment
   USE ga_environment_types,            ONLY: ga_environment_type,&
                                              init_ga_env
   USE gamma,                           ONLY: init_md_ftable
+  USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_create,&
                                              harris_energy_type
   USE harris_env_types,                ONLY: harris_env_create,&
@@ -206,6 +209,8 @@ CONTAINS
 !> \brief Read the input and the database files for the setup of the
 !>      QUICKSTEP environment.
 !> \param qs_env ...
+!> \param para_env ...
+!> \param globenv ...
 !> \param root_section ...
 !> \param cp_subsys ...
 !> \param cell ...
@@ -219,11 +224,13 @@ CONTAINS
 !> \param error ...
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_init(qs_env,root_section,cp_subsys,cell,cell_ref,qmmm,&
+  SUBROUTINE qs_init(qs_env,para_env,globenv,root_section,cp_subsys,cell,cell_ref,qmmm,&
        qmmm_periodic,qmmm_env_qm,force_env_section,subsys_section,&
        use_motion_section,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: cp_subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
@@ -247,7 +254,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
@@ -266,10 +272,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
          qs_kind_set, harris_section, kpoint_section, dft_section, ga_env, &
-         subsys, ks_env, dft_control)
+         subsys, ks_env, dft_control, blacs_env)
 
-
-    para_env=>qs_env%para_env
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
        subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     END IF
@@ -319,11 +323,17 @@ CONTAINS
                        particle_set=particle_set,&
                        error=error)
 
+    CALL set_ks_env(ks_env, para_env=para_env, error=error)
+    CALL cp_blacs_env_create(blacs_env, para_env, globenv%blacs_grid_layout,&
+                             globenv%blacs_repeatable,error=error)
+    CALL set_ks_env(ks_env, blacs_env=blacs_env, error=error)
+    CALL cp_blacs_env_release(blacs_env,error=error)
+
     !   *** Setup the grids for the G-space Interpolation if any
     CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_qmmm_periodic,&
          my_qmmm_multipole, my_cell, force_env_section, subsys_section, para_env, error)
 
-    CALL qs_init_subsys(qs_env,subsys,my_cell,my_cell_ref,use_ref_cell,&
+    CALL qs_init_subsys(qs_env,para_env,subsys,my_cell,my_cell_ref,use_ref_cell,&
          root_section,subsys_section,my_qmmm,harris=harris_flag,error=error)
 
     ! kpoints
@@ -446,6 +456,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize the qs environment (subsys)
 !> \param qs_env ...
+!> \param para_env ...
 !> \param subsys ...
 !> \param cell ...
 !> \param cell_ref ...
@@ -457,10 +468,11 @@ CONTAINS
 !> \param error ...
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_init_subsys(qs_env,subsys,cell,cell_ref,use_ref_cell,&
+  SUBROUTINE qs_init_subsys(qs_env,para_env,subsys,cell,cell_ref,use_ref_cell,&
        root_section,subsys_section,qmmm,harris,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
@@ -484,7 +496,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -532,7 +543,6 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
-    para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
     was_present = .FALSE.

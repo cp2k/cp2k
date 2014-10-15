@@ -680,10 +680,10 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     failure=.FALSE.
-    NULLIFY(ks_env, mos, mo_coeff, dft_control,matrix_ks,matrix_s)
+    NULLIFY(ks_env, mos, mo_coeff, dft_control,matrix_ks,matrix_s, para_env)
 
     CALL timeset(routineN,handle)
-    para_env=>qs_env%para_env
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
 
@@ -1594,11 +1594,10 @@ CONTAINS
 
     NULLIFY (atomic_kind_set, dft_control, force, ks_env, mos, matrix_ks, &
          matrix_s, matrix_w, particle_set, rho, scf_control,para_env,&
-         blacs_env,orbitals, kinetic)
+         blacs_env,orbitals, kinetic, para_env)
 
     globenv => ep_env%globenv
     qs_env => ep_env%main_qs_env
-    para_env=>qs_env%para_env
 
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",message=routineP//&
@@ -1607,19 +1606,20 @@ CONTAINS
 
     CALL qs_env_rebuild_pw_env(qs_env,error)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
-         dft_control=dft_control,&
-         force=force,&
-         particle_set=particle_set,&
-         scf_control=scf_control,&
-         ks_env=ks_env,&
-         input=qs_env_input,&
-         subsys=subsys,&
-         energy=energy,&
-         mos=mos,&
-         rho=rho,&
-         error=error)
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    force=force,&
+                    particle_set=particle_set,&
+                    scf_control=scf_control,&
+                    ks_env=ks_env,&
+                    input=qs_env_input,&
+                    subsys=subsys,&
+                    energy=energy,&
+                    mos=mos,&
+                    rho=rho,&
+                    para_env=para_env,&
+                    error=error)
 
 
     CALL qs_subsys_get(subsys,particles=particles,error=error)

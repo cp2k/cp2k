@@ -150,9 +150,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
-            atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
+            atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, para_env,&
             v_xc, harris_force, rho_r, ks_env, poisson_env, input, rho_ao, subsys)
-    para_env=>qs_env%para_env
+
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -171,6 +171,7 @@ CONTAINS
                       particle_set=particle_set, &
                       input=input,&
                       subsys=subsys,&
+                      para_env=para_env,&
                       error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
@@ -537,12 +538,11 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    para_env=>qs_env%para_env
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
-            atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
+            atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, para_env,&
             v_xc, harris_force, rho_r, ks_env, poisson_env, input,  subsys)
     logger => cp_error_get_logger(error)
 
@@ -555,9 +555,15 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      dft_control=dft_control, particle_set=particle_set, &
-                      input=input, subsys=subsys, error=error)
+      CALL get_qs_env(qs_env,&
+                      atomic_kind_set=atomic_kind_set,&
+                      force=force, &
+                      dft_control=dft_control,&
+                      particle_set=particle_set, &
+                      input=input,&
+                      subsys=subsys,&
+                      para_env=para_env,&
+                      error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 

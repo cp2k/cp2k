@@ -463,7 +463,7 @@ CONTAINS
              ee_ener=ee_ener+accurate_sum(vee%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*&
                   vee%pw%pw_grid%dvol
           END DO
-          CALL mp_sum(ee_ener,qs_env%para_env%group)
+          CALL mp_sum(ee_ener, para_env%group)
           ! the sign accounts for the charge of the electrons
           energy%ee=-ee_ener
        END IF

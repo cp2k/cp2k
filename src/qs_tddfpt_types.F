@@ -5,6 +5,7 @@
 
 ! *****************************************************************************
 MODULE qs_tddfpt_types
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
@@ -15,6 +16,7 @@ MODULE qs_tddfpt_types
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -67,12 +69,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n_ev, n_spins, spin, stat
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, para_env, blacs_env)
 
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env,&
+                   dft_control=dft_control,&
+                   para_env=para_env,&
+                   blacs_env=blacs_env,&
+                   error=error)
+
     n_ev    = dft_control%tddfpt_control%n_ev
     n_spins = dft_control%nspins
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=t_env%ao_mo_fm_pools,error=error)
@@ -99,7 +108,7 @@ CONTAINS
                                     "t_env%invS",int_size*n_spins)
     DO spin=1, n_spins
        NULLIFY(fm_struct)
-       CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
+       CALL cp_fm_struct_create(fm_struct, para_env, blacs_env, &
                                 p_env%n_ao(spin), p_env%n_ao(spin),error=error)
        CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS",error=error)
        CALL cp_fm_struct_release(fm_struct,error=error)

@@ -906,19 +906,20 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     NULLIFY(para_env)
-    para_env=>qs_env%para_env
 
     s_minus_half_available = .FALSE.
-
-    CALL get_qs_env(qs_env=qs_env,&
-         scf_control=scf_control,&
-         dft_control=dft_control,&
-         qs_kind_set=qs_kind_set,&
-         mos=mos,matrix_ks=matrix_ks, rho=rho,&
-         matrix_h=matrix_h,matrix_s=matrix_s,&
-         nelectron_total=scf_env%nelectron,&
-         do_kpoints=do_kpoints,&
-         error=error)
+    CALL get_qs_env(qs_env,&
+                    scf_control=scf_control,&
+                    dft_control=dft_control,&
+                    qs_kind_set=qs_kind_set,&
+                    mos=mos,matrix_ks=matrix_ks,&
+                    rho=rho,&
+                    matrix_h=matrix_h,&
+                    matrix_s=matrix_s,&
+                    nelectron_total=scf_env%nelectron,&
+                    do_kpoints=do_kpoints,&
+                    para_env=para_env,&
+                    error=error)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set)
 
@@ -1066,6 +1067,7 @@ CONTAINS
     LOGICAL                                  :: failure, orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -1073,13 +1075,17 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(mo_coeff, rho, dft_control)
+    NULLIFY(mo_coeff, rho, dft_control, para_env)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env,&
+                    rho=rho,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    error=error)
 
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
@@ -1128,10 +1134,10 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env,&
                  rho_atom_set=rho_atom,error=error)
             CALL mixing_init(qs_env%scf_env%mixing_method,rho,qs_env%scf_env%mixing_store,&
-                           qs_env%para_env,rho_atom=rho_atom,error=error)
+                             para_env,rho_atom=rho_atom,error=error)
           ELSE
             CALL mixing_init(qs_env%scf_env%mixing_method,rho,qs_env%scf_env%mixing_store,&
-                           qs_env%para_env,error=error)
+                             para_env,error=error)
           END IF
        END IF
 

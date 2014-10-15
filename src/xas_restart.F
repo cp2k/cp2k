@@ -390,6 +390,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
@@ -400,10 +401,14 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    NULLIFY(mos,rho,xas_env)
+    NULLIFY(mos,rho,xas_env,para_env)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         mos=mos,rho=rho,xas_env=xas_env,error=error)
+    CALL get_qs_env(qs_env,&
+                    mos=mos,&
+                    rho=rho,&
+                    xas_env=xas_env,&
+                    para_env=para_env,&
+                    error=error)
 
     DO ispin=1,SIZE(mos)
        IF(ispin==1) THEN
@@ -423,7 +428,7 @@ CPSourceFileRef,&
     IF(xas_env%mixing_method>1) THEN
        CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom,error=error)
        CALL mixing_init(xas_env%mixing_method,rho,xas_env%mixing_store,&
-                           qs_env%para_env,rho_atom=rho_atom,error=error)
+                           para_env,rho_atom=rho_atom,error=error)
     END IF
 
     CALL timestop(handle)

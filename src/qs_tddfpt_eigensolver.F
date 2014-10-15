@@ -5,6 +5,7 @@
 
 ! *****************************************************************************
 MODULE qs_tddfpt_eigensolver
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
@@ -29,6 +30,7 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
@@ -195,6 +197,7 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_difference, evals_tmp
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evals
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_p_type)                       :: Atilde, Us
@@ -208,6 +211,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER         :: tilde_fm_struct
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
@@ -217,11 +221,14 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger, &
-            tilde_fm_struct, Atilde%matrix, Us%matrix, matrix_s, dft_control)
+            tilde_fm_struct, Atilde%matrix, Us%matrix, matrix_s, dft_control,&
+            para_env, blacs_env)
 
     CALL get_qs_env(qs_env,&
                     matrix_s=matrix_s,&
                     dft_control=dft_control,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
                     error=error)
 
     tddfpt_control => dft_control%tddfpt_control
@@ -277,8 +284,7 @@ CONTAINS
 
     DO spin=1, nspins
        NULLIFY (kv_fm_struct(spin)%struct)
-       CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, qs_env%para_env, &
-                                qs_env%blacs_env, &
+       CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, para_env, blacs_env, &
                                 p_env%n_ao(spin), p_env%n_mo(spin),error=error)
     END DO
     DO spin=1, nspins
@@ -411,10 +417,7 @@ CONTAINS
        !------------------------------------------!
        ! allocate memory for the reduced matrices !
        !------------------------------------------!
-       CALL cp_fm_struct_create(tilde_fm_struct, &
-            qs_env%para_env, &
-            qs_env%blacs_env, &
-            k, k,error=error)
+       CALL cp_fm_struct_create(tilde_fm_struct, para_env, blacs_env, k, k,error=error)
        CALL cp_fm_create(Atilde%matrix, &
             tilde_fm_struct, &
             routineP//"Atilde",error=error)

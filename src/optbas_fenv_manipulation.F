@@ -173,6 +173,7 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -183,6 +184,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section
 
+    NULLIFY(para_env)
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
                     mos=mos,nelectron_spin=nelectron_spin,&
@@ -193,6 +195,7 @@ CONTAINS
                     particle_set=particle_set,&
 !                   matrix_s=matrix_s,&
                     admm_env=admm_env,&
+                    para_env=para_env,&
                     error=error)
     dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
 
@@ -208,7 +211,7 @@ CONTAINS
        END IF
     END DO
  
-    CALL read_mo_set(mos,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
+    CALL read_mo_set(mos,atomic_kind_set,qs_kind_set,particle_set,para_env,&
       id_nr=0,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
       natom_mismatch=natom_mismatch,error=error)
    
@@ -374,18 +377,25 @@ CONTAINS
 
     INTEGER                                  :: natoms
     TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    NULLIFY(admm_env, dft_control, mos, mos_aux_fit, particle_set)
-    CALL get_qs_env(qs_env=qs_env, admm_env=admm_env, dft_control=dft_control,&
-                    mos=mos,mos_aux_fit=mos_aux_fit, particle_set=particle_set, error=error)
+    NULLIFY(admm_env, dft_control, mos, mos_aux_fit, particle_set, para_env)
+    CALL get_qs_env(qs_env,&
+                    admm_env=admm_env,&
+                    dft_control=dft_control,&
+                    mos=mos,&
+                    mos_aux_fit=mos_aux_fit,&
+                    particle_set=particle_set,&
+                    para_env=para_env,&
+                    error=error)
     natoms = SIZE(particle_set,1)
     CALL admm_env_create(qs_env%admm_env, dft_control%admm_control, mos, mos_aux_fit,&
-                         qs_env%para_env, natoms, error)
+                         para_env, natoms, error)
 
   END SUBROUTINE create_opt_admm_env
 

@@ -141,12 +141,12 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(logger,mark_states,mark_list)
+    NULLIFY(logger,mark_states,mark_list,para_env)
     logger => cp_error_get_logger(error)
     !-----------------------------------------------------------------------------
     ! 1.
     !-----------------------------------------------------------------------------
-    para_env => qs_env % para_env
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
     nproc = para_env%num_pe
     output_unit = cp_logger_get_default_io_unit(logger)
     CALL section_vals_val_get(loc_print_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&

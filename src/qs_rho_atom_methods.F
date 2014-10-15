@@ -749,8 +749,8 @@ MODULE qs_rho_atom_methods
 
        DO ispin = 1,nspins
          IF(ASSOCIATED(rho_atom(iatom)%cpc_h(ispin)%r_coef)) THEN
-           CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_env%para_env%group)
-           CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_env%para_env%group)
+           CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef, para_env%group)
+           CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef, para_env%group)
            r_coef_h => rho_atom(iatom)%cpc_h(ispin)%r_coef
            r_coef_s => rho_atom(iatom)%cpc_s(ispin)%r_coef
            r_coef_h(:,:) = r_coef_h(:,:)+TRANSPOSE(r_coef_h(:,:))

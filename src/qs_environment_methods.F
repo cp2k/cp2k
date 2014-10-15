@@ -13,6 +13,7 @@
 MODULE qs_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_methods,                    ONLY: cell_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type,&
@@ -124,6 +125,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -146,7 +148,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
     failure = .FALSE.
 
     NULLIFY(qs_kind_set, atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
-         distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env, cell, ks_env)
+            distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env, cell, &
+            ks_env, blacs_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
@@ -157,6 +160,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
                     particle_set=particle_set,&
                     scf_control=scf_control,&
                     para_env=para_env,&
+                    blacs_env=blacs_env,&
                     cell=cell,&
                     ks_env=ks_env,&
                     error=error)
@@ -190,7 +194,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
        ! XXXX should get rid of the mpools
        IF (ASSOCIATED(qs_env%mos)) THEN
            CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
-                  blacs_env=qs_env%blacs_env, para_env=para_env,&
+                  blacs_env=blacs_env, para_env=para_env,&
                   error=error)
        ENDIF
 
@@ -199,7 +203,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
          CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao_aux_fit,&
                                   basis_set_id=use_aux_fit_basis_set)
          CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
-              blacs_env=qs_env%blacs_env, para_env=para_env,&
+              blacs_env=blacs_env, para_env=para_env,&
               error=error)
         END IF
 
@@ -212,7 +216,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
                                     molecule_kind_set=molecule_kind_set,&
                                     molecule_set=molecule_set,&
                                     distribution_2d=distribution_2d,&
-                                    blacs_env=qs_env%blacs_env,&
+                                    blacs_env=blacs_env,&
                                     force_env_section=qs_env%input, error=error)
 
        ! and use it to create the dbcsr_dist, which should be the sole user of distribution_2d by now.

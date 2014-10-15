@@ -167,7 +167,7 @@ CONTAINS
        ! SEMIEMPIRICAL
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
-          CALL deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,qs_env%para_env,&
+          CALL deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges,error)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &

@@ -1352,6 +1352,7 @@ CONTAINS
       POINTER                                :: ks_rmpv, mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1361,9 +1362,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(mos, mo_coeff, mo_eigenvalues, occupation, ks_rmpv, mo_derivs, scf_control)
-    CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,mo_derivs=mo_derivs,&
-         scf_control=scf_control, error=error)
+    NULLIFY(mos,mo_coeff,mo_eigenvalues,occupation,ks_rmpv,mo_derivs,scf_control,para_env)
+    CALL get_qs_env(qs_env,&
+                    mos=mos,&
+                    matrix_ks=ks_rmpv,&
+                    mo_derivs=mo_derivs,&
+                    scf_control=scf_control,&
+                    para_env=para_env,&
+                    error=error)
 
     loc_print_section => section_vals_get_subs_vals(localize_section,"PRINT",error=error)
 
@@ -1387,7 +1393,7 @@ CONTAINS
       CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
       IF(localized_wfn_control%loc_restart) THEN
          CALL loc_read_restart(qs_loc_env,mos,mos_localized,localize_section,&
-              loc_print_section,qs_env%para_env,my_do_homo,restart_found,evals=evals,error=error)
+              loc_print_section,para_env,my_do_homo,restart_found,evals=evals,error=error)
          IF (output_unit>0) WRITE(output_unit,"(/,T2,A,A)") "LOCALIZATION| ",&
                     "   The orbitals to be localized are read from localization restart file."
          nmoloc = localized_wfn_control%nloc_states

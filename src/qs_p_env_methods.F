@@ -12,6 +12,7 @@
 !>      22-08-2002, TCH, started development
 ! *****************************************************************************
 MODULE qs_p_env_methods
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
@@ -140,20 +141,26 @@ CONTAINS
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
                                                 natom, spin, stat
     LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools, matrix_s, dft_control)
-
-    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
+    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools, matrix_s, dft_control, para_env, blacs_env)
+    CALL get_qs_env(qs_env,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
+                    error=error)
 
     n_spins = dft_control%nspins
 
@@ -293,7 +300,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO spin =1,n_spins
                CALL init_preconditioner(p_env%preconditioner(spin),&
-                    para_env=qs_env%para_env,blacs_env=qs_env%blacs_env,error=error)
+                    para_env=para_env,blacs_env=blacs_env,error=error)
              END DO
              p_env%os_valid = .FALSE.
 

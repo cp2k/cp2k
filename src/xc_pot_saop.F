@@ -26,6 +26,7 @@ MODULE xc_pot_saop
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: do_method_gapw,&
                                              oe_gllb,&
@@ -557,6 +558,7 @@ CONTAINS
                                                 orbital_density_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_coeff, single_mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(grid_atom_type), POINTER            :: atomic_grid
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(local_rho_type), POINTER            :: local_rho_set
@@ -588,7 +590,7 @@ CONTAINS
             vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
             atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, &
             harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
-            r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, &
+            r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, para_env,&
             mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, matrix_ks,&
             orbital_density_matrix, orb_rho_set_h, orb_rho_set_s, vxc_SAOP_h, vxc_SAOP_s)
 
@@ -602,6 +604,7 @@ CONTAINS
                             qs_kind_set=qs_kind_set, &
                             rho_atom_set=rho_atom_set,&
                             matrix_ks=matrix_ks,&
+                            para_env=para_env,&
                             error=error)
 
     xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC",error=error)
@@ -710,8 +713,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 !      Distribute the atoms of this kind
-       num_pe = qs_env%para_env%num_pe
-       mepos  = qs_env%para_env%mepos
+       num_pe = para_env%num_pe
+       mepos  = para_env%mepos
        bo     = get_limit( natom, num_pe, mepos )
 
        DO iat = 1,natom !bo(1),bo(2)

@@ -950,7 +950,8 @@ MODULE mp2_ri_grad
 
     ! create the globally distributed mixed lagrangian
     NULLIFY(blacs_env)
-    blacs_env => qs_env%blacs_env
+    CALL get_qs_env(qs_env, blacs_env=blacs_env, error=error)
+
     NULLIFY(L_mu_q, fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
                              nrow_global=dimen,ncol_global=dimen,error=error)

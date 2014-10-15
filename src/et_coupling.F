@@ -29,6 +29,7 @@ MODULE et_coupling
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -95,11 +96,12 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: inverse_mat, SMO, Tinverse, &
                                                 tmp2
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: et_coupling_section
 
-    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, rest_MO, energy, matrix_s, dft_control)
+    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct,rest_MO,energy,matrix_s,dft_control,para_env)
 
     CALL timeset(routineN,handle)
 
@@ -107,7 +109,7 @@ CONTAINS
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                             "PROPERTIES%ET_COUPLING",error=error)
 
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env, error=error)
     my_id=dft_control%qs_control%becke_control%density_type
 
     iw=cp_print_key_unit_nr(logger,et_coupling_section,"PROGRAM_RUN_INFO",&
@@ -206,9 +208,9 @@ CONTAINS
        a(i)=-a(i)
        b(i)=-b(i)
     END IF
-    CALL mp_sum(a(i),qs_env%para_env%group)
+    CALL mp_sum(a(i), para_env%group)
 
-    CALL mp_sum(b(i),qs_env%para_env%group)
+    CALL mp_sum(b(i), para_env%group)
 
        CALL cp_fm_release(tmp2,error)
        CALL cp_fm_release(rest_MO(1)%matrix,error)
@@ -329,6 +331,7 @@ CONTAINS
                                                 r, r1, shift
     REAL(kind=dp), DIMENSION(:), POINTER     :: coeff
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -336,7 +339,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure=.FALSE.
-    NULLIFY(cell,particle_set,coeff,energy,rho,dft_control)
+    NULLIFY(cell,particle_set,coeff,energy,rho,dft_control, para_env)
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,&
@@ -344,6 +347,7 @@ CONTAINS
                     particle_set=particle_set,&
                     rho=rho,&
                     dft_control=dft_control,&
+                    para_env=para_env,&
                     error=error)
 
     IF (dft_control%qs_control%becke_restraint) THEN
@@ -462,7 +466,7 @@ CONTAINS
              dE=dE+accurate_sum(becke_const%pw%cr3d*rho%rho_r(i)%pw%cr3d)*dvol
        END DO
        CALL get_qs_env(qs_env,energy=energy,error=error)
-       CALL mp_sum(dE,qs_env%para_env%group)
+       CALL mp_sum(dE, para_env%group)
        dft_control%qs_control%becke_control%becke_order_p=dE
        energy%becke=(dE-target_val)*strength
 
@@ -509,6 +513,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -518,7 +523,7 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control,cell,particle_set)
+    NULLIFY(dft_control,cell,particle_set,para_env)
 
     CALL get_qs_env(qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -528,6 +533,7 @@ CONTAINS
                     rho=rho,&
                     force=force,&
                     dft_control=dft_control,&
+                    para_env=para_env,&
                     error=error)
 
     th=1.0e-8_dp
@@ -743,7 +749,7 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dP_i_dRj")
        DEALLOCATE (coefficients,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"coefficients")
-       CALL mp_sum(integrated,qs_env%para_env%group)
+       CALL mp_sum(integrated, para_env%group)
 
        DO iatom=1,natom
           ikind = kind_of(iatom)

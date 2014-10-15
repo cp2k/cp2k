@@ -157,7 +157,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
-    para_env=>qs_env%para_env
 
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
@@ -176,6 +175,7 @@ CONTAINS
     NULLIFY (admm_env)
     NULLIFY (matrix_s_aux_fit_vs_orb)
     NULLIFY (subsys)
+    NULLIFY (para_env)
 
     CALL get_qs_env(qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -188,10 +188,11 @@ CONTAINS
                     virial=virial,&
                     has_unit_metric=has_unit_metric,&
                     subsys=subsys,&
-                    energy=energy,&     
+                    energy=energy,&
                     matrix_p_mp2=matrix_p_mp2,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     matrix_w_mp2=matrix_w_mp2,&
+                    para_env=para_env,&
                     error=error)
 
     CALL qs_env_rebuild_pw_env(qs_env,error)

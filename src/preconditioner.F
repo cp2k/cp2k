@@ -11,6 +11,7 @@
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
@@ -44,6 +45,7 @@ MODULE preconditioner
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
@@ -1574,6 +1576,11 @@ END SUBROUTINE make_full_all_ortho
 
     INTEGER                                  :: ispin, stat
     LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+    NULLIFY(para_env, blacs_env)
+    CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env, error=error)
 
     IF (ASSOCIATED(preconditioner)) THEN
        SELECT CASE(prec_type)
@@ -1604,8 +1611,8 @@ END SUBROUTINE make_full_all_ortho
          DO ispin=1,SIZE(preconditioner)
             ALLOCATE(preconditioner(ispin)%preconditioner)
             CALL init_preconditioner(preconditioner(ispin)%preconditioner,&
-                                     para_env=qs_env%para_env,&
-                                     blacs_env=qs_env%blacs_env,error=error)
+                                     para_env=para_env,&
+                                     blacs_env=blacs_env,error=error)
          ENDDO
     END IF
 
@@ -1653,21 +1660,27 @@ END SUBROUTINE make_full_all_ortho
                                                 my_has_unit_metric, &
                                                 my_mixed_precision, &
                                                 use_mo_coeff_b
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: kinetic
     TYPE(cp_dbcsr_type), POINTER             :: matrix_t, mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
-    NULLIFY(matrix_t, mo_coeff_b, mo_coeff, kinetic, dft_control)
+    NULLIFY(matrix_t, mo_coeff_b, mo_coeff, kinetic, dft_control, para_env, blacs_env)
     failure = .FALSE.
     my_has_unit_metric = .FALSE.
     IF(PRESENT(has_unit_metric)) my_has_unit_metric = has_unit_metric
     my_mixed_precision = .FALSE.
     IF(PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
 
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
+                    error=error)
 
     IF(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
       IF(prec_type==ot_precond_full_kinetic) THEN
@@ -1696,13 +1709,13 @@ END SUBROUTINE make_full_all_ortho
                CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
                     do_rotation = .TRUE., &
                     co_rotate=qs_env%mo_derivs(ispin)%matrix,&
-                    para_env=qs_env%para_env,&
-                    blacs_env=qs_env%blacs_env,error=error)
+                    para_env=para_env,&
+                    blacs_env=blacs_env,error=error)
              ELSEIF(use_mo_coeff_b) THEN
                CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
                     do_rotation = .TRUE., &
-                    para_env=qs_env%para_env,&
-                    blacs_env=qs_env%blacs_env,error=error)
+                    para_env=para_env,&
+                    blacs_env=blacs_env,error=error)
              ELSE
                CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
                     do_rotation = .TRUE., error=error)

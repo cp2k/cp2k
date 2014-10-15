@@ -21,6 +21,7 @@ MODULE qs_scf_post_gpw
                                              get_cell,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -227,7 +228,6 @@ CONTAINS
       unoccupied_orbs, unoccupied_orbs_stm
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -254,7 +254,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! Writes the data that is already available in qs_env
-    para_env=>qs_env%para_env
     CALL write_available_results(qs_env,scf_env,error)
 
     failure=.FALSE.
@@ -846,11 +845,13 @@ CONTAINS
                                                 n, nao, nmo, output_unit
     LOGICAL                                  :: failure
     TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -859,10 +860,18 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(mos,ks_rmpv,scf_control,dft_control,admm_env)
-    CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,scf_control=scf_control,&
-                    dft_control=dft_control,matrix_s=matrix_s,admm_env=admm_env,&
+    NULLIFY(mos,ks_rmpv,scf_control,dft_control,admm_env,para_env,blacs_env)
+    CALL get_qs_env(qs_env,&
+                    mos=mos,&
+                    matrix_ks=ks_rmpv,&
+                    scf_control=scf_control,&
+                    dft_control=dft_control,&
+                    matrix_s=matrix_s,&
+                    admm_env=admm_env,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
                     error=error)
+
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -879,7 +888,7 @@ CONTAINS
        IF (nlumo==-1) nlumos=nao-nmo
        ALLOCATE(unoccupied_evals(ispin)%array(nlumos),stat=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_fm_struct_create(fm_struct_tmp,para_env=qs_env%para_env,context=qs_env%blacs_env, &
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
             nrow_global=n,ncol_global=nlumos,error=error)
        CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp,name="lumos",error=error)
        CALL cp_fm_struct_release(fm_struct_tmp,error=error)
@@ -2161,7 +2170,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -2188,18 +2196,27 @@ CONTAINS
          mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set,&
          particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
          molecule_set, input, particles, subsys)
-    para_env=>qs_env%para_env
+
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
-            mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            qs_kind_set=qs_kind_set,&
-            rho=rho,matrix_ks=ks_rmpv,admm_env=admm_env,&
-            scf_control=scf_control,matrix_s=matrix_s,&
-            input=input,cell=cell,subsys=subsys,error=error)
+       CALL get_qs_env(qs_env,&
+                       dft_control=dft_control,&
+                       molecule_set=molecule_set, &
+                       mos=mos,&
+                       atomic_kind_set=atomic_kind_set,&
+                       particle_set=particle_set,&
+                       qs_kind_set=qs_kind_set,&
+                       rho=rho,matrix_ks=ks_rmpv,&
+                       admm_env=admm_env,&
+                       scf_control=scf_control,&
+                       matrix_s=matrix_s,&
+                       input=input,&
+                       cell=cell,&
+                       subsys=subsys,&
+                       error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! *** if the dft_section tells you to do so, write last wavefunction to screen

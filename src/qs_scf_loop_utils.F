@@ -757,13 +757,15 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_rho_updates', &
       routineP = moduleN//':'//routineN
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
-    
+    NULLIFY(para_env)
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
     ! ** update qs_env%rho
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     ! ** Density mixing through density matrix or on the reciprocal space grid (exclusive)
     IF(mix_rho) THEN
-       CALL gspace_mixing(qs_env, scf_env, scf_env%mixing_store, rho, qs_env%para_env, error=error)
+       CALL gspace_mixing(qs_env, scf_env, scf_env%mixing_store, rho, para_env, error=error)
     END IF
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 

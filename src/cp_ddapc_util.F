@@ -11,6 +11,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp_ddapc_util
+
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type,&
@@ -26,6 +27,7 @@ MODULE cp_ddapc_util
                                              cp_ddapc_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: do_full_density,&
                                              do_spin_density
@@ -93,6 +95,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -108,7 +111,7 @@ CONTAINS
     failure         = .FALSE.
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
-            radii, inp_radii, particle_set, qs_charges)
+            radii, inp_radii, particle_set, qs_charges, para_env)
 
     CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
     allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation.OR.&
@@ -136,6 +139,7 @@ CONTAINS
                        particle_set=particle_set,&
                        cell=cell,&
                        super_cell=super_cell,&
+                       para_env=para_env,&
                        error=error)
        density_fit_section => section_vals_get_subs_vals(qs_env%input,"DFT%DENSITY_FITTING", error=error)
        iw=cp_print_key_unit_nr(logger,density_fit_section,&
@@ -173,7 +177,7 @@ CONTAINS
             "PROGRAM_RUN_INFO/CONDITION_NUMBER",".FitCharge",error=error)
        ! Initialization of the cp_ddapc_env and of the cp_ddapc_ewald environment
        !NB pass qs_env%para_env for parallelization of ewald_ddapc_pot()
-       CALL cp_ddapc_create(qs_env%para_env,&
+       CALL cp_ddapc_create(para_env,&
                             qs_env%cp_ddapc_env,&
                             qs_env%cp_ddapc_ewald,&
                             particle_set,&
