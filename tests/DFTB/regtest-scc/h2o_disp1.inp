@@ -1,9 +1,9 @@
-#CPQA INCLUDE ../../../data/scc/scc_parameter
+#CPQA INCLUDE ../../../data/DFTB/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../../../data/scc/oo.spl
-#CPQA INCLUDE ../../../data/scc/oh.spl
-#CPQA INCLUDE ../../../data/scc/ho.spl
-#CPQA INCLUDE ../../../data/scc/hh.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/oo.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/oh.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/ho.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/hh.spl
 &FORCE_EVAL
   &DFT
     &QS
@@ -13,7 +13,7 @@
         DO_EWALD           T
         DISPERSION         T
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/scc
+          PARAM_FILE_PATH  ../../../data/DFTB/scc
           PARAM_FILE_NAME  scc_parameter
           DISPERSION_TYPE  UFF
           UFF_FORCE_FIELD  ../uff_table

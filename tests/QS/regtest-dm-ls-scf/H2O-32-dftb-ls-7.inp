@@ -11,7 +11,7 @@
         DO_EWALD           T
         DISPERSION         F
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/scc
+          PARAM_FILE_PATH  ../../../data/DFTB/scc
           PARAM_FILE_NAME  scc_parameter
           UFF_FORCE_FIELD  ../../../data/uff_table
         &END PARAMETER

@@ -1,9 +1,9 @@
-#CPQA INCLUDE ../../../data/scc/scc_parameter
+#CPQA INCLUDE ../../../data/DFTB/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../../../data/scc/oo.spl
-#CPQA INCLUDE ../../../data/scc/oc.spl
-#CPQA INCLUDE ../../../data/scc/co.spl
-#CPQA INCLUDE ../../../data/scc/cc.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/oo.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/oc.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/co.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/cc.spl
 &FORCE_EVAL
   &DFT
     &QS
@@ -13,7 +13,7 @@
         ORTHOGONAL_BASIS   F   
         DO_EWALD           F
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/scc
+          PARAM_FILE_PATH  ../../../data/DFTB/scc
           SK_FILE   C C   cc.spl
           SK_FILE   C O   co.spl
           SK_FILE   O C   oc.spl

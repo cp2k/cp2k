@@ -12,7 +12,7 @@
         DISPERSION         T
         ORTHOGONAL_BASIS   F   
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/nonscc
+          PARAM_FILE_PATH  ../../../data/DFTB/nonscc
           SK_FILE  Mo Mo  momo
           SK_FILE  Mo S   mos
           SK_FILE  S  Mo  smo

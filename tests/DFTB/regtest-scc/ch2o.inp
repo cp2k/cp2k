@@ -1,15 +1,15 @@
 #CPQA DEPENDS ch2o-5.inp
-#CPQA INCLUDE ../../../data/scc/scc_parameter
+#CPQA INCLUDE ../../../data/DFTB/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../../../data/scc/oo.spl
-#CPQA INCLUDE ../../../data/scc/oc.spl
-#CPQA INCLUDE ../../../data/scc/oh.spl
-#CPQA INCLUDE ../../../data/scc/co.spl
-#CPQA INCLUDE ../../../data/scc/cc.spl
-#CPQA INCLUDE ../../../data/scc/ch.spl
-#CPQA INCLUDE ../../../data/scc/ho.spl
-#CPQA INCLUDE ../../../data/scc/hc.spl
-#CPQA INCLUDE ../../../data/scc/hh.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/oo.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/oc.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/oh.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/co.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/cc.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/ch.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/ho.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/hc.spl
+#CPQA INCLUDE ../../../data/DFTB/scc/hh.spl
 
 &FORCE_EVAL
   &DFT
@@ -22,7 +22,7 @@
         ORTHOGONAL_BASIS   F   
         DO_EWALD           F
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/scc
+          PARAM_FILE_PATH  ../../../data/DFTB/scc
           PARAM_FILE_NAME  scc_parameter
           UFF_FORCE_FIELD  ../uff_table
         &END PARAMETER
