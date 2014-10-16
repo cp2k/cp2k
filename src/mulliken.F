@@ -293,7 +293,7 @@ END SUBROUTINE rf_deriv_check
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
-                                                ispin, nblock, nspin
+                                                ispin, nspin
     LOGICAL                                  :: found
     REAL(kind=dp)                            :: mult
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, s_block
@@ -302,17 +302,18 @@ END SUBROUTINE rf_deriv_check
 ! here we get the numbers for charges
 
     nspin=SIZE(p_matrix)
-    CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
 
     charges=0.0_dp
     DO ispin=1,nspin
        CALL cp_dbcsr_iterator_start(iter, s_matrix)
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          NULLIFY(s_block,p_block)
           CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
           CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
                row=iblock_row,col=iblock_col,BLOCK=p_block,found=found)
 
           ! we can cycle if a block is not present
+          IF ( .NOT. found ) CYCLE
           IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
 
           IF (iblock_row.EQ.iblock_col) THEN
@@ -349,7 +350,7 @@ END SUBROUTINE rf_deriv_check
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
-                                                ider, ispin, nblock, nspin
+                                                ider, ispin, nspin
     LOGICAL                                  :: found
     REAL(kind=dp)                            :: mult
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ds_block, p_block, s_block
@@ -358,18 +359,19 @@ END SUBROUTINE rf_deriv_check
 ! here we get the numbers for charges
 
     nspin=SIZE(p_matrix)
-    CALL cp_dbcsr_get_info(s_matrix(1)%matrix,nblkrows_total=nblock)
 
     charges=0.0_dp
     dcharges=0.0_dp
     DO ispin=1,nspin
        CALL cp_dbcsr_iterator_start(iter, s_matrix(1)%matrix)
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          NULLIFY(s_block,p_block)
           CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
           CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
                row=iblock_row,col=iblock_col,BLOCK=p_block,found=found)
 
           ! we can cycle if a block is not present
+          IF ( .NOT. found ) CYCLE
           IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
 
           IF (iblock_row.EQ.iblock_col) THEN
@@ -409,7 +411,7 @@ END SUBROUTINE rf_deriv_check
 !>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
-                                qs_kind_set, scr,title,error)
+                                qs_kind_set,scr,title,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -426,21 +428,27 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_a', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nblock, nspin
+    INTEGER                                  :: handle, istat, nblock, nspin
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
     CALL timeset(routineN,handle)
 
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(p_matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(s_matrix),cp_failure_level,routineP,error,failure)
     ! here we get the numbers for charges
     nspin=SIZE(p_matrix)
     CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
+    ALLOCATE(charges(nblock,nspin),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(charges(nblock,nspin))
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
 
     CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
 
-    DEALLOCATE(charges)
+    DEALLOCATE(charges,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -470,7 +478,9 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    CALL compute_charges(p_matrix,s_matrix,mcharge,para_env)
+    IF(ASSOCIATED(p_matrix) .AND. ASSOCIATED(s_matrix)) THEN
+       CALL compute_charges(p_matrix,s_matrix,mcharge,para_env)
+    END IF
 
     CALL timestop(handle)
 
@@ -500,7 +510,9 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    CALL compute_dcharges(p_matrix,s_matrix,mcharge,dmcharge,para_env)
+    IF(ASSOCIATED(p_matrix) .AND. ASSOCIATED(s_matrix)) THEN
+       CALL compute_dcharges(p_matrix,s_matrix,mcharge,dmcharge,para_env)
+    END IF
 
     CALL timestop(handle)
 
@@ -538,8 +550,10 @@ END SUBROUTINE rf_deriv_check
       POINTER                                :: quadrupole
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    INTEGER :: blk, iatom, iblock_col, iblock_row, ikind, indi, indj, ispin, &
-      jint, natorb_a, nblock, nspin, size_1c_int
+    INTEGER                                  :: blk, iatom, iblock_col, &
+                                                iblock_row, ikind, indi, &
+                                                indj, ispin, jint, natorb_a, &
+                                                nspin, size_1c_int
     LOGICAL                                  :: defined, found
     REAL(kind=dp)                            :: fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pscp_block, s_block
@@ -548,7 +562,6 @@ END SUBROUTINE rf_deriv_check
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
 
     nspin=SIZE(p_matrix)
-    CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
 
     charge=     0.0_dp
     dipole=     0.0_dp
