@@ -669,8 +669,8 @@ CONTAINS
 
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-         calculate_forces=.FALSE., just_energy=.FALSE.,error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
+                             just_energy=.FALSE.,error=error)
 
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'(T2,A,F20.9)') "Energy of the initial guess:",energy%total
@@ -724,9 +724,8 @@ CONTAINS
     ! compute the corresponding KS matrix and new energy
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-         calculate_forces=.FALSE.,just_energy=.FALSE.,&
-         print_active=.TRUE., error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.,&
+                             print_active=.TRUE., error=error)
     energy_new=energy%total
 
     CALL timestop(handle)

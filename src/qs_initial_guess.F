@@ -946,8 +946,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE., error=error)
 
-       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, qs_env=qs_env, calculate_forces=.TRUE.,&
-            just_energy=.FALSE., error=error)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.,&
+                                just_energy=.FALSE., error=error)
 
        ! diagonalization
        DO ispin=1, dft_control%nspins

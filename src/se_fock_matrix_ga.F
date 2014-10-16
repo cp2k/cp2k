@@ -73,11 +73,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Fock matrix for NDDO methods
-!> \param ks_env ...
 !> \param qs_env ...
-!> \param ks_matrix ...
-!> \param rho ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
@@ -85,15 +81,9 @@ CONTAINS
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix_ga (ks_env,qs_env,ks_matrix,rho,energy,&
-       calculate_forces,just_energy,error)
+  SUBROUTINE build_se_fock_matrix_ga (qs_env,calculate_forces,just_energy,error)
 
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -111,7 +101,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, mo_derivs
+      POINTER                                :: ks_matrix, matrix_h, &
+                                                matrix_p, mo_derivs
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -120,6 +111,9 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: scf_section
@@ -132,13 +126,23 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
     NULLIFY(atomic_kind_set, scp_env, energy_scp, scp_store_int_env, atprop)
+    NULLIFY(ks_env, ks_matrix, rho, energy)
     logger => cp_error_get_logger(error)
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
-         para_env=para_env, se_store_int_env=store_int_env, atprop=atprop,&
-         atomic_kind_set=atomic_kind_set, s_mstruct_changed=s_mstruct_changed,&
-         error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    matrix_ks=ks_matrix,&
+                    rho=rho,&
+                    energy=energy,&
+                    dft_control=dft_control,&
+                    matrix_h=matrix_h,&
+                    para_env=para_env,&
+                    se_store_int_env=store_int_env,&
+                    atprop=atprop,&
+                    atomic_kind_set=atomic_kind_set,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    error=error)
 
     SELECT CASE (dft_control%qs_control%method_id)
     CASE DEFAULT

@@ -484,8 +484,7 @@ CONTAINS
        ENDIF
        CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
        !derivatives of the potential
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-            error=error)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
        !derivativs of the overlap needed for EMD
        CALL calc_S_derivs(qs_env,error)
        ! a bit hidden, but computes SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)

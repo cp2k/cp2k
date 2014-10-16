@@ -177,20 +177,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief routine where the real calculations are made: the
 !>      KS matrix is calculated
-!> \param ks_env the ks_env that old all the temporary objects that
-!>        the calculation of the KS matrix needs
 !> \param qs_env the qs_env to update
-!> \param ks_matrix the KS matrix that is created
-!> \param rho the density, must be up to date
-!> \param energy the place where energies are stored
 !> \param calculate_forces if true calculate the quantities needed
 !>        to calculate the forces. Defaults to false.
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
 !> \param print_active ...
-!> \param rho_xc the soft density, only for gapw_xc , must be up to date
+!> \param ext_ks_matrix ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param energy the place where energies are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ks_env the ks_env that old all the temporary objects that
+!>        the calculation of the KS matrix needs UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ks_matrix the KS matrix that is created UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param rho the density, must be up to date UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param rho_xc the soft density, only for gapw_xc , must be up to date UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !>              new did_change scheme [fawzi]
@@ -205,20 +206,13 @@ CONTAINS
 !>      make rho, energy and qs_charges optional, defaulting
 !>      to qs_env components?
 ! *****************************************************************************
-
-  SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
-                                          rho,energy,calculate_forces,&
-                                          just_energy,print_active,rho_xc,error)
-
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+  SUBROUTINE qs_ks_build_kohn_sham_matrix(qs_env,calculate_forces,just_energy,&
+                                          print_active,ext_ks_matrix, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     LOGICAL, INTENT(IN), OPTIONAL            :: print_active
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ext_ks_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
@@ -234,7 +228,7 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_ks, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ks_matrix, matrix_h, &
       matrix_ks_aux_fit, matrix_p, matrix_p_aux_fit, matrix_s, &
       matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, my_rho
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
@@ -256,7 +250,9 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_struct
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho, rho_struct, rho_xc
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_sections, input, &
                                                 scf_section, xc_section
@@ -266,39 +262,46 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, becke, cell, dft_control, ep_qs_env, logger, &
          mo_array, mo_coeff, mo_coeff_aux_fit, mo_derivs, mos_aux_fit, my_rho, &
-         my_rho_xc, rho_struct, para_env, pw_env, &
-         virial, vppl_rspace, v_hartree_rspace%pw)
-    NULLIFY(adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section)
-    NULLIFY(matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool, &
-         poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit, &
-         v_tau_rspace,v_tau_rspace_aux_fit,matrix_vxc,matrix_ks,matrix_ks_aux_fit,&
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc)
+         rho_struct, para_env, pw_env, virial, vppl_rspace, v_hartree_rspace%pw,&
+         adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section,&
+         matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool,&
+         poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit,&
+         v_tau_rspace,v_tau_rspace_aux_fit,matrix_vxc,matrix_ks_aux_fit,&
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc,&
+         ks_env, ks_matrix, rho, energy, rho_xc)
 
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     logger => cp_error_get_logger(error)
     my_print = .TRUE.
     IF(PRESENT(print_active)) my_print = print_active
 
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         matrix_h=matrix_h,&
-         matrix_s=matrix_s,&
-         matrix_vxc=matrix_vxc,&
-         matrix_ks=matrix_ks,&
-         matrix_ks_aux_fit=matrix_ks_aux_fit,&
-         matrix_s_aux_fit=matrix_s_aux_fit,&
-         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
-         pw_env=pw_env,&
-         cell=cell,&
-         para_env=para_env,&
-         input=input,&
-         virial=virial,&
-         ep_qs_env=ep_qs_env,&
-         v_hartree_rspace=v_hartree_rspace%pw,&
-         vee=vee,&
-         rho_nlcc=rho_nlcc,&
-         error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
+                    matrix_h=matrix_h,&
+                    matrix_s=matrix_s,&
+                    matrix_vxc=matrix_vxc,&
+                    matrix_ks=ks_matrix,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    matrix_s_aux_fit=matrix_s_aux_fit,&
+                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                    pw_env=pw_env,&
+                    cell=cell,&
+                    para_env=para_env,&
+                    input=input,&
+                    virial=virial,&
+                    ep_qs_env=ep_qs_env,&
+                    v_hartree_rspace=v_hartree_rspace%pw,&
+                    vee=vee,&
+                    rho_nlcc=rho_nlcc,&
+                    rho=rho,&
+                    rho_xc=rho_xc,&
+                    energy=energy,&
+                    error=error)
+
+    IF(PRESENT(ext_ks_matrix)) &
+       ks_matrix => ext_ks_matrix
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     do_ep=ASSOCIATED(ep_qs_env)
@@ -355,9 +358,6 @@ CONTAINS
       CPPrecondition(ASSOCIATED(rho_xc),cp_failure_level,routineP,error,failure)
       CPPrecondition(rho_xc%rho_r_valid,cp_failure_level,routineP,error,failure)
       CPPrecondition(rho_xc%rho_g_valid,cp_failure_level,routineP,error,failure)
-      my_rho_xc => rho_xc
-    ELSE
-      NULLIFY(my_rho_xc)
     END IF
 
     ! gets the tmp grids
@@ -403,7 +403,7 @@ CONTAINS
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
        IF(my_print) THEN
-         CALL print_densities(qs_env, rho, my_rho_xc, error=error)
+         CALL print_densities(qs_env, rho, rho_xc, error=error)
        END IF
 
        ! Getting the Hartree energy and Hartree potential.  Also getting the stress tensor
@@ -718,12 +718,12 @@ CONTAINS
            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
            IF(.NOT.qs_env%run_rtp)THEN
               CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                   mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, matrix_s,&
+                   mo_coeff_aux_fit, ks_matrix, matrix_ks_aux_fit, matrix_s,&
                    matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
                    matrix_p_aux_fit, matrix_p, error)
            ELSE
               CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                   mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, matrix_s,&
+                   mo_coeff_aux_fit, ks_matrix, matrix_ks_aux_fit, matrix_s,&
                    matrix_p_aux_fit, matrix_p, error)
 
            END IF
@@ -788,32 +788,25 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculation of the LRIGPW KS matrix
-!> \param ks_env the ks_env that holds all the temporary objects that
-!>        the calculation of the LRI KS matrix needs
 !> \param qs_env the qs_env to update
-!> \param ks_matrix the KS matrix that is created
-!> \param rho the density, must be up to date
-!> \param energy the place where energies are stored
 !> \param calculate_forces ...
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
 !> \param print_active ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param energy the place where energies are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ks_env the ks_env that holds all the temporary objects that
+!>        the calculation of the LRI KS matrix needs UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param ks_matrix the KS matrix that is created UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param rho the density, must be up to date UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2014 created
 !> \author Dorothea Golze
 !> \note  might be integrate in qs_ks_build_kohn_sham_matrix later
 ! *****************************************************************************
-  SUBROUTINE lri_build_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,&
-             calculate_forces,just_energy,print_active,error)
-
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+  SUBROUTINE lri_build_ks_matrix(qs_env,calculate_forces,just_energy,print_active,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     LOGICAL, INTENT(in), OPTIONAL            :: print_active
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -828,7 +821,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, mo_derivs
+      POINTER                                :: ks_matrix, matrix_h, &
+                                                matrix_p, mo_derivs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -844,33 +838,37 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_rho_type), POINTER               :: my_rho_xc
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control, input,  mo_derivs, my_rho_xc, para_env,&
-            pw_env, xc_section)
-    NULLIFY(auxbas_pw_pool, matrix_h, matrix_p, poisson_env, pw_pools, v_rspace_new, &
-            v_tau_rspace)
-    NULLIFY(atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw)
-
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    NULLIFY(dft_control, input,  mo_derivs, my_rho_xc, para_env, pw_env,&
+            xc_section, ks_env, ks_matrix, rho, energy, auxbas_pw_pool, matrix_h,&
+            matrix_p, poisson_env, pw_pools, v_rspace_new, v_tau_rspace, &
+            atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     my_print = .TRUE.
     IF(PRESENT(print_active)) my_print = print_active
 
-    CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
-         dft_control=dft_control,&
-         matrix_h=matrix_h,&
-         lri_env=lri_env,&
-         lri_density=lri_density,&
-         pw_env=pw_env,&
-         para_env=para_env,&
-         input=input,&
-         v_hartree_rspace=v_hartree_rspace%pw,&
-         error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    matrix_h=matrix_h,&
+                    lri_env=lri_env,&
+                    lri_density=lri_density,&
+                    pw_env=pw_env,&
+                    para_env=para_env,&
+                    input=input,&
+                    v_hartree_rspace=v_hartree_rspace%pw,&
+                    matrix_ks=ks_matrix,&
+                    rho=rho,&
+                    energy=energy,&
+                    error=error)
 
     nspins=dft_control%nspins
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
@@ -1165,10 +1163,9 @@ CONTAINS
 
   END SUBROUTINE calc_mo_derivatives
 
+
 ! *****************************************************************************
 !> \brief updates the Kohn Sham matrix of the given qs_env (facility method)
-!> \param ks_env the ks_env that old all the temporary objects that
-!>        the calculation of the KS matrix needs
 !> \param qs_env the qs_env to update
 !> \param calculate_forces if true calculate the quantities needed
 !>        to calculate the forces. Defaults to false.
@@ -1180,11 +1177,11 @@ CONTAINS
 !> \par History
 !>      4.2002 created [fawzi]
 !>      8.2014 kpoints [JGH]
+!>     10.2014 refractored [Ole Schuett]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,calculate_forces,&
-       just_energy,print_active,error)
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+   SUBROUTINE qs_ks_update_qs_env(qs_env,calculate_forces,just_energy,&
+                                  print_active,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
                                                 just_energy, print_active
@@ -1194,23 +1191,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL :: c_forces, did_update, do_kpoints, energy_only, failure, &
-      forces_up_to_date, potential_changed, rho_changed, s_mstruct_changed
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_t
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrixkp_h, matrixkp_ks, &
-                                                matrixkp_t
+    LOGICAL :: c_forces, do_rebuild, energy_only, failure, forces_up_to_date, &
+      potential_changed, rho_changed, s_mstruct_changed
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(kpoint_type), POINTER               :: kpoints
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    c_forces=.FALSE.
-    energy_only = .FALSE.
-    IF (PRESENT(just_energy)) energy_only=just_energy
-    IF (PRESENT(calculate_forces)) c_forces=calculate_forces
+    failure=.FALSE.
+    NULLIFY(logger,ks_env)
+    logger => cp_error_get_logger(error)
 
     IF (c_forces) THEN
        CALL timeset(routineN//'_forces',handle)
@@ -1218,119 +1206,175 @@ CONTAINS
        CALL timeset(routineN,handle)
     ENDIF
 
-    failure=.FALSE.
-    did_update=.FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    c_forces = .FALSE.
+    energy_only = .FALSE.
+    IF (PRESENT(just_energy)) energy_only=just_energy
+    IF (PRESENT(calculate_forces)) c_forces=calculate_forces
 
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env,&
-                    do_kpoints=do_kpoints,&
+                    ks_env=ks_env,&
                     rho_changed=rho_changed,&
                     s_mstruct_changed=s_mstruct_changed,&
                     potential_changed=potential_changed,&
                     forces_up_to_date=forces_up_to_date,&
                     error=error)
 
-    IF (.NOT. failure) THEN
-       IF (rho_changed .OR. s_mstruct_changed .OR. &
-            potential_changed .OR. &
-            (c_forces.AND..NOT.forces_up_to_date)) THEN
-          did_update=.TRUE.
+    do_rebuild = .FALSE.
+    do_rebuild = do_rebuild .OR. rho_changed
+    do_rebuild = do_rebuild .OR. s_mstruct_changed
+    do_rebuild = do_rebuild .OR. potential_changed
+    do_rebuild = do_rebuild .OR. (c_forces.AND..NOT.forces_up_to_date)
 
-          NULLIFY(energy,rho,dft_control)
-          CALL get_qs_env(qs_env,rho=rho,energy=energy,dft_control=dft_control,error=error)
-          IF (do_kpoints) THEN
-             NULLIFY(matrixkp_t,matrixkp_h)
-             CALL get_qs_env(qs_env,kpoints=kpoints,error=error)
-             CALL get_kpoint_info(kpoints,matrix_t=matrixkp_t,matrix_h=matrixkp_h,error=error)
-             ! ecore
-             CALL calculate_ptrace(matrixkp_h,rho%rho_ao_kp,energy%core,dft_control%nspins,error)
-             !
-             IF(ASSOCIATED(matrixkp_t)) THEN
-                ! kinetic energy
-                CALL calculate_ptrace(matrixkp_t,rho%rho_ao_kp,energy%kinetic,dft_control%nspins,error)
-             END IF
-             NULLIFY(matrixkp_ks)
-             CALL get_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
-          ELSE
-             NULLIFY(matrix_t,matrix_h)
-             CALL get_qs_env(qs_env,kinetic=matrix_t,matrix_h=matrix_h,error=error)
-             ! ecore
-             CALL calculate_ptrace(matrix_h,rho%rho_ao,energy%core,dft_control%nspins,error)
-             !
-             IF(ASSOCIATED(matrix_t)) THEN
-                ! kinetic energy
-                CALL calculate_ptrace(matrix_t,rho%rho_ao,energy%kinetic,dft_control%nspins,error)
-             END IF
-             NULLIFY(matrix_ks,rho_xc)
-             CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho_xc=rho_xc,error=error)
-          END IF
+    IF (do_rebuild) THEN
+       CALL evaluate_core_matrix_traces(qs_env,error)
 
-          ! the ks matrix will be rebuilt so this is fine now
-          CALL set_ks_env(ks_env, potential_changed=.FALSE., error=error)
-          IF ( dft_control%qs_control%semi_empirical ) THEN
-             CALL build_se_fock_matrix_control(ks_env,qs_env=qs_env,&
-                  ks_matrix=matrix_ks,rho=rho,energy=energy,&
-                  calculate_forces=c_forces,just_energy=energy_only,&
-                  error=error)
-          ELSEIF ( dft_control%qs_control%dftb ) THEN
-             CALL build_dftb_ks_matrix(ks_env,qs_env=qs_env,&
-                  ks_matrix=matrix_ks,rho=rho,energy=energy,&
-                  calculate_forces=c_forces,just_energy=energy_only,&
-                  error=error)
-          ELSEIF ( dft_control%qs_control%scptb ) THEN
-             IF (do_kpoints) THEN
-                CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
-                  ks_matrixkp=matrixkp_ks,rho=rho,energy=energy,&
-                  calculate_forces=c_forces,just_energy=energy_only,&
-                  error=error)
-             ELSE
-                CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
-                  ks_matrix=matrix_ks,rho=rho,energy=energy,&
-                  calculate_forces=c_forces,just_energy=energy_only,&
-                  error=error)
-             END IF
-          ELSEIF (dft_control%qs_control%gapw_xc) THEN
-             CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-                  ks_matrix=matrix_ks, rho=rho, energy=energy,&
-                  calculate_forces=c_forces,just_energy=energy_only,&
-                  print_active=print_active,rho_xc=rho_xc,error=error)
-          ELSEIF (dft_control%qs_control%lrigpw) THEN
-            CALL lri_build_ks_matrix(ks_env,qs_env,ks_matrix=matrix_ks,& 
-                 rho=rho,energy=energy,calculate_forces=c_forces, &
-                 just_energy=energy_only,print_active=print_active,&
-                 error=error)
-          ELSE
-             CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-                  ks_matrix=matrix_ks, rho=rho, energy=energy,&
-                  calculate_forces=c_forces,just_energy=energy_only,&
-                  print_active=print_active,error=error)
-          END IF
-          IF(.NOT.energy_only) THEN
-             CALL set_ks_env(ks_env,&
-                             rho_changed=.FALSE.,&
-                             s_mstruct_changed=.FALSE.,&
-                             forces_up_to_date=forces_up_to_date.or.c_forces,&
-                             error=error)
-          END IF
+       ! the ks matrix will be rebuilt so this is fine now
+       CALL set_ks_env(ks_env, potential_changed=.FALSE., error=error)
+
+       CALL rebuild_ks_matrix(qs_env,&
+                              calculate_forces=c_forces,&
+                              just_energy=energy_only,&
+                              print_active=print_active,&
+                              error=error)
+
+       IF(.NOT.energy_only) THEN
+          CALL set_ks_env(ks_env,&
+                          rho_changed=.FALSE.,&
+                          s_mstruct_changed=.FALSE.,&
+                          forces_up_to_date=forces_up_to_date.or.c_forces,&
+                          error=error)
        END IF
     END IF
 
     IF (cp_debug.AND.debug_this_module) THEN
-       IF (did_update) THEN
-          CALL cp_log(logger,cp_note_level,routineP,&
-               "did update")
+       IF (do_rebuild) THEN
+          CALL cp_log(logger,cp_note_level,routineP,"did update")
        ELSE
-          CALL cp_log(logger,cp_note_level,routineP,&
-               "did NOT update")
+          CALL cp_log(logger,cp_note_level,routineP,"did NOT update")
        END IF
     END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE qs_ks_update_qs_env
+
+
+! *****************************************************************************
+!> \brief Calculates the traces of the core matrices and the density matrix.
+!> \param qs_env ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE evaluate_core_matrix_traces(qs_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_core_matrix_traces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: do_kpoints
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_t
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_h, matrixkp_t
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
+
+    CALL timeset(routineN,handle)
+    NULLIFY(energy, rho, dft_control, matrixkp_t, matrixkp_h, matrix_t, matrix_h)
+
+    CALL get_qs_env(qs_env,&
+                    do_kpoints=do_kpoints,&
+                    kpoints=kpoints,&
+                    rho=rho,&
+                    energy=energy,&
+                    dft_control=dft_control,&
+                    kinetic=matrix_t,&
+                    matrix_h=matrix_h,&
+                    error=error)
+
+    IF (do_kpoints) THEN
+       CALL get_kpoint_info(kpoints,matrix_t=matrixkp_t,matrix_h=matrixkp_h,error=error)
+       CALL calculate_ptrace(matrixkp_h,rho%rho_ao_kp,energy%core,dft_control%nspins,error)
+       IF(ASSOCIATED(matrixkp_t)) & ! kinetic energy
+          CALL calculate_ptrace(matrixkp_t,rho%rho_ao_kp,energy%kinetic,dft_control%nspins,error)
+    ELSE
+       CALL calculate_ptrace(matrix_h,rho%rho_ao,energy%core,dft_control%nspins,error)
+       IF(ASSOCIATED(matrix_t)) &   ! kinetic energy
+          CALL calculate_ptrace(matrix_t,rho%rho_ao,energy%kinetic,dft_control%nspins,error)
+    END IF
+
+    CALL timestop(handle)
+ END SUBROUTINE evaluate_core_matrix_traces
+
+
+! *****************************************************************************
+!> \brief Constructs a new Khon-Sham matrix
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param print_active ...
+!> \param error ...
+!> \author Ole Schuett
+! *****************************************************************************
+ SUBROUTINE rebuild_ks_matrix(qs_env,calculate_forces,just_energy,print_active,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: calculate_forces, &
+                                                just_energy, print_active
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    CALL timeset(routineN,handle)
+    NULLIFY(dft_control)
+
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+
+    IF (dft_control%qs_control%semi_empirical) THEN
+       CALL build_se_fock_matrix_control(qs_env,&
+                               calculate_forces=calculate_forces,&
+                               just_energy=just_energy,&
+                               error=error)
+
+    ELSEIF (dft_control%qs_control%dftb) THEN
+       CALL build_dftb_ks_matrix(qs_env,&
+                               calculate_forces=calculate_forces,&
+                               just_energy=just_energy,&
+                               error=error)
+
+    ELSEIF (dft_control%qs_control%scptb) THEN
+       CALL build_scptb_ks_matrix(qs_env,&
+                               calculate_forces=calculate_forces,&
+                               just_energy=just_energy,&
+                               error=error)
+
+    ELSEIF (dft_control%qs_control%lrigpw) THEN
+      CALL lri_build_ks_matrix(qs_env,&
+                               calculate_forces=calculate_forces,&
+                               just_energy=just_energy,&
+                               print_active=print_active,&
+                               error=error)
+    ELSE
+       CALL qs_ks_build_kohn_sham_matrix(qs_env,&
+                               calculate_forces=calculate_forces,&
+                               just_energy=just_energy,&
+                               print_active=print_active,&
+                               error=error)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE rebuild_ks_matrix
+
 
 ! *****************************************************************************
 !> \brief tells that some of the things relevant to the ks calculation

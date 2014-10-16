@@ -577,10 +577,11 @@ CONTAINS
             my_diff*rho1%rho_g(ispin)%pw%cc
     END DO
 
-    CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks_matrix=k_p_p1,rho=rho,energy=qs_energy,&
-         calculate_forces=.FALSE.,&
-         just_energy=.FALSE.,error=error)
+    CALL qs_ks_build_kohn_sham_matrix(qs_env,&
+                                      ext_ks_matrix=k_p_p1,&
+                                      calculate_forces=.FALSE.,&
+                                      just_energy=.FALSE.,&
+                                      error=error)
 
     CALL cp_dbcsr_allocate_matrix_set(ks_2,nspins,error=error)
     DO ispin=1,nspins
@@ -601,10 +602,11 @@ CONTAINS
             my_diff*rho1%rho_g(ispin)%pw%cc
     END DO
 
-    CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks_matrix=ks_2,rho=rho,energy=qs_energy,&
-         calculate_forces=.FALSE.,&
-         just_energy=.FALSE.,error=error)
+    CALL qs_ks_build_kohn_sham_matrix(qs_env,&
+                                      ext_ks_matrix=ks_2,&
+                                      calculate_forces=.FALSE.,&
+                                      just_energy=.FALSE.,&
+                                      error=error)
 
     ! rho = rho0
     my_diff=-0.5_dp*my_diff

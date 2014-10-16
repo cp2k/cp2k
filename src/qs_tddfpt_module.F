@@ -180,11 +180,8 @@ CONTAINS
     CALL section_vals_release(xc_fun_tmp,error=error)
 
     CALL get_qs_env(qs_env, energy=energy, error=error)
-    CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
-                                      ks_matrix=matrix_ks, rho=rho, &
-                                      energy=energy,&
-                                      calculate_forces=.FALSE.,&
-                                      just_energy=.FALSE.,error=error)
+    CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE.,&
+                                      just_energy=.FALSE., error=error)
 
     CALL section_vals_set_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",xc_fun_orig,&
          error=error)

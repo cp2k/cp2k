@@ -615,8 +615,7 @@ END SUBROUTINE p_env_did_change
        END IF
 
        ! updates K (if necessary)
-       CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env,&
-            error=error)
+       CALL qs_ks_update_qs_env(qs_env, error=error)
        output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".linresLog",error=error)
        IF (output_unit>0) THEN

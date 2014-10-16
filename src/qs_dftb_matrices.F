@@ -610,24 +610,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param ks_env ...
 !> \param qs_env ...
-!> \param ks_matrix ...
-!> \param rho ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_dftb_ks_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,error)
-
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+  SUBROUTINE build_dftb_ks_matrix(qs_env,calculate_forces,just_energy,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -644,8 +633,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                mo_derivs
+      POINTER                                :: ks_matrix, matrix_h, &
+                                                matrix_p, matrix_s, mo_derivs
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -655,115 +644,115 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routineN,handle)
-
-    NULLIFY(dft_control, logger, scf_section)
-    NULLIFY(matrix_p, particle_set)
-
-    energy%hartree = 0._dp
-
+    NULLIFY(dft_control, logger, scf_section,matrix_p, particle_set, ks_env,&
+            ks_matrix, rho, energy)
     logger => cp_error_get_logger(error)
-
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    IF ( .NOT. failure ) THEN
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    matrix_h=matrix_h,&
+                    para_env=para_env,&
+                    ks_env=ks_env,&
+                    matrix_ks=ks_matrix,&
+                    rho=rho,&
+                    energy=energy,&
+                    error=error)
 
-       CALL get_qs_env(qs_env,&
-                       dft_control=dft_control,&
-                       atomic_kind_set=atomic_kind_set,&
-                       qs_kind_set=qs_kind_set,&
-                       matrix_h=matrix_h,&
-                       para_env=para_env,&
-                       error=error)
+    energy%hartree = 0.0_dp
 
-       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
-       nspins=dft_control%nspins
-       CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+    scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
+    nspins=dft_control%nspins
+    CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
-       DO ispin=1,nspins
-         ! copy the core matrix into the fock matrix
-          CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
-       END DO
+    DO ispin=1,nspins
+      ! copy the core matrix into the fock matrix
+       CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+    END DO
 
-       IF ( dft_control%qs_control%dftb_control%self_consistent ) THEN
-         ! Mulliken charges
-         CALL get_qs_env(qs_env=qs_env,&
-              particle_set=particle_set,&
-              matrix_s=matrix_s,error=error)
-         matrix_p => rho%rho_ao
-         natom=SIZE(particle_set)
-         ALLOCATE(charges(natom,nspins),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         !
-         CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
-         !
-         ALLOCATE(mcharge(natom),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         nkind = SIZE(atomic_kind_set)
-         DO ikind=1,nkind
-            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-            CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
-            DO iatom=1,natom
-              atom_a = atomic_kind_set(ikind)%atom_list(iatom)
-              mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
-            END DO
+    IF ( dft_control%qs_control%dftb_control%self_consistent ) THEN
+      ! Mulliken charges
+      CALL get_qs_env(qs_env=qs_env,&
+           particle_set=particle_set,&
+           matrix_s=matrix_s,error=error)
+      matrix_p => rho%rho_ao
+      natom=SIZE(particle_set)
+      ALLOCATE(charges(natom,nspins),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      !
+      CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
+      !
+      ALLOCATE(mcharge(natom),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      nkind = SIZE(atomic_kind_set)
+      DO ikind=1,nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+         CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+         CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
+         DO iatom=1,natom
+           atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+           mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
          END DO
-         DEALLOCATE(charges,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END DO
+      DEALLOCATE(charges,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-         CALL build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
-               calculate_forces,just_energy,error)
+      CALL build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
+            calculate_forces,just_energy,error)
 
-         DEALLOCATE(mcharge,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-       END IF
-
-       energy%total = energy%core + energy%hartree + energy%qmmm_el + &
-                      energy%repulsive + energy%dispersion + energy%dftb3
-
-       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
-          extension=".scfLog",error=error)
-       IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,(T9,A,T60,F20.10))")&
-               "Repulsive pair potential energy:               ",energy%repulsive,&
-               "Zeroth order Hamiltonian energy:               ",energy%core,&
-               "Charge fluctuation energy:                     ",energy%hartree,&
-               "London dispersion energy:                      ",energy%dispersion
-          IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
-             WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
-                  "DFTB3 3rd Order Energy Correction              ",energy%dftb3
-          END IF
-          IF (qs_env%qmmm) THEN
-             WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
-                  "QM/MM Electrostatic energy:                    ",energy%qmmm_el
-          END IF
-       END IF
-       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%DETAILED_ENERGY", error=error)
-       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
-       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
-          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
-          DO ispin=1,SIZE(mo_derivs)
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                  mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
-             IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             ENDIF
-             CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&
-                  0.0_dp,mo_derivs(ispin)%matrix, error=error)
-          ENDDO
-       ENDIF
+      DEALLOCATE(mcharge,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     END IF
+
+    energy%total = energy%core + energy%hartree + energy%qmmm_el + &
+                   energy%repulsive + energy%dispersion + energy%dftb3
+
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
+       extension=".scfLog",error=error)
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(/,(T9,A,T60,F20.10))")&
+            "Repulsive pair potential energy:               ",energy%repulsive,&
+            "Zeroth order Hamiltonian energy:               ",energy%core,&
+            "Charge fluctuation energy:                     ",energy%hartree,&
+            "London dispersion energy:                      ",energy%dispersion
+       IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
+          WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
+               "DFTB3 3rd Order Energy Correction              ",energy%dftb3
+       END IF
+       IF (qs_env%qmmm) THEN
+          WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
+               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+       END IF
+    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%DETAILED_ENERGY", error=error)
+    ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
+    IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
+       CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
+       DO ispin=1,SIZE(mo_derivs)
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+               mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
+          IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          ENDIF
+          CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&
+               0.0_dp,mo_derivs(ispin)%matrix, error=error)
+       ENDDO
+    ENDIF
 
     CALL timestop(handle)
 

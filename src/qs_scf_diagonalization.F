@@ -660,7 +660,7 @@ CONTAINS
       ene_old =  energy%total
 
       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-      CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+      CALL qs_ks_update_qs_env(qs_env,calculate_forces=.FALSE.,&
              just_energy=.FALSE.,print_active=.FALSE.,error=error)
 
       max_val = 0.0_dp

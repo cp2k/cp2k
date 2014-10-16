@@ -196,8 +196,8 @@ CONTAINS
        IF (write_ks .OR. write_xc) THEN
           IF (write_xc) qs_env%requires_matrix_vxc=.TRUE.
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
-          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,error=error,&
-                                    calculate_forces=.FALSE.,just_energy=.FALSE.)
+          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
+                                   just_energy=.FALSE., error=error)
           IF (write_xc) qs_env%requires_matrix_vxc=.FALSE.
        END IF
 

@@ -521,10 +521,7 @@ CONTAINS
        qs_env%et_coupling%energy=energy%total
        qs_env%et_coupling%keep_matrix=.TRUE.
        qs_env%et_coupling%first_run=.TRUE.
-       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
-                                qs_env=qs_env, &
-                                calculate_forces=.FALSE., &
-                                just_energy=.TRUE.,error=error)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE., error=error)
        qs_env%et_coupling%first_run=.FALSE.
        IF(dft_control%qs_control%ddapc_restraint)THEN
           rest_b_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING%DDAPC_RESTRAINT_B",&
@@ -541,10 +538,7 @@ CONTAINS
        CALL scf(qs_env=qs_env, error=error)
        qs_env%et_coupling%keep_matrix=.TRUE.
 
-       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
-                                qs_env=qs_env, &
-                                calculate_forces=.FALSE., &
-                                just_energy=.TRUE.,error=error)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE., error=error)
        CALL calc_et_coupling(qs_env,error)
        IF(dft_control%qs_control%becke_restraint)THEN
           CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)

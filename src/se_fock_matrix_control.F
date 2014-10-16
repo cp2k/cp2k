@@ -9,11 +9,7 @@
 !> \par History
 ! *****************************************************************************
 MODULE se_fock_matrix_control
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE se_fock_matrix_ga,               ONLY: build_se_fock_matrix_ga
   USE se_fock_matrix_mpi,              ONLY: build_se_fock_matrix_mpi
   USE timings,                         ONLY: timeset,&
@@ -31,11 +27,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Fock matrix for NDDO methods
-!> \param ks_env ...
 !> \param qs_env ...
-!> \param ks_matrix ...
-!> \param rho ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
@@ -43,15 +35,9 @@ CONTAINS
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix_control (ks_env,qs_env,ks_matrix,rho,energy,&
-       calculate_forces,just_energy,error)
+  SUBROUTINE build_se_fock_matrix_control(qs_env,calculate_forces,just_energy,error)
 
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -63,11 +49,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
 #ifdef _USE_GA
-    CALL build_se_fock_matrix_ga(ks_env,qs_env,ks_matrix,rho,energy,&
-       calculate_forces,just_energy,error)
+    CALL build_se_fock_matrix_ga(qs_env,calculate_forces,just_energy,error)
 #else
-    CALL build_se_fock_matrix_mpi(ks_env,qs_env,ks_matrix,rho,energy,&
-       calculate_forces,just_energy,error)
+    CALL build_se_fock_matrix_mpi(qs_env,calculate_forces,just_energy,error)
 #endif
 
     CALL timestop(handle)

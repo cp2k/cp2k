@@ -223,9 +223,8 @@ CONTAINS
        END DO
        CALL calc_update_rho(qs_env,error)
     END IF
-  
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-                             error=error)
+
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
 
     CALL init_propagators(qs_env,error)
 
@@ -356,8 +355,7 @@ CONTAINS
               CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
           rtp%iter=i_iter
           CALL propagation_step(qs_env,rtp, rtp_control, error=error)
-          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-               error=error)
+          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
           rtp%energy_new=energy%total
           IF(rtp%converged)EXIT
           CALL rt_prop_output(qs_env,real_time_propagation,rtp%delta_iter,error=error)

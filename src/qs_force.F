@@ -316,9 +316,7 @@ CONTAINS
        END IF
 
        ! Compute grid-based forces
-       CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                                qs_env=qs_env,&
-                                calculate_forces=.TRUE.,error=error)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE., error=error)
 
        IF(ASSOCIATED(qs_env%mp2_env)) THEN
           CALL get_qs_env(qs_env,&
@@ -334,9 +332,7 @@ CONTAINS
          CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&
                                s_mstruct_changed=qs_env%mp2_env%ri_mp2%free_hfx_buffer,&
                                error=error)
-         CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                                  qs_env=qs_env,&
-                                  just_energy=.TRUE.,error=error)
+         CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE., error=error)
          energy%total = energy%total + energy%mp2
          ! deallocate mp2_W 
          CALL cp_dbcsr_deallocate_matrix_set(matrix_w_mp2,error=error)

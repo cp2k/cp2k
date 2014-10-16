@@ -37,8 +37,7 @@ MODULE qs_scf_loop_utils
                                              qs_environment_type
   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
                                              self_consistency_check
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
@@ -85,7 +84,7 @@ MODULE qs_scf_loop_utils
   PUBLIC :: qs_scf_set_loop_flags,&
             qs_scf_new_mos, qs_scf_new_mos_kp,&
             qs_scf_harris_e_correct, qs_scf_density_mixing,&
-            qs_scf_check_inner_exit, qs_scf_ks_updates,&
+            qs_scf_check_inner_exit, &
             qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
 CONTAINS
@@ -715,28 +714,6 @@ CONTAINS
      ENDIF
   END SUBROUTINE qs_scf_undo_mixing
 
-! *****************************************************************************
-!> \brief Performes the updates of ks envs
-!> \param qs_env ...
-!> \param ks_env ...
-!> \param just_energy ...
-!> \param calculate_forces ...
-!> \param error ...
-! *****************************************************************************
-
-  SUBROUTINE qs_scf_ks_updates(qs_env,ks_env,just_energy,calculate_forces,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_ks_updates', &
-      routineP = moduleN//':'//routineN
-
-    CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=calculate_forces,&
-         just_energy=just_energy,error=error)
-    
-  END  SUBROUTINE qs_scf_ks_updates
 
 ! *****************************************************************************
 !> \brief Performes the updates rho (takes care of mixing as well)
@@ -748,15 +725,16 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_scf_rho_update(rho,qs_env,scf_env,ks_env,mix_rho,error)
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    LOGICAL,INTENT(IN)                       :: mix_rho
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(qs_ks_env_type), POINTER            :: ks_env
+    LOGICAL, INTENT(IN)                      :: mix_rho
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_rho_updates', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_rho_update', &
       routineP = moduleN//':'//routineN
+
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(para_env)

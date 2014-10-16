@@ -110,27 +110,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param ks_env ...
 !> \param qs_env ...
-!> \param ks_matrix ...
-!> \param ks_matrixkp ...
-!> \param rho ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_scptb_ks_matrix (ks_env,qs_env,ks_matrix,ks_matrixkp,&
-             rho,energy,calculate_forces,just_energy,error)
-
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+  SUBROUTINE build_scptb_ks_matrix(qs_env,calculate_forces,just_energy,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ks_matrix
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: ks_matrixkp
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -147,10 +133,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                mo_derivs
+      POINTER                                :: ks_matrix, matrix_h, &
+                                                matrix_p, matrix_s, mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrixkp_h
+      POINTER                                :: ks_matrixkp, matrixkp_h
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -160,40 +146,42 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routineN,handle)
-
+    failure=.FALSE.
     NULLIFY(dft_control, logger, scf_section)
-    NULLIFY(matrix_p, particle_set)
-
-    IF(PRESENT(ks_matrixkp)) THEN
-      do_kp = .TRUE.
-      CPPrecondition(SIZE(ks_matrixkp,1)>0,cp_failure_level,routineP,error,failure)
-      CPPrecondition(SIZE(ks_matrixkp,2)>0,cp_failure_level,routineP,error,failure)
-    ELSE IF(PRESENT(ks_matrix)) THEN
-      do_kp = .FALSE.
-      CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-    ELSE
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END IF
-
+    NULLIFY(matrix_p, particle_set, ks_env, ks_matrix, ks_matrixkp, rho, energy)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     logger => cp_error_get_logger(error)
 
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CALL get_qs_env(qs_env, do_kpoints=do_kp, kpoints=kpoints, error=error)
+    IF(do_kp) THEN
+       CALL get_kpoint_info(kpoints, matrix_ks=ks_matrixkp, error=error)
+       CPPrecondition(SIZE(ks_matrixkp,1)>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(ks_matrixkp,2)>0,cp_failure_level,routineP,error,failure)
+    ELSE
+       CALL get_qs_env(qs_env, matrix_ks=ks_matrix, error=error)
+       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+    END IF
 
     IF ( .NOT. failure ) THEN
-
-      CALL get_qs_env(qs_env=qs_env,&
-           dft_control=dft_control,&
-           atomic_kind_set=atomic_kind_set,&
-           qs_kind_set=qs_kind_set,&
-           para_env=para_env,error=error)
+      CALL get_qs_env(qs_env,&
+                      ks_env=ks_env,&
+                      dft_control=dft_control,&
+                      atomic_kind_set=atomic_kind_set,&
+                      qs_kind_set=qs_kind_set,&
+                      para_env=para_env,&
+                      rho=rho,&
+                      energy=energy,&
+                      error=error)
 
       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
       nspins=dft_control%nspins

@@ -1003,8 +1003,7 @@ CPSourceFileRef,&
        !    **** the Kohn-Sham matrix itself
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
-          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-               error=error,calculate_forces=.FALSE.,just_energy=.FALSE.)
+          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                extension=".Log",error=error)

@@ -1784,8 +1784,7 @@ CONTAINS
     END DO
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-    CALL qs_ks_update_qs_env(ks_env,qs_env,calculate_forces=.FALSE.,&
-         just_energy=.FALSE.,error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., error=error)
     ep_env%energy%e0=energy%total
     unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",error=error)
@@ -2010,9 +2009,7 @@ CONTAINS
          error=error)
 
     ! *** compute grid-based forces ***
-    CALL qs_ks_update_qs_env(ks_env=ks_env,&
-         qs_env=qs_env,&
-         calculate_forces=.TRUE.,error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE., error=error)
 
     !  *** replicate forces ***
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&

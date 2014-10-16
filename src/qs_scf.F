@@ -97,7 +97,8 @@ MODULE qs_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: make_basis_simple,&
@@ -116,8 +117,8 @@ MODULE qs_scf
   USE qs_scf_loop_utils,               ONLY: &
        qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
        qs_scf_density_mixing, qs_scf_harris_e_correct, qs_scf_inner_finalize, &
-       qs_scf_ks_updates, qs_scf_new_mos, qs_scf_new_mos_kp, &
-       qs_scf_rho_update, qs_scf_set_loop_flags
+       qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, &
+       qs_scf_set_loop_flags
   USE qs_scf_output,                   ONLY: qs_scf_loop_info,&
                                              qs_scf_loop_print,&
                                              qs_scf_outer_loop_info,&
@@ -397,7 +398,8 @@ CONTAINS
           total_steps = total_steps + 1
           just_energy = energy_only
  
-          CALL qs_scf_ks_updates(qs_env,ks_env,just_energy,calculate_forces=.FALSE.,error=error)
+          CALL qs_ks_update_qs_env(qs_env, just_energy=just_energy,&
+                                   calculate_forces=.FALSE., error=error)
 
           ! print 'heavy weight' or relatively expensive quantities
           CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
@@ -691,8 +693,8 @@ CPSourceFileRef)
           ENDIF
 
           ! might need the KS matrix to init properly
-          CALL qs_scf_ks_updates(qs_env,qs_env%ks_env,just_energy=.FALSE.,&
-                                 calculate_forces=.FALSE., error=error)
+          CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE.,&
+                                   calculate_forces=.FALSE., error=error)
 
           ! if an old preconditioner is still around (i.e. outer SCF is active),
           ! remove it if this could be worthwhile

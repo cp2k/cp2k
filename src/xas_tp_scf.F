@@ -227,8 +227,7 @@ CONTAINS
 
        ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,error=error,&
-            calculate_forces=.FALSE.,just_energy=energy_only)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=energy_only, error=error)
 
        scf_env%mixing_store%alpha =  xas_env%mixing_store%alpha
        scf_env%mixing_store%iter_method = xas_env%mixing_store%iter_method
