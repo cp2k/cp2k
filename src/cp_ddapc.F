@@ -125,6 +125,7 @@ CONTAINS
     logger         => cp_error_get_logger(error)
     ddapc_restraint_is_spin =.FALSE.
     et_coupling_calc        =.FALSE.
+    ddapc_size=0
 
     CALL get_qs_env(qs_env,&
                     v_hartree_rspace=v_hartree_rspace,&
