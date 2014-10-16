@@ -48,6 +48,7 @@ MODULE  rt_propagation_utils
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_io,                        ONLY: read_mo_set,&
                                              read_rt_mos_from_restart
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
@@ -114,6 +115,7 @@ MODULE  rt_propagation_utils
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure = .FALSE.
@@ -127,6 +129,7 @@ MODULE  rt_propagation_utils
     NULLIFY (rtp)
     NULLIFY (s_derivs)
     NULLIFY (dft_control)
+    NULLIFY (ks_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     rtp=rtp,&
@@ -136,6 +139,7 @@ MODULE  rt_propagation_utils
                     sab_orb=sab_orb,&
                     force=force,&
                     dft_control=dft_control,&
+                    ks_env=ks_env,&
                     error=error)
 
     CALL get_rtp(rtp=rtp,B_mat=B_mat,C_mat=C_mat,S_der=S_der,error=error)
@@ -153,7 +157,7 @@ MODULE  rt_propagation_utils
        IF(dft_control%qs_control%dftb)THEN
           CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
        ELSE
-          CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
+          CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=s_derivs,&
                basis_set_id_a=use_orb_basis_set,&
                basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
        END IF        

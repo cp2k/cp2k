@@ -259,7 +259,7 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
 
@@ -641,7 +641,7 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
 
@@ -821,7 +821,7 @@ CONTAINS
       CALL zero_qs_force(force,error)
 
       ! *** The forces due to exchange and correlation *** !
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
 
@@ -1219,6 +1219,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force, force_tmp
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: input, xc_section
@@ -1228,7 +1229,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(rho, v_rspace_new, matrix_ks, auxbas_pw_pool, pw_env, &
             rho_core, force_tmp, v_tau_rspace, poisson_env, dft_control, input,&
-            xc_section, subsys)
+            xc_section, subsys, ks_env)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1244,9 +1245,15 @@ CONTAINS
     END IF
 
     IF (.NOT. failure) THEN
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      dft_control=dft_control, input=input, particle_set=particle_set,&
-                      subsys=subsys, error=error)
+      CALL get_qs_env(qs_env,&
+                      atomic_kind_set=atomic_kind_set,&
+                      force=force, &
+                      dft_control=dft_control,&
+                      input=input,&
+                      particle_set=particle_set,&
+                      subsys=subsys,&
+                      ks_env=ks_env,&
+                      error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -1304,7 +1311,7 @@ CONTAINS
                                    error=error)
 
       NULLIFY(v_rspace_new)
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy = .FALSE., error=error)
 

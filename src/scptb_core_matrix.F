@@ -180,7 +180,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        ! S matrix
-       CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
@@ -188,7 +188,7 @@ CONTAINS
                                  matrix_p=matrix_w(1)%matrix,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(ks_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
@@ -197,14 +197,14 @@ CONTAINS
                                  error=error)
     ELSE
        ! S matrix
-       CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
                                  sab_nl=sab_orb,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(ks_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,&
@@ -446,7 +446,7 @@ CONTAINS
     eps_filter = dft_control%qs_control%eps_filter_matrix
 
     ! S matrix
-    CALL build_overlap_matrix(qs_env,nderivative=nder,matrixkp_s=matrix_s,&
+    CALL build_overlap_matrix(ks_env,nderivative=nder,matrixkp_s=matrix_s,&
                               matrix_name="OVERLAP MATRIX",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
@@ -454,7 +454,7 @@ CONTAINS
 !deb                          eps_filter=eps_filter,&
                               error=error)
     ! T matrix
-    CALL build_kinetic_matrix(qs_env,matrixkp_t=matrix_t,&
+    CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
                               matrix_name="KINETIC ENERGY MATRIX",&
                               basis_set_id=use_orb_basis_set,&
                               sab_nl=sab_orb,&

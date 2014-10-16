@@ -49,7 +49,8 @@ MODULE optbas_fenv_manipulation
   USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type,&
                                              set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_io,                        ONLY: read_mo_set
@@ -193,7 +194,6 @@ CONTAINS
                     qs_kind_set=qs_kind_set,&
                     scf_control=scf_control,&
                     particle_set=particle_set,&
-!                   matrix_s=matrix_s,&
                     admm_env=admm_env,&
                     para_env=para_env,&
                     error=error)
@@ -302,12 +302,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
+!> \param ks_env ...
 !> \param S_type ...
 !> \param error ...
 ! *****************************************************************************
-   SUBROUTINE calculate_overlap(qs_env,S_type,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+   SUBROUTINE calculate_overlap(ks_env,S_type,error)
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     CHARACTER(LEN=*)                         :: S_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -320,43 +320,38 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_aux_fit, &
                                                 sab_aux_fit_vs_orb, sab_orb
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-
-    NULLIFY(ks_env)
 
     IF(S_type=="S_AB")THEN
-       CALL get_qs_env(qs_env,&
-                       ks_env=ks_env,&
+       CALL get_ks_env(ks_env,&
                        matrix_s=matrix_s,&
                        sab_orb=sab_orb,&
                        error=error)
-       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
-                          matrix_name="OVERLAP",&
-                          basis_set_id_a=use_orb_basis_set,&
-                          basis_set_id_b=use_orb_basis_set, &
-                          sab_nl=sab_orb,&
-                          error=error)
+       CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
+                                 matrix_name="OVERLAP",&
+                                 basis_set_id_a=use_orb_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
+                                 sab_nl=sab_orb,&
+                                 error=error)
        CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
     ELSE IF(S_type=="S_AB_AUX")THEN
-       CALL get_qs_env(qs_env,&
-                       ks_env=ks_env,&
+       CALL get_ks_env(ks_env,&
                        matrix_s_aux_fit=matrix_s_aux_fit,&
                        matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                        sab_aux_fit=sab_aux_fit,&
                        sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                        error=error)
-       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit,&
-                          matrix_name="AUX_FIT_OVERLAP",&
-                          basis_set_id_a=use_aux_fit_basis_set,&
-                          basis_set_id_b=use_aux_fit_basis_set, &
-                          sab_nl=sab_aux_fit,&
-                          error=error)
-       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit_vs_orb,&
-                          matrix_name="MIXED_OVERLAP",&
-                          basis_set_id_a=use_aux_fit_basis_set,&
-                          basis_set_id_b=use_orb_basis_set, &
-                          sab_nl=sab_aux_fit_vs_orb,&
-                          error=error)
+       CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit,&
+                                 matrix_name="AUX_FIT_OVERLAP",&
+                                 basis_set_id_a=use_aux_fit_basis_set,&
+                                 basis_set_id_b=use_aux_fit_basis_set, &
+                                 sab_nl=sab_aux_fit,&
+                                 error=error)
+       CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit_vs_orb,&
+                                 matrix_name="MIXED_OVERLAP",&
+                                 basis_set_id_a=use_aux_fit_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
+                                 sab_nl=sab_aux_fit_vs_orb,&
+                                 error=error)
        CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                        matrix_s_aux_fit=matrix_s_aux_fit,error=error)
     END IF

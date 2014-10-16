@@ -27,6 +27,7 @@ MODULE kg_correction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_create,&
@@ -135,11 +136,12 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: old_rho, rho_struct
 
     CALL timeset(routineN, handle)
 
-    NULLIFY(vxc_rho, vxc_tau, old_rho, rho_struct)
+    NULLIFY(vxc_rho, vxc_tau, old_rho, rho_struct, ks_env)
 
     kg_env => qs_env%kg_env
 
@@ -153,6 +155,7 @@ CONTAINS
 
     ! get set of molecules, natom, dft_control, pw_env
     CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
                     rho=old_rho,&
                     matrix_h=matrix_h,&
                     natom=natom,&
@@ -192,7 +195,7 @@ CONTAINS
       ekin_imol=0.0_dp
 
       ! calc Hohenberg-Kohn kin. energy of the density corresp. to the remaining molecular block(s)
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
                         vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol, error=error)
 
       rho_struct%rho_ao => my_mat

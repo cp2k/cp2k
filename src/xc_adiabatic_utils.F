@@ -29,6 +29,7 @@ MODULE xc_adiabatic_utils
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
@@ -89,6 +90,7 @@ CONTAINS
       scale_dEx1, scale_dEx2, total_energy_xc
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho_xc
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_sections, input, &
@@ -97,13 +99,14 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(para_env, dft_control, adiabatic_rescaling_section, hfx_sections,&
-            input, xc_section, rho_xc)
+            input, xc_section, rho_xc, ks_env)
 
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
                     para_env=para_env,&
                     input=input,&
                     rho_xc=rho_xc,&
+                    ks_env=ks_env,&
                     error=error)
 
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
@@ -154,11 +157,11 @@ CONTAINS
           ! Calculate vxc and rescale it
           xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
           IF (gapw_xc) THEN
-            CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_xc, xc_section=xc_section, &
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                  just_energy=just_energy ,adiabatic_rescale_factor=scale_dDFA, error=error)
           ELSE
-            CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                  just_energy=just_energy, adiabatic_rescale_factor=scale_dDFA, error=error)
           END IF

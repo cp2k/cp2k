@@ -528,7 +528,7 @@ CONTAINS
          END IF
 
          ! here we ignore a possible vdW section in admm_env%xc_section_aux
-         CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
+         CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
               just_energy=just_energy_xc, error=error)
 
@@ -554,7 +554,7 @@ CONTAINS
          energy%exc = 0.
          CALL calculate_zmp_potential(qs_env, v_rspace_new, rho, exc=energy%exc,error=error)
        ELSE
-         CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
+         CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
               edisp=edisp, dispersion_env=qs_env%dispersion_env, &
               just_energy=just_energy_xc, error=error)
@@ -926,7 +926,7 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
       just_energy_xc=just_energy
 
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
            edisp=edisp, dispersion_env=qs_env%dispersion_env, &
            just_energy=just_energy_xc, error=error)

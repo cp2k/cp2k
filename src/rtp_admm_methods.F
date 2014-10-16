@@ -737,14 +737,16 @@ CONTAINS
                                                 sab_aux_fit_vs_orb
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    NULLIFY(sab_aux_fit_asymm, sab_aux_fit_vs_orb)
+    NULLIFY(sab_aux_fit_asymm, sab_aux_fit_vs_orb, ks_env)
     failure = .FALSE.
 !   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix",error=error)
 
     CALL get_qs_env(qs_env,&
                     sab_aux_fit_asymm=sab_aux_fit_asymm,&
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
+                    ks_env=ks_env,&
                     error=error)
 
     ALLOCATE(matrix_w_s)
@@ -819,10 +821,10 @@ CONTAINS
        ALLOCATE(admm_force(3,natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        admm_force = 0.0_dp
-       CALL build_overlap_force(qs_env, admm_force,&
+       CALL build_overlap_force(ks_env, admm_force,&
             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
             sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
-       CALL build_overlap_force(qs_env, admm_force,&
+       CALL build_overlap_force(ks_env, admm_force,&
             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
             sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
        ! add forces

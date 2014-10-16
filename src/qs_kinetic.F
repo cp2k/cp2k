@@ -32,12 +32,12 @@ MODULE qs_kinetic
   USE kpoint_types,                    ONLY: get_kpoint_info,&
                                              kpoint_type
   USE orbital_pointers,                ONLY: ncoset
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integral_utils,               ONLY: basis_set_list_setup,&
                                              get_memory_usage
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              get_neighbor_list_set_p,&
                                              neighbor_list_iterate,&
@@ -68,7 +68,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculation of the kinetic energy matrix over Cartesian Gaussian functions.
-!> \param   qs_env the QS environment
+!> \param   ks_env the QS environment
 !> \param   matrix_t The kinetic energy matrix to be calculated (optional)
 !> \param   matrixkp_t The kinetic energy matrices to be calculated (kpoints,optional)
 !> \param   matrix_name The name of the matrix (i.e. for output)
@@ -88,10 +88,10 @@ CONTAINS
 !> \author  JGH
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_kinetic_matrix(qs_env,matrix_t,matrixkp_t,matrix_name,&
+  SUBROUTINE build_kinetic_matrix(ks_env,matrix_t,matrixkp_t,matrix_name,&
              basis_set_id,sab_nl,calculate_forces,matrix_p,matrixkp_p,eps_filter,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_t
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -158,7 +158,7 @@ CONTAINS
         dokp = .FALSE.
      ELSEIF (PRESENT(matrixkp_t)) THEN
         dokp = .TRUE.
-        CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+        CALL get_ks_env(ks_env=ks_env,kpoints=kpoints,error=error)
         CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,&
                              cell_to_index=cell_to_index,error=error)
         ncount = SIZE(index_to_cell,2)
@@ -167,7 +167,7 @@ CONTAINS
      END IF
 
      NULLIFY (atomic_kind_set, qs_kind_set, p_block)
-     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
+     CALL get_ks_env(ks_env=ks_env,atomic_kind_set=atomic_kind_set,natom=natom,&
                      qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist,error=error)
      nkind = SIZE(atomic_kind_set)
 
@@ -184,17 +184,17 @@ CONTAINS
 
      IF(dokp) THEN
         CALL cp_dbcsr_allocate_matrix_set(matrixkp_t,1,ncount,error=error)
-        CALL create_sab_matrix(qs_env, matrixkp_t, matrix_name, basis_set_id, basis_set_id, &
+        CALL create_sab_matrix(ks_env, matrixkp_t, matrix_name, basis_set_id, basis_set_id, &
                                sab_nl, do_symmetric, error)
      ELSE
         CALL cp_dbcsr_allocate_matrix_set(matrix_t,1,error=error)
-        CALL create_sab_matrix(qs_env, matrix_t, matrix_name, basis_set_id, basis_set_id, &
+        CALL create_sab_matrix(ks_env, matrix_t, matrix_name, basis_set_id, basis_set_id, &
                                sab_nl, do_symmetric, error)
      END IF
 
      IF (do_forces) THEN
         ! if forces -> maybe virial too
-        CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
+        CALL get_ks_env(ks_env=ks_env,force=force,virial=virial,error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
         ! we need density matrix for forces
         IF(dokp) THEN

@@ -46,10 +46,8 @@ MODULE qs_vxc
                                              pw_type
   USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -72,7 +70,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates and allocates the xc potential, already reducing it to
 !>      the dependence on rho and the one on tau
-!> \param qs_env qs_environment to get all the needed things
+!> \param ks_env to get all the needed things
 !> \param rho_struct density for which v_xc is calculated
 !> \param xc_section ...
 !> \param vxc_rho will contain the v_xc part that depend on rho
@@ -99,10 +97,10 @@ CONTAINS
 !>      - sic alterations [Joost VandeVondele]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_vxc_create( qs_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
+  SUBROUTINE qs_vxc_create( ks_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
        just_energy, edisp, dispersion_env, adiabatic_rescale_factor, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
@@ -117,20 +115,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, myfun, stat, &
-                                                vdw
+    INTEGER                                  :: handle, ispin, myfun, &
+                                                nelec_spin(2), stat, vdw
     LOGICAL :: compute_virial, do_adiabatic_rescaling, failure, &
       my_just_energy, sic_scaling_b_zero, uf_grid, vdW_nl
     REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
-                                                my_scaling, nelec_s_inv, &
-                                                nelec_spin(2)
+                                                my_scaling, nelec_s_inv
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
                                                 rho_g, rho_m_gspace, &
@@ -159,7 +154,7 @@ CONTAINS
        do_adiabatic_rescaling = .TRUE.
     END IF
 
-    CALL get_qs_env(qs_env,&
+    CALL get_ks_env(ks_env,&
                    dft_control=dft_control, &
                    pw_env=pw_env,&
                    cell=cell,&
@@ -330,10 +325,10 @@ CONTAINS
 
           ! calclulate non-local vdW functional
           ! only if this XC_SECTION has it
-          ! if yes, we use the dispersion_env from qs_env
+          ! if yes, we use the dispersion_env from ks_env
           ! this is dangerous, as it assumes a special connection xc_section -> qs_env
           IF (vdW_nl) THEN
-             CALL get_qs_env(qs_env=qs_env, para_env=para_env, error=error)
+             CALL get_ks_env(ks_env=ks_env, para_env=para_env, error=error)
              ! no spin polarization allowed
              CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
              ! no SIC functionals allowed
@@ -469,9 +464,7 @@ CONTAINS
           IF ( dft_control%sic_method_id .EQ. sic_ad  .AND. .NOT. sic_scaling_b_zero ) THEN
 
              ! find out how many elecs we have
-             CALL get_qs_env(qs_env,mos=mo_array,error=error)
-             CALL get_mo_set(mo_set=mo_array(1)%mo_set,n_el_f=nelec_spin(1))
-             CALL get_mo_set(mo_set=mo_array(2)%mo_set,n_el_f=nelec_spin(2))
+             CALL get_ks_env(ks_env,nelectron_spin=nelec_spin,error=error)
 
              ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
              DO ispin=1,2

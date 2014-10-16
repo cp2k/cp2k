@@ -63,6 +63,7 @@ MODULE qs_linres_epr_nablavks
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_linres_types,                 ONLY: epr_env_type,&
                                              get_epr_env,&
                                              nablavks_atom_type
@@ -155,6 +156,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pwx, pwy, pwz
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       POINTER                                :: nablavks_set
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
@@ -208,6 +210,7 @@ CONTAINS
     NULLIFY(v_tau_rspace)
     NULLIFY(xc_section)
     NULLIFY(input)
+    NULLIFY(ks_env)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
@@ -268,6 +271,7 @@ CONTAINS
                     rho0_atom_set=rho0_atom_set,&
                     rhoz_set=rhoz_set,&
                     subsys=subsys,&
+                    ks_env=ks_env,&
                     error=error)
 
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
@@ -918,11 +922,11 @@ CONTAINS
     ! a possible vdW section in xc_section will be ignored
 
     IF (gapw_xc) THEN
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_xc, xc_section=xc_section,&
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=xc_section,&
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
            error=error)
     ELSE
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section,&
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section,&
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., & 
            error=error)
     END IF

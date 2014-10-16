@@ -69,6 +69,7 @@ MODULE admm_methods
                                              qs_environment_type
   USE qs_force_types,                  ONLY: add_qs_force,&
                                              qs_force_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -1040,11 +1041,13 @@ MODULE admm_methods
                                                 sab_aux_fit_vs_orb
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    NULLIFY(matrix_w_q, matrix_w_s, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb)
+    NULLIFY(matrix_w_q, matrix_w_s, sab_aux_fit, sab_aux_fit_asymm, &
+            sab_aux_fit_vs_orb, ks_env)
 
     nao_aux_fit = admm_env%nao_aux_fit
     nao_orb = admm_env%nao_orb
@@ -1066,6 +1069,7 @@ MODULE admm_methods
                     sab_aux_fit=sab_aux_fit,&
                     sab_aux_fit_asymm=sab_aux_fit_asymm,&
                     sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
+                    ks_env=ks_env,&
                     error=error)
 
     ALLOCATE(matrix_w_s)
@@ -1164,10 +1168,10 @@ MODULE admm_methods
     CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
     ALLOCATE(admm_force(3,natom))
     admm_force = 0.0_dp
-    CALL build_overlap_force(qs_env, admm_force,&
+    CALL build_overlap_force(ks_env, admm_force,&
          basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
          sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
-    CALL build_overlap_force(qs_env, admm_force,&
+    CALL build_overlap_force(ks_env, admm_force,&
          basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
          sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
     ! add forces

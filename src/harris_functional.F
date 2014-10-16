@@ -39,6 +39,7 @@ MODULE harris_functional
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_methods,                  ONLY: duplicate_rho_type
@@ -105,13 +106,14 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, energy,&
+    NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, energy, ks_env,&
             rho_core, rho, harris_energy, poisson_env, dft_control, input, xc_section)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -130,8 +132,15 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
-      CALL get_qs_env(qs_env=qs_env, input=input, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      dft_control=dft_control, energy=energy, error=error)
+      CALL get_qs_env(qs_env,&
+                      input=input,&
+                      pw_env=pw_env,&
+                      rho=rho,&
+                      rho_core=rho_core,&
+                      dft_control=dft_control,&
+                      energy=energy,&
+                      ks_env=ks_env,&
+                      error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
       ! check for nonlocal vdW functional
@@ -163,7 +172,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                    error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, rho_struct=harris_env%rho, xc_section=xc_section, &
+      CALL qs_vxc_create(ks_env=ks_env, rho_struct=harris_env%rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
                          just_energy=.FALSE., error=error)
 
