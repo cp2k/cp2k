@@ -186,12 +186,6 @@ CONTAINS
 !> \param ext_ks_matrix ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param energy the place where energies are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ks_env the ks_env that old all the temporary objects that
-!>        the calculation of the KS matrix needs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ks_matrix the KS matrix that is created UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho the density, must be up to date UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho_xc the soft density, only for gapw_xc , must be up to date UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !>              new did_change scheme [fawzi]
@@ -795,11 +789,6 @@ CONTAINS
 !> \param print_active ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param energy the place where energies are stored UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ks_env the ks_env that holds all the temporary objects that
-!>        the calculation of the LRI KS matrix needs UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ks_matrix the KS matrix that is created UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param rho the density, must be up to date UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      01.2014 created
 !> \author Dorothea Golze
