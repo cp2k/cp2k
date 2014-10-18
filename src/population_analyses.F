@@ -43,8 +43,8 @@ MODULE population_analyses
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: nso
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&

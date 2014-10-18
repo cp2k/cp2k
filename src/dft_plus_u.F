@@ -59,8 +59,8 @@ MODULE dft_plus_u
   USE mathlib,                         ONLY: jacobi
   USE message_passing,                 ONLY: mp_sum
   USE orbital_symbols,                 ONLY: sgf_symbol
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&

@@ -53,8 +53,8 @@ MODULE qs_linres_issc_utils
                                              dp
   USE mathlib,                         ONLY: diamat_all
   USE memory_utilities,                ONLY: reallocate
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: a_fine,&
                                              e_mass,&
                                              hertz,&

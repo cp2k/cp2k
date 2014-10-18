@@ -53,8 +53,8 @@ MODULE qs_linres_op
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE orbital_pointers,                ONLY: coset
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE qs_elec_field,                   ONLY: build_efg_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

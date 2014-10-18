@@ -11,6 +11,8 @@
 ! *****************************************************************************
 MODULE particle_methods
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_p_type
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
@@ -70,11 +72,87 @@ MODULE particle_methods
             write_particle_distances,&
             write_particle_coordinates,&
             write_structure_data,&
+            get_particle_set,&
             write_particle_matrix
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_methods'
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief   Get the components of a particle set.
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param first_sgf ...
+!> \param last_sgf ...
+!> \param nsgf ...
+!> \param basis_set_id ...
+!> \param basis ...
+!> \param error ...
+!> \date    14.01.2002
+!> \par History
+!>      - particle type cleaned (13.10.2003,MK)
+!>      - refactoring and add besis set option (17.08.2010,jhu)
+!> \author  MK
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE get_particle_set(particle_set,qs_kind_set,first_sgf,last_sgf,nsgf,&
+                              basis_set_id,basis,error)
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    INTEGER, DIMENSION(:), INTENT(INOUT), &
+      OPTIONAL                               :: first_sgf, last_sgf, nsgf
+    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ikind, iparticle, isgf, &
+                                                nparticle, ns
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+
+    nparticle = SIZE(particle_set)
+    IF (PRESENT(first_sgf)) THEN
+      CPPrecondition(SIZE(first_sgf) >= nparticle,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(last_sgf)) THEN
+      CPPrecondition(SIZE(last_sgf) >= nparticle,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(nsgf)) THEN
+      CPPrecondition(SIZE(nsgf) >= nparticle,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (PRESENT(first_sgf).OR.PRESENT(last_sgf).OR.PRESENT(nsgf)) THEN
+      isgf = 0
+      DO iparticle=1,nparticle
+        CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
+        IF (PRESENT(basis)) THEN
+          CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set,nsgf=ns)
+        ELSEIF (PRESENT(basis_set_id)) THEN
+          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns, basis_set_id=basis_set_id)
+        ELSE
+          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns)
+        END IF
+        IF (PRESENT(nsgf)) nsgf(iparticle) = ns
+        IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
+        isgf = isgf + ns
+        IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
+      END DO
+    END IF
+    IF (PRESENT(first_sgf)) THEN
+      IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
+    END IF
+
+  END SUBROUTINE get_particle_set
 
 ! *****************************************************************************
 !> \brief   Should be able to write a few formats e.g. xmol, and some binary

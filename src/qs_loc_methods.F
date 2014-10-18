@@ -63,10 +63,10 @@ MODULE qs_loc_methods
   USE memory_utilities,                ONLY: reallocate
   USE motion_utils,                    ONLY: get_output_format
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_methods,                ONLY: write_particle_coordinates
+  USE particle_methods,                ONLY: get_particle_set,&
+                                             write_particle_coordinates
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              deallocate_particle_set,&
-                                             get_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
