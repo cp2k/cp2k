@@ -8,8 +8,10 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE qs_subsys_methods
-
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE cell_methods,                    ONLY: read_cell,&
                                              write_cell
   USE cell_types,                      ONLY: cell_clone,&
@@ -22,11 +24,18 @@ MODULE qs_subsys_methods
                                              cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsys_type
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             get_potential,&
+                                             gth_potential_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE molecule_kind_types,             ONLY: num_ao_el_per_molecule
+  USE kinds,                           ONLY: dp
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             molecule_kind_type,&
+                                             set_molecule_kind
   USE qs_kind_types,                   ONLY: create_qs_kind_set,&
+                                             get_qs_kind,&
                                              qs_kind_type
   USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                              qs_subsys_type
@@ -135,4 +144,85 @@ CONTAINS
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
     IF (.NOT.PRESENT(cp_subsys)) CALL cp_subsys_release(my_cp_subsys,error=error)
   END SUBROUTINE qs_subsys_create
+
+! *****************************************************************************
+!> \brief   Read a molecule kind data set from the input file.
+!> \param molecule_kind_set ...
+!> \param qs_kind_set ...
+!> \param charge_x_mol ...
+!> \date    22.11.2004
+!> \author  MI
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,qs_kind_set,charge_x_mol)
+
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: charge_x_mol
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'num_ao_el_per_molecule', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatom, ikind, imol, &
+                                                my_charge, n_ao, natom, &
+                                                nelectron, nmol_kind, nsgf
+    REAL(KIND=dp)                            :: zeff, zeff_correction
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    IF (ASSOCIATED(molecule_kind_set)) THEN
+
+    nmol_kind = SIZE(molecule_kind_set,1)
+    natom = 0
+    my_charge = 0
+!   *** Initialize the molecule kind data structure ***
+
+    DO imol = 1,nmol_kind
+      molecule_kind => molecule_kind_set(imol)
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             natom=natom)
+      nelectron = 0
+      n_ao = 0
+      IF(PRESENT(charge_x_mol)) THEN
+        my_charge = charge_x_mol(imol)
+      END IF
+      DO iatom=1,natom
+        atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+        CALL get_qs_kind(qs_kind_set(ikind),&
+                         orb_basis_set=orb_basis_set,&
+                         all_potential=all_potential,&
+                         gth_potential=gth_potential)
+        IF (ASSOCIATED(all_potential)) THEN
+           CALL get_potential(potential=all_potential,zeff=zeff,&
+                zeff_correction=zeff_correction)
+        ELSE IF (ASSOCIATED(gth_potential)) THEN
+           CALL get_potential(potential=gth_potential,zeff=zeff,&
+                zeff_correction=zeff_correction)
+        ELSE
+           zeff = 0.0_dp
+           zeff_correction = 0.0_dp
+        END IF
+        nelectron = nelectron + NINT(zeff-zeff_correction)
+
+        IF (ASSOCIATED(orb_basis_set)) THEN
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
+        ELSE
+          nsgf = 0
+        ENDIF
+        n_ao = n_ao + nsgf
+      END DO  ! iatom
+      nelectron = nelectron + my_charge
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           nelectron=nelectron, nsgf=n_ao)
+    END DO  ! imol
+    END IF
+
+  END SUBROUTINE num_ao_el_per_molecule
+
 END MODULE qs_subsys_methods
