@@ -16,8 +16,8 @@ MODULE topology_constraint_util
   USE colvar_types,                    ONLY: &
        colvar_clone, colvar_counters, colvar_create, colvar_p_reallocate, &
        colvar_release, colvar_setup, colvar_type, dist_colvar_id, &
-       post_process_colvar, torsion_colvar_id, xyz_diag_colvar_id, &
-       xyz_outerdiag_colvar_id
+       torsion_colvar_id, xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+  USE colvar_utils,                    ONLY: post_process_colvar
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
