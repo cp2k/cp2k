@@ -11,6 +11,13 @@ MODULE constraint_fxd
   
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: get_atomic_kind_set
+  USE cell_types,                      ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE colvar_types,                    ONLY: colvar_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -18,13 +25,6 @@ MODULE constraint_fxd
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_constants,                 ONLY: use_perd_x,&
-                                             use_perd_xy,&
-                                             use_perd_xyz,&
-                                             use_perd_xz,&
-                                             use_perd_y,&
-                                             use_perd_yz,&
-                                             use_perd_z
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type

@@ -8,15 +8,23 @@
 ! *****************************************************************************
 MODULE thermostat_mapping
 
+  USE cell_types,                      ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: map_info_type
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       do_region_defined, do_region_global, do_region_massive, &
-       do_region_molecule, do_thermo_communication, &
-       do_thermo_no_communication, use_perd_x, use_perd_xy, use_perd_xyz, &
-       use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE input_constants,                 ONLY: do_region_defined,&
+                                             do_region_global,&
+                                             do_region_massive,&
+                                             do_region_molecule,&
+                                             do_thermo_communication,&
+                                             do_thermo_no_communication
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate

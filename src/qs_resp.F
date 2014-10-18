@@ -16,7 +16,9 @@ MODULE qs_resp
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+                                             pbc,&
+                                             use_perd_none,&
+                                             use_perd_xyz
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -33,9 +35,7 @@ MODULE qs_resp
                                              do_resp_minus_z_dir,&
                                              do_resp_x_dir,&
                                              do_resp_y_dir,&
-                                             do_resp_z_dir,&
-                                             use_perd_none,&
-                                             use_perd_xyz
+                                             do_resp_z_dir
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_get_lval,&
                                              section_vals_get,&

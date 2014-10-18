@@ -43,6 +43,15 @@ MODULE cell_types
                                               cell_sym_hexagonal=8,&
                                               cell_sym_cubic=9
 
+  INTEGER, PARAMETER, PUBLIC               :: use_perd_x=0,&
+                                              use_perd_y=1,&
+                                              use_perd_z=2,&
+                                              use_perd_xy=3,&
+                                              use_perd_xz=4,&
+                                              use_perd_yz=5,&
+                                              use_perd_xyz=6,&
+                                              use_perd_none=7
+
 ! *****************************************************************************
 !> \brief   Type defining parameters related to the simulation cell
 !> \version 1.0

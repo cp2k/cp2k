@@ -12,6 +12,13 @@ MODULE topology_constraint_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              is_hydrogen
+  USE cell_types,                      ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: &
        colvar_clone, colvar_counters, colvar_create, colvar_p_reallocate, &
@@ -21,9 +28,8 @@ MODULE topology_constraint_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       do_constr_atomic, do_constr_molec, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE input_constants,                 ONLY: do_constr_atomic,&
+                                             do_constr_molec
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

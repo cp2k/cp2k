@@ -17,7 +17,9 @@ MODULE md_vel_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: &
+       cell_type, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, &
+       use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -34,11 +36,13 @@ MODULE md_vel_utils
   USE force_env_utils,                 ONLY: force_env_rattle,&
                                              force_env_shake
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: &
-       npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-       reftraj_ensemble, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE input_constants,                 ONLY: npe_f_ensemble,&
+                                             npe_i_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
   USE input_cp2k_binary_restarts,      ONLY: read_binary_velocities
   USE input_restart_force_eval,        ONLY: update_subsys
   USE input_section_types,             ONLY: section_vals_get,&

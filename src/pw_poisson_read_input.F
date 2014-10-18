@@ -11,8 +11,7 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE pw_poisson_read_input
-  USE f77_blas
-  USE input_constants,                 ONLY: use_perd_none,&
+  USE cell_types,                      ONLY: use_perd_none,&
                                              use_perd_x,&
                                              use_perd_xy,&
                                              use_perd_xyz,&
@@ -20,6 +19,7 @@ MODULE pw_poisson_read_input
                                              use_perd_y,&
                                              use_perd_yz,&
                                              use_perd_z
+  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

@@ -17,6 +17,7 @@ MODULE input_cp2k_qmmm
                                              Golze2013,&
                                              Laino2005,&
                                              Laino2006
+  USE cell_types,                      ONLY: use_perd_none
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -33,8 +34,7 @@ MODULE input_cp2k_qmmm
        do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_swave, &
        do_qmmm_wall_none, do_qmmm_wall_quadratic, do_qmmm_wall_reflective, &
        gaussian, high_print_level, low_print_level, medium_print_level, &
-       radius_qmmm_default, silent_print_level, spline3_nopbc_interp, &
-       use_perd_none
+       radius_qmmm_default, silent_print_level, spline3_nopbc_interp
   USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                              create_Goodwin_section,&
                                              create_LJ_section,&

@@ -14,6 +14,13 @@
 MODULE molecule_kind_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE colvar_types,                    ONLY: &
        angle_colvar_id, colvar_counters, combine_colvar_id, coord_colvar_id, &
        dfunct_colvar_id, dist_colvar_id, gyration_colvar_id, &
@@ -28,13 +35,6 @@ MODULE molecule_kind_types
        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
        opbend_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, &
        ub_kind_dealloc_ref, ub_kind_type
-  USE input_constants,                 ONLY: use_perd_x,&
-                                             use_perd_xy,&
-                                             use_perd_xyz,&
-                                             use_perd_xz,&
-                                             use_perd_y,&
-                                             use_perd_yz,&
-                                             use_perd_z
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp

@@ -10,7 +10,14 @@
 !>         Teodoro Laino [tlaino] - 11.2008 : Improved the fixd_list restraints
 ! *****************************************************************************
 MODULE restraint
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: colvar_counters,&
                                              diff_colvar
@@ -23,13 +30,6 @@ MODULE restraint
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set,&
                                              force_env_type
-  USE input_constants,                 ONLY: use_perd_x,&
-                                             use_perd_xy,&
-                                             use_perd_xyz,&
-                                             use_perd_xz,&
-                                             use_perd_y,&
-                                             use_perd_yz,&
-                                             use_perd_z
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type

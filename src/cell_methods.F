@@ -11,13 +11,10 @@
 !> \author Matthias KracK (16.01.2002, based on a earlier version of CJM, JGH)
 ! *****************************************************************************
 MODULE cell_methods
-  USE cell_types,                      ONLY: cell_clone,&
-                                             cell_create,&
-                                             cell_sym_none,&
-                                             cell_type,&
-                                             get_cell,&
-                                             init_cell,&
-                                             set_cell_param
+  USE cell_types,                      ONLY: &
+       cell_clone, cell_create, cell_sym_none, cell_type, get_cell, &
+       init_cell, set_cell_param, use_perd_none, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -28,9 +25,8 @@ MODULE cell_methods
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       do_cell_cp2k, do_cell_xsc, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE input_constants,                 ONLY: do_cell_cp2k,&
+                                             do_cell_xsc
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
