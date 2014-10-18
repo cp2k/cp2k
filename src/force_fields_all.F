@@ -10,6 +10,7 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE force_fields_all
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
@@ -28,13 +29,17 @@ MODULE force_fields_all
                                              get_potential,&
                                              set_potential
   USE f77_blas
-  USE force_field_types,               ONLY: &
+  USE force_field_kind_types,          ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_opbend_kind_set, &
-       allocate_torsion_kind_set, allocate_ub_kind_set, amber_info_type, &
-       bend_kind_type, bond_kind_type, charmm_info_type, force_field_type, &
-       gromos_info_type, impr_kind_type, input_info_type, opbend_kind_type, &
-       torsion_kind_type, ub_kind_type
+       allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
+       bond_kind_type, impr_kind_type, opbend_kind_type, torsion_kind_type, &
+       ub_kind_type
+  USE force_field_types,               ONLY: amber_info_type,&
+                                             charmm_info_type,&
+                                             force_field_type,&
+                                             gromos_info_type,&
+                                             input_info_type
   USE input_constants,                 ONLY: do_ff_amber,&
                                              do_ff_charmm,&
                                              do_ff_g87,&
