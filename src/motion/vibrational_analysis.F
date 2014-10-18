@@ -50,8 +50,8 @@ MODULE vibrational_analysis
   USE motion_utils,                    ONLY: rot_ana,&
                                              thrs_motion
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_matrix
+  USE particle_methods,                ONLY: write_particle_matrix
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit,&
                                              vibfac
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&

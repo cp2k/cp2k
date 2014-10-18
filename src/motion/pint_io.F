@@ -33,7 +33,7 @@ MODULE pint_io
                                              dp
   USE machine,                         ONLY: m_flush
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates
+  USE particle_methods,                ONLY: write_particle_coordinates
   USE pint_public,                     ONLY: pint_com_pos
   USE pint_transformations,            ONLY: pint_u2x
   USE pint_types,                      ONLY: e_conserved_id,&

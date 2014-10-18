@@ -118,10 +118,10 @@ MODULE qs_environment
   USE mp2_types,                       ONLY: mp2_env_create
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_distances,&
+  USE particle_methods,                ONLY: write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
+  USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type

@@ -42,9 +42,9 @@ MODULE cp2k_debug
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_fist_particle_coordinates,&
+  USE particle_methods,                ONLY: write_fist_particle_coordinates,&
                                              write_qs_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env
   USE qs_kind_types,                   ONLY: qs_kind_type
   USE termination,                     ONLY: print_warning,&

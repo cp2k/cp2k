@@ -58,9 +58,9 @@ MODULE neb_io
   USE neb_md_utils,                    ONLY: get_temperatures
   USE neb_types,                       ONLY: neb_type,&
                                              neb_var_type
+  USE particle_methods,                ONLY: write_particle_coordinates
   USE particle_types,                  ONLY: get_particle_pos_or_vel,&
-                                             particle_type,&
-                                             write_particle_coordinates
+                                             particle_type
   USE physcon,                         ONLY: angstrom
   USE replica_types,                   ONLY: replica_env_type
   USE timings,                         ONLY: timeset,&

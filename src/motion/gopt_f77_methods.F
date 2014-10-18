@@ -69,7 +69,7 @@
     USE kinds,                           ONLY: dp,&
                                                default_string_length
     USE particle_list_types,             ONLY: particle_list_type
-    USE particle_types,                  ONLY: write_structure_data
+    USE particle_methods,                  ONLY: write_structure_data
     USE timings,                         ONLY: timeset,&
                                                timestop
     USE virial_methods,                  ONLY: virial_update

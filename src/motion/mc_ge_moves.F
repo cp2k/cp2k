@@ -52,7 +52,7 @@ MODULE mc_ge_moves
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates
+  USE particle_methods,                ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

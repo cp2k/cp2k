@@ -40,8 +40,8 @@ MODULE motion_utils
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_methods,                ONLY: write_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
   USE timings,                         ONLY: timeset,&
                                              timestop

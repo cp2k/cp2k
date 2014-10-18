@@ -64,7 +64,7 @@ MODULE md_energies
                                              write_stress_tensor,&
                                              write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_structure_data
+  USE particle_methods,                ONLY: write_structure_data
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin

@@ -28,8 +28,8 @@ MODULE glbopt_mincrawl
                                              delete_rng_stream,&
                                              next_random_number,&
                                              rng_stream_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_methods,                ONLY: write_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
   USE swarm_message,                   ONLY: swarm_message_add,&
                                              swarm_message_get,&
