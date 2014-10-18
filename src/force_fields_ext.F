@@ -30,11 +30,11 @@ MODULE force_fields_ext
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
+  USE force_field_kind_types,          ONLY: do_ff_g96
   USE force_field_types,               ONLY: amber_info_type,&
                                              charmm_info_type,&
                                              force_field_type,&
                                              gromos_info_type
-  USE input_constants,                 ONLY: do_ff_g96
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp

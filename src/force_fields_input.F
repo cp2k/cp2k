@@ -32,14 +32,14 @@ MODULE force_fields_input
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE damping_dipole_types,            ONLY: damping_info_type
   USE f77_blas
-  USE force_field_types,               ONLY: force_field_type,&
-                                             input_info_type
-  USE force_fields_util,               ONLY: get_generic_info
-  USE input_constants,                 ONLY: do_ff_amber,&
+  USE force_field_kind_types,          ONLY: do_ff_amber,&
                                              do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
                                              do_ff_undef
+  USE force_field_types,               ONLY: force_field_type,&
+                                             input_info_type
+  USE force_fields_util,               ONLY: get_generic_info
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

@@ -33,19 +33,15 @@ MODULE force_fields_all
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_opbend_kind_set, &
        allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
-       bond_kind_type, impr_kind_type, opbend_kind_type, torsion_kind_type, &
+       bond_kind_type, do_ff_amber, do_ff_charmm, do_ff_g87, do_ff_g96, &
+       do_ff_undef, impr_kind_type, opbend_kind_type, torsion_kind_type, &
        ub_kind_type
   USE force_field_types,               ONLY: amber_info_type,&
                                              charmm_info_type,&
                                              force_field_type,&
                                              gromos_info_type,&
                                              input_info_type
-  USE input_constants,                 ONLY: do_ff_amber,&
-                                             do_ff_charmm,&
-                                             do_ff_g87,&
-                                             do_ff_g96,&
-                                             do_ff_undef,&
-                                             do_qmmm_none
+  USE input_constants,                 ONLY: do_qmmm_none
   USE input_cp2k_binary_restarts,      ONLY: read_binary_cs_coordinates
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&

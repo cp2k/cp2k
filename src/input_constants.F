@@ -347,21 +347,6 @@ MODULE input_constants
                                               do_coord_xtl=6,&
                                               do_coord_cp2k=7
 
-  INTEGER, PARAMETER, PUBLIC               :: do_ff_undef=0,&
-                                              do_ff_quartic=1,&
-                                              do_ff_g96=2,&
-                                              do_ff_charmm=3,&
-                                              do_ff_harmonic=4,&
-                                              do_ff_g87=5,&
-                                              do_ff_morse=6,&
-                                              do_ff_cubic=7,&
-                                              do_ff_mixed_bend_stretch=8,&
-                                              do_ff_amber=9,&
-                                              do_ff_mm2=10,&
-                                              do_ff_mm3=11,&
-                                              do_ff_mm4=12,&
-                                              do_ff_fues=13
-
   INTEGER, PARAMETER, PUBLIC               :: do_stress_none=0,&
                                               do_stress_analytical=1,&
                                               do_stress_numerical=2,&

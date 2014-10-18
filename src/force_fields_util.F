@@ -34,7 +34,7 @@ MODULE force_fields_util
        allocate_impr_kind_set, allocate_opbend_kind_set, &
        allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
        bond_kind_type, deallocate_bend_kind_set, deallocate_bond_kind_set, &
-       impr_kind_dealloc_ref, impr_kind_type, opbend_kind_type, &
+       do_ff_undef, impr_kind_dealloc_ref, impr_kind_type, opbend_kind_type, &
        torsion_kind_dealloc_ref, torsion_kind_type, ub_kind_dealloc_ref, &
        ub_kind_type
   USE force_field_types,               ONLY: amber_info_type,&
@@ -53,7 +53,6 @@ MODULE force_fields_util
        force_field_unique_bend, force_field_unique_bond, &
        force_field_unique_impr, force_field_unique_opbend, &
        force_field_unique_tors, force_field_unique_ub
-  USE input_constants,                 ONLY: do_ff_undef
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

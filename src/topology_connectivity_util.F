@@ -13,11 +13,11 @@ MODULE topology_connectivity_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
+  USE force_field_kind_types,          ONLY: do_ff_charmm,&
+                                             do_ff_harmonic
   USE input_constants,                 ONLY: do_conn_g87,&
                                              do_conn_g96,&
-                                             do_conn_user,&
-                                             do_ff_charmm,&
-                                             do_ff_harmonic
+                                             do_conn_user
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length
