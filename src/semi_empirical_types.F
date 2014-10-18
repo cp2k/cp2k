@@ -19,11 +19,14 @@ MODULE semi_empirical_types
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
-       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
-       do_multipole_quadrupole, do_se_IS_kdso_d, do_se_IS_slater
+       do_se_IS_kdso_d, do_se_IS_slater
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE multipole_types,                 ONLY: do_multipole_charge,&
+                                             do_multipole_dipole,&
+                                             do_multipole_none,&
+                                             do_multipole_quadrupole
   USE physcon,                         ONLY: angstrom,&
                                              evolt,&
                                              kcalmol

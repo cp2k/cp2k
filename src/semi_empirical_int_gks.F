@@ -22,10 +22,10 @@ MODULE semi_empirical_int_gks
                                              dg_type
   USE erf_fn,                          ONLY: erfc
   USE f77_blas
-  USE input_constants,                 ONLY: do_multipole_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi
+  USE multipole_types,                 ONLY: do_multipole_none
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE semi_empirical_int_arrays,       ONLY: indexb,&

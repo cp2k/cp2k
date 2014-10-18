@@ -12,10 +12,6 @@ MODULE multipole_types
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential
   USE f77_blas
-  USE input_constants,                 ONLY: do_multipole_charge,&
-                                             do_multipole_dipole,&
-                                             do_multipole_none,&
-                                             do_multipole_quadrupole
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -31,6 +27,11 @@ MODULE multipole_types
             create_multipole_type,&
             release_multipole_type,&
             retain_multipole_type
+
+  INTEGER, PARAMETER, PUBLIC               :: do_multipole_none=-1,&
+                                              do_multipole_charge=0,&
+                                              do_multipole_dipole=1,&
+                                              do_multipole_quadrupole=2
 
 ! *****************************************************************************
 !> \brief Define multipole type

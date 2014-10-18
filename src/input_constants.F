@@ -373,11 +373,6 @@ MODULE input_constants
                                               do_mc_gemc_npt=2,&
                                               do_mc_virial=3
 
-  INTEGER, PARAMETER, PUBLIC               :: do_multipole_none=-1,&
-                                              do_multipole_charge=0,&
-                                              do_multipole_dipole=1,&
-                                              do_multipole_quadrupole=2
-
   INTEGER, PARAMETER, PUBLIC               :: do_loc_none=0,&
                                               do_loc_jacobi=1,&
                                               do_loc_crazy=2,&

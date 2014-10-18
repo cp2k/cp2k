@@ -91,8 +91,8 @@ MODULE qs_environment
        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_method_scptb, do_multipole_none, general_roks, &
-       rel_none, rel_trans_atom, restart_guess, use_aux_fit_basis_set, &
+       do_method_rm1, do_method_scptb, general_roks, rel_none, &
+       rel_trans_atom, restart_guess, use_aux_fit_basis_set, &
        use_lri_basis_set, vdw_pairpot_dftd3, xc_vdw_fun_none, &
        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
@@ -116,6 +116,7 @@ MODULE qs_environment
   USE molecule_types_new,              ONLY: molecule_type
   USE mp2_setup,                       ONLY: read_mp2_section
   USE mp2_types,                       ONLY: mp2_env_create
+  USE multipole_types,                 ONLY: do_multipole_none
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_methods,                ONLY: write_particle_distances,&

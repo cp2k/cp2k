@@ -18,10 +18,9 @@ MODULE input_cp2k_poisson
   USE f77_blas
   USE input_constants,                 ONLY: &
        add_last_numeric, do_fist_pol_cg, do_fist_pol_none, do_fist_pol_sc, &
-       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
-       do_multipole_quadrupole, low_print_level, medium_print_level, &
-       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
-       use_perd_y, use_perd_yz, use_perd_z
+       low_print_level, medium_print_level, use_perd_none, use_perd_x, &
+       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
+       use_perd_z
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -35,6 +34,10 @@ MODULE input_cp2k_poisson
                                              integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE multipole_types,                 ONLY: do_multipole_charge,&
+                                             do_multipole_dipole,&
+                                             do_multipole_none,&
+                                             do_multipole_quadrupole
   USE pw_poisson_types,                ONLY: &
        do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, &
        pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &

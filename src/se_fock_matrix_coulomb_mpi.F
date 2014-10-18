@@ -42,12 +42,15 @@ MODULE se_fock_matrix_coulomb_mpi
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
-       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
-       do_multipole_quadrupole, do_se_IS_slater
+       do_se_IS_slater
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
+  USE multipole_types,                 ONLY: do_multipole_charge,&
+                                             do_multipole_dipole,&
+                                             do_multipole_none,&
+                                             do_multipole_quadrupole
   USE particle_types,                  ONLY: particle_type
   USE pw_poisson_types,                ONLY: do_ewald_ewald
   USE qs_energy_types,                 ONLY: qs_energy_type
