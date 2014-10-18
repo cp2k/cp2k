@@ -10,14 +10,18 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k_force_eval
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, do_eip, do_ep, do_fist, do_mixed, do_qmmm, do_qs, &
+       do_eip, do_ep, do_fist, do_mixed, do_qmmm, do_qs, &
        do_stress_analytical, do_stress_diagonal_anal, &
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
-       high_print_level, low_print_level, medium_print_level, numerical
+       numerical
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
                                              create_ep_section

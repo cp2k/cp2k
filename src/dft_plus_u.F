@@ -46,11 +46,11 @@ MODULE dft_plus_u
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             low_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_constants,                 ONLY: low_print_level,&
-                                             plus_u_lowdin,&
+  USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
                                              plus_u_mulliken_charges
   USE input_section_types,             ONLY: section_vals_type

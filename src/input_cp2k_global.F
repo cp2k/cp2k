@@ -26,20 +26,25 @@ MODULE input_cp2k_global
        dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
        mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, bsse_run, callgraph_all, callgraph_master, &
-       callgraph_none, cell_opt_run, debug_print_level, debug_run, do_atom, &
-       do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_diag_sl2, &
-       do_farming, do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, &
-       do_pdgemm, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, &
-       driver_run, ehrenfest, electronic_spectra_run, energy_force_run, &
-       energy_run, fftw_plan_estimate, fftw_plan_exhaustive, &
-       fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
-       high_print_level, linear_response_run, low_print_level, &
-       medium_print_level, mol_dyn_run, mon_car_run, none_run, pint_run, &
-       real_time_propagation, silent_print_level, tree_mc_run, vib_anal
+       bsse_run, callgraph_all, callgraph_master, callgraph_none, &
+       cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_dbcsr, &
+       do_diag_elpa, do_diag_sl, do_diag_sl2, do_farming, do_fft_fftw3, &
+       do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, &
+       do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
+       electronic_spectra_run, energy_force_run, energy_run, &
+       fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
+       fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, &
+       mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, &
+       tree_mc_run, vib_anal
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

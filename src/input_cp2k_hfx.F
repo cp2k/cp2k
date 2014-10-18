@@ -12,14 +12,16 @@
 MODULE input_cp2k_hfx
   USE bibliography,                    ONLY: Guidon2008,&
                                              Guidon2009
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             high_print_level,&
+                                             medium_print_level
   USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
+       do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
        do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
        do_hfx_potential_mix_cl_trunc, do_hfx_potential_mix_lg, &
-       do_hfx_potential_short, do_hfx_potential_truncated, ehrenfest, &
-       gaussian, high_print_level, medium_print_level
+       do_hfx_potential_short, do_hfx_potential_truncated, ehrenfest, gaussian
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

@@ -15,18 +15,19 @@ MODULE input_cp2k_xc
        Grimme2010, Grimme2011, Heyd2004, Lee1988, Marques2012, Ortiz1994, &
        Perdew1981, Perdew1996, Perdew2008, Proynov2007, Tao2003, Tran2013, &
        Vosko1980, Wellendorff2012, Zhang1998
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             high_print_level
   USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, &
-       gaussian, high_print_level, slater, vdw_nl_drsll, vdw_nl_lmkll, &
-       vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-       vdw_pairpot_dftd3bj, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
-       xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, &
-       xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, &
-       xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
-       xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, &
-       xc_vdw_fun_pairpot
+       do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, gaussian, slater, &
+       vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, &
+       vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_funct_b3lyp, &
+       xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+       xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+       xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, &
+       xc_pot_energy_sum_eigenvalues, xc_pot_energy_xc_functional, &
+       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_cp2k_mp2,                  ONLY: create_mp2_section
   USE input_keyword_types,             ONLY: keyword_create,&

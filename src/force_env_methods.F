@@ -29,7 +29,8 @@ MODULE force_env_methods
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             low_print_level
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
@@ -80,9 +81,9 @@ MODULE force_env_methods
   USE input_constants,                 ONLY: &
        debug_run, do_fm_mom_conserv_QM, do_fm_mom_conserv_buffer, &
        do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &
-       do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, low_print_level, &
-       mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
-       mix_restrained, use_bazant_eip, use_lenosky_eip
+       do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, mix_coupled, &
+       mix_generic, mix_linear_combination, mix_minimum, mix_restrained, &
+       use_bazant_eip, use_lenosky_eip
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_get_subs_vals,&
                                              section_vals_retain,&

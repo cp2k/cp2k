@@ -18,23 +18,28 @@ MODULE input_cp2k_qmmm
                                              Laino2005,&
                                              Laino2006
   USE cell_types,                      ONLY: use_perd_none
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, alpha_imomm_default, charge_scale_factor, &
-       debug_print_level, do_fm_mom_conserv_buffer, do_fm_mom_conserv_core, &
-       do_fm_mom_conserv_equal_a, do_fm_mom_conserv_equal_f, &
-       do_fm_mom_conserv_none, do_fm_mom_conserv_qm, &
-       do_multipole_section_off, do_multipole_section_on, do_par_atom, &
-       do_par_grid, do_qmmm_center_every_step, do_qmmm_center_max_minus_min, &
+       alpha_imomm_default, charge_scale_factor, do_fm_mom_conserv_buffer, &
+       do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &
+       do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, &
+       do_fm_mom_conserv_qm, do_multipole_section_off, &
+       do_multipole_section_on, do_par_atom, do_par_grid, &
+       do_qmmm_center_every_step, do_qmmm_center_max_minus_min, &
        do_qmmm_center_never, do_qmmm_center_pbc_aware, &
        do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, &
        do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
        do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_swave, &
        do_qmmm_wall_none, do_qmmm_wall_quadratic, do_qmmm_wall_reflective, &
-       gaussian, high_print_level, low_print_level, medium_print_level, &
-       radius_qmmm_default, silent_print_level, spline3_nopbc_interp
+       gaussian, radius_qmmm_default, spline3_nopbc_interp
   USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                              create_Goodwin_section,&
                                              create_LJ_section,&

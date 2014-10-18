@@ -10,10 +10,10 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_optimize_input
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             low_print_level
   USE f77_blas
-  USE input_constants,                 ONLY: low_print_level,&
-                                             opt_force_matching
+  USE input_constants,                 ONLY: opt_force_matching
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

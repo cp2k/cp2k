@@ -442,15 +442,6 @@ MODULE input_constants
                                               default_cell_md_id=1,&
                                               default_cell_direct_id=2
 
-  INTEGER, PARAMETER, PUBLIC               :: add_last_no=0,&
-                                              add_last_numeric=1,&
-                                              add_last_symbolic=2
-  INTEGER, PARAMETER, PUBLIC               :: silent_print_level=0,&
-                                              low_print_level=1,&
-                                              medium_print_level=2,&
-                                              high_print_level=3,&
-                                              debug_print_level=4
-
   INTEGER, PARAMETER, PUBLIC               :: xc_funct_no_shortcut=0,&
                                               xc_funct_blyp=1,&
                                               xc_funct_pade=2,&

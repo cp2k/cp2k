@@ -8,11 +8,11 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm_input
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             low_print_level
   USE glbopt_input,                    ONLY: glbopt_declare_input
-  USE input_constants,                 ONLY: add_last_numeric,&
-                                             low_print_level,&
-                                             swarm_do_glbopt
+  USE input_constants,                 ONLY: swarm_do_glbopt
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

@@ -11,13 +11,20 @@
 !> \author [tlaino]
 ! *****************************************************************************
 MODULE input_cp2k_vib
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       add_last_numeric, debug_print_level, do_rep_blocked, &
-       do_rep_interleaved, low_print_level, medium_print_level, &
-       ms_guess_atomic, ms_guess_bfgs, ms_guess_molden, ms_guess_restart, &
-       ms_guess_restart_vec, silent_print_level
+  USE input_constants,                 ONLY: do_rep_blocked,&
+                                             do_rep_interleaved,&
+                                             ms_guess_atomic,&
+                                             ms_guess_bfgs,&
+                                             ms_guess_molden,&
+                                             ms_guess_restart,&
+                                             ms_guess_restart_vec
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

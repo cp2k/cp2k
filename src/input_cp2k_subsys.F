@@ -23,17 +23,19 @@ MODULE input_cp2k_subsys
        cell_sym_tetragonal_bc, cell_sym_triclinic, use_perd_none, use_perd_x, &
        use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
        use_perd_z
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       debug_print_level, do_add, do_bondparm_covalent, do_bondparm_vdw, &
-       do_cell_cp2k, do_cell_xsc, do_conn_amb7, do_conn_g87, do_conn_g96, &
-       do_conn_generate, do_conn_mol_set, do_conn_off, do_conn_psf, &
-       do_conn_psf_u, do_conn_user, do_coord_cif, do_coord_cp2k, &
-       do_coord_crd, do_coord_g96, do_coord_off, do_coord_pdb, do_coord_xtl, &
-       do_coord_xyz, do_remove, do_skip_11, do_skip_12, do_skip_13, &
-       do_skip_14, dump_pdb, gaussian, high_print_level, medium_print_level
+       do_add, do_bondparm_covalent, do_bondparm_vdw, do_cell_cp2k, &
+       do_cell_xsc, do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
+       do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
+       do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, do_coord_g96, &
+       do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
+       do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian
   USE input_cp2k_colvar,               ONLY: create_colvar_section
   USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
   USE input_keyword_types,             ONLY: keyword_create,&

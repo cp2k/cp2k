@@ -19,14 +19,19 @@ MODULE input_cp2k_dft
        Seifert1996, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
        Tozer1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
        VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, almo_scf_guess, atomic_guess, broy_mix, &
-       broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
-       cholesky_reduce, cholesky_restore, constant_env, core_guess, &
-       debug_print_level, densities_guess, diag_block_davidson, &
+       almo_scf_guess, atomic_guess, broy_mix, broy_mix_new, cholesky_dbcsr, &
+       cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
+       constant_env, core_guess, densities_guess, diag_block_davidson, &
        diag_block_krylov, diag_ot, diag_standard, direct_p_mix, &
        dispersion_d3, dispersion_uff, do_admm_basis_projection, &
        do_admm_blocked_projection, do_admm_blocking_purify_full, &
@@ -46,21 +51,20 @@ MODULE input_cp2k_dft
        do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
        do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
        do_spin_density, do_taylor, ehrenfest, gaussian, gaussian_env, &
-       general_roks, high_print_level, high_spin_roks, history_guess, &
-       kerker_mix, kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, &
-       kg_tnadd_embed, low_print_level, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
-       medium_print_level, mopac_guess, multisec_mix, no_excitations, &
-       no_guess, no_mix, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
-       op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, &
-       orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, &
-       ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
-       ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
-       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_solver_default, ot_precond_solver_direct, &
-       ot_precond_solver_inv_chol, outer_scf_becke_constraint, &
-       outer_scf_ddapc_constraint, outer_scf_none, &
-       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       general_roks, high_spin_roks, history_guess, kerker_mix, &
+       kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, &
+       ls_2pnt, ls_3pnt, ls_gold, ls_none, mopac_guess, multisec_mix, &
+       no_excitations, no_guess, no_mix, numerical, oe_gllb, oe_lb, oe_none, &
+       oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, &
+       orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, &
+       orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
+       ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+       ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
+       ot_precond_full_single, ot_precond_full_single_inverse, &
+       ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
+       ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+       outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
+       outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_scp, plus_u_lowdin, &
        plus_u_mulliken, plus_u_mulliken_charges, pulay_mix, pw_interp, &
@@ -68,19 +72,19 @@ MODULE input_cp2k_dft
        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, &
        rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, &
        rel_zora_mp, restart_guess, sic_ad, sic_eo, sic_list_all, &
-       sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
-       silent_print_level, slater, smear_energy_window, smear_fermi_dirac, &
-       smear_list, sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, &
-       tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
-       tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, &
-       use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit, &
-       wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
-       wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
-       wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, &
-       xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &
-       xas_none, xas_scf_default, xas_scf_general, xas_tp_fh, xas_tp_hh, &
-       xas_tp_xfh, xas_tp_xhh, xes_tp_val
+       sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+       smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, &
+       spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
+       tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, &
+       use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, &
+       use_scf_wfn, weight_type_mass, weight_type_unit, wfi_aspc_nr, &
+       wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+       wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+       wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
+       wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, &
+       xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, xas_scf_default, &
+       xas_scf_general, xas_tp_fh, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
+       xes_tp_val
   USE input_cp2k_almo,                 ONLY: create_almo_scf_section
   USE input_cp2k_atom,                 ONLY: create_powell_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section

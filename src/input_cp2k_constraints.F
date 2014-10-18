@@ -18,12 +18,12 @@ MODULE input_cp2k_constraints
                                              use_perd_y,&
                                              use_perd_yz,&
                                              use_perd_z
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             high_print_level
   USE f77_blas
   USE input_constants,                 ONLY: do_constr_atomic,&
                                              do_constr_molec,&
-                                             do_constr_none,&
-                                             high_print_level
+                                             do_constr_none
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

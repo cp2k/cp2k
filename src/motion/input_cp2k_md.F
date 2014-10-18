@@ -13,16 +13,19 @@ MODULE input_cp2k_md
   USE bibliography,                    ONLY: &
        Evans1983, Guidon2008, Kantorovich2008, Kantorovich2008a, Kolafa2004, &
        Kuhne2007, Minary2003, Ricci2003, Tuckerman1992, VandeVondele2002
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, debug_print_level, high_print_level, &
-       isokin_ensemble, langevin_ensemble, low_print_level, &
-       medium_print_level, npe_f_ensemble, npe_i_ensemble, nph_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, &
-       reftraj_ensemble
+       isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, &
+       nvt_ensemble, reftraj_ensemble
   USE input_cp2k_barostats,            ONLY: create_barostat_section
   USE input_cp2k_thermostats,          ONLY: create_region_section,&
                                              create_thermo_fast_section,&

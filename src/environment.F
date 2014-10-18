@@ -28,7 +28,12 @@ MODULE environment
        cp_ma_print_machine, cp_ma_print_strategy, cp_ma_run_on, &
        cp_ma_thread_run_on, cp_ma_thread_sched
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE fft_tools,                       ONLY: fft3d,&
@@ -40,11 +45,10 @@ MODULE environment
   USE header,                          ONLY: cp2k_footer,&
                                              cp2k_header
   USE input_constants,                 ONLY: &
-       callgraph_all, callgraph_none, debug_print_level, do_cp2k, &
-       do_diag_elpa, do_diag_sl, do_diag_sl2, do_eip, do_farming, &
-       do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
-       high_print_level, id_development_version, low_print_level, &
-       medium_print_level, mol_dyn_run, none_run, silent_print_level
+       callgraph_all, callgraph_none, do_cp2k, do_diag_elpa, do_diag_sl, &
+       do_diag_sl2, do_eip, do_farming, do_fft_fftw3, do_fft_sg, do_fist, &
+       do_qs, do_test, energy_run, id_development_version, mol_dyn_run, &
+       none_run
   USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type

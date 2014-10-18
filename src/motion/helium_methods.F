@@ -15,6 +15,7 @@ MODULE helium_methods
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_output_handling,              ONLY: silent_print_level
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -31,8 +32,7 @@ MODULE helium_methods
                                              helium_solvent_type
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_none,&
-                                             helium_cell_shape_octahedron,&
-                                             silent_print_level
+                                             helium_cell_shape_octahedron
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

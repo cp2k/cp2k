@@ -29,14 +29,6 @@ MODULE cp_output_handling
                                              each_desc_labels,&
                                              each_possible_labels
   USE f77_blas
-  USE input_constants,                 ONLY: add_last_no,&
-                                             add_last_numeric,&
-                                             add_last_symbolic,&
-                                             debug_print_level,&
-                                             high_print_level,&
-                                             low_print_level,&
-                                             medium_print_level,&
-                                             silent_print_level
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -65,6 +57,15 @@ MODULE cp_output_handling
   PUBLIC :: cp_iter_string, cp_print_key_section_create
   PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
   PUBLIC :: cp_print_key_generate_filename, cp_print_key_log, cp_printkey_is_on
+
+  INTEGER, PARAMETER, PUBLIC               :: add_last_no=0,&
+                                              add_last_numeric=1,&
+                                              add_last_symbolic=2
+  INTEGER, PARAMETER, PUBLIC               :: silent_print_level=0,&
+                                              low_print_level=1,&
+                                              medium_print_level=2,&
+                                              high_print_level=3,&
+                                              debug_print_level=4
 
 !! flags controlling the printing and storing of a property.
 !!

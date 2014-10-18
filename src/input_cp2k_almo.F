@@ -33,7 +33,7 @@ MODULE input_cp2k_almo
   PUBLIC :: create_almo_scf_section
 
 ! RZK-MERGE
-!  USE cp_output_handling,              ONLY: cp_print_key_section_create
+!  USE cp_output_handling,              ONLY: cp_print_key_section_create,low_print_level,medium_print_level,high_print_level,debug_print_level,add_last_no,add_last_numeric,add_last_symbolic,silent_print_level
 !  USE input_section_types,             ONLY: section_add_keyword,&
 !                                             section_add_subsection,&
 !                                             section_create,&

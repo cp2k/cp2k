@@ -16,10 +16,10 @@ MODULE input_cp2k_barostats
                                              do_clv_y,&
                                              do_clv_yz,&
                                              do_clv_z
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             high_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants,                 ONLY: high_print_level
   USE input_cp2k_thermostats,          ONLY: create_mass_section,&
                                              create_thermostat_section,&
                                              create_velocity_section

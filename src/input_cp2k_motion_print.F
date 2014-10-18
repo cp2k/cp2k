@@ -9,12 +9,17 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE input_cp2k_motion_print
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             silent_print_level
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       add_last_numeric, dump_atomic, dump_dcd, dump_dcd_aligned_cell, &
-       dump_pdb, dump_xmol, high_print_level, low_print_level, &
-       silent_print_level
+  USE input_constants,                 ONLY: dump_atomic,&
+                                             dump_dcd,&
+                                             dump_dcd_aligned_cell,&
+                                             dump_pdb,&
+                                             dump_xmol
   USE input_cp2k_subsys,               ONLY: create_structure_data_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&

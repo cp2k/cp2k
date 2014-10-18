@@ -10,12 +10,12 @@
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
 MODULE input_cp2k_mixed
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
-  USE input_constants,                 ONLY: add_last_numeric,&
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
                                              low_print_level,&
-                                             medium_print_level,&
-                                             mix_coupled,&
+                                             medium_print_level
+  USE f77_blas
+  USE input_constants,                 ONLY: mix_coupled,&
                                              mix_generic,&
                                              mix_linear_combination,&
                                              mix_minimum,&
