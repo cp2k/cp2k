@@ -12,7 +12,7 @@
 MODULE atprop_types
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

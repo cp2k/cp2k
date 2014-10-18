@@ -1,0 +1,6 @@
+{
+"description": "Data structures for communicating with the force_eval interface",
+
+#TODO: Dependencies on mpiwrap, aobasis, and input should go
+'requires': ["../common", "../base", "../pw", "../fm", "../mpiwrap", "../input", "../aobasis"],
+}

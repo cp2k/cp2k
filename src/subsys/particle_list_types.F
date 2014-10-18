@@ -32,23 +32,23 @@
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-MODULE mol_new_list_types
+MODULE particle_list_types
   USE f77_blas
-  USE molecule_types_new,              ONLY: deallocate_molecule_set,&
-                                             molecule_type
-#include "./common/cp_common_uses.f90"
+  USE particle_types,                  ONLY: deallocate_particle_set,&
+                                             particle_type
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_new_list_types'
-  INTEGER, PRIVATE, SAVE :: last_mol_new_list_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_list_types'
+  INTEGER, PRIVATE, SAVE :: last_particle_list_id=0
 
   !API
-  PUBLIC :: mol_new_list_type, mol_new_list_p_type,&
-            mol_new_list_create, mol_new_list_retain,&
-            mol_new_list_release
+  PUBLIC :: particle_list_type, particle_list_p_type,&
+            particle_list_create, particle_list_retain,&
+            particle_list_release
 
 !***
 
@@ -65,11 +65,11 @@ MODULE mol_new_list_types
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  TYPE mol_new_list_type
+  TYPE particle_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
-     TYPE(molecule_type), DIMENSION(:), POINTER :: els
-  END TYPE mol_new_list_type
+     TYPE(particle_type), DIMENSION(:), POINTER :: els
+  END TYPE particle_list_type
 
 ! *****************************************************************************
 !> \brief represents a pointer to a list
@@ -78,9 +78,9 @@ MODULE mol_new_list_types
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  TYPE mol_new_list_p_type
-     TYPE(mol_new_list_type), POINTER :: list
-  END TYPE mol_new_list_p_type
+  TYPE particle_list_p_type
+     TYPE(particle_list_type), POINTER :: list
+  END TYPE particle_list_p_type
 
 CONTAINS
 
@@ -99,17 +99,17 @@ CONTAINS
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE mol_new_list_create(list, els_ptr, &
+SUBROUTINE particle_list_create(list, els_ptr, &
      owns_els, n_els, error)
-    TYPE(mol_new_list_type), OPTIONAL, &
+    TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: list
-    TYPE(molecule_type), DIMENSION(:), &
+    TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: els_ptr
     LOGICAL, INTENT(in), OPTIONAL            :: owns_els
     INTEGER, INTENT(in), OPTIONAL            :: n_els
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -124,8 +124,8 @@ SUBROUTINE mol_new_list_create(list, els_ptr, &
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT. failure) THEN
-     last_mol_new_list_id=last_mol_new_list_id+1
-     list%id_nr=last_mol_new_list_id
+     last_particle_list_id=last_particle_list_id+1
+     list%id_nr=last_particle_list_id
      list%ref_count=1
      list%owns_els=.TRUE.
      list%n_els=0
@@ -144,7 +144,7 @@ SUBROUTINE mol_new_list_create(list, els_ptr, &
         CPPreconditionNoFail(list%owns_els,cp_warning_level,routineP,error)
      END IF
   END IF
-END SUBROUTINE mol_new_list_create
+END SUBROUTINE particle_list_create
 
 ! *****************************************************************************
 !> \brief retains a list (see doc/ReferenceCounting.html)
@@ -155,11 +155,11 @@ END SUBROUTINE mol_new_list_create
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE mol_new_list_retain(list, error)
-    TYPE(mol_new_list_type), POINTER         :: list
+SUBROUTINE particle_list_retain(list, error)
+    TYPE(particle_list_type), POINTER        :: list
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_retain', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_retain', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -171,7 +171,7 @@ SUBROUTINE mol_new_list_retain(list, error)
      CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
      list%ref_count=list%ref_count+1
   END IF
-END SUBROUTINE mol_new_list_retain
+END SUBROUTINE particle_list_retain
 
 ! *****************************************************************************
 !> \brief releases a  list (see doc/ReferenceCounting.html)
@@ -182,11 +182,11 @@ END SUBROUTINE mol_new_list_retain
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE mol_new_list_release(list, error)
-    TYPE(mol_new_list_type), POINTER         :: list
+SUBROUTINE particle_list_release(list, error)
+    TYPE(particle_list_type), POINTER        :: list
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -200,7 +200,7 @@ SUBROUTINE mol_new_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              CALL deallocate_molecule_set(list%els,error=error)
+              CALL deallocate_particle_set(list%els,error=error)
            END IF
         END IF
         NULLIFY(list%els)
@@ -209,16 +209,16 @@ SUBROUTINE mol_new_list_release(list, error)
      END IF
   END IF
   NULLIFY(list)
-END SUBROUTINE mol_new_list_release
+END SUBROUTINE particle_list_release
 
 ! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
-!  USE = "use molecule_types_new, only: molecule_type, deallocate_molecule_set"
-!  deallocate_els_code = "call deallocate_molecule_set(list%els,error=error)"
-!  el_type = "type(molecule_type)"
-!  el_typename = "mol_new"
+!  USE = "use particle_types, only: particle_type, deallocate_particle_set"
+!  deallocate_els_code = "call deallocate_particle_set(list%els,error=error)"
+!  el_type = "type(particle_type)"
+!  el_typename = "particle"
 
 
-END MODULE mol_new_list_types
+END MODULE particle_list_types

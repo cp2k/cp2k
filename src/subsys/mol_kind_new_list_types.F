@@ -36,7 +36,7 @@ MODULE mol_kind_new_list_types
   USE f77_blas
   USE molecule_kind_types,             ONLY: deallocate_molecule_kind_set,&
                                              molecule_kind_type
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
