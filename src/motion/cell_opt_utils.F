@@ -10,18 +10,16 @@
 !>      03.2008 - Teodoro Laino [tlaino] - University of Zurich - Cell Optimization
 ! *****************************************************************************
 MODULE cell_opt_utils
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell_param,&
-                                             set_cell_param
+  USE cell_types,                      ONLY: &
+       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
+       cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
+       cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic, &
+       cell_type, get_cell_param, set_cell_param
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_units_rad
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
-       cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
-       cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic
   USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type

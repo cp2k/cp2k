@@ -13,6 +13,7 @@
 MODULE cell_methods
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
+                                             cell_sym_none,&
                                              cell_type,&
                                              get_cell,&
                                              init_cell,&
@@ -28,9 +29,8 @@ MODULE cell_methods
                                              cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       cell_sym_none, do_cell_cp2k, do_cell_xsc, use_perd_none, use_perd_x, &
-       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
-       use_perd_z
+       do_cell_cp2k, do_cell_xsc, use_perd_none, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type

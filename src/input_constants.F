@@ -823,23 +823,11 @@ MODULE input_constants
                                               do_opt_none=1,&
                                               do_opt_coeff=2,&
                                               do_opt_exps=3
-                                            
+
   ! callgraph parameters
   INTEGER, PARAMETER, PUBLIC               :: callgraph_none=0,&
                                               callgraph_master=1,&
                                               callgraph_all=2 
-
-  ! Impose cell symmetry
-  INTEGER, PARAMETER, PUBLIC               :: cell_sym_none=0,&
-                                              cell_sym_triclinic=1,&
-                                              cell_sym_monoclinic=2,&
-                                              cell_sym_orthorhombic=3,&
-                                              cell_sym_tetragonal_ab=4,&
-                                              cell_sym_tetragonal_ac=5,&
-                                              cell_sym_tetragonal_bc=6,&
-                                              cell_sym_rhombohedral=7,&
-                                              cell_sym_hexagonal=8,&
-                                              cell_sym_cubic=9
 
   ! kg coloring parameters
   INTEGER, PARAMETER, PUBLIC               :: kg_color_dsatur=0,&

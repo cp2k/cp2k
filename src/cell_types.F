@@ -14,11 +14,6 @@ MODULE cell_types
   USE cp_units,                        ONLY: cp_unit_to_cp2k,&
                                              cp_units_rad
   USE f77_blas
-  USE input_constants,                 ONLY: &
-       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
-       cell_sym_none, cell_sym_orthorhombic, cell_sym_rhombohedral, &
-       cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
-       cell_sym_tetragonal_bc, cell_sym_triclinic
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree,&
                                              sqrt3
@@ -35,6 +30,18 @@ MODULE cell_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_types'
 
   INTEGER, SAVE, PRIVATE :: last_cell_id = 0
+
+  ! Impose cell symmetry
+  INTEGER, PARAMETER, PUBLIC               :: cell_sym_none=0,&
+                                              cell_sym_triclinic=1,&
+                                              cell_sym_monoclinic=2,&
+                                              cell_sym_orthorhombic=3,&
+                                              cell_sym_tetragonal_ab=4,&
+                                              cell_sym_tetragonal_ac=5,&
+                                              cell_sym_tetragonal_bc=6,&
+                                              cell_sym_rhombohedral=7,&
+                                              cell_sym_hexagonal=8,&
+                                              cell_sym_cubic=9
 
 ! *****************************************************************************
 !> \brief   Type defining parameters related to the simulation cell
