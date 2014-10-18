@@ -12,19 +12,22 @@
 !> \author Alessandro Laio,Fawzi Mohamed
 ! *****************************************************************************
 MODULE colvar_methods
+  
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE colvar_types,                    ONLY: &
-       HBP_colvar_id, Wc_colvar_id, angle_colvar_id, colvar_check_points, &
-       colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
-       coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
-       distance_from_path_colvar_id, eval_point_der, eval_point_mass, &
+       HBP_colvar_id, Wc_colvar_id, angle_colvar_id, colvar_create, &
+       colvar_setup, colvar_type, combine_colvar_id, coord_colvar_id, &
+       dfunct_colvar_id, dist_colvar_id, distance_from_path_colvar_id, &
+       do_clv_fix_point, do_clv_geo_center, do_clv_x, do_clv_xy, do_clv_xz, &
+       do_clv_y, do_clv_yz, do_clv_z, eval_point_der, eval_point_mass, &
        eval_point_pos, gyration_colvar_id, hydronium_colvar_id, &
-       mindist_colvar_id, plane_distance_colvar_id, &
-       plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
-       reaction_path_colvar_id, ring_puckering_colvar_id, rmsd_colvar_id, &
-       rotation_colvar_id, torsion_colvar_id, u_colvar_id, &
-       xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+       mindist_colvar_id, plane_def_atoms, plane_def_vec, &
+       plane_distance_colvar_id, plane_plane_angle_colvar_id, &
+       population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
+       ring_puckering_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
+       torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
+       xyz_outerdiag_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -49,9 +52,9 @@ MODULE colvar_methods
                                              finalizef,&
                                              initf,&
                                              parsef
-  USE input_constants,                 ONLY: &
-       do_clv_x, do_clv_xy, do_clv_xz, do_clv_y, do_clv_yz, do_clv_z, &
-       plane_def_atoms, plane_def_vec, rmsd_all, rmsd_list, rmsd_weightlist
+  USE input_constants,                 ONLY: rmsd_all,&
+                                             rmsd_list,&
+                                             rmsd_weightlist
   USE input_cp2k_colvar,               ONLY: create_colvar_xyz_d_section,&
                                              create_colvar_xyz_od_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -1384,6 +1387,87 @@ CPSourceFileRef)
          "PRINT%PROGRAM_RUN_INFO", error=error)
     CALL timestop(handle)
   END SUBROUTINE colvar_read
+
+! *****************************************************************************
+!> \brief Check and setup about the use of geometrical points instead of atoms
+!> \param colvar the colvat to initialize
+!> \param section ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino, [teo] 03.2007
+! *****************************************************************************
+  SUBROUTINE  colvar_check_points(colvar, section, error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(section_vals_type), POINTER         :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_check_points', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, irep, natoms, npoints, &
+                                                nrep, nweights, stat
+    INTEGER, DIMENSION(:), POINTER           :: atoms
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r, weights
+    TYPE(section_vals_type), POINTER         :: point_sections
+
+    failure=.FALSE.
+    NULLIFY(point_sections)
+    NULLIFY(atoms)
+    NULLIFY(weights)
+    CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
+    point_sections => section_vals_get_subs_vals(section,"POINT",error=error)
+    CALL section_vals_get(point_sections, explicit=explicit, error=error)
+    IF (explicit) THEN
+       colvar%use_points = .TRUE.
+       CALL section_vals_get(point_sections,n_repetition=npoints,error=error)
+       ALLOCATE(colvar%points(npoints),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Read points definition
+       DO i = 1, npoints
+          natoms = 0
+          nweights = 0
+          NULLIFY(colvar%points(i)%atoms)
+          NULLIFY(colvar%points(i)%weights)
+          CALL section_vals_val_get(point_sections,"TYPE",i_rep_section=i,i_val=colvar%points(i)%type_id,error=error)
+          SELECT CASE(colvar%points(i)%type_id)
+          CASE(do_clv_geo_center)
+             ! Define a point through a list of atoms..
+             CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,n_rep_val=nrep,i_vals=atoms,error=error)
+             DO irep=1,nrep
+               CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_rep_val=irep,i_vals=atoms,error=error)
+               natoms = natoms + SIZE(atoms)
+             END DO
+             ALLOCATE(colvar%points(i)%atoms(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             natoms = 0
+             DO irep=1,nrep
+               CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_rep_val=irep,i_vals=atoms,error=error)
+               colvar%points(i)%atoms(natoms+1:) = atoms(:)
+               natoms = natoms + SIZE(atoms)
+             END DO
+             ! Define weights of the list
+             ALLOCATE(colvar%points(i)%weights(natoms),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             colvar%points(i)%weights = 1.0_dp/REAL(natoms,KIND=dp)
+             CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,n_rep_val=nrep,error=error)
+             IF (nrep/=0) THEN
+                DO irep=1,nrep
+                   CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,i_rep_val=irep,&
+                        r_vals=weights,error=error)
+                   colvar%points(i)%weights(nweights+1:) = weights(:)
+                   nweights = nweights + SIZE(weights)
+                END DO
+                CPPostcondition(natoms==nweights,cp_failure_level,routineP,error,failure)
+             END IF
+          CASE(do_clv_fix_point )
+             ! Define the point as a fixed point in space..
+             CALL section_vals_val_get(point_sections,"XYZ",i_rep_section=i,r_vals=r,error=error)
+             colvar%points(i)%r = r
+          END SELECT
+       END DO
+    END IF
+  END SUBROUTINE colvar_check_points
 
 ! *****************************************************************************
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar

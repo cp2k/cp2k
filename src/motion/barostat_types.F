@@ -15,8 +15,7 @@ MODULE barostat_types
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_clv_xyz,&
-                                             npe_f_ensemble,&
+  USE input_constants,                 ONLY: npe_f_ensemble,&
                                              npe_i_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
@@ -31,6 +30,16 @@ MODULE barostat_types
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
+
+  INTEGER, PARAMETER, PUBLIC               :: do_clv_geo_center=0,&
+                                              do_clv_fix_point =1,&
+                                              do_clv_xyz       =0,&
+                                              do_clv_x         =1,&
+                                              do_clv_y         =2,&
+                                              do_clv_z         =3,&
+                                              do_clv_xy        =4,&
+                                              do_clv_xz        =5,&
+                                              do_clv_yz        =6
 
   PRIVATE
   PUBLIC :: barostat_type,&
