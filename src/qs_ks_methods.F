@@ -1189,16 +1189,16 @@ CONTAINS
     NULLIFY(logger,ks_env)
     logger => cp_error_get_logger(error)
 
+    c_forces = .FALSE.
+    energy_only = .FALSE.
+    IF (PRESENT(just_energy)) energy_only=just_energy
+    IF (PRESENT(calculate_forces)) c_forces=calculate_forces
+
     IF (c_forces) THEN
        CALL timeset(routineN//'_forces',handle)
     ELSE
        CALL timeset(routineN,handle)
     ENDIF
-
-    c_forces = .FALSE.
-    energy_only = .FALSE.
-    IF (PRESENT(just_energy)) energy_only=just_energy
-    IF (PRESENT(calculate_forces)) c_forces=calculate_forces
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
