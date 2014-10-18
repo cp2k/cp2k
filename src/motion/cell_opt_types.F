@@ -10,12 +10,12 @@
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! *****************************************************************************
 MODULE cell_opt_types
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_opt_utils,                  ONLY: get_ut_cell_matrix,&
+                                             read_external_press_tensor
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type
-  USE cell_opt_utils,                  ONLY: get_ut_cell_matrix,&
-                                             read_external_press_tensor
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE f77_blas

@@ -17,7 +17,7 @@ MODULE qs_scf_post_gpw
   USE atom_kind_orbitals,              ONLY: calculate_atomic_density
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type

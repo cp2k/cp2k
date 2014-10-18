@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE mc_control
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file

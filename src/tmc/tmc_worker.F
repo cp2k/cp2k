@@ -26,7 +26,7 @@
 ! *****************************************************************************
 
 MODULE tmc_worker
-  USE cell_methods,                    ONLY: cell_copy,&
+  USE cell_types,                      ONLY: cell_copy,&
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: set_external_comm

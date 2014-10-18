@@ -16,7 +16,7 @@ MODULE cp_subsys_methods
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_create
-  USE cell_methods,                    ONLY: cell_retain,&
+  USE cell_types,                      ONLY: cell_retain,&
                                              cell_type
   USE colvar_methods,                  ONLY: colvar_read
   USE cp_para_env,                     ONLY: cp_para_env_retain

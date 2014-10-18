@@ -10,7 +10,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_gpw_energy
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&

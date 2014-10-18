@@ -10,7 +10,7 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_pair_list_methods
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_libint_wrapper_types,        ONLY: prim_data_f_size

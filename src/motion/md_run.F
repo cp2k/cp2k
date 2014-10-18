@@ -16,11 +16,11 @@ MODULE md_run
                                              create_barostat_type,&
                                              release_barostat_type
 #ifdef __PLUMED_CP2K
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                    ONLY: cell_type,&
                                              pbc_cp2k_plumed_getset_cell,&
                                              pbc_cp2k_plumed
 #else
-  USE cell_methods,                    ONLY: cell_type
+  USE cell_types,                    ONLY: cell_type
 #endif
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&

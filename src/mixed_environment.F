@@ -9,11 +9,11 @@
 ! *****************************************************************************
 MODULE mixed_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_methods,                    ONLY: cell_release,&
-                                             cell_type,&
-                                             get_cell,&
-                                             read_cell,&
+  USE cell_methods,                    ONLY: read_cell,&
                                              write_cell
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             get_cell
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_create
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&

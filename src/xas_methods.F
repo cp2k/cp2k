@@ -21,7 +21,7 @@ MODULE xas_methods
        allocate_sto_basis_set, create_gto_from_sto_basis, &
        deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_type, &
        init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type

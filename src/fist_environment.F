@@ -14,11 +14,11 @@ MODULE fist_environment
                                              Dick1958,&
                                              Mitchell1993,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_release,&
-                                             cell_type,&
-                                             get_cell,&
-                                             read_cell,&
+  USE cell_methods,                    ONLY: read_cell,&
                                              write_cell
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             get_cell
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -31,6 +31,7 @@ MODULE fist_environment
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE ewald_environment_types,         ONLY: ewald_env_create,&
+                                             ewald_env_get,&
                                              ewald_env_release,&
                                              ewald_env_set,&
                                              ewald_environment_type,&
@@ -244,7 +245,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_init_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, max_multipole
+    LOGICAL                                  :: do_multipoles
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -313,7 +315,10 @@ CONTAINS
     CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat, error)
 
     ! Possibly Initialize the multipole environment
-    CALL create_multipole_type(multipoles, particle_set, subsys_section, ewald_env, error)
+    CALL ewald_env_get(ewald_env, do_multipoles=do_multipoles, &
+                       max_multipole=max_multipole, error=error)
+    IF(do_multipoles) &
+       CALL create_multipole_type(multipoles, particle_set, subsys_section, max_multipole, error)
     CALL cp_subsys_set(subsys, multipoles=multipoles, cell=cell, error=error)
 
     ! Set the fist_env

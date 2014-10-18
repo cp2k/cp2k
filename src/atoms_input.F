@@ -18,7 +18,7 @@
 MODULE atoms_input
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&

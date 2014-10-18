@@ -17,7 +17,7 @@ MODULE qs_dispersion_pairpot
                                              grimme2006,&
                                              grimme2010,&
                                              grimme2011
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              plane_distance

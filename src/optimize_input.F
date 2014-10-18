@@ -3,7 +3,7 @@
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_input
-  USE cell_methods,                    ONLY: parse_cell_line
+  USE cell_types,                      ONLY: parse_cell_line
   USE cp2k_info,                       ONLY: write_restart_header
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&

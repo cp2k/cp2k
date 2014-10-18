@@ -14,7 +14,7 @@
 ! *****************************************************************************
 MODULE hfx_libint_interface
 
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
   USE f77_blas
   USE gamma,                           ONLY: fgamma=>fgamma_0

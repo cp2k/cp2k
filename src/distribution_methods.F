@@ -16,7 +16,7 @@ MODULE distribution_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
                                              real_to_scaled
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type

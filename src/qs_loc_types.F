@@ -22,7 +22,7 @@
 ! *****************************************************************************
 MODULE qs_loc_types
 
-  USE cell_methods,                    ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type

@@ -14,7 +14,7 @@ MODULE mp2_ri_gpw
   USE basis_set_types,                 ONLY: gto_basis_set_type
   USE bibliography,                    ONLY: DelBen2013,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&

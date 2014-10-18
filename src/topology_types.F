@@ -14,7 +14,7 @@
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE topology_types
-  USE cell_methods,                    ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_type
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              colvar_release

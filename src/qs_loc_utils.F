@@ -15,7 +15,7 @@ MODULE qs_loc_utils
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&

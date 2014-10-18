@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE helium_io
 
-  USE cell_methods,                    ONLY: get_cell
+  USE cell_types,                      ONLY: get_cell
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&

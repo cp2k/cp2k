@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE particle_methods
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&

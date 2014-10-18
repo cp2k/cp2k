@@ -11,7 +11,7 @@ MODULE qs_subsys_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_type
-  USE cell_methods,                    ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE colvar_types,                    ONLY: colvar_p_type

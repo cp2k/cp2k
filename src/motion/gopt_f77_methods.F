@@ -29,14 +29,14 @@
     USE cell_opt_utils,                  ONLY: get_dg_dh,&
                                                gopt_new_error_create,&
                                                gopt_new_error_release
-    USE cell_methods,                      ONLY: cell_type,&
+    USE cell_types,                      ONLY: cell_type,&
                                                cell_copy,&
                                                cell_release,&
                                                cell_create,&
                                                init_cell,&
                                                real_to_scaled,&
-                                               scaled_to_real,&
-                                               write_cell
+                                               scaled_to_real
+                                       USE cell_methods, ONLY:  write_cell
     USE cp_para_types,                   ONLY: cp_para_env_type
     USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                                cp_subsys_type,&

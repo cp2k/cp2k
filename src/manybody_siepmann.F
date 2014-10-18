@@ -17,7 +17,7 @@
 MODULE manybody_siepmann
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&

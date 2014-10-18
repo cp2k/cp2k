@@ -15,7 +15,7 @@ MODULE fist_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE atprop_types,                    ONLY: atprop_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              init_cell,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_p_file,&

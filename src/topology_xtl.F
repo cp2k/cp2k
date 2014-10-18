@@ -9,13 +9,13 @@
 !> \date   05.2009
 ! *****************************************************************************
 MODULE topology_xtl
-  USE cell_methods,                    ONLY: cell_create,&
+  USE cell_methods,                    ONLY: write_cell
+  USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              pbc,&
                                              scaled_to_real,&
-                                             set_cell_param,&
-                                             write_cell
+                                             set_cell_param
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type

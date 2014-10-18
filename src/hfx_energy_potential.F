@@ -15,7 +15,7 @@ MODULE hfx_energy_potential
   USE bibliography,                    ONLY: cite_reference,&
                                              guidon2008,&
                                              guidon2009
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&

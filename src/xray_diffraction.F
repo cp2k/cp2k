@@ -19,7 +19,7 @@ MODULE xray_diffraction
                                              gto_basis_set_type
   USE bibliography,                    ONLY: Krack2002,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type

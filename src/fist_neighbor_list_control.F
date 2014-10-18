@@ -14,7 +14,7 @@ MODULE fist_neighbor_list_control
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type

@@ -12,7 +12,7 @@
 MODULE qs_ks_types
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_type
-  USE cell_methods,                    ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_type

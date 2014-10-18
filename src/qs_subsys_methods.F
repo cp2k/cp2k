@@ -8,13 +8,14 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE qs_subsys_methods
+
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: read_cell,&
+                                             write_cell
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
-                                             cell_type,&
-                                             read_cell,&
-                                             write_cell
+                                             cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_create
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&

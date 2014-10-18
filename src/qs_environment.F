@@ -22,7 +22,7 @@ MODULE qs_environment
   USE bibliography,                    ONLY: Iannuzzi2006,&
                                              Iannuzzi2007,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain,&

@@ -9,7 +9,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_util
-  USE cell_methods,                    ONLY: cell_copy,&
+  USE cell_types,                      ONLY: cell_copy,&
                                              cell_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE f77_blas

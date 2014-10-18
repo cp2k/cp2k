@@ -11,7 +11,7 @@
 ! *****************************************************************************
 
 MODULE tmc_moves
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
   USE kinds,                           ONLY: dp

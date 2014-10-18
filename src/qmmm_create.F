@@ -14,11 +14,11 @@ MODULE qmmm_create
                                              Laino2005,&
                                              Laino2006,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: write_cell
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_release,&
                                              cell_type,&
-                                             get_cell,&
-                                             write_cell
+                                             get_cell
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
