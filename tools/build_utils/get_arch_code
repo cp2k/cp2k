@@ -79,13 +79,6 @@
         PLATFORM="DEC_OS";;
       CYGWIN*-*-i686)
         PLATFORM="Cygwin-i686-gfortran";;
-      Linux-*-*-i686)
-        if [ -n "$FORT_C_NAME" ]
-        then
-          PLATFORM="Linux-i686-$FORT_C_NAME"
-        else
-          PLATFORM="Linux-i686-gfortran"
-        fi;;
       Linux-*-*-x86_64)
         if [ -n "$FORT_C_NAME" ]
         then
@@ -99,6 +92,13 @@
           PLATFORM="Linux-ia64-$FORT_C_NAME"
         else
           PLATFORM="Linux-ia64-intel"
+        fi;;
+      Linux-*-*-*)
+        if [ -n "$FORT_C_NAME" ]
+        then
+          PLATFORM="Linux-${machine}-$FORT_C_NAME"
+        else
+          PLATFORM="Linux-${machine}-gfortran"
         fi;;
       *-unicosmk-*-CRAY*T3E)
         PLATFORM="CRAY-T3E";;
