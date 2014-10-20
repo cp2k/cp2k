@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT hex-ice 
+  PROJECT LiF 
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW
+  PRINT_LEVEL LOW 
 &END GLOBAL
 &FORCE_EVAL
   METHOD QS
@@ -12,7 +12,7 @@
       ALMO_SCF T
       EPS_DEFAULT 1.0E-8 ! 1.0E-12
     &END QS
-    
+
     &ALMO_SCF
       EPS_FILTER                 1.0E-8
       ALMO_ALGORITHM             DIAG
@@ -24,13 +24,13 @@
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
       
-      DELOCALIZE_METHOD          XALMO_X
-      XALMO_R_CUTOFF_FACTOR      1.4
+      DELOCALIZE_METHOD          FULL_X_THEN_SCF
+      XALMO_R_CUTOFF_FACTOR      1.2
       
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
         EPS_ERROR                5.0E-4
-        CONJUGATOR               DAI_YUAN
+        CONJUGATOR               FLETCHER_REEVES
         LIN_SEARCH_EPS_ERROR     0.1
         LIN_SEARCH_STEP_SIZE_GUESS 0.5
         MAX_ITER_OUTER_LOOP      0
@@ -49,22 +49,58 @@
   &END DFT
   &SUBSYS
     &CELL
-@INCLUDE 'ice.cell'
+      ABC 4.0351 4.0351 4.0351
       MULTIPLE_UNIT_CELL 1 1 1 
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
     &END
     &COORD
-@INCLUDE 'ice.xyz'
+      SCALED
+      Li 0.0 0.0 0.0 Li-plus
+      Li 0.5 0.5 0.0 Li-plus
+      Li 0.5 0.0 0.5 Li-plus
+      Li 0.0 0.5 0.5 Li-plus
+      F  0.0 0.0 0.5 F-minus
+      F  0.0 0.5 0.0 F-minus
+      F  0.5 0.0 0.0 F-minus
+      F  0.5 0.5 0.5 F-minus
     &END COORD
-    &KIND H
+    &KIND Li
       BASIS_SET DZVP-GTH 
-      POTENTIAL GTH-BLYP-q1
+      POTENTIAL GTH-BLYP-q3
+      &BS
+        &ALPHA
+          NEL -1
+          L    0
+          N    2
+        &END
+        ! BETA FUNCTION SHOULD BE THE SAME
+        ! TO AVOID WARNINGS
+        &BETA
+          NEL -1
+          L    0 
+          N    2
+        &END
+      &END
     &END KIND
-    &KIND O
+    &KIND F
       BASIS_SET DZVP-GTH
-      POTENTIAL GTH-BLYP-q6
+      POTENTIAL GTH-BLYP-q7
+      &BS
+        &ALPHA
+          NEL +1
+          L    1
+          N    2
+        &END
+        ! BETA FUNCTION SHOULD BE THE SAME
+        ! TO AVOID WARNINGS
+        &BETA
+          NEL +1
+          L    1 
+          N    2
+        &END
+      &END
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

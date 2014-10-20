@@ -1,4 +1,9 @@
-almo-x.inp      11
+almo-x.inp                       11     4e-14
 almo-guess.inp                   11     7e-14
 almo-scf.inp                     11     8e-14
-almo-d.inp                       11     4e-14
+almo-d.inp                       11     1e-13
+almo-fullx.inp                   11
+almo-no-deloc.inp                11
+FH-chain.inp                     11
+ion-pair.inp                     11
+LiF.inp                          11

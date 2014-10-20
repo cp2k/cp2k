@@ -8,18 +8,25 @@
 !> \author Rustam Khaliullin
 ! *****************************************************************************
 MODULE input_cp2k_almo
-  USE bibliography,                    ONLY: Khaliullin2013
+  USE bibliography,                    ONLY: Khaliullin2007,&
+                                             Khaliullin2008,&
+                                             Khaliullin2013
   USE f77_blas
   USE input_constants,                 ONLY: &
-       almo_deloc_full_scf, almo_deloc_none, almo_deloc_qscf, almo_deloc_qx, &
-       almo_deloc_x, almo_deloc_x_then_full_scf, almo_scf_diag, almo_scf_pcg, &
-       cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, &
-       cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, cg_zero
+       almo_deloc_none, almo_deloc_scf, almo_deloc_x, almo_deloc_x_then_scf, &
+       almo_deloc_xalmo_1diag, almo_deloc_xalmo_scf, almo_deloc_xalmo_x, &
+       almo_frz_crystal, almo_frz_none, almo_scf_diag, almo_scf_pcg, &
+       atomic_guess, cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, &
+       cg_hager_zhang, cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, &
+       cg_zero, molecular_guess, optimizer_diis, optimizer_pcg, prec_default, &
+       prec_zero
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
   USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
                                              section_create,&
+                                             section_release,&
                                              section_type
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -30,17 +37,11 @@ MODULE input_cp2k_almo
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_almo'
 
+  INTEGER,  PARAMETER, PRIVATE :: optimizer_block_diagonal_diis = 1 
+  INTEGER,  PARAMETER, PRIVATE :: optimizer_block_diagonal_pcg = 2 
+  INTEGER,  PARAMETER, PRIVATE :: optimizer_xalmo_pcg = 3
+  
   PUBLIC :: create_almo_scf_section
-
-! RZK-MERGE
-!  USE cp_output_handling,              ONLY: cp_print_key_section_create,low_print_level,medium_print_level,high_print_level,debug_print_level,add_last_no,add_last_numeric,add_last_symbolic,silent_print_level
-!  USE input_section_types,             ONLY: section_add_keyword,&
-!                                             section_add_subsection,&
-!                                             section_create,&
-!                                             section_release,&
-!                                             section_type
-!  USE input_val_types,                 ONLY: integer_t,&
-!                                             real_t
 
 CONTAINS
 
@@ -61,21 +62,120 @@ SUBROUTINE create_almo_scf_section(section,error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-!TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"ALMO_SCF",&
-            description="Settings for methods based on absolutely localized orbitals"//&
-            " (ALMOs). Restricted to closed-shell molecular systems.",&
-            n_keywords=11, n_subsections=0, repeats=.FALSE.,&
+            description="Settings for a class of efficient linear scaling methods based "//&
+            "on absolutely localized orbitals"//&
+            " (ALMOs). ALMO methods are currently restricted to closed-shell molecular systems.",&
+            n_keywords=4, n_subsections=3, repeats=.FALSE.,&
             citations=(/Khaliullin2013/),&
             required=.FALSE., error=error)
 
        NULLIFY (keyword)
+
+       CALL keyword_create(keyword, name="EPS_FILTER",&
+            description="Threshold for the matrix sparsity filter",&
+            usage="EPS_FILTER 1.e-6", default_r_val=1.e-7_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="ALMO_SCF_GUESS",&
+            description="The method to generate initial ALMOs.",&
+            usage="ALMO_SCF_GUESS MOLECULAR",&
+            default_i_val=atomic_guess,&
+            enum_c_vals=s2a("MOLECULAR", "ATOMIC"),&
+            enum_desc=s2a("SCF calculations on single molecules controled by the regular SCF "//&
+                          "keywords outside ALMO options. This kind of calculation is expensive "//&
+                          "and only recommended if ALMO SCF does not converge from the ATOMIC guess.",&
+                          "Superpoisiton of atomic densities."),&
+            enum_i_vals=(/molecular_guess,atomic_guess/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALMO_ALGORITHM",&
+            description="Specifies the algorithm to update block-diagonal ALMOs during the SCF procedure.",&
+            usage="ALMO_ALGORITHM DIAG",&
+            default_i_val=almo_scf_diag,&
+            !enum_c_vals=s2a("DIAG", "DM_SIGN","PCG"),&
+            enum_c_vals=s2a("DIAG", "PCG"),&
+            enum_desc=s2a("DIIS-accelerated diagonalization controlled by ALMO_OPTIMIZER_DIIS. "//&
+                          "Recommended for large systems containing small fragments.",&
+                          !"Update the density matrix using linear scaling routines. "//&
+                          !"Recommended if large fragments are present.",&
+                          "Energy minimization with a PCG algorithm controlled by ALMO_OPTIMIZER_PCG."),&
+            !enum_i_vals=(/almo_scf_diag,almo_scf_dm_sign,almo_scf_pcg/),&
+            enum_i_vals=(/almo_scf_diag,almo_scf_pcg/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DELOCALIZE_METHOD",&
+            description="Methods to reintroduce electron delocalization, which is excluded "//&
+                        "with the block-diagonal ALMO reference. Electron delocalization can "//&
+                        "be computed using either fully delocalized MOs or spatially restricted "//&
+                        "ALMOs (called extended ALMOs or XALMOs). All methods below use a PCG "//&
+                        "optimizer controlled by XALMO_OPTIMIZER_PCG. The only exception is "//&
+                        "the non-iterative XALMO_1DIAG.",&
+            usage="DELOCALIZE_METHOD XALMO_X",&
+            default_i_val=almo_deloc_xalmo_x,&
+            enum_c_vals=s2a("NONE","XALMO_1DIAG","XALMO_X","XALMO_SCF","FULL_X","FULL_SCF","FULL_X_THEN_SCF"),&
+            enum_desc=s2a("Neglect electron delocalization",&
+            "Correction based on one diagonalization of the spatially projected Hamiltonian (XALMO)",&
+            "Single excitation correction (no Hamiltonian re-build) with spatial restrictions (XALMO)",&
+            "Self-consistent treatment of delocalization with spatial restrictions (XALMO)",&
+            "Single excitation correction (no Hamiltonian re-build) without spatial restrictions",&
+            "Self-consistent treatment of delocalization without spatial restrictions",&
+            "Single excitation correction followed by full SCF procedure, both without spatial restrictions"),&
+            enum_i_vals=(/almo_deloc_none,almo_deloc_xalmo_1diag,almo_deloc_xalmo_x,almo_deloc_xalmo_scf,&
+            almo_deloc_x,almo_deloc_scf,almo_deloc_x_then_scf/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="XALMO_R_CUTOFF_FACTOR",&
+            description="Controls the localization radius of XALMOs: "//&
+            !"r0 = r0_factor*(radius(at1)+radius(at2)) + r0_shift",&
+            "R_cutoff = XALMO_R_CUTOFF_FACTOR*(radius(at1)+radius(at2))",&
+            usage="XALMO_R_CUTOFF_FACTOR 1.6", default_r_val=1.50_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       !CALL keyword_create(keyword, name="DELOCALIZE_EPS_ITER",&
+       !     description="Obsolete and to be deleted: use EPS_ERROR in XALMO_OPTIMIZER_PCG",&
+       !     usage="DELOCALIZE_EPS_ITER 1.e-5", default_r_val=1.e-5_dp,error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
+
+       !CALL keyword_create(keyword, name="DELOCALIZE_EPS_LIN_SEARCH",&
+       !     description="Obsolete and to be deleted: use EPS_ERROR_LIN_SEARCH in XALMO_OPTIMIZER_PCG",&
+       !     usage="DELOCALIZE_EPS_LIN_SEARCH 1.e-6", default_r_val=1.e-7_dp,error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
+
+       !CALL keyword_create(keyword, name="BLOCKED_MAX_ITER",&
+       !     description="Obsolete and to be deleted: use MAX_ITER in ALMO_OPTIMIZER_DIIS or ALMO_OPTIMIZER_PCG",&
+       !     usage="BLOCKED_MAX_ITER 200", default_i_val=100,error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
+
+       !CALL keyword_create(keyword, name="BLOCKED_EPS_ITER",&
+       !     description="Obsolete and to be deleted: use EPS_ERROR in ALMO_OPTIMIZER_DIIS or ALMO_OPTIMIZER_PCG",&
+       !     usage="BLOCKED_EPS_ITER 1.e-5", default_r_val=1.e-5_dp,error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
+
+       !CALL keyword_create(keyword, name="DELOCALIZE_MAX_ITER",&
+       !     description="Obsolete and to be deleted: use MAX_ITER in XALMO_OPTIMIZER_PCG",&
+       !     usage="DELOCALIZE_MAX_ITER 200", default_i_val=100,error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
 
        !CALL keyword_create(keyword, name="DOMAIN_LAYOUT_MOS",&
        !     description="Each electron in the system is constrained to its own delocalization domain."//&
@@ -150,127 +250,51 @@ SUBROUTINE create_almo_scf_section(section,error)
        !CALL section_add_keyword(section,keyword,error=error)
        !CALL keyword_release(keyword,error=error)
     
-       CALL keyword_create(keyword, name="BLOCKED_MAX_ITER",&
-            description="Maximum number of SCF iterations for optimization of block-diagonal ALMOs",&
-            usage="BLOCKED_MAX_ITER 200", default_i_val=100,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !!CALL keyword_create(keyword, name="OUTER_MAX_SCF_Q",&
+       !!     description="Maximum number of the outer loop SCF iterations for optimization of quenched ALMOs",&
+       !!     usage="OUTER_MAX_SCF_Q 10", default_i_val=0,error=error)
+       !!CALL section_add_keyword(section,keyword,error=error)
+       !!CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="BLOCKED_N_DIIS",&
-            description="Number of error vectors to be used in the DIIS "//&
-            "optimization procedure of block-diagonal ALMOs",&
-            usage="BLOCKED_N_DIIS 5", default_i_val=7,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !!CALL keyword_create(keyword, name="EPS_USE_PREV_AS_GUESS",&
+       !!     description="SCF convergence below which quantities from previous iterations"//&
+       !!                 " can be used as initial guess for the current iteration.",&
+       !!     usage="EPS_USE_PREV_AS_GUESS 0.01", default_r_val=0.001_dp,error=error)
+       !!CALL section_add_keyword(section,keyword,error=error)
+       !!CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="BLOCKED_EPS_ITER",&
-            description="Target accuracy for the convergence of optimization of block-diagonal ALMOs",&
-            usage="BLOCKED_EPS_ITER 1.e-5", default_r_val=1.e-5_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !!CALL keyword_create(keyword, name="MIXING_FRACTION",&
+       !!     description="Weight of the new KS matrix in the mixing during the SCF procedure.",&
+       !!     usage="MIXING_FRACTION 0.45", default_r_val=0.45_dp,error=error)
+       !!CALL section_add_keyword(section,keyword,error=error)
+       !!CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DELOCALIZE_MAX_ITER",&
-            description="Maximum number of SCF iterations for optimization of ALMOs",&
-            usage="DELOCALIZE_MAX_ITER 200", default_i_val=100,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !!CALL keyword_create(keyword, name="FIXED_MU",&
+       !!     description="Fix chemical potential or optimize it to get "//&
+       !!                 "the correct number of electrons",&
+       !!     usage="FIXED_MU .TRUE.", default_l_val=.FALSE.,&
+       !!     lone_keyword_l_val=.TRUE.,  error=error)
+       !!CALL section_add_keyword(section,keyword,error=error)
+       !!CALL keyword_release(keyword,error=error)
 
-       !CALL keyword_create(keyword, name="OUTER_MAX_SCF_Q",&
-       !     description="Maximum number of the outer loop SCF iterations for optimization of quenched ALMOs",&
-       !     usage="OUTER_MAX_SCF_Q 10", default_i_val=0,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+       !!CALL keyword_create(keyword, name="MU",&
+       !!     description="Value (or initial guess) for the chemical potential."//&
+       !!                 " Provide energy between HOMO and LUMO energy.",&
+       !!     usage="MU 0.0", default_r_val=-0.1_dp,error=error)
+       !!CALL section_add_keyword(section,keyword,error=error)
+       !!CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DELOCALIZE_EPS_ITER",&
-            description="Target accuracy for the convergence of optimization of ALMOs",&
-            usage="DELOCALIZE_EPS_ITER 1.e-5", default_r_val=1.e-5_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="DELOCALIZE_EPS_LIN_SEARCH",&
-            description="Target accuracy of the line search for the PCG optimization of ALMOs",&
-            usage="DELOCALIZE_EPS_LIN_SEARCH 1.e-6", default_r_val=1.e-7_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="EPS_FILTER",&
-            description="Threshold for the sparsity filter",&
-            usage="EPS_FILTER 1.e-6", default_r_val=1.e-7_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
-       CALL keyword_create(keyword, name="DELOCALIZE_CONJUGATOR",&
-            description="Various methods to compute step directions in the PCG optimization of ALMOs",&
-            usage="DELOCALIZE_CONJUGATOR POLAK_RIBIERE",&
-            default_i_val=cg_hager_zhang,&
-            enum_c_vals=s2a("ZERO", "POLAK_RIBIERE", "FLETCHER_REEVES",&
-            "HESTENES_STIEFEL", "FLETCHER", "LIU_STOREY", "DAI_YUAN","HAGER_ZHANG"),&
-            enum_desc=s2a("Steepest descent","Polak and Ribiere",&
-            "Fletcher and Reeves","Hestenes and Stiefel",&
-            "Fletcher (Conjugate descent)","Liu and Storey",&
-            "Dai and Yuan","Hager and Zhang"),&
-            enum_i_vals=(/cg_zero,cg_polak_ribiere,cg_fletcher_reeves,&
-                          cg_hestenes_stiefel,cg_fletcher,cg_liu_storey,&
-                          cg_dai_yuan,cg_hager_zhang/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="EPS_USE_PREV_AS_GUESS",&
-       !     description="SCF convergence below which quantities from previous iterations"//&
-       !                 " can be used as initial guess for the current iteration.",&
-       !     usage="EPS_USE_PREV_AS_GUESS 0.01", default_r_val=0.001_dp,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="MIXING_FRACTION",&
-       !     description="Weight of the new KS matrix in the mixing during the SCF procedure.",&
-       !     usage="MIXING_FRACTION 0.45", default_r_val=0.45_dp,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="FIXED_MU",&
-       !     description="Fix chemical potential or optimize it to get "//&
-       !                 "the correct number of electrons",&
-       !     usage="FIXED_MU .TRUE.", default_l_val=.FALSE.,&
-       !     lone_keyword_l_val=.TRUE.,  error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="MU",&
-       !     description="Value (or initial guess) for the chemical potential."//&
-       !                 " Provide energy between HOMO and LUMO energy.",&
-       !     usage="MU 0.0", default_r_val=-0.1_dp,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="ALMO_UPDATE_ALGORITHM_BD",&
-       !     description="Specifies the algorithm to update block-digonal ALMOs during the SCF procedure.",&
-       !     usage="ALMO_UPDATE_ALGORITHM_BD DIAG",&
+       !CALL keyword_create(keyword, name="XALMO_ALGORITHM",&
+       !     description="Specifies the algorithm to update ALMOs on eXtended domains (XALMOs).",&
+       !     usage="XALMO_ALGORITHM PCG",&
        !     default_i_val=almo_scf_diag,&
-       !     enum_c_vals=s2a("DIAG", "DM_SIGN","PCG"),&
-       !     enum_desc=s2a("Straightforward diagonalization. Recommended for systems "//&
-       !                   "comprising large number of small fragments.",&
-       !                   "Update the density matrix using linear scaling routines. "//&
-       !                   "Recommended if large fragments are present.",&
-       !                   "Direct minimization using the preconditioned cojugate gradient algorithm. "//&
-       !                   "It has not been extensively tested."),&
-       !     enum_i_vals=(/almo_scf_diag,almo_scf_dm_sign,almo_scf_pcg/),&
+       !     enum_c_vals=s2a("DDIAG", "PCG"),&
+       !     enum_desc=s2a("Domain diagonalization",&
+       !                   "Preconditioned conjugate gradient"),&
+       !     enum_i_vals=(/almo_scf_diag,almo_scf_pcg/),&
        !     error=error)
        !CALL section_add_keyword(section,keyword,error=error)
        !CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="DELOCALIZE_ALGORITHM",&
-            description="Specifies the algorithm to update ALMOs.",&
-            usage="DELOCALIZE_ALGORITHM BDIAG",&
-            default_i_val=almo_scf_diag,&
-            enum_c_vals=s2a("DDIAG", "PCG"),&
-            enum_desc=s2a("Domain diagonalization",&
-                          "Preconditioned conjugate gradient"),&
-            enum_i_vals=(/almo_scf_diag,almo_scf_pcg/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
        !CALL keyword_create(keyword, name="QUENCHER_RADIUS_TYPE",&
        !     description="Determines the type of atomic radii used for imposing the ALMO constraints",&
@@ -284,15 +308,6 @@ SUBROUTINE create_almo_scf_section(section,error)
        !CALL section_add_keyword(section,keyword,error=error)
        !CALL keyword_release(keyword,error=error)
     
-       CALL keyword_create(keyword, name="DELOCALIZE_R_CUTOFF_FACTOR",&
-            description="Parameter to calculate the localization radius: "//&
-            !"r0 = r0_factor*(radius(at1)+radius(at2)) + r0_shift",&
-            "R_cutoff = DELOCALIZE_R_CUTOFF_FACTOR*(radius(at1)+radius(at2))",&
-            usage="DELOCALIZE_R_CUTOFF_FACTOR 1.6", default_r_val=1.60_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        !CALL keyword_create(keyword, name="QUENCHER_R0_FACTOR",&
        !     description="Parameter to calculate the inner soft cutoff radius: "//&
        !     !"r0 = r0_factor*(radius(at1)+radius(at2)) + r0_shift",&
@@ -347,25 +362,6 @@ SUBROUTINE create_almo_scf_section(section,error)
        !     error=error)
        !CALL section_add_keyword(section,keyword,error=error)
        !CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="DELOCALIZE_METHOD",&
-            description="Methods to treat electron delocalization after block-diagonal ALMOs are computed",&
-            usage="DELOCALIZE_METHOD X_R",&
-            default_i_val=almo_deloc_qx,&
-            enum_c_vals=s2a("NONE","X","SCF","X_R","SCF_R","X_THEN_SCF"),&
-            enum_desc=s2a("Neglect electron delocalization",&
-            "Single excitation delocalization energy correction",&
-            "Fully self-consistent treatment of delocalization",&
-            "Spacially restricted single excitation delocalization energy correction",&
-            "Spacially restricted self-consistent treatment of delocalization",&
-            "Single excitation delocalization energy correction followed by full SCF procedure"),&
-            enum_i_vals=(/almo_deloc_none,almo_deloc_x,almo_deloc_full_scf,&
-            almo_deloc_qx,almo_deloc_qscf,&
-            !almo_deloc_xk,&
-            almo_deloc_x_then_full_scf/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
        !CALL keyword_create(keyword, name="DELOC_CAYLEY_TENSOR_TYPE",&
        !     description="Tensor properties of occupied and virtual indices",&
@@ -548,178 +544,23 @@ SUBROUTINE create_almo_scf_section(section,error)
        !CALL section_add_keyword(section,keyword,error=error)
        !CALL keyword_release(keyword,error=error)
     
-       !CALL keyword_create(keyword, name="INTEGER01",&
-       !     description="Development keyword",&
-       !     usage="INTEGER01 1",default_i_val=0,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-    
-       !CALL keyword_create(keyword, name="INTEGER02",&
-       !     description="Development keyword",&
-       !     usage="INTEGER02 1",default_i_val=0,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-    
-       !CALL keyword_create(keyword, name="INTEGER03",&
-       !     description="Development keyword",&
-       !     usage="INTEGER03 1",default_i_val=0,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-    
-       !CALL keyword_create(keyword, name="INTEGER04",&
-       !     description="Development keyword",&
-       !     usage="INTEGER04 1",default_i_val=0,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-    
-       !CALL keyword_create(keyword, name="INTEGER05",&
-       !     description="Development keyword",&
-       !     usage="INTEGER05 1",default_i_val=0,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-    
-       !CALL keyword_create(keyword, name="REAL01",&
-       !     description="Development keyword",&
-       !     usage="REAL01", default_r_val=0.0_dp,&
-       !     error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+       NULLIFY(subsection)
+       CALL create_optimizer_section(subsection,optimizer_block_diagonal_diis,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
-       !CALL keyword_create(keyword, name="REAL02",&
-       !     description="Development keyword",&
-       !     usage="REAL02", default_r_val=0.0_dp,&
-       !     error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+       NULLIFY(subsection)
+       CALL create_optimizer_section(subsection,optimizer_block_diagonal_pcg,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
-       !CALL keyword_create(keyword, name="REAL03",&
-       !     description="Development keyword",&
-       !     usage="REAL03", default_r_val=0.0_dp,&
-       !     error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="REAL04",&
-       !     description="Development keyword",&
-       !     usage="REAL04", default_r_val=0.0_dp,&
-       !     error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="REAL05",&
-       !     description="Development keyword",&
-       !     usage="REAL05", default_r_val=0.0_dp,&
-       !     error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="LOGICAL01",&
-       !     description="Development keyword",&
-       !     usage="LOGICAL01 .FALSE.", default_l_val=.FALSE.,&
-       !     lone_keyword_l_val=.TRUE.,  error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="LOGICAL02",&
-       !     description="Development keyword",&
-       !     usage="LOGICAL02 .FALSE.", default_l_val=.FALSE.,&
-       !     lone_keyword_l_val=.TRUE.,  error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="LOGICAL03",&
-       !     description="Development keyword",&
-       !     usage="LOGICAL03 .FALSE.", default_l_val=.FALSE.,&
-       !     lone_keyword_l_val=.TRUE.,  error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="LOGICAL04",&
-       !     description="Development keyword",&
-       !     usage="LOGICAL04 .FALSE.", default_l_val=.FALSE.,&
-       !     lone_keyword_l_val=.TRUE.,  error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="LOGICAL05",&
-       !     description="Development keyword",&
-       !     usage="LOGICAL05 .FALSE.", default_l_val=.FALSE.,&
-       !     lone_keyword_l_val=.TRUE.,  error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-       !
-       !CALL keyword_create(keyword, name="INT_LIST01",&
-       !     description="Development keyword",&
-       !     usage="INT_LIST01 {integer} {integer} .. {integer}", required=.FALSE.,&
-       !     n_var=-1, type_of_var=integer_t, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="INT_LIST02",&
-       !     description="Development keyword",&
-       !     usage="INT_LIST02 {integer} {integer} .. {integer}", required=.FALSE.,&
-       !     n_var=-1, type_of_var=integer_t, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="INT_LIST03",&
-       !     description="Development keyword",&
-       !     usage="INT_LIST03 {integer} {integer} .. {integer}", required=.FALSE.,&
-       !     n_var=-1, type_of_var=integer_t, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="INT_LIST04",&
-       !     description="Development keyword",&
-       !     usage="INT_LIST04 {integer} {integer} .. {integer}", required=.FALSE.,&
-       !     n_var=-1, type_of_var=integer_t, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword, name="INT_LIST05",&
-       !     description="Development keyword",&
-       !     usage="INT_LIST05 {integer} {integer} .. {integer}", required=.FALSE.,&
-       !     n_var=-1, type_of_var=integer_t, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword,name="REAL_LIST01",&
-       !     description="Development keyword",&
-       !     usage="REAL_LIST01 {real} {real} .. {real}", required=.FALSE.,&
-       !     type_of_var=real_t, n_var=-1, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword,name="REAL_LIST02",&
-       !     description="Development keyword",&
-       !     usage="REAL_LIST02 {real} {real} .. {real}", required=.FALSE.,&
-       !     type_of_var=real_t, n_var=-1, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword,name="REAL_LIST03",&
-       !     description="Development keyword",&
-       !     usage="REAL_LIST03 {real} {real} .. {real}", required=.FALSE.,&
-       !     type_of_var=real_t, n_var=-1, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword,name="REAL_LIST04",&
-       !     description="Development keyword",&
-       !     usage="REAL_LIST04 {real} {real} .. {real}", required=.FALSE.,&
-       !     type_of_var=real_t, n_var=-1, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
-
-       !CALL keyword_create(keyword,name="REAL_LIST05",&
-       !     description="Development keyword",&
-       !     usage="REAL_LIST05 {real} {real} .. {real}", required=.FALSE.,&
-       !     type_of_var=real_t, n_var=-1, error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+       NULLIFY(subsection)
+       CALL create_optimizer_section(subsection,optimizer_xalmo_pcg,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        !NULLIFY(subsection)
-       !CALL create_optimizer_section(subsection,error)
+       !CALL create_almo_eda_section(subsection,error)
        !CALL section_add_subsection(section, subsection, error=error)
        !CALL section_release(subsection,error=error)
 
@@ -728,86 +569,233 @@ SUBROUTINE create_almo_scf_section(section,error)
   END SUBROUTINE create_almo_scf_section
 
 ! *****************************************************************************
-!> \brief create the optimizer section
+!> \brief The ALMO EDA section controls decomposition analysis based on ALMOs
 !> \param section ...
 !> \param error ...
 !> \par History
-!>       2012.03 created [Rustam Z Khaliullin]
+!>       2014.10 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-SUBROUTINE create_optimizer_section(section,error)
+SUBROUTINE create_almo_eda_section(section,error)
+
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_optimizer_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_eda_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       !CALL section_create(section,"ORTHOGONALIZATION_OPT",&
-       !     description="Controls iterative orthogonalization of ALMOs.",&
-       !     n_keywords=6, n_subsections=0, repeats=.FALSE.,&
-       !     required=.FALSE., error=error)
+      
+       CALL section_create(section,"ALMO_DA",&
+            description="Controls decomposition analysis based on ALMOs and XALMOs. "//&
+            "Not yet fully implemented.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE.,&
+            citations=(/Khaliullin2007,Khaliullin2008/),&
+            required=.FALSE., error=error)
 
-       !NULLIFY (keyword)
+       NULLIFY (keyword)
    
-       !CALL keyword_create(keyword, name="MAX_ITER",&
-       !     description="Maximum number of iterations",&
-       !     usage="MAX_ITER 100", default_i_val=100,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="FRZ_TERM",&
+            description="Perform calculations on single molecules to compute the frozen density term",&
+            usage="FRZ_TERM ISOLATED", default_i_val=0,&
+            !enum_c_vals=s2a("SKIP", "ISOLATED", "CRYSTAL"),&
+            enum_c_vals=s2a("SKIP", "CRYSTAL"),&
+            enum_desc=s2a("Do not compute the frozen energy term.",&
+            !"Use isolated molecules as the reference.",&
+            "Use molecules in their positions in the crystal cell as the reference. "//&
+            !"Substantially more expensive than ISOLATED. "//&
+            "Be careful interpreting this term for systems with charged fragmetns."),&
+            enum_i_vals=(/almo_frz_none,&
+            !              almo_frz_isolated,&
+                          almo_frz_crystal/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
-       !CALL keyword_create(keyword, name="PRECONDITIONER",&
-       !     description="Various methods to compute preconditioner during the CG optimization",&
-       !     usage="PRECONDITIONER 0",&
-       !     default_i_val=0,&
-       !     enum_c_vals=s2a("NONE", "SIGMA_ZERO"),&
-       !     enum_i_vals=(/0,1/),&
-       !     error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+    END IF
 
-       !CALL keyword_create(keyword, name="CONJUGATOR",&
-       !     description="Various methods to compute conjugated step directions during the CG optimization",&
-       !     usage="CONJUGATOR POLAK_RIBIERE",&
-       !     default_i_val=cg_hager_zhang,&
-       !     enum_c_vals=s2a("ZERO", "POLAK_RIBIERE", "FLETCHER_REEVES",&
-       !     "HESTENES_STIEFEL", "FLETCHER", "LIU_STOREY", "DAI_YUAN","HAGER_ZHANG"),&
-       !     enum_desc=s2a("Steepest descent","Polak and Ribiere",&
-       !     "Fletcher and Reeves","Hestenes and Stiefel",&
-       !     "Fletcher (Conjugate descent)","Liu and Storey",&
-       !     "Dai and Yuan","Hager and Zhang"),&
-       !     enum_i_vals=(/cg_zero,cg_polak_ribiere,cg_fletcher_reeves,&
-       !                   cg_hestenes_stiefel,cg_fletcher,cg_liu_storey,&
-       !                   cg_dai_yuan,cg_hager_zhang/),&
-       !     error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+  END SUBROUTINE create_almo_eda_section
 
-       !CALL keyword_create(keyword, name="GRAD_TARGET",&
-       !     description="Target value of the MAX gradient norm",&
-       !     usage="GRAD_TARGET 1.E-6", default_r_val=1.0E-4_dp,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+! *****************************************************************************
+!> \brief The optimizer section is a collection of keywords that are similar
+!>        to all optimization methods (e.g. target error, number of iterations)
+!> \param section ...
+!> \param optimizer_id - allows to adapt the standard section for specific needs 
+!> \param error ...
+!> \par History
+!>       2012.03 created [Rustam Z Khaliullin]
+!>       2014.10 fully integrated [Rustam Z Khaliullin]
+!> \author Rustam Z Khaliullin
+! *****************************************************************************
+SUBROUTINE create_optimizer_section(section,optimizer_id,error)
 
-       !CALL keyword_create(keyword, name="LIN_SEARCH_GRAD_TARGET",&
-       !     description="Target value of the gradient for the linear search",&
-       !     usage="LIN_SEARCH_GRAD_TARGET 1.E-6", default_r_val=1.0E-3_dp,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+    TYPE(section_type), POINTER              :: section
+    INTEGER, INTENT(IN)                      :: optimizer_id
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-       !CALL keyword_create(keyword, name="STEP_SIZE_GUESS",&
-       !     description="Target value of the MAX gradient norm",&
-       !     usage="STEP_SIZE_GUESS 0.5", default_r_val=1.0_dp,error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_optimizer_section', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: optimizer_type
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      
+       ! choose the name of the section
+       SELECT CASE(optimizer_id)
+       CASE(optimizer_block_diagonal_diis)
+          CALL section_create(section,"ALMO_OPTIMIZER_DIIS",&
+               description="Controls the iterative DIIS-accelerated optimization of block-diagonal ALMOs.",&
+               n_keywords=3, n_subsections=0, repeats=.FALSE.,&
+               required=.FALSE., error=error)
+          optimizer_type=optimizer_diis
+       CASE(optimizer_block_diagonal_pcg)
+          CALL section_create(section,"ALMO_OPTIMIZER_PCG",&
+               description="Controls the PCG optimization of block-diagonal ALMOs.",&
+               n_keywords=6, n_subsections=0, repeats=.FALSE.,&
+               required=.FALSE., error=error)
+          optimizer_type=optimizer_pcg
+       CASE(optimizer_xalmo_pcg)
+          CALL section_create(section,"XALMO_OPTIMIZER_PCG",&
+               description="Controls the PCG optimization of extended ALMOs.",&
+               n_keywords=6, n_subsections=0, repeats=.FALSE.,&
+               required=.FALSE., error=error)
+          optimizer_type=optimizer_pcg
+       CASE DEFAULT
+          CPErrorMessage(cp_failure_level,routineP,"No default values allowed",error)
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+
+       NULLIFY (keyword)
+   
+       ! add common keywords
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Maximum number of iterations",&
+            usage="MAX_ITER 100", default_i_val=20,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_ERROR",&
+            description="Target value of the MAX norm of the error",&
+            usage="EPS_ERROR 1.E-6", default_r_val=1.0E-5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! add keywords specific to each type
+       SELECT CASE(optimizer_type)
+       CASE(optimizer_diis)
+
+          CALL keyword_create(keyword, name="N_DIIS",&
+               description="Number of error vectors to be used in the DIIS "//&
+               "optimization procedure",&
+               usage="N_DIIS 5", default_i_val=6,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+       CASE(optimizer_pcg)
+          
+          CALL keyword_create(keyword, name="LIN_SEARCH_EPS_ERROR",&
+               description="Target value of the gradient norm during the linear search",&
+               usage="LIN_SEARCH_EPS_ERROR 1.E-2", default_r_val=1.0E-3_dp,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL keyword_create(keyword, name="LIN_SEARCH_STEP_SIZE_GUESS",&
+               description="The size of the first step in the linear search",&
+               usage="LIN_SEARCH_STEP_SIZE_GUESS 0.1", default_r_val=1.0_dp,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL keyword_create(keyword, name="MAX_ITER_OUTER_LOOP",&
+               description="Maximum number of iterations in the outer loop. "//&
+               "Use the outer loop to update the preconditioner and reset the conjugator. "//&
+               "This can speed up convergence significantly.",&
+               usage="MAX_ITER 10", default_i_val=0,error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL keyword_create(keyword, name="PRECONDITIONER",&
+               description="Select a preconditioner for the conjugate gradient optimization",&
+               usage="PRECONDITIONER NONE",&
+               default_i_val=-1,&
+               enum_c_vals=s2a("DEFAULT", "NONE"),&
+               enum_desc=s2a("Default preconditioner","Do not use preconditioner"),&
+               enum_i_vals=(/prec_default,prec_zero/),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+          CALL keyword_create(keyword, name="CONJUGATOR",&
+               description="Various methods to compute step directions in the PCG optimization",&
+               usage="CONJUGATOR POLAK_RIBIERE",&
+               default_i_val=cg_hager_zhang,&
+               enum_c_vals=s2a("ZERO", "POLAK_RIBIERE", "FLETCHER_REEVES",&
+               "HESTENES_STIEFEL", "FLETCHER", "LIU_STOREY", "DAI_YUAN","HAGER_ZHANG"),&
+               enum_desc=s2a("Steepest descent","Polak and Ribiere",&
+               "Fletcher and Reeves","Hestenes and Stiefel",&
+               "Fletcher (Conjugate descent)","Liu and Storey",&
+               "Dai and Yuan","Hager and Zhang"),&
+               enum_i_vals=(/cg_zero,cg_polak_ribiere,cg_fletcher_reeves,&
+                             cg_hestenes_stiefel,cg_fletcher,cg_liu_storey,&
+                             cg_dai_yuan,cg_hager_zhang/),&
+               error=error)
+          CALL section_add_keyword(section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
+
+       END SELECT 
 
     END IF
 
   END SUBROUTINE create_optimizer_section
+
+!!! *****************************************************************************
+!!!> \brief The developer section allows uninterrupted development of the code
+!!!>        by keeping untested keywords neatly separated from those publicly
+!!!>        available
+!!!> \param section ...
+!!!> \param error ...
+!!!> \par History
+!!!>       2014.10 created [Rustam Z Khaliullin]
+!!!> \author Rustam Z Khaliullin
+!!! *****************************************************************************
+!!  SUBROUTINE create_developer_section(section,error)
+!!
+!!    TYPE(section_type), POINTER              :: section
+!!    TYPE(cp_error_type), INTENT(inout)       :: error
+!!
+!!    CHARACTER(len=*), PARAMETER :: routineN = 'create_developer_section', &
+!!      routineP = moduleN//':'//routineN
+!!
+!!    LOGICAL                                  :: failure
+!!    TYPE(keyword_type), POINTER              :: keyword
+!!
+!!    failure=.FALSE.
+!!
+!!    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+!!    IF (.NOT. failure) THEN
+!!      
+!!       CALL section_create(section,"DEVELOPER",&
+!!            description="Developer section for all ALMO-based methods. "//&
+!!                        "Allows uninterrupted development of the code "//&
+!!                        "by keeping untested keywords neatly separated from those publicly available",&
+!!            n_keywords=3, n_subsections=0, repeats=.FALSE.,&
+!!            required=.FALSE., error=error)
+!!
+!!       NULLIFY (keyword)
+!!   
+!!
+!!    END IF
+!!
+!!  END SUBROUTINE create_developer_section
 
 END MODULE input_cp2k_almo

@@ -44,9 +44,8 @@ MODULE qs_initial_guess
                                              gth_potential_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       almo_scf_guess, atomic_guess, core_guess, densities_guess, &
-       history_guess, mopac_guess, no_guess, random_guess, restart_guess, &
-       sparse_guess
+       atomic_guess, core_guess, densities_guess, history_guess, mopac_guess, &
+       no_guess, random_guess, restart_guess, sparse_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
@@ -241,7 +240,6 @@ CONTAINS
                (density_guess == atomic_guess).OR.&
                (density_guess == mopac_guess).OR.&
                (density_guess == sparse_guess).OR.&
-               (density_guess == almo_scf_guess).OR.&
                (((density_guess == restart_guess).OR.&
                 (density_guess == history_guess)).AND.&
                 (scf_control%level_shift == 0.0_dp))))) THEN
@@ -498,22 +496,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        did_guess = .TRUE.
     END IF
-    IF (density_guess == almo_scf_guess) THEN
-   
-       !CALL almo_entry_scf(qs_env,error)
-       !DO ispin=1,nspin
-       !   !CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_set%mo_coeff_b,&
-       !   !        mo_array(ispin)%mo_set%mo_coeff,&
-       !   !        error=error)
-       !   CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-       !           smear=qs_env%scf_control%smear,&
-       !           error=error)
-       !   CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
-       !           mo_array(ispin)%mo_set%mo_coeff_b,error=error)
-       !ENDDO
-       
-       !did_guess = .TRUE.
-    END IF 
     IF (density_guess == atomic_guess) THEN
 
        subsys_section => section_vals_get_subs_vals(input,"SUBSYS",error=error)

@@ -79,6 +79,8 @@ MODULE qs_environment_types
   USE molecule_types_new,              ONLY: molecule_type
   USE mp2_types,                       ONLY: mp2_env_release,&
                                              mp2_type
+  USE mscfg_types,                     ONLY: molecular_scf_guess_env_destroy,&
+                                             molecular_scf_guess_env_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_types,                        ONLY: pw_p_type,&
@@ -213,6 +215,8 @@ MODULE qs_environment_types
 !> \param task_list the list of tasks used in collocate and integrate
 !> \param task_list_soft the list of tasks used in collocate and integrate in case of soft basis functions
 !> \param mo_loc_history if a history of localized wfn is kept, they are stored here.
+!> \param molecular_scf_guess_env contains inforamation about and results of claculations
+!>          on separate molecules
 !> \par History
 !>      11.2002 added doc and attribute description [fawzi]
 !>      08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
@@ -299,6 +303,7 @@ MODULE qs_environment_types
     TYPE(mp2_type), POINTER                               :: mp2_env
     TYPE(kg_environment_type), POINTER                    :: kg_env
     TYPE(wannier_centres_type), POINTER,DIMENSION(:)      :: WannierCentres=>NULL()
+    TYPE(molecular_scf_guess_env_type)                    :: molecular_scf_guess_env
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -452,6 +457,7 @@ CONTAINS
 !> \param ga_env ...
 !> \param atprop ...
 !> \param ls_scf_env ...
+!> \param mscfg_env ...
 !> \param v_hartree_rspace ...
 !> \param s_mstruct_changed ...
 !> \param rho_changed ...
@@ -480,7 +486,7 @@ CONTAINS
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
        lri_env,lri_density,hfx_ri_env,dispersion_env, vee,rho_external,external_vxc,mask,&
        mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,v_hartree_rspace,&
-       s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,&
+       s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,mscfg_env,&
        error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -634,6 +640,8 @@ CONTAINS
       POINTER                                :: ga_env
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(ls_scf_env_type), OPTIONAL, POINTER :: ls_scf_env
+    TYPE(molecular_scf_guess_env_type), &
+      OPTIONAL, POINTER                      :: mscfg_env
     TYPE(pw_type), OPTIONAL, POINTER         :: v_hartree_rspace
     LOGICAL, OPTIONAL                        :: s_mstruct_changed, &
                                                 rho_changed, &
@@ -700,6 +708,7 @@ CONTAINS
     IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
     IF (PRESENT(rtp)) rtp=>qs_env%rtp
     IF (PRESENT(ls_scf_env)) ls_scf_env=>qs_env%ls_scf_env
+    IF (PRESENT(mscfg_env)) mscfg_env=>qs_env%molecular_scf_guess_env
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -1008,7 +1017,8 @@ CONTAINS
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
-       lri_env,lri_density,hfx_ri_env,dispersion_env,mp2_env,kg_env,WannierCentres,ga_env,error)
+       lri_env,lri_density,hfx_ri_env,dispersion_env,mp2_env,kg_env,WannierCentres,ga_env,&
+       error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: super_cell
@@ -1454,6 +1464,8 @@ CONTAINS
           IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
              CALL ls_scf_release(qs_env%ls_scf_env,error)
           ENDIF
+          CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env,&
+                  error=error)
           ! ZMP 
           IF(ASSOCIATED(qs_env%task_list_zmp)) THEN
              CALL deallocate_task_list(qs_env%task_list_zmp,error)

@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT hex-ice 
+  PROJECT hex-ice-defect 
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -12,19 +12,37 @@
       ALMO_SCF T
       EPS_DEFAULT 1.0E-8 ! 1.0E-12
     &END QS
+    
     &ALMO_SCF
-      EPS_FILTER                 1.0E-9
-      BLOCKED_MAX_ITER           100
-      BLOCKED_EPS_ITER           5.0E-4 ! 5.0E-6
-      BLOCKED_N_DIIS             7
-      DELOCALIZE_METHOD          X_R
-      DELOCALIZE_ALGORITHM       DDIAG
-      DELOCALIZE_MAX_ITER        100
-      DELOCALIZE_EPS_ITER        5.0E-4 ! 5.0E-6
-      DELOCALIZE_EPS_LIN_SEARCH  1.0E-2
-      DELOCALIZE_CONJUGATOR      POLAK_RIBIERE
-      DELOCALIZE_R_CUTOFF_FACTOR 1.6
+      EPS_FILTER                 1.0E-8
+      ALMO_ALGORITHM             PCG
+      ALMO_SCF_GUESS             MOLECULAR
+
+     &ALMO_OPTIMIZER_PCG
+        MAX_ITER                 50
+        EPS_ERROR                5.0E-4
+        CONJUGATOR               POLAK_RIBIERE
+        PRECONDITIONER           DEFAULT
+        LIN_SEARCH_EPS_ERROR     5.0E-2
+        LIN_SEARCH_STEP_SIZE_GUESS 0.2
+        MAX_ITER_OUTER_LOOP      0
+      &END
+
+      DELOCALIZE_METHOD          XALMO_1DIAG
+      XALMO_R_CUTOFF_FACTOR      1.6
+      
     &END ALMO_SCF
+    
+    ! The SCF section controls calculations
+    ! on single molecules
+    &SCF
+      EPS_SCF   1.0E-2
+      SCF_GUESS ATOMIC
+      MAX_SCF   40
+      &OT
+        PRECONDITIONER FULL_ALL
+      &END
+    &END SCF
     &MGRID
       CUTOFF 200 ! 320
       NGRIDS 5
@@ -43,7 +61,7 @@
       MULTIPLE_UNIT_CELL 1 1 1
     &END
     &COORD
-@INCLUDE 'ice.xyz'
+@INCLUDE 'ice-cut.xyz'
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH 

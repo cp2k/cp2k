@@ -10,6 +10,7 @@
 MODULE qs_subsys_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE qs_kind_types,                   ONLY: init_atom_electronic_state
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_methods,                    ONLY: read_cell,&
@@ -129,7 +130,8 @@ CONTAINS
     CALL create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, &
                             para_env, force_env_section, error)
 
-    CALL num_ao_el_per_molecule(my_cp_subsys%molecule_kinds_new%els, qs_kind_set)
+    CALL num_ao_el_per_molecule(my_cp_subsys%molecule_kinds_new%els, &
+                                qs_kind_set, error=error)
 
     ! finally create qs_subsys
     ALLOCATE(subsys)
@@ -149,26 +151,35 @@ CONTAINS
 !> \brief   Read a molecule kind data set from the input file.
 !> \param molecule_kind_set ...
 !> \param qs_kind_set ...
-!> \param charge_x_mol ...
+!> \param error ...
+!> \param molecule_kind_set ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    22.11.2004
+!> \par History
+!>      Rustam Z. Khaliullin 10.2014 - charges and electrons of molecules 
+!>                                     are now in agreement with atomic guess
 !> \author  MI
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,qs_kind_set,charge_x_mol)
+  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,qs_kind_set,error)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: charge_x_mol
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'num_ao_el_per_molecule', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ikind, imol, &
-                                                my_charge, n_ao, natom, &
-                                                nelectron, nmol_kind, nsgf
-    REAL(KIND=dp)                            :: zeff, zeff_correction
+    INTEGER                                  :: arbitrary_spin, iatom, ikind, &
+                                                imol, ispin, n_ao, natom, &
+                                                nmol_kind, nsgf, nspins, &
+                                                z_molecule
+    INTEGER, DIMENSION(0:3, 10)              :: ne_core, ne_elem, ne_explicit
+    INTEGER, DIMENSION(2)                    :: n_elec_alpha_and_beta, &
+                                                n_occ_alpha_and_beta
+    REAL(KIND=dp)                            :: charge_molecule, zeff, &
+                                                zeff_correction
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -177,27 +188,54 @@ CONTAINS
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
+    nspins=2
     nmol_kind = SIZE(molecule_kind_set,1)
     natom = 0
-    my_charge = 0
-!   *** Initialize the molecule kind data structure ***
 
+    !   *** Initialize the molecule kind data structure ***
     DO imol = 1,nmol_kind
+
       molecule_kind => molecule_kind_set(imol)
       CALL get_molecule_kind(molecule_kind=molecule_kind,&
                              natom=natom)
-      nelectron = 0
+      !nelectron = 0
       n_ao = 0
-      IF(PRESENT(charge_x_mol)) THEN
-        my_charge = charge_x_mol(imol)
-      END IF
+      n_occ_alpha_and_beta(1:nspins) = 0
+      n_elec_alpha_and_beta(1:nspins) = 0
+      z_molecule=0
+
       DO iatom=1,natom
+
         atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
         CALL get_qs_kind(qs_kind_set(ikind),&
                          orb_basis_set=orb_basis_set,&
                          all_potential=all_potential,&
                          gth_potential=gth_potential)
+
+        ! Get the electronic state of the atom that is used
+        !  to calculate the ATOMIC GUESS
+        ! The spin loop is becsause ATOMIC guess can be calculated twice
+        !  for two separate states with their own alpha-beta combinations
+        ! This is done to break the spin symmetry of the initial wfn
+        DO ispin=1,nspins
+
+           CALL init_atom_electronic_state (atomic_kind=atomic_kind, &
+                                            qs_kind=qs_kind_set(ikind), &
+                                            ispin=ispin, & 
+                                            ncalc=ne_explicit, &
+                                            ncore=ne_core, &
+                                            nelem=ne_elem, &
+                                            error=error)
+
+           ! Get the number of electrons: explicit (i.e. with orbitals) and total
+           ! Note that it is impossible to separate alpha and beta electrons
+           ! because the mupliplicity of the atomic state is not specified in ATOMIC GUESS
+           n_occ_alpha_and_beta(ispin) = n_occ_alpha_and_beta(ispin) + SUM(ne_explicit)
+           n_elec_alpha_and_beta(ispin) = n_elec_alpha_and_beta(ispin) + SUM(ne_elem)
+        
+        ENDDO
+        
         IF (ASSOCIATED(all_potential)) THEN
            CALL get_potential(potential=all_potential,zeff=zeff,&
                 zeff_correction=zeff_correction)
@@ -208,7 +246,11 @@ CONTAINS
            zeff = 0.0_dp
            zeff_correction = 0.0_dp
         END IF
-        nelectron = nelectron + NINT(zeff-zeff_correction)
+        z_molecule = z_molecule + NINT(zeff-zeff_correction)
+        
+        ! this one does not work because nelem is not adjusted in the symmetry breaking code
+        !CALL get_atomic_kind(atomic_kind,z=z)
+        !z_molecule=z_molecule+z
 
         IF (ASSOCIATED(orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
@@ -216,10 +258,24 @@ CONTAINS
           nsgf = 0
         ENDIF
         n_ao = n_ao + nsgf
+
       END DO  ! iatom
-      nelectron = nelectron + my_charge
+
+      ! At this point we have the number of electrons (alpha+beta) on the molecule
+      !  as they are seen by the ATOMIC GUESS routines
+      ! First compare two copies of the ATOMIC GUESS
+      ! If they are different warn the user that only the ALPHA copy is currently
+      !  assigned to the molecule
+      ARBITRARY_SPIN=1
+      IF( n_occ_alpha_and_beta(1).ne.n_occ_alpha_and_beta(2) ) THEN
+         CPErrorMessage(cp_failure_level,routineP,"SECOND SPIN CONFIG IS IGNORED WHEN MOLECULAR STATES ARE ASSIGNED!",error)
+      END IF
+      charge_molecule=REAL(z_molecule-n_occ_alpha_and_beta(ARBITRARY_SPIN),dp)
       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           nelectron=nelectron, nsgf=n_ao)
+                           nelectron=n_occ_alpha_and_beta(ARBITRARY_SPIN),&
+                           charge=charge_molecule,&
+                           nsgf=n_ao)
+    
     END DO  ! imol
     END IF
 

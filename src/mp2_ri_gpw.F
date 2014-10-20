@@ -464,7 +464,7 @@ MODULE mp2_ri_gpw
       lll=itmp(2)-itmp(1)+1
       ALLOCATE(qs_env%mp2_env%ri_grad%PQ_half(lll,my_group_L_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      qs_env%mp2_env%ri_grad%PQ_half=my_Lrows(itmp(1):itmp(2),1:my_group_L_size)
+      qs_env%mp2_env%ri_grad%PQ_half(:,:)=my_Lrows(itmp(1):itmp(2),1:my_group_L_size)
     END IF
 
     IF (unit_nr>0) THEN

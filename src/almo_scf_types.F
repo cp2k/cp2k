@@ -15,6 +15,10 @@ MODULE almo_scf_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE domain_submatrix_types,          ONLY: domain_map_type,&
                                              domain_submatrix_type
+  USE input_constants,                 ONLY: &
+       cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, &
+       cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, cg_zero, &
+       optimizer_diis, optimizer_pcg, prec_default, prec_zero
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 
@@ -32,24 +36,37 @@ MODULE almo_scf_types
                                   almo_mat_dim_virt_disc=6
   REAL(KIND=dp), PARAMETER, PUBLIC :: almo_max_cutoff_multiplier=2.2_dp
 
-  PUBLIC :: almo_scf_env_type, optimizer_options_type
+  PUBLIC :: almo_scf_env_type, optimizer_options_type, &
+            print_optimizer_options
 
   TYPE optimizer_options_type 
     
-    REAL(KIND=dp)  :: eps_filter,&
-                      grad_target,&
-                      lin_search_grad_target,&
-                      step_size_guess
+    ! SCF procedure for the block-diagonal ALMOs
+    !REAL(KIND=dp)         :: eps_scf_bd -> eps_error
+    !INTEGER               :: max_scf_bd -> max_iter
+    !INTEGER               :: ndiis_bd -> ndiis
+    
+    ! SCF procedure for the quenched ALMOs (xALMOs)
+    !REAL(KIND=dp)         :: eps_scf_q -> eps_error
+    !REAL(KIND=dp)         :: eps_lin_search ->  eps_lin_search_error
+    !INTEGER               :: max_scf_q -> max_iter
+    !INTEGER               :: scf_conjugator -> conjugator
+    !INTEGER               :: outer_max_scf_q -> max_iter for a separate optimizer
+    !INTEGER               :: ndiis_q -> ndiis
 
-    INTEGER        :: preconditioner,&
-                      conjugator,&
-                      max_iter
+    REAL(KIND=dp)  :: eps_error,&
+                      lin_search_eps_error,&
+                      lin_search_step_size_guess
 
-    TYPE(cp_para_env_type),  POINTER  :: para_env
-    TYPE(cp_blacs_env_type), POINTER  :: blacs_env
+    INTEGER        :: optimizer_type ! diis, pcg, etc.
+    
+    INTEGER        :: preconditioner,& ! preconditioner type
+                      conjugator,& ! conjugator type
+                      max_iter,&
+                      max_iter_outer_loop,&
+                      ndiis ! diis history length
 
   END TYPE optimizer_options_type
-
 
 
   ! the structure contains general info about the system
@@ -101,15 +118,16 @@ MODULE almo_scf_types
     ! Each domain has its own mu - "fermi" level
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE          :: mu_of_domain
     INTEGER, DIMENSION(:), ALLOCATABLE                  :: first_atom_of_domain
+    INTEGER, DIMENSION(:), ALLOCATABLE                  :: last_atom_of_domain
     ! The following arrays are useful only with non-overlapping domains
     ! RZK-warning generalization is required
     INTEGER, DIMENSION(:), ALLOCATABLE        :: domain_index_of_ao
     INTEGER, DIMENSION(:), ALLOCATABLE        :: domain_index_of_atom
 
-
-    ! Charge of a domain
-    ! RZK-warning: should be stored in molecule_kind, only a copy exists here
+    ! Charge of domains
     INTEGER, DIMENSION(:), ALLOCATABLE                  :: charge_of_domain
+    ! Charge of domains
+    INTEGER, DIMENSION(:), ALLOCATABLE                  :: multiplicity_of_domain
    
     ! The matrix contains information about the delocalization of
     ! alpha and beta electrons.
@@ -170,27 +188,17 @@ MODULE almo_scf_types
   
     ! Controls for the SCF procedure
     REAL(KIND=dp)         :: eps_filter
+    INTEGER               :: almo_scf_guess
     REAL(KIND=dp)         :: eps_prev_guess
     INTEGER               :: order_lanczos
     REAL(KIND=dp)         :: eps_lanczos
     INTEGER               :: max_iter_lanczos
-
-    ! SCF procedure for the block-diagonal ALMOs
-    REAL(KIND=dp)         :: eps_scf_bd
     REAL(KIND=dp)         :: mixing_fraction
     REAL(KIND=dp)         :: mu
-    INTEGER               :: max_scf_bd
-    INTEGER               :: ndiis_bd
+    ! SCF procedure for the block-diagonal ALMOs
     INTEGER               :: almo_update_algorithm
-
     ! SCF procedure for the quenched ALMOs (xALMOs)
-    REAL(KIND=dp)         :: eps_scf_q
-    REAL(KIND=dp)         :: eps_lin_search
-    INTEGER               :: max_scf_q
-    INTEGER               :: scf_conjugator
-    INTEGER               :: outer_max_scf_q
-    INTEGER               :: almo_update_algorithm_q
-    INTEGER               :: ndiis_q
+    INTEGER               :: xalmo_update_algorithm
 
     ! ALMO SCF delocalization control
     LOGICAL               :: perturbative_delocalization
@@ -203,50 +211,6 @@ MODULE almo_scf_types
                              quencher_s1,&
                              envelope_amplitude
 
-    ! keywords that control electron delocalization treatment
-    INTEGER         :: deloc_method
-    LOGICAL         :: deloc_use_occ_orbs
-    LOGICAL         :: deloc_cayley_use_virt_orbs
-    INTEGER         :: deloc_cayley_tensor_type
-    LOGICAL         :: deloc_cayley_linear
-    INTEGER         :: deloc_cayley_conjugator
-    REAL(KIND=dp)   :: deloc_cayley_eps_convergence
-    INTEGER         :: deloc_cayley_max_iter
-    INTEGER         :: deloc_truncate_virt
-    INTEGER         :: deloc_virt_per_domain
-    LOGICAL         :: deloc_cayley_occ_precond
-    LOGICAL         :: deloc_cayley_vir_precond
-
-    ! keywords that control optimization of retained orbitals
-    !INTEGER         :: opt_k_method
-    INTEGER         :: opt_k_conjugator
-    REAL(KIND=dp)   :: opt_k_eps_convergence
-    REAL(KIND=dp)   :: opt_k_trial_step_size
-    INTEGER         :: opt_k_max_iter
-    INTEGER         :: opt_k_outer_max_iter
-    REAL(KIND=dp)   :: opt_k_trial_step_size_multiplier
-    INTEGER         :: opt_k_conj_iter_start
-    INTEGER         :: opt_k_prec_iter_start
-    INTEGER         :: opt_k_conj_iter_freq
-    INTEGER         :: opt_k_prec_iter_freq
- 
-    ! development keywords
-    INTEGER         :: integer01
-    INTEGER         :: integer02
-    INTEGER         :: integer03
-    INTEGER         :: integer04
-    INTEGER         :: integer05
-    REAL(KIND=dp)   :: real01 
-    REAL(KIND=dp)   :: real02 
-    REAL(KIND=dp)   :: real03 
-    REAL(KIND=dp)   :: real04 
-    REAL(KIND=dp)   :: real05
-    LOGICAL         :: logical01
-    LOGICAL         :: logical02
-    LOGICAL         :: logical03
-    LOGICAL         :: logical04
-    LOGICAL         :: logical05
- 
     !!!!!!!!!!!!!!!!!!!!!!!
     !!!!!! MATRICES !!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!
@@ -321,14 +285,11 @@ MODULE almo_scf_types
        ALLOCATABLE                  :: matrix_ks_almo_scf_converged
 
     ! preconditioner for k-optimization
+    ! RZK-warning: do they have to be stored?
     TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: opt_k_t_rr,&
                                                       opt_k_t_dd,&
                                                       opt_k_denom
 
-    !TYPE(almo_scf_diis_type), DIMENSION(:), ALLOCATABLE :: diis
-
-    !TYPE(optimizer_options_type)                   :: orthogonalization_opt
-  
     ! second dimension is spin
     TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_preconditioner
     TYPE(domain_submatrix_type), DIMENSION(:,:), ALLOCATABLE :: domain_s_inv
@@ -341,8 +302,143 @@ MODULE almo_scf_types
 
     INTEGER, DIMENSION(:), ALLOCATABLE                       :: cpu_of_domain
 
+    ! Options for various optimizers collected neatly
+    TYPE(optimizer_options_type)                   :: opt_block_diag_diis
+    TYPE(optimizer_options_type)                   :: opt_block_diag_pcg
+    TYPE(optimizer_options_type)                   :: opt_xalmo_diis
+    TYPE(optimizer_options_type)                   :: opt_xalmo_pcg
+    TYPE(optimizer_options_type)                   :: opt_k_pcg
+    
+    ! keywords that control electron delocalization treatment
+    ! RZK-warning: many of these varibles should be collected
+    !  into an optimizer_options_type variable
+    INTEGER         :: deloc_method
+    LOGICAL         :: deloc_use_occ_orbs
+    LOGICAL         :: deloc_cayley_use_virt_orbs
+    INTEGER         :: deloc_cayley_tensor_type
+    LOGICAL         :: deloc_cayley_linear
+    INTEGER         :: deloc_cayley_conjugator
+    REAL(KIND=dp)   :: deloc_cayley_eps_convergence
+    INTEGER         :: deloc_cayley_max_iter
+    INTEGER         :: deloc_truncate_virt
+    INTEGER         :: deloc_virt_per_domain
+    LOGICAL         :: deloc_cayley_occ_precond
+    LOGICAL         :: deloc_cayley_vir_precond
+
+    !! keywords that control optimization of retained orbitals
+    INTEGER         :: opt_k_conjugator !-> conjugartor
+    REAL(KIND=dp)   :: opt_k_eps_convergence !-> eps_error
+    REAL(KIND=dp)   :: opt_k_trial_step_size !-> lin_search_step_size_guess
+    INTEGER         :: opt_k_max_iter !-> max_iter
+    INTEGER         :: opt_k_outer_max_iter !-> max_iter for a separate 'outer' optimizer
+    REAL(KIND=dp)   :: opt_k_trial_step_size_multiplier !-> ?
+    INTEGER         :: opt_k_conj_iter_start !-> ?
+    INTEGER         :: opt_k_prec_iter_start !-> ?
+    INTEGER         :: opt_k_conj_iter_freq !-> ?
+    INTEGER         :: opt_k_prec_iter_freq !-> ?
+
+    ! development keywords
+    INTEGER         :: integer01
+    INTEGER         :: integer02
+    INTEGER         :: integer03
+    INTEGER         :: integer04
+    INTEGER         :: integer05
+    REAL(KIND=dp)   :: real01 
+    REAL(KIND=dp)   :: real02 
+    REAL(KIND=dp)   :: real03 
+    REAL(KIND=dp)   :: real04 
+    REAL(KIND=dp)   :: real05
+    LOGICAL         :: logical01
+    LOGICAL         :: logical02
+    LOGICAL         :: logical03
+    LOGICAL         :: logical04
+    LOGICAL         :: logical05
+ 
   END TYPE almo_scf_env_type
 
-END MODULE almo_scf_types
+  CONTAINS
 
+! *****************************************************************************
+!> \brief Prints out the options of an optimizer
+!> \param optimizer - options to print
+!> \param unit_nr - output stream
+!> \param error - error
+!> \par History
+!>       2014.10 created [Rustam Z Khaliullin]
+!> \author Rustam Z Khaliullin
+! *****************************************************************************
+  SUBROUTINE print_optimizer_options(optimizer, unit_nr, error) 
+
+    TYPE(optimizer_options_type), INTENT(IN) :: optimizer
+    INTEGER, INTENT(IN)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_optimizer_options', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(33)                            :: conj_string, prec_string, &
+                                                type_string
+
+    IF (unit_nr.gt.0) THEN
+
+       SELECT CASE(optimizer%optimizer_type)
+       CASE(optimizer_diis)
+          type_string="DIIS"
+       CASE(optimizer_pcg)
+          type_string="PCG"
+       END SELECT
+
+       WRITE(unit_nr,'(T4,A,T48,A33)') "optimizer type:",TRIM(type_string)
+       WRITE(unit_nr,'(T4,A,T48,I33)') "maximum iterations:",optimizer%max_iter
+       WRITE(unit_nr,'(T4,A,T48,E33.3)') "target error:",optimizer%eps_error
+
+       SELECT CASE(optimizer%optimizer_type)
+       CASE(optimizer_diis)
+          
+          WRITE(unit_nr,'(T4,A,T48,I33)') "maximum DIIS history:",optimizer%ndiis
+       
+       CASE(optimizer_pcg)
+          
+          WRITE(unit_nr,'(T4,A,T48,E33.3)') "line search step size guess:",&
+                optimizer%lin_search_step_size_guess
+          WRITE(unit_nr,'(T4,A,T48,E33.3)') "line search target error:",&
+                optimizer%lin_search_eps_error
+          WRITE(unit_nr,'(T4,A,T48,I33)') "maximum outer loop iterations:",&
+                optimizer%max_iter_outer_loop
+          
+          SELECT CASE(optimizer%preconditioner)
+          CASE(prec_zero)
+              prec_string="NONE"
+          CASE(prec_default)
+              prec_string="0.5 H + 0.5 S"
+          END SELECT
+          WRITE(unit_nr,'(T4,A,T48,A33)') "preconditioner:",TRIM(prec_string)
+          
+          SELECT CASE(optimizer%conjugator)
+          CASE(cg_zero)
+              conj_string="Steepest descent"
+          CASE(cg_polak_ribiere)
+              conj_string="Polak-Ribiere"
+          CASE(cg_fletcher_reeves)
+              conj_string="Fletcher-Reeves"
+          CASE(cg_hestenes_stiefel)
+              conj_string="Hestenes-Stiefel"
+          CASE(cg_fletcher)
+              conj_string="Fletcher"
+          CASE(cg_liu_storey)
+              conj_string="Liu-Storey"
+          CASE(cg_dai_yuan)
+              conj_string="Dai-Yuan"
+          CASE(cg_hager_zhang)
+              conj_string="Hager-Zhang"
+          END SELECT
+          WRITE(unit_nr,'(T4,A,T48,A33)') "conjugator:",TRIM(conj_string)
+
+       END SELECT !optimizer type
+
+    ENDIF
+
+  END SUBROUTINE print_optimizer_options
+
+END MODULE almo_scf_types
 

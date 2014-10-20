@@ -1,0 +1,167 @@
+&GLOBAL
+  PROJECT ion-pair
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    BASIS_SET_FILE_NAME ../../../data/GTH_BASIS_SETS
+
+    &QS
+      ALMO_SCF T 
+      EPS_DEFAULT 1.0E-8 ! 1.0E-12
+    &END QS
+
+    &ALMO_SCF
+      EPS_FILTER                 1.0E-8
+      ALMO_ALGORITHM             PCG
+      ALMO_SCF_GUESS             MOLECULAR
+
+      &ALMO_OPTIMIZER_PCG
+        MAX_ITER                 50
+        EPS_ERROR                5.0E-4
+        CONJUGATOR               POLAK_RIBIERE
+        PRECONDITIONER           DEFAULT
+        LIN_SEARCH_EPS_ERROR     0.05
+        LIN_SEARCH_STEP_SIZE_GUESS 0.1
+        MAX_ITER_OUTER_LOOP      5
+      &END ALMO_OPTIMIZER_PCG
+      
+      DELOCALIZE_METHOD          XALMO_SCF
+      XALMO_R_CUTOFF_FACTOR      1.6
+      
+      &XALMO_OPTIMIZER_PCG
+        MAX_ITER                 100
+        EPS_ERROR                5.0E-4
+        CONJUGATOR               POLAK_RIBIERE
+        PRECONDITIONER           DEFAULT
+        LIN_SEARCH_EPS_ERROR     0.05
+        LIN_SEARCH_STEP_SIZE_GUESS 0.1
+        MAX_ITER_OUTER_LOOP      0
+      &END XALMO_OPTIMIZER_PCG
+      
+    &END ALMO_SCF
+    
+    &SCF
+      EPS_SCF 5.0E-3
+      SCF_GUESS ATOMIC
+      MAX_SCF 20
+      &OT
+        PRECONDITIONER FULL_ALL
+      &END
+      &OUTER_SCF
+        EPS_SCF 5.0E-3
+        MAX_SCF 2
+      &END
+    &END SCF
+
+    &MGRID
+      CUTOFF 200 ! 320
+      NGRIDS 4
+    &END MGRID
+
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+
+    &PRINT
+      &MULLIKEN
+      &END MULLIKEN
+    &END PRINT
+
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [nm]  1.100 0.000 0.000
+      B [nm]  0.000 0.800 0.000
+      C [nm]  0.000 0.000 0.800
+      MULTIPLE_UNIT_CELL 1 1 1 
+    &END CELL
+
+    &COORD
+      H        -4.8339540451        1.3088763937       -1.3886242250 MOL1 
+      C        -3.7679148195        1.5250107417       -1.2242073487 MOL1
+      C        -3.1173965887        0.5153070529       -0.2694006213 MOL1
+      H        -3.2796286156        1.4986524386       -2.2080594952 MOL1
+      H        -3.6857175658        2.5528286576       -0.8455317769 MOL1
+      C        -1.6147157400        0.7690786292       -0.0693585165 MOL1
+      H        -3.2363232003       -0.5038916929       -0.6688334118 MOL1
+      H        -3.6253759085        0.5313629829        0.7083184728 MOL1
+      C        -1.0148645463       -0.2868128254        0.8663962009 MOL1
+      H        -1.4385130480        1.7819048334        0.3229850615 MOL1
+      H        -1.1034648627        0.7088091852       -1.0417576229 MOL1
+      N1        0.4609570671       -0.2506225516        0.8749682190 MOL1
+      H        -1.2917024695       -1.2869825760        0.5051732726 MOL1
+      H        -1.3550336888       -0.1680367084        1.9037823762 MOL1
+      C         1.2412373268       -1.1295128178        0.2181815138 MOL1
+      C         1.2682025523        0.7157609257        1.4509955241 MOL1
+      N         2.5233020508       -0.7563654887        0.3687353909 MOL1
+      H         0.8606726070       -1.9623345882       -0.3674726603 MOL1
+      C         2.5617829187        0.4001192526        1.1287981489 MOL1
+      H         0.8612533820        1.5207904441        2.0482753356 MOL1
+      C         3.6627247609       -1.3825160342       -0.3126127061 MOL1
+      H         3.4952305581        0.8867759762        1.3767745326 MOL1
+      H         4.5709525806       -1.1885035219        0.2657010293 MOL1
+      H         3.4921617130       -2.4621498087       -0.3736218925 MOL1
+      H         3.7289185371       -0.9500037044       -1.3240293760 MOL1
+      N6        0.2010927183       -0.8880417931       -3.3475608170 MOL2 
+      C        -0.4353142939       -1.6269660062       -2.4724678210 MOL2 
+      C         1.3827922423       -0.3999147324       -3.0356551146 MOL2
+      N         2.4489807801        0.0754660308       -2.8233275131 MOL2
+      N        -1.0525216556       -2.2924816664       -1.7042351959 MOL2
+    &END COORD
+
+    &KIND C
+      BASIS_SET DZVP-GTH 
+      POTENTIAL GTH-BLYP-q4
+    &END KIND
+    &KIND N
+      BASIS_SET DZVP-GTH 
+      POTENTIAL GTH-BLYP-q5
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-GTH 
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+
+    &KIND N1
+      ELEMENT N
+      BASIS_SET DZVP-GTH 
+      POTENTIAL GTH-BLYP-q5
+      &BS
+        &ALPHA
+          NEL -1
+          L    1
+          N    2
+        &END
+        &BETA
+          NEL -1
+          L    1
+          N    2
+        &END
+      &END
+    &END KIND
+
+    &KIND N6
+      ELEMENT N
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q5
+      &BS
+        &ALPHA
+          NEL +1
+          L    1
+          N    2
+        &END
+        &BETA
+          NEL +1
+          L    1 
+          N    2
+        &END
+      &END
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+

@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT hex-ice 
+  PROJECT hf-chain 
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -19,20 +19,20 @@
       ALMO_SCF_GUESS             ATOMIC
 
       &ALMO_OPTIMIZER_DIIS
-        MAX_ITER                 10
+        MAX_ITER                 30
         EPS_ERROR                5.0E-4
-        N_DIIS                   5
+        N_DIIS                   7
       &END ALMO_OPTIMIZER_DIIS
       
-      DELOCALIZE_METHOD          XALMO_X
-      XALMO_R_CUTOFF_FACTOR      1.4
+      DELOCALIZE_METHOD          XALMO_SCF
+      XALMO_R_CUTOFF_FACTOR      1.2
       
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
         EPS_ERROR                5.0E-4
-        CONJUGATOR               DAI_YUAN
-        LIN_SEARCH_EPS_ERROR     0.1
-        LIN_SEARCH_STEP_SIZE_GUESS 0.5
+        CONJUGATOR               FLETCHER
+        LIN_SEARCH_EPS_ERROR     0.05
+        LIN_SEARCH_STEP_SIZE_GUESS 0.1
         MAX_ITER_OUTER_LOOP      0
       &END XALMO_OPTIMIZER_PCG
       
@@ -49,22 +49,22 @@
   &END DFT
   &SUBSYS
     &CELL
-@INCLUDE 'ice.cell'
-      MULTIPLE_UNIT_CELL 1 1 1 
+@INCLUDE 'FH-chain.cell'
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
     &END
     &COORD
-@INCLUDE 'ice.xyz'
+@INCLUDE 'FH-chain.xyz'
     &END COORD
     &KIND H
-      BASIS_SET DZVP-GTH 
+      BASIS_SET SZV-GTH
       POTENTIAL GTH-BLYP-q1
     &END KIND
-    &KIND O
-      BASIS_SET DZVP-GTH
-      POTENTIAL GTH-BLYP-q6
+    &KIND F
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-BLYP-q7
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

@@ -45,6 +45,7 @@ MODULE atom_kind_orbitals
                                              create_grid_atom,&
                                              grid_atom_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             init_atom_electronic_state,&
                                              qs_kind_type
   USE rel_control_types,               ONLY: rel_control_type
 #include "./common/cp_common_uses.f90"
@@ -90,19 +91,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: i, ierr, ii, ipgf, j, k, k1, k2, l, ll, lm, m, mb, mo, n, ne, &
-      nexp_lpot, nexp_lsd, nexp_nlcc, ngp, nj, nn, nr, ns, nset, nsgf, &
-      quadtype, z
-    INTEGER, DIMENSION(0:3)                  :: econfx
+      nexp_lpot, nexp_lsd, nexp_nlcc, ngp, nj, nr, ns, nset, nsgf, quadtype, z
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
-    INTEGER, DIMENSION(:), POINTER           :: econf, lmax, lmin, nct_lpot, &
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, nct_lpot, &
                                                 nct_lsd, nct_nlcc, npgf, &
                                                 nppnl, nshell, ppeconf
-    INTEGER, DIMENSION(:, :), POINTER        :: addel, first_sgf, laddel, &
-                                                last_sgf, ls, naddel
-    LOGICAL                                  :: bs_occupation, failure, &
-                                                lpot_present, lsd_present, &
-                                                nlcc_present
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, last_sgf, ls
+    LOGICAL                                  :: failure, lpot_present, &
+                                                lsd_present, nlcc_present
     REAL(KIND=dp)                            :: ac, al, ear, rk, scal, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
                                                 alpha_nlcc, ap, ce
@@ -120,6 +117,11 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
+!INTEGER, DIMENSION(0:3)                  :: econfx
+!INTEGER, DIMENSION(:), POINTER           :: econf
+!INTEGER, DIMENSION(:, :), POINTER        :: addel, laddel, naddel 
+!LOGICAL                                  :: bs_occupation
+
     failure = .FALSE.
     NULLIFY(atom)
     CALL create_atom_type(atom,error)
@@ -133,13 +135,13 @@ CONTAINS
     CALL get_atomic_kind(atomic_kind,z=z)
     NULLIFY(all_potential,gth_potential,orb_basis_set)
     CALL get_qs_kind(qs_kind,zeff=zeff,&
+                     orb_basis_set=orb_basis_set,&
                      all_potential=all_potential,&
                      gth_potential=gth_potential)
 
-    CALL get_qs_kind(qs_kind,&
-                     orb_basis_set=orb_basis_set,&
-                     bs_occupation=bs_occupation,&
-                     addel=addel,laddel=laddel,naddel=naddel)
+    !!RZK CALL get_qs_kind(qs_kind,&
+    !!RZK                  bs_occupation=bs_occupation,&
+    !!RZK                  addel=addel,laddel=laddel,naddel=naddel)
 
     CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP, error, failure)
 
@@ -373,124 +375,14 @@ CONTAINS
     atom%optimization%max_iter   = 50
     atom%optimization%n_diis     = 5
 
-    ! electronic state
-    nelem = 0
-    ncore = 0
-    ncalc = 0
-    NULLIFY(econf)
-    IF ( ASSOCIATED(gth_potential) ) THEN
-      CALL get_potential(gth_potential,elec_conf=econf)
-      econfx = 0
-      econfx(0:SIZE(econf)-1) = econf
-      IF ( SUM(econf) >= 0 ) THEN
-        DO l=0,3
-          ll = 2*(2*l+1)
-          nn = ptable(z)%e_conv(l)-econfx(l)
-          ii = 0
-          DO
-            ii = ii + 1
-            IF(nn <= ll) THEN
-              ncore(l,ii) = nn
-              EXIT
-            ELSE
-              ncore(l,ii) = ll
-              nn = nn - ll
-            END IF
-          END DO
-        END DO
-        DO l=0,3
-          ll = 2*(2*l+1)
-          nn = ptable(z)%e_conv(l)
-          ii = 0
-          DO
-            ii = ii + 1
-            IF(nn <= ll) THEN
-              nelem(l,ii) = nn
-              EXIT
-            ELSE
-              nelem(l,ii) = ll
-              nn = nn - ll
-            END IF
-          END DO
-        END DO
-        ncalc = nelem - ncore
-      ELSE
-        ncore = 0
-        ncalc = 0
-        DO l=0,3
-          ll = 2*(2*l+1)
-          nn = ABS(econfx(l))
-          ii = 0
-          DO
-            ii = ii + 1
-            IF(nn <= ll) THEN
-              ncalc(l,ii) = -nn
-              EXIT
-            ELSE
-              ncalc(l,ii) = -ll
-              nn = nn - ll
-            END IF
-          END DO
-        END DO
-      END IF
-    ELSE
-      DO l=0,3
-        ll = 2*(2*l+1)
-        nn = ptable(z)%e_conv(l)
-        ii = 0
-        DO
-          ii = ii + 1
-          IF(nn <= ll) THEN
-            nelem(l,ii) = nn
-            EXIT
-          ELSE
-            nelem(l,ii) = ll
-            nn = nn - ll
-          END IF
-        END DO
-      END DO
-      ncalc = nelem - ncore
-    END IF
-
-    IF(bs_occupation) THEN
-      ! readjust the occupation number of the atomic orbitals
-      ! according to the changes required from input in order to bias the initial guess
-      DO i=1,SIZE(addel,1)
-        ne=addel(i,ispin)
-        l=laddel(i,ispin)
-        nn=naddel(i,ispin)-l
-        IF(ne/=0) THEN
-          IF(nn==0) THEN
-            DO ii=SIZE(nelem,2),1,-1
-              IF(ncalc(l,ii)>0) THEN
-                 IF((ncalc(l,ii)+ne) < 2*(2*l+1)+1) THEN
-                   ncalc(l,ii) = ncalc(l,ii)+ne
-                   nn = ii
-                 ELSE
-                   ncalc(l,ii+1) = ncalc(l,ii+1)+ne
-                   nn = ii + 1
-                 END IF
-                 EXIT
-              ELSE IF (ii==1) THEN
-                 ncalc(l,ii)=ncalc(l,ii)+ne
-                 nn = ii
-              END IF
-            END DO
-          ELSE
-            ncalc(l,nn) = ncalc(l,nn) + ne
-          END IF
-          IF( ncalc(l,nn)<0 ) THEN
-             ncalc(l,nn) = 0
-          END IF
-        END IF
-      END DO
-    END IF
-
-    IF ( qs_kind%ghost ) THEN
-      nelem = 0
-      ncore = 0
-      ncalc = 0
-    END IF
+    ! set up the electronic state
+    CALL init_atom_electronic_state (atomic_kind=atomic_kind, &
+                                     qs_kind=qs_kind, &
+                                     ispin=ispin, & 
+                                     ncalc=ncalc, &
+                                     ncore=ncore, &
+                                     nelem=nelem, &
+                                     error=error)
 
     ALLOCATE (atom%state,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -846,7 +738,6 @@ CONTAINS
     atom%optimization%max_iter   = 50
     atom%optimization%n_diis     = 5
 
-    ! electronic state
     nelem = 0
     ncore = 0
     ncalc = 0

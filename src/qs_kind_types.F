@@ -17,7 +17,8 @@
 !> - 08.2014 separated qs-related stuff from atomic_kind_types.F [Ole Schuett]
 ! *****************************************************************************
 MODULE qs_kind_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: &
        allocate_geminal_basis_set, allocate_gto_basis_set, &
        deallocate_geminal_basis_set, deallocate_gto_basis_set, &
@@ -56,7 +57,8 @@ MODULE qs_kind_types
                                              get_paw_proj_set,&
                                              paw_proj_set_type,&
                                              projectors
-  USE periodic_table,                  ONLY: get_ptable_info
+  USE periodic_table,                  ONLY: get_ptable_info,&
+                                             ptable
   USE physcon,                         ONLY: bohr,&
                                              evolt
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
@@ -177,7 +179,8 @@ MODULE qs_kind_types
             create_qs_kind_set,&
             set_qs_kind,&
             write_qs_kind_set,&
-            write_gto_basis_sets
+            write_gto_basis_sets,&
+            init_atom_electronic_state
 
   ! Public data types
   PUBLIC :: qs_kind_type
@@ -2819,5 +2822,166 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_gto_basis_sets
+
+! *****************************************************************************
+
+! *****************************************************************************
+!> \brief ...
+!> \param atomic_kind ...
+!> \param qs_kind ...
+!> \param ispin ...
+!> \param ncalc ...
+!> \param ncore ...
+!> \param nelem ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE init_atom_electronic_state (atomic_kind,qs_kind,ispin,ncalc,ncore,nelem,error)
+    
+    TYPE(atomic_kind_type), INTENT(IN)       :: atomic_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
+    INTEGER, INTENT(IN)                      :: ispin
+    INTEGER, DIMENSION(0:3, 10), INTENT(OUT) :: ncalc, ncore, nelem
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_electronic_state', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, l, ll, ne, nn, z
+    INTEGER, DIMENSION(0:3)                  :: econfx
+    INTEGER, DIMENSION(:), POINTER           :: econf
+    INTEGER, DIMENSION(:, :), POINTER        :: addel, laddel, naddel
+    LOGICAL                                  :: bs_occupation
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+
+    CALL get_atomic_kind(atomic_kind,z=z)
+    NULLIFY(gth_potential)
+    CALL get_qs_kind(qs_kind,&
+                     gth_potential=gth_potential,&
+                     bs_occupation=bs_occupation,&
+                     addel=addel,laddel=laddel,naddel=naddel)
+
+    ! electronic state
+    nelem = 0
+    ncore = 0
+    ncalc = 0
+    NULLIFY(econf)
+    IF ( ASSOCIATED(gth_potential) ) THEN
+      CALL get_potential(gth_potential,elec_conf=econf)
+      econfx = 0
+      econfx(0:SIZE(econf)-1) = econf
+      IF ( SUM(econf) >= 0 ) THEN
+        DO l=0,3
+          ll = 2*(2*l+1)
+          nn = ptable(z)%e_conv(l)-econfx(l)
+          ii = 0
+          DO
+            ii = ii + 1
+            IF(nn <= ll) THEN
+              ncore(l,ii) = nn
+              EXIT
+            ELSE
+              ncore(l,ii) = ll
+              nn = nn - ll
+            END IF
+          END DO
+        END DO
+        DO l=0,3
+          ll = 2*(2*l+1)
+          nn = ptable(z)%e_conv(l)
+          ii = 0
+          DO
+            ii = ii + 1
+            IF(nn <= ll) THEN
+              nelem(l,ii) = nn
+              EXIT
+            ELSE
+              nelem(l,ii) = ll
+              nn = nn - ll
+            END IF
+          END DO
+        END DO
+        ncalc = nelem - ncore
+      ELSE
+        ncore = 0
+        ncalc = 0
+        DO l=0,3
+          ll = 2*(2*l+1)
+          nn = ABS(econfx(l))
+          ii = 0
+          DO
+            ii = ii + 1
+            IF(nn <= ll) THEN
+              ncalc(l,ii) = -nn
+              EXIT
+            ELSE
+              ncalc(l,ii) = -ll
+              nn = nn - ll
+            END IF
+          END DO
+        END DO
+      END IF
+    ELSE
+      DO l=0,3
+        ll = 2*(2*l+1)
+        nn = ptable(z)%e_conv(l)
+        ii = 0
+        DO
+          ii = ii + 1
+          IF(nn <= ll) THEN
+            nelem(l,ii) = nn
+            EXIT
+          ELSE
+            nelem(l,ii) = ll
+            nn = nn - ll
+          END IF
+        END DO
+      END DO
+      ncalc = nelem - ncore
+    END IF
+
+    ! readjust the occupation number of the orbitals as requested by user
+    ! this is done to break symmetry (bs) and bias the intial guess 
+    ! to the pre-defined multiplicity/charge state of the atom
+    IF(bs_occupation) THEN
+      DO i=1,SIZE(addel,1)
+        ne=addel(i,ispin)
+        l=laddel(i,ispin)
+        nn=naddel(i,ispin)-l
+        IF(ne/=0) THEN
+          IF(nn==0) THEN
+            DO ii=SIZE(nelem,2),1,-1
+              IF(ncalc(l,ii)>0) THEN
+                 IF((ncalc(l,ii)+ne) < 2*(2*l+1)+1) THEN
+                   ncalc(l,ii) = ncalc(l,ii)+ne
+                   nn = ii
+                 ELSE
+                   ncalc(l,ii+1) = ncalc(l,ii+1)+ne
+                   nn = ii + 1
+                 END IF
+                 EXIT
+              ELSE IF (ii==1) THEN
+                 ncalc(l,ii)=ncalc(l,ii)+ne
+                 nn = ii
+              END IF
+            END DO
+          ELSE
+            ncalc(l,nn) = ncalc(l,nn) + ne
+          END IF
+          IF( ncalc(l,nn)<0 ) THEN
+             ncalc(l,nn) = 0
+          END IF
+        END IF
+      END DO
+    END IF
+
+    IF ( qs_kind%ghost ) THEN
+      nelem = 0
+      ncore = 0
+      ncalc = 0
+    END IF
+
+  END SUBROUTINE init_atom_electronic_state 
+
+! *****************************************************************************
 
 END MODULE qs_kind_types

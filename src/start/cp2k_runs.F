@@ -107,6 +107,8 @@ MODULE cp2k_runs
   USE message_passing,                 ONLY: &
        mp_any_source, mp_bcast, mp_comm_dup, mp_comm_free, mp_comm_split, &
        mp_environ, mp_recv, mp_send, mp_sum, mp_sync
+  USE mscfg_methods,                   ONLY: do_mol_loop,&
+                                             loop_over_molecules
   USE neb_methods,                     ONLY: neb
   USE optimize_basis,                  ONLY: run_optimize_basis
   USE optimize_input,                  ONLY: run_optimize_input
@@ -351,6 +353,7 @@ CONTAINS
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
           CALL section_vals_release(input_file,error=suberror)
+          
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
              CALL do_pint_run( para_env, root_section, input_declaration, globenv, error=suberror )
@@ -373,6 +376,13 @@ CONTAINS
              CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
                   n_rlevel_new=iter_level,&
                   error=suberror)
+             
+             ! loop over molecules to generate a molecular guess
+             ! this procedure is initiated here to avoid passing globenv deep down
+             ! the subroutine stack
+             IF (do_mol_loop(force_env=force_env,error=suberror)) &
+                CALL loop_over_molecules(globenv,force_env,error=suberror)
+
              SELECT CASE(globenv%run_type_id)
              CASE (energy_run)
                 CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)

@@ -70,7 +70,7 @@ MODULE bibliography
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
-       Grimme2011,                                                     &
+       Grimme2011, Khaliullin2007, Khaliullin2008,                     &
        QUIP_ref
 
 CONTAINS
@@ -2566,6 +2566,48 @@ CONTAINS
          "DI 10.1063/1.1724816",&
          "ER"),&
          DOI="10.1063/1.1724816")
+
+    CALL add_reference(key=Khaliullin2007, ISI_record=s2a(&
+         "PT J",&
+         "AU Khaliullin, RZ",&
+         "   Cobar, EA",&
+         "   Lochan, RC",&
+         "   Bell, AT",&
+         "   Head-Gordon, M",&
+         "AF Khaliullin, Rustam Z.",&
+         "   Cobar, Erika A.",&
+         "   Lochan, Rohini C.",&
+         "   Bell, Alexis T.",&
+         "   Head-Gordon, Martin",&
+         "TI Unravelling the origin of intermolecular interactions using absolutely localized molecular orbitals",&
+         "SO Journal of Physical Chemistry A",&
+         "PY 2007",&
+         "VL 111",&
+         "IS 36",&
+         "BP 8753",&
+         "EP 8765",&
+         "DI 10.1021/jp073685z",&
+         "ER"),&
+         DOI="10.1021/jp073685z")
+
+    CALL add_reference(key=Khaliullin2008, ISI_record=s2a(&
+         "PT J",&
+         "AU Khaliullin, RZ",&
+         "   Bell, AT",&
+         "   Head-Gordon, M",&
+         "AF Khaliullin, Rustam Z.",&
+         "   Bell, Alexis T.",&
+         "   Head-Gordon, Martin",&
+         "TI Analysis of charge transfer effects in molecular complexes based on absolutely localized molecular orbitals",&
+         "SO Journal of Chemical Physics",&
+         "SN 0021-9606",&
+         "PY 2008",&
+         "VL 128",&
+         "IS 18",&
+         "AR 184112",&
+         "DI 10.1063/1.2912041",&
+         "ER"),&
+         DOI="10.1063/1.2912041")
 
     CALL add_reference(key=Khaliullin2013, ISI_record=s2a(&
          "PT J",&

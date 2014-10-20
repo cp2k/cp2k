@@ -19,18 +19,17 @@
       ALMO_SCF_GUESS             ATOMIC
 
       &ALMO_OPTIMIZER_DIIS
-        MAX_ITER                 10
+        MAX_ITER                 15
         EPS_ERROR                5.0E-4
-        N_DIIS                   5
+        N_DIIS                   4
       &END ALMO_OPTIMIZER_DIIS
       
-      DELOCALIZE_METHOD          XALMO_X
-      XALMO_R_CUTOFF_FACTOR      1.4
+      DELOCALIZE_METHOD          FULL_X
       
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
         EPS_ERROR                5.0E-4
-        CONJUGATOR               DAI_YUAN
+        CONJUGATOR               HAGER_ZHANG
         LIN_SEARCH_EPS_ERROR     0.1
         LIN_SEARCH_STEP_SIZE_GUESS 0.5
         MAX_ITER_OUTER_LOOP      0

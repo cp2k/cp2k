@@ -193,6 +193,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_num_blocks
   PUBLIC :: cp_dbcsr_get_data_size
   PUBLIC :: cp_dbcsr_nfullrows_total
+  PUBLIC :: cp_dbcsr_nfullcols_total
   !         1234567890123456789012345678901
   PUBLIC :: cp_dbcsr_get_stored_coordinates
   PUBLIC :: cp_dbcsr_valid_index

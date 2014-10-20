@@ -12,19 +12,32 @@
       ALMO_SCF T
       EPS_DEFAULT 1.0E-8 ! 1.0E-12
     &END QS
+    
     &ALMO_SCF
-      EPS_FILTER                 1.0E-9
-      BLOCKED_MAX_ITER           100
-      BLOCKED_EPS_ITER           5.0E-4 ! 5.0E-6
-      BLOCKED_N_DIIS             7
-      DELOCALIZE_METHOD          SCF
-      DELOCALIZE_ALGORITHM       PCG
-      DELOCALIZE_MAX_ITER        100
-      DELOCALIZE_EPS_ITER        5.0E-4 ! 5.0E-6
-      DELOCALIZE_EPS_LIN_SEARCH  1.0E-2
-      DELOCALIZE_CONJUGATOR      POLAK_RIBIERE
-      DELOCALIZE_R_CUTOFF_FACTOR 1.6
+      EPS_FILTER                 1.0E-8
+      ALMO_ALGORITHM             DIAG
+      ALMO_SCF_GUESS             ATOMIC
+
+      &ALMO_OPTIMIZER_DIIS
+        MAX_ITER                 50
+        N_DIIS                   5
+        EPS_ERROR                5.0E-4
+      &END ALMO_OPTIMIZER_DIIS
+      
+      DELOCALIZE_METHOD          FULL_SCF
+      
+      &XALMO_OPTIMIZER_PCG
+        MAX_ITER                 30
+        EPS_ERROR                5.0E-4
+        CONJUGATOR               FLETCHER 
+        PRECONDITIONER           DEFAULT
+        LIN_SEARCH_EPS_ERROR     1.0E-1
+        LIN_SEARCH_STEP_SIZE_GUESS 0.2
+        MAX_ITER_OUTER_LOOP      2
+      &END XALMO_OPTIMIZER_PCG
+      
     &END ALMO_SCF
+    
     &MGRID
       CUTOFF 200 ! 320
       NGRIDS 5

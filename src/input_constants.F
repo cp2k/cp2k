@@ -191,7 +191,13 @@ MODULE input_constants
                                               no_guess=7,&
                                               mopac_guess=8,&
                                               sparse_guess=9,&
-                                              almo_scf_guess=10
+                                              almo_scf_guess=10,&
+                                              molecular_guess=11
+                                             
+  INTEGER, PARAMETER, PUBLIC               :: almo_frz_none=0,&
+                                              almo_frz_isolated=1,&
+                                              almo_frz_crystal=2,&
+                                              almo_frz_both=3
 
   INTEGER, PARAMETER, PUBLIC               :: pw_interp=1,&
                                               spline3_nopbc_interp=2,&
@@ -733,19 +739,21 @@ MODULE input_constants
                                   almo_constraint_distance=1,&
                                   almo_constraint_ao_overlap=2
 
+  ! methods to treat electron delocalization
   INTEGER, PARAMETER, PUBLIC   :: almo_deloc_none=0,&
                                   almo_deloc_x=10,&
-                                  almo_deloc_qx=11,&
+                                  almo_deloc_xalmo_x=11,&
                                   almo_deloc_xk=12,&
-                                  almo_deloc_qscf=13,&
-                                  almo_deloc_full_scf=100,&
-                                  almo_deloc_x_then_full_scf=110
+                                  almo_deloc_xalmo_scf=13,&
+                                  almo_deloc_xalmo_1diag=14,&
+                                  almo_deloc_scf=100,&
+                                  almo_deloc_x_then_scf=110
   
   INTEGER, PARAMETER, PUBLIC   :: almo_scf_dm_sign=1,&
                                   almo_scf_diag=2,&
                                   almo_scf_pcg=3
 
-  ! parameters for CT methods
+  ! optimizer parameters
   INTEGER, PARAMETER, PUBLIC   :: cg_zero=0,&
                                   cg_polak_ribiere=1,&
                                   cg_fletcher_reeves=2,&
@@ -753,11 +761,19 @@ MODULE input_constants
                                   cg_fletcher=4,&
                                   cg_liu_storey=5,&
                                   cg_dai_yuan=6,& 
-                                  cg_hager_zhang=7 
-  
+                                  cg_hager_zhang=7
+  INTEGER, PARAMETER, PUBLIC   :: optimizer_diis=1,&
+                                  optimizer_pcg=2
+  INTEGER, PARAMETER, PUBLIC   :: prec_zero=0,&
+                                  prec_default=-1,&
+                                  prec_ks_plus_s=4
+  INTEGER, PARAMETER, PUBLIC   :: xalmo_case_block_diag=0,&
+                                  xalmo_case_fully_deloc=1,&
+                                  xalmo_case_normal=-1
+
+  ! parameters for CT methods
   INTEGER, PARAMETER, PUBLIC   :: tensor_orthogonal = 1, & 
                                   tensor_up_down = 2 
-  
   INTEGER, PARAMETER, PUBLIC   :: virt_full = 1,&
                                   virt_minimal = 2,&
                                   virt_occ_size = 3,&
