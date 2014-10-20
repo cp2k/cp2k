@@ -2,12 +2,9 @@
 # http://www.fujitsu.com/global/about/tech/k/
 # SPARC64 VIIIfx CPU designed and developed by Fujitsu
 # Tofu interconnect: 6-Dimensional Mesh/Torus Topology Network Technology 
-# WARNING: The clause "collapse(n)" had troubles on the Fujitsu compiler
-#          (K-computer and Fujitsu FX10 machine) until the version
-#          Fujitsu Fortran Driver Ver. 1.2.1 P-id T01641-02 (2013).
-#          You might well need to better tune your own compilation !
-#          The above bug should have been fixed in Fujitsu Fortran Driver
-#          Ver. 1.2.1 P-id T01641-04 (2014)
+# This version works under frtpx Fujitsu compilers Ver. 1.2.1 
+# P-id T01641-02 (2013) and later versions at least up to 
+# P-id T01641-04 (2014)
 # (MB-University of Tokyo, 2014).
 CC       = mpifccpx -c -O
 CPP      = /lib/cpp
@@ -18,7 +15,7 @@ AR       = /usr/bin/ar -r
 DFLAGS   = -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -Kvisimpact,array_private,auto,ilfunc,ocl,NOFLTLD \
-           -Kopenmp -Am -X9 -V -Ec -Qa,d,i,p,t,x -Koptmsg=2 -V \
+           -Am -X9 -V -Ec -Qa,d,i,p,t,x -Koptmsg=2 -V \
            -Cpp -Ccpp
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib 
 LIBS     = $(FCFLAGS) -SSL2BLAMP -SCALAPACK -Ntl_trt

@@ -1,9 +1,10 @@
 # by default some intel compilers put temporaries on the stack
 # this might lead to segmentation faults if the stack limit is set to low
 # stack limits can be increased by sysadmins or e.g with ulimit -s 256000
-# Tested on a HPC non-Itanium clusters @ UDS (France)
+# Tested on Strasbourg University HPC Mesocenter - Intel Composer ver.12, 13, 14 
 # Note: -O2 produces an executable which is slightly faster than -O3
 # and the compilation time was also much shorter.
+#### Version OpenMPI + OMP
 CC       = icc
 CPP      = /lib/cpp
 FC       = mpif90 -FR
@@ -11,20 +12,15 @@ FC_fixed = mpif90 -FI
 LD       = mpif90
 AR       = /usr/bin/ar -r
 #Better with mkl (intel lapack/blas) only
-DFLAGS   = -D__parallel 
+#DFLAGS   = -D__INTEL -D__FFTSG -D__parallel
 #If you want to use BLACS and SCALAPACK use the flags below
-#DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -C $(DFLAGS) -P -traditional
-FCFLAGS  = -O2 -i-static -openmp -heap-arrays 64 -Vaxlib
-LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib -L/opt/intel/mkl-10.1.0.015/lib/em64t
-LIBS     = -lmkl -lm -lpthread -lguide -openmp
+FCFLAGS  = -O2 -pc64 -unroll -openmp -heap-arrays 64
+#verify if the path to the mkl libraries is already defined and/or differs from this
+LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib -L/opt/intel/composer_xe_2013.2.146/mkl/lib/intel64
 #If you want to use BLACS and SCALAPACK use the libraries below
-#LIBS     = -lmkl -lmkl_blacs_openmpi_lp64 -lmkl_scalapack_lp64 -lm -lpthread -lguide -openmp
+LIBS     = -mkl=parallel -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_intel_lp64 \
+           -lmkl_intel_thread -lmkl_core -lm -lpthread -liomp5 -openmp
 
-##For compiler 11.0 one may want to try the following flags:
-#CFLAGS  = -O2 -i-static -heap-arrays 64 -free -fpp -unroll
-##Linking of MKL for older Intel versions before the new one-pack composers
-#LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib -L/opt/intel/Compiler/11.1/072/mkl/lib/em64t
-#LIBS     = -Wl,--start-group -lmkl_intel_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_scalapack_lp64 \
-#           -lmkl_intel_thread -lmkl_core -Wl,--end-group \
-#           -lm -lpthread -liomp5 -openmp
+OBJECTS_ARCHITECTURE = machine_intel.o
