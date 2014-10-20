@@ -413,8 +413,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: almo_guess_type, &
-                                                method_name_id, &
-                                                frz_term_type, scf_guess_type
+                                                frz_term_type, &
+                                                method_name_id, scf_guess_type
     LOGICAL                                  :: failure, is_crystal, &
                                                 is_fast_dirty
     TYPE(molecular_scf_guess_env_type), &

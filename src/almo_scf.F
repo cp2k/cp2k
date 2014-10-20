@@ -759,8 +759,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_print_job_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=13)                        :: neig_string
     CHARACTER(len=33)                        :: deloc_method_string
-    CHARACTER(len=13)                        :: neig_string 
     INTEGER                                  :: handle, idomain, index1_prev
 
     CALL timeset(routineN,handle)
@@ -1086,11 +1086,10 @@ CONTAINS
 
     INTEGER :: col, handle, hold, iblock_col, iblock_row, ispin, mynode, &
       nblkcols_tot, nblkrows_tot, row, unit_nr
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: almo_experimental, failure, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
       DIMENSION(:)                           :: no_quench
-    LOGICAL                                  :: almo_experimental
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(optimizer_options_type)             :: arbitrary_optimizer
 

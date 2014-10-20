@@ -10,7 +10,6 @@
 MODULE qs_subsys_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE qs_kind_types,                   ONLY: init_atom_electronic_state
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_methods,                    ONLY: read_cell,&
@@ -37,6 +36,7 @@ MODULE qs_subsys_methods
                                              set_molecule_kind
   USE qs_kind_types,                   ONLY: create_qs_kind_set,&
                                              get_qs_kind,&
+                                             init_atom_electronic_state,&
                                              qs_kind_type
   USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                              qs_subsys_type
@@ -152,7 +152,6 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param qs_kind_set ...
 !> \param error ...
-!> \param molecule_kind_set ... UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    22.11.2004
 !> \par History
 !>      Rustam Z. Khaliullin 10.2014 - charges and electrons of molecules 
