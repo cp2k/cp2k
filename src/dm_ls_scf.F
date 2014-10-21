@@ -67,6 +67,11 @@ MODULE dm_ls_scf
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
+  USE qs_diis,                         ONLY: qs_diis_b_clear_sparse,&
+                                             qs_diis_b_create_sparse,&
+                                             qs_diis_b_step_4lscf
+  USE qs_diis_types,                   ONLY: qs_diis_b_release_sparse,&
+                                             qs_diis_buffer_type_sparse
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -650,6 +655,11 @@ CONTAINS
     curvy_section => section_vals_get_subs_vals(ls_scf_section,"CURVY_STEPS",error=error)
 
     ! should come from input
+    CALL section_vals_val_get(ls_scf_section,"LS_DIIS",l_val=ls_scf_env%ls_diis,error=error)
+    CALL section_vals_val_get(ls_scf_section,"INI_DIIS",i_val=ls_scf_env%iter_ini_diis,error=error)
+    CALL section_vals_val_get(ls_scf_section,"MAX_DIIS",i_val=ls_scf_env%max_diis,error=error)
+    CALL section_vals_val_get(ls_scf_section,"NMIXING",i_val=ls_scf_env%nmixing,error=error)
+    CALL section_vals_val_get(ls_scf_section,"EPS_DIIS",r_val=ls_scf_env%eps_diis,error=error)
     CALL section_vals_val_get(ls_scf_section,"EPS_SCF",r_val=ls_scf_env%eps_scf,error=error)
     CALL section_vals_val_get(ls_scf_section,"EPS_FILTER",r_val=ls_scf_env%eps_filter,error=error)
     CALL section_vals_val_get(ls_scf_section,"MU",r_val=mu,error=error)
@@ -740,6 +750,12 @@ CONTAINS
        WRITE(unit_nr,'(T2,A,T38,E20.3)') "eps_filter:",ls_scf_env%eps_filter
        WRITE(unit_nr,'(T2,A,T38,E20.3)') "mixing_fraction:",ls_scf_env%mixing_fraction
        WRITE(unit_nr,'(T2,A,T38,I20)') "max_scf:",ls_scf_env%max_scf
+       IF (ls_scf_env%ls_diis) THEN
+       WRITE(unit_nr,'(T2,A,T38,I20)')   "DIIS: max_diis:",ls_scf_env%max_diis
+       WRITE(unit_nr,'(T2,A,T38,E20.3)') "DIIS: eps_diis:",ls_scf_env%eps_diis
+       WRITE(unit_nr,'(T2,A,T38,I20)')   "DIIS: ini_diis:",ls_scf_env%iter_ini_diis
+       WRITE(unit_nr,'(T2,A,T38,I20)')   "DIIS: nmixing:" ,ls_scf_env%nmixing
+       ENDIF
        WRITE(unit_nr,'(T2,A,T38,L20)') "fixed chemical potential (mu)",ls_scf_env%fixed_mu
        WRITE(unit_nr,'(T2,A,T38,L20)') "has unit metric:",ls_scf_env%has_unit_metric
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing inv(S):",ls_scf_env%needs_s_inv
@@ -817,17 +833,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iscf, ispin, &
-                                                nelectron_spin_real, nspin, &
-                                                unit_nr
-    LOGICAL                                  :: check_convergence, should_stop
+                                                nelectron_spin_real, nmixing, &
+                                                nspin, unit_nr
+    LOGICAL                                  :: check_convergence, diis_step, &
+                                                should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
-                                                energy_old, t1, t2
+                                                energy_old, eps_diis, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix_ks_deviation, &
                                                 matrix_mixing_old
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_diis_buffer_type_sparse), &
+      POINTER                                :: diis_buffer
 
     CALL timeset(routineN,handle)
 
@@ -858,7 +877,19 @@ CONTAINS
     IF(ls_scf_env%scf_history%istore>0)energy_old=ls_scf_env%energy_init
     check_convergence=.TRUE.
     iscf=0
-
+    IF (ls_scf_env%ls_diis) THEN
+     diis_step = .FALSE.
+     eps_diis  = ls_scf_env%eps_diis
+     nmixing   = ls_scf_env%nmixing
+     NULLIFY(diis_buffer)
+     IF (.NOT.ASSOCIATED(diis_buffer)) THEN
+        CALL qs_diis_b_create_sparse(diis_buffer, &
+                                     nbuffer=ls_scf_env%max_diis,  &
+                                     error=error)
+     END IF
+     CALL qs_diis_b_clear_sparse(diis_buffer,error=error)
+     CALL get_qs_env(qs_env,matrix_s=matrix_s,error=error)
+    END IF
     ! the real SCF loop
     DO
 
@@ -892,10 +923,62 @@ CONTAINS
                ! initialize the mixing matrix with the current state if needed
                CALL cp_dbcsr_copy(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), error=error)
             ELSE
+             IF (ls_scf_env%ls_diis) THEN ! ------- IF-DIIS+MIX--- START
+              IF (diis_step.and.(iscf-1).ge.ls_scf_env%iter_ini_diis) THEN
+               IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(A61)') &
+                       '*************************************************************'
+                WRITE(unit_nr,'(A50,2(I3,A1),L1,A1)') &
+                       " Using DIIS mixed KS:  (iscf,INI_DIIS,DIIS_STEP)=(" , &
+                       iscf,",",ls_scf_env%iter_ini_diis,",",diis_step,")"
+                WRITE(unit_nr,'(A52)') &
+                       " KS_nw= DIIS-Linear-Combination-Previous KS matrices"
+                WRITE(unit_nr,'(61A)') &
+                       "*************************************************************"
+               ENDIF
+               CALL cp_dbcsr_copy(matrix_mixing_old(ispin),   & ! out
+                                  ls_scf_env%matrix_ks(ispin),& ! in
+                                  error=error)
+              ELSE
+               IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+                WRITE(unit_nr,'(A23,F5.3,A25,I3)') &
+                      " Using MIXING_FRACTION=",ls_scf_env%mixing_fraction, &
+                      " to mix KS matrix:  iscf=",iscf 
+                WRITE(unit_nr,'(A7,F5.3,A6,F5.3,A7)') &
+                      " KS_nw=",ls_scf_env%mixing_fraction,"*KS + ", &
+                      1.0_dp-ls_scf_env%mixing_fraction,"*KS_old"
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+               ENDIF
                ! perform the mixing of ks matrices
-               CALL cp_dbcsr_add(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), &
-                                 1.0_dp-ls_scf_env%mixing_fraction,ls_scf_env%mixing_fraction, &
+               CALL cp_dbcsr_add(matrix_mixing_old(ispin)   ,       &
+                                 ls_scf_env%matrix_ks(ispin),       &
+                                 1.0_dp-ls_scf_env%mixing_fraction, &
+                                 ls_scf_env%mixing_fraction,        &
                                  error=error)
+              ENDIF
+             ELSE ! otherwise
+               IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+                WRITE(unit_nr,'(A23,F5.3,A25,I3)') &
+                      " Using MIXING_FRACTION=", ls_scf_env%mixing_fraction, &
+                      " to mix KS matrix:  iscf=",iscf
+                WRITE(unit_nr,'(A7,F5.3,A6,F5.3,A7)') &
+                      " KS_nw=",ls_scf_env%mixing_fraction,"*KS + ", &
+                      1.0_dp-ls_scf_env%mixing_fraction,"*KS_old"
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+               ENDIF
+               ! perform the mixing of ks matrices
+               CALL cp_dbcsr_add(matrix_mixing_old(ispin)   ,       &
+                                 ls_scf_env%matrix_ks(ispin),       &
+                                 1.0_dp-ls_scf_env%mixing_fraction, &
+                                 ls_scf_env%mixing_fraction,        &
+                                 error=error)
+             ENDIF ! ------- IF-DIIS+MIX--- END
             ENDIF
 
             ! compute the density matrix that matches it
@@ -952,9 +1035,21 @@ CONTAINS
       ! exit criterium on the energy only for the time being
       IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
 
+      IF (ls_scf_env%ls_diis) THEN
+! diis_buffer, buffer with 1) Kohn-Sham history matrix, 
+!                          2) KS error history matrix (f=KPS-SPK),
+!                          3) B matrix (for finding DIIS weighting coefficients)
+       CALL qs_diis_b_step_4lscf(diis_buffer,qs_env,ls_scf_env,unit_nr, & 
+                                 iscf,diis_step,eps_diis,nmixing,matrix_s(1)%matrix, & 
+                                 ls_scf_env%eps_filter,error)               
+      ENDIF
+
     ENDDO
 
     ! free storage
+    IF (ls_scf_env%ls_diis) THEN
+       CALL qs_diis_b_release_sparse(diis_buffer,error)
+    ENDIF
     DO ispin=1,nspin
        CALL cp_dbcsr_release(matrix_mixing_old(ispin),error=error)
        CALL cp_dbcsr_release(matrix_ks_deviation(ispin),error=error)

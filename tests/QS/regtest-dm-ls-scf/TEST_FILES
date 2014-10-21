@@ -45,3 +45,5 @@ H2O-restart-read-curvy.inp       11     8e-14
 H2O-curvy-prop.inp               11     1e-13
 H2O-dftb-tc2-1.inp               11     1e-13
 H2O-dftb-tc2-2.inp               11     1e-13
+ch4_DIIS-TRS4.inp 11
+cho_DIIS-TRS4.inp 11

@@ -70,6 +70,37 @@ CONTAINS
 
        NULLIFY (keyword,subsection)
 
+       CALL keyword_create(keyword, name="LS_DIIS",&
+            description="Perform DIIS within linear scaling SCF",&
+            usage="LS_DIIS",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INI_DIIS",&
+            description="Iteration cycle to start DIIS Kohn-Sham matrix update",&
+            usage="INI_DIIS 2", default_i_val=2,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_DIIS",&
+            description="Size of LS_DIIS buffer",&
+            usage="MAX_DIIS 4", default_i_val=4,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NMIXING",&
+            description="Minimal number of density mixing before start DIIS",&
+            usage="NMIXING 2", default_i_val=2,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_DIIS",&
+            description="Threshold on the convergence to start using DIIS",&
+            usage="EPS_DIIS 1.e-1", default_r_val=1.e-1_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAX_SCF",&
             description="Maximum number of SCF iteration to be performed for one optimization",&
             usage="MAX_SCF 200", default_i_val=20,error=error)

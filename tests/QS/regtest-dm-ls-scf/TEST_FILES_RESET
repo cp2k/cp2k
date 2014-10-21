@@ -304,3 +304,6 @@ H2-big-10.inp
 H2-big-11.inp
 # almo changes to hotelling
 H2-big-4.inp
+# diis in lscf
+ch4_DIIS-TRS4.inp
+cho_DIIS-TRS4.inp

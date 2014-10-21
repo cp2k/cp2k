@@ -229,6 +229,7 @@ MODULE cp_dbcsr_interface
             heap_t
   PUBLIC :: cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_deallocate_matrix
   PUBLIC :: cp_dbcsr_add_block_node
+  PUBLIC :: cp_dbcsr_maxabs
 
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix

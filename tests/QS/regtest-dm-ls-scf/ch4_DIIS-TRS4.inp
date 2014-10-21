@@ -1,0 +1,61 @@
+&GLOBAL
+  PROJECT ch4-DIIS_LSCF
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/BASIS_SET
+    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      LS_SCF
+      &DISTRIBUTION
+        BASIC_OPTIMIZATION .FALSE.
+        BASIC_SPATIAL_OPTIMIZATION .TRUE.
+      &END
+    &END QS
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+    &LS_SCF
+      LS_DIIS       ! activate DIIS
+      INI_DIIS 2    ! LS_SCF iteration cycle to start DIIS (default = 2)
+      MAX_DIIS 4    ! DIIS buffer size (default = 4)
+      EPS_DIIS 1.0  ! threshold on convergence to start DIIS (default = 0.1)
+      MAX_SCF  40
+      EPS_FILTER 1.0E-7
+      EPS_SCF    1.0E-6
+      MU        -0.20
+      PURIFICATION_METHOD TRS4
+      MIXING_FRACTION 0.45
+      S_PRECONDITIONER ATOMIC
+      REPORT_ALL_SPARSITIES OFF
+      PERFORM_MU_SCAN OFF
+    &END
+   &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+     C  -0.000367    0.000000    0.000481
+     H   0.638760   -0.000080    0.888272
+     H   0.207743    0.893069   -0.597225
+     H   0.207729   -0.892972   -0.597375
+     H  -1.052031   -0.000017    0.303441
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
