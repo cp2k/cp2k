@@ -23,6 +23,8 @@ MODULE pw_types
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_release,&
+                                             pw_grid_retain
   USE timings,                         ONLY: print_stack,&
                                              timeset,&
                                              timestop
@@ -151,6 +153,7 @@ SUBROUTINE pw_release(pw, error)
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                 "unknown data type "//cp_to_string(pw%in_use),error,failure)
         END SELECT
+        CALL pw_grid_release(pw%pw_grid, error=error)
         pw%ref_count=0
         DEALLOCATE(pw, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -220,6 +223,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
   NULLIFY ( pw % pw_grid )
   pw % in_use = use_data
   pw % pw_grid => pw_grid
+  CALL pw_grid_retain(pw%pw_grid, error=error)
   pw % in_space = NOSPACE
   bounds => pw % pw_grid % bounds_local
 
