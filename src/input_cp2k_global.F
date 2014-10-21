@@ -273,8 +273,8 @@ CONTAINS
          "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS",&
          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION",&
          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO",&
-         "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES","RT_PROPAGATION",&
-         "EHRENFEST_DYN","TAMC","TMC","DRIVER"),&
+         "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION",&
+         "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER"),&
          enum_i_vals=(/ none_run, energy_run, energy_force_run, mol_dyn_run,&
           geo_opt_run, mon_car_run, electronic_spectra_run, debug_run,&
           bsse_run, linear_response_run, pint_run, vib_anal,do_band,&
@@ -289,7 +289,9 @@ CONTAINS
          "Alias for MC","Alias for SPECTRA","Alias for LR","Alias for VIBRATIONAL_ANALYSIS",&
          "Real Time propagation run (fixed ionic positions)",&
          "Ehrenfest dynamics (using real time propagation of the wavefunction)",&
-         "TAMC", "TreeMonteCarlo (TMC), a pre sampling MC algorithma","i-PI driver mode"),&
+         "Temperature Accelerated Monte Carlo (TAMC)",&
+         "Tree Monte Carlo (TMC), a pre-sampling MC algorithm",&
+         "i-PI driver mode"),&
          supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

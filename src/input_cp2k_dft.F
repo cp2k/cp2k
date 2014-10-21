@@ -4297,9 +4297,12 @@ CONTAINS
 
        CALL keyword_create(keyword, name="method",&
             description="type of relativistic correction used",&
-            usage="method DKH", default_i_val=rel_none,&
+            usage="method (NONE|DKH|ZORA)", default_i_val=rel_none,&
             enum_c_vals=s2a("NONE","DKH","ZORA"),&
-            enum_i_vals=(/ rel_none, rel_dkh, rel_zora /),error=error)
+            enum_i_vals=(/ rel_none, rel_dkh, rel_zora /),&
+            enum_desc=s2a("Use no relativistic correction",&
+                          "Use Douglas-Kroll-Hess method",&
+                          "Use ZORA method"), error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4321,11 +4324,13 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="transformation",&
-            description="type of DKH transformation, full: use full matrix transformation,"//&
-             " molecule: use transformation blocked by molecule, atom: use atomic blocks ",&
-            usage="transformation full", default_i_val=rel_trans_full,&
-            enum_c_vals=s2a("FULL","MOLECULE","ATOM"), &
-            enum_i_vals=(/ rel_trans_full, rel_trans_molecule, rel_trans_atom/),error=error)
+            description="Type of DKH transformation",&
+            usage="transformation (FULL|MOLECULE|ATOM)", default_i_val=rel_trans_full,&
+            enum_c_vals=s2a("FULL","MOLECULE","ATOM"),&
+            enum_i_vals=(/ rel_trans_full, rel_trans_molecule, rel_trans_atom/),&
+            enum_desc=s2a("Use full matrix transformation",&
+                          "Use transformation blocked by molecule",&
+                          "Use atomic blocks"),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

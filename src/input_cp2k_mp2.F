@@ -412,7 +412,7 @@ CONTAINS
             description="Specifies the size of the auxiliary basis set automatically "//&
                         "generated as initial guess. This will be effective only if RI_AUX_BASIS_SET "//&
                         "in the KIND section and NUM_FUNC are not specified.",&
-            usage="BASIS_SIZE  MEDIUM",&
+            usage="BASIS_SIZE  (MEDIUM|LARGE|VERY_LARGE)",&
             enum_c_vals=s2a("MEDIUM","LARGE","VERY_LARGE"),&
             enum_i_vals=(/0,1,2/),&
             default_i_val=0, error=error)

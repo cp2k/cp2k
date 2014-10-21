@@ -305,14 +305,9 @@ SUBROUTINE create_ewald_section(section,error)
 
     NULLIFY(keyword,print_key,subsection)
     CALL keyword_create(keyword, name="EWALD_TYPE",&
-         description="The type of ewald you want to perform."//&
-         " NONE standard real-space coulomb potential is computed together"//&
-         " with the non-bonded contributions."//&
-         " EWALD is the standard non-fft based ewald."//&
-         " SPME is the smooth particle mesh using beta-Euler splines (recommended)."//&
-         " PME is the particle mesh using fft interpolation.",&
+         description="The type of ewald you want to perform.",&
          citations=(/Ewald1921,Essmann1995,Darden1993/),&
-         usage="EWALD_TYPE {EWALD|SPME|PME|NONE}",&
+         usage="EWALD_TYPE (NONE|EWALD|PME|SPME)",&
          default_i_val=do_ewald_ewald,&
          enum_c_vals=(/"none     ",&
                        "ewald    ",&
@@ -321,7 +316,12 @@ SUBROUTINE create_ewald_section(section,error)
          enum_i_vals=(/do_ewald_none,&
                        do_ewald_ewald,&
                        do_ewald_pme,&
-                       do_ewald_spme/),error=error)
+                       do_ewald_spme/),&
+         enum_desc=s2a("NONE standard real-space coulomb potential is computed together with the non-bonded contributions",&
+                       "EWALD is the standard non-fft based ewald",&
+                       "PME is the particle mesh using fft interpolation",&
+                       "SPME is the smooth particle mesh using beta-Euler splines (recommended)"),&
+                       error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

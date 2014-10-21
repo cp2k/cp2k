@@ -928,11 +928,13 @@ CONTAINS
 
        CALL keyword_create(keyword, name="PSEUDO_TYPE",&
             description="Pseudopotential type",&
-            usage="PSEUDO_TYPE GTH",&
+            usage="PSEUDO_TYPE (NONE|GTH)",&
             default_i_val=no_pseudo,&
             enum_c_vals=(/"NONE                     ",&
                           "GTH                      "/),&
             enum_i_vals= (/ no_pseudo, gth_pseudo /),&
+            enum_desc=s2a("Do not use pseudopotentials",&
+                          "Use Goedecker-Teter-Hutter pseudopotentials"),&
             supported_feature=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
