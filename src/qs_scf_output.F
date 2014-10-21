@@ -410,15 +410,15 @@ CONTAINS
           "DFT+U energy:",energy%dft_plus_u
        END IF
        IF  (qmmm) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+          WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
           IF(qs_env%qmmm_env_qm%image_charge) THEN
-             WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+             WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
                     "QM/MM image charge energy:                ",energy%image_charge
           ENDIF
        END IF
        IF (dft_control%qs_control%mulliken_restraint) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+          WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
                 "Mulliken restraint energy: ",energy%mulliken
        END IF
        IF (dft_control%qs_control%semi_empirical) THEN

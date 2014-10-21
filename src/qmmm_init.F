@@ -194,9 +194,9 @@ CONTAINS
     iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%QMMM_CHARGES",&
                                          extension=".log",error=error)
     IF (iw>0) THEN
-       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
        WRITE(iw,FMT='(/5X,A)')"MM    POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
-       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
        DO I = 1, SIZE(mm_atom_index)
           IndMM = mm_atom_index(I)
           qi = mm_atom_chrg(I)
@@ -204,17 +204,17 @@ CONTAINS
           ri = mm_el_pot_radius(I)
           rc = mm_el_pot_radius_corr(I)
           IF (nocompatibility) THEN
-             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
+             WRITE(iw,'(5X,A9,T15,I5,T28,A8,T38,F12.6,T60,A8,T69,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
                   ' CHARGE:',qi
           ELSE
-             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,A,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
-                  ' CHARGE:',qi,'CORR. RADIUS',rc
+             WRITE(iw,'(5X,A9,T15,I5,T28,A8,T38,F12.6,T60,A8,T69,F12.6,/,T56,A12,T69,F12.6)')&
+                  ' MM ATOM:',IndMM,' RADIUS:',ri,' CHARGE:',qi,'CORR. RADIUS',rc
           END IF
        END DO
        IF (added_charges%num_mm_atoms /= 0) THEN
-          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
           WRITE(iw,'(/5X,A)')"ADDED POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
-          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
           DO I = 1, SIZE(added_charges%mm_atom_index)
              IndMM = added_charges%mm_atom_index(I)
              qi = added_charges%mm_atom_chrg(I)
@@ -223,18 +223,18 @@ CONTAINS
              ind1 = added_charges%add_env(I)%Index1
              ind2 = added_charges%add_env(I)%Index2
              IF (nocompatibility) THEN
-                WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5)')'MM POINT:',IndMM,' RADIUS:',ri,&
+                WRITE(iw,'(5X,A9,I5,T25,A8,T35,F12.6,T50,A8,T59,F12.6,I5,I5)')'MM POINT:',IndMM,' RADIUS:',ri,&
                      ' CHARGE:',qi,ind1,ind2
              ELSE
-                WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5,A,F12.6)')'MM POINT:',IndMM,' RADIUS:',ri,&
-                     ' CHARGE:',qi,ind1,ind2,' CORR. RADIUS',rc
+                WRITE(iw,'(5X,A9,I5,T25,A8,T35,F12.6,T50,A8,T59,F12.6,I5,I5,/,T56,A12,T69,F12.6)')&
+                     'MM POINT:',IndMM,' RADIUS:',ri,' CHARGE:',qi,ind1,ind2,'CORR. RADIUS',rc
              END IF
           END DO
 
        END IF
-       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
-       WRITE(iw,'(/,T36,A,F12.6)')' TOTAL CHARGE:',qtot
-       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",73)
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
+       WRITE(iw,'(/,T50,A,T69,F12.6)')' TOTAL CHARGE:',qtot
+       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
     END IF
     CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
                "PRINT%QMMM_CHARGES", error=error)

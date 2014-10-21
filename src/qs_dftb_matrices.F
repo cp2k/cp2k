@@ -15,14 +15,19 @@ MODULE qs_dftb_matrices
   USE atprop_types,                    ONLY: atprop_array_init,&
                                              atprop_type
   USE block_p_types,                   ONLY: block_p_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
        convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_add_block_node, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_type, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
        dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_symmetric
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -39,6 +44,10 @@ MODULE qs_dftb_matrices
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_methods,                ONLY: get_particle_set
   USE particle_types,                  ONLY: particle_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
+                                             qmmm_pot_p_type,&
+                                             qmmm_pot_type
+  USE qmmm_util,                       ONLY: spherical_cutoff_factor
   USE qs_dftb_coulomb,                 ONLY: build_dftb_coulomb
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                              qs_dftb_pairpot_type
@@ -50,6 +59,7 @@ MODULE qs_dftb_matrices
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -60,6 +70,7 @@ MODULE qs_dftb_matrices
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
+  USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -84,12 +95,18 @@ MODULE qs_dftb_matrices
   REAL(dp), PARAMETER                    :: tol_gamma = 1.e-4_dp
   ! small real number
   REAL(dp), PARAMETER                    :: rtiny = 1.e-10_dp
+  ! eta(0) for mm atoms and non-scc qm atoms
+  REAL(dp), PARAMETER                    :: eta_mm = 0.47_dp
+  ! step size for qmmm finite difference
+  REAL(dp), PARAMETER                    :: ddrmm = 0.0001_dp
 
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_matrices'
 
   PUBLIC :: build_dftb_matrices, build_dftb_ks_matrix, build_dftb_overlap
+  PUBLIC :: build_dftb_qmmm_matrix, build_dftb_qmmm_matrix_zero, &
+            deriv_dftb_qmmm_matrix
 
 CONTAINS
 
@@ -627,7 +644,7 @@ CONTAINS
                                                 ispin, istat, natom, nkind, &
                                                 nspins, output_unit
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: zeff
+    REAL(KIND=dp)                            :: qmmm_el, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -716,6 +733,19 @@ CONTAINS
       DEALLOCATE(mcharge,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    END IF
+
+    IF (qs_env%qmmm) THEN
+       DO ispin = 1, nspins
+          ! If QM/MM sumup the 1el Hamiltonian
+          CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+               1.0_dp,1.0_dp,error=error)
+          matrix_p => rho%rho_ao
+          ! Compute QM/MM Energy
+          CALL cp_dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+               matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
+          energy%qmmm_el = energy%qmmm_el + qmmm_el
+       END DO
     END IF
 
     energy%total = energy%core + energy%hartree + energy%qmmm_el + &
@@ -979,6 +1009,534 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_dftb_overlap
+
+! *****************************************************************************
+!> \brief Constructs the 1-el DFTB hamiltonian
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param error ...
+!> \author JGH 10.2014 [created]
+! *****************************************************************************
+  SUBROUTINE build_dftb_qmmm_matrix(qs_env,qmmm_env,particles_mm,mm_cell,para_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_qmmm_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, handle, i, iatom, ikind, &
+                                                istat, jatom, natom, natorb, &
+                                                nkind
+    INTEGER, DIMENSION(:), POINTER           :: list
+    LOGICAL                                  :: defined, failure, found
+    REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: qpot
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, sblock
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
+    TYPE(qs_rho_type), POINTER               :: rho
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particles_qm,&
+                    qs_kind_set=qs_kind_set,&
+                    rho=rho,&
+                    natom=natom,&
+                    error=error)
+    dftb_control => dft_control%qs_control%dftb_control
+
+    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
+    NULLIFY(matrix_s)
+    CALL build_dftb_overlap(qs_env,0,matrix_s,error)
+
+    ALLOCATE(qpot(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    qpot = 0.0_dp
+
+    nkind = SIZE(atomic_kind_set)
+    DO ikind=1,nkind
+       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
+       NULLIFY(dftb_kind)
+       CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+       CALL get_dftb_atom_param(dftb_kind,&
+            defined=defined,eta=eta_a,natorb=natorb)
+       ! use mm charge smearing for non-scc cases
+       IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
+       IF (.NOT.defined .OR. natorb < 1) CYCLE
+       DO i = 1, SIZE(list)
+          iatom = list(i)
+          CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%Potentials,particles_mm,&
+               qmmm_env%mm_atom_chrg,qmmm_env%mm_el_pot_radius,qmmm_env%mm_atom_index,&
+               qmmm_env%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,particles_qm,error)
+          ! Possibly added charges
+          IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+             CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%added_charges%potentials,&
+                  qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                  qmmm_env%added_charges%mm_el_pot_radius,qmmm_env%added_charges%mm_atom_index,&
+                  qmmm_env%added_charges%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,&
+                  particles_qm,error)
+          END IF
+       END DO
+    END DO
+    CALL mp_sum(qpot,para_env%group)
+
+    ! Allocate the core Hamiltonian matrix
+    NULLIFY(matrix_h)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
+    ALLOCATE(matrix_h(1)%matrix,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(matrix_h(1)%matrix,error)
+    CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
+                       name="QMMM HAMILTONIAN MATRIX",error=error)
+    CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error)
+
+    CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+       NULLIFY(hblock)
+       CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
+            row=iatom,col=jatom,block=hblock,found=found)
+       CPPostcondition(found,cp_failure_level,routineP,error,failure)
+       hblock = hblock - 0.5_dp*sblock*(qpot(iatom)+qpot(jatom))
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
+    ks_qmmm_env_loc%matrix_h => matrix_h
+
+    DEALLOCATE(qpot,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_dftb_qmmm_matrix
+
+! *****************************************************************************
+!> \brief Constructs an empty 1-el DFTB hamiltonian
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param error ...
+!> \author JGH 10.2014 [created]
+! *****************************************************************************
+  SUBROUTINE build_dftb_qmmm_matrix_zero(qs_env,qmmm_env,para_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_qmmm_matrix_zero', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, istat
+    LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_s
+    TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
+    NULLIFY(matrix_s)
+    CALL build_dftb_overlap(qs_env,0,matrix_s,error)
+
+    ! Allocate the core Hamiltonian matrix
+    NULLIFY(matrix_h)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
+    ALLOCATE(matrix_h(1)%matrix,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(matrix_h(1)%matrix,error)
+    CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
+                       name="QMMM HAMILTONIAN MATRIX",error=error)
+    CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error)
+
+    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
+    ks_qmmm_env_loc%matrix_h => matrix_h
+
+    CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_dftb_qmmm_matrix_zero
+
+! *****************************************************************************
+!> \brief Constructs the derivative w.r.t. 1-el DFTB hamiltonian QMMM terms
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param calc_force ...
+!> \param Forces ...
+!> \param Forces_added_charges ...
+!> \param error ...
+!> \author JGH 10.2014 [created]
+! *****************************************************************************
+  SUBROUTINE deriv_dftb_qmmm_matrix(qs_env,qmmm_env,particles_mm,mm_cell,para_env,&
+       calc_force, Forces, Forces_added_charges, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(in), OPTIONAL            :: calc_force
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deriv_dftb_qmmm_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, blk, handle, i, iatom, ikind, iqm, istat, jatom, &
+      natom, natorb, nkind, nspins, number_qm_atoms
+    INTEGER, DIMENSION(:), POINTER           :: list
+    LOGICAL                                  :: defined, failure, found
+    REAL(KIND=dp)                            :: fi, gmij, zeff
+    REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, qpot
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dsblock, Forces_QM, &
+                                                pblock, sblock
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
+    TYPE(qs_rho_type), POINTER               :: rho
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    IF (calc_force) THEN
+       NULLIFY (rho, atomic_kind_set, qs_kind_set, particles_qm)
+       CALL get_qs_env(qs_env=qs_env,&
+                       rho=rho,&
+                       atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
+                       ks_qmmm_env=ks_qmmm_env_loc,&
+                       dft_control=dft_control,&
+                       particle_set=particles_qm,&
+                       natom=number_qm_atoms,&
+                       error=error)
+       dftb_control => dft_control%qs_control%dftb_control
+
+       NULLIFY(matrix_s)
+       CALL build_dftb_overlap(qs_env,1,matrix_s,error)
+       matrix_p => rho%rho_ao
+
+       nspins = dft_control%nspins
+       nkind  = SIZE(atomic_kind_set)
+      ! Mulliken charges
+       ALLOCATE(charges(number_qm_atoms,nspins),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+       CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
+       !
+       ALLOCATE(mcharge(number_qm_atoms),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+          CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
+          DO iatom=1,natom
+            atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+            mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
+          END DO
+       END DO
+       DEALLOCATE(charges,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE(qpot(number_qm_atoms),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       qpot = 0.0_dp
+       ALLOCATE(Forces_QM(3,number_qm_atoms),stat=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       Forces_QM= 0.0_dp
+
+       ! calculate potential and forces from classical charges
+       iqm = 0
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
+          NULLIFY(dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_dftb_atom_param(dftb_kind,&
+               defined=defined,eta=eta_a,natorb=natorb)
+          ! use mm charge smearing for non-scc cases
+          IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
+          IF (.NOT.defined .OR. natorb < 1) CYCLE
+          DO i = 1, SIZE(list)
+             iatom = list(i)
+             iqm = iqm + 1
+             CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%Potentials,particles_mm,&
+               qmmm_env%mm_atom_chrg,qmmm_env%mm_el_pot_radius,qmmm_env%mm_atom_index,&
+               qmmm_env%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,particles_qm,error)
+             CALL build_mm_dpot(mcharge(iatom),eta_a(0),qmmm_env%Potentials,particles_mm,&
+               qmmm_env%mm_atom_chrg,qmmm_env%mm_el_pot_radius,qmmm_env%mm_atom_index,&
+               qmmm_env%num_mm_atoms,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
+               qmmm_env%spherical_cutoff,particles_qm,error)
+             ! Possibly added charges
+             IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+                CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%added_charges%potentials,&
+                  qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                  qmmm_env%added_charges%mm_el_pot_radius,qmmm_env%added_charges%mm_atom_index,&
+                  qmmm_env%added_charges%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,&
+                  particles_qm,error)
+                CALL build_mm_dpot(mcharge(iatom),eta_a(0),qmmm_env%added_charges%potentials,&
+                  qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                  qmmm_env%added_charges%mm_el_pot_radius,qmmm_env%added_charges%mm_atom_index,&
+                  qmmm_env%added_charges%num_mm_atoms,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
+                  qmmm_env%spherical_cutoff,particles_qm,error)
+             END IF
+          END DO
+       END DO
+       CALL mp_sum(qpot,para_env%group)
+
+       ! Transfer QM gradients to the QM particles..
+       CALL mp_sum(Forces_QM, para_env%group)
+       iqm = 0
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
+          NULLIFY(dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_dftb_atom_param(dftb_kind,defined=defined,natorb=natorb)
+          IF (.NOT.defined .OR. natorb < 1) CYCLE
+          DO i = 1, SIZE(list)
+             iqm = iqm + 1
+             iatom = qmmm_env%qm_atom_index(list(i))
+             particles_mm(iatom)%f(:) = particles_mm(iatom)%f(:) + Forces_QM(:,iqm)
+          END DO
+       END DO
+
+       ! derivatives from qm charges
+       Forces_QM = 0.0_dp
+       IF ( SIZE(matrix_p) == 2) THEN
+          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+               alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+       END IF
+       !
+       CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+          !
+          IF(iatom==jatom) CYCLE
+          !
+          gmij = -0.5_dp*(qpot(iatom) + qpot(jatom))
+          NULLIFY(pblock)
+          CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+               row=iatom,col=jatom,block=pblock,found=found)
+          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          DO i=1,3
+             NULLIFY(dsblock)
+             CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                  row=iatom,col=jatom,block=dsblock,found=found)
+             CPPostcondition(found,cp_failure_level,routineP,error,failure)
+             fi = -1.0_dp*gmij*SUM(pblock*dsblock)
+             Forces_QM(i,iatom) = Forces_QM(i,iatom) + fi
+             Forces_QM(i,jatom) = Forces_QM(i,jatom) - fi
+          END DO
+       END DO
+       CALL cp_dbcsr_iterator_stop(iter)
+       !
+       IF ( SIZE(matrix_p) == 2) THEN
+          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+       END IF
+       !
+       ! Transfer QM gradients to the QM particles..
+       CALL mp_sum(Forces_QM, para_env%group)
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
+          DO i = 1, SIZE(list)
+             iqm = list(i)
+             iatom = qmmm_env%qm_atom_index(iqm)
+             particles_mm(iatom)%f(:) = particles_mm(iatom)%f(:) + Forces_QM(:,iqm)
+          END DO
+       END DO
+       !
+       DEALLOCATE(mcharge,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+       ! MM forces will be handled directly from the QMMM module in the same way
+       ! as for GPW/GAPW methods
+       DEALLOCATE(Forces_QM,stat=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
+
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE deriv_dftb_qmmm_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE build_mm_pot(qpot, qm_alpha, potentials,&
+       particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
+       mm_cell, IndQM, qmmm_spherical_cutoff, particles_qm, error)
+
+    REAL(KIND=dp), INTENT(INOUT)             :: qpot
+    REAL(KIND=dp), INTENT(IN)                :: qm_alpha
+    TYPE(qmmm_pot_p_type), DIMENSION(:), &
+      POINTER                                :: potentials
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    INTEGER, INTENT(IN)                      :: num_mm_atoms
+    TYPE(cell_type), POINTER                 :: mm_cell
+    INTEGER, INTENT(IN)                      :: IndQM
+    REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_pot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, Imm, Imp, IndMM, Ipot
+    REAL(KIND=dp)                            :: dr, qeff, rt1, rt2, rt3, &
+                                                sph_chrg_factor, sr
+    REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
+    TYPE(qmmm_pot_type), POINTER             :: Pot
+
+    CALL timeset(routineN,handle)
+    ! Loop Over MM atoms
+    ! Loop over Pot stores atoms with the same charge
+    MainLoopPot: DO Ipot = 1, SIZE(Potentials)
+       Pot    => Potentials(Ipot)%Pot
+       ! Loop over atoms belonging to this type
+       LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
+          Imm = Pot%mm_atom_index(Imp)
+          IndMM = mm_atom_index(Imm)
+          r_pbc=pbc(particles_mm(IndMM)%r-particles_qm(IndQM)%r, mm_cell)
+          rt1= r_pbc(1)
+          rt2= r_pbc(2)
+          rt3= r_pbc(3)
+          rij = (/rt1,rt2,rt3/)
+          dr = SQRT(SUM(rij**2))
+          qeff = mm_charges(Imm)
+          ! Computes the screening factor for the spherical cutoff (if defined)
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
+             qeff = qeff * sph_chrg_factor
+          END IF
+          IF (ABS(qeff)<=EPSILON(0.0_dp)) CYCLE
+          IF(dr > rtiny) THEN
+             sr = gamma_rab_sr(dr,qm_alpha,eta_mm,0.0_dp)
+             qpot = qpot + qeff*(1.0_dp/dr - sr)
+          END IF
+       END DO LoopMM
+    END DO MainLoopPot
+    CALL timestop(handle)
+  END SUBROUTINE build_mm_pot
+
+  SUBROUTINE build_mm_dpot(qcharge, qm_alpha, potentials,&
+       particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
+       mm_cell, IndQM, forces, forces_qm, qmmm_spherical_cutoff, particles_qm, error)
+
+    REAL(KIND=dp), INTENT(IN)                :: qcharge, qm_alpha
+    TYPE(qmmm_pot_p_type), DIMENSION(:), &
+      POINTER                                :: potentials
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    INTEGER, INTENT(IN)                      :: num_mm_atoms
+    TYPE(cell_type), POINTER                 :: mm_cell
+    INTEGER, INTENT(IN)                      :: IndQM
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: forces_qm
+    REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_dpot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, Imm, Imp, IndMM, Ipot
+    REAL(KIND=dp)                            :: dr, drm, drp, dsr, fsr, qeff, &
+                                                rt1, rt2, rt3, sph_chrg_factor
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, r_pbc, rij
+    TYPE(qmmm_pot_type), POINTER             :: Pot
+
+    CALL timeset(routineN,handle)
+    ! Loop Over MM atoms
+    ! Loop over Pot stores atoms with the same charge
+    MainLoopPot: DO Ipot = 1, SIZE(Potentials)
+       Pot    => Potentials(Ipot)%Pot
+       ! Loop over atoms belonging to this type
+       LoopMM: DO Imp = 1, SIZE(Pot%mm_atom_index)
+          Imm = Pot%mm_atom_index(Imp)
+          IndMM = mm_atom_index(Imm)
+          r_pbc=pbc(particles_mm(IndMM)%r-particles_qm(IndQM)%r, mm_cell)
+          rt1= r_pbc(1)
+          rt2= r_pbc(2)
+          rt3= r_pbc(3)
+          rij = (/rt1,rt2,rt3/)
+          dr = SQRT(SUM(rij**2))
+          qeff = mm_charges(Imm)
+          ! Computes the screening factor for the spherical cutoff (if defined)
+          IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
+             CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
+             qeff = qeff * sph_chrg_factor
+          END IF
+          IF (ABS(qeff)<=EPSILON(0.0_dp)) CYCLE
+          IF(dr > rtiny) THEN
+            drp = dr + ddrmm
+            drm = dr - ddrmm
+            dsr = 0.5_dp*(gamma_rab_sr(drp,qm_alpha,eta_mm,0.0_dp)-&
+                          gamma_rab_sr(drm,qm_alpha,eta_mm,0.0_dp))/ddrmm
+            fsr = qeff*qcharge*(-1.0_dp/(dr*dr) - dsr)
+            force_ab = fsr * rij/dr
+          ELSE
+            force_ab = 0.0_dp
+          END IF
+          ! The array of QM forces are really the forces
+          forces_qm(:)  = forces_qm(:)  - force_ab
+          ! The one of MM atoms are instead gradients
+          forces(:,Imm) = forces(:,Imm) - force_ab
+       END DO LoopMM
+    END DO MainLoopPot
+    CALL timestop(handle)
+  END SUBROUTINE build_mm_dpot
 
 ! *****************************************************************************
 !> \brief ...
@@ -1862,7 +2420,7 @@ CONTAINS
     a = 3.2_dp*ga ! 3.2 = 16/5 in Eq. 18 and ff.
     b = 3.2_dp*gb
     g_sum = a + b
-    IF (g_sum.lt.tol_gamma) RETURN ! hardness screening
+    IF (g_sum < tol_gamma) RETURN ! hardness screening
     IF (r < rtiny) THEN     ! This is for short distances but non-onsite terms
       ! This gives also correct diagonal elements (a=b, r=0)
       gamma = 0.5_dp*(a*b/g_sum + (a*b)**2/g_sum**3)

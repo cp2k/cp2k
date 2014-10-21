@@ -65,6 +65,7 @@ MODULE qmmm_gpw_forces
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
+  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -182,9 +183,21 @@ CONTAINS
        END SELECT
     ELSEIF (dft_control%qs_control%dftb) THEN
        ! DFTB
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="QM/MM forces not yet implemented for DFTB.", &
+       SELECT CASE(qmmm_env%qmmm_coupl_type)
+       CASE(do_qmmm_none)
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+               "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+       CASE(do_qmmm_coulomb)
+          CALL deriv_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+               need_f,Forces,Forces_added_charges,error)
+       CASE(do_qmmm_gauss,do_qmmm_swave)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.", &
                error=error, error_level=cp_failure_level)
+       CASE DEFAULT
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
     ELSE
        ! GPW/GAPW
        CALL pw_env_get(pw_env=pw_env,&

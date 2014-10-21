@@ -58,6 +58,8 @@ MODULE qmmm_gpw_energy
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
+  USE qs_dftb_matrices,                ONLY: build_dftb_qmmm_matrix,&
+                                             build_dftb_qmmm_matrix_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
@@ -131,7 +133,6 @@ CONTAINS
                        error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
-
        CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
        print_section => section_vals_get_subs_vals(input_section,"QMMM%PRINT",error=error)
        iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
@@ -161,9 +162,21 @@ CONTAINS
           END SELECT
        ELSEIF (dft_control%qs_control%dftb) THEN
           ! DFTB
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="QM/MM electrostatic coupling not yet implemented for DFTB.", &
-          error=error, error_level=cp_failure_level)
+          SELECT CASE(qmmm_env%qmmm_coupl_type)
+          CASE(do_qmmm_none)
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+                  "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+             CALL build_dftb_qmmm_matrix_zero(qs_env,qmmm_env,para_env,error)
+          CASE(do_qmmm_coulomb)
+             CALL build_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
+          CASE (do_qmmm_gauss,do_qmmm_swave)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.", &
+                  error=error, error_level=cp_failure_level)
+          CASE DEFAULT
+             IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
        ELSE
           ! QS
           SELECT CASE(qmmm_env%qmmm_coupl_type)
@@ -177,19 +190,19 @@ CONTAINS
                   "QM/MM Coupling computed collocating the Gaussian Potential Functions."
              interp_section => section_vals_get_subs_vals(input_section,&
                   "QMMM%INTERPOLATOR",error=error)
-             CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
-                                             v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-                                             mm_particles=mm_particles,&
-                                             aug_pools=qmmm_env%aug_pools,&
-                                             para_env=para_env,&
-                                             eps_mm_rspace=qmmm_env%eps_mm_rspace,&
-                                             cube_info=ks_qmmm_env_loc%cube_info,&
-                                             pw_pools=pw_pools,&
-                                             auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
-                                             coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
-                                             interp_section=interp_section,&
-                                             mm_cell=mm_cell,&
-                                             error=error)
+             CALL qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
+                                          v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+                                          mm_particles=mm_particles,&
+                                          aug_pools=qmmm_env%aug_pools,&
+                                          para_env=para_env,&
+                                          eps_mm_rspace=qmmm_env%eps_mm_rspace,&
+                                          cube_info=ks_qmmm_env_loc%cube_info,&
+                                          pw_pools=pw_pools,&
+                                          auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
+                                          coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
+                                          interp_section=interp_section,&
+                                          mm_cell=mm_cell,&
+                                          error=error)
           CASE(do_qmmm_none)
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                   "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
