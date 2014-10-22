@@ -1397,6 +1397,8 @@ CONTAINS
        ! as for GPW/GAPW methods
        DEALLOCATE(Forces_QM,stat=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(qpot,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
        CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
 
@@ -1404,8 +1406,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE deriv_dftb_qmmm_matrix
-
-! *****************************************************************************
 
 ! *****************************************************************************
 !> \brief ...
