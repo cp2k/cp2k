@@ -516,31 +516,43 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name, unit_str
     INTEGER                                  :: iatom, ikind, iw, natom
-    REAL(KIND=dp)                            :: conv, mass, qeff
+    REAL(KIND=dp)                            :: conv, mass, qcore, qeff, &
+                                                qshell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(shell_kind_type), POINTER           :: shell_kind
 
-    NULLIFY(logger)
+    NULLIFY (logger)
+    NULLIFY (shell_kind)
+
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,&
          "PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
 
     CALL section_vals_val_get(subsys_section,"PRINT%ATOMIC_COORDINATES%UNIT",c_val=unit_str,error=error)
     conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-    IF (iw>0) THEN
+    CALL uppercase(unit_str)
+    IF (iw > 0) THEN
       WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
         "MODULE FIST:  ATOMIC COORDINATES IN "//TRIM(unit_str)
       WRITE (UNIT=iw,&
-           FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
+             FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
         "Atom  Kind  ATM_TYP","X","Y","Z","  q(eff)","  Mass"
-
       natom = SIZE(particle_set)
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              kind_number=ikind,&
                              name=name,&
                              mass=mass,&
-                             qeff=qeff)
-        IF (ASSOCIATED(charges)) qeff=charges(iatom)
+                             qeff=qeff,&
+                             shell=shell_kind)
+        IF (ASSOCIATED(charges)) qeff = charges(iatom)
+        IF (ASSOCIATED(shell_kind)) THEN
+          CALL get_shell(shell=shell_kind,&
+                         charge_core=qcore,&
+                         charge_shell=qshell,&
+                         error=error)
+          qeff = qcore + qshell
+        END IF
         WRITE (UNIT=iw,&
                FMT="(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4)")&
           iatom,ikind,name,&
