@@ -109,7 +109,7 @@ def process_log_file(fn):
             continue
 
         if(tokens and tokens[0]=="!$OMP"):
-            if("PARALLEL" in line and "DEFAULT(NONE)" not in line):
+            if("OMP PARALLEL" in line and "DEFAULT(NONE)" not in line):
                 issues.append(fn+': OMP PARALLEL without DEFAULT(NONE) found in "'+curr_procedure+'"')
 
     return(issues)
