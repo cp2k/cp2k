@@ -599,7 +599,8 @@ CONTAINS
   END SUBROUTINE qs_diis_b_clear
 
 ! *****************************************************************************
-!> \brief Update the SCF DIIS buffer in linear scaling SCF (LS-SCF), 
+!> \brief Update the SCF DIIS buffer in linear scaling SCF (LS-SCF),
+!>        and if appropriate does a diis step.
 !> \param diis_buffer ...
 !> \param qs_env ...
 !> \param ls_scf_env ...
@@ -615,7 +616,6 @@ CONTAINS
 !> \par History
 !>      - Adapted for LS-SCF (10-11-14) from qs_diis_b_step
 !> \author Fredy W. Aquino
-!> \bfief and if appropriate does a diis step. UNKNOWN_DOXYGEN_COMMENT
 ! *****************************************************************************
 
   SUBROUTINE qs_diis_b_step_4lscf(diis_buffer,qs_env,ls_scf_env,unit_nr,iscf, &
