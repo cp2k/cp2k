@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-wdim_scc.inp          2
-wdim_nonscc.inp       2
-wdimmc_scc.inp        2
-wdimmc_nonscc.inp     2
+wdim_scc.inp          1
+wdim_nonscc.inp       1
+wdimmc_scc.inp        1
+wdimmc_nonscc.inp     1
