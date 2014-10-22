@@ -7572,7 +7572,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MCWEENY_MAX_ITER",&
             description="Determines the maximum amount of McWeeny steps used after each converged"//&
             " step in density propagation",&
-            usage="MCWEENY_MAX_ITER 2",default_i_val=0,error=error)
+            usage="MCWEENY_MAX_ITER 2",default_i_val=1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

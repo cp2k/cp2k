@@ -8,4 +8,15 @@ H2O-ls-ortho-emd.inp
 H2plus-ls-rtp.inp
 # bugfix restart
 H2O-ls-rtp-scf-restart.inp
+# chaning default number of MCWEENY_MAX_ITER
+H2O-ls-emd.inp
+H2O-ls-rtp-bch.inp
+H2O-ls-rtp.inp
+H2O-ls-rtp-scf-restart.inp
+H2O-ls-emd-scf-restart.inp
+H2O-ls-emd-mcweeny-rt-restart.inp
+H2O-ls-emd-mcweeny.inp
+emd-KG.inp
+H2plus-ls-rtp.inp
+H2O-ls-ortho-emd.inp
 
