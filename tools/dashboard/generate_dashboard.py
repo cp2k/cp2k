@@ -62,7 +62,7 @@ def main():
         link_url    = config.get(s,"link_url") if(config.has_option(s,"link_url")) else None
 
         try:
-            report_txt = urlopen(report_url).read()
+            report_txt = urlopen(report_url, timeout=5).read()
 
             if(report_type == "regtest"):
                 report = parse_regtest_report(report_txt)
@@ -77,7 +77,7 @@ def main():
             print traceback.print_exc()
             report = dict()
             report['status'] = "UNKOWN"
-            report['summary'] = "Could not retrieve and parse report"
+            report['summary'] = "Error while processing report."
 
         output += '<tr align="center">'
         if(link_url):
