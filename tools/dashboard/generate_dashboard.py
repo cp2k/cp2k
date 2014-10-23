@@ -8,6 +8,7 @@
 
 import ConfigParser
 import sys
+import os
 import urllib2
 import re
 from datetime import datetime, timedelta
@@ -21,10 +22,11 @@ from xml.dom import minidom
 #===============================================================================
 def main():
     if(len(sys.argv) != 4):
-        print("Usage update_dashboard.py <config-file> <status-file> <output-file>")
+        print("Usage update_dashboard.py <config-file> <status-file> <output-dir>")
         sys.exit(1)
 
-    config_fn, status_fn, output_fn = sys.argv[1:]
+    config_fn, status_fn, outdir = sys.argv[1:]
+    assert(outdir.endswith("/"))
 
     config = ConfigParser.ConfigParser()
     config.read(config_fn)
@@ -59,7 +61,7 @@ def main():
         host        = config.get(s,"host")
         report_type = config.get(s,"report_type")
         report_url  = config.get(s,"report_url")
-        link_url    = config.get(s,"link_url") if(config.has_option(s,"link_url")) else None
+        info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
 
         try:
             report_txt = urlopen(report_url, timeout=5).read()
@@ -73,6 +75,9 @@ def main():
 
             if(report['revision'] < threshold_rev):
                 report['status'] = "OUTDATED"
+
+            fn = outdir+"archive/%s/rev_%d.txt"%(s,report['revision'])
+            write_file(fn, report_txt)
         except:
             print traceback.print_exc()
             report = dict()
@@ -80,8 +85,8 @@ def main():
             report['summary'] = "Error while processing report."
 
         output += '<tr align="center">'
-        if(link_url):
-            output += '<td align="left"><a href="%s">%s</a></td>'%(link_url, name)
+        if(info_url):
+            output += '<td align="left"><a href="%s">%s</a></td>'%(info_url, name)
         else:
             output += '<td align="left">%s</td>'%name
         output += '<td align="left">%s</td>'%host
@@ -121,11 +126,17 @@ def main():
     output += '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
     output += '</body></html>'
 
-    open(status_fn, "w").write(pformat(last_ok))
-    print("Wrote "+status_fn)
+    write_file(status_fn, pformat(last_ok))
+    write_file(outdir+"index.html", output)
 
-    open(output_fn, "w").write(output)
-    print("Wrote: "+output_fn)
+#===============================================================================
+def write_file(fn, content):
+    d = path.dirname(fn)
+    if(len(d) > 0 and not path.exists(d)):
+        os.makedirs(d)
+        print("Created dir: "+d)
+    open(fn, "w").write(content)
+    print("Wrote: "+fn)
 
 #===============================================================================
 def svn_log(limit=100):
