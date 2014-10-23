@@ -20,8 +20,7 @@ MODULE kpoint_methods
        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_type_antisymmetric, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_give_back_fm
@@ -33,6 +32,7 @@ MODULE kpoint_methods
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_cart_create,&
                                              cp_para_env_create,&
                                              cp_para_env_retain
@@ -832,7 +832,7 @@ CPSourceFileRef,&
              CALL get_mo_set(mo_set,occupation_numbers=occupation)
              CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
              CALL cp_fm_column_scale(fwork,occupation)
-             CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
                              0.0_dp,kp%pmat(1,ispin)%matrix,error)
           ELSE
              mo_set => kp%mos(1,ispin)%mo_set
@@ -840,19 +840,19 @@ CPSourceFileRef,&
              CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
              CALL cp_fm_column_scale(fwork,occupation)
              ! Re(c)*Re(c)
-             CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
                              0.0_dp,kp%pmat(1,ispin)%matrix,error)
              mo_set => kp%mos(2,ispin)%mo_set
              ! Im(c)*Re(c)
-             CALL cp_fm_gemm("N","T",nao,nao,nmo,-1.0_dp,mo_set%mo_coeff,fwork,&
+             CALL cp_gemm("N","T",nao,nao,nmo,-1.0_dp,mo_set%mo_coeff,fwork,&
                              0.0_dp,kp%pmat(2,ispin)%matrix,error)
              ! Re(c)*Im(c)
-             CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,fwork,mo_set%mo_coeff,&
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,fwork,mo_set%mo_coeff,&
                              1.0_dp,kp%pmat(2,ispin)%matrix,error)
              CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
              CALL cp_fm_column_scale(fwork,occupation)
              ! Im(c)*Im(c)
-             CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
                              1.0_dp,kp%pmat(1,ispin)%matrix,error)
           END IF
        END DO
