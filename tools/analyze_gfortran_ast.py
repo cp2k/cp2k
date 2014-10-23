@@ -33,7 +33,7 @@ BANNED_CALL += ('SGEMM',  'DGEMM',  'CGEMM',  'ZGEMM',  'SSYMM',  'DSYMM',  'CSY
                 'CTRMM',  'ZTRMM',  'STRSM',  'DTRSM',  'CTRSM',  'ZTRSM',  'SDSDOT', 'DSDOT',
                 'DCABS1', 'LSAME',  'SCABS1')
 
-BANNED_CALL += ('cp_fm_gemm', )
+BANNED_CALL += ('CP_FM_GEMM', )
 
 # precompile regex
 re_procedure = re.compile(r"^\s*procedure name = (.*)$")

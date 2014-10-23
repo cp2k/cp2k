@@ -1112,3 +1112,6 @@ xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_1" is IMPLI
 xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_2" is IMPLICIT-TYPE
 xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_3" is IMPLICIT-TYPE
 xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_4" is IMPLICIT-TYPE
+cp_dbcsr_operations.F.ast: Found CALL CP_FM_GEMM in procedure "cp_dbcsr_plus_fm_fm_t_native"
+cp_fm_basic_linalg.F.ast: Found CALL CP_FM_GEMM in procedure "cp_complex_fm_gemm"
+cp_gemm_interface.F.ast: Found CALL CP_FM_GEMM in procedure "cp_gemm"
