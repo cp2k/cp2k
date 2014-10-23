@@ -62,17 +62,6 @@ MODULE rt_propagation_types
     TYPE(cp_dbcsr_p_type),POINTER, DIMENSION(:) :: next
  END TYPE rtp_rho_type
 
- TYPE rtp_hfx_type
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_p_im
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_ks_im
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_p_admm_im
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_ks_admm_im
- END TYPE 
-
  TYPE rtp_history_type
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:,:)               :: rho_history
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)                 :: s_history
@@ -107,7 +96,6 @@ MODULE rt_propagation_types
     REAL(KIND=dp)                               :: filter_eps
     REAL(KIND=dp)                               :: filter_eps_small
     LOGICAL                                     :: do_hfx
-    TYPE(rtp_hfx_type),POINTER                  :: rtp_hfx
     INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
     INTEGER                                     :: nsteps,istep,i_start
     INTEGER                                     :: iter
@@ -132,8 +120,7 @@ MODULE rt_propagation_types
   PUBLIC :: rt_prop_create,&
             get_rtp,&
             rt_prop_release,&
-            rtp_history_create,&
-            get_rtp_hfx
+            rtp_history_create
 CONTAINS
 
 
@@ -176,7 +163,7 @@ CONTAINS
     failure=.FALSE.
     CALL cite_reference(Kunert2003)
 
-    NULLIFY(rtp_control,rtp%rtp_hfx)
+    NULLIFY(rtp_control)
 
     rtp_control => dft_control%rtp_control
 
@@ -353,12 +340,11 @@ CONTAINS
 !> \param SinvH ...
 !> \param SinvB ...
 !> \param admm_mos ...
-!> \param rtp_hfx ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,rho_old,rho_next,rho_new,mos,mos_new,mos_old,mos_next,&
                      S_inv,S_half,S_minus_half,B_mat,C_mat,propagator_matrix,&
-                     S_der,dt,nsteps,SinvH,SinvB,admm_mos,rtp_hfx,error)
+                     S_der,dt,nsteps,SinvH,SinvB,admm_mos,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -378,7 +364,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: SinvH, SinvB
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: admm_mos
-    TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rtp', &
@@ -410,8 +395,6 @@ CONTAINS
     IF(PRESENT(SinvH))SinvH=>rtp%SinvH
     IF(PRESENT(SinvB))SinvB=>rtp%SinvB
     IF(PRESENT(S_der))S_der=>rtp%S_der
-
-    IF (PRESENT(rtp_hfx))rtp_hfx=>rtp%rtp_hfx
 
     IF(PRESENT(dt))dt=rtp%dt
     IF(PRESENT(nsteps))nsteps=rtp%nsteps
@@ -478,120 +461,8 @@ CONTAINS
          CALL rtp_history_release(rtp,error)
     DEALLOCATE(rtp%orders,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF(ASSOCIATED(rtp%rtp_hfx))&
-         CALL rtp_hfx_release(rtp%rtp_hfx,error)
     IF(.NOT.rtp%linear_scaling) CALL cp_fm_struct_release(rtp%ao_ao_fmstruct,error)
   END SUBROUTINE rt_prop_release
-
-! *****************************************************************************
-!> \brief ...
-!> \param rtp_hfx ...
-!> \param matrix_p_im ...
-!> \param matrix_ks_im ...
-!> \param matrix_p_admm_im ...
-!> \param matrix_ks_admm_im ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE get_rtp_hfx(rtp_hfx,matrix_p_im,matrix_ks_im, &
-                            matrix_p_admm_im,matrix_ks_admm_im,error)
-    TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_im, matrix_ks_im, &
-                                                matrix_p_admm_im, &
-                                                matrix_ks_admm_im
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_rtp_hfx', &
-      routineP = moduleN//':'//routineN
-
-    IF(PRESENT(matrix_p_im))matrix_p_im=>rtp_hfx%matrix_p_im
-    IF(PRESENT(matrix_ks_im))matrix_ks_im=>rtp_hfx%matrix_ks_im
-    IF(PRESENT(matrix_p_admm_im))matrix_p_admm_im=>rtp_hfx%matrix_p_admm_im
-    IF(PRESENT(matrix_ks_admm_im))matrix_ks_admm_im=>rtp_hfx%matrix_ks_admm_im
-
-  END SUBROUTINE get_rtp_hfx
-
-! *****************************************************************************
-!> \brief ...
-!> \param rtp_hfx ...
-!> \param matrix_p_im ...
-!> \param matrix_ks_im ...
-!> \param matrix_p_admm_im ...
-!> \param matrix_ks_admm_im ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE set_rtp_hfx(rtp_hfx,matrix_p_im,matrix_ks_im,&
-                        matrix_p_admm_im,matrix_ks_admm_im,error)
-    TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_im, matrix_ks_im, &
-                                                matrix_p_admm_im, &
-                                                matrix_ks_admm_im
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_rtp_hfx', &
-      routineP = moduleN//':'//routineN
-
-    IF(PRESENT(matrix_p_im))rtp_hfx%matrix_p_im=>matrix_p_im
-    IF(PRESENT(matrix_ks_im))rtp_hfx%matrix_ks_im=>matrix_ks_im
-    IF(PRESENT(matrix_p_admm_im))rtp_hfx%matrix_p_admm_im=>matrix_p_admm_im
-    IF(PRESENT(matrix_ks_admm_im))rtp_hfx%matrix_ks_admm_im=>matrix_ks_admm_im
-
-  END SUBROUTINE set_rtp_hfx   
-
-! *****************************************************************************
-!> \brief ...
-!> \param rtp_hfx ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE rtp_hfx_release(rtp_hfx,error)
-    TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rtp_hfx_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    IF(ASSOCIATED(rtp_hfx))THEN
-       IF(ASSOCIATED(rtp_hfx%matrix_p_im))THEN
-          DO i=1,SIZE(rtp_hfx%matrix_p_im)
-             IF (ASSOCIATED(rtp_hfx%matrix_p_im(i)%matrix))&
-                CALL cp_dbcsr_deallocate_matrix(rtp_hfx%matrix_p_im(i)%matrix,error=error)
-          END DO
-          DEALLOCATE(rtp_hfx%matrix_p_im,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF(ASSOCIATED(rtp_hfx%matrix_ks_im))THEN
-          DO i=1,SIZE(rtp_hfx%matrix_ks_im)
-             IF (ASSOCIATED(rtp_hfx%matrix_ks_im(i)%matrix))&
-                CALL cp_dbcsr_deallocate_matrix(rtp_hfx%matrix_ks_im(i)%matrix,error=error)
-          END DO
-          DEALLOCATE(rtp_hfx%matrix_ks_im,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF(ASSOCIATED(rtp_hfx%matrix_ks_admm_im))THEN
-          DO i=1,SIZE(rtp_hfx%matrix_ks_admm_im)
-             IF (ASSOCIATED(rtp_hfx%matrix_ks_admm_im(i)%matrix))&
-                CALL cp_dbcsr_deallocate_matrix(rtp_hfx%matrix_ks_admm_im(i)%matrix,error=error)
-          END DO
-          DEALLOCATE(rtp_hfx%matrix_ks_admm_im,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF(ASSOCIATED(rtp_hfx%matrix_p_admm_im))THEN
-          DO i=1,SIZE(rtp_hfx%matrix_p_admm_im)
-             IF (ASSOCIATED(rtp_hfx%matrix_p_admm_im(i)%matrix))&
-                CALL cp_dbcsr_deallocate_matrix(rtp_hfx%matrix_p_admm_im(i)%matrix,error=error)
-          END DO
-          DEALLOCATE(rtp_hfx%matrix_p_admm_im,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       DEALLOCATE(rtp_hfx)
-    END IF
-
-  END SUBROUTINE rtp_hfx_release
 
 ! *****************************************************************************
 !> \brief ...

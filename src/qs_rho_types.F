@@ -57,7 +57,8 @@ MODULE qs_rho_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_rho_type
-     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao => Null()
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao => Null(),&
+                                                       rho_ao_im => Null()
      TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: rho_ao_kp => Null()
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g  => Null(),&
                                                rho_r  => Null(),&
@@ -227,6 +228,8 @@ CONTAINS
 
     IF (ASSOCIATED(rho_struct%rho_ao))&
        CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
+    IF (ASSOCIATED(rho_struct%rho_ao_im))&
+       CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_im,error=error)
     IF (ASSOCIATED(rho_struct%rho_ao_kp))&
        CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_kp,error=error)
     IF (ASSOCIATED(rho_struct%tot_rho_r))&
@@ -285,6 +288,7 @@ CONTAINS
 !>      If some representation is not available an error is issued
 !> \param rho_struct ...
 !> \param rho_ao ...
+!> \param rho_ao_im ...
 !> \param rho_ao_kp ...
 !> \param rho_r ...
 !> \param drho_r ...
@@ -308,13 +312,13 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_kp, rho_r, drho_r, &
+  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_r, drho_r, &
        rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
        drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, soft_valid, &
        error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: rho_ao
+      OPTIONAL, POINTER                      :: rho_ao, rho_ao_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rho_ao_kp
     TYPE(pw_p_type), DIMENSION(:), &
@@ -341,6 +345,9 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(rho_ao)) THEN
              rho_ao => rho_struct%rho_ao
+       END IF
+       IF (PRESENT(rho_ao_im)) THEN
+             rho_ao_im => rho_struct%rho_ao_im
        END IF
        IF (PRESENT(rho_ao_kp)) THEN
              rho_ao_kp => rho_struct%rho_ao_kp

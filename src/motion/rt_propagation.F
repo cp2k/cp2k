@@ -148,12 +148,8 @@ CONTAINS
  
     ! Hmm, not really like to initialize with the structure of S but I reckon it is
     ! done everywhere like this
-    IF(rtp%do_hfx)THEN
-       ALLOCATE(rtp%rtp_hfx)
-       NULLIFY(rtp%rtp_hfx%matrix_p_im,rtp%rtp_hfx%matrix_ks_im,&
-               rtp%rtp_hfx%matrix_p_admm_im,rtp%rtp_hfx%matrix_ks_admm_im)
+    IF(rtp%do_hfx)&
        CALL rtp_hfx_rebuild(qs_env,error)
-    END IF
 
     IF(rtp_control%fixed_ions) THEN
        CALL init_propagation_run(qs_env,error)

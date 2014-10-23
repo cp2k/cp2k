@@ -176,7 +176,7 @@ CONTAINS
        matrix_p => rho%rho_ao
        CALL rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mos_aux_fit(ispin)%mo_set,&
                                        matrix_p_aux_fit(ispin)%matrix,&
-                                       rtp%rtp_hfx%matrix_p_admm_im(ispin)%matrix,&
+                                       rho_aux_fit%rho_ao_im(ispin)%matrix,&
                                        ispin,nspins,error)
        CALL calculate_rho_elec(matrix_p=rho_aux_fit%rho_ao(ispin)%matrix,&
             rho=rho_aux_fit%rho_r(ispin),&
@@ -521,24 +521,26 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param mo_coeff_aux_fit ...
 !> \param matrix_ks ...
+!> \param matrix_ks_im ...
 !> \param matrix_ks_aux_fit ...
+!> \param matrix_ks_aux_fit_im ...
 !> \param matrix_s ...
 !> \param matrix_p_aux_fit ...
 !> \param matrix_p ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE rtp_admm_merge_ks_matrix(ispin,rtp, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
-                                             matrix_ks, matrix_ks_aux_fit, matrix_s, &
-                                             matrix_p_aux_fit, matrix_p, error)
+                                             matrix_ks, matrix_ks_im, &
+                                             matrix_ks_aux_fit, matrix_ks_aux_fit_im,&
+                                             matrix_s, matrix_p_aux_fit, matrix_p, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s, matrix_p_aux_fit, &
-                                                matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks, matrix_ks_im, &
+      matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_s, matrix_p_aux_fit, &
+      matrix_p
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_merge_ks_matrix', &
@@ -557,7 +559,7 @@ CONTAINS
             matrix_ks, matrix_ks_aux_fit, &
             error)
        CALL rt_merge_ks_matrix_none(ispin, admm_env, &
-            rtp%rtp_hfx%matrix_ks_im, rtp%rtp_hfx%matrix_ks_admm_im, &
+            matrix_ks_im, matrix_ks_aux_fit_im, &
             error)
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -677,19 +679,26 @@ CONTAINS
 
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: KS_aux_re, matrix_s_aux_fit, &
+      POINTER                                :: KS_aux_im, KS_aux_re, &
+                                                matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_admm
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    CALL get_qs_env(qs_env=qs_env, admm_env=admm_env, matrix_ks_aux_fit=KS_aux_re, matrix_s_aux_fit=matrix_s_aux_fit,&
-                     matrix_s_aux_fit_vs_orb= matrix_s_aux_fit_vs_orb , rtp=rtp, error=error)
+    CALL get_qs_env(qs_env,&
+                    admm_env=admm_env,&
+                    rtp=rtp,&
+                    matrix_ks_aux_fit=KS_aux_re,&
+                    matrix_ks_aux_fit_im=KS_aux_im,&
+                    matrix_s_aux_fit=matrix_s_aux_fit,&
+                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                    error=error)
 
     CALL get_rtp(rtp=rtp,mos_new=mos,admm_mos=mos_admm,error=error)
 
     ! currently only none option
-    CALL rt_admm_forces_none(qs_env,admm_env,KS_aux_re,rtp%rtp_hfx%matrix_ks_admm_im, &
+    CALL rt_admm_forces_none(qs_env, admm_env, KS_aux_re, KS_aux_im, &
                              matrix_s_aux_fit, matrix_s_aux_fit_vs_orb , mos_admm,mos,error)
 
   END SUBROUTINE rt_admm_force

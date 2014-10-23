@@ -222,9 +222,10 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ks_matrix, matrix_h, &
-      matrix_ks_aux_fit, matrix_p, matrix_p_aux_fit, matrix_s, &
-      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, my_rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ks_matrix, ks_matrix_im, &
+      matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_p, &
+      matrix_p_aux_fit, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
+      matrix_vxc, mo_derivs, my_rho
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -260,9 +261,9 @@ CONTAINS
          adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section,&
          matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool,&
          poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit,&
-         v_tau_rspace,v_tau_rspace_aux_fit,matrix_vxc,matrix_ks_aux_fit,&
+         v_tau_rspace,v_tau_rspace_aux_fit,matrix_vxc,matrix_ks_aux_fit,matrix_ks_aux_fit_im,&
          matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc,&
-         ks_env, ks_matrix, rho, energy, rho_xc)
+         ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -277,7 +278,9 @@ CONTAINS
                     matrix_s=matrix_s,&
                     matrix_vxc=matrix_vxc,&
                     matrix_ks=ks_matrix,&
+                    matrix_ks_im=ks_matrix_im,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
                     matrix_s_aux_fit=matrix_s_aux_fit,&
                     matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                     pw_env=pw_env,&
@@ -716,9 +719,20 @@ CONTAINS
                    matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
                    matrix_p_aux_fit, matrix_p, error)
            ELSE
-              CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                   mo_coeff_aux_fit, ks_matrix, matrix_ks_aux_fit, matrix_s,&
-                   matrix_p_aux_fit, matrix_p, error)
+              CALL rtp_admm_merge_ks_matrix(ispin=ispin,&
+                                            rtp=qs_env%rtp,&
+                                            admm_env=qs_env%admm_env,&
+                                            mo_set=mo_array(ispin)%mo_set,&
+                                            mo_coeff=mo_coeff,&
+                                            mo_coeff_aux_fit=mo_coeff_aux_fit,&
+                                            matrix_ks=ks_matrix,&
+                                            matrix_ks_im=ks_matrix_im,&
+                                            matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                                            matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
+                                            matrix_s=matrix_s,&
+                                            matrix_p_aux_fit=matrix_p_aux_fit,&
+                                            matrix_p=matrix_p,&
+                                            error=error)
 
            END IF
          END DO

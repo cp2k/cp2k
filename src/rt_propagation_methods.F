@@ -70,7 +70,6 @@ MODULE rt_propagation_methods
                                              rt_convergence,&
                                              rt_convergence_density
   USE rt_propagation_types,            ONLY: get_rtp,&
-                                             get_rtp_hfx,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -351,7 +350,8 @@ CONTAINS
     INTEGER                                  :: handle, im, ispin, re
     REAL(dp)                                 :: t
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, SinvB, SinvH
+      POINTER                                :: matrix_ks, matrix_ks_im, &
+                                                SinvB, SinvH
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym, tmp
     TYPE(cp_dbcsr_type), POINTER             :: B_mat, S_inv, S_minus_half
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -362,6 +362,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     CALL get_qs_env(qs_env,&
                     matrix_ks=matrix_ks,&
+                    matrix_ks_im=matrix_ks_im,&
                     rtp=rtp,&
                     dft_control=dft_control,&
                     error=error)
@@ -396,8 +397,7 @@ CONTAINS
              re=ispin*2-1
              im=ispin*2           
              CALL cp_dbcsr_set(matrix_ks_nosym,0.0_dp,error)
-             CALL cp_dbcsr_desymmetrize (rtp%rtp_hfx%matrix_ks_im(ispin)%matrix, matrix_ks_nosym,&
-                     error=error)
+             CALL cp_dbcsr_desymmetrize(matrix_ks_im(ispin)%matrix,matrix_ks_nosym,error=error)
 
              ! take care of the EMD case and add the velocity scaled S_derivative
              IF(.NOT.dft_control%rtp_control%fixed_ions)&
@@ -798,7 +798,7 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env, error=error)
 
     IF(rtp%do_hfx)THEN
-       CALL calculate_P_imaginary(rtp,dft_control%do_admm,error)
+       CALL calculate_P_imaginary(rtp, rho%rho_ao_im, dft_control%do_admm, error)
     END IF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -880,11 +880,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rtp ...
+!> \param matrix_p_im ...
 !> \param do_admm ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_P_imaginary(rtp,do_admm,error)
+  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,do_admm,error)
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p_im
     LOGICAL, INTENT(in)                      :: do_admm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -893,13 +896,10 @@ CONTAINS
 
     INTEGER                                  :: i, im, ncol, re
     REAL(KIND=dp)                            :: alpha
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
-    CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_p_im=matrix_p_im,error=error)
 
     DO i=1,SIZE(mos)/2
        re=2*i-1 ; im =2*i

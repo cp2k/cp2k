@@ -69,8 +69,7 @@ MODULE hfx_admm_utils
                                              mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE rt_propagation_types,            ONLY: get_rtp_hfx,&
-                                             rt_prop_type
+  USE rt_propagation_types,            ONLY: rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -220,7 +219,7 @@ CONTAINS
 !>
 !> \param ks_env ...
 !> \param qs_env ...
-!> \param ks_matrix ...
+!> \param matrix_ks ...
 !> \param rho ...
 !> \param energy ...
 !> \param calculate_forces ...
@@ -231,13 +230,13 @@ CONTAINS
 !> \par History
 !>     refactoring 03-2011 [MI]
 ! *****************************************************************************
-  SUBROUTINE hfx_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,calculate_forces,&
+  SUBROUTINE hfx_ks_matrix(ks_env,qs_env,matrix_ks,rho,energy,calculate_forces,&
               just_energy, v_rspace_new,v_tau_rspace,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+      POINTER                                :: matrix_ks
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -252,9 +251,9 @@ CONTAINS
     LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, do_hfx_ri, &
       failure, hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks_aux_fit, &
-                                                matrix_ks_orb, rho_ao_orb
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, &
+      matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_im, matrix_ks_orb, &
+      rho_ao_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -273,7 +272,9 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(auxbas_pw_pool, dft_control, force, hfx_sections, hfx_ri_section, input, &
-            matrix_h, para_env, poisson_env, pw_env, virial, matrix_ks_aux_fit)
+            para_env, poisson_env, pw_env, virial,&
+            matrix_ks_im, matrix_ks_orb, rho_ao_orb,&
+            matrix_h, matrix_ks_aux_fit,matrix_ks_aux_fit_im)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -282,7 +283,9 @@ CONTAINS
          para_env=para_env,&
          pw_env=pw_env,&
          virial=virial,&
+         matrix_ks_im=matrix_ks_im,&
          matrix_ks_aux_fit=matrix_ks_aux_fit,&
+         matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
          s_mstruct_changed=s_mstruct_changed,&
          error=error)
 
@@ -308,7 +311,7 @@ CONTAINS
       END DO
     END IF
     DO ispin = 1,nspins
-       CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
     END DO
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
@@ -374,16 +377,18 @@ CONTAINS
 
              CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
              DO ispin = 1,nspins
-                CALL cp_dbcsr_set(qs_env%rtp%rtp_hfx%matrix_ks_im(ispin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(matrix_ks_im(ispin)%matrix,0.0_dp,error=error)
              END DO
              IF( dft_control%do_admm ) THEN
-                CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_ks_admm_im=matrix_ks_orb,matrix_p_admm_im=rho_ao_orb,error=error)
+                matrix_ks_orb => matrix_ks_aux_fit_im
                 DO ispin = 1,nspins
-                   CALL cp_dbcsr_set(qs_env%rtp%rtp_hfx%matrix_ks_admm_im(ispin)%matrix,0.0_dp,error=error)
+                   CALL cp_dbcsr_set(matrix_ks_aux_fit_im(ispin)%matrix,0.0_dp,error=error)
                 END DO
              ELSE
-                CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_ks_im=matrix_ks_orb,matrix_p_im=rho_ao_orb,error=error)
+                matrix_ks_orb => matrix_ks_im
              END IF
+
+             rho_ao_orb => rho_orb%rho_ao_im
 
              DO ispin = 1,mspin
                 CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
@@ -409,7 +414,7 @@ CONTAINS
 
     ! *** Add Core-Hamiltonian-Matrix ***
     DO ispin=1,nspins
-         CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
+         CALL cp_dbcsr_add(matrix_ks(ispin)%matrix,matrix_h(1)%matrix,&
               1.0_dp,1.0_dp,error=error)
     END DO
     IF (use_virial .AND. calculate_forces) THEN
@@ -419,7 +424,7 @@ CONTAINS
 
     !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
     IF( do_adiabatic_rescaling ) THEN
-       CALL rescale_xc_potential(qs_env,ks_matrix,rho,energy,v_rspace_new,v_tau_rspace,&
+       CALL rescale_xc_potential(qs_env,matrix_ks,rho,energy,v_rspace_new,v_tau_rspace,&
             hf_energy, just_energy,calculate_forces,use_virial,error=error)
     END IF   ! do_adiabatic_rescaling
 
