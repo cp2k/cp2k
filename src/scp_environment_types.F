@@ -25,8 +25,6 @@ MODULE scp_environment_types
                                              aux_coeff_set_type
   USE scp_energy_types,                ONLY: deallocate_scp_energy,&
                                              scp_energy_type
-  USE scp_force_types,                 ONLY: deallocate_scp_force,&
-                                             scp_force_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
                                              semi_empirical_si_type
 #include "./common/cp_common_uses.f90"
@@ -50,7 +48,6 @@ MODULE scp_environment_types
 ! FOR DFT
     TYPE ( aux_coeff_set_type ), POINTER                  :: aux_coeff_set
     TYPE ( scp_energy_type ), POINTER                     :: energy
-    TYPE ( scp_force_type ), POINTER                      :: force ( : )
     TYPE ( section_vals_type ), POINTER                   :: input
     TYPE ( cp_para_env_type ),  POINTER                   :: para_env
     TYPE ( cp_blacs_env_type ), POINTER                   :: blacs_env
@@ -75,7 +72,6 @@ CONTAINS
 !> \param scp_env ...
 !> \param aux_coeff_set ...
 !> \param energy ...
-!> \param force ...
 !> \param input ...
 !> \param para_env ...
 !> \param blacs_env ...
@@ -87,7 +83,7 @@ CONTAINS
 !> \param se_store_int_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_scp_env( scp_env, aux_coeff_set, energy, force, input,&
+  SUBROUTINE get_scp_env( scp_env, aux_coeff_set, energy, input,&
                           para_env, blacs_env, &
                           eps_gvg_rspace, eps_rho_rspace, &
                           pscp, ks_scp, ascp_diag, se_store_int_env,error)
@@ -96,7 +92,6 @@ CONTAINS
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
     TYPE(scp_energy_type), OPTIONAL, POINTER :: energy
-    TYPE(scp_force_type), OPTIONAL, POINTER  :: force( : )
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -121,7 +116,6 @@ CONTAINS
     IF (PRESENT(blacs_env)) blacs_env => scp_env%blacs_env
     IF (PRESENT(aux_coeff_set)) aux_coeff_set => scp_env % aux_coeff_set
     IF (PRESENT(energy)) energy => scp_env%energy
-    IF (PRESENT(force)) force => scp_env%force
     IF (PRESENT(input)) input=>scp_env%input
     IF (PRESENT(para_env)) para_env => scp_env%para_env
     IF (PRESENT(eps_gvg_rspace )) eps_gvg_rspace = scp_env%eps_gvg_rspace
@@ -146,7 +140,6 @@ CONTAINS
 
     NULLIFY (scp_env%blacs_env)
     NULLIFY (scp_env%energy)
-    NULLIFY (scp_env%force)
     NULLIFY (scp_env%input)
     NULLIFY (scp_env%para_env)
     NULLIFY (scp_env%blacs_env)
@@ -167,7 +160,6 @@ CONTAINS
 !> \param scp_env ...
 !> \param aux_coeff_set ...
 !> \param energy ...
-!> \param force ...
 !> \param input ...
 !> \param para_env ...
 !> \param blacs_env ...
@@ -180,7 +172,7 @@ CONTAINS
 !> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, force, &
+  SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, &
                           input, para_env, blacs_env, &
                           eps_gvg_rspace, eps_rho_rspace, &
                           ascp_diag, pscp, ks_scp, se_store_int_env,error)
@@ -189,7 +181,6 @@ CONTAINS
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
     TYPE(scp_energy_type), OPTIONAL, POINTER :: energy
-    TYPE(scp_force_type), OPTIONAL, POINTER  :: force( : )
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -217,7 +208,6 @@ CONTAINS
        scp_env%aux_coeff_set => aux_coeff_set
     END IF
     IF (PRESENT(energy)) scp_env%energy => energy
-    IF (PRESENT(force)) scp_env%force => force
     IF (PRESENT(input)) THEN
        CALL section_vals_retain(input,error=error)
        CALL section_vals_release(scp_env%input,error=error)
@@ -327,8 +317,6 @@ SUBROUTINE scp_env_release(scp_env,error)
      IF (scp_env%ref_count<1) THEN
         IF (ASSOCIATED(scp_env%energy)) &
              CALL deallocate_scp_energy(scp_env%energy)
-        IF (ASSOCIATED(scp_env%force)) &
-             CALL deallocate_scp_force(scp_env%force)
         IF (ASSOCIATED(scp_env%pscp)) THEN
            CALL cp_dbcsr_deallocate_matrix ( scp_env%pscp, error )
         ENDIF
