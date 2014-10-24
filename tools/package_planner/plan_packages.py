@@ -26,7 +26,7 @@ def main():
 
     planned_pkgs = eval(open(sys.argv[1]).read())
 
-    srcdir = "../src"
+    srcdir = "../../src"
     abs_srcdir = abspath(srcdir)
 
     src_files = []
