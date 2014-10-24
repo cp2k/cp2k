@@ -28,6 +28,9 @@ MODULE cp_dbcsr_interface
        dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
        dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
        dbcsr_copy_into_existing, dbcsr_create, &
+       dbcsr_matrix_colvec_multiply, create_col_vec_from_matrix,&
+       create_row_vec_from_matrix, create_replicated_col_vec_from_matrix,&
+       create_replicated_row_vec_from_matrix,&
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
@@ -230,6 +233,11 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_deallocate_matrix
   PUBLIC :: cp_dbcsr_add_block_node
   PUBLIC :: cp_dbcsr_maxabs
+  PUBLIC :: cp_dbcsr_matrix_colvec_multiply,&
+            cp_dbcsr_create_col_vec_from_matrix,&
+            cp_dbcsr_create_row_vec_from_matrix,&
+            cp_dbcsr_create_rep_col_vec_from_matrix,&
+            cp_dbcsr_create_rep_row_vec_from_matrix
 
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix
@@ -243,6 +251,13 @@ MODULE cp_dbcsr_interface
   INTERFACE cp_dbcsr_create
      MODULE PROCEDURE cp_dbcsr_create_new
      MODULE PROCEDURE cp_dbcsr_create_template
+  END INTERFACE
+
+  INTERFACE cp_dbcsr_matrix_colvec_multiply
+     MODULE PROCEDURE cp_dbcsr_matrix_colvec_multiply_d,&
+                      cp_dbcsr_matrix_colvec_multiply_s,&
+                      cp_dbcsr_matrix_colvec_multiply_z,&
+                      cp_dbcsr_matrix_colvec_multiply_c
   END INTERFACE
 
   INTERFACE cp_dbcsr_conform_scalar
@@ -1762,6 +1777,102 @@ CONTAINS
          transpose_data, mytranspose_distribution,&
          use_distribution=myuse_distribution, error=dbcsr_error)
   END SUBROUTINE cp_dbcsr_transposed
+
+! *****************************************************************************
+!> \brief creates a dbcsr col vector like object which lives on proc_col 0
+!>        and has the same row dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param matrix a dbcsr matrix used as template
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_col_vec_from_matrix(vec,matrix,ncol,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: ncol
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_col_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_col_vec_from_matrix(vec%matrix,matrix%matrix,ncol,dbcsr_error)
+
+   END SUBROUTINE cp_dbcsr_create_col_vec_from_matrix
+
+! *****************************************************************************
+!> \brief creates a dbcsr row vector like object which lives on proc_row 0
+!>        and has the same row dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param matrix a dbcsr matrix used as template
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_row_vec_from_matrix(vec,matrix,nrow,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: nrow
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_col_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_row_vec_from_matrix(vec%matrix,matrix%matrix,nrow,dbcsr_error)
+
+   END SUBROUTINE cp_dbcsr_create_row_vec_from_matrix
+
+! *****************************************************************************
+!> \brief creates a col vector like object whose blocks can be replicated
+!>        along the processor row and has the same row dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param matrix a dbcsr matrix used as template
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_rep_col_vec_from_matrix(vec,matrix,ncol,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: ncol
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_rep_col_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_replicated_col_vec_from_matrix(vec%matrix,matrix%matrix,ncol,dbcsr_error)
+
+  END SUBROUTINE  cp_dbcsr_create_rep_col_vec_from_matrix
+
+! *****************************************************************************
+!> \brief creates a row vector like object whose blocks can be replicated
+!>        along the processor col and has the same col dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param matrix a dbcsr matrix used as template
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_rep_row_vec_from_matrix(vec,matrix,nrow,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: nrow
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_rep_row_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_replicated_row_vec_from_matrix(vec%matrix,matrix%matrix,nrow,dbcsr_error)
+
+  END SUBROUTINE  cp_dbcsr_create_rep_row_vec_from_matrix
 
 ! *****************************************************************************
 !> \brief ...

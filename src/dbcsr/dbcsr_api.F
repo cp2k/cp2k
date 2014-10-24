@@ -119,6 +119,11 @@ MODULE dbcsr_api
                                              convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
                                              dbcsr_verify_matrix
+  USE dbcsr_vector_operations,         ONLY: dbcsr_matrix_colvec_multiply,&
+                                             create_col_vec_from_matrix,&
+                                             create_row_vec_from_matrix,&
+                                             create_replicated_col_vec_from_matrix,&
+                                             create_replicated_row_vec_from_matrix
   USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                              dbcsr_create,&
                                              dbcsr_finalize,&
@@ -329,6 +334,11 @@ MODULE dbcsr_api
             dbcsr_verify_matrix,&
             dbcsr_wm_use_mutable,&
             dbcsr_work_create,&
+            dbcsr_matrix_colvec_multiply,&
+            create_col_vec_from_matrix,&
+            create_row_vec_from_matrix,&
+            create_replicated_col_vec_from_matrix,&
+            create_replicated_row_vec_from_matrix,&
             has_acc,&
             has_mpi,&
             mm_driver_blas,&
