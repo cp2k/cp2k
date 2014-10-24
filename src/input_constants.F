@@ -583,9 +583,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: model_block_count=453, &
                                               model_block_surface=454, &
                                               model_block_lmax=455
-  ! optimization targets for distribution 2d
-  INTEGER, PARAMETER, PUBLIC               :: opt_target_minimum=456, &
-                                              opt_target_median=457
 
   ! clustering methods
   INTEGER, PARAMETER, PUBLIC               :: clustering_none=0, &

@@ -36,7 +36,6 @@ MODULE distribution_methods
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_type,&
                                              distribution_2d_write
-  USE distribution_optimize,           ONLY: distribute_2d_monte_carlo
   USE f77_blas
   USE input_constants,                 ONLY: model_block_count,&
                                              model_block_lmax,&
@@ -566,11 +565,11 @@ CONTAINS
     INTEGER :: cluster_price, cost_model, group, handle, iatom, iatom_mol, &
       iatom_one, ikind, imol, imolecule, imolecule_kind, iparticle_kind, &
       ipcol, iprow, istat, iw, kind_a, mypcol, myprow, n, natom, natom_mol, &
-      nclusters, nele, nmolecule, nmolecule_kind, nparticle_kind, npcol, &
-      nprow, nsgf, output_unit
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: cluster_list, cluster_prices, &
-      col_ele, nparticle_local_col, nparticle_local_row, row_ele, work
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_ele_pair
+      nclusters, nmolecule, nmolecule_kind, nparticle_kind, npcol, nprow, &
+      nsgf, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_list, cluster_prices, &
+                                                nparticle_local_col, &
+                                                nparticle_local_row, work
     INTEGER, DIMENSION(:), POINTER :: cluster_col_distribution, &
       cluster_row_distribution, col_distribution, lmax_basis, molecule_list, &
       row_distribution
@@ -585,8 +584,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(section_vals_type), POINTER         :: distribution_section, &
-                                                mc_section
+    TYPE(section_vals_type), POINTER         :: distribution_section
 
 !...
 
@@ -597,7 +595,6 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     distribution_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION",error=error)
-    mc_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION%2D_MC",error=error)
 
     CALL section_vals_val_get(distribution_section,"2D_MOLECULAR_DISTRIBUTION",l_val=molecular_distribution,error=error)
     CALL section_vals_val_get(distribution_section,"SKIP_OPTIMIZATION",l_val=skip_optimization,error=error)
@@ -652,7 +649,6 @@ CONTAINS
                                      nparticle_kind*int_size)
 
     IF (basic_optimization .OR. basic_spatial_optimization) THEN
-
 
        IF (molecular_distribution) THEN
            nclusters=nmolecule
@@ -801,67 +797,8 @@ CONTAINS
             "cluster_prices", nclusters*int_size)
 
     ELSE
-       !
-       ! this could be a lot of memory, even in QS case
-       ! one solution is to turn this into a function, but this would presumably
-       ! slow down the distribute_2d_monte_carlo
-       ! making this a function might be needed if the cost of a block depends on its
-       ! assigned row / col.
-       !
-       IF (molecular_distribution) THEN
-           nele=nmolecule
-       ELSE
-           nele=natom
-       ENDIF
-
-       ALLOCATE (row_ele(nele),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"row_ele",nele*int_size)
-       ALLOCATE (col_ele(nele),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"col_ele",nele*int_size)
-       ALLOCATE(cost_ele_pair(nele,nele),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cost_ele_pair",natom*natom*int_size)
-
-       !
-       ! have the cost model provide the costs for each atomic block
-       !
-       output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
-                                                            extension=".Log",error=error)
-       CALL distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_set,&
-                                     qs_kind_set,molecule_kind_set,molecule_set,output_unit, error=error)
-       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-                                             "PRINT%DISTRIBUTION",error=error)
-
-       !
-       ! optimize the distribution
-       !
-       CALL distribute_2d_monte_carlo(cost_ele_pair,nprow,npcol,nele,row_ele,col_ele, &
-                                      mc_section,blacs_env%para_env,error)
-
-       DEALLOCATE(cost_ele_pair)
-
-       ! prepare to add the distribution to the data, i.e. get the atomic distribution in all cases
-
-       IF (.NOT. molecular_distribution) THEN
-          row_distribution = row_ele
-          col_distribution = col_ele
-       ELSE
-          imol = 0
-          DO imolecule_kind=1,nmolecule_kind
-             molecule_kind => molecule_kind_set(imolecule_kind)
-             CALL get_molecule_kind(molecule_kind=molecule_kind, molecule_list=molecule_list, natom=natom_mol)
-             DO imolecule=1,SIZE(molecule_list)
-                imol = imol + 1
-                DO iatom_mol=1,natom_mol
-                   iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
-                   row_distribution(iatom) = row_ele(imol)
-                   col_distribution(iatom) = col_ele(imol)
-                ENDDO
-             ENDDO
-          ENDDO
-       ENDIF
-
-       DEALLOCATE(row_ele)
-       DEALLOCATE(col_ele)
+       ! expects nothing else
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
 
 

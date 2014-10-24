@@ -10,24 +10,16 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_cp2k_distribution
-  USE cp_output_handling,              ONLY: add_last_numeric,&
-                                             cp_print_key_section_create,&
-                                             low_print_level
   USE f77_blas
   USE input_constants,                 ONLY: model_block_count,&
                                              model_block_lmax,&
-                                             model_block_surface,&
-                                             opt_target_median,&
-                                             opt_target_minimum
+                                             model_block_surface
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
   USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
                                              section_create,&
-                                             section_release,&
                                              section_type
-  USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
 
@@ -57,7 +49,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -68,7 +59,7 @@ CONTAINS
             n_keywords=2, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
+       NULLIFY(keyword)
 
        CALL keyword_create(keyword,name="COST_MODEL",&
             description="The cost model that needs to be minimized ",&
@@ -122,107 +113,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_2d_mc_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
     END IF
   END SUBROUTINE create_distribution_section
-
-
-! *****************************************************************************
-!> \brief provides options for the distribute_2d_monte_carlo
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Joost VandeVondele
-! *****************************************************************************
-  SUBROUTINE create_2d_mc_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_2d_mc_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="2D_MC",&
-            description="provides parameters for the 2D Monte Carlo procedure",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY(keyword)
-
-       CALL keyword_create(keyword, name="MOVES",&
-            description="Total number of Monte Carlo moves to use in the optimization",&
-            usage="MOVES 1000000 ",&
-            n_var=1,default_i_val=400000,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="CYCLES",&
-            description="How many annealing cycles to use",&
-            usage="CYCLES 10", default_i_val=10, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="REDUCTION_STEPS",&
-            description="How many temperature reduction steps have to be performed per cycle",&
-            usage="REDUCTION_STEPS 5", default_i_val=5, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="REDUCTION_FACTOR",&
-            description="How to scale the temperature at each reduction step",&
-            usage="REDUCTION_FACTOR 0.8", default_r_val=0.8_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="TEMPERATURE",&
-            description="Highest temperature to be used (in units of the maximum cost of a non-zero 2D block)",&
-            usage="TEMPERATURE 0.5", default_r_val=0.5_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="TOLERANCE",&
-            description="If the found distribution is within a fraction of the theoretical optimal one, the optimization stops",&
-            usage="TOLERANCE 0.01", default_r_val=0.02_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="SWAP_PROBABILITY",&
-            description="Probability of a col/row assignment swap",&
-            usage="SWAP_PROBABILITY 0.8", default_r_val=0.9_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword,name="OPT_TARGET",&
-            description="The aim of the MC optimization ",&
-            usage="OPT_TARGET PERFECT_BALANCE",&
-            enum_c_vals=s2a("SMALLEST_MAXIMUM","PERFECT_BALANCE"),&
-            enum_i_vals=(/opt_target_minimum, opt_target_median/),&
-            enum_desc=s2a("minimize the maximum cost",&
-                          "minimize the deviance from the average"), &
-            default_i_val=opt_target_minimum,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key,error=error)
-
-    END IF
-
-  END SUBROUTINE create_2d_mc_section
 
 END MODULE input_cp2k_distribution
