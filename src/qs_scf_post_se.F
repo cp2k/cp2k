@@ -474,10 +474,6 @@ CPSourceFileRef,&
           CALL qs_loc_env_destroy(qs_loc_env, error=error)
        ENDIF
 
-       ! Compute the optical conductivity (needs homos and lumos)
-       CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
-            unoccupied_orbs, unoccupied_evals, output_unit, error)
-
        ! This is just a deallocation for printing MO_CUBES
        IF (do_mo_cubes .AND. nlumo /= 0 ) THEN
           DO ispin=1,dft_control%nspins
@@ -706,43 +702,6 @@ CPSourceFileRef,&
     END IF
 
   END SUBROUTINE qs_scf_post_loc_dip
-
-! *****************************************************************************
-!> \brief Computes and prints the optical conductivity
-!> \param input ...
-!> \param dft_section ...
-!> \param dft_control ...
-!> \param logger ...
-!> \param qs_env the qs_env in which the qs_env lives
-!> \param unoccupied_orbs ...
-!> \param unoccupied_evals ...
-!> \param output_unit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-! *****************************************************************************
-  SUBROUTINE qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
-       unoccupied_orbs, unoccupied_evals, output_unit, error)
-    TYPE(section_vals_type), POINTER         :: input, dft_section
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: unoccupied_orbs
-    TYPE(cp_1d_r_p_type), DIMENSION(:), &
-      POINTER                                :: unoccupied_evals
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_optc', &
-      routineP = moduleN//':'//routineN
-
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-         "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="OPTICAL_CONDUCTIVITY  not implemented for Semi-Empirical calculations!!", &
-            error=error, error_level=cp_warning_level)
-    ENDIF
-  END SUBROUTINE qs_scf_post_optc
 
 ! *****************************************************************************
 !> \brief Computes and prints the X-ray diffraction spectrum.

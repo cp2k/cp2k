@@ -18,7 +18,6 @@ MODULE qs_scf_post_gpw
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
-                                             get_cell,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -108,7 +107,6 @@ MODULE qs_scf_post_gpw
                                              pw_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_wavefunction
-  USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -152,7 +150,6 @@ MODULE qs_scf_post_gpw
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE stm_images,                      ONLY: th_stm_image
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wannier_states,                  ONLY: construct_wannier_states
@@ -597,12 +594,6 @@ CONTAINS
        IF(ASSOCIATED(marked_states))THEN
           DEALLOCATE(marked_states,stat=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       IF(compute_lumos) THEN
-       ! Compute the optical conductivity (needs homos and lumos)
-         CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
-              unoccupied_orbs, unoccupied_evals, output_unit, error)
        END IF
 
        ! This is just a deallocation for printing MO_CUBES or TDDFPT
@@ -1338,90 +1329,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_unocc_cubes
-
-! *****************************************************************************
-!> \brief Computes and prints the optical conductivity
-!> \param input ...
-!> \param dft_section ...
-!> \param dft_control ...
-!> \param logger ...
-!> \param qs_env the qs_env in which the qs_env lives
-!> \param unoccupied_orbs ...
-!> \param unoccupied_evals ...
-!> \param output_unit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-! *****************************************************************************
-  SUBROUTINE qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
-       unoccupied_orbs, unoccupied_evals, output_unit, error)
-    TYPE(section_vals_type), POINTER         :: input, dft_section
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: unoccupied_orbs
-    TYPE(cp_1d_r_p_type), DIMENSION(:), &
-      POINTER                                :: unoccupied_evals
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_optc', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER                                  :: handle, homo, ispin, nmo, &
-                                                unit_nr
-    LOGICAL                                  :: homoEQnmo
-    REAL(KIND=dp)                            :: volume
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-
-    CALL timeset(routineN,handle)
-
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-         "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
-       NULLIFY(mos, cell, mo_coeff, mo_eigenvalues)
-       CALL get_qs_env(qs_env, mos=mos, cell=cell, matrix_s=matrix_s,error=error)
-       IF (output_unit>0) WRITE(output_unit,*) " "
-       IF (output_unit>0) WRITE(output_unit,*) " Computing the optical conductivity "
-       IF (output_unit>0) WRITE(output_unit,*) " Experimental version "
-       IF (output_unit>0) WRITE(output_unit,*) " Check the code before believing results "
-       homoEQnmo=.TRUE.
-       DO ispin=1,dft_control%nspins
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nmo=nmo)
-          IF (homo.NE.nmo) homoEQnmo=.FALSE.
-       ENDDO
-       IF (.NOT. homoEQnmo) THEN
-          IF (output_unit>0) WRITE(output_unit,*) " homo.NE.nmo : skip optical conductivty "
-       ELSE
-          IF (.NOT.( BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-               error=error),cp_p_file) )) &
-               CALL stop_program(routineN,moduleN,__LINE__,"Needs MO_CUBES to be activated")
-          filename="CONDUCTIVITY"
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%OPTICAL_CONDUCTIVITY",&
-               extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-          CALL get_cell(cell,deth=volume)
-
-          DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
-                             eigenvalues=mo_eigenvalues)
-             CALL optical_conductivity(matrix_s, mo_coeff, mo_eigenvalues, unoccupied_orbs(ispin)%matrix,&
-                                       unoccupied_evals(ispin)%array, volume, unit_nr, error=error)
-          ENDDO
-          CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%OPTICAL_CONDUCTIVITY",&
-               error=error)
-          IF (output_unit>0) WRITE(output_unit,*) " Results written to file ",filename
-       ENDIF
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE qs_scf_post_optc
 
 ! *****************************************************************************
 !> \brief Computes and prints electric moments

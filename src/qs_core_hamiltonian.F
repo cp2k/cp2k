@@ -302,9 +302,7 @@ CONTAINS
        END IF
     ELSE
        IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0.OR.&
-            BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
+            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
           nder = 1
        ELSE
           nder = 0
@@ -314,9 +312,7 @@ CONTAINS
     IF ((cp_print_key_should_output(logger%iter_info,qs_env%input,&
          "DFT%PRINT%AO_MATRICES/OVERLAP",error=error)/=0.AND.&
          BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-         "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)).OR.&
-         BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-         "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
+         "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file))) THEN
        nders = 1
     END IF
 

@@ -1512,13 +1512,6 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"OPTICAL_CONDUCTIVITY",&
-            description="Controls the printing of the optical conductivity.", &
-            print_level=high_print_level,filename="optical_conductivity",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,&
             name="E_DENSITY_CUBE",&
             description="Controls the printing of cube files with "//&
