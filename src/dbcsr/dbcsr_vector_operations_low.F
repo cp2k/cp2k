@@ -13,9 +13,9 @@
 MODULE dbcsr_vector_operations_low
   USE array_types,                     ONLY: array_data
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type,&
-                                             dbcsr_assert,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
+                                             dbcsr_error_type,&
                                              dbcsr_fatal_level
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -27,24 +27,18 @@ MODULE dbcsr_vector_operations_low
                                              dbcsr_get_info,&
                                              dbcsr_get_matrix_type
   USE dbcsr_operations,                ONLY: dbcsr_set
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_iterator,&
-                                             dbcsr_obj,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_8,&
-                                             dbcsr_type_complex_8,&
-                                             dbcsr_type_complex_4,&
-                                             dbcsr_scalar_type,&
-                                             dbcsr_type_no_symmetry,& 
-                                             dbcsr_type_symmetric,&
-                                             dbcsr_type_antisymmetric
-  USE dbcsr_data_methods,              ONLY: dbcsr_scalar_fill_all, dbcsr_scalar
-  USE kinds,                           ONLY: dp,&
-                                             real_4,&
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_obj, dbcsr_scalar_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
+  USE kinds,                           ONLY: real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
 ! types for mapping matrix blocks
+
+  IMPLICIT NONE
 
   TYPE block_ptr_d
     REAL(real_8),DIMENSION(:,:), POINTER          :: ptr =>NULL()
@@ -76,6 +70,17 @@ CONTAINS
 
 ! finally we are here so we can make a final decision which argument types to pass,... long way to here
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param vec_in ...
+!> \param vec_out ...
+!> \param alpha ...
+!> \param beta ...
+!> \param work_row ...
+!> \param work_col ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_matrix_colvec_multiply_low_any(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     TYPE(dbcsr_scalar_type)                  :: alpha, beta

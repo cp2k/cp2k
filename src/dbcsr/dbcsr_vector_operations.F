@@ -15,6 +15,8 @@ MODULE dbcsr_vector_operations
                                              array_new,&
                                              array_release
   USE dbcsr_block_access,              ONLY: dbcsr_reserve_all_blocks
+  USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
+                                             dbcsr_scalar_fill_all
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_error_type,&
@@ -27,14 +29,14 @@ MODULE dbcsr_vector_operations
        dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
+                                             dbcsr_scalar_type,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_4,&
-                                             dbcsr_type_real_8, dbcsr_scalar_type
-  USE dbcsr_data_methods,              ONLY: dbcsr_scalar_fill_all, dbcsr_scalar
-  USE dbcsr_work_operations,           ONLY: dbcsr_create
+                                             dbcsr_type_real_8
   USE dbcsr_vector_operations_low,     ONLY: dbcsr_matrix_colvec_multiply_low
+  USE dbcsr_work_operations,           ONLY: dbcsr_create
   USE kinds,                           ONLY: real_4,&
                                              real_8
 
@@ -85,8 +87,9 @@ CONTAINS
 !> \param vec_out the result vector (only available on proc_col 0)
 !> \param alpha  as described in formula
 !> \param beta  as described in formula
-!> \param rep_row a work row vector replicated on all proc_cols. 
-!> \param rep_col a work col vector replicated on all proc_rows. 
+!> \param work_row a work row vector replicated on all proc_cols.
+!> \param work_col a work col vector replicated on all proc_rows.
+!> \param error ...
 ! *****************************************************************************
 
   SUBROUTINE dbcsr_matrix_colvec_multiply_d(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
@@ -118,6 +121,17 @@ CONTAINS
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_d
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param vec_in ...
+!> \param vec_out ...
+!> \param alpha ...
+!> \param beta ...
+!> \param work_row ...
+!> \param work_col ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_matrix_colvec_multiply_s(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     REAL(real_4)                             :: alpha, beta
@@ -147,6 +161,17 @@ CONTAINS
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_s
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param vec_in ...
+!> \param vec_out ...
+!> \param alpha ...
+!> \param beta ...
+!> \param work_row ...
+!> \param work_col ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_matrix_colvec_multiply_c(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(real_4)                          :: alpha, beta
@@ -179,6 +204,17 @@ CONTAINS
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_c
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param vec_in ...
+!> \param vec_out ...
+!> \param alpha ...
+!> \param beta ...
+!> \param work_row ...
+!> \param work_col ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_matrix_colvec_multiply_z(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(real_8)                          :: alpha, beta
@@ -216,9 +252,10 @@ CONTAINS
 !>        and has the same row dist as the template matrix
 !>        the returned matrix is fully allocated and all blocks are set to 0
 !>        this is not a sparse object (and must never be)
-!> \param matrix a dbcsr matrix used as template
 !> \param dbcsr_vec  the vector object to create must be allocated but not initialized
+!> \param matrix a dbcsr matrix used as template
 !> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_col_vec_from_matrix(dbcsr_vec,matrix,ncol,error) 
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
@@ -264,9 +301,10 @@ CONTAINS
 !>        and has the same row dist as the template matrix
 !>        the returned matrix is fully allocated and all blocks are set to 0
 !>        this is not a sparse object (and must never be)
+!> \param dbcsr_vec ...
 !> \param matrix a dbcsr matrix used as template
-!> \param vec  the vector object to create must be allocated but not initialized
 !> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ... 
 ! *****************************************************************************
   SUBROUTINE create_row_vec_from_matrix(dbcsr_vec,matrix,nrow,error)
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
@@ -312,9 +350,10 @@ CONTAINS
 !>        along the processor row and has the same row dist as the template matrix
 !>        the returned matrix is fully allocated and all blocks are set to 0
 !>        this is not a sparse object (and must never be)
+!> \param dbcsr_vec the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
-!> \param vec  the vector object to create must be allocated but not initialized
 !> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_replicated_col_vec_from_matrix(dbcsr_vec,matrix,ncol,error)
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
@@ -365,9 +404,10 @@ CONTAINS
 !>        along the processor col and has the same col dist as the template matrix
 !>        the returned matrix is fully allocated and all blocks are set to 0
 !>        this is not a sparse object (and must never be)
+!> \param dbcsr_vec the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
-!> \param vec  the vector object to create must be allocated but not initialized
 !> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_replicated_row_vec_from_matrix(dbcsr_vec,matrix,nrow,error)
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
