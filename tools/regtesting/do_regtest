@@ -566,18 +566,24 @@ n_new=0
 printf "Copying tests into working directory ... "
 
 # Copy the tests into the working regtest directory.
-  cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
-  cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
-      echo "Could not copy testing directory as hard links."
-      echo "Using normal copy instead."
-      sleep 10
-      cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
-  )
+cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
+cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
+  echo "Could not copy testing directory as hard links."
+  echo "Using normal copy instead."
+  sleep 10
+  cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
+)
 
 printf "done!\n"
 
-printf "Creating symbolic link of data directory ... "
-ln -s ${dir_base}/${cp2k_dir}/data ${dir_out}/data
+printf "Copying data into working directory ... "
+cp -al ${dir_base}/${cp2k_dir}/data ${dir_out}/data || \
+cp -rpl ${dir_base}/${cp2k_dir}/data ${dir_out}/data || ( \
+  echo "Could not copy data directory as hard link"
+  echo "Using normal copy instead."
+  sleep 10
+  cp -rp ${dir_base}/${cp2k_dir}/data/* ${dir_out}/data
+)
 printf "done!\n"
 
 #
