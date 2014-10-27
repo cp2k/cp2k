@@ -207,7 +207,7 @@ CONTAINS
        my_zero_pad = .FALSE.
        IF(PRESENT(zero_pad)) my_zero_pad=zero_pad
        IF(my_zero_pad) &
-          CALL acc_devmem_setzero_bytes(this, first_byte=old_size, stream=stream)
+          CALL acc_devmem_setzero_bytes(this, first_byte=old_size+1, stream=stream)
 
        my_nocopy = .FALSE.
        IF(PRESENT(nocopy)) my_nocopy=nocopy
