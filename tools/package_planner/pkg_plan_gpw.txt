@@ -1,6 +1,9 @@
-         {'dirname':'gpw',
+[
+     {'dirname':'', 'requires+': ["gpw", ] },
+
+     {'dirname':'gpw',
           'requires': ["../base", "../common", "../mpiwrap", "../input",
-                       "../pw", "../grid", "../aobasis", "../dbcsrwrap", "../subsys" ],
+                       "../pw", "../grid", "../aobasis", "../dbcsrwrap", "../subsys", "../fm" ],
           'files': [
              "task_list_types.F",
              "cp_spline_utils.F",
@@ -30,4 +33,5 @@
              "task_list_methods.F",
           ]
          },
-
+]
+#EOF

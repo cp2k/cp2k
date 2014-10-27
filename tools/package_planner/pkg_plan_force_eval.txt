@@ -1,0 +1,70 @@
+[
+#============================================================================
+        {'dirname':'start', 'requires+': ['../other_runs']},
+        {'dirname':'other_runs',
+         'requires': ["../common", "../base", "../", "../input", "../acc", "../dbcsrwrap", "../pw", "../mpiwrap", "../subsys", "../force_eval","../fm",],
+         'files': ["ipi_driver.F",
+                   "optimize_basis.F",
+                   "cp2k_debug.F",
+                   "optimize_input.F",
+                   "mode_selective.F"
+                  ]
+         },
+
+#============================================================================
+        {'dirname':'start',  'requires+': ['../force_eval']},
+        {'dirname':'swarm',  'requires+': ['../force_eval']},
+        {'dirname':'tmc',    'requires+': ['../force_eval']},
+        {'dirname':'motion', 'requires+': ['../force_eval']},
+
+        {'dirname':'force_eval',
+         'requires': ["../common", "../base", "../", "../input", "../acc", "../dbcsrwrap", "../pw", "../mpiwrap", "../subsys", "../fm"],
+         'files': ["force_env_methods.F",
+                   "force_env_types.F",
+                   "force_env_utils.F",
+                   "f77_interface.F",
+                   "input_restart_force_eval.F",
+                   "replica_methods.F",
+                   "replica_types.F",
+
+                    # consequence of f77 hack
+                   "ep_types.F",
+                   "ep_methods.F",
+                   "ep_f77_low.F",
+
+                   ]
+        },
+
+#============================================================================
+        {'dirname':'motion', 'requires+': ['../strain']},
+        {'dirname':'force_eval', 'requires+': ['../strain']},
+
+        {'dirname':'strain',
+         'requires': ["../common", "../base", "../", "../input", "../acc", "../dbcsrwrap", "../pw", "../mpiwrap", "../subsys"],
+         'files': ["restraint.F",
+                   "colvar_methods.F",
+                   "constraint_clv.F",
+                   "constraint.F",
+                   "constraint_vsite.F",
+                   "constraint_fxd.F",
+                   "constraint_util.F",
+                   "constraint_3x3.F",
+                   "constraint_4x6.F",
+                   ]
+        },
+
+
+#============================================================================
+        {'dirname':'motion',
+         'files': [
+                   "colvar_utils.F",
+                   "metadynamics_utils.F",
+                   "metadynamics.F",
+                   "motion_utils.F",
+                   "optimize_input.F",
+                   "mode_selective.F",
+                   ]
+        },
+
+]
+#EOF

@@ -1,0 +1,37 @@
+[
+
+         {'dirname':'',        'requires+': ["qs_subsys"] },
+         {'dirname':'motion',  'requires+': ["../qs_subsys"] }, # because of rt_propagate
+
+         {'dirname':'qs_subsys',
+          'requires':["../common", "../base", "../input", "../mpiwrap", "../aobasis", "../pw", "../fm", "../subsys"],
+           'files': ["qs_subsys_types.F",
+                      "qs_kind_types.F",
+                      "qs_grid_atom.F",
+                      "semi_empirical_types.F",
+                      "scptb_types.F",
+                      "paw_proj_set_types.F",
+                      "qs_dftb_types.F",
+                      "qs_harmonics_atom.F",
+                      "soft_basis_set.F",
+                      "qs_dispersion_types.F",
+                      "dg_types.F",
+                      "taper_types.F",
+                      "semi_empirical_mpole_types.F",
+                      "semi_empirical_expns3_types.F",
+                      "xas_control.F",
+                      "qs_neighbor_list_types.F",
+                      "qs_energy_types.F",
+                      "qs_force_types.F",
+                     #"qs_dftb_utils.F",
+                     #"semi_empirical_utils.F",
+                     #"cp_control_types.F",
+#cp_output_handling.F
+#qmmm_ff_fist.F
+#input_constants.F
+#cp_output_handling.F
+                    ],
+         },
+
+]
+#EOF

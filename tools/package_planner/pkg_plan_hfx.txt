@@ -1,3 +1,6 @@
+[
+         { 'dirname': '', 'requires+': ["hfx",] },
+
          { 'dirname': 'hfx',
            'requires': ["../base", "../common", "../mpiwrap", '../input', "../aobasis", "../subsys", "../dbcsrwrap"],
            'files': [
@@ -25,3 +28,6 @@
              "input_cp2k_hfx.F",
            ],
          },
+
+]
+#EOF
