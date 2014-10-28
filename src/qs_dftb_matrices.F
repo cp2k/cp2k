@@ -35,6 +35,7 @@ MODULE qs_dftb_matrices
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_env_create,&
                                              ewald_env_get,&
                                              ewald_env_release,&
