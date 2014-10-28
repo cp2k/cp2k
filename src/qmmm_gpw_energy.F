@@ -27,6 +27,7 @@ MODULE qmmm_gpw_energy
                                              do_qmmm_gauss,&
                                              do_qmmm_none,&
                                              do_qmmm_swave,&
+                                             do_qmmm_pcharge,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
   USE input_section_types,             ONLY: section_get_ivals,&
@@ -59,6 +60,7 @@ MODULE qmmm_gpw_energy
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
   USE qs_dftb_matrices,                ONLY: build_dftb_qmmm_matrix,&
+                                             build_dftb_qmmm_matrix_pc,&
                                              build_dftb_qmmm_matrix_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -152,6 +154,10 @@ CONTAINS
                 IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                      "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
              END IF
+          CASE (do_qmmm_pcharge)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Point charge QM/MM electrostatic coupling not yet implemented for SE.", &
+                  error=error, error_level=cp_failure_level)
           CASE (do_qmmm_gauss,do_qmmm_swave)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
@@ -169,9 +175,11 @@ CONTAINS
              CALL build_dftb_qmmm_matrix_zero(qs_env,qmmm_env,para_env,error)
           CASE(do_qmmm_coulomb)
              CALL build_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
+          CASE(do_qmmm_pcharge)
+             CALL build_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
           CASE (do_qmmm_gauss,do_qmmm_swave)
              CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.", &
+                  message="GAUSS or SWAVE QM/MM electrostatic coupling not implemented for DFTB.", &
                   error=error, error_level=cp_failure_level)
           CASE DEFAULT
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
@@ -183,6 +191,10 @@ CONTAINS
           CASE(do_qmmm_coulomb)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+                  error=error, error_level=cp_failure_level)
+          CASE(do_qmmm_pcharge)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Point Charge QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
                   error=error, error_level=cp_failure_level)
           CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) &

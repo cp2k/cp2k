@@ -19,6 +19,7 @@ MODULE qmmm_per_elpot
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
+                                             do_qmmm_pcharge,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -127,7 +128,7 @@ CONTAINS
        ALLOCATE(per_potentials(K)%Pot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_coulomb)
+       CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        CASE(do_qmmm_gauss,do_qmmm_swave)
@@ -147,7 +148,7 @@ CONTAINS
        gz = 0.0_dp
 
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_coulomb)
+       CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        CASE(do_qmmm_gauss,do_qmmm_swave)

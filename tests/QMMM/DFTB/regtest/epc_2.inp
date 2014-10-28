@@ -1,0 +1,65 @@
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        SELF_CONSISTENT    T
+        DO_EWALD           F
+        DISPERSION         F
+        &PARAMETER
+           PARAM_FILE_PATH  ../../../../data/DFTB/scc
+           PARAM_FILE_NAME  scc_parameter
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    ECOUPL POINT_CHARGE
+    &QM_KIND H
+      MM_INDEX 2 3
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 1
+    &END QM_KIND
+  &END
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/water_2.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT wdftb
+  RUN_TYPE ENERGY_FORCE
+  TRACE OFF
+&END GLOBAL

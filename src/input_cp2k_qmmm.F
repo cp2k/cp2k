@@ -35,7 +35,7 @@ MODULE input_cp2k_qmmm
        do_multipole_section_on, do_par_atom, do_par_grid, &
        do_qmmm_center_every_step, do_qmmm_center_max_minus_min, &
        do_qmmm_center_never, do_qmmm_center_pbc_aware, &
-       do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, &
+       do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_pcharge,&
        do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
        do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_swave, &
        do_qmmm_wall_none, do_qmmm_wall_quadratic, do_qmmm_wall_reflective, &
@@ -114,12 +114,13 @@ CONTAINS
             variants=s2a("QMMM_COUPLING","ECOUPL"),&
             description="Specifies the type of the QM - MM electrostatic coupling.",&
             usage="E_COUPL GAUSS",&
-            enum_c_vals=s2a( "NONE","COULOMB","GAUSS","S-WAVE"),&
-            enum_i_vals=(/ do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave/),&
+            enum_c_vals=s2a( "NONE","COULOMB","GAUSS","S-WAVE","POINT_CHARGE" ),&
+            enum_i_vals=(/ do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave, do_qmmm_pcharge/),&
             enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
                           "Using analytical 1/r potential (Coulomb) - not available for GPW/GAPW",&
                           "Using fast gaussian expansion of the electrostatic potential (Erf(r/rc)/r)",&
-                          "Using fast gaussian expansion of the s-wave electrostatic potential"),&
+                          "Using fast gaussian expansion of the s-wave electrostatic potential",&
+                          "Using quantum mechanics derived point charges interacting with MM charges"),&
             default_i_val=do_qmmm_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

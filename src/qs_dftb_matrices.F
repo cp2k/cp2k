@@ -35,7 +35,21 @@ MODULE qs_dftb_matrices
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE ewald_environment_types,         ONLY: ewald_environment_type,&
+                                             ewald_env_get,&
+                                             ewald_env_set,&
+                                             ewald_env_create,&
+                                             ewald_env_retain,&
+                                             ewald_env_release,&
+                                             read_ewald_section
+  USE ewald_pw_types,                  ONLY: ewald_pw_type,&
+                                             ewald_pw_release,&
+                                             ewald_pw_retain,&
+                                             ewald_pw_create,&
+                                             ewald_pw_get,&
+                                             ewald_pw_set
   USE f77_blas
+  USE input_constants,                 ONLY: do_fist_pol_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -43,7 +57,13 @@ MODULE qs_dftb_matrices
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_methods,                ONLY: get_particle_set
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             allocate_particle_set,&
+                                             deallocate_particle_set
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
@@ -72,6 +92,8 @@ MODULE qs_dftb_matrices
                                              neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE spme,                            ONLY: spme_potential,&
+                                             spme_forces
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -106,7 +128,8 @@ MODULE qs_dftb_matrices
 
   PUBLIC :: build_dftb_matrices, build_dftb_ks_matrix, build_dftb_overlap
   PUBLIC :: build_dftb_qmmm_matrix, build_dftb_qmmm_matrix_zero, &
-            deriv_dftb_qmmm_matrix
+            build_dftb_qmmm_matrix_pc, deriv_dftb_qmmm_matrix, &
+            deriv_dftb_qmmm_matrix_pc
 
 CONTAINS
 
@@ -688,6 +711,7 @@ CONTAINS
                     error=error)
 
     energy%hartree = 0.0_dp
+    energy%qmmm_el = 0.0_dp
 
     scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
@@ -1090,15 +1114,14 @@ CONTAINS
        IF (.NOT.defined .OR. natorb < 1) CYCLE
        DO i = 1, SIZE(list)
           iatom = list(i)
-          CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%Potentials,particles_mm,&
-               qmmm_env%mm_atom_chrg,qmmm_env%mm_el_pot_radius,qmmm_env%mm_atom_index,&
-               qmmm_env%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,particles_qm,error)
+          CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%Potentials,particles_mm,&
+               qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,&
+               qmmm_env%spherical_cutoff,particles_qm,error)
           ! Possibly added charges
           IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
-             CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%added_charges%potentials,&
+             CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%added_charges%potentials,&
                   qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
-                  qmmm_env%added_charges%mm_el_pot_radius,qmmm_env%added_charges%mm_atom_index,&
-                  qmmm_env%added_charges%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,&
+                  qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,qmmm_env%spherical_cutoff,&
                   particles_qm,error)
           END IF
        END DO
@@ -1188,6 +1211,265 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE build_dftb_qmmm_matrix_zero
+
+! *****************************************************************************
+!> \brief Constructs the 1-el DFTB hamiltonian
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param error ...
+!> \author JGH 10.2014 [created]
+! *****************************************************************************
+  SUBROUTINE build_dftb_qmmm_matrix_pc(qs_env,qmmm_env,particles_mm,mm_cell,para_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_qmmm_matrix_pc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, handle, i, j, iatom, ikind, &
+                                                istat, jatom, natom, natorb, nmm, &
+                                                nkind, ewald_type, do_ipol, ipot, imp, imm, indmm
+    INTEGER, DIMENSION(:), POINTER           :: list
+    LOGICAL                                  :: defined, failure, found, do_multipoles
+    REAL(KIND=dp)                            :: alpha
+    REAL(KIND=dp), DIMENSION(2)              :: rcutoff
+    REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: qpot, charges_mm
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, sblock
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(ewald_environment_type), POINTER    :: ewald_env 
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw 
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: atoms_mm
+    TYPE(qmmm_pot_type), POINTER             :: Pot
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(section_vals_type), POINTER         :: poisson_section, ewald_section,&
+                                                print_section
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particles_qm,&
+                    qs_kind_set=qs_kind_set,&
+                    rho=rho,&
+                    natom=natom,&
+                    error=error)
+    dftb_control => dft_control%qs_control%dftb_control
+
+    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
+    NULLIFY(matrix_s)
+    CALL build_dftb_overlap(qs_env,0,matrix_s,error)
+
+    ALLOCATE(qpot(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    qpot = 0.0_dp
+
+    ! Create Ewald environments
+    poisson_section => section_vals_get_subs_vals(qs_env%input,"MM%POISSON",error=error)
+    CALL ewald_env_create(ewald_env,para_env,error=error)
+    CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
+    ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+    CALL read_ewald_section(ewald_env,ewald_section,error=error)
+    print_section => section_vals_get_subs_vals(qs_env%input,"PRINT%GRID_INFORMATION",error=error)
+    CALL ewald_pw_create(ewald_pw,ewald_env,mm_cell,mm_cell,print_section=print_section,error=error)
+
+    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,do_multipoles=do_multipoles,do_ipol=do_ipol,error=error)
+    IF(do_multipoles) CALL cp_unimplemented_error(fromWhere=routineP, &
+       message="No multipole force fields allowed in DFTB QM/MM", error=error, error_level=cp_fatal_level)
+    IF(do_ipol /= do_fist_pol_none) CALL cp_unimplemented_error(fromWhere=routineP, &
+       message="No polarizable force fields allowed in DFTB QM/MM", error=error, error_level=cp_fatal_level)
+
+    SELECT CASE(ewald_type)
+       CASE(do_ewald_pme)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="PME Ewald type not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
+       CASE(do_ewald_ewald,do_ewald_spme)
+          DO ipot = 1,SIZE(qmmm_env%Potentials)
+             Pot => qmmm_env%Potentials(ipot)%Pot
+             nmm = SIZE(Pot%mm_atom_index)
+             ! get a 'clean' mm particle set
+             CALL allocate_particle_set(atoms_mm,nmm,error)
+             ALLOCATE(charges_mm(nmm),STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             DO Imp=1,nmm
+                Imm = Pot%mm_atom_index(Imp)
+                IndMM = qmmm_env%mm_atom_index(Imm)
+                atoms_mm(Imp)%r = particles_mm(IndMM)%r
+                atoms_mm(Imp)%atomic_kind => particles_mm(IndMM)%atomic_kind
+                charges_mm(Imp) = qmmm_env%mm_atom_chrg(Imm)
+             END DO
+             IF(ewald_type == do_ewald_ewald) THEN
+!                 CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
+!                       local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
+!                       charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, error=error)
+                CALL cp_unimplemented_error(fromWhere=routineP, &
+                     message="Ewald not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
+             ELSE IF(ewald_type == do_ewald_spme) THEN
+                ! spme electrostatic potential
+                CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm,particles_qm,qpot,error )
+             END IF
+             CALL deallocate_particle_set(atoms_mm,error)
+             DEALLOCATE(charges_mm,STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          END DO
+          IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+             DO ipot = 1,SIZE(qmmm_env%added_charges%Potentials)
+                Pot => qmmm_env%added_charges%Potentials(ipot)%Pot
+                nmm = SIZE(Pot%mm_atom_index)
+                ! get a 'clean' mm particle set
+                CALL allocate_particle_set(atoms_mm,nmm,error)
+                ALLOCATE(charges_mm(nmm),STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                DO Imp=1,nmm
+                   Imm = Pot%mm_atom_index(Imp)
+                   IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
+                   atoms_mm(Imp)%r = qmmm_env%added_charges%added_particles(IndMM)%r
+                   atoms_mm(Imp)%atomic_kind => qmmm_env%added_charges%added_particles(IndMM)%atomic_kind
+                   charges_mm(Imp) = qmmm_env%added_charges%mm_atom_chrg(Imm)
+                END DO
+                IF(ewald_type == do_ewald_ewald) THEN
+!                    CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
+!                          local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
+!                          charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, error=error)
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Ewald not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
+                ELSE IF(ewald_type == do_ewald_spme) THEN
+                   ! spme electrostatic potential
+                   CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm,particles_qm,qpot,error )
+                END IF
+                CALL deallocate_particle_set(atoms_mm,error)
+                DEALLOCATE(charges_mm,STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             END DO
+          END IF
+          ! Add Ewald and DFTB short range corrections
+          ! This is effectively using a minimum image convention!
+          ! Set rcutoff to values compatible with alpha Ewald
+          CALL ewald_env_get(ewald_env,rcut=rcutoff(1),alpha=alpha,error=error)
+          rcutoff(2) = 0.025_dp*rcutoff(1)
+          nkind = SIZE(atomic_kind_set)
+          DO ikind=1,nkind
+             CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
+             NULLIFY(dftb_kind)
+             CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+             CALL get_dftb_atom_param(dftb_kind,&
+                  defined=defined,eta=eta_a,natorb=natorb)
+             ! use mm charge smearing for non-scc cases
+             IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
+             IF (.NOT.defined .OR. natorb < 1) CYCLE
+             DO i = 1, SIZE(list)
+                iatom = list(i)
+                CALL build_mm_pot(qpot(iatom),1,eta_a(0),qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,rcutoff,&
+                     particles_qm,error)
+                CALL build_mm_pot(qpot(iatom),2,alpha,qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,rcutoff,&
+                     particles_qm,error)
+                ! Possibly added charges
+                IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+                   CALL build_mm_pot(qpot(iatom),1,eta_a(0),qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
+                   CALL build_mm_pot(qpot(iatom),2,alpha,qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
+                END IF
+             END DO
+          END DO
+       CASE(do_ewald_none)
+          ! Simply summing up charges with 1/R (DFTB corrected)
+          nkind = SIZE(atomic_kind_set)
+          DO ikind=1,nkind
+             CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
+             NULLIFY(dftb_kind)
+             CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+             CALL get_dftb_atom_param(dftb_kind,&
+                  defined=defined,eta=eta_a,natorb=natorb)
+             ! use mm charge smearing for non-scc cases
+             IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
+             IF (.NOT.defined .OR. natorb < 1) CYCLE
+             DO i = 1, SIZE(list)
+                iatom = list(i)
+                CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,&
+                     qmmm_env%spherical_cutoff,particles_qm,error)
+                ! Possibly added charges
+                IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+                   CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,qmmm_env%spherical_cutoff,&
+                        particles_qm,error)
+                END IF
+             END DO
+          END DO
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Unknown Ewald type!", error=error, error_level=cp_fatal_level)
+    END SELECT
+
+    CALL mp_sum(qpot,para_env%group)
+
+    ! Allocate the core Hamiltonian matrix
+    NULLIFY(matrix_h)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
+    ALLOCATE(matrix_h(1)%matrix,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(matrix_h(1)%matrix,error)
+    CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
+                       name="QMMM HAMILTONIAN MATRIX",error=error)
+    CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error)
+
+    CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+       NULLIFY(hblock)
+       CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
+            row=iatom,col=jatom,block=hblock,found=found)
+       CPPostcondition(found,cp_failure_level,routineP,error,failure)
+       hblock = hblock - 0.5_dp*sblock*(qpot(iatom)+qpot(jatom))
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
+    ks_qmmm_env_loc%matrix_h => matrix_h
+
+    DEALLOCATE(qpot,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Release Ewald environment
+    CALL ewald_env_release(ewald_env,error=error)
+    CALL ewald_pw_release(ewald_pw,error=error)
+
+    CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_dftb_qmmm_matrix_pc
 
 ! *****************************************************************************
 !> \brief Constructs the derivative w.r.t. 1-el DFTB hamiltonian QMMM terms
@@ -1304,25 +1586,22 @@ CONTAINS
           DO i = 1, SIZE(list)
              iatom = list(i)
              iqm = iqm + 1
-             CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%Potentials,particles_mm,&
-               qmmm_env%mm_atom_chrg,qmmm_env%mm_el_pot_radius,qmmm_env%mm_atom_index,&
-               qmmm_env%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,particles_qm,error)
-             CALL build_mm_dpot(mcharge(iatom),eta_a(0),qmmm_env%Potentials,particles_mm,&
-               qmmm_env%mm_atom_chrg,qmmm_env%mm_el_pot_radius,qmmm_env%mm_atom_index,&
-               qmmm_env%num_mm_atoms,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
+             CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%Potentials,particles_mm,&
+               qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,&
+               qmmm_env%spherical_cutoff,particles_qm,error)
+             CALL build_mm_dpot(mcharge(iatom),0,eta_a(0),qmmm_env%Potentials,particles_mm,&
+               qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
                qmmm_env%spherical_cutoff,particles_qm,error)
              ! Possibly added charges
              IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
-                CALL build_mm_pot(qpot(iatom),eta_a(0),qmmm_env%added_charges%potentials,&
+                CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%added_charges%potentials,&
                   qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
-                  qmmm_env%added_charges%mm_el_pot_radius,qmmm_env%added_charges%mm_atom_index,&
-                  qmmm_env%added_charges%num_mm_atoms,mm_cell,iatom,qmmm_env%spherical_cutoff,&
+                  qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,qmmm_env%spherical_cutoff,&
                   particles_qm,error)
-                CALL build_mm_dpot(mcharge(iatom),eta_a(0),qmmm_env%added_charges%potentials,&
+                CALL build_mm_dpot(mcharge(iatom),0,eta_a(0),qmmm_env%added_charges%potentials,&
                   qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
-                  qmmm_env%added_charges%mm_el_pot_radius,qmmm_env%added_charges%mm_atom_index,&
-                  qmmm_env%added_charges%num_mm_atoms,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
-                  qmmm_env%spherical_cutoff,particles_qm,error)
+                  qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,Forces_added_charges,&
+                  Forces_QM(:,iqm),qmmm_env%spherical_cutoff,particles_qm,error)
              END IF
           END DO
        END DO
@@ -1408,34 +1687,421 @@ CONTAINS
   END SUBROUTINE deriv_dftb_qmmm_matrix
 
 ! *****************************************************************************
+!> \brief Constructs the derivative w.r.t. 1-el DFTB hamiltonian QMMM terms
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param calc_force ...
+!> \param Forces ...
+!> \param Forces_added_charges ...
+!> \param error ...
+!> \author JGH 10.2014 [created]
+! *****************************************************************************
+  SUBROUTINE deriv_dftb_qmmm_matrix_pc(qs_env,qmmm_env,particles_mm,mm_cell,para_env,&
+       calc_force, Forces, Forces_added_charges, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(in), OPTIONAL            :: calc_force
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deriv_dftb_qmmm_matrix_pc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, blk, handle, i, j, iatom, ikind, iqm, istat, jatom, &
+      natom, natorb, nkind, nspins, number_qm_atoms, ewald_type, do_ipol, &
+      nmm, ipot, imp, imm, indmm
+    INTEGER, DIMENSION(:), POINTER           :: list
+    LOGICAL                                  :: defined, failure, found, &
+                                                do_multipoles
+    REAL(KIND=dp)                            :: fi, gmij, zeff, alpha
+    REAL(KIND=dp), DIMENSION(2)              :: rcutoff
+    REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, qpot, charges_mm
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dsblock, Forces_QM, &
+                                                Forces_MM, pblock, sblock
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm, atoms_mm
+    TYPE(qmmm_pot_type), POINTER             :: Pot
+    TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(section_vals_type), POINTER         :: poisson_section, ewald_section,&
+                                                print_section
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    IF (calc_force) THEN
+       NULLIFY (rho, atomic_kind_set, qs_kind_set, particles_qm)
+       CALL get_qs_env(qs_env=qs_env,&
+                       rho=rho,&
+                       atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
+                       ks_qmmm_env=ks_qmmm_env_loc,&
+                       dft_control=dft_control,&
+                       particle_set=particles_qm,&
+                       natom=number_qm_atoms,&
+                       error=error)
+       dftb_control => dft_control%qs_control%dftb_control
+
+       NULLIFY(matrix_s)
+       CALL build_dftb_overlap(qs_env,1,matrix_s,error)
+       matrix_p => rho%rho_ao
+
+       nspins = dft_control%nspins
+       nkind  = SIZE(atomic_kind_set)
+      ! Mulliken charges
+       ALLOCATE(charges(number_qm_atoms,nspins),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+       CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
+       !
+       ALLOCATE(mcharge(number_qm_atoms),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+          CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
+          DO iatom=1,natom
+            atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+            mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
+          END DO
+       END DO
+       DEALLOCATE(charges,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE(qpot(number_qm_atoms),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       qpot = 0.0_dp
+       ALLOCATE(Forces_QM(3,number_qm_atoms),stat=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       Forces_QM= 0.0_dp
+
+       ! Create Ewald environments
+       poisson_section => section_vals_get_subs_vals(qs_env%input,"MM%POISSON",error=error)
+       CALL ewald_env_create(ewald_env,para_env,error=error)
+       CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
+       ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+       CALL read_ewald_section(ewald_env,ewald_section,error=error)
+       print_section => section_vals_get_subs_vals(qs_env%input,"PRINT%GRID_INFORMATION",error=error)
+       CALL ewald_pw_create(ewald_pw,ewald_env,mm_cell,mm_cell,print_section=print_section,error=error)
+
+       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,do_multipoles=do_multipoles,do_ipol=do_ipol,error=error)
+       IF(do_multipoles) CALL cp_unimplemented_error(fromWhere=routineP, &
+          message="No multipole force fields allowed in DFTB QM/MM", error=error, error_level=cp_fatal_level)
+       IF(do_ipol /= do_fist_pol_none) CALL cp_unimplemented_error(fromWhere=routineP, &
+          message="No polarizable force fields allowed in DFTB QM/MM", error=error, error_level=cp_fatal_level)
+
+       SELECT CASE(ewald_type)
+          CASE(do_ewald_pme)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="PME Ewald type not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
+          CASE(do_ewald_ewald,do_ewald_spme)
+             DO ipot = 1,SIZE(qmmm_env%Potentials)
+                Pot => qmmm_env%Potentials(ipot)%Pot
+                nmm = SIZE(Pot%mm_atom_index)
+                ! get a 'clean' mm particle set
+                CALL allocate_particle_set(atoms_mm,nmm,error)
+                ALLOCATE(charges_mm(nmm),STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                DO Imp=1,nmm
+                   Imm = Pot%mm_atom_index(Imp)
+                   IndMM = qmmm_env%mm_atom_index(Imm)
+                   atoms_mm(Imp)%r = particles_mm(IndMM)%r
+                   atoms_mm(Imp)%atomic_kind => particles_mm(IndMM)%atomic_kind
+                   charges_mm(Imp) = qmmm_env%mm_atom_chrg(Imm)
+                END DO
+                ! force array for mm atoms
+                ALLOCATE(Forces_MM(3,nmm),stat=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                Forces_MM= 0.0_dp
+                IF(ewald_type == do_ewald_ewald) THEN
+                   CALL cp_unimplemented_error(fromWhere=routineP, &
+                        message="Ewald not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
+                ELSE IF(ewald_type == do_ewald_spme) THEN
+                   ! spme electrostatic potential
+                   CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm, &
+                                       particles_qm,qpot,error )
+                   ! forces QM
+                   CALL spme_forces(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm, &
+                                    particles_qm,mcharge,Forces_QM,error )
+                   ! forces MM
+                   CALL spme_forces(ewald_env,ewald_pw,mm_cell,particles_qm,mcharge,&
+                                    atoms_mm,charges_mm,Forces_MM,error)
+                END IF
+                CALL deallocate_particle_set(atoms_mm,error)
+                DEALLOCATE(charges_mm,STAT=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                ! transfer MM forces
+                DO Imp=1,nmm
+                   Imm = Pot%mm_atom_index(Imp)
+                   Forces(:,Imm) = Forces(:,Imm) - Forces_MM(:,Imp)
+                END DO
+                DEALLOCATE(Forces_MM,stat=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             END DO
+             IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+                DO ipot = 1,SIZE(qmmm_env%added_charges%Potentials)
+                   Pot => qmmm_env%added_charges%Potentials(ipot)%Pot
+                   nmm = SIZE(Pot%mm_atom_index)
+                   ! get a 'clean' mm particle set
+                   CALL allocate_particle_set(atoms_mm,nmm,error)
+                   ALLOCATE(charges_mm(nmm),STAT=istat)
+                   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                   DO Imp=1,nmm
+                      Imm = Pot%mm_atom_index(Imp)
+                      IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
+                      atoms_mm(Imp)%r = qmmm_env%added_charges%added_particles(IndMM)%r
+                      atoms_mm(Imp)%atomic_kind => qmmm_env%added_charges%added_particles(IndMM)%atomic_kind
+                      charges_mm(Imp) = qmmm_env%added_charges%mm_atom_chrg(Imm)
+                   END DO
+                   ! force array for mm atoms
+                   ALLOCATE(Forces_MM(3,nmm),stat=istat)
+                   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                   Forces_MM= 0.0_dp
+                   IF(ewald_type == do_ewald_ewald) THEN
+                      CALL cp_unimplemented_error(fromWhere=routineP, &
+                           message="Ewald not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
+                   ELSE IF(ewald_type == do_ewald_spme) THEN
+                      ! spme electrostatic potential
+                      CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,&
+                                          charges_mm,particles_qm,qpot,error )
+                      ! forces QM
+                      CALL spme_forces(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm,&
+                                       particles_qm,mcharge,Forces_QM,error )
+                      ! forces MM
+                      CALL spme_forces(ewald_env,ewald_pw,mm_cell,particles_qm,mcharge,&
+                                       atoms_mm,charges_mm,Forces_MM,error)
+                   END IF
+                   CALL deallocate_particle_set(atoms_mm,error)
+                   ! transfer MM forces
+                   DO Imp=1,nmm
+                      Imm = Pot%mm_atom_index(Imp)
+                      Forces_added_charges(:,Imm) = Forces_added_charges(:,Imm) - Forces_MM(:,Imp)
+                   END DO
+                   DEALLOCATE(Forces_MM,stat=istat)
+                   CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                END DO
+             END IF
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             ! Add Ewald and DFTB short range corrections
+             ! This is effectively using a minimum image convention!
+             ! Set rcutoff to values compatible with alpha Ewald
+             CALL ewald_env_get(ewald_env,rcut=rcutoff(1),alpha=alpha,error=error)
+             rcutoff(2) = 0.025_dp*rcutoff(1)
+             nkind = SIZE(atomic_kind_set)
+             DO ikind=1,nkind
+                CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
+                NULLIFY(dftb_kind)
+                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+                CALL get_dftb_atom_param(dftb_kind,&
+                     defined=defined,eta=eta_a,natorb=natorb)
+                ! use mm charge smearing for non-scc cases
+                IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
+                IF (.NOT.defined .OR. natorb < 1) CYCLE
+                DO i = 1, SIZE(list)
+                   iatom = list(i)
+                   CALL build_mm_pot(qpot(iatom),1,eta_a(0),qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
+                   CALL build_mm_dpot(mcharge(iatom),1,eta_a(0),qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
+                     rcutoff,particles_qm,error)
+                   CALL build_mm_pot(qpot(iatom),2,alpha,qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
+                   CALL build_mm_dpot(mcharge(iatom),2,alpha,qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
+                     rcutoff,particles_qm,error)
+                   ! Possibly added charges
+                   IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+                      CALL build_mm_pot(qpot(iatom),1,eta_a(0),qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
+                      CALL build_mm_dpot(mcharge(iatom),1,eta_a(0),qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,Forces_added_charges,Forces_QM(:,iqm),&
+                        rcutoff,particles_qm,error)
+                      CALL build_mm_pot(qpot(iatom),2,alpha,qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
+                      CALL build_mm_dpot(mcharge(iatom),2,alpha,qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,Forces_added_charges,Forces_QM(:,iqm),&
+                        rcutoff,particles_qm,error)
+                   END IF
+                END DO
+             END DO
+
+          CASE(do_ewald_none)
+             ! Simply summing up charges with 1/R (DFTB corrected)
+             ! calculate potential and forces from classical charges
+             iqm = 0
+             DO ikind=1,nkind
+                CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
+                NULLIFY(dftb_kind)
+                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+                CALL get_dftb_atom_param(dftb_kind,&
+                     defined=defined,eta=eta_a,natorb=natorb)
+                ! use mm charge smearing for non-scc cases
+                IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
+                IF (.NOT.defined .OR. natorb < 1) CYCLE
+                DO i = 1, SIZE(list)
+                   iatom = list(i)
+                   iqm = iqm + 1
+                   CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,&
+                     qmmm_env%spherical_cutoff,particles_qm,error)
+                   CALL build_mm_dpot(mcharge(iatom),0,eta_a(0),qmmm_env%Potentials,particles_mm,&
+                     qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,Forces,Forces_QM(:,iqm),&
+                     qmmm_env%spherical_cutoff,particles_qm,error)
+                   ! Possibly added charges
+                   IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
+                      CALL build_mm_pot(qpot(iatom),0,eta_a(0),qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,qmmm_env%spherical_cutoff,&
+                        particles_qm,error)
+                      CALL build_mm_dpot(mcharge(iatom),0,eta_a(0),qmmm_env%added_charges%potentials,&
+                        qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
+                        qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,Forces_added_charges,&
+                        Forces_QM(:,iqm),qmmm_env%spherical_cutoff,particles_qm,error)
+                   END IF
+                END DO
+             END DO
+          CASE DEFAULT
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Unknown Ewald type!", error=error, error_level=cp_fatal_level)
+       END SELECT
+
+       CALL mp_sum(qpot,para_env%group)
+
+       ! Transfer QM gradients to the QM particles..
+       CALL mp_sum(Forces_QM, para_env%group)
+       iqm = 0
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
+          NULLIFY(dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_dftb_atom_param(dftb_kind,defined=defined,natorb=natorb)
+          IF (.NOT.defined .OR. natorb < 1) CYCLE
+          DO i = 1, SIZE(list)
+             iqm = iqm + 1
+             iatom = qmmm_env%qm_atom_index(list(i))
+             particles_mm(iatom)%f(:) = particles_mm(iatom)%f(:) + Forces_QM(:,iqm)
+          END DO
+       END DO
+
+       ! derivatives from qm charges
+       Forces_QM = 0.0_dp
+       IF ( SIZE(matrix_p) == 2) THEN
+          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+               alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+       END IF
+       !
+       CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+          !
+          IF(iatom==jatom) CYCLE
+          !
+          gmij = -0.5_dp*(qpot(iatom) + qpot(jatom))
+          NULLIFY(pblock)
+          CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+               row=iatom,col=jatom,block=pblock,found=found)
+          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+          DO i=1,3
+             NULLIFY(dsblock)
+             CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                  row=iatom,col=jatom,block=dsblock,found=found)
+             CPPostcondition(found,cp_failure_level,routineP,error,failure)
+             fi = -1.0_dp*gmij*SUM(pblock*dsblock)
+             Forces_QM(i,iatom) = Forces_QM(i,iatom) + fi
+             Forces_QM(i,jatom) = Forces_QM(i,jatom) - fi
+          END DO
+       END DO
+       CALL cp_dbcsr_iterator_stop(iter)
+       !
+       IF ( SIZE(matrix_p) == 2) THEN
+          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+       END IF
+       !
+       ! Transfer QM gradients to the QM particles..
+       CALL mp_sum(Forces_QM, para_env%group)
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
+          DO i = 1, SIZE(list)
+             iqm = list(i)
+             iatom = qmmm_env%qm_atom_index(iqm)
+             particles_mm(iatom)%f(:) = particles_mm(iatom)%f(:) + Forces_QM(:,iqm)
+          END DO
+       END DO
+       !
+       DEALLOCATE(mcharge,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       !
+       ! MM forces will be handled directly from the QMMM module in the same way
+       ! as for GPW/GAPW methods
+       DEALLOCATE(Forces_QM,stat=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(qpot,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       ! Release Ewald environment
+       CALL ewald_env_release(ewald_env,error=error)
+       CALL ewald_pw_release(ewald_pw,error=error)
+
+       CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
+
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE deriv_dftb_qmmm_matrix_pc
+
+! *****************************************************************************
 !> \brief ...
 !> \param qpot ...
+!> \param pot_type ...
 !> \param qm_alpha ...
 !> \param potentials ...
 !> \param particles_mm ...
 !> \param mm_charges ...
-!> \param mm_el_pot_radius ...
 !> \param mm_atom_index ...
-!> \param num_mm_atoms ...
 !> \param mm_cell ...
 !> \param IndQM ...
 !> \param qmmm_spherical_cutoff ...
 !> \param particles_qm ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_mm_pot(qpot, qm_alpha, potentials,&
-       particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       mm_cell, IndQM, qmmm_spherical_cutoff, particles_qm, error)
+  SUBROUTINE build_mm_pot(qpot, pot_type, qm_alpha, potentials,&
+       particles_mm, mm_charges, mm_atom_index, mm_cell, IndQM, &
+       qmmm_spherical_cutoff, particles_qm, error)
 
     REAL(KIND=dp), INTENT(INOUT)             :: qpot
+    INTEGER, INTENT(IN)                      :: pot_type
     REAL(KIND=dp), INTENT(IN)                :: qm_alpha
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
     INTEGER, INTENT(IN)                      :: IndQM
     REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
@@ -1447,6 +2113,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, Imm, Imp, IndMM, Ipot
+    REAL(KIND=dp), PARAMETER                 :: qsmall = 1.0e-15_dp
     REAL(KIND=dp)                            :: dr, qeff, rt1, rt2, rt3, &
                                                 sph_chrg_factor, sr
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
@@ -1473,10 +2140,20 @@ CONTAINS
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
              qeff = qeff * sph_chrg_factor
           END IF
-          IF (ABS(qeff)<=EPSILON(0.0_dp)) CYCLE
+          IF (ABS(qeff)<=qsmall) CYCLE
           IF(dr > rtiny) THEN
-             sr = gamma_rab_sr(dr,qm_alpha,eta_mm,0.0_dp)
-             qpot = qpot + qeff*(1.0_dp/dr - sr)
+             IF (pot_type==0) THEN
+                sr = gamma_rab_sr(dr,qm_alpha,eta_mm,0.0_dp)
+                qpot = qpot + qeff*(1.0_dp/dr - sr)
+             ELSE IF (pot_type==1) THEN
+                sr = gamma_rab_sr(dr,qm_alpha,eta_mm,0.0_dp)
+                qpot = qpot - qeff*sr
+             ELSE IF (pot_type==2) THEN
+                sr = erfc(qm_alpha*dr)/dr
+                qpot = qpot + qeff*sr
+             ELSE 
+                STOP
+             END IF
           END IF
        END DO LoopMM
     END DO MainLoopPot
@@ -1486,13 +2163,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qcharge ...
+!> \param pot_type ...
 !> \param qm_alpha ...
 !> \param potentials ...
 !> \param particles_mm ...
 !> \param mm_charges ...
-!> \param mm_el_pot_radius ...
 !> \param mm_atom_index ...
-!> \param num_mm_atoms ...
 !> \param mm_cell ...
 !> \param IndQM ...
 !> \param forces ...
@@ -1501,18 +2177,18 @@ CONTAINS
 !> \param particles_qm ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_mm_dpot(qcharge, qm_alpha, potentials,&
-       particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       mm_cell, IndQM, forces, forces_qm, qmmm_spherical_cutoff, particles_qm, error)
+  SUBROUTINE build_mm_dpot(qcharge, pot_type, qm_alpha, potentials,&
+       particles_mm, mm_charges, mm_atom_index, mm_cell, IndQM, &
+       forces, forces_qm, qmmm_spherical_cutoff, particles_qm, error)
 
     REAL(KIND=dp), INTENT(IN)                :: qcharge, qm_alpha
+    INTEGER, INTENT(IN)                      :: pot_type
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
     INTEGER, INTENT(IN)                      :: IndQM
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
@@ -1527,6 +2203,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, Imm, Imp, IndMM, Ipot
+    REAL(KIND=dp), PARAMETER                 :: qsmall = 1.0e-15_dp
     REAL(KIND=dp)                            :: dr, drm, drp, dsr, fsr, qeff, &
                                                 rt1, rt2, rt3, sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, r_pbc, rij
@@ -1549,20 +2226,32 @@ CONTAINS
           dr = SQRT(SUM(rij**2))
           qeff = mm_charges(Imm)
           ! Computes the screening factor for the spherical cutoff (if defined)
+          ! We neglect derivative of cutoff function for gradients!!!
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor, error)
              qeff = qeff * sph_chrg_factor
           END IF
-          IF (ABS(qeff)<=EPSILON(0.0_dp)) CYCLE
+          IF (ABS(qeff)<=qsmall) CYCLE
           IF(dr > rtiny) THEN
-            drp = dr + ddrmm
-            drm = dr - ddrmm
-            dsr = 0.5_dp*(gamma_rab_sr(drp,qm_alpha,eta_mm,0.0_dp)-&
-                          gamma_rab_sr(drm,qm_alpha,eta_mm,0.0_dp))/ddrmm
-            fsr = qeff*qcharge*(-1.0_dp/(dr*dr) - dsr)
-            force_ab = fsr * rij/dr
+             drp = dr + ddrmm
+             drm = dr - ddrmm
+             IF (pot_type==0) THEN
+                dsr = 0.5_dp*(gamma_rab_sr(drp,qm_alpha,eta_mm,0.0_dp)-&
+                              gamma_rab_sr(drm,qm_alpha,eta_mm,0.0_dp))/ddrmm
+                fsr = qeff*qcharge*(-1.0_dp/(dr*dr) - dsr)
+             ELSE IF (pot_type==1) THEN
+                dsr = 0.5_dp*(gamma_rab_sr(drp,qm_alpha,eta_mm,0.0_dp)-&
+                              gamma_rab_sr(drm,qm_alpha,eta_mm,0.0_dp))/ddrmm
+                fsr = -qeff*qcharge*dsr
+             ELSE IF (pot_type==2) THEN
+                dsr = 0.5_dp*(erfc(qm_alpha*drp)/drp-erfc(qm_alpha*drm)/drm)/ddrmm
+                fsr = qeff*qcharge*dsr
+             ELSE
+                STOP
+             END IF
+             force_ab = fsr * rij/dr
           ELSE
-            force_ab = 0.0_dp
+             force_ab = 0.0_dp
           END IF
           ! The array of QM forces are really the forces
           forces_qm(:)  = forces_qm(:)  - force_ab

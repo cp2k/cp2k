@@ -17,6 +17,7 @@ MODULE qmmm_elpot
   USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
+                                             do_qmmm_pcharge,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_type
@@ -134,13 +135,15 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
           NULLIFY(pot0_2)
+       CASE(do_qmmm_pcharge)
+          NULLIFY(pot0_2)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(pot0_2(2,np), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END SELECT
 
        SELECT CASE(qmmm_coupl_type)
-       CASE(do_qmmm_coulomb)
+       CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Do Nothing
        CASE(do_qmmm_gauss,do_qmmm_swave)
           IF     (qmmm_coupl_type==do_qmmm_gauss) THEN

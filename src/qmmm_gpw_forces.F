@@ -21,6 +21,7 @@ MODULE qmmm_gpw_forces
   USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_coulomb,&
+                                             do_qmmm_pcharge,&
                                              do_qmmm_gauss,&
                                              do_qmmm_none,&
                                              do_qmmm_swave,&
@@ -65,7 +66,8 @@ MODULE qmmm_gpw_forces
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
-  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix
+  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix,&
+                                             deriv_dftb_qmmm_matrix_pc
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -170,6 +172,10 @@ CONTAINS
        CASE(do_qmmm_coulomb)
           CALL deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges,error)
+       CASE(do_qmmm_pcharge)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Point Charge QM/MM electrostatic coupling not yet implemented for SE.", &
+               error=error, error_level=cp_failure_level)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
@@ -188,7 +194,8 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE(do_qmmm_coulomb)
-          CALL deriv_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+       CASE(do_qmmm_pcharge)
+          CALL deriv_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges,error)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -245,6 +252,10 @@ CONTAINS
           CASE(do_qmmm_coulomb)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+                  error=error, error_level=cp_failure_level)
+          CASE(do_qmmm_pcharge)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Point Charge QM/MM electrostatic coupling not yet implemented for GPW/GAPW.", &
                   error=error, error_level=cp_failure_level)
           CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
@@ -1459,6 +1470,10 @@ CONTAINS
                 CALL cp_unimplemented_error(fromWhere=routineP, &
                      message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
                      error=error, error_level=cp_failure_level)
+             CASE(do_qmmm_pcharge)
+                CALL cp_unimplemented_error(fromWhere=routineP, &
+                     message="Point Charge  QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+                     error=error, error_level=cp_failure_level)
              CASE(do_qmmm_gauss,do_qmmm_swave)
                 CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
                                                 v_qmmm=v_qmmm_rspace,&
@@ -1494,6 +1509,10 @@ CONTAINS
     CASE(do_qmmm_coulomb)
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+            error=error, error_level=cp_failure_level)
+    CASE(do_qmmm_pcharge)
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Point Charge QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
             error=error, error_level=cp_failure_level)
     CASE(do_qmmm_gauss,do_qmmm_swave)
        IF (iw>0) WRITE(iw,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
