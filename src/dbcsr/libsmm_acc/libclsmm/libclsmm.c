@@ -12,28 +12,33 @@
 #include "../include/libsmm_acc.h"
 #include "libclsmm.h"
 
+// struct definitions
+#include "../../../acc/opencl/acc_opencl_dev.h"
+/*typedef struct {
+   cl_platform_id   platform_id;
+   cl_device_id     device_id;
+   cl_context       ctx;
+} acc_opencl_dev_type;*/
+
+#include "../../../acc/opencl/acc_opencl_stream.h"
+/*typedef struct {
+   acc_opencl_dev_type  device;
+   cl_command_queue     queue;
+} acc_opencl_stream_type;*/
 
 // global definitions
 #define dbcsr_type_real_4     1
 #define dbcsr_type_real_8     3
 #define dbcsr_type_complex_4  5
 #define dbcsr_type_complex_8  7
+#define BUILD_OPTIONS "-I . -D__ACC\0"
 
 // debug flag
 static const int verbose_print = 0;
+static const int verbose_src = 0;
+static const int verbose_ptx = 0;
 
-// struct definitions (Ugly: is a copy from src/acc/opencl/*)
-typedef struct {
-   cl_platform_id   platform_id;
-   cl_device_id     device_id;
-   cl_context       ctx;
-} acc_opencl_dev_type;
-
-typedef struct {
-   acc_opencl_dev_type  device;
-   cl_command_queue     queue;
-} acc_opencl_stream_type;
-
+// global variables
 cl_int cl_error;
 
 
@@ -62,82 +67,96 @@ static int launch_clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (void *param_sta
   } else {
     // read kernel code
     if (verbose_print) fprintf(stdout,"reading multiplication kernel ...\n");
-    FILE *fIn = fopen("clsmm_dnt_largeDB.cl", "r");
-    fseek(fIn, 0L, SEEK_END);
-    size_t sz = ftell(fIn); 
-    rewind(fIn);
-    char *file = (char*) malloc(sizeof(char) * sz + 1);
-    fread(file, sizeof(char), sz, fIn);
-    const char* cfile = (const char *) file;
-    fclose(fIn);
+
+    size_t  *lengths = (size_t *) malloc(sizeof(size_t) * 2); // 2 - two files, each with different size
+    char   **strings = (char **) malloc(sizeof(char *) * 2);  // 2 - two files, each with different lenght
+    read_file_at_path(&(strings[0]), &(lengths[0]), "LIBSMM_CL_KERNEL_PATH", "clsmm_common.cl");
+    read_file_at_path(&(strings[1]), &(lengths[1]), "LIBSMM_CL_KERNEL_PATH", "clsmm_dnt_largeDB.cl");
 
     // get kernel code, build program and kernel
     if (verbose_print) fprintf(stdout,"building multiplication kernel ...\n");
     opencl_program = clCreateProgramWithSource( // cl_program
                        opencl_ctx,              // cl_context   context
-                       (cl_uint) 1,             // cl_uint      count
-                       &cfile,                  // const char   **strings
-                       &sz,                     // const size_t *lengths
+                       (cl_uint) 2,             // cl_uint      count
+                       (const char **) strings, // const char   **strings
+                       lengths,                 // const size_t *lengths
                        &cl_error);              // cl_int       *errcode_ret
     if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clCreateProgramWithSource %d\n", (int) cl_error);
+
+    free(lengths); free(strings[0]); free(strings[1]); free(strings);
+
+    if (cl_error == CL_SUCCESS && verbose_src){
+      fprintf(stdout, "\n@@@@@@@@@ SOURCE-DATA: @@@@@@@@@\n");
+      size_t src_sz;
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, (size_t) 0, NULL, &src_sz);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 1 (print source) %d\n", (int) cl_error);
+      char *src = (char *) malloc(src_sz);
+      src[src_sz - 1] = '\0';
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, src_sz, src, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 2 (print source) %d\n", (int) cl_error);
+      fprintf(stdout, "%s", src);
+      free(src);
+      fprintf(stdout, "@@@@@@@@@ END SOURCE-DATA, SIZE=%zu @@@@@@@@@\n", src_sz);
+    }
+
     cl_error = clBuildProgram(                       // cl_int
                  opencl_program,                     // cl_program                     program
                  (cl_uint) 1,                        // cl_uint                        num_devices
                  (const cl_device_id *) &opencl_dev, // const cl_device_id             *device_list
-#if defined (__USE_INTEL_CL)
-                 "-D__ACC -D__USE_INTEL_CL",         // const char                     *options
-#else
-                 "-D__ACC",                          // const char                     *options
-#endif
-//                 "-D__ACC -w -Werror -cl-std=CL1.1",                          // const char                     *options
-//                 "-D__ACC -cl-opt-disable",                          // const char                     *options
+                 BUILD_OPTIONS,                      // const char                     *options
                  NULL,                               // void (CL_CALLBACK* pfn_notify) (cl_program program, void *user_data)
                  NULL);                              // void                           *user_data
     if (cl_error != CL_SUCCESS){
-      size_t param_value_size_ret;
-      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, (size_t) 0, NULL, &param_value_size_ret);
-      if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 1 %d\n", (int) cl_error);
-      char *build_log = (char *) malloc(param_value_size_ret * sizeof(char));
-      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, param_value_size_ret, (void *) build_log, NULL);
-      if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 2 %d\n", (int) cl_error);
-      fprintf(stdout, "BUILD LOG:\n %s\n", build_log);
-      fprintf(stdout,"Error in: clBuildProgram %d\n", (int) cl_error);
+      fprintf(stdout, "\n@@@@@@@@@ BUILD-DATA, ERROR=%d: @@@@@@@@@\n", (int) cl_error);
+      size_t bld_sz;
+      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, (size_t) 0, NULL, &bld_sz);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 1 (print source) %d\n", (int) cl_error);
+      char *bld = (char *) malloc(bld_sz);
+      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, bld_sz, bld, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 2 (print source) %d\n", (int) cl_error);
+      bld[bld_sz - 1] = '\0';
+      fprintf(stdout, "%s", bld);
+      free(bld);
+      fprintf(stdout, "@@@@@@@@@ END BUILD-DATA, SIZE=%zu @@@@@@@@@\n", bld_sz);
     }
+
+    if ((cl_error == CL_SUCCESS) && (verbose_ptx)) {
+      fprintf(stdout, "\n@@@@@@@@@ PTX-DATA: @@@@@@@@@\n");
+      size_t ptx_sz;
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &ptx_sz, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 1 (print ptx) %d\n", (int) cl_error);
+      unsigned char *ptx = (unsigned char *) malloc(ptx_sz);
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARIES, ptx_sz, &ptx, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 2 (print ptx) %d\n", (int) cl_error);
+      ptx[ptx_sz - 1] = '\0';
+      fprintf(stdout, "%s", ptx);
+      free(ptx);
+      fprintf(stdout, "@@@@@@@@@ END PTX-DATA, SIZE=%zu: @@@@@@@@@\n", ptx_sz);
+    }
+  
     opencl_kernel = clCreateKernel(                                    // cl_kernel
                       opencl_program,                                  // cl_program program
                       "clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10", // const char *kernel_name
                       &cl_error);                                      // cl_int     *errcode_ret
     if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clCreateKernel %d\n", (int) cl_error);
 
-/*//foxtest
-size_t bytes_for_binaries;
-cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARY_SIZES, (size_t) 0, NULL, &bytes_for_binaries);
-if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 1x %d\n", (int) cl_error);
-fprintf(stdout, "Size of binary: %zu \n", bytes_for_binaries);
-unsigned char *binaries = (unsigned char *) malloc(2 * bytes_for_binaries * sizeof(unsigned char));
-cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARIES, bytes_for_binaries, (void *) binaries, NULL);
-if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 2x %d\n", (int) cl_error);
-fprintf(stdout, "BINARIES:\n %s\n", binaries);
-//foxtest*/
-
-  
     // keep for later usage
     multiply_kernel = opencl_kernel;
   }
 
   // set kernel parameters
   if (verbose_print) fprintf(stdout,"set multiplication kernel parameters ...\n");
-  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 0, sizeof(cl_mem), (void *) param_stack);
+  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 0, sizeof(cl_mem), param_stack);
   if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(0) %d\n", (int) cl_error);
   cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 1, sizeof(int), &careful);
   if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(1) %d\n", (int) cl_error);
   cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 2, sizeof(int), &nruns);
   if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(2) %d\n", (int) cl_error);
-  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 3, sizeof(cl_mem), (void *) a_data);
+  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 3, sizeof(cl_mem), a_data);
   if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(3) %d\n", (int) cl_error);
-  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 4, sizeof(cl_mem), (void *) b_data);
+  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 4, sizeof(cl_mem), b_data);
   if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(4) %d\n", (int) cl_error);
-  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 5, sizeof(cl_mem), (void *) c_data);
+  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 5, sizeof(cl_mem), c_data);
   if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(5) %d\n", (int) cl_error);
 
   // set kernel sizes and submit kernel
@@ -159,9 +178,6 @@ fprintf(stdout, "BINARIES:\n %s\n", binaries);
                NULL,                 // const cl_event   *event_wait_list
                NULL);                // cl_event         *event
   if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clEnqueueNDRangeKernel %d\n", (int) cl_error);
-
-  //cl_error = clFinish(opencl_queue);
-  //if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clFinish %d\n", (int) cl_error);
 
   return 0;
 }
@@ -199,7 +215,6 @@ int libclsmm_process_d (void *param_stack, int stack_size, void *stream, int m, 
     case 0:
       // m=23, n=23, k=23
       return launch_clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10(param_stack, stack_size, stream, 23, 23, 23, a_data, b_data, c_data);
-      //return -1;
   }
 
   return -1; // should never happen
@@ -247,44 +262,71 @@ int libclsmm_transpose_d (void *trs_stack, int offset, int nblks, void *buffer, 
       } else {
         // read kernel code
         if (verbose_print) fprintf(stdout,"reading transpose kernel ...\n");
-        FILE *fIn = fopen("clsmm_transpose.cl", "r");
-        fseek(fIn, 0L, SEEK_END);
-        size_t sz = ftell(fIn); 
-        rewind(fIn);
-        char *file = (char*) malloc(sizeof(char) * sz + 1);
-        fread(file, sizeof(char), sz, fIn);
-        const char* cfile = (const char *) file;
-        fclose(fIn);
-    
+
+        size_t  *lengths = (size_t *) malloc(sizeof(size_t) * 2); // 2 - two files, each with different size
+        char   **strings = (char **) malloc(sizeof(char *) * 2);  // 2 - two files, each with different lenght
+        read_file_at_path(&(strings[0]), &(lengths[0]), "LIBSMM_CL_KERNEL_PATH", "clsmm_common.cl");
+        read_file_at_path(&(strings[1]), &(lengths[1]), "LIBSMM_CL_KERNEL_PATH", "clsmm_transpose.cl");
+
         // get kernel code, build program and kernel
         if (verbose_print) fprintf(stdout,"building transpose kernel ...\n");
         opencl_program = clCreateProgramWithSource( // cl_program
                            opencl_ctx,              // cl_context   context
-                           (cl_uint) 1,             // cl_uint      count
-                           &cfile,                  // const char   **strings
-                           &sz,                     // const size_t *lengths
+                           (cl_uint) 2,             // cl_uint      count
+                           (const char **) strings, // const char   **strings
+                           lengths,                 // const size_t *lengths
                            &cl_error);              // cl_int       *errcode_ret
         if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clCreateProgramWithSource %d\n", (int) cl_error);
+
+        free(lengths); free(strings[0]); free(strings[1]); free(strings);
+
+        if (cl_error == CL_SUCCESS && verbose_src){
+          fprintf(stdout, "\n@@@@@@@@@ SOURCE-DATA: @@@@@@@@@\n");
+          size_t src_sz;
+          cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, (size_t) 0, NULL, &src_sz);
+          if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 1 (print source) %d\n", (int) cl_error);
+          char *src = (char *) malloc(src_sz);
+          src[src_sz - 1] = '\0';
+          cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, src_sz, src, NULL);
+          if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 2 (print source) %d\n", (int) cl_error);
+          fprintf(stdout, "%s", src);
+          free(src);
+          fprintf(stdout, "@@@@@@@@@ END SOURCE-DATA, SIZE=%zu @@@@@@@@@\n", src_sz);
+        }
+
         cl_error = clBuildProgram(                       // cl_int
                      opencl_program,                     // cl_program                     program
                      (cl_uint) 1,                        // cl_uint                        num_devices
                      (const cl_device_id *) &opencl_dev, // const cl_device_id             *device_list
-#if defined (__USE_INTEL_CL)
-                     "-D__ACC -D__USE_INTEL_CL",         // const char                     *options
-#else
-                     "-D__ACC",                          // const char                     *options
-#endif
+                     BUILD_OPTIONS,                      // const char                     *options
                      NULL,                               // void (CL_CALLBACK* pfn_notify) (cl_program program, void *user_data)
                      NULL);                              // void                           *user_data
         if (cl_error != CL_SUCCESS){
-          size_t param_value_size_ret;
-          cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, (size_t) 0, NULL, &param_value_size_ret);
-          if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 1 %d\n", (int) cl_error);
-          char *build_log = (char *) malloc(param_value_size_ret * sizeof(char));
-          cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, param_value_size_ret, (void *) build_log, NULL);
-          if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 2 %d\n", (int) cl_error);
-          fprintf(stdout, "BUILD LOG:\n %s\n", build_log);
-          fprintf(stdout,"Error in: clBuildProgram %d\n", (int) cl_error);
+          fprintf(stdout, "\n@@@@@@@@@ BUILD-DATA, ERROR=%d: @@@@@@@@@\n", (int) cl_error);
+          size_t bld_sz;
+          cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, (size_t) 0, NULL, &bld_sz);
+          if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 1 (print source) %d\n", (int) cl_error);
+          char *bld = (char *) malloc(bld_sz);
+          cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, bld_sz, bld, NULL);
+          if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 2 (print source) %d\n", (int) cl_error);
+          bld[bld_sz - 1] = '\0';
+          fprintf(stdout, "%s", bld);
+          free(bld);
+          fprintf(stdout, "@@@@@@@@@ END BUILD-DATA, SIZE=%zu @@@@@@@@@\n", bld_sz);
+        }
+  
+        if ((cl_error == CL_SUCCESS) && (verbose_ptx)) {
+          fprintf(stdout, "\n@@@@@@@@@ PTX-DATA: @@@@@@@@@\n");
+          size_t ptx_sz;
+          cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &ptx_sz, NULL);
+          if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 1 (print ptx) %d\n", (int) cl_error);
+          unsigned char *ptx = (unsigned char *) malloc(ptx_sz);
+          cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARIES, ptx_sz, &ptx, NULL);
+          if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 2 (print ptx) %d\n", (int) cl_error);
+          ptx[ptx_sz - 1] = '\0';
+          fprintf(stdout, "%s", ptx);
+          free(ptx);
+          fprintf(stdout, "@@@@@@@@@ END PTX-DATA, SIZE=%zu: @@@@@@@@@\n", ptx_sz);
         }
   
         opencl_kernel = clCreateKernel(        // cl_kernel
@@ -299,11 +341,11 @@ int libclsmm_transpose_d (void *trs_stack, int offset, int nblks, void *buffer, 
   
       // set kernel parameters
       if (verbose_print) fprintf(stdout,"set transpose kernel parameters ...\n");
-      cl_error = clSetKernelArg(opencl_kernel, 0, sizeof(cl_mem), (void *) trs_stack);
+      cl_error = clSetKernelArg(opencl_kernel, 0, sizeof(cl_mem), trs_stack);
       if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(0) %d\n", (int) cl_error);
       cl_error = clSetKernelArg(opencl_kernel, 1, sizeof(int), &offset);
       if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(1) %d\n", (int) cl_error);
-      cl_error = clSetKernelArg(opencl_kernel, 2, sizeof(cl_mem), (void *) buffer);
+      cl_error = clSetKernelArg(opencl_kernel, 2, sizeof(cl_mem), buffer);
       if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(2) %d\n", (int) cl_error);
       cl_error = clSetKernelArg(opencl_kernel, 3, (23 * 23 * sizeof(double)), NULL); // 23x23 buffer in (local) device memory
       if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(3) %d\n", (int) cl_error);
@@ -326,9 +368,6 @@ int libclsmm_transpose_d (void *trs_stack, int offset, int nblks, void *buffer, 
                    NULL,                 // const cl_event   *event_wait_list
                    NULL);                // cl_event         *event
       if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clEnqueueNDRangeKernel %d\n", (int) cl_error);
-
-      //cl_error = clFinish(opencl_queue);
-      //if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clFinish %d\n", (int) cl_error);
 
       return 0;
     break;
@@ -356,12 +395,10 @@ void libclsmm_list_blocksizes_d (const int **list, int *length){
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 int libsmm_acc_process (void *param_stack, int stack_size, int nparams, int datatype, void *a_data, void *b_data, void *c_data, int m_max, int n_max, int k_max, int def_mnk, void *stream){
   // debug info
   if (verbose_print) fprintf(stdout,"entering libsmm_acc_process ...\n");
-
-  // local queue pointer 
-  acc_opencl_stream_type *clstream = (acc_opencl_stream_type *) stream;
 
   if (def_mnk != 1)
     return -1; // inhomogenous stacks not supported
@@ -370,15 +407,9 @@ int libsmm_acc_process (void *param_stack, int stack_size, int nparams, int data
 
   return -1; // datatype not supported
 }
-#ifdef __cplusplus
-}
-#endif
 
 /****************************************************************************/
 // Transpose kernel interface for Fortran side
-#ifdef __cplusplus
-extern "C" {
-#endif
 int libsmm_acc_transpose (void *trs_stack, int offset, int nblks, void *buffer, int datatype, int m, int n, void *stream){
   // debug info
   if (verbose_print) fprintf(stdout,"entering libsmm_acc_transpose ...\n");
@@ -389,6 +420,8 @@ int libsmm_acc_transpose (void *trs_stack, int offset, int nblks, void *buffer, 
 
   return -1;
 }
+
+
 #ifdef __cplusplus
 }
 #endif

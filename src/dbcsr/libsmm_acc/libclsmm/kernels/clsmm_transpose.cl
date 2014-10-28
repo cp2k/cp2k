@@ -1,24 +1,14 @@
 #if defined (__ACC)
 
-#if defined(cl_khr_fp64)    // NVIDIA, Intel, Khronos
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-#elif defined(cl_amd_fp64)  // AMD
-#pragma OPENCL EXTENSION cl_amd_fp64 : enable
-#endif
+#define blockdim 23
+#define m 23
+#define n 23
 
-#if defined(cl_intel_printf)    // Intel
-#pragma OPENCL EXTENSION cl_intel_printf : enable
-#elif defined(cl_amd_printf)    // AMD
-#pragma OPENCL EXTENSION cl_amd_printf : enable
-#endif
-
-__kernel void transpose_23_23_d (__global int    *trs_stack,
-                                          int    trs_offset,
-                                 __global double *mat,
-                                 __local  double *local_buffer){
-
-  int m=23;
-  int n=23;
+__kernel __attribute__ ((reqd_work_group_size(blockdim, 1, 1)))
+  void transpose_23_23_d (__global int    *trs_stack,
+                                   int    trs_offset,
+                          __global double *mat,
+                          __local  double *local_buffer){
 
   int offset = trs_stack[trs_offset + get_group_id(0)];
   int local_id = get_local_id(0);

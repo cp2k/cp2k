@@ -2,31 +2,58 @@
  *  CP2K: A general program to perform molecular dynamics simulations        *
  *  Copyright (C) 2000 - 2013 the CP2K developers group                      *
  *****************************************************************************/
-#ifndef CLSMM_COMMON_H
-#define CLSMM_COMMON_H
-
 #if defined (__ACC)
 
-#if defined (cl_khr_fp64)    // NVIDIA, Intel, Khronos
+// double precision support
+#ifdef cl_khr_fp64    // NVIDIA, Intel, AMD, Khronos
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-#elif defined (cl_amd_fp64)  // AMD
-#pragma OPENCL EXTENSION cl_amd_fp64 : enable
 #endif
 
-#if defined (cl_intel_printf)    // Intel
+// printf support
+#ifdef cl_intel_printf    // Intel
 #pragma OPENCL EXTENSION cl_intel_printf : enable
-#elif defined (cl_amd_printf)    // AMD
+#endif
+#ifdef cl_amd_printf    // AMD
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 #endif
 
+// special 
+#ifdef cl_nv_compiler_options  // NVIDIA
+#pragma OPENCL EXTENSION cl_nv_compiler_options : enable
+#endif
+
+// switch for 64bit-Integer-Atomics
+#if defined (cl_khr_int64_base_atomics)
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics: enable
+#define USE_NATIVE_64
+#elif (__OPENCL_VERSION__ == CL_VERSION_1_1) // NVIDIA specific (It's a cheat!)
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics: enable
+#define USE_NATIVE_64
+#endif
+
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 /******************************************************************************
  * There is no native support for atomicAdd on doubles in OpenCL 1.1.         *
  ******************************************************************************/
 
-#if defined (__USE_INTEL_CL)
-#if defined (__ENDIAN_LITTLE__) && (__ENDIAN_LITTLE__ == 1)
-inline void AddAtomic_inner (volatile __global unsigned int *address, double incr)
+#ifdef USE_NATIVE_64 
+inline void add_atomic (volatile __global void *address,
+                                          double incr)
+{
+  typedef union dlunion {
+    double        dble;
+    unsigned long ul;
+  } dble2ulong;
+  __private dble2ulong old_val, new_val;
+  do {
+    old_val.dble = *((volatile __global double *) address);
+    new_val.dble = old_val.dble + incr;
+  } while (atom_cmpxchg (((volatile __global unsigned long *) address), old_val.ul, new_val.ul) != old_val.ul);
+}
+#else
+inline void add_atomic_inner (volatile __global unsigned int *address, double incr)
 {
   typedef union diunion {
     double        dble;
@@ -52,31 +79,13 @@ inline void AddAtomic_inner (volatile __global unsigned int *address, double inc
   atomic_xchg(address + 1, new_val.ui[1]);
 }
 
-
-inline void AddAtomic (volatile __global double *address,
-                                         double incr)
+inline void add_atomic (volatile __global void *address,
+                                          double incr)
 {
-      AddAtomic_inner ((volatile __global unsigned int*) address, incr);
+  add_atomic_inner ((volatile __global unsigned int*) address, incr);
 }
 #endif
-#else
-// For CUDA we assume this extension to be there!!!
-#pragma OPENCL EXTENSION cl_khr_int64_base_atomics: enable // native 64-bit atomics support
-inline void AddAtomic (volatile __global double *address,
-                                         double incr)
-{
-  typedef union dlunion {
-    double        dble;
-    unsigned long ul;
-  } dble2ulng;
-  __private dble2ulng old_val, new_val;
-  do {
-    old_val.dble = *address;
-    new_val.dble = old_val.dble + incr;
-  } while (atomic_cmpxchg((volatile __global unsigned long *) ((char *) address), old_val.ul, new_val.ul) != old_val.ul);
 
-}
-#endif
 //**************************************************************************//
 inline void load_gmem_into_smem(__global double    *from,
                                 __local  double    *dest,
@@ -196,5 +205,4 @@ inline void store_results_into_smem(__private double *from,
 
 }
 
-#endif
 #endif

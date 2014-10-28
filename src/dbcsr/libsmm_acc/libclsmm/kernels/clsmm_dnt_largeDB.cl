@@ -6,10 +6,28 @@
 
 #if defined (__ACC)
 
-#include "clsmm_common.h"
+// kernel (input) parameters
+#define m 23
+#define n 23
+#define k 23
+#define M 2
+#define N 3
+#define w 10
+#define v 12
+#define blockdim 96
+#define grouping 16
+#define minblocks 12
+
+// kernel (input) dependent parameters
+#define mya_size ((w * m + blockdim - 1) / blockdim)
+#define myb_size ((w * n + blockdim - 1) / blockdim)
+#define buff_size  MAX(m * w + w * n, v * m)
+#define wa (k - (k / w) * w)
+#define va (n - (n / v) * v)
 
 //**************************************************************************//
-__kernel void clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (
+__kernel __attribute__ ((reqd_work_group_size(blockdim, 1, 1)))
+  void clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (
                 __global int    *param_stack,
                          int    careful,
                          int    nruns,
@@ -17,45 +35,25 @@ __kernel void clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (
                 __global double *b_data,
                 __global double *c_data)
 {
-    const int m = 23;
-    const int n = 23;
-    const int k = 23;
-    const int M = 2;
-    const int N = 3;
-    const int w = 10;
-    const int v = 12;
-    const int blockdim = 96;
-    const int grouping = 16;
-    const int minblocks = 12;
     // registers to store thread's result tile
-    //double myc[N * M];
-    __private double myc[3 * 2];
+    __private double myc[N * M];
 
     // registers to store input slabs during double buffering
     // If there are too few thread, each thread has to store
     // multiple elements of the input slabs in it's registers.
-    const int mya_size = (w * m + blockdim - 1) / blockdim;
-    const int myb_size = (w * n + blockdim - 1) / blockdim;
-    //double mya[mya_size];
-    //double myb[myb_size];
-    __private double mya[(10 * 23 + 96 - 1) / 96];
-    __private double myb[(10 * 23 + 96 - 1) / 96];
+    __private double mya[mya_size];
+    __private double myb[myb_size];
 
      // initialize the thread's result tile to zero
     for (int i = 0; i < N * M; i++)
         myc[i] = 0.0;
 
     // buffer needs to hold input and output slabs (not both simultaneously).
-    //const int buff_size = MAX(m * w + w * n, v * m);
-    //__local double buff[buff_size];
-    const int buff_size = 460;
-    __local double buff[460];
+    __local double buff[buff_size];
 
     // conveniece pointers
-    // double *buff_l = buff;
-    //double *buff_r = &(buff[m * w]);
     __local double *buff_l = buff;
-    __local double *buff_r = &(buff[23 * 10]);
+    __local double *buff_r = &(buff[m * w]);
 
     // first stack entry to be processed by this thread-block
     int psp = 7 * (get_group_id(0) * grouping);
@@ -67,8 +65,7 @@ __kernel void clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (
 
     // all stack entries relavant for this thread-block are loaded at once
     // allows to look ahead and and flush result tile only when really needed
-    //__local int param_stack_s[4 * grouping];
-    __local int param_stack_s[4 * 16];
+    __local int param_stack_s[4 * grouping];
 
     // load parameter stack, might read beyond
     for (int i = get_local_id(0); i < 7 * nrun; i += blockdim) {
@@ -114,7 +111,6 @@ __kernel void clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (
 
         // If the input slab witdh w is not a divisor of k,
         // a smaller tail-slab of width wa has to be process
-        const int wa = k - (k / w) * w;
         if (wa != 0) { // is there a tail-slab?
             // load tail-slab into registers
             srcA += m * w;
@@ -153,22 +149,21 @@ __kernel void clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (
                 barrier(CLK_LOCAL_MEM_FENCE);
                 // Add our results to the accumulator in global memory
                 for (int i = get_local_id(0); i < m * v; i += blockdim)
-                    AddAtomic(&c_data[c_loc + i], buff[i]);
+                    add_atomic(&c_data[c_loc + i], buff[i]);
                 c_loc += m * v;
                 barrier(CLK_LOCAL_MEM_FENCE);
             }
 
             // If the output slab witdh v is not a divisor of n,
             // a smaller tail-slab of width va has to be process
-            const int va = n - (n / v) * v;
             if (va != 0) {  // is there a tail-slab?
                 int t = (n / v) * v;
                 store_results_into_smem(myc, buff, t, va, m, n, M, N, blockdim);
                 barrier(CLK_LOCAL_MEM_FENCE);
+                // Add our results to the accumulator in global memory
                 for (int i = get_local_id(0); i < m * va; i += blockdim)
-                    AddAtomic(&c_data[c_loc + i], buff[i]);
+                    add_atomic(&c_data[c_loc + i], buff[i]);
                 barrier(CLK_LOCAL_MEM_FENCE);
-
             }
         }
     }
@@ -176,5 +171,4 @@ __kernel void clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (
 
 
 #endif
-
 //EOF
