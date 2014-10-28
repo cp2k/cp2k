@@ -353,7 +353,7 @@ MODULE  rt_propagation_utils
                 WRITE(unit_nr,'(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
              ENDIF
           ENDDO
-          DO i=1,nspin
+          DO i=1,SIZE(rho_new)
              CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
           ENDDO
           CALL calc_update_rho_sparse(qs_env,error)
