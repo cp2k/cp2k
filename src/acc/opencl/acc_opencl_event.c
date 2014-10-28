@@ -21,12 +21,14 @@
 // defines the ACC interface
 #include "../include/acc.h"
 
+// debug flag
 static const int verbose_print = 0;
 
-/****************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/****************************************************************************/
 int acc_event_create (void** event_p){
   // debug info
   if (verbose_print){
@@ -53,15 +55,9 @@ int acc_event_create (void** event_p){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_event_destroy (void* event){
   // debug info
   if (verbose_print){
@@ -86,15 +82,9 @@ int acc_event_destroy (void* event){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_event_record (void* event, void* stream){
   // debug info
   if (verbose_print){
@@ -119,15 +109,9 @@ int acc_event_record (void* event, void* stream){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_event_query (void *event, int *has_occured){
   //declarations
   cl_int param_value;
@@ -168,15 +152,9 @@ int acc_event_query (void *event, int *has_occured){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_stream_wait_event (void* stream, void* event){
   // debug info
   if (verbose_print){
@@ -189,8 +167,10 @@ int acc_stream_wait_event (void* stream, void* event){
   acc_opencl_stream_type *clstream = (acc_opencl_stream_type *) stream;
 
   // wait for an event on a stream
-  cl_error = clEnqueueWaitForEvents((*clstream).queue,
-               (cl_uint) 1, clevent);
+  cl_error = clEnqueueWaitForEvents(  // cl_int
+               (*clstream).queue,     // cl_command_queue command_queue
+               (cl_uint) 1,           // cl_uint          num_events
+               clevent);              // cnst cl_event    *event_list
   if (acc_opencl_error_check(cl_error, __LINE__))
     return -1;
 
@@ -202,15 +182,9 @@ int acc_stream_wait_event (void* stream, void* event){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_event_synchronize (void* event){
   // debug info
   if (verbose_print){
@@ -234,6 +208,8 @@ int acc_event_synchronize (void* event){
   // assign return value
   return 0;
 }
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -32,13 +32,14 @@
 // defines the ACC interface
 #include "../include/acc.h"
 
+// debug flag
 static const int verbose_print = 0;
 
-
-/****************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/****************************************************************************/
 int acc_stream_priority_range (int* least, int* greatest){
   // debug info
   if (verbose_print){
@@ -58,15 +59,9 @@ int acc_stream_priority_range (int* least, int* greatest){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 // NOTE: 'priority' and 'name' are ignored.
 int acc_stream_create (void** stream_p, char* name, int priority){
   // debug info
@@ -102,15 +97,9 @@ int acc_stream_create (void** stream_p, char* name, int priority){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_stream_destroy (void* stream){
   // debug info
   if (verbose_print){
@@ -137,14 +126,8 @@ int acc_stream_destroy (void* stream){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_stream_sync (void* stream){
   // debug info
   if (verbose_print){
@@ -155,13 +138,8 @@ int acc_stream_sync (void* stream){
   // local queue pointer 
   acc_opencl_stream_type *clstream = (acc_opencl_stream_type *) stream;
 
-  // synchronize the command queue
-  // A ' clEnqueueBarrier is probably enough
-  cl_error = clFlush((*clstream).queue);
-//ToDo: Flush sends all commands in a queue to the device but does not
-//      guarantee that they will be processed while return to host.
-//  cl_error = clFinish((*clstream).queue);
-
+  // flush the queue and wait for completion
+  cl_error = clFinish((*clstream).queue);
   if (acc_opencl_error_check(cl_error, __LINE__))
     return -1;
 
@@ -174,6 +152,8 @@ int acc_stream_sync (void* stream){
   // assign return value
   return 0;
 }
+
+
 #ifdef __cplusplus
 }
 #endif

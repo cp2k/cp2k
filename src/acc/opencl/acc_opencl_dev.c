@@ -21,12 +21,14 @@ acc_opencl_dev_type *acc_opencl_my_device;
 // defines the ACC interface
 #include "../include/acc.h"
 
+// debug flag
 static const int verbose_print = 0;
 
-/****************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/****************************************************************************/
 int acc_get_ndevices (int *n_devices){
   // debug info
   if (verbose_print) fprintf(stdout, "Entering: acc_get_ndevices.\n");
@@ -209,15 +211,9 @@ int acc_get_ndevices (int *n_devices){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_set_active_device (int device_id){
   // debug info
   if (verbose_print) fprintf(stdout, "Entering: acc_set_active_device.\n");
@@ -260,6 +256,8 @@ int acc_set_active_device (int device_id){
   // assign return value
   return 0;
 }
+
+
 #ifdef __cplusplus
 }
 #endif
