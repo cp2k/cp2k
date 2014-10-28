@@ -33,15 +33,10 @@ MODULE qmmm_init
                                              read_gp_section,&
                                              read_lj_section,&
                                              read_wl_section
-  USE input_constants,                 ONLY: RADIUS_QMMM_DEFAULT,&
-                                             do_qmmm_gauss,&
-                                             do_qmmm_image_calcmatrix,&
-                                             do_qmmm_image_iter,&
-                                             do_qmmm_link_gho,&
-                                             do_qmmm_link_imomm,&
-                                             do_qmmm_link_pseudo,&
-                                             do_qmmm_pcharge,&
-                                             do_qmmm_swave
+  USE input_constants,                 ONLY: &
+       RADIUS_QMMM_DEFAULT, do_qmmm_gauss, do_qmmm_image_calcmatrix, &
+       do_qmmm_image_iter, do_qmmm_link_gho, do_qmmm_link_imomm, &
+       do_qmmm_link_pseudo, do_qmmm_pcharge, do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

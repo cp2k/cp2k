@@ -21,9 +21,9 @@ MODULE qmmm_gpw_forces
   USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_coulomb,&
-                                             do_qmmm_pcharge,&
                                              do_qmmm_gauss,&
                                              do_qmmm_none,&
+                                             do_qmmm_pcharge,&
                                              do_qmmm_swave,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
@@ -66,8 +66,7 @@ MODULE qmmm_gpw_forces
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
-  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix,&
-                                             deriv_dftb_qmmm_matrix_pc
+  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix_pc
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

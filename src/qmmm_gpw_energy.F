@@ -26,8 +26,8 @@ MODULE qmmm_gpw_energy
                                              do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
                                              do_qmmm_none,&
-                                             do_qmmm_swave,&
                                              do_qmmm_pcharge,&
+                                             do_qmmm_swave,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
   USE input_section_types,             ONLY: section_get_ivals,&

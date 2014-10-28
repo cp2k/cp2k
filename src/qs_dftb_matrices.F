@@ -35,19 +35,15 @@ MODULE qs_dftb_matrices
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE ewald_environment_types,         ONLY: ewald_environment_type,&
+  USE ewald_environment_types,         ONLY: ewald_env_create,&
                                              ewald_env_get,&
-                                             ewald_env_set,&
-                                             ewald_env_create,&
-                                             ewald_env_retain,&
                                              ewald_env_release,&
+                                             ewald_env_set,&
+                                             ewald_environment_type,&
                                              read_ewald_section
-  USE ewald_pw_types,                  ONLY: ewald_pw_type,&
+  USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
-                                             ewald_pw_retain,&
-                                             ewald_pw_create,&
-                                             ewald_pw_get,&
-                                             ewald_pw_set
+                                             ewald_pw_type
   USE f77_blas
   USE input_constants,                 ONLY: do_fist_pol_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -57,9 +53,9 @@ MODULE qs_dftb_matrices
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_methods,                ONLY: get_particle_set
-  USE particle_types,                  ONLY: particle_type,&
-                                             allocate_particle_set,&
-                                             deallocate_particle_set
+  USE particle_types,                  ONLY: allocate_particle_set,&
+                                             deallocate_particle_set,&
+                                             particle_type
   USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -92,8 +88,8 @@ MODULE qs_dftb_matrices
                                              neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE spme,                            ONLY: spme_potential,&
-                                             spme_forces
+  USE spme,                            ONLY: spme_forces,&
+                                             spme_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -1235,15 +1231,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_qmmm_matrix_pc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, handle, i, j, iatom, ikind, &
-                                                istat, jatom, natom, natorb, nmm, &
-                                                nkind, ewald_type, do_ipol, ipot, imp, imm, indmm
+    INTEGER :: blk, do_ipol, ewald_type, handle, i, iatom, ikind, imm, imp, &
+      indmm, ipot, istat, jatom, natom, natorb, nkind, nmm
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, failure, found, do_multipoles
+    LOGICAL                                  :: defined, do_multipoles, &
+                                                failure, found
     REAL(KIND=dp)                            :: alpha
-    REAL(KIND=dp), DIMENSION(2)              :: rcutoff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: qpot, charges_mm
+    REAL(KIND=dp), DIMENSION(2)              :: rcutoff
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges_mm, qpot
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1252,20 +1248,18 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
-    TYPE(ewald_environment_type), POINTER    :: ewald_env 
-    TYPE(ewald_pw_type), POINTER             :: ewald_pw 
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles_qm
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: atoms_mm
+      POINTER                                :: atoms_mm, particles_qm
     TYPE(qmmm_pot_type), POINTER             :: Pot
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: poisson_section, ewald_section,&
-                                                print_section
+    TYPE(section_vals_type), POINTER         :: ewald_section, &
+                                                poisson_section, print_section
 
     CALL timeset(routineN,handle)
 
@@ -1715,18 +1709,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_dftb_qmmm_matrix_pc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, blk, handle, i, j, iatom, ikind, iqm, istat, jatom, &
-      natom, natorb, nkind, nspins, number_qm_atoms, ewald_type, do_ipol, &
-      nmm, ipot, imp, imm, indmm
+    INTEGER :: atom_a, blk, do_ipol, ewald_type, handle, i, iatom, ikind, &
+      imm, imp, indmm, ipot, iqm, istat, jatom, natom, natorb, nkind, nmm, &
+      nspins, number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, failure, found, &
-                                                do_multipoles
-    REAL(KIND=dp)                            :: fi, gmij, zeff, alpha
-    REAL(KIND=dp), DIMENSION(2)              :: rcutoff
+    LOGICAL                                  :: defined, do_multipoles, &
+                                                failure, found
+    REAL(KIND=dp)                            :: alpha, fi, gmij, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, qpot, charges_mm
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dsblock, Forces_QM, &
-                                                Forces_MM, pblock, sblock
+    REAL(KIND=dp), DIMENSION(2)              :: rcutoff
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges_mm, mcharge, qpot
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dsblock, Forces_MM, &
+                                                Forces_QM, pblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -1737,15 +1731,15 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles_qm, atoms_mm
+      POINTER                                :: atoms_mm, particles_qm
     TYPE(qmmm_pot_type), POINTER             :: Pot
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: poisson_section, ewald_section,&
-                                                print_section
+    TYPE(section_vals_type), POINTER         :: ewald_section, &
+                                                poisson_section, print_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -2111,9 +2105,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_pot', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: qsmall = 1.0e-15_dp
 
     INTEGER                                  :: handle, Imm, Imp, IndMM, Ipot
-    REAL(KIND=dp), PARAMETER                 :: qsmall = 1.0e-15_dp
     REAL(KIND=dp)                            :: dr, qeff, rt1, rt2, rt3, &
                                                 sph_chrg_factor, sr
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
@@ -2181,8 +2175,9 @@ CONTAINS
        particles_mm, mm_charges, mm_atom_index, mm_cell, IndQM, &
        forces, forces_qm, qmmm_spherical_cutoff, particles_qm, error)
 
-    REAL(KIND=dp), INTENT(IN)                :: qcharge, qm_alpha
+    REAL(KIND=dp), INTENT(IN)                :: qcharge
     INTEGER, INTENT(IN)                      :: pot_type
+    REAL(KIND=dp), INTENT(IN)                :: qm_alpha
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
     TYPE(particle_type), DIMENSION(:), &
@@ -2201,9 +2196,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_mm_dpot', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: qsmall = 1.0e-15_dp
 
     INTEGER                                  :: handle, Imm, Imp, IndMM, Ipot
-    REAL(KIND=dp), PARAMETER                 :: qsmall = 1.0e-15_dp
     REAL(KIND=dp)                            :: dr, drm, drp, dsr, fsr, qeff, &
                                                 rt1, rt2, rt3, sph_chrg_factor
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, r_pbc, rij

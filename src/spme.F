@@ -459,8 +459,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: box
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set_a
-    REAL(KIND=dp), DIMENSION(:), &
-      POINTER                                :: charges_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges_a
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set_b
     REAL(KIND=dp), DIMENSION(:), &
@@ -470,31 +469,26 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ipart, j, &
-                                                n, ncore, npart_a, npart_b, nshell, &
-                                                o_spline, p1, p1_shell, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
-                                                shell_center
+    INTEGER                                  :: group, handle, ipart, n, &
+                                                npart_a, npart_b, o_spline, &
+                                                p1, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
-    LOGICAL                                  :: do_shell, failure
-    REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, dvols, fat1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
-    REAL(KIND=dp), DIMENSION(3)              :: fat
-    REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
-    TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_type), POINTER                   :: phi_g, rhob_g, rhob_r
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
 
     failure = .FALSE.
-    NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden, rpot)
+    NULLIFY(grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, &
+         rden, rpot)
     CALL timeset ( routineN, handle )
     CALL cite_reference(Essmann1995)
 
@@ -616,31 +610,27 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: box
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set_a
-    REAL(KIND=dp), DIMENSION(:), &
-      POINTER                                :: charges_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges_a
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set_b
-    REAL(KIND=dp), DIMENSION(:), &
-      POINTER                                :: charges_b
-    REAL(KIND=dp), DIMENSION(:,:), &
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges_b
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: forces_b
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ipart, j, &
-                                                n, ncore, npart_a, npart_b, nshell, &
-                                                o_spline, p1, p1_shell, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
-                                                shell_center
+    INTEGER                                  :: group, handle, i, ipart, n, &
+                                                npart_a, npart_b, o_spline, &
+                                                p1, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa
+    REAL(KIND=dp)                            :: alpha, dvols
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
-    REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
@@ -650,10 +640,11 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
-    TYPE(realspace_grid_type), POINTER       :: rden, rpot
+    TYPE(realspace_grid_type), POINTER       :: rden
 
     failure = .FALSE.
-    NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden, rpot)
+    NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, &
+         pw_pool, rden)
     CALL timeset ( routineN, handle )
     CALL cite_reference(Essmann1995)
 

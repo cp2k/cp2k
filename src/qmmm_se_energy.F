@@ -31,7 +31,7 @@ MODULE qmmm_se_energy
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, &
-       do_qmmm_swave, do_qmmm_pcharge, use_orb_basis_set
+       do_qmmm_pcharge, do_qmmm_swave, use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE multipole_types,                 ONLY: do_multipole_none

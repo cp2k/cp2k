@@ -19,8 +19,8 @@ MODULE qmmm_per_elpot
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
-                                             do_qmmm_pcharge,&
                                              do_qmmm_gauss,&
+                                             do_qmmm_pcharge,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
