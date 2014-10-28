@@ -26,13 +26,49 @@ acc_opencl_host_buffer_node_type *host_buffer_list_tail = NULL;
 // defines the ACC interface
 #include "../include/acc.h"
 
+#define BUILD_OPTIONS "-I . -D__ACC\0"
+
+// debug flag
 static const int verbose_print = 0;
+static const int verbose_src = 0;
+static const int verbose_ptx = 0;
 
 
-/****************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/****************************************************************************/
+/*
+ * Open and read a file from given environment path.
+ */
+inline void read_file_at_path (char **string, size_t *slength, char *path_env,
+                               char *file_name)
+{
+  FILE *fIn;                     // a file
+  char *path = getenv(path_env); // the content of the environment variable
+  char *file_path = NULL;        // an absolute PATH to a file
+
+  if (! path) {
+    fprintf(stdout, "\n Missing ENVIRONMENT VARIABLE: \"%s\"!\n", path_env);
+    fprintf(stdout, " Please specify directory of kernel file: \"%s\".\n\n", file_name); 
+    fflush(stdout);
+    exit(-1);
+  }
+  file_path = malloc(strlen(path) + strlen(file_name) + 2);
+  strcpy(file_path, path); strcat(file_path, "/"); strcat(file_path, file_name);
+  fIn = fopen(file_path, "r");
+  fseek(fIn, 0L, SEEK_END);
+  *slength = ftell(fIn);
+  *string = (char *) malloc(sizeof(char) * (*slength + 1));
+  rewind(fIn);
+  fread(*string, sizeof(char), *slength, fIn);
+  fclose(fIn);
+  free(file_path);
+}
+
+
+/****************************************************************************/
 /*
  * Create a device buffer object of 'cl_mem' type
  *
@@ -53,7 +89,7 @@ int acc_dev_mem_allocate (void **dev_mem, size_t n){
   *dev_buffer = clCreateBuffer(                // cl_mem
                   (*acc_opencl_my_device).ctx, // cl_context   context
                   (CL_MEM_READ_WRITE),         // cl_mem_flags flags
-                  (size_t) n,                  // size_t       size [bytes]
+                  n,                           // size_t       size [bytes]
                   NULL,                        // void         *host_ptr
                   &cl_error);                  // cl_int       *errcode_ret
   if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
@@ -68,15 +104,9 @@ int acc_dev_mem_allocate (void **dev_mem, size_t n){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 /*
  * Destroy a device buffer object of 'cl_mem' type.
  */
@@ -109,15 +139,9 @@ int acc_dev_mem_deallocate (void *dev_mem){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 /*
  * Create a host memory pointer to memory of size 'n' bytes and an associated
  * host buffer object of 'cl_mem' type.
@@ -142,7 +166,7 @@ int acc_host_mem_allocate (void **host_mem, size_t n, void *stream){
   cl_mem host_buffer = clCreateBuffer(                               // cl_mem
                         opencl_ctx,                                  // cl_context   context
                         (CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR), // cl_mem_flags flags
-                        (size_t) n,                                  // size_t       size [bytes]
+                        n,                                           // size_t       size [bytes]
                         NULL,                                        // void         *host_ptr
                         &cl_error);                                  // cl_int       *errcode_ret
   if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
@@ -150,10 +174,10 @@ int acc_host_mem_allocate (void **host_mem, size_t n, void *stream){
   *host_mem = (void *) clEnqueueMapBuffer(             // cl_mem
                          opencl_queue,                 // cl_command_queue command_queue
                          host_buffer,                  // cl_mem           buffer
-                         CL_TRUE,                      // cl_bool          blocking_map
+                         CL_FALSE,                     // cl_bool          blocking_map
                          (CL_MAP_READ | CL_MAP_WRITE), // cl_map_flags     map_flags
                          (size_t) 0,                   // size_t           offset
-                         (size_t) n,                   // size_t           cb [bytes]
+                         n,                            // size_t           cb [bytes]
                          (cl_uint) 0,                  // cl_uint          num_events_in_wait_list
                          NULL,                         // const cl_event   *event_wait_list
                          NULL,                         // cl_event         *event
@@ -190,15 +214,9 @@ int acc_host_mem_allocate (void **host_mem, size_t n, void *stream){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_host_mem_deallocate (void *host_mem, void *stream){
 
   // debug infos
@@ -255,15 +273,9 @@ int acc_host_mem_deallocate (void *host_mem, void *stream){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_memcpy_h2d (const void *host_mem, void *dev_mem, size_t count, void *stream){
   // debug info
   if (verbose_print){
@@ -282,9 +294,9 @@ int acc_memcpy_h2d (const void *host_mem, void *dev_mem, size_t count, void *str
   cl_error = clEnqueueWriteBuffer( // cl_int
                opencl_queue,       // cl_command_queue command_queue
                *dev_buffer,        // cl_mem           buffer
-               CL_TRUE,            // cl_bool          blocking_write
+               CL_FALSE,           // cl_bool          blocking_write
                (size_t) 0,         // size_t           offset
-               (size_t) count,     // size_t           cb
+               count,              // size_t           cb
                host_mem,           // const void       *ptr
                (cl_uint) 0,        // cl_uint          num_evenets_in_wait_list
                NULL,               // cl_event         *event_wait_list
@@ -304,15 +316,9 @@ int acc_memcpy_h2d (const void *host_mem, void *dev_mem, size_t count, void *str
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_memcpy_d2h (const void *dev_mem, void *host_mem, size_t count, void *stream){
   // debug info
   if (verbose_print){
@@ -331,9 +337,9 @@ int acc_memcpy_d2h (const void *dev_mem, void *host_mem, size_t count, void *str
   cl_error = clEnqueueReadBuffer( // cl_int
                opencl_queue,      // cl_command_queue command_queue
                *dev_buffer,       // cl_mem           buffer
-               CL_TRUE,           // cl_bool          blocking_read
+               CL_FALSE,          // cl_bool          blocking_read
                (size_t) 0,        // size_t           offset
-               (size_t) count,    // size_t           cb
+               count,             // size_t           cb
                host_mem,          // void             *ptr
                (cl_uint) 0,       // cl_uint          num_evenets_in_wait_list
                NULL,              // cl_event         *event_wait_list
@@ -353,15 +359,9 @@ int acc_memcpy_d2h (const void *dev_mem, void *host_mem, size_t count, void *str
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_memcpy_d2d (const void *devmem_src, void *devmem_dst, size_t count, void *stream){
   // debug info
   if (verbose_print){
@@ -384,7 +384,7 @@ int acc_memcpy_d2d (const void *devmem_src, void *devmem_dst, size_t count, void
                *buffer_dst,       // cl_mem           dst_buffer
                (size_t) 0,        // size_t           src_offset
                (size_t) 0,        // size_t           dst_offset
-               (size_t) count,    // size_t           cb
+               count,             // size_t           cb
                (cl_uint) 0,       // cl_uint          num_evenets_in_wait_list
                NULL,              // cl_event         *event_wait_list
                NULL);             // cl_event         *event
@@ -408,18 +408,11 @@ int acc_memcpy_d2d (const void *devmem_src, void *devmem_dst, size_t count, void
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_memset_zero (void *dev_mem, size_t offset, size_t length, void *stream){
-//       OpenCL 1.1 has no build in function for that!!!
-//       We use cl_uchar because it's 8Bit = 1Byte long.
+
   // debug info
   if (verbose_print){
     fprintf(stdout, "\n --- ZERO DEVICE MEMORY --- \n");
@@ -429,12 +422,13 @@ int acc_memset_zero (void *dev_mem, size_t offset, size_t length, void *stream){
   // local buffer object pointer 
   cl_mem *dev_buffer = (cl_mem *) dev_mem;
 
-  // local stream object pointer
+  // local queue pointer and device + context value 
   acc_opencl_stream_type *opencl_stream = (acc_opencl_stream_type *) stream;
-  cl_command_queue       opencl_queue   = (*opencl_stream).queue;
+  cl_command_queue        opencl_queue  = (*opencl_stream).queue;
 
   // zero the values starting from offset in dev_mem
 #ifdef CL_VERSION_1_2
+  // we use cl_uchar because it's 8Bit = 1Byte long.
   const cl_uchar zero = (cl_uchar) 0;
 
   cl_error = clEnqueueFillBuffer(         // cl_int
@@ -442,33 +436,161 @@ int acc_memset_zero (void *dev_mem, size_t offset, size_t length, void *stream){
                *dev_buffer,               // cl_mem           buffer
                &zero,                     // const void       *pattern
                (size_t) sizeof(cl_uchar), // size_t           pattern_size
-               (size_t) offset,           // size_t           offset
-               (size_t) length,           // size_t           size [bytes]
+               offset,                    // size_t           offset
+               length,                    // size_t           size [bytes]
                (cl_uint) 0,               // cl_uint          num_events_in_wait_list
                NULL,                      // const cl_event   *event_wait_list
                NULL);                     // cl_event         *event
   if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
 #else
-  size_t i;
-  // create a array of size 'lenght' and zero it
-  cl_uchar *host_mem = (cl_uchar *) malloc(length * sizeof(cl_uchar));
-  for (i = 0; i < length; i++){
-    host_mem[i] = (cl_uchar) 0;
+  // OpenCL 1.1 has no build in function for that!!!
+  cl_kernel opencl_kernel = NULL;
+  cl_program opencl_program = NULL;
+  static size_t max_work_items;
+
+  // local queue pointer and device + context value 
+  acc_opencl_dev_type opencl_device = (*opencl_stream).device;
+  cl_context          opencl_ctx    = opencl_device.ctx;
+  cl_device_id        opencl_dev    = opencl_device.device_id;
+
+  // get or create kernel
+  if (zero_kernel) {
+    opencl_kernel = zero_kernel;
+  } else {
+    // read kernel code
+    if (verbose_print) fprintf(stdout,"reading zero kernel ...\n");
+
+    char *string = NULL; // a string
+    size_t slength = 0;  // a string length
+    read_file_at_path(&string, &slength, "ACC_CL_KERNEL_PATH", "cl_memset_zero.cl");
+
+    // get kernel code, build program and kernel
+    if (verbose_print) fprintf(stdout,"building zero kernel ...\n");
+    opencl_program = clCreateProgramWithSource(   // cl_program
+                       opencl_ctx,                // cl_context   context
+                       (cl_uint) 1,               // cl_uint      count
+                       (const char **) &string,   // const char   **strings
+                       (const size_t *) &slength, // const size_t *lengths
+                       &cl_error);                // cl_int       *errcode_ret
+    if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clCreateProgramWithSource %d\n", (int) cl_error);
+
+    free(string);
+
+    if (cl_error == CL_SUCCESS && verbose_src){
+      fprintf(stdout, "\n@@@@@@@@@ SOURCE-DATA: @@@@@@@@@\n");
+      size_t src_sz;
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, (size_t) 0, NULL, &src_sz);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 1 (print source) %d\n", (int) cl_error);
+      char *src = (char *) malloc(src_sz);
+      src[src_sz - 1] = '\0';
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, src_sz, src, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 2 (print source) %d\n", (int) cl_error);
+      fprintf(stdout, "%s", src);
+      free(src);
+      fprintf(stdout, "@@@@@@@@@ END SOURCE-DATA, SIZE=%zu @@@@@@@@@\n", src_sz);
+    }
+
+    cl_error = clBuildProgram(                       // cl_int
+                 opencl_program,                     // cl_program                     program
+                 (cl_uint) 1,                        // cl_uint                        num_devices
+                 (const cl_device_id *) &opencl_dev, // const cl_device_id             *device_list
+                 BUILD_OPTIONS,                      // const char                     *options
+                 NULL,                               // void (CL_CALLBACK* pfn_notify) (cl_program program, void *user_data)
+                 NULL);                              // void                           *user_data
+    if (cl_error != CL_SUCCESS){
+      fprintf(stdout, "\n@@@@@@@@@ BUILD-DATA, ERROR=%d: @@@@@@@@@\n", (int) cl_error);
+      size_t bld_sz;
+      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, (size_t) 0, NULL, &bld_sz);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 1 (print source) %d\n", (int) cl_error);
+      char *bld = (char *) malloc(bld_sz);
+      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, bld_sz, bld, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout, "Error 2 (print source) %d\n", (int) cl_error);
+      bld[bld_sz - 1] = '\0';
+      fprintf(stdout, "%s", bld);
+      free(bld);
+      fprintf(stdout, "@@@@@@@@@ END BUILD-DATA, SIZE=%zu @@@@@@@@@\n", bld_sz);
+    }
+
+    if ((cl_error == CL_SUCCESS) && (verbose_ptx)) {
+      fprintf(stdout, "\n@@@@@@@@@ PTX-DATA: @@@@@@@@@\n");
+      size_t ptx_sz;
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &ptx_sz, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 1 (print ptx) %d\n", (int) cl_error);
+      unsigned char *ptx = (unsigned char *) malloc(ptx_sz);
+      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARIES, ptx_sz, &ptx, NULL);
+      if (cl_error != CL_SUCCESS) fprintf(stdout,"Error 2 (print ptx) %d\n", (int) cl_error);
+      ptx[ptx_sz - 1] = '\0';
+      fprintf(stdout, "%s", ptx);
+      free(ptx);
+      fprintf(stdout, "@@@@@@@@@ END PTX-DATA, SIZE=%zu: @@@@@@@@@\n", ptx_sz);
+    }
+
+    opencl_kernel = clCreateKernel(                                    // cl_kernel
+                      opencl_program,                                  // cl_program program
+                      "cl_memset_zero_n4bytes",                        // const char *kernel_name
+                      &cl_error);                                      // cl_int     *errcode_ret
+    if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clCreateKernel %d\n", (int) cl_error);
+
+    // keep for later usage
+    zero_kernel = opencl_kernel;
+
+    // set kernel sizes
+    if (verbose_print) fprintf(stdout,"set zero kernel sizes ...\n");
+
+    cl_uint max_work_item_dims;
+    cl_error = clGetDeviceInfo(                       // cl_int
+                 opencl_dev,                          // cl_device_id device
+                 CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,  // cl_device_info param_name
+                 sizeof(cl_uint),                     // size_t param_value_size
+                 &max_work_item_dims,                 // void *param_value
+                 NULL);                               // size_t *param_value_size_ret
+    size_t *work_items = malloc(sizeof(size_t) * max_work_item_dims);
+    cl_error = clGetDeviceInfo(                       // cl_int
+                 opencl_dev,                          // cl_device_id device
+                 CL_DEVICE_MAX_WORK_ITEM_SIZES,       // cl_device_info param_name
+                 sizeof(size_t) * max_work_item_dims, // size_t param_value_size
+                 work_items,                          // void *param_value
+                 NULL);                               // size_t *param_value_size_ret
+
+    // keep for later usage
+    max_work_items = work_items[0]; // take only the first dimension
+
+    free(work_items);
   }
-  // transfer the 'zero_mem' to device buffer
-  cl_error = clEnqueueWriteBuffer(      // cl_int
-               opencl_queue,            // cl_command_queue command_queue
-               *dev_buffer,             // cl_mem           buffer
-               CL_TRUE,                 // cl_bool          blocking_write
-               (size_t) offset,         // size_t           offset
-               (size_t) length,         // size_t           cb
-               (const void *) host_mem, // const void       *ptr
-               (cl_uint) 0,             // cl_uint          num_event_in_wait_list
-               NULL,                    // const cl_event   *event_wait_list
-               NULL);                   // cl_event         *event
-  if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-  // free host array
-  free(host_mem);
+
+  // set kernel parameters (the kernel runs only for 32bit values, therefore
+  // 'offset and 'length' need to be multiples of '4'
+  if (offset % 4 != 0) return 1;
+  if (length % 4 != 0) return 1;
+  cl_ulong off = (cl_ulong) offset / 4; // offset is originally (size_t)
+  cl_ulong len = (cl_ulong) length / 4; // length is originally (size_t)
+  if (verbose_print) fprintf(stdout,"set zero kernel parameters ...\n");
+  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 0, sizeof(cl_mem), dev_buffer);
+  if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(0) %d\n", (int) cl_error);
+  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 1, sizeof(cl_ulong), &off);
+  if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(1) %d\n", (int) cl_error);
+  cl_error = clSetKernelArg(opencl_kernel, (cl_uint) 2, sizeof(cl_ulong), &len);
+  if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clSetKernelArg(2) %d\n", (int) cl_error);
+
+  // set kernel sizes
+  if (verbose_print) fprintf(stdout,"set zero kernel sizes ...\n");
+  size_t work_groups = (len + max_work_items - 1) / max_work_items;
+  size_t global_work_size[1] = {work_groups * max_work_items};
+  size_t local_work_size[1] = {max_work_items};
+
+  // submit kernel
+  if (verbose_print) fprintf(stdout,"calling zero kernel ...\n");
+  cl_error = clEnqueueNDRangeKernel( // cl_int
+               opencl_queue,         // cl_command_queue command_queue
+               opencl_kernel,        // cl_kernel        kernel
+               (cl_uint) 1,          // cl_uint          work_dim
+               NULL,                 // const size_t     *global_work_offset
+               global_work_size,     // const size_t     *global_work_size
+               local_work_size,      // const size_t     *local_work_size
+               (cl_uint) 0,          // cl_uint          num_events_in_wait_list
+               NULL,                 // const cl_event   *event_wait_list
+               NULL);                // cl_event         *event
+  if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clEnqueueNDRangeKernel %d\n", (int) cl_error);
 #endif
 
   // debug info
@@ -482,15 +604,9 @@ int acc_memset_zero (void *dev_mem, size_t offset, size_t length, void *stream){
   // assign return value
   return 0;
 }
-#ifdef __cplusplus
-}
-#endif
 
 
 /****************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
 int acc_dev_mem_info (size_t *free, size_t *avail){
 // Note: OpenCL 1.x has no build in function for that!!!
   *free = 5500000000; // 5.5GByte
@@ -500,6 +616,8 @@ int acc_dev_mem_info (size_t *free, size_t *avail){
   return 0;
 
 }
+
+
 #ifdef __cplusplus
 }
 #endif
