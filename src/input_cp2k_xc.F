@@ -341,15 +341,15 @@ CONTAINS
             usage="FUNCTIONAL (OL1|OL2|LLP|PW86|PW91|LC|T92|PBE)",&
             enum_c_vals=(/"OL1 ","OL2 ","LLP ","PW86","PW91","LC  ","T92 ","PBE "/),&
             enum_i_vals=(/ke_ol1,ke_ol2,ke_llp,ke_pw86,ke_pw91,ke_lc,ke_t92,ke_pbe/),&
-            enum_desc=s2a("Uses first Ou-Yang and Levy functional",&
-                          "Uses second Ou-Yang and Levy functional",&
+            enum_desc=s2a("Uses first Ou-Yang and Levy functional, currently not producing correct results",&
+                          "Uses second Ou-Yang and Levy functional, currently not producing correct results",&
                           "Uses Lee, Lee, and Parr functional",&
                           "Uses Perdew and Wang’s 1986 functional",&
                           "Uses Perdew and Wang’s 1991 functional",&
                           "Uses Lembarki and Chermette functional",&
                           "Uses Thakkar functional",&
                           "Uses the 1996 functional of Perdew, Burke and Ernzerhof"),&
-            default_i_val=ke_ol1,error=error)
+            default_i_val=ke_llp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
