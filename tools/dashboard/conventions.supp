@@ -1,17 +1,6 @@
-ai_angmom.F.ast: Symbol "coset" in procedure "ai_angmom" is IMPLICIT-SAVE
-ai_angmom.F.ast: Symbol "ncoset" in procedure "ai_angmom" is IMPLICIT-SAVE
-ai_contraction.F.ast: Found CALL DGEMM in procedure "contraction_ab"
-ai_contraction.F.ast: Found CALL DGEMM in procedure "contraction_abc"
-ai_contraction.F.ast: Found CALL DGEMM in procedure "decontraction_ab"
-ai_coulomb.F.ast: Symbol "coset" in procedure "ai_coulomb" is IMPLICIT-SAVE
-ai_coulomb.F.ast: Symbol "ncoset" in procedure "ai_coulomb" is IMPLICIT-SAVE
-ai_coulomb_test.F.ast: Symbol "coset" in procedure "ai_coulomb_test" is IMPLICIT-SAVE
-ai_coulomb_test.F.ast: Symbol "nco" in procedure "ai_coulomb_test" is IMPLICIT-SAVE
-ai_coulomb_test.F.ast: Symbol "ncoset" in procedure "ai_coulomb_test" is IMPLICIT-SAVE
-ai_derivatives.F.ast: Symbol "coset" in procedure "ai_derivatives" is IMPLICIT-SAVE
-ai_derivatives.F.ast: Symbol "ncoset" in procedure "ai_derivatives" is IMPLICIT-SAVE
-ai_elec_field.F.ast: Symbol "coset" in procedure "ai_elec_field" is IMPLICIT-SAVE
-ai_elec_field.F.ast: Symbol "ncoset" in procedure "ai_elec_field" is IMPLICIT-SAVE
+ai_contraction.F.ast: Symbol "dgemm" in "contraction_ab" not defined
+ai_contraction.F.ast: Symbol "dgemm" in "contraction_abc" not defined
+ai_contraction.F.ast: Symbol "dgemm" in "decontraction_ab" not defined
 ai_eri_debug.F.ast: Symbol "a" in procedure "ai_eri_debug" is IMPLICIT-SAVE
 ai_eri_debug.F.ast: Symbol "b" in procedure "ai_eri_debug" is IMPLICIT-SAVE
 ai_eri_debug.F.ast: Symbol "c" in procedure "ai_eri_debug" is IMPLICIT-SAVE
@@ -29,14 +18,9 @@ ai_eri_debug.F.ast: Symbol "xb" in procedure "ai_eri_debug" is IMPLICIT-SAVE
 ai_eri_debug.F.ast: Symbol "xc" in procedure "ai_eri_debug" is IMPLICIT-SAVE
 ai_eri_debug.F.ast: Symbol "xd" in procedure "ai_eri_debug" is IMPLICIT-SAVE
 ai_eri_debug.F.ast: Symbol "xsi" in procedure "ai_eri_debug" is IMPLICIT-SAVE
-ai_fermi_contact.F.ast: Symbol "coset" in procedure "ai_fermi_contact" is IMPLICIT-SAVE
-ai_fermi_contact.F.ast: Symbol "ncoset" in procedure "ai_fermi_contact" is IMPLICIT-SAVE
-ai_geminals.F.ast: Symbol "coset" in procedure "ai_geminals" is IMPLICIT-SAVE
-ai_geminals.F.ast: Symbol "ncoset" in procedure "ai_geminals" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "a" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "ab" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "b" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
-ai_geminals_debug.F.ast: Symbol "coset" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "detg" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "gm" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "i0m" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
@@ -48,20 +32,7 @@ ai_geminals_debug.F.ast: Symbol "xa" in procedure "ai_geminals_debug" is IMPLICI
 ai_geminals_debug.F.ast: Symbol "xb" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "xg" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
 ai_geminals_debug.F.ast: Symbol "xgm" in procedure "ai_geminals_debug" is IMPLICIT-SAVE
-ai_kinetic.F.ast: Symbol "coset" in procedure "ai_kinetic" is IMPLICIT-SAVE
-ai_kinetic.F.ast: Symbol "ncoset" in procedure "ai_kinetic" is IMPLICIT-SAVE
-ai_moments.F.ast: Found CALL DGEMM in procedure "contract_cossin"
-ai_moments.F.ast: Symbol "coset" in procedure "ai_moments" is IMPLICIT-SAVE
-ai_moments.F.ast: Symbol "indco" in procedure "ai_moments" is IMPLICIT-SAVE
-ai_moments.F.ast: Symbol "ncoset" in procedure "ai_moments" is IMPLICIT-SAVE
-ai_oneelectron.F.ast: Symbol "coset" in procedure "ai_oneelectron" is IMPLICIT-SAVE
-ai_oneelectron.F.ast: Symbol "ncoset" in procedure "ai_oneelectron" is IMPLICIT-SAVE
-ai_os_rr.F.ast: Symbol "coset" in procedure "ai_os_rr" is IMPLICIT-SAVE
-ai_overlap.F.ast: Symbol "coset" in procedure "ai_overlap" is IMPLICIT-SAVE
-ai_overlap.F.ast: Symbol "ncoset" in procedure "ai_overlap" is IMPLICIT-SAVE
-ai_overlap3.F.ast: Symbol "coset" in procedure "ai_overlap3" is IMPLICIT-SAVE
-ai_overlap3.F.ast: Symbol "indco" in procedure "ai_overlap3" is IMPLICIT-SAVE
-ai_overlap3.F.ast: Symbol "ncoset" in procedure "ai_overlap3" is IMPLICIT-SAVE
+ai_moments.F.ast: Symbol "dgemm" in "contract_cossin" not defined
 ai_overlap3_debug.F.ast: Symbol "a" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
 ai_overlap3_debug.F.ast: Symbol "b" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
 ai_overlap3_debug.F.ast: Symbol "c" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
@@ -73,9 +44,6 @@ ai_overlap3_debug.F.ast: Symbol "xb" in procedure "ai_overlap3_debug" is IMPLICI
 ai_overlap3_debug.F.ast: Symbol "xc" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
 ai_overlap3_debug.F.ast: Symbol "xsi" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
 ai_overlap3_debug.F.ast: Symbol "zeta" in procedure "ai_overlap3_debug" is IMPLICIT-SAVE
-ai_overlap_aabb.F.ast: Symbol "coset" in procedure "ai_overlap_aabb" is IMPLICIT-SAVE
-ai_overlap_aabb.F.ast: Symbol "indco" in procedure "ai_overlap_aabb" is IMPLICIT-SAVE
-ai_overlap_aabb.F.ast: Symbol "ncoset" in procedure "ai_overlap_aabb" is IMPLICIT-SAVE
 ai_overlap_debug.F.ast: Symbol "a" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
 ai_overlap_debug.F.ast: Symbol "b" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
 ai_overlap_debug.F.ast: Symbol "p" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
@@ -84,41 +52,21 @@ ai_overlap_debug.F.ast: Symbol "xa" in procedure "ai_overlap_debug" is IMPLICIT-
 ai_overlap_debug.F.ast: Symbol "xb" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
 ai_overlap_debug.F.ast: Symbol "xsi" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
 ai_overlap_debug.F.ast: Symbol "zeta" in procedure "ai_overlap_debug" is IMPLICIT-SAVE
-ai_spin_orbit.F.ast: Symbol "coset" in procedure "ai_spin_orbit" is IMPLICIT-SAVE
-ai_spin_orbit.F.ast: Symbol "ncoset" in procedure "ai_spin_orbit" is IMPLICIT-SAVE
-ai_verfc.F.ast: Symbol "coset" in procedure "ai_verfc" is IMPLICIT-SAVE
-ai_verfc.F.ast: Symbol "ncoset" in procedure "ai_verfc" is IMPLICIT-SAVE
+almo_scf_diis_types.F.ast: Symbol "dsyev" in "almo_scf_diis_extrapolate" not defined
+almo_scf_methods.F.ast: Symbol "dpotrf" in "pseudo_invert_matrix" not defined
+almo_scf_methods.F.ast: Symbol "dpotri" in "pseudo_invert_matrix" not defined
+almo_scf_methods.F.ast: Symbol "dsyev" in "almo_scf_ks_blk_to_tv_blk" not defined
+almo_scf_methods.F.ast: Symbol "dsyev" in "almo_scf_ks_xx_to_tv_xx" not defined
+almo_scf_methods.F.ast: Symbol "dsyev" in "hessian_diag_apply" not defined
+almo_scf_methods.F.ast: Symbol "dsyev" in "matrix_sqrt" not defined
+almo_scf_methods.F.ast: Symbol "dsyev" in "pseudo_invert_matrix" not defined
 almo_scf_optimizer.F.ast: Found CLOSE statement in procedure "almo_scf_xalmo_pcg"
 almo_scf_optimizer.F.ast: Found OPEN statement in procedure "almo_scf_xalmo_pcg"
-ao_util.F.ast: Symbol "coset" in procedure "ao_util" is IMPLICIT-SAVE
-ao_util.F.ast: Symbol "indco" in procedure "ao_util" is IMPLICIT-SAVE
-ao_util.F.ast: Symbol "nco" in procedure "ao_util" is IMPLICIT-SAVE
-ao_util.F.ast: Symbol "ncoset" in procedure "ao_util" is IMPLICIT-SAVE
-ao_util.F.ast: Symbol "nso" in procedure "ao_util" is IMPLICIT-SAVE
-ao_util.F.ast: Symbol "nsoset" in procedure "ao_util" is IMPLICIT-SAVE
-ao_util.F.ast: Symbol "orbtramat" in procedure "ao_util" is IMPLICIT-SAVE
-atom.F.ast: Symbol "ptable" in procedure "atom" is IMPLICIT-SAVE
-atom_basis.F.ast: Symbol "ptable" in procedure "atom_basis" is IMPLICIT-SAVE
-atom_energy.F.ast: Symbol "ptable" in procedure "atom_energy" is IMPLICIT-SAVE
-atom_fit.F.ast: Symbol "ptable" in procedure "atom_fit" is IMPLICIT-SAVE
-atom_kind_orbitals.F.ast: Symbol "ptable" in procedure "atom_kind_orbitals" is IMPLICIT-SAVE
-atom_operators.F.ast: Symbol "ptable" in procedure "atom_operators" is IMPLICIT-SAVE
-atom_output.F.ast: Symbol "ptable" in procedure "atom_output" is IMPLICIT-SAVE
-atom_pseudo.F.ast: Symbol "ptable" in procedure "atom_pseudo" is IMPLICIT-SAVE
-atom_types.F.ast: Symbol "ptable" in procedure "atom_types" is IMPLICIT-SAVE
-atom_utils.F.ast: Symbol "ptable" in procedure "atom_utils" is IMPLICIT-SAVE
 atom_xc.F.ast: Found CLOSE statement in procedure "calculate_atom_vxc_lda"
 atom_xc.F.ast: Found OPEN statement in procedure "calculate_atom_vxc_lda"
 atom_xc.F.ast: Symbol "failure" in procedure "calculate_atom_ext_vxc" is IMPLICIT-SAVE
 atom_xc.F.ast: Symbol "failure" in procedure "calculate_atom_zmp" is IMPLICIT-SAVE
-basis_set_types.F.ast: Found CALL DGEMM in procedure "init_cphi_and_sphi"
-basis_set_types.F.ast: Symbol "coset" in procedure "basis_set_types" is IMPLICIT-SAVE
-basis_set_types.F.ast: Symbol "indco" in procedure "basis_set_types" is IMPLICIT-SAVE
-basis_set_types.F.ast: Symbol "nco" in procedure "basis_set_types" is IMPLICIT-SAVE
-basis_set_types.F.ast: Symbol "ncoset" in procedure "basis_set_types" is IMPLICIT-SAVE
-basis_set_types.F.ast: Symbol "nso" in procedure "basis_set_types" is IMPLICIT-SAVE
-basis_set_types.F.ast: Symbol "nsoset" in procedure "basis_set_types" is IMPLICIT-SAVE
-basis_set_types.F.ast: Symbol "orbtramat" in procedure "basis_set_types" is IMPLICIT-SAVE
+basis_set_types.F.ast: Symbol "dgemm" in "init_cphi_and_sphi" not defined
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "apser"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "basym"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "betaln"
@@ -139,109 +87,117 @@ beta_gamma_psi.F.ast: Found GOTO statement in procedure "gsumln"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "psi"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "rexp"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "rlog1"
-bfgs_optimizer.F.ast: Found CALL DSCAL in procedure "trust_radius"
 bfgs_optimizer.F.ast: Found GOTO statement in procedure "rat_fun_opt"
-cg_utils.F.ast: Found CALL DGEMV in procedure "findmin"
-core_ae.F.ast: Found CALL DGEMM in procedure "build_core_ae"
-core_ae.F.ast: Symbol "coset" in procedure "core_ae" is IMPLICIT-SAVE
-core_ae.F.ast: Symbol "indco" in procedure "core_ae" is IMPLICIT-SAVE
-core_ae.F.ast: Symbol "ncoset" in procedure "core_ae" is IMPLICIT-SAVE
-core_ppl.F.ast: Found CALL DGEMM in procedure "build_core_ppl"
-core_ppl.F.ast: Symbol "ncoset" in procedure "core_ppl" is IMPLICIT-SAVE
-core_ppnl.F.ast: Found CALL DGEMM in procedure "build_core_ppnl"
-core_ppnl.F.ast: Symbol "nco" in procedure "core_ppnl" is IMPLICIT-SAVE
-core_ppnl.F.ast: Symbol "ncoset" in procedure "core_ppnl" is IMPLICIT-SAVE
+bfgs_optimizer.F.ast: Symbol "dscal" in "trust_radius" not defined
+cg_utils.F.ast: Symbol "dgemv" in "findmin" not defined
+cg_utils.F.ast: Symbol "dgesdd" in "findmin" not defined
+core_ae.F.ast: Symbol "dgemm" in "build_core_ae" not defined
+core_ppl.F.ast: Symbol "dgemm" in "build_core_ppl" not defined
+core_ppnl.F.ast: Symbol "dgemm" in "build_core_ppnl" not defined
 cp2k_info.F.ast: Symbol "r_cwd" in procedure "cp2k_info" is IMPLICIT-SAVE
 cp2k_info.F.ast: Symbol "r_datx" in procedure "cp2k_info" is IMPLICIT-SAVE
 cp2k_info.F.ast: Symbol "r_host_name" in procedure "cp2k_info" is IMPLICIT-SAVE
 cp2k_info.F.ast: Symbol "r_pid" in procedure "cp2k_info" is IMPLICIT-SAVE
 cp2k_info.F.ast: Symbol "r_user_name" in procedure "cp2k_info" is IMPLICIT-SAVE
-cp2k_runs.F.ast: Symbol "empty_initial_variables" in procedure "cp2k_runs" is IMPLICIT-SAVE
 cp2k_shell.F.ast: Found GOTO statement in procedure "cp2k_shell"
 cp2k_shell.F.ast: Found OPEN statement in procedure "get_eof_stat"
-cp_cfm_basic_linalg.F.ast: Found CALL ZGEMM in procedure "cp_cfm_gemm"
-cp_cfm_basic_linalg.F.ast: Found CALL ZSCAL in procedure "cp_cfm_column_scale"
-cp_cfm_basic_linalg.F.ast: Found CALL ZTRMM in procedure "cp_cfm_triangular_multiply"
-cp_cfm_basic_linalg.F.ast: Found CALL ZTRSM in procedure "cp_cfm_triangular_multiply"
-cp_cfm_types.F.ast: Found CALL DCOPY in procedure "cp_cfm_create"
-cp_cfm_types.F.ast: Found CALL DCOPY in procedure "cp_cfm_to_cfm_matrix"
-cp_cfm_types.F.ast: Found CALL ZCOPY in procedure "cp_cfm_to_cfm_columns"
-cp_dbcsr_cholesky.F.ast: Found CALL DCOPY in procedure "cp_dbcsr_cholesky_restore"
-cp_dbcsr_cholesky.F.ast: Found CALL DTRMM in procedure "cp_dbcsr_cholesky_restore"
-cp_dbcsr_cholesky.F.ast: Found CALL DTRSM in procedure "cp_dbcsr_cholesky_restore"
-cp_dbcsr_cholesky.F.ast: Found CALL SCOPY in procedure "cp_dbcsr_cholesky_restore"
-cp_dbcsr_cholesky.F.ast: Found CALL STRMM in procedure "cp_dbcsr_cholesky_restore"
-cp_dbcsr_cholesky.F.ast: Found CALL STRSM in procedure "cp_dbcsr_cholesky_restore"
-cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "cp_dbcsr_pack_vec"
-cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_alltoall"
-cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_bcast"
-cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_build_u"
-cp_dbcsr_operations.F.ast: Found CALL DCOPY in procedure "packed_vec_scale"
-cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "cp_dbcsr_mult_pack_vec_local"
-cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "cp_dbcsr_multiply_local_d"
-cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "packed_vec_bif_tech2"
-cp_dbcsr_operations.F.ast: Found CALL DGEMM in procedure "packed_vec_scale"
-cp_dbcsr_operations.F.ast: Found CALL DGEMV in procedure "cp_dbcsr_multiply_local_d"
-cp_dbcsr_operations.F.ast: Found CALL DSCAL in procedure "packed_vec_build_u"
-cp_dbcsr_operations.F.ast: Found CALL SGEMM in procedure "cp_dbcsr_multiply_local_s"
-cp_dbcsr_output.F.ast: Symbol "nso" in procedure "cp_dbcsr_output" is IMPLICIT-SAVE
-cp_dbcsr_util.F.ast: Found CALL DAXPY in procedure "lanczos_alg_serial_d"
-cp_dbcsr_util.F.ast: Found CALL DCOPY in procedure "lanczos_alg_serial_d"
-cp_dbcsr_util.F.ast: Found CALL DSCAL in procedure "lanczos_alg_serial_d"
-cp_dbcsr_util.F.ast: Found CALL SAXPY in procedure "lanczos_alg_serial_s"
-cp_dbcsr_util.F.ast: Found CALL SCOPY in procedure "lanczos_alg_serial_s"
-cp_dbcsr_util.F.ast: Found CALL SSCAL in procedure "lanczos_alg_serial_s"
-cp_ddapc_methods.F.ast: Found CALL DGEMM in procedure "build_der_a_matrix_rows"
-cp_ddapc_util.F.ast: Found CALL DGEMM in procedure "get_ddapc"
+cp_cfm_basic_linalg.F.ast: Symbol "zgemm" in "cp_cfm_gemm" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "zgetrf" in "cp_cfm_lu_decompose" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "zgetrf" in "cp_cfm_solve" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "zgetrs" in "cp_cfm_solve" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "zpotrf" in "cp_cfm_cholesky_decompose" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "zscal" in "cp_cfm_column_scale" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "ztrmm" in "cp_cfm_triangular_multiply" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "ztrsm" in "cp_cfm_triangular_multiply" not defined
+cp_cfm_basic_linalg.F.ast: Symbol "ztrtri" in "cp_cfm_triangular_invert" not defined
+cp_cfm_diag.F.ast: Symbol "zheevd" in "cp_cfm_heevd" not defined
+cp_cfm_types.F.ast: Symbol "dcopy" in "cp_cfm_create" not defined
+cp_cfm_types.F.ast: Symbol "dcopy" in "cp_cfm_to_cfm_matrix" not defined
+cp_cfm_types.F.ast: Symbol "dlarnv" in "cp_cfm_init_random" not defined
+cp_cfm_types.F.ast: Symbol "zcopy" in "cp_cfm_to_cfm_columns" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "dcopy" in "cp_dbcsr_cholesky_restore" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "dpotrf" in "cp_dbcsr_cholesky_decompose" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "dpotri" in "cp_dbcsr_cholesky_invert" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "dsygst" in "cp_dbcsr_cholesky_reduce" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "dtrmm" in "cp_dbcsr_cholesky_restore" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "dtrsm" in "cp_dbcsr_cholesky_restore" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "scopy" in "cp_dbcsr_cholesky_restore" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "spotrf" in "cp_dbcsr_cholesky_decompose" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "spotri" in "cp_dbcsr_cholesky_invert" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "strmm" in "cp_dbcsr_cholesky_restore" not defined
+cp_dbcsr_cholesky.F.ast: Symbol "strsm" in "cp_dbcsr_cholesky_restore" not defined
+cp_dbcsr_operations.F.ast: Symbol "dcopy" in "cp_dbcsr_pack_vec" not defined
+cp_dbcsr_operations.F.ast: Symbol "dcopy" in "packed_vec_alltoall" not defined
+cp_dbcsr_operations.F.ast: Symbol "dcopy" in "packed_vec_bcast" not defined
+cp_dbcsr_operations.F.ast: Symbol "dcopy" in "packed_vec_build_u" not defined
+cp_dbcsr_operations.F.ast: Symbol "dcopy" in "packed_vec_scale" not defined
+cp_dbcsr_operations.F.ast: Symbol "dgemm" in "cp_dbcsr_mult_pack_vec_local" not defined
+cp_dbcsr_operations.F.ast: Symbol "dgemm" in "cp_dbcsr_multiply_local_d" not defined
+cp_dbcsr_operations.F.ast: Symbol "dgemm" in "packed_vec_bif_tech2" not defined
+cp_dbcsr_operations.F.ast: Symbol "dgemm" in "packed_vec_scale" not defined
+cp_dbcsr_operations.F.ast: Symbol "dgemv" in "cp_dbcsr_multiply_local_d" not defined
+cp_dbcsr_operations.F.ast: Symbol "dscal" in "packed_vec_build_u" not defined
+cp_dbcsr_operations.F.ast: Symbol "sgemm" in "cp_dbcsr_multiply_local_s" not defined
+cp_dbcsr_util.F.ast: Symbol "daxpy" in "lanczos_alg_serial_d" not defined
+cp_dbcsr_util.F.ast: Symbol "dcopy" in "lanczos_alg_serial_d" not defined
+cp_dbcsr_util.F.ast: Symbol "dscal" in "lanczos_alg_serial_d" not defined
+cp_dbcsr_util.F.ast: Symbol "dsyev" in "lanczos_alg_serial_d" not defined
+cp_dbcsr_util.F.ast: Symbol "dsyev" in "lanczos_alg_serial_s" not defined
+cp_dbcsr_util.F.ast: Symbol "saxpy" in "lanczos_alg_serial_s" not defined
+cp_dbcsr_util.F.ast: Symbol "scopy" in "lanczos_alg_serial_s" not defined
+cp_dbcsr_util.F.ast: Symbol "sscal" in "lanczos_alg_serial_s" not defined
 cp_files.F.ast: Found CLOSE statement in procedure "close_file"
 cp_files.F.ast: Found OPEN statement in procedure "open_file"
 cp_files.F.ast: Symbol "preconnected" in procedure "cp_files" is IMPLICIT-SAVE
-cp_fm_basic_linalg.F.ast: Found CALL DAXPY in procedure "cp_fm_scale_and_add"
-cp_fm_basic_linalg.F.ast: Found CALL DGEMM in procedure "cp_fm_gemm"
-cp_fm_basic_linalg.F.ast: Found CALL DGER in procedure "cp_fm_ger"
-cp_fm_basic_linalg.F.ast: Found CALL DSCAL in procedure "cp_fm_column_scale"
-cp_fm_basic_linalg.F.ast: Found CALL DSCAL in procedure "cp_fm_scale"
-cp_fm_basic_linalg.F.ast: Found CALL DSCAL in procedure "cp_fm_scale_and_add"
-cp_fm_basic_linalg.F.ast: Found CALL DSYMM in procedure "cp_fm_symm"
-cp_fm_basic_linalg.F.ast: Found CALL DSYRK in procedure "cp_fm_syrk"
-cp_fm_basic_linalg.F.ast: Found CALL DTRMM in procedure "cp_fm_triangular_multiply"
-cp_fm_basic_linalg.F.ast: Found CALL DTRSM in procedure "cp_fm_triangular_multiply"
-cp_fm_basic_linalg.F.ast: Found CALL SAXPY in procedure "cp_fm_scale_and_add"
-cp_fm_basic_linalg.F.ast: Found CALL SGEMM in procedure "cp_fm_gemm"
-cp_fm_basic_linalg.F.ast: Found CALL SSCAL in procedure "cp_fm_column_scale"
-cp_fm_basic_linalg.F.ast: Found CALL SSCAL in procedure "cp_fm_scale_and_add"
-cp_fm_cholesky.F.ast: Found CALL DCOPY in procedure "cp_fm_cholesky_restore"
-cp_fm_cholesky.F.ast: Found CALL DTRMM in procedure "cp_fm_cholesky_restore"
-cp_fm_cholesky.F.ast: Found CALL DTRSM in procedure "cp_fm_cholesky_restore"
-cp_fm_cholesky.F.ast: Found CALL SCOPY in procedure "cp_fm_cholesky_restore"
-cp_fm_cholesky.F.ast: Found CALL STRMM in procedure "cp_fm_cholesky_restore"
-cp_fm_cholesky.F.ast: Found CALL STRSM in procedure "cp_fm_cholesky_restore"
-cp_fm_diag.F.ast: Found CALL DAXPY in procedure "cp_fm_block_jacobi"
-cp_fm_diag.F.ast: Found CALL DCOPY in procedure "cp_fm_block_jacobi"
-cp_fm_diag.F.ast: Found CALL DSCAL in procedure "cp_fm_block_jacobi"
+cp_fm_basic_linalg.F.ast: Symbol "daxpy" in "cp_fm_scale_and_add" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dgemm" in "cp_fm_gemm" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dgeqrf" in "cp_fm_qr_factorization" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dger" in "cp_fm_ger" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dgetrf" in "cp_fm_lu_decompose" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dgetrf" in "cp_fm_solve" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dgetrs" in "cp_fm_solve" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dscal" in "cp_fm_column_scale" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dscal" in "cp_fm_scale" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dscal" in "cp_fm_scale_and_add" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dsymm" in "cp_fm_symm" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dsyrk" in "cp_fm_syrk" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dtrmm" in "cp_fm_triangular_multiply" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dtrsm" in "cp_fm_triangular_multiply" not defined
+cp_fm_basic_linalg.F.ast: Symbol "dtrtri" in "cp_fm_triangular_invert" not defined
+cp_fm_basic_linalg.F.ast: Symbol "saxpy" in "cp_fm_scale_and_add" not defined
+cp_fm_basic_linalg.F.ast: Symbol "sgemm" in "cp_fm_gemm" not defined
+cp_fm_basic_linalg.F.ast: Symbol "sscal" in "cp_fm_column_scale" not defined
+cp_fm_basic_linalg.F.ast: Symbol "sscal" in "cp_fm_scale_and_add" not defined
+cp_fm_cholesky.F.ast: Symbol "dcopy" in "cp_fm_cholesky_restore" not defined
+cp_fm_cholesky.F.ast: Symbol "dpotrf" in "cp_fm_cholesky_decompose" not defined
+cp_fm_cholesky.F.ast: Symbol "dpotri" in "cp_fm_cholesky_invert" not defined
+cp_fm_cholesky.F.ast: Symbol "dsygst" in "cp_fm_cholesky_reduce" not defined
+cp_fm_cholesky.F.ast: Symbol "dtrmm" in "cp_fm_cholesky_restore" not defined
+cp_fm_cholesky.F.ast: Symbol "dtrsm" in "cp_fm_cholesky_restore" not defined
+cp_fm_cholesky.F.ast: Symbol "scopy" in "cp_fm_cholesky_restore" not defined
+cp_fm_cholesky.F.ast: Symbol "spotrf" in "cp_fm_cholesky_decompose" not defined
+cp_fm_cholesky.F.ast: Symbol "spotri" in "cp_fm_cholesky_invert" not defined
+cp_fm_cholesky.F.ast: Symbol "strmm" in "cp_fm_cholesky_restore" not defined
+cp_fm_cholesky.F.ast: Symbol "strsm" in "cp_fm_cholesky_restore" not defined
+cp_fm_diag.F.ast: Symbol "daxpy" in "cp_fm_block_jacobi" not defined
+cp_fm_diag.F.ast: Symbol "dcopy" in "cp_fm_block_jacobi" not defined
+cp_fm_diag.F.ast: Symbol "dscal" in "cp_fm_block_jacobi" not defined
+cp_fm_diag.F.ast: Symbol "dsyevd" in "cp_fm_syevd" not defined
+cp_fm_diag.F.ast: Symbol "dsyevx" in "cp_fm_syevr" not defined
+cp_fm_diag.F.ast: Symbol "dsyevx" in "cp_fm_syevx" not defined
 cp_fm_struct.F.ast: Symbol "force_block_size" in procedure "cp_fm_struct" is IMPLICIT-SAVE
 cp_fm_struct.F.ast: Symbol "optimal_blacs_col_block_size" in procedure "cp_fm_struct" is IMPLICIT-SAVE
 cp_fm_struct.F.ast: Symbol "optimal_blacs_row_block_size" in procedure "cp_fm_struct" is IMPLICIT-SAVE
-cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_create"
-cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_set_all"
-cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_to_fm_columns"
-cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_to_fm_matrix"
-cp_fm_types.F.ast: Found CALL DCOPY in procedure "cp_fm_to_fm_submat"
-cp_fm_types.F.ast: Found CALL SCOPY in procedure "cp_fm_create"
-cp_fm_types.F.ast: Found CALL SCOPY in procedure "cp_fm_set_all"
-cp_fm_types.F.ast: Found CALL SCOPY in procedure "cp_fm_to_fm_matrix"
+cp_fm_types.F.ast: Symbol "dcopy" in "cp_fm_create" not defined
+cp_fm_types.F.ast: Symbol "dcopy" in "cp_fm_set_all" not defined
+cp_fm_types.F.ast: Symbol "dcopy" in "cp_fm_to_fm_columns" not defined
+cp_fm_types.F.ast: Symbol "dcopy" in "cp_fm_to_fm_matrix" not defined
+cp_fm_types.F.ast: Symbol "dcopy" in "cp_fm_to_fm_submat" not defined
+cp_fm_types.F.ast: Symbol "dlacpy" in "cp_fm_to_fm_triangular" not defined
 cp_fm_types.F.ast: Symbol "mm_type" in procedure "cp_fm_types" is IMPLICIT-SAVE
-cp_lbfgs.F.ast: Found CALL DAXPY in procedure "cauchy"
-cp_lbfgs.F.ast: Found CALL DAXPY in procedure "dtrsl"
-cp_lbfgs.F.ast: Found CALL DCOPY in procedure "cauchy"
-cp_lbfgs.F.ast: Found CALL DCOPY in procedure "formk"
-cp_lbfgs.F.ast: Found CALL DCOPY in procedure "lnsrlb"
-cp_lbfgs.F.ast: Found CALL DCOPY in procedure "mainlb"
-cp_lbfgs.F.ast: Found CALL DCOPY in procedure "matupd"
-cp_lbfgs.F.ast: Found CALL DCOPY in procedure "subsm"
-cp_lbfgs.F.ast: Found CALL DSCAL in procedure "cauchy"
-cp_lbfgs.F.ast: Found CALL DSCAL in procedure "mainlb"
-cp_lbfgs.F.ast: Found CALL DSCAL in procedure "subsm"
+cp_fm_types.F.ast: Symbol "scopy" in "cp_fm_create" not defined
+cp_fm_types.F.ast: Symbol "scopy" in "cp_fm_set_all" not defined
+cp_fm_types.F.ast: Symbol "scopy" in "cp_fm_to_fm_matrix" not defined
 cp_lbfgs.F.ast: Found GOTO statement in procedure "cauchy"
 cp_lbfgs.F.ast: Found GOTO statement in procedure "dcsrch"
 cp_lbfgs.F.ast: Found GOTO statement in procedure "dpofa"
@@ -252,82 +208,111 @@ cp_lbfgs.F.ast: Found GOTO statement in procedure "mainlb"
 cp_lbfgs.F.ast: Found GOTO statement in procedure "prn3lb"
 cp_lbfgs.F.ast: Found GOTO statement in procedure "subsm"
 cp_lbfgs.F.ast: Found OPEN statement in procedure "mainlb"
+cp_lbfgs.F.ast: Symbol "daxpy" in "cauchy" not defined
+cp_lbfgs.F.ast: Symbol "daxpy" in "dtrsl" not defined
+cp_lbfgs.F.ast: Symbol "dcopy" in "cauchy" not defined
+cp_lbfgs.F.ast: Symbol "dcopy" in "formk" not defined
+cp_lbfgs.F.ast: Symbol "dcopy" in "lnsrlb" not defined
+cp_lbfgs.F.ast: Symbol "dcopy" in "mainlb" not defined
+cp_lbfgs.F.ast: Symbol "dcopy" in "matupd" not defined
+cp_lbfgs.F.ast: Symbol "dcopy" in "subsm" not defined
+cp_lbfgs.F.ast: Symbol "dscal" in "cauchy" not defined
+cp_lbfgs.F.ast: Symbol "dscal" in "mainlb" not defined
+cp_lbfgs.F.ast: Symbol "dscal" in "subsm" not defined
 cp_log_handling.F.ast: Symbol "stack_pointer" in procedure "cp_log_handling" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "comm_thread" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "memory" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "mpi_reorder" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "mpi_sched" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "print_branch" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "print_full" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "print_proc" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "print_resume" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "print_thread" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "print_thread_cur" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "process" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "thread" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "use_mempol" in procedure "cp_ma_interface" is IMPLICIT-SAVE
-cp_ma_interface.F.ast: Symbol "use_sched" in procedure "cp_ma_interface" is IMPLICIT-SAVE
 cp_parser_types.F.ast: Symbol "empty_initial_variables" in procedure "cp_parser_types" is IMPLICIT-SAVE
-cp_symmetry.F.ast: Symbol "pgrd" in procedure "cp_symmetry" is IMPLICIT-SAVE
-cp_symmetry.F.ast: Symbol "pgrp" in procedure "cp_symmetry" is IMPLICIT-SAVE
-dbcsr_api.F.ast: Symbol "array_i1d_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "dbcsr_data_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "dbcsr_distribution_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "dbcsr_error_type" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "dbcsr_iterator" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "dbcsr_mp_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "dbcsr_obj" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "dbcsr_scalar_type" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_api.F.ast: Symbol "heap_t" in procedure "dbcsr_api" is IMPLICIT-TYPE
-dbcsr_blas_operations.F.ast: Found CALL CCOPY in procedure "dbcsr_blas_copy"
-dbcsr_blas_operations.F.ast: Found CALL CGEMM in procedure "dbcsr_blas_gemm"
-dbcsr_blas_operations.F.ast: Found CALL CSCAL in procedure "dbcsr_blas_scal"
-dbcsr_blas_operations.F.ast: Found CALL DCOPY in procedure "dbcsr_blas_copy"
-dbcsr_blas_operations.F.ast: Found CALL DGEMM in procedure "dbcsr_blas_gemm"
-dbcsr_blas_operations.F.ast: Found CALL DSCAL in procedure "dbcsr_blas_scal"
-dbcsr_blas_operations.F.ast: Found CALL SCOPY in procedure "dbcsr_blas_copy"
-dbcsr_blas_operations.F.ast: Found CALL SGEMM in procedure "dbcsr_blas_gemm"
-dbcsr_blas_operations.F.ast: Found CALL SSCAL in procedure "dbcsr_blas_scal"
-dbcsr_blas_operations.F.ast: Found CALL ZCOPY in procedure "dbcsr_blas_copy"
-dbcsr_blas_operations.F.ast: Found CALL ZGEMM in procedure "dbcsr_blas_gemm"
-dbcsr_blas_operations.F.ast: Found CALL ZSCAL in procedure "dbcsr_blas_scal"
-dbcsr_block_access.F.ast: Found CALL CAXPY in procedure "dbcsr_put_block_c"
-dbcsr_block_access.F.ast: Found CALL CCOPY in procedure "dbcsr_get_2d_block_c"
-dbcsr_block_access.F.ast: Found CALL CCOPY in procedure "dbcsr_put_block_c"
-dbcsr_block_access.F.ast: Found CALL DAXPY in procedure "dbcsr_put_block_d"
-dbcsr_block_access.F.ast: Found CALL DCOPY in procedure "dbcsr_get_2d_block_d"
-dbcsr_block_access.F.ast: Found CALL DCOPY in procedure "dbcsr_put_block_d"
-dbcsr_block_access.F.ast: Found CALL SAXPY in procedure "dbcsr_put_block_s"
-dbcsr_block_access.F.ast: Found CALL SCOPY in procedure "dbcsr_get_2d_block_s"
-dbcsr_block_access.F.ast: Found CALL SCOPY in procedure "dbcsr_put_block_s"
-dbcsr_block_access.F.ast: Found CALL ZAXPY in procedure "dbcsr_put_block_z"
-dbcsr_block_access.F.ast: Found CALL ZCOPY in procedure "dbcsr_get_2d_block_z"
-dbcsr_block_access.F.ast: Found CALL ZCOPY in procedure "dbcsr_put_block_z"
-dbcsr_config.F.ast: Symbol "external_timeset" in procedure "dbcsr_config" is IMPLICIT-SAVE
-dbcsr_config.F.ast: Symbol "external_timestop" in procedure "dbcsr_config" is IMPLICIT-SAVE
+ct_methods.F.ast: Symbol "dsyev" in "diagonalize_diagonal_blocks" not defined
+d3_poly.F.ast: Symbol "random_number" in "poly_random" not defined
+dbcsr_blas_operations.F.ast: Symbol "ccopy" in "dbcsr_blas_copy" not defined
+dbcsr_blas_operations.F.ast: Symbol "cgemm" in "dbcsr_blas_gemm" not defined
+dbcsr_blas_operations.F.ast: Symbol "clarnv" in "dbcsr_lapack_larnv" not defined
+dbcsr_blas_operations.F.ast: Symbol "cscal" in "dbcsr_blas_scal" not defined
+dbcsr_blas_operations.F.ast: Symbol "dcopy" in "dbcsr_blas_copy" not defined
+dbcsr_blas_operations.F.ast: Symbol "dgemm" in "dbcsr_blas_gemm" not defined
+dbcsr_blas_operations.F.ast: Symbol "dlarnv" in "dbcsr_lapack_larnv" not defined
+dbcsr_blas_operations.F.ast: Symbol "dscal" in "dbcsr_blas_scal" not defined
+dbcsr_blas_operations.F.ast: Symbol "scopy" in "dbcsr_blas_copy" not defined
+dbcsr_blas_operations.F.ast: Symbol "sgemm" in "dbcsr_blas_gemm" not defined
+dbcsr_blas_operations.F.ast: Symbol "slarnv" in "dbcsr_lapack_larnv" not defined
+dbcsr_blas_operations.F.ast: Symbol "sscal" in "dbcsr_blas_scal" not defined
+dbcsr_blas_operations.F.ast: Symbol "zcopy" in "dbcsr_blas_copy" not defined
+dbcsr_blas_operations.F.ast: Symbol "zgemm" in "dbcsr_blas_gemm" not defined
+dbcsr_blas_operations.F.ast: Symbol "zlarnv" in "dbcsr_lapack_larnv" not defined
+dbcsr_blas_operations.F.ast: Symbol "zscal" in "dbcsr_blas_scal" not defined
+dbcsr_block_access.F.ast: Symbol "caxpy" in "dbcsr_put_block_c" not defined
+dbcsr_block_access.F.ast: Symbol "ccopy" in "dbcsr_get_2d_block_c" not defined
+dbcsr_block_access.F.ast: Symbol "ccopy" in "dbcsr_put_block_c" not defined
+dbcsr_block_access.F.ast: Symbol "daxpy" in "dbcsr_put_block_d" not defined
+dbcsr_block_access.F.ast: Symbol "dcopy" in "dbcsr_get_2d_block_d" not defined
+dbcsr_block_access.F.ast: Symbol "dcopy" in "dbcsr_put_block_d" not defined
+dbcsr_block_access.F.ast: Symbol "saxpy" in "dbcsr_put_block_s" not defined
+dbcsr_block_access.F.ast: Symbol "scopy" in "dbcsr_get_2d_block_s" not defined
+dbcsr_block_access.F.ast: Symbol "scopy" in "dbcsr_put_block_s" not defined
+dbcsr_block_access.F.ast: Symbol "zaxpy" in "dbcsr_put_block_z" not defined
+dbcsr_block_access.F.ast: Symbol "zcopy" in "dbcsr_get_2d_block_z" not defined
+dbcsr_block_access.F.ast: Symbol "zcopy" in "dbcsr_put_block_z" not defined
+dbcsr_block_operations.F.ast: Symbol "cpotrf" in "block_2d_chol_inv_c" not defined
+dbcsr_block_operations.F.ast: Symbol "cpotri" in "block_2d_chol_inv_c" not defined
+dbcsr_block_operations.F.ast: Symbol "dpotrf" in "block_2d_chol_inv_d" not defined
+dbcsr_block_operations.F.ast: Symbol "dpotri" in "block_2d_chol_inv_d" not defined
+dbcsr_block_operations.F.ast: Symbol "spotrf" in "block_2d_chol_inv_s" not defined
+dbcsr_block_operations.F.ast: Symbol "spotri" in "block_2d_chol_inv_s" not defined
+dbcsr_block_operations.F.ast: Symbol "zpotrf" in "block_2d_chol_inv_z" not defined
+dbcsr_block_operations.F.ast: Symbol "zpotri" in "block_2d_chol_inv_z" not defined
 dbcsr_dist_operations.F.ast: Symbol "idid" in procedure "dbcsr_dist_operations" is IMPLICIT-SAVE
+dbcsr_dist_operations.F.ast: Symbol "random_number" in "dbcsr_dist_bin" not defined
+dbcsr_dist_operations.F.ast: Symbol "random_number" in "test_create_bl_distribution" not defined
+dbcsr_error_handling.F.ast: Symbol "external_timeset" in "dbcsr_error_set" not defined
 dbcsr_error_handling.F.ast: Symbol "external_timeset" in procedure "dbcsr_error_handling" is IMPLICIT-SAVE
+dbcsr_error_handling.F.ast: Symbol "external_timestop" in "dbcsr_error_stop" not defined
 dbcsr_error_handling.F.ast: Symbol "external_timestop" in procedure "dbcsr_error_handling" is IMPLICIT-SAVE
-dbcsr_mm_hostdrv.F.ast: Found CALL CGEMM in procedure "blas_process_mm_stack_c"
-dbcsr_mm_hostdrv.F.ast: Found CALL DGEMM in procedure "blas_process_mm_stack_d"
-dbcsr_mm_hostdrv.F.ast: Found CALL SGEMM in procedure "blas_process_mm_stack_s"
-dbcsr_mm_hostdrv.F.ast: Found CALL ZGEMM in procedure "blas_process_mm_stack_z"
-dbcsr_operations_low.F.ast: Found CALL DCOPY in procedure "dbcsr_init_random"
-dbcsr_test_multiply.F.ast: Found CALL CGEMM in procedure "dbcsr_check_multiply"
-dbcsr_test_multiply.F.ast: Found CALL DGEMM in procedure "dbcsr_check_multiply"
-dbcsr_test_multiply.F.ast: Found CALL SGEMM in procedure "dbcsr_check_multiply"
-dbcsr_test_multiply.F.ast: Found CALL ZGEMM in procedure "dbcsr_check_multiply"
+dbcsr_example_2.F.ast: Symbol "random_number" in "dbcsr_example_2" not defined
+dbcsr_example_3.F.ast: Symbol "random_number" in "dbcsr_example_3" not defined
+dbcsr_methods.F.ast: Symbol "random_number" in "make_threads" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "cgemm" in "blas_process_mm_stack_c" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "dgemm" in "blas_process_mm_stack_d" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "random_number" in "dbcsr_mm_hostdrv_process" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "sgemm" in "blas_process_mm_stack_s" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_cnn" in "smm_process_mm_stack_c" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_dnn" in "smm_process_mm_stack_d" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_snn" in "smm_process_mm_stack_s" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_znn" in "smm_process_mm_stack_z" not defined
+dbcsr_mm_hostdrv.F.ast: Symbol "zgemm" in "blas_process_mm_stack_z" not defined
+dbcsr_operations.F.ast: Symbol "dsyevd" in "dbcsr_lanczos" not defined
+dbcsr_operations_low.F.ast: Symbol "dcopy" in "dbcsr_init_random" not defined
+dbcsr_operations_low.F.ast: Symbol "dlarnv" in "dbcsr_init_random" not defined
+dbcsr_test_methods.F.ast: Symbol "dlarnv" in "dbcsr_make_random_matrix" not defined
+dbcsr_test_multiply.F.ast: Symbol "cgemm" in "dbcsr_check_multiply" not defined
+dbcsr_test_multiply.F.ast: Symbol "dgemm" in "dbcsr_check_multiply" not defined
+dbcsr_test_multiply.F.ast: Symbol "sgemm" in "dbcsr_check_multiply" not defined
+dbcsr_test_multiply.F.ast: Symbol "zgemm" in "dbcsr_check_multiply" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "cgemm" in "dbcsr_matrix_vector_mult_c" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "cgemm" in "dbcsr_matrixt_vector_mult_c" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "dgemm" in "dbcsr_matrix_vector_mult_d" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "dgemm" in "dbcsr_matrixt_vector_mult_d" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "sgemm" in "dbcsr_matrix_vector_mult_s" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "sgemm" in "dbcsr_matrixt_vector_mult_s" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "zgemm" in "dbcsr_matrix_vector_mult_z" not defined
+dbcsr_vector_operations_low.F.ast: Symbol "zgemm" in "dbcsr_matrixt_vector_mult_z" not defined
+dgs.F.ast: Symbol "copy_cr" in "dg_get_patch_1" not defined
+dgs.F.ast: Symbol "copy_cri" in "dg_get_patch_2" not defined
+dgs.F.ast: Symbol "rankup" in "dg_get_patch_1" not defined
+dgs.F.ast: Symbol "rankup" in "dg_get_patch_2" not defined
+dgs.F.ast: Symbol "vc_x_vc" in "dg_get_patch_1" not defined
+dgs.F.ast: Symbol "vc_x_vc" in "dg_get_patch_2" not defined
+dgs.F.ast: Symbol "vr_x_vc" in "dg_get_patch_1" not defined
+dgs.F.ast: Symbol "vr_x_vc" in "dg_get_patch_2" not defined
 distribution_1d_types.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "distribution_1d_build_gdist"
 distribution_2d_types.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "distribution_2d_build_gdist"
-dkh_main.F.ast: Found CALL DGEMM in procedure "dkh_atom_transformation"
-dkh_main.F.ast: Found CALL DGEMM in procedure "dkh_diag"
-dkh_main.F.ast: Found CALL DGEMM in procedure "even2c_a"
-dkh_main.F.ast: Found CALL DGEMM in procedure "even3b_a"
-dkh_main.F.ast: Found CALL DGEMM in procedure "even4a"
-dkh_main.F.ast: Found CALL DGEMM in procedure "even4a_a"
-dkh_main.F.ast: Found CALL DGEMM in procedure "mat_muld_a"
-dkh_main.F.ast: Found CALL DGEMM in procedure "mat_mulm_a"
-domain_submatrix_methods.F.ast: Found CALL DGEMM in procedure "multiply_submatrices_once"
+dkh_main.F.ast: Symbol "dgemm" in "dkh_atom_transformation" not defined
+dkh_main.F.ast: Symbol "dgemm" in "dkh_diag" not defined
+dkh_main.F.ast: Symbol "dgemm" in "even2c_a" not defined
+dkh_main.F.ast: Symbol "dgemm" in "even3b_a" not defined
+dkh_main.F.ast: Symbol "dgemm" in "even4a" not defined
+dkh_main.F.ast: Symbol "dgemm" in "even4a_a" not defined
+dkh_main.F.ast: Symbol "dgemm" in "mat_muld_a" not defined
+dkh_main.F.ast: Symbol "dgemm" in "mat_mulm_a" not defined
+domain_submatrix_methods.F.ast: Symbol "dgemm" in "multiply_submatrices_once" not defined
 eip_silicon.F.ast: Found GOTO statement in procedure "eip_bazant_silicon"
 eip_silicon.F.ast: Found GOTO statement in procedure "eip_lenosky_silicon"
 eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_b"
@@ -335,86 +320,56 @@ eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_l"
 eip_silicon.F.ast: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F.ast: Found OPEN statement in procedure "eip_lenosky_silicon"
 environment.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "read_global_section"
-environment.F.ast: Symbol "r_host_name" in procedure "environment" is IMPLICIT-SAVE
-environment.F.ast: Symbol "r_pid" in procedure "environment" is IMPLICIT-SAVE
-environment.F.ast: Symbol "r_user_name" in procedure "environment" is IMPLICIT-SAVE
-ep_methods.F.ast: Found CALL DCOPY in procedure "ep_env_transfer_psi0"
-ep_methods.F.ast: Symbol "empty_initial_variables" in procedure "ep_methods" is IMPLICIT-SAVE
+ep_f77.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f" not defined
+ep_f77.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create" not defined
+ep_f77.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy" not defined
+ep_f77.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env" not defined
+ep_f77.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release" not defined
+ep_f77.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain" not defined
+ep_f77_low.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f_low" not defined
+ep_f77_low.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create_low" not defined
+ep_f77_low.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy_low" not defined
+ep_f77_low.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env_low" not defined
+ep_f77_low.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release_low" not defined
+ep_f77_low.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain_low" not defined
+ep_methods.F.ast: Symbol "dcopy" in "ep_env_transfer_psi0" not defined
 ep_methods.F.ast: Symbol "ep_envs" in procedure "ep_methods" is IMPLICIT-SAVE
 erf_fn.F.ast: Found GOTO statement in procedure "calerf"
-ewald_spline_util.F.ast: Found CALL DGEMM in procedure "eval_pw_tablr"
-external_potential_types.F.ast: Symbol "co" in procedure "external_potential_types" is IMPLICIT-SAVE
-external_potential_types.F.ast: Symbol "coset" in procedure "external_potential_types" is IMPLICIT-SAVE
-external_potential_types.F.ast: Symbol "nco" in procedure "external_potential_types" is IMPLICIT-SAVE
-external_potential_types.F.ast: Symbol "ncoset" in procedure "external_potential_types" is IMPLICIT-SAVE
-external_potential_types.F.ast: Symbol "nso" in procedure "external_potential_types" is IMPLICIT-SAVE
-external_potential_types.F.ast: Symbol "orbtramat" in procedure "external_potential_types" is IMPLICIT-SAVE
-external_potential_types.F.ast: Symbol "ptable" in procedure "external_potential_types" is IMPLICIT-SAVE
 f77_blas_extra.F.ast: Found GOTO statement in procedure "czcopy"
 f77_blas_extra.F.ast: Found GOTO statement in procedure "dscopy"
 f77_blas_extra.F.ast: Found GOTO statement in procedure "sdcopy"
 f77_blas_extra.F.ast: Found GOTO statement in procedure "zccopy"
-f77_blas_generic.F.ast: Symbol "bl_asum" in procedure "f77_blas_generic" is IMPLICIT-TYPE
-f77_blas_generic.F.ast: Symbol "bl_dot" in procedure "f77_blas_generic" is IMPLICIT-TYPE
-f77_blas_generic.F.ast: Symbol "bl_dotc" in procedure "f77_blas_generic" is IMPLICIT-TYPE
-f77_blas_generic.F.ast: Symbol "bl_dotu" in procedure "f77_blas_generic" is IMPLICIT-TYPE
-f77_blas_generic.F.ast: Symbol "bl_iamax" in procedure "f77_blas_generic" is IMPLICIT-TYPE
-f77_blas_generic.F.ast: Symbol "bl_nrm2" in procedure "f77_blas_generic" is IMPLICIT-TYPE
-f77_blas_poison.F.ast: Symbol "kind" in procedure "zdotc" is IMPLICIT-TYPE
-f77_blas_poison.F.ast: Symbol "kind" in procedure "zdotu" is IMPLICIT-TYPE
-f77_interface.F.ast: Symbol "empty_initial_variables" in procedure "f77_interface" is IMPLICIT-SAVE
 f77_interface.F.ast: Symbol "mpi_mapping_method" in procedure "f77_interface" is IMPLICIT-SAVE
 farming_methods.F.ast: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F.ast: Found OPEN statement in procedure "farming_parse_input"
-fast.F.ast: Found CALL ZGERU in procedure "rankup"
-fast.F.ast: Found CALL ZSCAL in procedure "rankup"
+fast.F.ast: Symbol "zgeru" in "rankup" not defined
+fast.F.ast: Symbol "zscal" in "rankup" not defined
+fft_tools.F.ast: Symbol "zero_c" in "fft3d_ps" not defined
 fftw3_lib.F.ast: Found GOTO statement in procedure "sortint"
 fist_pol_scf.F.ast: Symbol "debug_this_module" in procedure "fist_pol_scf" is IMPLICIT-SAVE
-force_fields_input.F.ast: Symbol "potential_single_allocation" in procedure "force_fields_input" is IMPLICIT-SAVE
 gauss_colloc.F.ast: Found GOTO statement in procedure "collocgauss"
 gauss_colloc.F.ast: Found GOTO statement in procedure "collocgaussflat"
 gauss_colloc.F.ast: Found GOTO statement in procedure "integrategauss"
 gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfull"
 gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfullflat"
 glbopt_callback.F.ast: Symbol "failure" in procedure "glbopt_md_callback" is IMPLICIT-SAVE
-gle_system_dynamics.F.ast: Found CALL DGEMM in procedure "gle_particles"
+glbopt_history.F.ast: Symbol "dsyev" in "goedecker_fingerprint" not defined
+gle_system_dynamics.F.ast: Symbol "dgemm" in "gle_particles" not defined
 graph.F.ast: Found CLOSE statement in procedure "graph"
 graph.F.ast: Found OPEN statement in procedure "graph"
+graph.F.ast: Symbol "random_number" in "graph" not defined
+graph.F.ast: Symbol "random_seed" in "graph" not defined
 graph_methods.F.ast: Found CLOSE statement in procedure "fes_path"
 graph_methods.F.ast: Found OPEN statement in procedure "fes_cube_write"
 graph_methods.F.ast: Found OPEN statement in procedure "fes_path"
-graph_methods.F.ast: Symbol "ptable" in procedure "graph_methods" is IMPLICIT-SAVE
 graphcon.F.ast: Found GOTO statement in procedure "all_permutations"
-grid_fast.F.ast: Symbol "huge" in procedure "integrate_gf_npbc" is IMPLICIT-TYPE
-grid_fast.F.ast: Symbol "sum" in procedure "integrate_core_5" is IMPLICIT-TYPE
-hartree_local_methods.F.ast: Found CALL DAXPY in procedure "vh_1c_atom_integrals"
-hartree_local_methods.F.ast: Symbol "indso" in procedure "hartree_local_methods" is IMPLICIT-SAVE
-hartree_local_methods.F.ast: Symbol "nsoset" in procedure "hartree_local_methods" is IMPLICIT-SAVE
-header.F.ast: Symbol "r_cwd" in procedure "header" is IMPLICIT-SAVE
-header.F.ast: Symbol "r_datx" in procedure "header" is IMPLICIT-SAVE
-header.F.ast: Symbol "r_host_name" in procedure "header" is IMPLICIT-SAVE
-header.F.ast: Symbol "r_pid" in procedure "header" is IMPLICIT-SAVE
-header.F.ast: Symbol "r_user_name" in procedure "header" is IMPLICIT-SAVE
+hartree_local_methods.F.ast: Symbol "daxpy" in "vh_1c_atom_integrals" not defined
 hfx_derivatives.F.ast: Found CLOSE statement in procedure "derivatives_four_center"
 hfx_derivatives.F.ast: Found OPEN statement in procedure "derivatives_four_center"
-hfx_derivatives.F.ast: Symbol "nco" in procedure "hfx_derivatives" is IMPLICIT-SAVE
-hfx_derivatives.F.ast: Symbol "ncoset" in procedure "hfx_derivatives" is IMPLICIT-SAVE
-hfx_derivatives.F.ast: Symbol "nso" in procedure "hfx_derivatives" is IMPLICIT-SAVE
 hfx_energy_potential.F.ast: Found CLOSE statement in procedure "integrate_four_center"
 hfx_energy_potential.F.ast: Found OPEN statement in procedure "integrate_four_center"
-hfx_energy_potential.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "integrate_four_center"
-hfx_energy_potential.F.ast: Symbol "nco" in procedure "hfx_energy_potential" is IMPLICIT-SAVE
-hfx_energy_potential.F.ast: Symbol "ncoset" in procedure "hfx_energy_potential" is IMPLICIT-SAVE
-hfx_energy_potential.F.ast: Symbol "nso" in procedure "hfx_energy_potential" is IMPLICIT-SAVE
-hfx_libint_interface.F.ast: Symbol "nco" in procedure "hfx_libint_interface" is IMPLICIT-SAVE
-hfx_libint_wrapper.F.ast: Symbol "nco" in procedure "hfx_libint_wrapper" is IMPLICIT-SAVE
 hfx_load_balance_methods.F.ast: Found CLOSE statement in procedure "hfx_recursive_load_balance"
 hfx_load_balance_methods.F.ast: Found OPEN statement in procedure "hfx_recursive_load_balance"
-hfx_screening_methods.F.ast: Symbol "ncoset" in procedure "hfx_screening_methods" is IMPLICIT-SAVE
-hfx_types.F.ast: Symbol "nco" in procedure "hfx_types" is IMPLICIT-SAVE
-hfx_types.F.ast: Symbol "ncoset" in procedure "hfx_types" is IMPLICIT-SAVE
-hfx_types.F.ast: Symbol "nso" in procedure "hfx_types" is IMPLICIT-SAVE
-input_cp2k_read.F.ast: Symbol "empty_initial_variables" in procedure "input_cp2k_read" is IMPLICIT-SAVE
 input_section_types.F.ast: Found CLOSE statement in procedure "section_describe_html"
 input_section_types.F.ast: Found OPEN statement in procedure "section_describe_html"
 ipi_driver.F.ast: Symbol "hasdata" in procedure "run_driver" is IMPLICIT-SAVE
@@ -436,26 +391,20 @@ k290.F.ast: Symbol "rname_cubic" in procedure "k290" is IMPLICIT-SAVE
 k290.F.ast: Symbol "rname_hexa" in procedure "k290" is IMPLICIT-SAVE
 kg_environment.F.ast: Found CLOSE statement in procedure "write_to_file"
 kg_environment.F.ast: Found OPEN statement in procedure "write_to_file"
-kg_tnadd_mat.F.ast: Found CALL DGEMM in procedure "build_tnadd_mat"
-kg_tnadd_mat.F.ast: Symbol "ncoset" in procedure "kg_tnadd_mat" is IMPLICIT-SAVE
-library_tests.F.ast: Found CALL DGEMM in procedure "matmul_test"
+kg_tnadd_mat.F.ast: Symbol "dgemm" in "build_tnadd_mat" not defined
+library_tests.F.ast: Symbol "dgemm" in "matmul_test" not defined
 library_tests.F.ast: Symbol "max_memory" in procedure "library_tests" is IMPLICIT-SAVE
+library_tests.F.ast: Symbol "random_number" in "copy_test" not defined
+library_tests.F.ast: Symbol "random_number" in "cp_fm_gemm_test" not defined
+library_tests.F.ast: Symbol "random_number" in "fft_test" not defined
+library_tests.F.ast: Symbol "random_number" in "matmul_test" not defined
+library_tests.F.ast: Symbol "random_number" in "rs_pw_transfer_test" not defined
 library_tests.F.ast: Symbol "runtest" in procedure "library_tests" is IMPLICIT-SAVE
-lri_debug_integrals.F.ast: Symbol "coset" in procedure "lri_debug_integrals" is IMPLICIT-SAVE
-lri_debug_integrals.F.ast: Symbol "indco" in procedure "lri_debug_integrals" is IMPLICIT-SAVE
-lri_debug_integrals.F.ast: Symbol "ncoset" in procedure "lri_debug_integrals" is IMPLICIT-SAVE
-lri_environment_methods.F.ast: Found CALL DGEMM in procedure "ab_contract"
-lri_environment_methods.F.ast: Found CALL DGEMM in procedure "abc_contract"
-lri_environment_methods.F.ast: Found CALL DGEMM in procedure "abcd_contract"
-lri_environment_methods.F.ast: Symbol "ncoset" in procedure "lri_environment_methods" is IMPLICIT-SAVE
-ma_affinity.F.ast: Symbol "memory" in procedure "ma_affinity" is IMPLICIT-SAVE
+lri_environment_methods.F.ast: Symbol "dgemm" in "ab_contract" not defined
+lri_environment_methods.F.ast: Symbol "dgemm" in "abc_contract" not defined
+lri_environment_methods.F.ast: Symbol "dgemm" in "abcd_contract" not defined
 ma_affinity.F.ast: Symbol "my_info" in procedure "ma_affinity" is IMPLICIT-SAVE
-ma_affinity.F.ast: Symbol "print_proc" in procedure "ma_affinity" is IMPLICIT-SAVE
-ma_affinity.F.ast: Symbol "print_thread" in procedure "ma_affinity" is IMPLICIT-SAVE
-ma_affinity.F.ast: Symbol "process" in procedure "ma_affinity" is IMPLICIT-SAVE
-ma_affinity.F.ast: Symbol "thread" in procedure "ma_affinity" is IMPLICIT-SAVE
 ma_affinity.F.ast: Symbol "thread_mapping" in procedure "ma_affinity" is IMPLICIT-SAVE
-ma_affinity.F.ast: Symbol "topology" in procedure "ma_affinity" is IMPLICIT-SAVE
 ma_config.F.ast: Symbol "comm_thread" in procedure "ma_config" is IMPLICIT-SAVE
 ma_config.F.ast: Symbol "memory" in procedure "ma_config" is IMPLICIT-SAVE
 ma_config.F.ast: Symbol "mpi_reorder" in procedure "ma_config" is IMPLICIT-SAVE
@@ -470,65 +419,784 @@ ma_config.F.ast: Symbol "process" in procedure "ma_config" is IMPLICIT-SAVE
 ma_config.F.ast: Symbol "thread" in procedure "ma_config" is IMPLICIT-SAVE
 ma_config.F.ast: Symbol "use_mempol" in procedure "ma_config" is IMPLICIT-SAVE
 ma_config.F.ast: Symbol "use_sched" in procedure "ma_config" is IMPLICIT-SAVE
-ma_process_mapping.F.ast: Symbol "allocated_topology" in procedure "ma_process_mapping" is IMPLICIT-SAVE
-ma_process_mapping.F.ast: Symbol "net_topology" in procedure "ma_process_mapping" is IMPLICIT-SAVE
 ma_topology.F.ast: Symbol "allocated_topology" in procedure "ma_topology" is IMPLICIT-SAVE
 ma_topology.F.ast: Symbol "comm_graph" in procedure "ma_topology" is IMPLICIT-SAVE
 ma_topology.F.ast: Symbol "max_nodes" in procedure "ma_topology" is IMPLICIT-SAVE
 ma_topology.F.ast: Symbol "net_topology" in procedure "ma_topology" is IMPLICIT-SAVE
 machine.F.ast: Found OPEN statement in procedure "read_energy"
+machine.F.ast: Symbol "date_and_time" in "m_datum" not defined
+machine.F.ast: Symbol "system_clock" in "m_walltime" not defined
 machine_architecture.F.ast: Symbol "topology" in procedure "machine_architecture" is IMPLICIT-SAVE
 machine_internal.F.ast: Found CLOSE statement in procedure "m_memory_details"
 machine_internal.F.ast: Found OPEN statement in procedure "m_memory"
 machine_internal.F.ast: Found OPEN statement in procedure "m_memory_details"
-mc_control.F.ast: Symbol "empty_initial_variables" in procedure "mc_control" is IMPLICIT-SAVE
+machine_internal.F.ast: Symbol "cpu_time" in "m_cputime" not defined
+machine_internal.F.ast: Symbol "get_command_argument" in "m_getarg" not defined
+mathlib.F.ast: Symbol "dgetrf" in "invmat" not defined
+mathlib.F.ast: Symbol "dgetri" in "invmat" not defined
 mdctrl_methods.F.ast: Symbol "failure" in procedure "mdctrl_callback" is IMPLICIT-SAVE
 message_passing.F.ast: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F.ast: Found OPEN statement in procedure "mp_file_open"
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_c12" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_c23" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_c34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_d12" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_d23" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_d34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_i12" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_i23" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_i34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_l12" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_l23" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_l34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_r12" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_r23" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_r34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_z12" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_z23" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgather_z34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgatherv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgatherv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgatherv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgatherv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgatherv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allgatherv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allocate_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allocate_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allocate_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allocate_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allocate_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_allocate_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c11v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c22" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c22v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c33" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c44" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c45" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_c54" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d11v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d22" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d22v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d33" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d44" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d45" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_d54" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i11v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i22" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i22v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i33" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i44" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i45" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_i54" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l11v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l22" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l22v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l33" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l44" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l45" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_l54" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r11v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r22" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r22v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r33" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r44" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r45" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_r54" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z11v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z22" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z22v" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z33" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z34" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z44" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z45" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_alltoall_z54" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_am" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_av" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_b" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_bv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_c3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_d3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_i3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_im" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_l3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_r3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_z3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_bcast_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_cart_coords" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_cart_create" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_cart_rank" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_cart_sub" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_comm_compare" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_comm_dup" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_comm_free" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_comm_split" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_comm_split_direct" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_deallocate_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_deallocate_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_deallocate_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_deallocate_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_deallocate_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_deallocate_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_dims_create" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_environ_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_environ_c2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_environ_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_im" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gather_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gatherv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gatherv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gatherv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gatherv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gatherv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_gatherv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_irecv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isend_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_isendrecv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_max_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_maxloc_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_maxloc_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_maxloc_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_maxloc_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_min_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_minloc_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_minloc_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_minloc_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_minloc_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_probe" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_rank_compare" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_recv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_reordering" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_scatter_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_scatter_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_scatter_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_scatter_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_scatter_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_scatter_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_send_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sendrecv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_im" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_shift_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_b" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_c" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_cm4" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_cm5" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_cm6" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_d" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_dm4" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_dm5" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_dm6" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_i" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_im" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_im4" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_im5" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_im6" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_l" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_lm4" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_lm5" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_lm6" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_r" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_rm4" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_rm5" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_rm6" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_im" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_root_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_scatter_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_scatter_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_scatter_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_scatter_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_scatter_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_scatter_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_z" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_zm4" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_zm5" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_zm6" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sum_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_sync" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_wait" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_waitall_1" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_waitall_2" not defined
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_waitany" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_c12" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_c23" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_c34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_d12" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_d23" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_d34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_i12" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_i23" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_i34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_l12" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_l23" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_l34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_r12" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_r23" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_r34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_z12" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_z23" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgather_z34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgatherv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgatherv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgatherv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgatherv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgatherv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allgatherv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allocate_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allocate_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allocate_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allocate_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allocate_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_allocate_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c11v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c22" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c22v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c33" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c44" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c45" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_c54" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d11v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d22" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d22v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d33" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d44" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d45" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_d54" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i11v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i22" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i22v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i33" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i44" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i45" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_i54" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l11v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l22" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l22v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l33" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l44" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l45" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_l54" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r11v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r22" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r22v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r33" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r44" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r45" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_r54" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z11v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z22" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z22v" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z33" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z34" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z44" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z45" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_alltoall_z54" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_am" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_av" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_b" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_bv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_c3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_d3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_i3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_im" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_l3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_r3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_z3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_bcast_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_cart_coords" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_cart_create" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_cart_rank" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_cart_sub" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_comm_compare" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_comm_dup" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_comm_free" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_comm_split" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_comm_split_direct" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_deallocate_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_deallocate_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_deallocate_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_deallocate_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_deallocate_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_deallocate_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_dims_create" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_environ_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_environ_c2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_environ_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_im" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gather_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gatherv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gatherv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gatherv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gatherv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gatherv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_gatherv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_irecv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isend_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_isendrecv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_max_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_maxloc_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_maxloc_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_maxloc_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_maxloc_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_min_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_minloc_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_minloc_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_minloc_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_minloc_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_probe" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_rank_compare" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_recv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_reordering" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_scatter_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_scatter_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_scatter_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_scatter_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_scatter_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_scatter_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_send_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_cm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_dm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_im2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_lm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_rm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_zm2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sendrecv_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_im" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_shift_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_b" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_c" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_cm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_cm4" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_cm5" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_cm6" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_d" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_dm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_dm4" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_dm5" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_dm6" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_i" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_im" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_im3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_im4" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_im5" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_im6" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_l" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_lm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_lm4" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_lm5" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_lm6" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_r" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_rm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_rm4" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_rm5" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_rm6" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_cm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_dm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_im" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_lm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_rm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_root_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_scatter_cv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_scatter_dv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_scatter_iv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_scatter_lv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_scatter_rv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_scatter_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_z" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_zm" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_zm3" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_zm4" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_zm5" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_zm6" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sum_zv" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_sync" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_wait" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_waitall_1" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_waitall_2" not defined
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_waitany" not defined
 message_passing.F.ast: Symbol "mp_perf_stack" in procedure "message_passing" is IMPLICIT-SAVE
 message_passing.F.ast: Symbol "stack_pointer" in procedure "message_passing" is IMPLICIT-SAVE
-mltfftsg_tools.F.ast: Found CALL DSCAL in procedure "scaled"
-mltfftsg_tools.F.ast: Symbol "abs" in procedure "mltfftsg" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "atan" in procedure "ctrig" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "cmplx" in procedure "mltfftsg" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "cos" in procedure "ctrig" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "max" in procedure "mltfftsg" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "min" in procedure "mltfftsg" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "mod" in procedure "mltfftsg" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "real" in procedure "ctrig" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "reshape" in procedure "ctrig" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "sin" in procedure "ctrig" is IMPLICIT-TYPE
-mltfftsg_tools.F.ast: Symbol "transpose" in procedure "zgetmo" is IMPLICIT-TYPE
+mltfftsg_tools.F.ast: Symbol "dscal" in "scaled" not defined
+mm_collocate_potential.F.ast: Symbol "collocate_gf_npbc" in "collocate_gf_rspace_nopbc" not defined
+mm_collocate_potential.F.ast: Symbol "integrate_gf_npbc" in "integrate_gf_rspace_nopbc" not defined
 mm_mapping_library.F.ast: Symbol "amber_map" in procedure "mm_mapping_library" is IMPLICIT-SAVE
 mm_mapping_library.F.ast: Symbol "charmm_map" in procedure "mm_mapping_library" is IMPLICIT-SAVE
 mm_mapping_library.F.ast: Symbol "gromos_map" in procedure "mm_mapping_library" is IMPLICIT-SAVE
-mode_selective.F.ast: Found CALL DGEMM in procedure "evaluate_h_update_b"
-mode_selective.F.ast: Found CALL DGEMM in procedure "rest_guess"
-motion_utils.F.ast: Symbol "r_datx" in procedure "motion_utils" is IMPLICIT-SAVE
-motion_utils.F.ast: Symbol "r_host_name" in procedure "motion_utils" is IMPLICIT-SAVE
-motion_utils.F.ast: Symbol "r_user_name" in procedure "motion_utils" is IMPLICIT-SAVE
-mp2_direct_method.F.ast: Found CALL DGEMM in procedure "transform_virtual_orbitals_and_accumulate"
+mode_selective.F.ast: Symbol "dgemm" in "evaluate_h_update_b" not defined
+mode_selective.F.ast: Symbol "dgemm" in "rest_guess" not defined
 mp2_direct_method.F.ast: Found CLOSE statement in procedure "mp2_canonical_direct_single_batch"
 mp2_direct_method.F.ast: Found OPEN statement in procedure "mp2_canonical_direct_single_batch"
-mp2_direct_method.F.ast: Symbol "ncoset" in procedure "mp2_direct_method" is IMPLICIT-SAVE
-mp2_optimize_ri_basis.F.ast: Symbol "indco" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
-mp2_optimize_ri_basis.F.ast: Symbol "nco" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
-mp2_optimize_ri_basis.F.ast: Symbol "ncoset" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
-mp2_optimize_ri_basis.F.ast: Symbol "nso" in procedure "mp2_optimize_ri_basis" is IMPLICIT-SAVE
-mp2_ri_gpw.F.ast: Found CALL DGEMM in procedure "calculate_lmin1"
-mp2_ri_gpw.F.ast: Found CALL DGEMM in procedure "mp2_ri_gpw_compute_en"
-mp2_ri_gpw.F.ast: Symbol "ncoset" in procedure "mp2_ri_gpw" is IMPLICIT-SAVE
-mp2_ri_grad.F.ast: Found CALL DGEMM in procedure "calc_ri_mp2_nonsep"
-mp2_ri_grad.F.ast: Symbol "ncoset" in procedure "mp2_ri_grad" is IMPLICIT-SAVE
+mp2_direct_method.F.ast: Symbol "dgemm" in "transform_virtual_orbitals_and_accumulate" not defined
+mp2_ri_gpw.F.ast: Symbol "dgemm" in "calculate_lmin1" not defined
+mp2_ri_gpw.F.ast: Symbol "dgemm" in "mp2_ri_gpw_compute_en" not defined
+mp2_ri_grad.F.ast: Symbol "dgemm" in "calc_ri_mp2_nonsep" not defined
 mp2_ri_libint.F.ast: Found CLOSE statement in procedure "calc_lai_libint"
 mp2_ri_libint.F.ast: Found OPEN statement in procedure "calc_lai_libint"
-mp2_ri_libint.F.ast: Symbol "nco" in procedure "mp2_ri_libint" is IMPLICIT-SAVE
-mp2_ri_libint.F.ast: Symbol "ncoset" in procedure "mp2_ri_libint" is IMPLICIT-SAVE
-mp2_ri_libint.F.ast: Symbol "nso" in procedure "mp2_ri_libint" is IMPLICIT-SAVE
-mulliken.F.ast: Symbol "se_orbital_pointer" in procedure "mulliken" is IMPLICIT-SAVE
-neb_opt_utils.F.ast: Found CALL DGEMM in procedure "accept_diis_step"
 neb_opt_utils.F.ast: Symbol "acceptance_factor" in procedure "neb_opt_utils" is IMPLICIT-SAVE
-optimize_basis.F.ast: Symbol "empty_initial_variables" in procedure "optimize_basis" is IMPLICIT-SAVE
+neb_opt_utils.F.ast: Symbol "dgesdd" in "accept_diis_step" not defined
 orbital_pointers.F.ast: Symbol "co" in procedure "orbital_pointers" is IMPLICIT-SAVE
 orbital_pointers.F.ast: Symbol "coset" in procedure "orbital_pointers" is IMPLICIT-SAVE
 orbital_pointers.F.ast: Symbol "indco" in procedure "orbital_pointers" is IMPLICIT-SAVE
@@ -540,14 +1208,8 @@ orbital_pointers.F.ast: Symbol "nsoset" in procedure "orbital_pointers" is IMPLI
 orbital_pointers.F.ast: Symbol "so" in procedure "orbital_pointers" is IMPLICIT-SAVE
 orbital_pointers.F.ast: Symbol "soset" in procedure "orbital_pointers" is IMPLICIT-SAVE
 orbital_transformation_matrices.F.ast: Symbol "c2s_tramat" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
-orbital_transformation_matrices.F.ast: Symbol "co" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
-orbital_transformation_matrices.F.ast: Symbol "nco" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
-orbital_transformation_matrices.F.ast: Symbol "ncoset" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
-orbital_transformation_matrices.F.ast: Symbol "nso" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
-orbital_transformation_matrices.F.ast: Symbol "nsoset" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
 orbital_transformation_matrices.F.ast: Symbol "orbtramat" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
 orbital_transformation_matrices.F.ast: Symbol "s2c_tramat" in procedure "orbital_transformation_matrices" is IMPLICIT-SAVE
-pair_potential.F.ast: Symbol "potential_single_allocation" in procedure "pair_potential" is IMPLICIT-SAVE
 pair_potential_types.F.ast: Symbol "potential_single_allocation" in procedure "pair_potential_types" is IMPLICIT-SAVE
 parallel_rng_types.F.ast: Symbol "a1p0" in procedure "parallel_rng_types" is IMPLICIT-SAVE
 parallel_rng_types.F.ast: Symbol "a1p127" in procedure "parallel_rng_types" is IMPLICIT-SAVE
@@ -557,20 +1219,14 @@ parallel_rng_types.F.ast: Symbol "a2p127" in procedure "parallel_rng_types" is I
 parallel_rng_types.F.ast: Symbol "a2p76" in procedure "parallel_rng_types" is IMPLICIT-SAVE
 parallel_rng_types.F.ast: Symbol "inv_a1" in procedure "parallel_rng_types" is IMPLICIT-SAVE
 parallel_rng_types.F.ast: Symbol "inv_a2" in procedure "parallel_rng_types" is IMPLICIT-SAVE
-paw_proj_set_types.F.ast: Found CALL DGEMM in procedure "build_projector"
-paw_proj_set_types.F.ast: Symbol "indco" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
-paw_proj_set_types.F.ast: Symbol "indso" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
-paw_proj_set_types.F.ast: Symbol "nco" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
-paw_proj_set_types.F.ast: Symbol "ncoset" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
-paw_proj_set_types.F.ast: Symbol "nso" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
-paw_proj_set_types.F.ast: Symbol "nsoset" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
-paw_proj_set_types.F.ast: Symbol "orbtramat" in procedure "paw_proj_set_types" is IMPLICIT-SAVE
+paw_proj_set_types.F.ast: Symbol "dgemm" in "build_projector" not defined
+paw_proj_set_types.F.ast: Symbol "dgesdd" in "build_projector" not defined
 periodic_table.F.ast: Symbol "ptable" in procedure "periodic_table" is IMPLICIT-SAVE
-pint_gle.F.ast: Found CALL DGEMM in procedure "pint_gle_step"
-pint_normalmode.F.ast: Found CALL DGEMM in procedure "normalmode_f2uf"
-pint_normalmode.F.ast: Found CALL DGEMM in procedure "normalmode_u2x"
-pint_normalmode.F.ast: Found CALL DGEMM in procedure "normalmode_x2u"
-population_analyses.F.ast: Symbol "nso" in procedure "population_analyses" is IMPLICIT-SAVE
+pilaenv_hack.F.ast: Symbol "nag_dummy" in "nag_dummy" not defined
+pint_gle.F.ast: Symbol "dgemm" in "pint_gle_step" not defined
+pint_normalmode.F.ast: Symbol "dgemm" in "normalmode_f2uf" not defined
+pint_normalmode.F.ast: Symbol "dgemm" in "normalmode_u2x" not defined
+pint_normalmode.F.ast: Symbol "dgemm" in "normalmode_x2u" not defined
 powell.F.ast: Found GOTO statement in procedure "newuoa"
 powell.F.ast: Found GOTO statement in procedure "newuob"
 ps_wavelet_fft3d.F.ast: Found GOTO statement in procedure "ctrig"
@@ -588,12 +1244,9 @@ ps_wavelet_fft3d.F.ast: Symbol "ci6" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "ci7" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "ci8" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "cm" in procedure "fftstp" is IMPLICIT-TYPE
-ps_wavelet_fft3d.F.ast: Symbol "cos" in procedure "ctrig" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "cos2" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "cos4" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "cp" in procedure "fftstp" is IMPLICIT-TYPE
-ps_wavelet_fft3d.F.ast: Symbol "cp_error_type" in procedure "ps_wavelet_fft3d" is IMPLICIT-TYPE
-ps_wavelet_fft3d.F.ast: Symbol "cp_logger_type" in procedure "ps_wavelet_fft3d" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "cr2" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "cr3" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "cr4" in procedure "fftstp" is IMPLICIT-TYPE
@@ -617,7 +1270,6 @@ ps_wavelet_fft3d.F.ast: Symbol "j" in procedure "ctrig" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "j" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "m" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "mm" in procedure "fftstp" is IMPLICIT-TYPE
-ps_wavelet_fft3d.F.ast: Symbol "mod" in procedure "ctrig" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "n" in procedure "ctrig" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "n" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "nfft" in procedure "fftstp" is IMPLICIT-TYPE
@@ -664,7 +1316,6 @@ ps_wavelet_fft3d.F.ast: Symbol "s5" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "s6" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "s7" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "s8" in procedure "fftstp" is IMPLICIT-TYPE
-ps_wavelet_fft3d.F.ast: Symbol "sin" in procedure "ctrig" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "sin2" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "sin4" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "trig" in procedure "ctrig" is IMPLICIT-TYPE
@@ -686,197 +1337,136 @@ ps_wavelet_fft3d.F.ast: Symbol "vr2" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "vr3" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "zin" in procedure "fftstp" is IMPLICIT-TYPE
 ps_wavelet_fft3d.F.ast: Symbol "zout" in procedure "fftstp" is IMPLICIT-TYPE
-ps_wavelet_scaling_function.F.ast: Found CALL DCOPY in procedure "scaling_function"
-ps_wavelet_scaling_function.F.ast: Found CALL DCOPY in procedure "wavelet_function"
+ps_wavelet_scaling_function.F.ast: Symbol "dcopy" in "scaling_function" not defined
+ps_wavelet_scaling_function.F.ast: Symbol "dcopy" in "wavelet_function" not defined
 ps_wavelet_util.F.ast: Found GOTO statement in procedure "f_fft_dimensions"
 ps_wavelet_util.F.ast: Found GOTO statement in procedure "p_fft_dimensions"
 ps_wavelet_util.F.ast: Found GOTO statement in procedure "s_fft_dimensions"
 pw_grids.F.ast: Symbol "grid_tag" in procedure "pw_grids" is IMPLICIT-SAVE
-pw_spline_utils.F.ast: Found CALL DCOPY in procedure "add_coarse2fine"
-pw_spline_utils.F.ast: Found CALL DCOPY in procedure "add_fine2coarse"
-pw_spline_utils.F.ast: Found CALL DSCAL in procedure "pw_spline_scale_deriv"
+pw_methods.F.ast: Symbol "copy_cr" in "fft_wrap_pw1pw2" not defined
+pw_methods.F.ast: Symbol "copy_rc" in "fft_wrap_pw1pw2" not defined
+pw_methods.F.ast: Symbol "zero_c" in "fft_wrap_pw1pw2" not defined
+pw_methods.F.ast: Symbol "zero_c" in "pw_scatter_p" not defined
 pw_spline_utils.F.ast: Found GOTO statement in procedure "pw_nn_compose_r_no_pbc"
 pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_nn_smear_g"
 pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_spline2_evaluate_values_g"
 pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_spline3_evaluate_values_g"
+pw_spline_utils.F.ast: Symbol "dcopy" in "add_coarse2fine" not defined
+pw_spline_utils.F.ast: Symbol "dcopy" in "add_fine2coarse" not defined
+pw_spline_utils.F.ast: Symbol "dscal" in "pw_spline_scale_deriv" not defined
 qmmm_force_mixing.F.ast: Symbol "debug_this_module" in procedure "qmmm_force_mixing" is IMPLICIT-SAVE
+qmmm_image_charge.F.ast: Symbol "dgetrf" in "calculate_image_matrix" not defined
+qmmm_image_charge.F.ast: Symbol "dgetrs" in "calc_image_coeff_gaussalgorithm" not defined
+qmmm_image_charge.F.ast: Symbol "dpotrf" in "calculate_image_matrix" not defined
+qmmm_image_charge.F.ast: Symbol "dpotri" in "calculate_image_matrix" not defined
 qmmm_pw_grid.F.ast: Symbol "qmmm_grid_tag" in procedure "qmmm_pw_grid" is IMPLICIT-SAVE
-qmmm_se_energy.F.ast: Symbol "se_orbital_pointer" in procedure "qmmm_se_energy" is IMPLICIT-SAVE
-qmmm_se_forces.F.ast: Symbol "se_orbital_pointer" in procedure "qmmm_se_forces" is IMPLICIT-SAVE
-qs_collocate_density.F.ast: Found CALL DAXPY in procedure "calculate_rho_elec"
-qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_drho_elec"
-qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_lri_rho_elec"
-qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_rho_elec"
-qs_collocate_density.F.ast: Found CALL DGEMM in procedure "calculate_wavefunction"
-qs_collocate_density.F.ast: Found CALL DGEMM in procedure "collocate_atomic_charge_density"
-qs_collocate_density.F.ast: Symbol "coset" in procedure "qs_collocate_density" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "collocate_core_0" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_1" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_2" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_3" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_4" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_5" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_6" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_7" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_8" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_9" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "collocate_core_default" in "collocate_ortho" not defined
+qs_collocate_density.F.ast: Symbol "daxpy" in "calculate_rho_elec" not defined
 qs_collocate_density.F.ast: Symbol "debug_count" in procedure "qs_collocate_density" is IMPLICIT-SAVE
-qs_collocate_density.F.ast: Symbol "indco" in procedure "qs_collocate_density" is IMPLICIT-SAVE
-qs_collocate_density.F.ast: Symbol "nco" in procedure "qs_collocate_density" is IMPLICIT-SAVE
-qs_collocate_density.F.ast: Symbol "ncoset" in procedure "qs_collocate_density" is IMPLICIT-SAVE
-qs_collocate_density.F.ast: Symbol "nso" in procedure "qs_collocate_density" is IMPLICIT-SAVE
-qs_collocate_density.F.ast: Symbol "nsoset" in procedure "qs_collocate_density" is IMPLICIT-SAVE
-qs_collocate_density.F.ast: Symbol "orbtramat" in procedure "qs_collocate_density" is IMPLICIT-SAVE
-qs_core_hamiltonian.F.ast: Symbol "ncoset" in procedure "qs_core_hamiltonian" is IMPLICIT-SAVE
+qs_collocate_density.F.ast: Symbol "dgemm" in "calculate_drho_elec" not defined
+qs_collocate_density.F.ast: Symbol "dgemm" in "calculate_lri_rho_elec" not defined
+qs_collocate_density.F.ast: Symbol "dgemm" in "calculate_rho_elec" not defined
+qs_collocate_density.F.ast: Symbol "dgemm" in "calculate_wavefunction" not defined
+qs_collocate_density.F.ast: Symbol "dgemm" in "collocate_atomic_charge_density" not defined
 qs_dftb_matrices.F.ast: Symbol "iptr" in procedure "qs_dftb_matrices" is IMPLICIT-SAVE
 qs_dispersion_pairpot.F.ast: Found GOTO statement in procedure "limit"
-qs_efield_berry.F.ast: Found CALL DGEMM in procedure "contract_all"
-qs_efield_berry.F.ast: Symbol "indco" in procedure "qs_efield_berry" is IMPLICIT-SAVE
-qs_efield_berry.F.ast: Symbol "ncoset" in procedure "qs_efield_berry" is IMPLICIT-SAVE
-qs_elec_field.F.ast: Found CALL DGEMM in procedure "build_efg_matrix"
-qs_elec_field.F.ast: Symbol "ncoset" in procedure "qs_elec_field" is IMPLICIT-SAVE
-qs_electric_field_gradient.F.ast: Symbol "indso" in procedure "qs_electric_field_gradient" is IMPLICIT-SAVE
-qs_electric_field_gradient.F.ast: Symbol "nsoset" in procedure "qs_electric_field_gradient" is IMPLICIT-SAVE
-qs_epr_hyp.F.ast: Symbol "ptable" in procedure "qs_epr_hyp" is IMPLICIT-SAVE
-qs_fermi_contact.F.ast: Found CALL DGEMM in procedure "build_fermi_contact_matrix"
-qs_fermi_contact.F.ast: Symbol "ncoset" in procedure "qs_fermi_contact" is IMPLICIT-SAVE
-qs_geminals.F.ast: Found CALL DCOPY in procedure "geminal_coulomb_diaginv"
-qs_geminals.F.ast: Found CALL DGEMM in procedure "gemgau_integral_atom_calc"
-qs_geminals.F.ast: Symbol "indco" in procedure "qs_geminals" is IMPLICIT-SAVE
-qs_geminals.F.ast: Symbol "nco" in procedure "qs_geminals" is IMPLICIT-SAVE
-qs_geminals.F.ast: Symbol "ncoset" in procedure "qs_geminals" is IMPLICIT-SAVE
-qs_gspace_mixing.F.ast: Found CALL DGEMM in procedure "broyden_mixing_new"
-qs_gspace_mixing.F.ast: Found CALL DGEMV in procedure "broyden_mixing"
-qs_gspace_mixing.F.ast: Found CALL ZGEMM in procedure "multisecant_mixing"
-qs_gspace_mixing.F.ast: Found CALL ZGEMV in procedure "multisecant_mixing"
-qs_harmonics_atom.F.ast: Symbol "indco" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_harmonics_atom.F.ast: Symbol "indso" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_harmonics_atom.F.ast: Symbol "nco" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_harmonics_atom.F.ast: Symbol "ncoset" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_harmonics_atom.F.ast: Symbol "nso" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_harmonics_atom.F.ast: Symbol "nsoset" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_harmonics_atom.F.ast: Symbol "orbtramat" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_harmonics_atom.F.ast: Symbol "soset" in procedure "qs_harmonics_atom" is IMPLICIT-SAVE
-qs_integrate_potential_low.F.ast: Symbol "coset" in procedure "qs_integrate_potential_low" is IMPLICIT-SAVE
-qs_integrate_potential_low.F.ast: Symbol "ncoset" in procedure "qs_integrate_potential_low" is IMPLICIT-SAVE
-qs_integrate_potential_product.F.ast: Found CALL DGEMM in procedure "integrate_v_rspace"
+qs_efield_berry.F.ast: Symbol "dgemm" in "contract_all" not defined
+qs_elec_field.F.ast: Symbol "dgemm" in "build_efg_matrix" not defined
+qs_fermi_contact.F.ast: Symbol "dgemm" in "build_fermi_contact_matrix" not defined
+qs_geminals.F.ast: Symbol "dcopy" in "geminal_coulomb_diaginv" not defined
+qs_geminals.F.ast: Symbol "dgemm" in "gemgau_integral_atom_calc" not defined
+qs_gspace_mixing.F.ast: Symbol "dgemm" in "broyden_mixing_new" not defined
+qs_gspace_mixing.F.ast: Symbol "dgemv" in "broyden_mixing" not defined
+qs_gspace_mixing.F.ast: Symbol "dgesdd" in "broyden_mixing_new" not defined
+qs_gspace_mixing.F.ast: Symbol "zgemm" in "multisecant_mixing" not defined
+qs_gspace_mixing.F.ast: Symbol "zgemv" in "multisecant_mixing" not defined
+qs_initial_guess.F.ast: Symbol "dlarnv" in "calculate_first_density_matrix" not defined
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_opt" not defined
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_subpatch" not defined
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_wings" not defined
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_ortho" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_0" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_1" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_2" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_3" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_4" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_5" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_6" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_7" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_8" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_9" in "call_integrate" not defined
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_default" in "call_integrate" not defined
 qs_integrate_potential_product.F.ast: Symbol "debug_count" in procedure "qs_integrate_potential_product" is IMPLICIT-SAVE
-qs_integrate_potential_product.F.ast: Symbol "ncoset" in procedure "qs_integrate_potential_product" is IMPLICIT-SAVE
-qs_integrate_potential_single.F.ast: Found CALL DGEMM in procedure "integrate_v_rspace_one_center"
-qs_integrate_potential_single.F.ast: Symbol "coset" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
-qs_integrate_potential_single.F.ast: Symbol "nco" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
-qs_integrate_potential_single.F.ast: Symbol "ncoset" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
-qs_integrate_potential_single.F.ast: Symbol "nso" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
-qs_integrate_potential_single.F.ast: Symbol "nsoset" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
-qs_integrate_potential_single.F.ast: Symbol "orbtramat" in procedure "qs_integrate_potential_single" is IMPLICIT-SAVE
-qs_kind_types.F.ast: Symbol "nco" in procedure "qs_kind_types" is IMPLICIT-SAVE
-qs_kind_types.F.ast: Symbol "ncoset" in procedure "qs_kind_types" is IMPLICIT-SAVE
-qs_kind_types.F.ast: Symbol "ptable" in procedure "qs_kind_types" is IMPLICIT-SAVE
-qs_kinetic.F.ast: Symbol "ncoset" in procedure "qs_kinetic" is IMPLICIT-SAVE
-qs_ks_atom.F.ast: Found CALL DGEMM in procedure "add_vhxca_forces"
-qs_ks_atom.F.ast: Found CALL DGEMM in procedure "add_vhxca_to_ks"
-qs_linres_atom_current.F.ast: Found CALL DAXPY in procedure "calculate_jrho_atom_coeff"
-qs_linres_atom_current.F.ast: Found CALL DCOPY in procedure "calculate_jrho_atom_coeff"
-qs_linres_atom_current.F.ast: Symbol "indso" in procedure "qs_linres_atom_current" is IMPLICIT-SAVE
-qs_linres_atom_current.F.ast: Symbol "nsoset" in procedure "qs_linres_atom_current" is IMPLICIT-SAVE
-qs_linres_current.F.ast: Found CALL DCOPY in procedure "box_atoms_new"
-qs_linres_current.F.ast: Found CALL DGEMM in procedure "calculate_jrho_resp"
-qs_linres_current.F.ast: Symbol "ncoset" in procedure "qs_linres_current" is IMPLICIT-SAVE
-qs_linres_op.F.ast: Symbol "coset" in procedure "qs_linres_op" is IMPLICIT-SAVE
-qs_loc_utils.F.ast: Found CALL DROT in procedure "rotate_rmat_real"
-qs_loc_utils.F.ast: Found CALL DROT in procedure "rotate_zij_real"
-qs_loc_utils.F.ast: Symbol "ncoset" in procedure "qs_loc_utils" is IMPLICIT-SAVE
-qs_localization_methods.F.ast: Found CALL DCOPY in procedure "jacobi_rot_para"
-qs_localization_methods.F.ast: Found CALL DGEMM in procedure "initialize_weights"
-qs_localization_methods.F.ast: Found CALL DGEMM in procedure "jacobi_rot_para"
-qs_localization_methods.F.ast: Found CALL ZROT in procedure "rotate_rmat"
-qs_localization_methods.F.ast: Found CALL ZROT in procedure "rotate_zij"
+qs_integrate_potential_product.F.ast: Symbol "dgemm" in "integrate_v_rspace" not defined
+qs_integrate_potential_single.F.ast: Symbol "dgemm" in "integrate_v_rspace_one_center" not defined
+qs_ks_atom.F.ast: Symbol "dgemm" in "add_vhxca_forces" not defined
+qs_ks_atom.F.ast: Symbol "dgemm" in "add_vhxca_to_ks" not defined
+qs_linres_atom_current.F.ast: Symbol "daxpy" in "calculate_jrho_atom_coeff" not defined
+qs_linres_atom_current.F.ast: Symbol "dcopy" in "calculate_jrho_atom_coeff" not defined
+qs_linres_current.F.ast: Symbol "dcopy" in "box_atoms_new" not defined
+qs_linres_current.F.ast: Symbol "dgemm" in "calculate_jrho_resp" not defined
+qs_loc_utils.F.ast: Symbol "drot" in "rotate_rmat_real" not defined
+qs_loc_utils.F.ast: Symbol "drot" in "rotate_zij_real" not defined
 qs_localization_methods.F.ast: Found GOTO statement in procedure "jacobi_rot_para"
-qs_mo_io.F.ast: Found CALL DGEMM in procedure "write_mo_set_to_output_unit"
-qs_mo_io.F.ast: Symbol "indco" in procedure "qs_mo_io" is IMPLICIT-SAVE
-qs_mo_io.F.ast: Symbol "nco" in procedure "qs_mo_io" is IMPLICIT-SAVE
-qs_mo_io.F.ast: Symbol "nso" in procedure "qs_mo_io" is IMPLICIT-SAVE
-qs_mo_io.F.ast: Symbol "orbtramat" in procedure "qs_mo_io" is IMPLICIT-SAVE
-qs_modify_pab_block.F.ast: Symbol "coset" in procedure "qs_modify_pab_block" is IMPLICIT-SAVE
-qs_moments.F.ast: Found CALL DGEMM in procedure "build_local_magmom_matrix"
-qs_moments.F.ast: Found CALL DGEMM in procedure "build_local_moment_matrix"
-qs_moments.F.ast: Symbol "indco" in procedure "qs_moments" is IMPLICIT-SAVE
-qs_moments.F.ast: Symbol "ncoset" in procedure "qs_moments" is IMPLICIT-SAVE
-qs_neighbor_lists.F.ast: Symbol "ptable" in procedure "qs_neighbor_lists" is IMPLICIT-SAVE
-qs_oce_methods.F.ast: Found CALL DAXPY in procedure "proj_blk"
-qs_oce_methods.F.ast: Found CALL DGEMM in procedure "build_oce_block"
-qs_oce_methods.F.ast: Found CALL DGEMM in procedure "proj_blk"
-qs_oce_methods.F.ast: Found CALL DGER in procedure "proj_blk"
-qs_oce_methods.F.ast: Symbol "indco" in procedure "qs_oce_methods" is IMPLICIT-SAVE
-qs_oce_methods.F.ast: Symbol "nco" in procedure "qs_oce_methods" is IMPLICIT-SAVE
-qs_oce_methods.F.ast: Symbol "ncoset" in procedure "qs_oce_methods" is IMPLICIT-SAVE
-qs_oce_methods.F.ast: Symbol "nso" in procedure "qs_oce_methods" is IMPLICIT-SAVE
-qs_oce_methods.F.ast: Symbol "orbtramat" in procedure "qs_oce_methods" is IMPLICIT-SAVE
-qs_operators_ao.F.ast: Found CALL DGEMM in procedure "build_ang_mom_matrix"
-qs_operators_ao.F.ast: Found CALL DGEMM in procedure "build_lin_mom_matrix"
-qs_operators_ao.F.ast: Found CALL DGEMM in procedure "p_xyz_ao"
-qs_operators_ao.F.ast: Found CALL DGEMM in procedure "rrc_xyz_ao"
-qs_operators_ao.F.ast: Found CALL DGEMM in procedure "rrc_xyz_der_ao"
-qs_operators_ao.F.ast: Symbol "coset" in procedure "qs_operators_ao" is IMPLICIT-SAVE
-qs_operators_ao.F.ast: Symbol "ncoset" in procedure "qs_operators_ao" is IMPLICIT-SAVE
+qs_localization_methods.F.ast: Symbol "dcopy" in "jacobi_rot_para" not defined
+qs_localization_methods.F.ast: Symbol "dgemm" in "initialize_weights" not defined
+qs_localization_methods.F.ast: Symbol "dgemm" in "jacobi_rot_para" not defined
+qs_localization_methods.F.ast: Symbol "zrot" in "rotate_rmat" not defined
+qs_localization_methods.F.ast: Symbol "zrot" in "rotate_zij" not defined
+qs_mo_io.F.ast: Symbol "dgemm" in "write_mo_set_to_output_unit" not defined
+qs_moments.F.ast: Symbol "dgemm" in "build_local_magmom_matrix" not defined
+qs_moments.F.ast: Symbol "dgemm" in "build_local_moment_matrix" not defined
+qs_oce_methods.F.ast: Symbol "daxpy" in "proj_blk" not defined
+qs_oce_methods.F.ast: Symbol "dgemm" in "build_oce_block" not defined
+qs_oce_methods.F.ast: Symbol "dgemm" in "proj_blk" not defined
+qs_oce_methods.F.ast: Symbol "dger" in "proj_blk" not defined
+qs_operators_ao.F.ast: Symbol "dgemm" in "build_ang_mom_matrix" not defined
+qs_operators_ao.F.ast: Symbol "dgemm" in "build_lin_mom_matrix" not defined
+qs_operators_ao.F.ast: Symbol "dgemm" in "p_xyz_ao" not defined
+qs_operators_ao.F.ast: Symbol "dgemm" in "rrc_xyz_ao" not defined
+qs_operators_ao.F.ast: Symbol "dgemm" in "rrc_xyz_der_ao" not defined
+qs_ot_minimizer.F.ast: Symbol "dgesv" in "ot_diis_step" not defined
 qs_outer_scf.F.ast: Found GOTO statement in procedure "outer_loop_optimize"
-qs_overlap.F.ast: Symbol "indco" in procedure "qs_overlap" is IMPLICIT-SAVE
-qs_overlap.F.ast: Symbol "ncoset" in procedure "qs_overlap" is IMPLICIT-SAVE
-qs_p_sparse_psi.F.ast: Found CALL DCOPY in procedure "p_proj_transfer_blacs_to_f"
-qs_pdos.F.ast: Symbol "nso" in procedure "qs_pdos" is IMPLICIT-SAVE
-qs_pdos.F.ast: Symbol "nsoset" in procedure "qs_pdos" is IMPLICIT-SAVE
-qs_rho0_ggrid.F.ast: Symbol "indco" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
-qs_rho0_ggrid.F.ast: Symbol "nco" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
-qs_rho0_ggrid.F.ast: Symbol "ncoset" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
-qs_rho0_ggrid.F.ast: Symbol "nso" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
-qs_rho0_ggrid.F.ast: Symbol "nsoset" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
-qs_rho0_ggrid.F.ast: Symbol "orbtramat" in procedure "qs_rho0_ggrid" is IMPLICIT-SAVE
-qs_rho0_methods.F.ast: Symbol "indco" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
-qs_rho0_methods.F.ast: Symbol "indso" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
-qs_rho0_methods.F.ast: Symbol "nco" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
-qs_rho0_methods.F.ast: Symbol "ncoset" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
-qs_rho0_methods.F.ast: Symbol "nso" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
-qs_rho0_methods.F.ast: Symbol "nsoset" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
-qs_rho0_methods.F.ast: Symbol "orbtramat" in procedure "qs_rho0_methods" is IMPLICIT-SAVE
-qs_rho_atom_methods.F.ast: Symbol "indso" in procedure "qs_rho_atom_methods" is IMPLICIT-SAVE
-qs_rho_atom_methods.F.ast: Symbol "nsoset" in procedure "qs_rho_atom_methods" is IMPLICIT-SAVE
+qs_p_sparse_psi.F.ast: Symbol "dcopy" in "p_proj_transfer_blacs_to_f" not defined
+qs_resp.F.ast: Symbol "dgetrf" in "resp_fit" not defined
+qs_resp.F.ast: Symbol "dgetrs" in "resp_fit" not defined
 qs_scf_diagonalization.F.ast: Symbol "cone" in procedure "do_general_diag_kp" is IMPLICIT-SAVE
 qs_scf_diagonalization.F.ast: Symbol "czero" in procedure "do_general_diag_kp" is IMPLICIT-SAVE
 qs_scf_diagonalization.F.ast: Symbol "ione" in procedure "do_general_diag_kp" is IMPLICIT-SAVE
-qs_scf_lanczos.F.ast: Found CALL DGEMM in procedure "lanczos_refinement_2v"
-qs_scf_post_gpw.F.ast: Symbol "indso" in procedure "qs_scf_post_gpw" is IMPLICIT-SAVE
-qs_spin_orbit.F.ast: Found CALL DGEMM in procedure "build_pso_matrix"
-qs_spin_orbit.F.ast: Symbol "ncoset" in procedure "qs_spin_orbit" is IMPLICIT-SAVE
-qs_tddfpt_utils.F.ast: Found CALL DCOPY in procedure "co_initial_guess"
-qs_vxc_atom.F.ast: Found CALL DAXPY in procedure "dgavtaudgb"
-qs_vxc_atom.F.ast: Found CALL DAXPY in procedure "gavxcgb_gc"
-qs_vxc_atom.F.ast: Found CALL DAXPY in procedure "gavxcgb_nogc"
-qs_vxc_atom.F.ast: Found CALL DGEMM in procedure "gavxcgb_nogc"
-qs_vxc_atom.F.ast: Symbol "indso" in procedure "qs_vxc_atom" is IMPLICIT-SAVE
-qs_vxc_atom.F.ast: Symbol "nsoset" in procedure "qs_vxc_atom" is IMPLICIT-SAVE
-realspace_grid_types.F.ast: Found CALL DCOPY in procedure "rs_pw_transfer"
-realspace_grid_types.F.ast: Found CALL DCOPY in procedure "rs_pw_transfer_replicated"
+qs_scf_lanczos.F.ast: Symbol "dgemm" in "lanczos_refinement_2v" not defined
+qs_scf_lanczos.F.ast: Symbol "dsyevd" in "lanczos_refinement_2v" not defined
+qs_spin_orbit.F.ast: Symbol "dgemm" in "build_pso_matrix" not defined
+qs_tddfpt_utils.F.ast: Symbol "dcopy" in "co_initial_guess" not defined
+qs_vxc_atom.F.ast: Symbol "daxpy" in "dgavtaudgb" not defined
+qs_vxc_atom.F.ast: Symbol "daxpy" in "gavxcgb_gc" not defined
+qs_vxc_atom.F.ast: Symbol "daxpy" in "gavxcgb_nogc" not defined
+qs_vxc_atom.F.ast: Symbol "dgemm" in "gavxcgb_nogc" not defined
+realspace_grid_types.F.ast: Symbol "copy_cr" in "rs_pw_transfer" not defined
+realspace_grid_types.F.ast: Symbol "copy_rc" in "rs_pw_transfer" not defined
+realspace_grid_types.F.ast: Symbol "copy_rc" in "rs_pw_transfer_replicated" not defined
+realspace_grid_types.F.ast: Symbol "dcopy" in "rs_pw_transfer" not defined
+realspace_grid_types.F.ast: Symbol "dcopy" in "rs_pw_transfer_replicated" not defined
 reference_manager.F.ast: Symbol "thebib" in procedure "reference_manager" is IMPLICIT-SAVE
 replica_types.F.ast: Symbol "rep_envs" in procedure "replica_types" is IMPLICIT-SAVE
-rt_matrix_exp.F.ast: Found CALL DGEMM in procedure "arnoldi"
-rt_propagation_utils.F.ast: Symbol "ncoset" in procedure "rt_propagation_utils" is IMPLICIT-SAVE
+rt_matrix_exp.F.ast: Symbol "dgemm" in "arnoldi" not defined
+rt_matrix_exp.F.ast: Symbol "dgetrf" in "arnoldi" not defined
+rt_matrix_exp.F.ast: Symbol "dgetrs" in "arnoldi" not defined
 rt_propagation_utils.F.ast: Symbol "one" in procedure "calc_c_mat_force_ls" is IMPLICIT-SAVE
 rt_propagation_utils.F.ast: Symbol "one" in procedure "calc_s_derivs" is IMPLICIT-SAVE
 rt_propagation_utils.F.ast: Symbol "zero" in procedure "calc_c_mat_force_ls" is IMPLICIT-SAVE
 rt_propagation_utils.F.ast: Symbol "zero" in procedure "calc_s_derivs" is IMPLICIT-SAVE
 scp_diis_utils.F.ast: Found GOTO statement in procedure "store_hist"
-scp_dispersion.F.ast: Symbol "se_orbital_pointer" in procedure "scp_dispersion" is IMPLICIT-SAVE
-scp_fock_matrix_integrals.F.ast: Symbol "se_orbital_pointer" in procedure "scp_fock_matrix_integrals" is IMPLICIT-SAVE
-scptb_core_matrix.F.ast: Symbol "ncoset" in procedure "scptb_core_matrix" is IMPLICIT-SAVE
-scptb_ks_matrix.F.ast: Symbol "c2s_tramat" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
-scptb_ks_matrix.F.ast: Symbol "indso" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
-scptb_ks_matrix.F.ast: Symbol "ncoset" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
-scptb_ks_matrix.F.ast: Symbol "nsoset" in procedure "scptb_ks_matrix" is IMPLICIT-SAVE
-scptb_parameters.F.ast: Symbol "ptable" in procedure "scptb_parameters" is IMPLICIT-SAVE
-se_fock_matrix_coulomb_ga.F.ast: Symbol "se_orbital_pointer" in procedure "se_fock_matrix_coulomb_ga" is IMPLICIT-SAVE
-se_fock_matrix_coulomb_mpi.F.ast: Symbol "se_orbital_pointer" in procedure "se_fock_matrix_coulomb_mpi" is IMPLICIT-SAVE
-se_fock_matrix_integrals.F.ast: Symbol "se_orbital_pointer" in procedure "se_fock_matrix_integrals" is IMPLICIT-SAVE
 se_ga_tools.F.ast: Found GOTO statement in procedure "grid_factor"
-semi_empirical_expns3_methods.F.ast: Symbol "indexa" in procedure "semi_empirical_expns3_methods" is IMPLICIT-SAVE
-semi_empirical_int3_utils.F.ast: Symbol "clm_d" in procedure "semi_empirical_int3_utils" is IMPLICIT-SAVE
-semi_empirical_int3_utils.F.ast: Symbol "indexb" in procedure "semi_empirical_int3_utils" is IMPLICIT-SAVE
-semi_empirical_int_ana.F.ast: Symbol "ijkl_ind" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
-semi_empirical_int_ana.F.ast: Symbol "ijkl_sym" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
-semi_empirical_int_ana.F.ast: Symbol "inddd" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
-semi_empirical_int_ana.F.ast: Symbol "inddp" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
-semi_empirical_int_ana.F.ast: Symbol "indexa" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
-semi_empirical_int_ana.F.ast: Symbol "indexb" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
-semi_empirical_int_ana.F.ast: Symbol "indpp" in procedure "semi_empirical_int_ana" is IMPLICIT-SAVE
 semi_empirical_int_arrays.F.ast: Symbol "alm" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
 semi_empirical_int_arrays.F.ast: Symbol "clm_d" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
 semi_empirical_int_arrays.F.ast: Symbol "clm_sp" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
@@ -892,69 +1482,27 @@ semi_empirical_int_arrays.F.ast: Symbol "int_kl" in procedure "semi_empirical_in
 semi_empirical_int_arrays.F.ast: Symbol "int_onec2el" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
 semi_empirical_int_arrays.F.ast: Symbol "se_map_alm" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
 semi_empirical_int_arrays.F.ast: Symbol "se_orbital_pointer" in procedure "semi_empirical_int_arrays" is IMPLICIT-SAVE
-semi_empirical_int_debug.F.ast: Symbol "indexb" in procedure "rot_2el_2c_first_debug" is IMPLICIT-SAVE
-semi_empirical_int_gks.F.ast: Symbol "indexb" in procedure "semi_empirical_int_gks" is IMPLICIT-SAVE
-semi_empirical_int_num.F.ast: Symbol "ijkl_ind" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
-semi_empirical_int_num.F.ast: Symbol "ijkl_sym" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
-semi_empirical_int_num.F.ast: Symbol "inddd" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
-semi_empirical_int_num.F.ast: Symbol "inddp" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
-semi_empirical_int_num.F.ast: Symbol "indexa" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
-semi_empirical_int_num.F.ast: Symbol "indexb" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
-semi_empirical_int_num.F.ast: Symbol "indpp" in procedure "semi_empirical_int_num" is IMPLICIT-SAVE
-semi_empirical_int_utils.F.ast: Symbol "clm_d" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
-semi_empirical_int_utils.F.ast: Symbol "clm_sp" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
-semi_empirical_int_utils.F.ast: Symbol "ijkl_ind" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
-semi_empirical_int_utils.F.ast: Symbol "indexa" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
-semi_empirical_int_utils.F.ast: Symbol "indexb" in procedure "semi_empirical_int_utils" is IMPLICIT-SAVE
-semi_empirical_mpole_methods.F.ast: Symbol "alm" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
-semi_empirical_mpole_methods.F.ast: Symbol "indexa" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
-semi_empirical_mpole_methods.F.ast: Symbol "indexb" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
-semi_empirical_mpole_methods.F.ast: Symbol "se_map_alm" in procedure "semi_empirical_mpole_methods" is IMPLICIT-SAVE
-semi_empirical_par_utils.F.ast: Symbol "int_ij" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
-semi_empirical_par_utils.F.ast: Symbol "int_kl" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
-semi_empirical_par_utils.F.ast: Symbol "int_onec2el" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
 semi_empirical_par_utils.F.ast: Symbol "nod" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
 semi_empirical_par_utils.F.ast: Symbol "nop" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
 semi_empirical_par_utils.F.ast: Symbol "nos" in procedure "semi_empirical_par_utils" is IMPLICIT-SAVE
 semi_empirical_parameters.F.ast: Symbol "aab_pm6" in procedure "semi_empirical_parameters" is IMPLICIT-SAVE
-semi_empirical_parameters.F.ast: Symbol "ptable" in procedure "semi_empirical_parameters" is IMPLICIT-SAVE
 semi_empirical_parameters.F.ast: Symbol "xab_pm6" in procedure "semi_empirical_parameters" is IMPLICIT-SAVE
-smm.F.ast: Found CALL CGEMM in procedure "smm_cnn"
-smm.F.ast: Found CALL CGEMM in procedure "smm_cnt"
-smm.F.ast: Found CALL CGEMM in procedure "smm_ctn"
-smm.F.ast: Found CALL CGEMM in procedure "smm_ctt"
-smm.F.ast: Found CALL DGEMM in procedure "smm_dnn"
-smm.F.ast: Found CALL DGEMM in procedure "smm_dnt"
-smm.F.ast: Found CALL DGEMM in procedure "smm_dtn"
-smm.F.ast: Found CALL DGEMM in procedure "smm_dtt"
-smm.F.ast: Found CALL SGEMM in procedure "smm_snn"
-smm.F.ast: Found CALL SGEMM in procedure "smm_snt"
-smm.F.ast: Found CALL SGEMM in procedure "smm_stn"
-smm.F.ast: Found CALL SGEMM in procedure "smm_stt"
-smm.F.ast: Found CALL ZGEMM in procedure "smm_znn"
-smm.F.ast: Found CALL ZGEMM in procedure "smm_znt"
-smm.F.ast: Found CALL ZGEMM in procedure "smm_ztn"
-smm.F.ast: Found CALL ZGEMM in procedure "smm_ztt"
-smm.F.ast: Symbol "kind" in procedure "smm_cnn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_cnt" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_ctn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_ctt" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_dnn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_dnt" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_dtn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_dtt" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_snn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_snt" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_stn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_stt" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_znn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_znt" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_ztn" is IMPLICIT-TYPE
-smm.F.ast: Symbol "kind" in procedure "smm_ztt" is IMPLICIT-TYPE
-soft_basis_set.F.ast: Symbol "indco" in procedure "soft_basis_set" is IMPLICIT-SAVE
-soft_basis_set.F.ast: Symbol "nco" in procedure "soft_basis_set" is IMPLICIT-SAVE
-soft_basis_set.F.ast: Symbol "ncoset" in procedure "soft_basis_set" is IMPLICIT-SAVE
-soft_basis_set.F.ast: Symbol "nso" in procedure "soft_basis_set" is IMPLICIT-SAVE
+smm.F.ast: Symbol "cgemm" in "smm_cnn" not defined
+smm.F.ast: Symbol "cgemm" in "smm_cnt" not defined
+smm.F.ast: Symbol "cgemm" in "smm_ctn" not defined
+smm.F.ast: Symbol "cgemm" in "smm_ctt" not defined
+smm.F.ast: Symbol "dgemm" in "smm_dnn" not defined
+smm.F.ast: Symbol "dgemm" in "smm_dnt" not defined
+smm.F.ast: Symbol "dgemm" in "smm_dtn" not defined
+smm.F.ast: Symbol "dgemm" in "smm_dtt" not defined
+smm.F.ast: Symbol "sgemm" in "smm_snn" not defined
+smm.F.ast: Symbol "sgemm" in "smm_snt" not defined
+smm.F.ast: Symbol "sgemm" in "smm_stn" not defined
+smm.F.ast: Symbol "sgemm" in "smm_stt" not defined
+smm.F.ast: Symbol "zgemm" in "smm_znn" not defined
+smm.F.ast: Symbol "zgemm" in "smm_znt" not defined
+smm.F.ast: Symbol "zgemm" in "smm_ztn" not defined
+smm.F.ast: Symbol "zgemm" in "smm_ztt" not defined
 spherical_harmonics.F.ast: Symbol "cg_table" in procedure "spherical_harmonics" is IMPLICIT-SAVE
 spherical_harmonics.F.ast: Symbol "lmax" in procedure "spherical_harmonics" is IMPLICIT-SAVE
 spherical_harmonics.F.ast: Symbol "osq2" in procedure "spherical_harmonics" is IMPLICIT-SAVE
@@ -965,20 +1513,12 @@ swarm_mpi.F.ast: Found CLOSE statement in procedure "logger_init_master"
 swarm_mpi.F.ast: Found OPEN statement in procedure "logger_finalize"
 termination.F.ast: Symbol "error_unit" in procedure "termination" is IMPLICIT-SAVE
 tmc_dot_tree.F.ast: Symbol "debug" in procedure "tmc_dot_tree" is IMPLICIT-SAVE
-topology_pdb.F.ast: Symbol "r_datx" in procedure "topology_pdb" is IMPLICIT-SAVE
-topology_pdb.F.ast: Symbol "r_host_name" in procedure "topology_pdb" is IMPLICIT-SAVE
-topology_pdb.F.ast: Symbol "r_user_name" in procedure "topology_pdb" is IMPLICIT-SAVE
-topology_util.F.ast: Symbol "amber_map" in procedure "topology_util" is IMPLICIT-SAVE
-topology_util.F.ast: Symbol "charmm_map" in procedure "topology_util" is IMPLICIT-SAVE
-topology_util.F.ast: Symbol "gromos_map" in procedure "topology_util" is IMPLICIT-SAVE
 xas_methods.F.ast: Found GOTO statement in procedure "xas"
-xas_methods.F.ast: Symbol "ncoset" in procedure "xas_methods" is IMPLICIT-SAVE
-xas_methods.F.ast: Symbol "ptable" in procedure "xas_methods" is IMPLICIT-SAVE
-xc.F.ast: Found CALL DAXPY in procedure "xc_vxc_pw_create"
 xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
+xc.F.ast: Symbol "daxpy" in "xc_vxc_pw_create" not defined
 xc_b97.F.ast: Symbol "params_b97_grimme" in procedure "xc_b97" is IMPLICIT-SAVE
 xc_b97.F.ast: Symbol "params_b97_mardirossian" in procedure "xc_b97" is IMPLICIT-SAVE
 xc_b97.F.ast: Symbol "params_b97_orig" in procedure "xc_b97" is IMPLICIT-SAVE
@@ -994,8 +1534,6 @@ xc_exchange_gga.F.ast: Symbol "flsd" in procedure "xc_exchange_gga" is IMPLICIT-
 xc_exchange_gga.F.ast: Symbol "sfac" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
 xc_exchange_gga.F.ast: Symbol "t13" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
 xc_exchange_gga.F.ast: Symbol "tact" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
-xc_f90_types_m.F.ast: Symbol "selected_real_kind" in procedure "xc_f90_types_m" is IMPLICIT-TYPE
-xc_f90_types_m.F.ast: Symbol "xc_f90_pointer_t" in procedure "xc_f90_types_m" is IMPLICIT-TYPE
 xc_ke_gga.F.ast: Symbol "b" in procedure "xc_ke_gga" is IMPLICIT-SAVE
 xc_ke_gga.F.ast: Symbol "b_lda" in procedure "xc_ke_gga" is IMPLICIT-SAVE
 xc_ke_gga.F.ast: Symbol "b_lsd" in procedure "xc_ke_gga" is IMPLICIT-SAVE
@@ -1064,54 +1602,30 @@ xml_parser.F.ast: Found OPEN statement in procedure "xml_open"
 xml_parser.F.ast: Symbol "report_details_" in procedure "xml_parser" is IMPLICIT-SAVE
 xml_parser.F.ast: Symbol "report_errors_" in procedure "xml_parser" is IMPLICIT-SAVE
 xml_parser.F.ast: Symbol "report_lun_" in procedure "xml_parser" is IMPLICIT-SAVE
-xray_diffraction.F.ast: Found CALL DGEMM in procedure "calculate_rhotot_elec_gspace"
-xray_diffraction.F.ast: Symbol "nco" in procedure "xray_diffraction" is IMPLICIT-SAVE
-xray_diffraction.F.ast: Symbol "ncoset" in procedure "xray_diffraction" is IMPLICIT-SAVE
-xray_diffraction.F.ast: Symbol "nso" in procedure "xray_diffraction" is IMPLICIT-SAVE
-xray_diffraction.F.ast: Symbol "nsoset" in procedure "xray_diffraction" is IMPLICIT-SAVE
-xray_diffraction.F.ast: Symbol "orbtramat" in procedure "xray_diffraction" is IMPLICIT-SAVE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_0_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_0_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_0_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_1_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_1_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_1_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_0" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_1" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_2_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_0" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_1" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_3_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_0" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_1" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "max" in procedure "xyz_to_vab_4_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_0_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_0_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_0_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_1_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_1_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_1_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_0" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_1" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_2_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_0" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_1" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_3_4" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_0" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_1" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_2" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_3" is IMPLICIT-TYPE
-xyz_to_vab_optimised.F.ast: Symbol "real" in procedure "xyz_to_vab_4_4" is IMPLICIT-TYPE
-cp_dbcsr_operations.F.ast: Found CALL CP_FM_GEMM in procedure "cp_dbcsr_plus_fm_fm_t_native"
-cp_fm_basic_linalg.F.ast: Found CALL CP_FM_GEMM in procedure "cp_complex_fm_gemm"
-cp_gemm_interface.F.ast: Found CALL CP_FM_GEMM in procedure "cp_gemm"
+xray_diffraction.F.ast: Symbol "dgemm" in "calculate_rhotot_elec_gspace" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_0" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_1" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_2" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_3" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_4" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_0" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_1" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_2" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_3" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_4" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_0" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_1" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_2" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_3" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_4" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_0" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_1" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_2" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_3" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_4" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_0" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_1" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_2" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_3" in "call_to_xyz_to_vab" not defined
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_4" in "call_to_xyz_to_vab" not defined
