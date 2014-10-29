@@ -8,6 +8,7 @@ import re
 
 BANNED_STM  = ('GOTO', 'OPEN', 'CLOSE', )
 BANNED_CALL = ('CP_FM_GEMM', )
+USE_EXCEPTIONS = ("OMP_LIB", "OMP_LIB_KINDS", "F77_BLAS", "LAPACK",)
 
 # precompile regex
 re_symbol    = re.compile(r"^\s*symtree.* symbol: '([^']+)'.*$")
@@ -90,6 +91,8 @@ def process_log_file(fn, public_symbols, used_symbols):
                 mod = re_use.search(line).group(1)
                 used_symbols.add(mod+"::"+curr_symbol)
                 curr_symbol_defined = True
+                if("MODULE  USE-ASSOC" in line and mod.upper() not in USE_EXCEPTIONS):
+                    issues.append(fn+': Module "'+mod+'" USEd without ONLY clause or not PRIVATE')
             #if(("SAVE" in line) and ("PARAMETER" not in line) and ("PUBLIC" in line)):
             #    issues.append(fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is PUBLIC-SAVE')
             if(("IMPLICIT-SAVE" in line) and ("PARAMETER" not in line) and ("USE-ASSOC" not in line)):
