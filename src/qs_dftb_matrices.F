@@ -1308,6 +1308,7 @@ CONTAINS
              Pot => qmmm_env%Potentials(ipot)%Pot
              nmm = SIZE(Pot%mm_atom_index)
              ! get a 'clean' mm particle set
+             NULLIFY(atoms_mm)
              CALL allocate_particle_set(atoms_mm,nmm,error)
              ALLOCATE(charges_mm(nmm),STAT=istat)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1337,6 +1338,7 @@ CONTAINS
                 Pot => qmmm_env%added_charges%Potentials(ipot)%Pot
                 nmm = SIZE(Pot%mm_atom_index)
                 ! get a 'clean' mm particle set
+                NULLIFY(atoms_mm)
                 CALL allocate_particle_set(atoms_mm,nmm,error)
                 ALLOCATE(charges_mm(nmm),STAT=istat)
                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1814,6 +1816,7 @@ CONTAINS
                 Pot => qmmm_env%Potentials(ipot)%Pot
                 nmm = SIZE(Pot%mm_atom_index)
                 ! get a 'clean' mm particle set
+                NULLIFY(atoms_mm)
                 CALL allocate_particle_set(atoms_mm,nmm,error)
                 ALLOCATE(charges_mm(nmm),STAT=istat)
                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1858,6 +1861,7 @@ CONTAINS
                    Pot => qmmm_env%added_charges%Potentials(ipot)%Pot
                    nmm = SIZE(Pot%mm_atom_index)
                    ! get a 'clean' mm particle set
+                   NULLIFY(atoms_mm)
                    CALL allocate_particle_set(atoms_mm,nmm,error)
                    ALLOCATE(charges_mm(nmm),STAT=istat)
                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -150,8 +150,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k, n, ncount, &
-                                                npoints_spline, ntype
+    INTEGER                                  :: handle, i, ip, j, k, n, &
+                                                ncount, npoints_spline, ntype
     LOGICAL                                  :: failure, found_locut
     REAL(KIND=dp)                            :: energy_cutoff, hicut, hicut0, &
                                                 locut
@@ -166,18 +166,25 @@ CONTAINS
     CALL timeset(routineN,handle)
     IF (iw3 > 0) THEN
        WRITE (iw3,"(/,T2,A,I0,A,I0,A)")&
-        "SPLINE_INFO| Generating ",(ntype*(ntype+1))/2," splines for the "//&
-        TRIM(ADJUSTL(nonbonded_type))//" interactions due to ",ntype,&
-        " different atomic kinds"
+        "SPLINE_INFO| Generating ",(ntype*(ntype+1))/2," splines for "//&
+        TRIM(ADJUSTL(nonbonded_type))//" interactions "
+       WRITE (iw3,"(T2,A,I0,A)")&
+        "             Due to ",ntype," different atomic kinds"
     END IF
     CALL init_genpot(potparm, ntype)
     ! Real computation of splines
+    ip = 0
     DO i = 1, ntype
        DO j = 1, i
           pot => potparm%pot(i,j)%pot
           IF (iw3>0 .AND. iw<=0) THEN
              IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) THEN
-                 WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
+                 WRITE(UNIT=iw3,ADVANCE="NO",FMT='(2X,A3,I0)') '...',i*(i-1)/2+j
+                 ip = ip+1
+                 IF (ip >= 11) THEN
+                   WRITE(iw3,*)
+                   ip = 0
+                 END IF
              END IF
           ENDIF
           ! Setup of Exclusion Types
@@ -254,7 +261,7 @@ CONTAINS
         "SPLINE_INFO| Number of pair potential splines allocated:   ",MAXVAL(spline_env%spltab)
     END IF
     IF (iw3 > 0) THEN
-       WRITE (iw3,'(/,T2,A,I0)')&
+       WRITE (iw3,'(/,T2,A,I0,/,T2,A)')&
         "SPLINE_INFO| Number of unique splines computed:            ",MAXVAL(spline_env%spltab),&
         "SPLINE_INFO| Done"
     END IF

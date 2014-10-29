@@ -468,58 +468,69 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qmmm_init_periodic_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: maxchrg
     TYPE(dft_control_type), POINTER          :: dft_control
 
-   NULLIFY(dft_control)
+   IF (qmmm_env_qm%periodic) THEN
 
-   IF (.NOT.qmmm_env_qm%periodic) RETURN
-   CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
-   check=(dft_control%qs_control%semi_empirical.OR.dft_control%qs_control%dftb)
+      NULLIFY(dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
-   CALL cp_assert(.NOT.check,cp_failure_level,cp_assertion_failed,routineP,&
-           " QM/MM periodic calculations possible only with GPW. Not yet implemented for "//&
-           " semiempirical or DFTB calculations!"//&
-           CPSourceFileRef,&
-           only_ionode=.TRUE.)
+      IF(dft_control%qs_control%semi_empirical) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="QM/MM periodic calculations not implemented for semi empirical methods", &
+            error=error, error_level=cp_fatal_level)
+      ELSE IF(dft_control%qs_control%dftb) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="QM/MM periodic calculations not implemented for DFTB method", &
+            error=error, error_level=cp_fatal_level)
+      ELSE IF(dft_control%qs_control%scptb) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="QM/MM periodic calculations not implemented for SCPTB method", &
+            error=error, error_level=cp_fatal_level)
+      ELSE
+ 
+         ! setup for GPW/GPAW
+         maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
+         IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
 
-   maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
-   IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
+         CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+              per_potentials=qmmm_env_qm%per_potentials,&
+              potentials=qmmm_env_qm%potentials,&
+              pgfs=qmmm_env_qm%pgfs,&
+              qm_cell_small=qm_cell_small,&
+              mm_cell=mm_cell,&
+              para_env=para_env,&
+              compatibility=qmmm_env_qm%compatibility,&
+              qmmm_periodic=qmmm_periodic,&
+              print_section=print_section,&
+              eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+              maxchrg=maxchrg,&
+              ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
+              ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
+              error=error)
 
-   CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
-                                per_potentials=qmmm_env_qm%per_potentials,&
-                                potentials=qmmm_env_qm%potentials,&
-                                pgfs=qmmm_env_qm%pgfs,&
-                                qm_cell_small=qm_cell_small,&
-                                mm_cell=mm_cell,&
-                                para_env=para_env,&
-                                compatibility=qmmm_env_qm%compatibility,&
-                                qmmm_periodic=qmmm_periodic,&
-                                print_section=print_section,&
-                                eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
-                                maxchrg=maxchrg,&
-                                ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
-                                ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
-                                error=error)
+         IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
 
-   IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
+            CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                 per_potentials=added_charges%per_potentials,&
+                 potentials=added_charges%potentials,&
+                 pgfs=added_charges%pgfs,&
+                 qm_cell_small=qm_cell_small,&
+                 mm_cell=mm_cell,&
+                 para_env=para_env,&
+                 compatibility=qmmm_env_qm%compatibility,&
+                 qmmm_periodic=qmmm_periodic,&
+                 print_section=print_section,&
+                 eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+                 maxchrg=maxchrg,&
+                 ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
+                 ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
+                 error=error)
+         END IF
 
-      CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
-                                   per_potentials=added_charges%per_potentials,&
-                                   potentials=added_charges%potentials,&
-                                   pgfs=added_charges%pgfs,&
-                                   qm_cell_small=qm_cell_small,&
-                                   mm_cell=mm_cell,&
-                                   para_env=para_env,&
-                                   compatibility=qmmm_env_qm%compatibility,&
-                                   qmmm_periodic=qmmm_periodic,&
-                                   print_section=print_section,&
-                                   eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
-                                   maxchrg=maxchrg,&
-                                   ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
-                                   ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
-                                   error=error)
+      END IF
+
    END IF
 
  END SUBROUTINE qmmm_init_periodic_potential
