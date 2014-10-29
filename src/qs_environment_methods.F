@@ -27,6 +27,11 @@ MODULE qs_environment_methods
   USE distribution_methods,            ONLY: distribute_molecules_2d
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
+                                             ewald_pw_type
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
   USE f77_blas
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              do_ppl_grid,&
@@ -505,6 +510,8 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     LOGICAL                                  :: failure, nlcc
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_p_type), POINTER                 :: external_vxc, rho_core, &
                                                 rho_nlcc, rho_nlcc_g, vee, &
@@ -554,8 +561,24 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
            END IF
          END IF
        ELSE IF (dft_control%qs_control%semi_empirical) THEN
+          IF (dft_control%qs_control%se_control%do_ewald .OR. &
+              dft_control%qs_control%se_control%do_ewald_gks) THEN
+             ! rebuild Ewald environment
+             CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+             CALL ewald_pw_grid_update(ewald_pw,ewald_env,cell%hmat,error)
+          END IF
        ELSE IF (dft_control%qs_control%dftb) THEN
+          IF (dft_control%qs_control%dftb_control%do_ewald) THEN
+             ! rebuild Ewald environment
+             CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+             CALL ewald_pw_grid_update(ewald_pw,ewald_env,cell%hmat,error)
+          END IF
        ELSE IF (dft_control%qs_control%scptb) THEN
+          IF (dft_control%qs_control%scptb_control%do_ewald) THEN
+             ! rebuild Ewald environment
+             CALL get_qs_env(qs_env=qs_env,ewald_env=ewald_env,ewald_pw=ewald_pw,error=error)
+             CALL ewald_pw_grid_update(ewald_pw,ewald_env,cell%hmat,error)
+          END IF
        ELSE
          IF (ASSOCIATED(rho_core)) THEN
             CALL pw_release(rho_core%pw,error=error)

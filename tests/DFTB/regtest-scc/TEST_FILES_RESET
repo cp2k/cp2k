@@ -267,3 +267,9 @@ h2o_disp2.inp
 h2o_disp3.inp
 h2o-6.inp
 h2o-7.inp
+# Bug fix for NPT (update Ewald)
+h2o-1.inp
+h2o-4.inp
+h2o-5.inp
+h2o-7.inp
+h2o_atprop.inp
