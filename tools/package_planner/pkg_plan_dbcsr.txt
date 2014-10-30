@@ -1,7 +1,8 @@
 [
          #======================================================================
          {'dirname':'dbcsr',
-           'requires':["../base", "../mpiwrap", "../acc", "base", "data", "block", "mp", "work", "vec", "mm", "rest"],
+           'requires':["../base", "../mpiwrap", "../acc", "base", "data", "block",
+                       "mp", "vec", "mm", "rest", "arnoldi"],
            'public': ["dbcsr_api.F"],
            'files':  [
                       "dbcsr_api.F",
@@ -40,27 +41,11 @@
                     "dbcsr_toollib.F",
                     "dbcsr_array_i4_sort.F",
                     "dbcsr_array_i8_sort.F",
+                    "dbcsr_array_d_sort.F",
+                    "dbcsr_array_s_sort.F",
                     "dbcsr_array__nametype1__sort.instantiation",
                     "dbcsr_array__nametype1__sort.template",
                     ],
-         },
-
-         #======================================================================
-         {'dirname':'dbcsr/mp',
-         'requires':["../../base", "../../mpiwrap", "../base"],
-          'files': [
-                     "dbcsr_mp_methods.F",
-                     "dbcsr_mp_operations_c.f90",
-                     "dbcsr_mp_operations_d.f90",
-                     "dbcsr_mp_operations.F",
-                     "dbcsr_mp_operations__nametype1_.instantiation",
-                     "dbcsr_mp_operations__nametype1_.template",
-                     "dbcsr_mp_operations_s.f90",
-                     "dbcsr_mp_operations_z.f90",
-                     "dbcsr_dist_operations.F",
-                     "dbcsr_dist_methods.F",
-                     "min_heap.F",
-                    ]
          },
 
          #======================================================================
@@ -75,7 +60,6 @@
                     "dbcsr_data_methods_low__nametype1_.template",
                     "dbcsr_data_methods_low_s.f90",
                     "dbcsr_data_methods_low_z.f90",
-                    "dbcsr_data_operations.F",
                     "dbcsr_datatype.F",
                     "dbcsr_mem_methods.F",
                     "dbcsr_ptr_util_c.f90",
@@ -88,6 +72,24 @@
                     "dbcsr_ptr_util_s.f90",
                     "dbcsr_ptr_util_z.f90",
                    ],
+         },
+
+         #======================================================================
+         {'dirname':'dbcsr/mp',
+         'requires':["../../base", "../../mpiwrap", "../base", "../data"],
+          'files': [
+                     "dbcsr_mp_methods.F",
+                     "dbcsr_mp_operations_c.f90",
+                     "dbcsr_mp_operations_d.f90",
+                     "dbcsr_mp_operations.F",
+                     "dbcsr_mp_operations__nametype1_.instantiation",
+                     "dbcsr_mp_operations__nametype1_.template",
+                     "dbcsr_mp_operations_s.f90",
+                     "dbcsr_mp_operations_z.f90",
+                     "dbcsr_dist_operations.F",
+                     "dbcsr_dist_methods.F",
+                     "min_heap.F",
+                    ]
          },
 
          #======================================================================
@@ -116,13 +118,7 @@
                      "dbcsr_iterator_operations__nametype1_.template",
                      "dbcsr_iterator_operations_s.f90",
                      "dbcsr_iterator_operations_z.f90",
-                    ],
-         },
 
-         #======================================================================
-         {'dirname':'dbcsr/work',
-           'requires':["../base", "../../base", "../data", "../block", "../mp"],
-           'files': [
                      "dbcsr_work_operations_c.f90",
                      "dbcsr_work_operations_d.f90",
                      "dbcsr_work_operations.F",
@@ -130,13 +126,24 @@
                      "dbcsr_work_operations__nametype1_.template",
                      "dbcsr_work_operations_s.f90",
                      "dbcsr_work_operations_z.f90",
+
+                     #TODO: rename
+                     "dbcsr_data_operations.F",
                     ],
          },
+
+#         #======================================================================
+#         {'dirname':'dbcsr/work',
+#           'requires':["../base", "../../base", "../data", "../mp", "../block"],
+#           'files': [
+#
+#                    ],
+#         },
 
          #======================================================================
          {'dirname':'dbcsr/rest',
            'requires':["../libsmm_acc", "../../base", "../../mpiwrap", 
-                       "../block", "../base", "../mp", "../data", "../work"],
+                       "../block", "../base", "../mp", "../data"],
            'files': [
                      "dbcsr_util.F",
                      "dbcsr_blas_operations.F",
@@ -155,7 +162,7 @@
 
          #======================================================================
          {'dirname':'dbcsr/vec',
-         'requires':["../../base", "../../mpiwrap", "../base", "../data", "../block", "../work", "../rest", "../mp"],
+         'requires':["../../base", "../../mpiwrap", "../base", "../data", "../block", "../rest", "../mp"],
           'files': [
                     "dbcsr_vector_operations.F",
                     "dbcsr_vector_operations_low_c.f90",
@@ -171,7 +178,8 @@
          #======================================================================
          {'dirname':'dbcsr/mm',
            'requires':["../../mpiwrap", "../../acc", "../libsmm_acc", "../../base",
-                       "../mp", "../base", "../block", "../data", "../work", "../rest"],
+                       "../mp", "../base", "../block", "../data", "../rest"],
+           'public' : ["dbcsr_multiply_api.F",],
            'files': [
                      "dbcsr_mm_accdrv.F",
                      "dbcsr_mm_cannon_c.f90",
@@ -193,8 +201,41 @@
                      "dbcsr_mm_sched.F",
                      "dbcsr_mm_types.F",
                      "dbcsr_acc_operations.F",
+                     "dbcsr_multiply_api.F",
                     ],
          },
+
+         #======================================================================
+         {'dirname':'dbcsr/arnoldi',
+           'requires':["../base", "../vec", "../rest", "../../base", "../data", "../../mpiwrap","../block"],
+           'public' : ["dbcsr_arnoldi.F", "dbcsr_arnoldi_data_methods.F",],
+           'files': [
+                      "dbcsr_arnoldi.F",
+                      "dbcsr_arnoldi_data_methods.F",
+                      "dbcsr_arnoldi_methods_low_d.f90",
+                      "dbcsr_arnoldi_data_manipulation_c.f90",
+                      "dbcsr_arnoldi_data_manipulation_s.f90",
+                      "dbcsr_arnoldi_methods_low_z.f90",
+                      "dbcsr_arnoldi_data_selection_d.f90",
+                      "dbcsr_arnoldi_data_selection_z.f90",
+                      "dbcsr_arnoldi_data_selection__nametype1_.template",
+                      "dbcsr_arnoldi_data_manipulation__nametype1_.template",
+                      "dbcsr_arnoldi_methods.F",
+                      "dbcsr_arnoldi_methods_low__nametype1_.template",
+                      "dbcsr_arnoldi_types.F",
+                      "dbcsr_arnoldi_methods_low_c.f90",
+                      "dbcsr_arnoldi_methods_low__nametype1_.instantiation",
+                      "dbcsr_arnoldi_data_manipulation_d.f90",
+                      "dbcsr_arnoldi_data_manipulation__nametype1_.instantiation",
+                      "dbcsr_arnoldi_methods_low_s.f90",
+                      "dbcsr_arnoldi_data_selection_c.f90",
+                      "dbcsr_arnoldi_data_manipulation_z.f90",
+                      "dbcsr_array__nametype1__sort.instantiation",
+                      "dbcsr_arnoldi_data_selection__nametype1_.instantiation",
+                      "dbcsr_arnoldi_data_selection_s.f90",
+                      "dbcsr_geev.F",
+                    ],
+       },
 
 ]
 #EOF

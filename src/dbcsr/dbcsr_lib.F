@@ -17,9 +17,9 @@ MODULE dbcsr_lib
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
-  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mm_cannon_clear_mempools,&
-                                             dbcsr_mm_cannon_lib_finalize,&
-                                             dbcsr_mm_cannon_lib_init
+  USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_clear_mempools,&
+                                             dbcsr_multiply_lib_finalize,&
+                                             dbcsr_multiply_lib_init
   USE kinds,                           ONLY: int_1_size,&
                                              int_2_size,&
                                              int_4_size,&
@@ -80,7 +80,7 @@ MODULE dbcsr_lib
          __LINE__, error=error)
 
     !$omp parallel default(none)  shared(error)
-    CALL dbcsr_mm_cannon_lib_init(error)
+    CALL dbcsr_multiply_lib_init(error)
     !$omp end parallel
 
     is_initialized = .TRUE.
@@ -119,7 +119,7 @@ MODULE dbcsr_lib
     END IF
 
     !$omp parallel default(none) shared(output_unit, group, error)
-    CALL dbcsr_mm_cannon_lib_finalize(group, output_unit, error)
+    CALL dbcsr_multiply_lib_finalize(group, output_unit, error)
     !$omp end parallel
     IF(output_unit>0) WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
 
@@ -136,7 +136,7 @@ MODULE dbcsr_lib
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     !$omp parallel default(none) shared( error)
-    CALL dbcsr_mm_cannon_clear_mempools(error)
+    CALL dbcsr_multiply_clear_mempools(error)
     !$omp end parallel
   END SUBROUTINE dbcsr_clear_mempools
 

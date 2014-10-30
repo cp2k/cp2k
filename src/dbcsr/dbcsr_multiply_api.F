@@ -15,7 +15,10 @@ MODULE dbcsr_multiply_api
                                              dbcsr_failure_level,&
                                              dbcsr_internal_error
   USE dbcsr_methods,                   ONLY: dbcsr_get_data_type
-  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mm_cannon_multiply
+  USE dbcsr_mm_cannon,                 ONLY: dbcsr_mm_cannon_multiply,&
+                                             dbcsr_multiply_clear_mempools => dbcsr_mm_cannon_clear_mempools,&
+                                             dbcsr_multiply_lib_finalize  => dbcsr_mm_cannon_lib_finalize,&
+                                             dbcsr_multiply_lib_init => dbcsr_mm_cannon_lib_init
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
@@ -31,6 +34,8 @@ MODULE dbcsr_multiply_api
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_multiply_api'
 
   PUBLIC :: dbcsr_multiply
+  PUBLIC :: dbcsr_multiply_clear_mempools
+  PUBLIC :: dbcsr_multiply_lib_finalize, dbcsr_multiply_lib_init
 
   INTERFACE dbcsr_multiply
      MODULE PROCEDURE dbcsr_mm_cannon_multiply
