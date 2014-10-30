@@ -25,32 +25,32 @@ MODULE cp_dbcsr_interface
        block_add_on_diag, block_chol_inv, block_set, &
        convert_offsets_to_sizes, convert_sizes_to_offsets, &
        cp_dbcsr_iterator=>dbcsr_iterator, cp_test_multiplies, &
-       dbcsr_arnoldi_data, dbcsr_arnoldi_ev, &
        create_bl_distribution, create_col_vec_from_matrix, &
        create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, &
-       dbcsr_btriu, dbcsr_checksum, dbcsr_clear_mempools, &
-       dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
-       dbcsr_create, dbcsr_create_dist_block_cyclic, &
-       dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
-       dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_filter, &
-       dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, &
-       dbcsr_func_artanh, dbcsr_func_asin, dbcsr_func_cos, dbcsr_func_ddsin, &
-       dbcsr_func_ddtanh, dbcsr_func_dsin, dbcsr_func_dtanh, &
-       dbcsr_func_inverse, dbcsr_func_inverse_special, dbcsr_func_sin, &
-       dbcsr_func_spread_from_zero, dbcsr_func_tanh, dbcsr_func_truncate, &
-       dbcsr_function_of_elements, dbcsr_gershgorin_norm, dbcsr_get_block, &
-       dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_arnoldi_data, dbcsr_arnoldi_ev, &
+       dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
+       dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
+       dbcsr_copy_into_existing, dbcsr_create, &
+       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
+       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
+       dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_distribution_obj, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
+       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_asin, &
+       dbcsr_func_cos, dbcsr_func_ddsin, dbcsr_func_ddtanh, dbcsr_func_dsin, &
+       dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_inverse_special, &
+       dbcsr_func_sin, dbcsr_func_spread_from_zero, dbcsr_func_tanh, &
+       dbcsr_func_truncate, dbcsr_function_of_elements, &
+       dbcsr_gershgorin_norm, dbcsr_get_block, dbcsr_get_block_diag, &
+       dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
        dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
@@ -70,9 +70,9 @@ MODULE cp_dbcsr_interface
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_no_transpose, dbcsr_norm, dbcsr_norm_column, &
-       dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_obj_type_p, dbcsr_print, &
-       dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, &
-       dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
+       dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
+       dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
        dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
        dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
