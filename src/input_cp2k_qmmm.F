@@ -46,7 +46,8 @@ MODULE input_cp2k_qmmm
                                              create_LJ_section,&
                                              create_NONBONDED14_section,&
                                              create_Williams_section
-  USE input_cp2k_poisson,              ONLY: create_gspace_interp_section
+  USE input_cp2k_poisson,              ONLY: create_gspace_interp_section,&
+                                             create_poisson_section
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -827,6 +828,10 @@ CONTAINS
 
        CALL create_gspace_interp_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_poisson_section(subsection, error)
+       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
        CALL cp_print_key_section_create(subsection,"check_spline",&

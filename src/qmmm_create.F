@@ -485,11 +485,10 @@ CPSourceFileRef,&
             ignore_outside_box=ignore_outside_box, error=error)
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)
-       CALL quickstep_create_force_env(sub_force_env(qs_subsys)%force_env,root_section,para_env,&
-            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,qmmm_env_qm=qmmm_env_qm,&
-            qmmm_periodic=qmmm_env_qm%periodic, force_env_section=force_env_section,&
-            subsys_section=subsys_section,use_motion_section=use_motion_section,&
-            error=error)
+       CALL quickstep_create_force_env(sub_force_env(qs_subsys)%force_env, root_section, para_env,&
+            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE., qmmm_env_qm=qmmm_env_qm,&
+            force_env_section=force_env_section, subsys_section=subsys_section,&
+            use_motion_section=use_motion_section, error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
        CALL force_env_get(sub_force_env(qs_subsys)%force_env,qs_env=qs_env,error=error)
        IF (qmmm_env_qm%periodic) THEN

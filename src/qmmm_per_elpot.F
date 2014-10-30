@@ -16,6 +16,13 @@ MODULE qmmm_per_elpot
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE ewald_environment_types,         ONLY: ewald_env_create,&
+                                             ewald_env_get,&
+                                             ewald_env_set,&
+                                             ewald_environment_type,&
+                                             read_ewald_section
+  USE ewald_pw_types,                  ONLY: ewald_pw_create,&
+                                             ewald_pw_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
@@ -27,6 +34,10 @@ MODULE qmmm_per_elpot
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_per_pot_p_type,&
@@ -39,7 +50,7 @@ MODULE qmmm_per_elpot
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_per_elpot'
-  PUBLIC :: qmmm_per_potential_init
+  PUBLIC :: qmmm_per_potential_init, qmmm_ewald_potential_init
 
 CONTAINS
 
@@ -332,6 +343,112 @@ CONTAINS
     END IF
 
   END SUBROUTINE qmmm_per_pot_type_create
+
+! *****************************************************************************
+!> \brief Initialize the QMMM Ewald potential needed for QM-QM Coupling using
+!>      point charges
+!> \param qmmm_coupl_type ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param qmmm_periodic ...
+!> \param print_section ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2014 created [JGH]
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE qmmm_ewald_potential_init(ewald_env,ewald_pw,qmmm_coupl_type, mm_cell, para_env,&
+                                       qmmm_periodic, print_section, error)
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    INTEGER, INTENT(IN)                      :: qmmm_coupl_type
+    TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_ewald_potential_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ewald_type, gmax(3), iw, &
+                                                o_spline, ounit
+    LOGICAL                                  :: do_multipoles, failure
+    REAL(KIND=dp)                            :: alpha, rcut
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: ewald_print_section, &
+                                                ewald_section, poisson_section
+
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    ounit = cp_logger_get_default_io_unit(logger)
+    CPPrecondition(.NOT.ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure) 
+    CPPrecondition(.NOT.ASSOCIATED(ewald_pw),cp_failure_level,routineP,error,failure) 
+
+    ! Create Ewald environments
+    poisson_section => section_vals_get_subs_vals(qmmm_periodic,"POISSON",error=error)
+    CALL ewald_env_create(ewald_env,para_env,error=error)
+    CALL ewald_env_set(ewald_env,poisson_section=poisson_section,error=error)
+    ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",error=error)
+    CALL read_ewald_section(ewald_env,ewald_section,error=error)
+    ewald_print_section => section_vals_get_subs_vals(print_section,"GRID_INFORMATION",error=error)
+    CALL ewald_pw_create(ewald_pw,ewald_env,mm_cell,mm_cell,print_section=ewald_print_section,error=error)
+
+    CALL ewald_env_get(ewald_env,ewald_type=ewald_type,do_multipoles=do_multipoles,&
+                       gmax=gmax,o_spline=o_spline,alpha=alpha,rcut=rcut,error=error)
+    IF(do_multipoles) CALL cp_unimplemented_error(fromWhere=routineP,&
+       message="No multipole force fields allowed in QM-QM Ewald long range correction",&
+       error=error, error_level=cp_fatal_level)
+
+    SELECT CASE(qmmm_coupl_type)
+       CASE(do_qmmm_coulomb)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="QM-QM long range correction not possible with COULOMB coupling", &
+            error=error, error_level=cp_fatal_level)
+       CASE(do_qmmm_pcharge)
+          ! OK
+       CASE(do_qmmm_gauss,do_qmmm_swave)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="QM-QM long range correction not possible with GAUSS/SWAVE coupling", &
+            error=error, error_level=cp_fatal_level)
+       CASE DEFAULT
+          ! We should never get to this point
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure) 
+    END SELECT
+
+    iw=cp_print_key_unit_nr(logger,print_section,"PERIODIC_INFO",extension=".log",error=error)
+    IF ( iw > 0) THEN
+       WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+       WRITE (UNIT=iw,FMT="(T2,A,T20,A,T80,A)")"-","QMMM PERIODIC BOUNDARY CONDITION INFO","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T25,A,T80,A)")"-","QM-QM Long Range Correction","-"
+       WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+       SELECT CASE(ewald_type)
+          CASE(do_ewald_none)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="QM-QM long range correction not compatible with Ewald=NONE", &
+               error=error, error_level=cp_fatal_level)
+          CASE(do_ewald_pme)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="QM-QM long range correction not possible with Ewald=PME", &
+               error=error, error_level=cp_fatal_level)
+          CASE(do_ewald_ewald)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="QM-QM long range correction not possible with Ewald method", &
+               error=error, error_level=cp_fatal_level)
+          CASE(do_ewald_spme)
+             WRITE (UNIT=iw,FMT="(T2,A,T35,A,T75,A,T80,A)")"-","Ewald type","SPME","-"
+             WRITE (UNIT=iw,FMT="(T2,A,T35,A,T61,3I6,T80,A)")"-","GMAX values",gmax,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T35,A,T73,I6,T80,A)")"-","Spline order",o_spline,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T35,A,T67,F12.4,T80,A)")"-","Alpha value",alpha,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T35,A,T67,F12.4,T80,A)")"-","Real space cutoff value",rcut,"-"
+       END SELECT
+       WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,print_section,"PERIODIC_INFO", error=error)
+
+  END SUBROUTINE qmmm_ewald_potential_init
+
+! *****************************************************************************
 
 END MODULE qmmm_per_elpot
 

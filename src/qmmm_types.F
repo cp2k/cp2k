@@ -9,6 +9,10 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qmmm_types
+  USE ewald_environment_types,         ONLY: ewald_env_release,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_release,&
+                                             ewald_pw_type
   USE f77_blas
   USE force_field_types,               ONLY: deallocate_inp_info,&
                                              init_inp_info,&
@@ -203,6 +207,8 @@ MODULE qmmm_types
      TYPE(qmmm_links_type), POINTER                          :: qmmm_links
      TYPE(add_set_type), POINTER                             :: added_charges
      TYPE(image_charge_type), POINTER                        :: image_charge_pot
+     TYPE(ewald_environment_type), POINTER                   :: ewald_env
+     TYPE(ewald_pw_type), POINTER                            :: ewald_pw
   END TYPE qmmm_env_qm_type
 
 ! *****************************************************************************
@@ -374,6 +380,7 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
              qmmm_env%aug_pools, qmmm_env%potentials,&
              qmmm_env%qmmm_links, qmmm_env%added_charges,&
              qmmm_env%per_potentials,qmmm_env%image_charge_pot)
+     NULLIFY(qmmm_env%ewald_env, qmmm_env%ewald_pw)
      qmmm_env%do_translate     = .TRUE.
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%center_qm_subsys0= .TRUE.
@@ -499,6 +506,12 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
         END IF
         IF (ASSOCIATED(qmmm_env%image_charge_pot)) THEN
            CALL qmmm_image_charge_dealloc(qmmm_env%image_charge_pot,error=error)
+        END IF
+        IF (ASSOCIATED(qmmm_env%ewald_env)) THEN
+           CALL ewald_env_release(qmmm_env%ewald_env,error=error)
+        END IF
+        IF (ASSOCIATED(qmmm_env%ewald_pw)) THEN
+           CALL ewald_pw_release(qmmm_env%ewald_pw,error=error)
         END IF
         DEALLOCATE(qmmm_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)

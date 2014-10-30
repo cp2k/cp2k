@@ -1350,9 +1350,6 @@ CONTAINS
                    charges_mm(Imp) = qmmm_env%added_charges%mm_atom_chrg(Imm)
                 END DO
                 IF(ewald_type == do_ewald_ewald) THEN
-!                    CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
-!                          local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
-!                          charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, error=error)
                    CALL cp_unimplemented_error(fromWhere=routineP, &
                         message="Ewald not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
                 ELSE IF(ewald_type == do_ewald_spme) THEN

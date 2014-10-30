@@ -290,12 +290,10 @@ CONTAINS
 !>      none
 !> \author Teodoro Laino - [tlaino]
 ! *****************************************************************************
-  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,&
-             qmmm_multipole, qm_cell, force_env_section, subsys_section, para_env,&
-             error)
+  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm_decoupl, qm_cell,&
+             force_env_section, subsys_section, para_env, error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
-    LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic, &
-                                                qmmm_multipole
+    LOGICAL, INTENT(IN)                      :: qmmm_decoupl
     TYPE(cell_type), POINTER                 :: qm_cell
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
@@ -344,7 +342,7 @@ CONTAINS
     CALL section_vals_get(poisson_section,explicit=decoupling, error=error)
     CALL section_vals_get(restraint_section,explicit=do_restraint, error=error)
     CALL section_vals_get(restraint_sectionB,explicit=do_restraintB, error=error)
-    do_qmmm_periodic_decpl                = qmmm_periodic.AND.qmmm.AND.qmmm_multipole
+    do_qmmm_periodic_decpl                = qmmm_decoupl
     cp_ddapc_ewald%do_solvation           = do_solvation
     cp_ddapc_ewald%do_qmmm_periodic_decpl = do_qmmm_periodic_decpl
     cp_ddapc_ewald%do_property            = cp_printkey_is_on(logger%iter_info,printC_section,error)

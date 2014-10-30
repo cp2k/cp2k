@@ -50,7 +50,8 @@ MODULE qmmm_init
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
-  USE qmmm_per_elpot,                  ONLY: qmmm_per_potential_init
+  USE qmmm_per_elpot,                  ONLY: qmmm_ewald_potential_init,&
+                                             qmmm_per_potential_init
   USE qmmm_types,                      ONLY: add_set_type,&
                                              create_add_set_type,&
                                              qmmm_env_mm_type,&
@@ -481,9 +482,10 @@ CONTAINS
             message="QM/MM periodic calculations not implemented for semi empirical methods", &
             error=error, error_level=cp_fatal_level)
       ELSE IF(dft_control%qs_control%dftb) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="QM/MM periodic calculations not implemented for DFTB method", &
-            error=error, error_level=cp_fatal_level)
+         CALL qmmm_ewald_potential_init(qmmm_env_qm%ewald_env, qmmm_env_qm%ewald_pw,&
+              qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, mm_cell=mm_cell,&
+              para_env=para_env, qmmm_periodic=qmmm_periodic, print_section=print_section,&
+              error=error)
       ELSE IF(dft_control%qs_control%scptb) THEN
          CALL cp_unimplemented_error(fromWhere=routineP, &
             message="QM/MM periodic calculations not implemented for SCPTB method", &

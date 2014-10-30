@@ -91,10 +91,10 @@ MODULE qs_environment
        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_method_scptb, general_roks, rel_none, &
-       rel_trans_atom, restart_guess, use_aux_fit_basis_set, &
-       use_lri_basis_set, vdw_pairpot_dftd3, xc_vdw_fun_none, &
-       xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+       do_method_rm1, do_method_scptb, do_qmmm_gauss, do_qmmm_swave, &
+       general_roks, rel_none, rel_trans_atom, restart_guess, &
+       use_aux_fit_basis_set, use_lri_basis_set, vdw_pairpot_dftd3, &
+       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -226,8 +226,7 @@ CONTAINS
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init(qs_env,para_env,globenv,root_section,cp_subsys,cell,cell_ref,qmmm,&
-       qmmm_periodic,qmmm_env_qm,force_env_section,subsys_section,&
-       use_motion_section,error)
+       qmmm_env_qm,force_env_section,subsys_section,use_motion_section,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -235,7 +234,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: cp_subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_qm_type), OPTIONAL, &
       POINTER                                :: qmmm_env_qm
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -249,7 +248,7 @@ CONTAINS
     INTEGER                                  :: ikind, istat, method_id, &
                                                 natom, nkind
     LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, do_kp, failure, harris_flag, &
-      mp2_present, my_qmmm, my_qmmm_multipole, my_qmmm_periodic, use_ref_cell
+      mp2_present, my_qmmm, qmmm_decoupl, use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -280,15 +279,20 @@ CONTAINS
     END IF
 
     harris_section => section_vals_get_subs_vals(force_env_section, "DFT%QS%HARRIS", error=error)
-    my_qmmm     = .FALSE.
+
+    ! QMMM 
+    my_qmmm = .FALSE.
     IF (PRESENT(qmmm)) my_qmmm=qmmm
-    my_qmmm_periodic = .FALSE.
-    IF (PRESENT(qmmm_periodic)) my_qmmm_periodic=qmmm_periodic
-    my_qmmm_multipole = .FALSE.
-    IF (PRESENT(qmmm_env_qm)) my_qmmm_multipole=qmmm_env_qm%multipole
+    qmmm_decoupl = .FALSE.
     IF(PRESENT(qmmm_env_qm)) THEN
-     qs_env%qmmm_env_qm => qmmm_env_qm
+       IF(qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss .OR.&
+          qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave ) THEN
+          ! For GAUSS/SWAVE methods there could be a DDAPC decoupling requested
+          qmmm_decoupl = my_qmmm .AND. qmmm_env_qm%periodic .AND. qmmm_env_qm%multipole
+       END IF
+       qs_env%qmmm_env_qm => qmmm_env_qm
     END IF
+    CALL set_qs_env(qs_env=qs_env,qmmm=my_qmmm,error=error)
 
     harris_flag = .FALSE.
     CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag, error=error)
@@ -331,11 +335,11 @@ CONTAINS
     CALL cp_blacs_env_release(blacs_env,error=error)
 
     !   *** Setup the grids for the G-space Interpolation if any
-    CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_qmmm_periodic,&
-         my_qmmm_multipole, my_cell, force_env_section, subsys_section, para_env, error)
+    CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, qmmm_decoupl, my_cell,& 
+         force_env_section, subsys_section, para_env, error)
 
     CALL qs_init_subsys(qs_env,para_env,subsys,my_cell,my_cell_ref,use_ref_cell,&
-         root_section,subsys_section,my_qmmm,harris=harris_flag,error=error)
+         root_section,subsys_section,harris=harris_flag,error=error)
 
     ! kpoints
     CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
@@ -464,13 +468,12 @@ CONTAINS
 !> \param use_ref_cell ...
 !> \param root_section ...
 !> \param subsys_section ...
-!> \param qmmm ...
 !> \param harris ...
 !> \param error ...
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init_subsys(qs_env,para_env,subsys,cell,cell_ref,use_ref_cell,&
-       root_section,subsys_section,qmmm,harris,error)
+       root_section,subsys_section,harris,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -478,7 +481,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
-    LOGICAL, INTENT(in)                      :: qmmm
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -795,7 +797,6 @@ CONTAINS
 
     !   *** Set the current Quickstep environment ***
     CALL set_qs_env(qs_env=qs_env,&
-                    qmmm=qmmm,&
                     scf_control=scf_control,&
                     wf_history=wf_history,&
                     error=error)

@@ -65,6 +65,7 @@ MODULE qs_dftb_coulomb
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_dftb3_methods,                ONLY: build_dftb3_diagonal
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
@@ -137,8 +138,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     LOGICAL                                  :: do_ewald, failure, found, &
                                                 use_virial
-    REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij, &
-                                                zeff
+    REAL(KIND=dp)                            :: alpha, deth, dfr, dr, fi, fr, &
+                                                gmij, zeff
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, gblock, gmcharge, &
                                                 ksblock, ksblock_2, mcin, &
@@ -146,7 +147,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atprop_type), POINTER               :: atprop
-    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell, mm_cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: gamma_matrix, matrix_p, &
@@ -160,6 +161,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: n_list
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -341,8 +343,7 @@ CONTAINS
     END IF
 
     IF ( .NOT. just_energy ) THEN
-      CALL get_qs_env(qs_env=qs_env,&
-                      matrix_s=matrix_s,error=error)
+      CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
       matrix_p => rho%rho_ao
 
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
@@ -396,18 +397,138 @@ CONTAINS
       END IF
     END IF
 
+    IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
+       ! Diagonal 3rd order correction (DFTB3)
+       CALL build_dftb3_diagonal(qs_env,ks_matrix,rho,mcharge,energy,&
+               calculate_forces,just_energy,error)
+    END IF
+
+    ! Qm-QM long range correction for QMMM calculations
+    IF(qs_env%qmmm .AND. qs_env%qmmm_periodic) THEN
+       ! no atomic energy evaluation
+       CPPrecondition(.NOT.atprop%energy,cp_failure_level,routineP,error,failure)
+       ! no stress tensor possible for QMMM
+       CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+       qmmm_env_qm => qs_env%qmmm_env_qm
+       ewald_env => qmmm_env_qm%ewald_env
+       ewald_pw => qmmm_env_qm%ewald_pw
+       CALL get_qs_env(qs_env=qs_env,super_cell=mm_cell,error=error)
+       CALL get_cell(cell=mm_cell,periodic=periodic,deth=deth)
+       CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
+       gmcharge = 0.0_dp
+       ! direct sum for overlap and local correction
+       CALL get_qs_env(qs_env=qs_env,local_particles=local_particles,error=error)
+       DO ikind=1,SIZE(local_particles%n_el)
+          DO ia=1,local_particles%n_el(ikind)
+             iatom=local_particles%list(ikind)%array(ia)
+             DO jatom=1,iatom-1
+                rij = particle_set(iatom)%r - particle_set(jatom)%r
+                ! no pbc(rij,mm_cell) at this point, we assume that QM particles are
+                ! inside QM box and QM box << MM box
+                dr = SQRT(SUM(rij(:)**2))
+                ! local (unit cell) correction 1/R
+                gmcharge(iatom,1)=gmcharge(iatom,1)-mcharge(jatom)/dr
+                gmcharge(jatom,1)=gmcharge(jatom,1)-mcharge(iatom)/dr
+                DO i=2,nmat
+                   gmcharge(iatom,i)=gmcharge(iatom,i)-rij(i-1)*mcharge(jatom)/dr**3
+                   gmcharge(jatom,i)=gmcharge(jatom,i)+rij(i-1)*mcharge(iatom)/dr**3
+                END DO
+                ! overlap correction
+                fr = erfc(alpha*dr)/dr
+                gmcharge(iatom,1)=gmcharge(iatom,1)+mcharge(jatom)*fr
+                gmcharge(jatom,1)=gmcharge(jatom,1)+mcharge(iatom)*fr
+                IF ( nmat > 1 ) THEN
+                  dfr = -2._dp*alpha*EXP(-alpha*alpha*dr*dr)*oorootpi/dr-fr/dr
+                  dfr = -dfr/dr
+                  DO i=2,nmat
+                    gmcharge(iatom,i)=gmcharge(iatom,i)-rij(i-1)*mcharge(jatom)*dfr
+                    gmcharge(jatom,i)=gmcharge(jatom,i)+rij(i-1)*mcharge(iatom)*dfr
+                  END DO
+                END IF
+             END DO
+          END DO
+       END DO
+
+       SELECT CASE(ewald_type)
+       CASE DEFAULT
+          CALL cp_unimplemented_error(routineP,"Invalid Ewald type",error)
+       CASE(do_ewald_none)
+          CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB",error)
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CASE(do_ewald_ewald)
+          CALL cp_unimplemented_error(routineP,&
+               "Standard Ewald not implemented in DFTB",error)
+       CASE(do_ewald_pme)
+          CALL cp_unimplemented_error(routineP,&
+               "PME not implemented in DFTB",error)
+       CASE(do_ewald_spme)
+          CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,mm_cell,&
+               gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
+       END SELECT
+       !
+       CALL mp_sum(gmcharge(:,1),para_env%group)
+       !
+       ! add self charge interaction and background charge contribution
+       gmcharge(:,1) = gmcharge(:,1) - 2._dp*alpha*oorootpi*mcharge(:)
+       IF ( ANY (periodic(:)==1) ) THEN
+         gmcharge(:,1) = gmcharge(:,1) - pi / alpha**2 / deth
+       END IF
+       !
+       energy%qmmm_el = energy%qmmm_el + 0.5_dp*SUM(mcharge(:)*gmcharge(:,1))
+       !
+       IF ( .NOT. just_energy ) THEN
+          CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+          matrix_p => rho%rho_ao
+
+          IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
+             CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+          END IF
+
+          CALL cp_dbcsr_iterator_start(iter, ks_matrix(1)%matrix)
+          DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+             CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, blk)
+             NULLIFY(sblock,ksblock_2)
+             IF (SIZE(ks_matrix,1)>1) CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
+                                           row=iatom,col=jatom,block=ksblock_2,found=found)
+             CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
+                  row=iatom,col=jatom,block=sblock,found=found)
+             gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
+             ksblock = ksblock - gmij*sblock
+             IF (SIZE(ks_matrix,1)>1) ksblock_2 = ksblock_2 - gmij*sblock
+             IF ( calculate_forces ) THEN
+                ikind  = kind_of(iatom)
+                atom_i = atom_of_kind(iatom)
+                jkind  = kind_of(jatom)
+                atom_j = atom_of_kind(jatom)
+                NULLIFY(pblock)
+                CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                   row=iatom,col=jatom,block=pblock,found=found)
+                DO i=1,3
+                   NULLIFY(dsblock)
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+                      row=iatom,col=jatom,block=dsblock,found=found)
+                   fi = -2.0_dp*gmij*SUM(pblock*dsblock)
+                   force(ikind)%rho_elec(i,atom_i) = force(ikind)%rho_elec(i,atom_i) + fi
+                   force(jkind)%rho_elec(i,atom_j) = force(jkind)%rho_elec(i,atom_j) - fi
+                   fij(i) = fi
+                END DO
+             END IF
+          END DO
+          CALL cp_dbcsr_iterator_stop(iter)
+          IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
+             CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+                  alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+          END IF
+       END IF
+    END IF
+
     IF ( calculate_forces ) THEN
       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
-       ! Diagonal 3rd order correction (DFTB3)
-       CALL build_dftb3_diagonal(qs_env,ks_matrix,rho,mcharge,energy,&
-               calculate_forces,just_energy,error)
-    END IF
 
     CALL timestop(handle)
 
