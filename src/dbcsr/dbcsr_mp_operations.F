@@ -20,7 +20,7 @@ MODULE dbcsr_mp_operations
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_internal_error, &
        dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: &
+  USE dbcsr_mp_methods,                ONLY: &
        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &

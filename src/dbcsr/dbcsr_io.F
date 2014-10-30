@@ -31,8 +31,11 @@ MODULE dbcsr_io
        dbcsr_data_area, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_mp_group, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_valid_index
+       dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_valid_index
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
+                                             dbcsr_mp_numnodes,&
+                                             dbcsr_mp_pgrid
   USE dbcsr_mp_operations,             ONLY: dbcsr_mp_type_from_anytype
   USE dbcsr_transformations,           ONLY: dbcsr_datablock_redistribute
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&

@@ -22,7 +22,7 @@ PROGRAM dbcsr_performance_driver
                                              dbcsr_wrong_args_error
   USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
-  USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_new,&
                                              dbcsr_mp_release
   USE dbcsr_performance_multiply,      ONLY: dbcsr_perf_multiply
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args

@@ -91,13 +91,10 @@ MODULE dbcsr_mm_cannon
        dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
        dbcsr_has_symmetry, dbcsr_image_dist_hold, dbcsr_image_dist_init, &
        dbcsr_image_dist_release, dbcsr_init, dbcsr_may_be_dense, &
-       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
-       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_local, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_release_locals, dbcsr_row_block_offsets, dbcsr_valid_index
+       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
+       dbcsr_valid_index
   USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                              dbcsr_mm_multrec_init,&
                                              dbcsr_mm_multrec_lib_finalize,&
@@ -105,6 +102,11 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_mm_multrec_multiply,&
                                              dbcsr_mm_multrec_phaseout,&
                                              dbcsr_mm_multrec_type
+  USE dbcsr_mp_methods,                ONLY: &
+       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
+       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype,&
@@ -113,7 +115,7 @@ MODULE dbcsr_mm_cannon
                                              hybrid_alltoall_i1,&
                                              hybrid_alltoall_s1,&
                                              hybrid_alltoall_z1
-  USE dbcsr_operations_low,            ONLY: dbcsr_conjg,&
+  USE dbcsr_operations,                ONLY: dbcsr_conjg,&
                                              dbcsr_copy,&
                                              dbcsr_crop_matrix,&
                                              dbcsr_filter,&

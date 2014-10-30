@@ -1,7 +1,7 @@
 [
          #======================================================================
          {'dirname':'dbcsr',
-           'requires':["../base", "../mpiwrap", "../acc", "base", "data", "block", "work", "vec", "mm", "rest"],
+           'requires':["../base", "../mpiwrap", "../acc", "base", "data", "block", "mp", "work", "vec", "mm", "rest"],
            'public': ["dbcsr_api.F"],
            'files':  [
                       "dbcsr_api.F",
@@ -48,6 +48,7 @@
          {'dirname':'dbcsr/mp',
          'requires':["../../base", "../../mpiwrap", "../base"],
           'files': [
+                     "dbcsr_mp_methods.F",
                      "dbcsr_mp_operations_c.f90",
                      "dbcsr_mp_operations_d.f90",
                      "dbcsr_mp_operations.F",
@@ -87,7 +88,7 @@
 
          #======================================================================
          {'dirname':'dbcsr/block',
-           'requires':["../../base", "../../acc", "../base", "../data"],
+           'requires':["../../base", "../../acc", "../base", "../data", "../mp"],
            'files': [
                      "dbcsr_block_access_c.f90",
                      "dbcsr_block_access_d.f90",
@@ -130,23 +131,21 @@
 
          #======================================================================
          {'dirname':'dbcsr/rest',
-           'requires':["../../acc", "../libsmm_acc", "../../base", "../../mpiwrap", 
+           'requires':["../libsmm_acc", "../../base", "../../mpiwrap", 
                        "../block", "../base", "../mp", "../data", "../work"],
            'files': [
                      "dbcsr_util.F",
-                     "dbcsr_operations.F",
-                     "dbcsr_acc_operations.F",
                      "dbcsr_blas_operations.F",
                      "dbcsr_dist_operations.F",
                      "dbcsr_io.F",
                      "dbcsr_methods.F",
-                     "dbcsr_operations_low_c.f90",
-                     "dbcsr_operations_low_d.f90",
-                     "dbcsr_operations_low.F",
-                     "dbcsr_operations_low__nametype1_.instantiation",
-                     "dbcsr_operations_low__nametype1_.template",
-                     "dbcsr_operations_low_s.f90",
-                     "dbcsr_operations_low_z.f90",
+                     "dbcsr_operations.F",
+                     "dbcsr_operations__nametype1_.instantiation",
+                     "dbcsr_operations__nametype1_.template",
+                     "dbcsr_operations_c.f90",
+                     "dbcsr_operations_d.f90",
+                     "dbcsr_operations_s.f90",
+                     "dbcsr_operations_z.f90",
                      "dbcsr_transformations.F",
                      "min_heap.F",
                      "smm.F",
@@ -192,6 +191,7 @@
                      "dbcsr_mm_multrec.F",
                      "dbcsr_mm_sched.F",
                      "dbcsr_mm_types.F",
+                     "dbcsr_acc_operations.F",
                     ],
          },
 

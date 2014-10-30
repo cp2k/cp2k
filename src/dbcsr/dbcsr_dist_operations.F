@@ -31,9 +31,14 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_new, dbcsr_distribution_no_threads, &
        dbcsr_distribution_nrows, dbcsr_distribution_processor, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_distribution_thread_dist, dbcsr_is_initialized, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_new_transposed, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_release, dbcsr_release_locals
+       dbcsr_distribution_thread_dist, dbcsr_is_initialized, &
+       dbcsr_release_locals
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mypcol,&
+                                             dbcsr_mp_myprow,&
+                                             dbcsr_mp_new_transposed,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_mp_nprows,&
+                                             dbcsr_mp_release
   USE dbcsr_toollib,                   ONLY: gcd,&
                                              lcm
   USE dbcsr_types,                     ONLY: &

@@ -62,10 +62,13 @@ MODULE dbcsr_operations
        dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
        dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
        dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_row_block_offsets, &
        dbcsr_switch_data_area, dbcsr_valid_index
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
+                                             dbcsr_mp_mynode,&
+                                             dbcsr_mp_numnodes,&
+                                             dbcsr_mp_pgrid
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_toollib,                   ONLY: swap

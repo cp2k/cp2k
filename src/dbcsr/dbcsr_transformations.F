@@ -64,14 +64,15 @@ MODULE dbcsr_transformations
        dbcsr_distribution_nrows, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_get_data_size_referenced, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_mp_grid_remove, &
-       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
-       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_total, &
+       dbcsr_init, dbcsr_is_initialized, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_release, dbcsr_row_block_sizes, dbcsr_switch_data_area, &
        dbcsr_valid_index
+  USE dbcsr_mp_methods,                ONLY: &
+       dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, dbcsr_mp_group, &
+       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
   USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
                                              hybrid_alltoall_any,&
                                              hybrid_alltoall_c1,&

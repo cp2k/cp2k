@@ -29,8 +29,10 @@ MODULE dbcsr_util
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_get_data_size_referenced, &
-       dbcsr_has_symmetry, dbcsr_is_initialized, dbcsr_mp_group, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_valid_index
+       dbcsr_has_symmetry, dbcsr_is_initialized, dbcsr_valid_index
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
+                                             dbcsr_mp_mypcol,&
+                                             dbcsr_mp_myprow
   USE dbcsr_toollib,                   ONLY: sort,&
                                              swap
   USE dbcsr_types,                     ONLY: &

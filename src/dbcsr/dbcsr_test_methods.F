@@ -48,10 +48,12 @@ MODULE dbcsr_test_methods
        dbcsr_distribution_hold, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
        dbcsr_get_matrix_type, dbcsr_init, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_numnodes, &
-       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_max_row_size, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total
-!  USE dbcsr_transformations, only:dbcsr_put_block
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mynode,&
+                                             dbcsr_mp_new,&
+                                             dbcsr_mp_numnodes,&
+                                             dbcsr_mp_release
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &

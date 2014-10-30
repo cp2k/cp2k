@@ -81,22 +81,24 @@ MODULE dbcsr_api
        dbcsr_distribution_row_dist, dbcsr_get_data_size, dbcsr_get_data_type, &
        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
        dbcsr_get_occupation, dbcsr_init, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
-       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_local, &
+       dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
+  USE dbcsr_mp_methods,                ONLY: &
+       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
        dbcsr_copy_into_existing, dbcsr_filter, dbcsr_frobenius_norm, &
-       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_diag, &
-       dbcsr_hadamard_product, dbcsr_init_random, dbcsr_maxabs, dbcsr_norm, &
-       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu
-  USE dbcsr_operations_low,            ONLY: dbcsr_function_of_elements
+       dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
+       dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
+       dbcsr_init_random, dbcsr_maxabs, dbcsr_norm, dbcsr_scale, &
+       dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, &
+       dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu
   USE dbcsr_tests,                     ONLY: cp_test_multiplies
   USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
