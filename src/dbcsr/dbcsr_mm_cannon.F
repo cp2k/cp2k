@@ -91,10 +91,10 @@ MODULE dbcsr_mm_cannon
        dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_index_memory_type, &
        dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_image_dist_hold, &
        dbcsr_image_dist_init, dbcsr_image_dist_release, dbcsr_init, &
-       dbcsr_may_be_dense, dbcsr_nblkcols_local, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_release_locals, &
-       dbcsr_row_block_offsets, dbcsr_valid_index
+       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
+       dbcsr_valid_index
   USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                              dbcsr_mm_multrec_init,&
                                              dbcsr_mm_multrec_lib_finalize,&
@@ -119,6 +119,7 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_copy,&
                                              dbcsr_crop_matrix,&
                                              dbcsr_filter,&
+                                             dbcsr_may_be_dense,&
                                              dbcsr_scale
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_toollib,                   ONLY: uppercase

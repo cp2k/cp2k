@@ -28,9 +28,9 @@ MODULE dbcsr_vector_operations
                                              dbcsr_fatal_level
   USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
                                              dbcsr_distribution,&
-                                             dbcsr_get_info,&
                                              dbcsr_init,&
                                              dbcsr_row_block_sizes
+  USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_scalar_type,&

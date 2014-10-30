@@ -24,9 +24,9 @@ MODULE dbcsr_vector_operations_low
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_get_info,&
                                              dbcsr_get_matrix_type
-  USE dbcsr_operations,                ONLY: dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_get_info,&
+                                             dbcsr_set
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_obj, dbcsr_scalar_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &

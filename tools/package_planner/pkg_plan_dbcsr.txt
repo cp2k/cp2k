@@ -28,6 +28,7 @@
                     "array_types.F",
                     "dbcsr_config.F",
                     "dbcsr_error_handling.F",
+                    "dbcsr_methods.F",
 
                     "btree_i8_k_cp2d_v.F",
                     "btree_i8_k_dp2d_v.F",
@@ -41,8 +42,6 @@
                     "dbcsr_array_i8_sort.F",
                     "dbcsr_array__nametype1__sort.instantiation",
                     "dbcsr_array__nametype1__sort.template",
-
-                    "min_heap.F",
                     ],
          },
 
@@ -60,6 +59,7 @@
                      "dbcsr_mp_operations_z.f90",
                      "dbcsr_dist_operations.F",
                      "dbcsr_dist_methods.F",
+                     "min_heap.F",
                     ]
          },
 
@@ -141,7 +141,6 @@
                      "dbcsr_util.F",
                      "dbcsr_blas_operations.F",
                      "dbcsr_io.F",
-                     "dbcsr_methods.F",
                      "dbcsr_operations.F",
                      "dbcsr_operations__nametype1_.instantiation",
                      "dbcsr_operations__nametype1_.template",

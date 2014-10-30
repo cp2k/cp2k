@@ -30,20 +30,12 @@ MODULE dbcsr_methods
                                              dbcsr_data_hold,&
                                              dbcsr_data_init,&
                                              dbcsr_data_release
-  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
-                                             dbcsr_distribution_init,&
-                                             dbcsr_distribution_local_cols,&
-                                             dbcsr_distribution_local_rows,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_distribution_row_dist
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_init,&
+                                             dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
-                                             dbcsr_mp_mypcol,&
-                                             dbcsr_mp_myprow
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
@@ -54,10 +46,7 @@ MODULE dbcsr_methods
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
        dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             int_8,&
-                                             real_8
-  USE message_passing,                 ONLY: mp_sum
+  USE kinds,                           ONLY: default_string_length
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -72,15 +61,14 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_release
   PUBLIC :: dbcsr_valid_index, dbcsr_is_initialized
   PUBLIC :: dbcsr_release_locals
-  PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
+  PUBLIC :: dbcsr_distribution,&
             dbcsr_get_matrix_type, dbcsr_get_data_type, dbcsr_get_replication_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
             dbcsr_nblkrows_total, dbcsr_nblkcols_total, dbcsr_nfullrows_total,&
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
-            dbcsr_get_occupation,&
             dbcsr_get_index_memory_type, dbcsr_get_data_memory_type,&
-            dbcsr_name, dbcsr_may_be_dense,&
+            dbcsr_name, &
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
             dbcsr_get_data_size
   PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
@@ -723,129 +711,6 @@ CONTAINS
   END FUNCTION dbcsr_row_block_offsets
 
 ! *****************************************************************************
-!> \brief Gets information about a matrix
-!> \param[in] matrix          matrix to query
-!> \param[out] nblkrows_total ...
-!> \param[out] nblkcols_total ...
-!> \param[out] nfullrows_total ...
-!> \param[out] nfullcols_total ...
-!> \param[out] nblkrows_local ...
-!> \param[out] nblkcols_local ...
-!> \param[out] nfullrows_local ...
-!> \param[out] nfullcols_local ...
-!> \param[out] my_prow ...
-!> \param[out] my_pcol ...
-!> \param[out] local_rows ...
-!> \param[out] local_cols ...
-!> \param[out] proc_row_dist ...
-!> \param[out] proc_col_dist ...
-!> \param[out] row_blk_size ...
-!> \param[out] col_blk_size ...
-!> \param[out] row_blk_offset ...
-!> \param[out] col_blk_offset ...
-!> \param[out] distribution   the data distribution of the matrix
-!> \param[out] name           matrix name
-!> \param[out] data_area      data_area
-!> \param[out] matrix_type    matrix type (regular, symmetric, see
-!>                            dbcsr_types.F for values)
-!> \param[out] data_type      data type (single/double precision real/complex)
-! *****************************************************************************
-  SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total,&
-       nfullrows_total, nfullcols_total,&
-       nblkrows_local, nblkcols_local,&
-       nfullrows_local, nfullcols_local,&
-       my_prow, my_pcol,&
-       local_rows, local_cols, proc_row_dist, proc_col_dist,&
-       row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, distribution, name, data_area,&
-       matrix_type, data_type)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, &
-      nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
-      nfullrows_local, nfullcols_local, my_prow, my_pcol
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, &
-                                                proc_row_dist, proc_col_dist
-    TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: row_blk_size, col_blk_size, &
-                                                row_blk_offset, col_blk_offset
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT), OPTIONAL                  :: distribution
-    CHARACTER(len=*), INTENT(OUT), OPTIONAL  :: name
-    TYPE(dbcsr_data_obj), INTENT(OUT), &
-      OPTIONAL                               :: data_area
-    CHARACTER, OPTIONAL                      :: matrix_type
-    INTEGER, OPTIONAL                        :: data_type
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_info', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (matrix%m%initialized,&
-         dbcsr_fatal_level, dbcsr_caller_error, routineP,&
-         "Matrix not initialized",__LINE__,error)
-    !vw avoid massive priting of warnings
-    !CALL cp_assert (matrix%m%valid, cp_warning_level, cp_caller_error,&
-    !     routineP,"Invalid matrix")
-    IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%m%nblkrows_total
-    IF (PRESENT (nblkcols_total)) nblkcols_total = matrix%m%nblkcols_total
-    IF (PRESENT (nfullrows_total)) nfullrows_total = matrix%m%nfullrows_total
-    IF (PRESENT (nfullcols_total)) nfullcols_total = matrix%m%nfullcols_total
-    IF (PRESENT (nblkrows_local)) nblkrows_local = matrix%m%nblkrows_local
-    IF (PRESENT (nblkcols_local)) nblkcols_local = matrix%m%nblkcols_local
-    IF (PRESENT (nfullrows_local)) nfullrows_local = matrix%m%nfullrows_local
-    IF (PRESENT (nfullcols_local)) nfullcols_local = matrix%m%nfullcols_local
-    IF (PRESENT (row_blk_size)) row_blk_size = matrix%m%row_blk_size
-    IF (PRESENT (col_blk_size)) col_blk_size = matrix%m%col_blk_size
-    IF (PRESENT (row_blk_offset)) row_blk_offset = matrix%m%row_blk_offset
-    IF (PRESENT (col_blk_offset)) col_blk_offset = matrix%m%col_blk_offset
-    IF (PRESENT (distribution)) distribution = matrix%m%dist
-    IF (PRESENT (name)) name = matrix%m%name
-    IF (PRESENT (data_area)) data_area = matrix%m%data_area
-    IF (PRESENT (matrix_type)) THEN
-       matrix_type = dbcsr_get_matrix_type (matrix)
-       CALL dbcsr_assert (matrix_type.NE.dbcsr_type_invalid, dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Incorrect symmetry",__LINE__,error)
-    ENDIF
-    IF (PRESENT (data_type)) data_type = matrix%m%data_type
-    IF (PRESENT (local_rows)) &
-         local_rows => array_data (dbcsr_distribution_local_rows (matrix%m%dist))
-    IF (PRESENT (local_cols)) &
-         local_cols => array_data (dbcsr_distribution_local_cols (matrix%m%dist))
-    IF (PRESENT (proc_row_dist)) &
-         proc_row_dist => array_data (dbcsr_distribution_row_dist (matrix%m%dist))
-    IF (PRESENT (proc_col_dist)) &
-         proc_col_dist => array_data (dbcsr_distribution_col_dist (matrix%m%dist))
-    IF (PRESENT (my_prow)) &
-       my_prow = dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%m%dist))
-    IF (PRESENT (my_pcol)) &
-       my_pcol = dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%m%dist))
-  END SUBROUTINE dbcsr_get_info
-
-! *****************************************************************************
-!> \brief Returns whether the matrix could be represeneted in a dense form
-!> \param[in] matrix          matrix
-!> \param occ_thresh ...
-!> \retval may_be_dense    use the mutable and not append-only working
-!>                            structures 
-! *****************************************************************************
-  FUNCTION dbcsr_may_be_dense (matrix, occ_thresh) RESULT (may_be_dense)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    REAL(real_8), INTENT(in)                 :: occ_thresh
-    LOGICAL                                  :: may_be_dense
-
-    REAL(real_8)                             :: occ
-
-!   ---------------------------------------------------------------------------
-
-    occ = dbcsr_get_occupation(matrix)
-    may_be_dense =  .NOT.( occ .LT. occ_thresh )
-    ! make sure every proc sees the same
-    CALL mp_sum(may_be_dense, dbcsr_mp_group (dbcsr_distribution_mp (matrix%m%dist)))
-  END FUNCTION dbcsr_may_be_dense
-
-! *****************************************************************************
 !> \brief Returns the blocked row size of a row
 !>
 !> This routine is optimized for speed and no checks are performed.
@@ -1252,49 +1117,6 @@ CONTAINS
 
     num_nze = matrix%m%nze
   END FUNCTION dbcsr_get_nze
-
-! *****************************************************************************
-!> \brief Returns the occupation of the matrix
-!> \param matrix     matrix from which to get the occupation
-!> \retval occupation ...
-! *****************************************************************************
-  FUNCTION dbcsr_get_occupation (matrix) RESULT (occupation)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    REAL(KIND=real_8)                        :: occupation
-
-    INTEGER                                  :: nfullcols, nfullrows
-    INTEGER(KIND=int_8)                      :: nze_global
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
-
-    nze_global = matrix%m%nze
-    CALL mp_sum(nze_global,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
-
-    nfullrows = dbcsr_nfullrows_total(matrix)
-    nfullcols = dbcsr_nfullcols_total(matrix)
-
-    row_blk_size => array_data (matrix%m%row_blk_size)
-
-    IF(nfullrows.NE.0.AND.nfullcols.NE.0) THEN
-       IF(dbcsr_has_symmetry (matrix)) THEN
-          IF( 2*nze_global .EQ. &
-              ( INT(nfullrows,KIND=int_8)*INT(nfullrows+1,KIND=int_8) + SUM( row_blk_size*(row_blk_size-1) ) ) ) THEN
-             occupation = 1.0_real_8
-          ELSE
-             occupation = 2.0_real_8 * REAL(nze_global,real_8) / &
-               ( REAL(nfullrows,real_8) * REAL(nfullrows+1,real_8) + &
-               SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
-          ENDIF
-       ELSE
-          IF (nze_global .EQ. INT(nfullrows,KIND=int_8) * INT(nfullcols,KIND=int_8)) THEN
-             occupation = 1.0_real_8
-          ELSE
-             occupation = REAL(nze_global,real_8) / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
-          ENDIF
-       ENDIF
-    ELSE
-       occupation = 0.0_real_8
-    ENDIF
-  END FUNCTION dbcsr_get_occupation
 
 
 ! *****************************************************************************

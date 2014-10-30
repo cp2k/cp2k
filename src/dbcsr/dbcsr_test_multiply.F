@@ -37,12 +37,12 @@ MODULE dbcsr_test_multiply
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_get_occupation, dbcsr_init, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_offsets, &
-       dbcsr_row_block_sizes
+       dbcsr_get_matrix_type, dbcsr_init, dbcsr_name, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_offsets, dbcsr_row_block_sizes
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_occupation,&
                                              dbcsr_scale
   USE dbcsr_test_methods,              ONLY: atoi,&
                                              atol,&
