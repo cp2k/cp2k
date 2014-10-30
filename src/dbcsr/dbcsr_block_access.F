@@ -34,6 +34,7 @@ MODULE dbcsr_block_access
   USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_ensure_size,&
+                                             dbcsr_data_get_size_referenced,&
                                              dbcsr_data_set_pointer,&
                                              dbcsr_get_data,&
                                              dbcsr_get_data_p
@@ -53,10 +54,9 @@ MODULE dbcsr_block_access
                                              merge_index_arrays
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_distribution, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
-       dbcsr_get_num_blocks, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_use_mutable, &
-       dbcsr_wm_use_mutable
+       dbcsr_get_data_type, dbcsr_get_num_blocks, dbcsr_mutable_instantiated, &
+       dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_use_mutable, dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mynode
   USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
                                              pointer_d_rank_remap2,&
@@ -597,7 +597,7 @@ CONTAINS
        data_size_old = 0
     ELSE
        ! Get current data size
-       data_size_old = dbcsr_get_data_size_referenced (matrix)
+       data_size_old = dbcsr_data_get_size_referenced(matrix%m%data_area)
     ENDIF
     !> Ensures that the rows and columns are sorted.
     nblks_added = SIZE(rows)

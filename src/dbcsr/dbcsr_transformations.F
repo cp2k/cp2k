@@ -29,8 +29,9 @@ MODULE dbcsr_transformations
                                              dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
-       dbcsr_data_get_memory_type, dbcsr_data_get_size, dbcsr_data_get_type, &
-       dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_get_memory_type, dbcsr_data_get_size, &
+       dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
        dbcsr_get_data, dbcsr_switch_data_area, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data
@@ -63,8 +64,7 @@ MODULE dbcsr_transformations
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
+       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
        dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
        dbcsr_is_initialized, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
@@ -235,7 +235,7 @@ CONTAINS
     CALL dbcsr_repoint_index (transposed%m)
     IF (.NOT. shallow) THEN
        CALL dbcsr_data_ensure_size (transposed%m%data_area,&
-            dbcsr_get_data_size_referenced(normal),&
+            dbcsr_data_get_size_referenced(normal%m%data_area),&
             nocopy=.TRUE., error=error)
     ENDIF
     !
@@ -1554,7 +1554,7 @@ CONTAINS
           send_count(1) = send_count(1) + 1
           send_count(2) = send_count(2) + nze
        ENDDO
-       send_count(2) = dbcsr_get_data_size_referenced (matrix)
+       send_count(2) = dbcsr_data_get_size_referenced (matrix%m%data_area)
     ENDIF
     CALL dbcsr_iterator_stop (iter)
     ! Exchange how much data others have.

@@ -18,6 +18,7 @@ MODULE dbcsr_util
                                              array_hold,&
                                              array_i1d_obj
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
+                                             dbcsr_data_get_size_referenced,&
                                              dbcsr_get_data
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_local_cols,&
                                              dbcsr_distribution_local_rows,&
@@ -32,7 +33,6 @@ MODULE dbcsr_util
        dbcsr_internal_error, dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_blk_col_offset,&
                                              dbcsr_blk_row_offset,&
-                                             dbcsr_get_data_size_referenced,&
                                              dbcsr_has_symmetry,&
                                              dbcsr_is_initialized,&
                                              dbcsr_valid_index
@@ -821,7 +821,7 @@ CONTAINS
        WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%m%nze,'data size',&
             dbcsr_data_get_size(m%m%data_area)
     ENDIF
-    data_size_referenced = dbcsr_get_data_size_referenced (m)
+    data_size_referenced = dbcsr_data_get_size_referenced(m%m%data_area)
     !This tends to be too verbose and usually untrue for symmetric
     !matrices.
     !CALL dbcsr_assert(dbcsr_get_data_size(m%m%data_area), "GE", m%m%nze,&

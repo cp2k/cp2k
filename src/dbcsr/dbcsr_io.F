@@ -18,6 +18,7 @@ MODULE dbcsr_io
                                              array_new,&
                                              array_release
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
+                                             dbcsr_data_get_size_referenced,&
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
                                              dbcsr_get_data
@@ -30,9 +31,9 @@ MODULE dbcsr_io
                                              dbcsr_warning_level
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_get_data_size, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_valid_index
+       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                              dbcsr_mp_numnodes,&
                                              dbcsr_mp_pgrid
@@ -143,7 +144,7 @@ CONTAINS
          dbcsr_get_data_type (matrix), "serial", matrix%m%serial_number
     WRITE(iunit,'(1X,A,3(1X,I9,1X,A))')routineP, matrix%m%nblks, "blocks", &
          matrix%m%nze, "nzes,", dbcsr_get_data_size (matrix), "data els", &
-         dbcsr_get_data_size_referenced (matrix), "used"
+         dbcsr_data_get_size_referenced (matrix%m%data_area), "used"
     WRITE(iunit,'(1X,A,I5,A,I5)')routineP//" Full size",&
          matrix%m%nfullrows_total, "x",matrix%m%nfullcols_total
     WRITE(iunit,'(1X,A,I5,A,I5)')routineP//" Blocked size",&
@@ -795,7 +796,7 @@ CONTAINS
     subh3_disps(:) = CSHIFT(subh3_disps,shift=-1)+ginfo_size+2*numnodes
     subh3_disps(1)=ginfo_size+2*numnodes
 
-    data_area_size = dbcsr_get_data_size_referenced(matrix)
+    data_area_size = dbcsr_data_get_size_referenced(matrix%m%data_area)
     sendbuf = data_area_size
     CALL mp_allgather(sendbuf,da_sizes,mp_group) 
     CALL cumsum_l(INT(da_sizes,kind=file_offset),bdata_disps)

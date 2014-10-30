@@ -26,8 +26,7 @@ MODULE dbcsr_methods
                                              btree_new_s => btree_new
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
-  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size_referenced,&
-                                             dbcsr_data_init,&
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_init,&
                                              dbcsr_data_release
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
@@ -69,7 +68,7 @@ MODULE dbcsr_methods
             dbcsr_name, &
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
             dbcsr_get_data_size
-  PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
+  PUBLIC :: dbcsr_get_data_size_used
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_data_area
   PUBLIC :: dbcsr_get_num_blocks
@@ -1090,18 +1089,6 @@ CONTAINS
        data_size = 0
     ENDIF
   END FUNCTION dbcsr_get_data_size
-
-! *****************************************************************************
-!> \brief Get actual data storage used for matrix
-!> \param[in] matrix          Count data of this matrix
-!> \retval data_size_referenced Data size used by matrix
-! *****************************************************************************
-  PURE FUNCTION dbcsr_get_data_size_referenced (matrix) RESULT (data_size_referenced)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER                                  :: data_size_referenced
-
-    data_size_referenced = dbcsr_data_get_size_referenced (matrix%m%data_area)
-  END FUNCTION dbcsr_get_data_size_referenced
 
 ! *****************************************************************************
 !> \brief Count actual data storage used for matrix data.

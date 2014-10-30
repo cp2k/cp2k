@@ -33,11 +33,11 @@ MODULE dbcsr_operations
                                              set_block2d_diagonal
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
-       dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_get_data, &
-       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, &
-       dbcsr_scalar_get_type, dbcsr_scalar_one, dbcsr_scalar_zero, &
-       dbcsr_switch_data_area, dbcsr_type_1d_to_2d
+       dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_init, &
+       dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
+       dbcsr_get_data, dbcsr_scalar, dbcsr_scalar_are_equal, &
+       dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_switch_data_area, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
@@ -62,13 +62,12 @@ MODULE dbcsr_operations
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_distribution, dbcsr_get_data_size, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
-       dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
-       dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
-       dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
-       dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_row_block_offsets, &
-       dbcsr_valid_index
+       dbcsr_get_data_type, dbcsr_get_index_memory_type, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_is_initialized, &
+       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_name, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_row_block_offsets, dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                              dbcsr_mp_mynode,&
                                              dbcsr_mp_mypcol,&
@@ -786,8 +785,8 @@ CONTAINS
     CALL dbcsr_scale(matrix_a, alpha_scalar=my_alpha_scalar, error=error)
 
     ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
-    size_a = dbcsr_get_data_size_referenced (matrix_a)
-    size_b = dbcsr_get_data_size_referenced (matrix_b)
+    size_a = dbcsr_data_get_size_referenced (matrix_a%m%data_area)
+    size_b = dbcsr_data_get_size_referenced (matrix_b%m%data_area)
     IF(.NOT.dbcsr_scalar_are_equal(my_beta_scalar,&
          dbcsr_scalar_zero(data_type_b))) THEN
        !$OMP PARALLEL DEFAULT (none) &
