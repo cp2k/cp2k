@@ -38,7 +38,8 @@ MODULE dbcsr_work_operations
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
-       dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
+       dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z, &
+       dbcsr_switch_data_area
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_has_threads,&
@@ -72,8 +73,8 @@ MODULE dbcsr_work_operations
        dbcsr_get_replication_type, dbcsr_init, dbcsr_is_initialized, &
        dbcsr_matrix_counter, dbcsr_mutable_destroy, dbcsr_mutable_init, &
        dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, &
-       dbcsr_name, dbcsr_row_block_sizes, dbcsr_switch_data_area, &
-       dbcsr_use_mutable, dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_name, dbcsr_row_block_sizes, dbcsr_use_mutable, &
+       dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_toollib,                   ONLY: dbcsr_unpack_i8_2i4,&
                                              sort,&

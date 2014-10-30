@@ -27,7 +27,6 @@ MODULE dbcsr_methods
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size_referenced,&
-                                             dbcsr_data_hold,&
                                              dbcsr_data_init,&
                                              dbcsr_data_release
   USE dbcsr_error_handling,            ONLY: &
@@ -72,7 +71,7 @@ MODULE dbcsr_methods
             dbcsr_get_data_size
   PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
-  PUBLIC :: dbcsr_data_area, dbcsr_switch_data_area
+  PUBLIC :: dbcsr_data_area
   PUBLIC :: dbcsr_get_num_blocks
 
 
@@ -923,39 +922,6 @@ CONTAINS
 
     data_area = matrix%data_area
   END FUNCTION dbcsr_data_area
-
-! *****************************************************************************
-!> \brief Sets the data area of a matrix
-!> \param[in,out] matrix     matrix for which to set the data area
-!> \param[in] data_area      data area to set
-!> \param[out] previous_data_area  (optional) previous data area
-!> \param[in,out] error      error
-! *****************************************************************************
-  SUBROUTINE dbcsr_switch_data_area (matrix, data_area, previous_data_area, &
-       error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: data_area
-    TYPE(dbcsr_data_obj), INTENT(OUT), &
-      OPTIONAL                               :: previous_data_area
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_switch_data_area', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handler
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handler, error)
-    IF (PRESENT (previous_data_area)) THEN
-       previous_data_area = matrix%m%data_area
-    ELSE
-       CALL dbcsr_data_release (matrix%m%data_area)
-    ENDIF
-    matrix%m%data_area = data_area
-    CALL dbcsr_data_hold (matrix%m%data_area)
-    CALL dbcsr_error_stop (error_handler, error)
-  END SUBROUTINE dbcsr_switch_data_area
 
 
 ! *****************************************************************************

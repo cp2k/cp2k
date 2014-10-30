@@ -32,7 +32,7 @@ MODULE dbcsr_transformations
        dbcsr_data_get_memory_type, dbcsr_data_get_size, dbcsr_data_get_type, &
        dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
-       dbcsr_get_data, dbcsr_type_1d_to_2d
+       dbcsr_get_data, dbcsr_switch_data_area, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data
   USE dbcsr_dist_methods,              ONLY: &
        dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
@@ -68,7 +68,7 @@ MODULE dbcsr_transformations
        dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
        dbcsr_is_initialized, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_valid_index
+       dbcsr_row_block_sizes, dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: &
        dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
