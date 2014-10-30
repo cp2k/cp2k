@@ -261,7 +261,7 @@ doxygen: doxygen/clean
 	cp $(ALL_SRC_FILES) $(DOXYGENDIR)
 	@for i in $(DOXYGENDIR)/*.F ; do mv $${i}  $${i%%.*}.f90; done ;
 	@cat $(TOOLSRC)/doxify/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/build_utils/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
-	cd $(DOXYGENDIR); doxygen ./Doxyfile | tee ./html/doxygen.out
+	cd $(DOXYGENDIR); doxygen ./Doxyfile 2>&1 | tee ./html/doxygen.out
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 
