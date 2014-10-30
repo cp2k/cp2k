@@ -13,6 +13,8 @@
 MODULE dbcsr_vector_operations_low
   USE array_types,                     ONLY: array_data
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
+                                             dbcsr_distribution_row_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_error_type,&
@@ -22,8 +24,6 @@ MODULE dbcsr_vector_operations_low
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_col_dist,&
-                                             dbcsr_distribution_row_dist,&
                                              dbcsr_get_info,&
                                              dbcsr_get_matrix_type
   USE dbcsr_operations,                ONLY: dbcsr_set

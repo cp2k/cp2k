@@ -21,6 +21,7 @@ MODULE dbcsr_io
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
                                              dbcsr_get_data
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_error_set,&
@@ -28,11 +29,10 @@ MODULE dbcsr_io
                                              dbcsr_error_type,&
                                              dbcsr_warning_level
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_area, dbcsr_distribution, dbcsr_distribution_mp, &
-       dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_valid_index
+       dbcsr_data_area, dbcsr_distribution, dbcsr_get_data_size, &
+       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_name, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                              dbcsr_mp_numnodes,&
                                              dbcsr_mp_pgrid

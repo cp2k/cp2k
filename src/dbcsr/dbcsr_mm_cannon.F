@@ -50,6 +50,12 @@ MODULE dbcsr_mm_cannon
        dbcsr_get_data_p_z, dbcsr_scalar, dbcsr_scalar_are_equal, &
        dbcsr_scalar_fill_all, dbcsr_scalar_negative, dbcsr_scalar_one, &
        dbcsr_scalar_set_type, dbcsr_scalar_zero
+  USE dbcsr_dist_methods,              ONLY: &
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_create_image_dist,&
                                              dbcsr_get_local_vcols,&
                                              dbcsr_get_local_vrows,&
@@ -82,19 +88,13 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_memtype_setup
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_destroy_array, &
-       dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data_type, &
-       dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
-       dbcsr_has_symmetry, dbcsr_image_dist_hold, dbcsr_image_dist_init, &
-       dbcsr_image_dist_release, dbcsr_init, dbcsr_may_be_dense, &
-       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
-       dbcsr_valid_index
+       dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_index_memory_type, &
+       dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_image_dist_hold, &
+       dbcsr_image_dist_init, dbcsr_image_dist_release, dbcsr_init, &
+       dbcsr_may_be_dense, dbcsr_nblkcols_local, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_release_locals, &
+       dbcsr_row_block_offsets, dbcsr_valid_index
   USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                              dbcsr_mm_multrec_init,&
                                              dbcsr_mm_multrec_lib_finalize,&

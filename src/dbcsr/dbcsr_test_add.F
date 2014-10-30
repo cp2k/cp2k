@@ -22,6 +22,8 @@ MODULE dbcsr_test_add
                                              dbcsr_data_release,&
                                              dbcsr_scalar,&
                                              dbcsr_type_1d_to_2d
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_new,&
+                                             dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_error_set,&
@@ -32,11 +34,10 @@ MODULE dbcsr_test_add
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_get_occupation, dbcsr_init, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes
+       dbcsr_col_block_sizes, dbcsr_get_data_type, dbcsr_get_matrix_type, &
+       dbcsr_get_occupation, dbcsr_init, dbcsr_name, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_add
   USE dbcsr_test_methods,              ONLY: atoi,&
                                              atol,&

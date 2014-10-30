@@ -41,6 +41,8 @@
                     "dbcsr_array_i8_sort.F",
                     "dbcsr_array__nametype1__sort.instantiation",
                     "dbcsr_array__nametype1__sort.template",
+
+                    "min_heap.F",
                     ],
          },
 
@@ -56,6 +58,8 @@
                      "dbcsr_mp_operations__nametype1_.template",
                      "dbcsr_mp_operations_s.f90",
                      "dbcsr_mp_operations_z.f90",
+                     "dbcsr_dist_operations.F",
+                     "dbcsr_dist_methods.F",
                     ]
          },
 
@@ -117,7 +121,7 @@
 
          #======================================================================
          {'dirname':'dbcsr/work',
-           'requires':["../base", "../../base", "../data", "../block"],
+           'requires':["../base", "../../base", "../data", "../block", "../mp"],
            'files': [
                      "dbcsr_work_operations_c.f90",
                      "dbcsr_work_operations_d.f90",
@@ -136,7 +140,6 @@
            'files': [
                      "dbcsr_util.F",
                      "dbcsr_blas_operations.F",
-                     "dbcsr_dist_operations.F",
                      "dbcsr_io.F",
                      "dbcsr_methods.F",
                      "dbcsr_operations.F",
@@ -147,14 +150,13 @@
                      "dbcsr_operations_s.f90",
                      "dbcsr_operations_z.f90",
                      "dbcsr_transformations.F",
-                     "min_heap.F",
                      "smm.F",
                     ],
          },
 
          #======================================================================
          {'dirname':'dbcsr/vec',
-         'requires':["../../base", "../../mpiwrap", "../base", "../data", "../block", "../work", "../rest"],
+         'requires':["../../base", "../../mpiwrap", "../base", "../data", "../block", "../work", "../rest", "../mp"],
           'files': [
                     "dbcsr_vector_operations.F",
                     "dbcsr_vector_operations_low_c.f90",

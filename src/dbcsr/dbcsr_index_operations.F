@@ -17,19 +17,24 @@ MODULE dbcsr_index_operations
   USE array_types,                     ONLY: array_data,&
                                              array_size
   USE dbcsr_config,                    ONLY: default_resize_factor
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_local_cols,&
+                                             dbcsr_distribution_local_rows,&
+                                             dbcsr_distribution_ncols,&
+                                             dbcsr_distribution_nlocal_cols,&
+                                             dbcsr_distribution_nlocal_rows,&
+                                             dbcsr_distribution_nrows,&
+                                             dbcsr_distribution_thread_dist
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
        dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_ncols, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_thread_dist, &
-       dbcsr_get_index_memory_type, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_wm_use_mutable
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_get_index_memory_type,&
+                                             dbcsr_nblkcols_total,&
+                                             dbcsr_nblkrows_total,&
+                                             dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              memory_allocate,&
                                              memory_deallocate

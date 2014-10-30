@@ -18,6 +18,9 @@ MODULE dbcsr_tests
                                              array_release,&
                                              array_size
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -26,10 +29,9 @@ MODULE dbcsr_tests
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_get_data_type, dbcsr_init, dbcsr_name, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_release, dbcsr_row_block_sizes
+       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
+       dbcsr_init, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_active,&
                                              dbcsr_mp_group,&
                                              dbcsr_mp_init,&

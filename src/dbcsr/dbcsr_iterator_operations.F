@@ -19,6 +19,9 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_data_release,&
                                              dbcsr_data_set_pointer,&
                                              dbcsr_get_data
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_has_threads,&
+                                             dbcsr_distribution_num_threads,&
+                                             dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -27,10 +30,7 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_internal_error,&
                                              dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_has_threads,&
-                                             dbcsr_distribution_num_threads,&
-                                             dbcsr_distribution_thread_dist
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution
   USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
                                              pointer_d_rank_remap2,&
                                              pointer_s_rank_remap2,&

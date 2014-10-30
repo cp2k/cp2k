@@ -20,6 +20,10 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_negative,&
                                              dbcsr_scalar_one
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -31,8 +35,6 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_init, dbcsr_name, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_offsets, dbcsr_row_block_sizes

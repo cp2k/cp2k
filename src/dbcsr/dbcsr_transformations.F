@@ -34,6 +34,13 @@ MODULE dbcsr_transformations
        dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
        dbcsr_get_data, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data
+  USE dbcsr_dist_methods,              ONLY: &
+       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_cols,&
                                              dbcsr_get_local_rows,&
                                              dbcsr_get_stored_coordinates,&
@@ -57,17 +64,11 @@ MODULE dbcsr_transformations
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data_size_referenced, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_switch_data_area, &
-       dbcsr_valid_index
+       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
+       dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: &
        dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &

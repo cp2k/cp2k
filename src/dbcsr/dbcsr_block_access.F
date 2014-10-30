@@ -37,6 +37,7 @@ MODULE dbcsr_block_access
                                              dbcsr_data_set_pointer,&
                                              dbcsr_get_data,&
                                              dbcsr_get_data_p
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
@@ -52,10 +53,10 @@ MODULE dbcsr_block_access
                                              merge_index_arrays
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_distribution, &
-       dbcsr_distribution_mp, dbcsr_get_data_size_referenced, &
-       dbcsr_get_data_type, dbcsr_get_num_blocks, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_use_mutable, dbcsr_wm_use_mutable
+       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
+       dbcsr_get_num_blocks, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_use_mutable, &
+       dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mynode
   USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
                                              pointer_d_rank_remap2,&

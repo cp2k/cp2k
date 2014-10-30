@@ -18,21 +18,22 @@ MODULE dbcsr_dist_operations
        array_data, array_equality, array_exists, array_hold, array_i1d_obj, &
        array_new, array_nullify, array_release, array_size
   USE dbcsr_config,                    ONLY: max_elements_per_block
+  USE dbcsr_dist_methods,              ONLY: &
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_processor, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_internal_error, &
        dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_distribution_thread_dist, dbcsr_is_initialized, &
-       dbcsr_release_locals
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_is_initialized,&
+                                             dbcsr_release_locals
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mypcol,&
                                              dbcsr_mp_myprow,&
                                              dbcsr_mp_new_transposed,&

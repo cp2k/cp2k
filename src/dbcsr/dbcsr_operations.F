@@ -39,6 +39,9 @@ MODULE dbcsr_operations
        dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: checker_square_proc,&
                                              checker_tr,&
                                              dbcsr_find_column,&
@@ -55,9 +58,7 @@ MODULE dbcsr_operations
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_offsets, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
-       dbcsr_distribution_row_dist, dbcsr_get_data_size, &
+       dbcsr_col_block_offsets, dbcsr_distribution, dbcsr_get_data_size, &
        dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
        dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
        dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &

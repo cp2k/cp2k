@@ -41,6 +41,12 @@ MODULE dbcsr_work_operations
        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_has_threads,&
+                                             dbcsr_distribution_hold,&
+                                             dbcsr_distribution_make_threads,&
+                                             dbcsr_distribution_ncols,&
+                                             dbcsr_distribution_nrows,&
+                                             dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
@@ -60,18 +66,14 @@ MODULE dbcsr_work_operations
                                              dbcsr_iterator_stop
   USE dbcsr_mem_methods,               ONLY: dbcsr_memtype_equal
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_ncols, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_get_data_memory_type, dbcsr_get_data_size_used, &
-       dbcsr_get_data_type, dbcsr_get_index_memory_type, &
-       dbcsr_get_matrix_type, dbcsr_get_replication_type, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_matrix_counter, dbcsr_mutable_destroy, &
-       dbcsr_mutable_init, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
-       dbcsr_mutable_release, dbcsr_name, dbcsr_row_block_sizes, &
-       dbcsr_switch_data_area, dbcsr_use_mutable, dbcsr_valid_index, &
-       dbcsr_wm_use_mutable
+       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_memory_type, &
+       dbcsr_get_data_size_used, dbcsr_get_data_type, &
+       dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
+       dbcsr_get_replication_type, dbcsr_init, dbcsr_is_initialized, &
+       dbcsr_matrix_counter, dbcsr_mutable_destroy, dbcsr_mutable_init, &
+       dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, &
+       dbcsr_name, dbcsr_row_block_sizes, dbcsr_switch_data_area, &
+       dbcsr_use_mutable, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_toollib,                   ONLY: dbcsr_unpack_i8_2i4,&
                                              sort,&

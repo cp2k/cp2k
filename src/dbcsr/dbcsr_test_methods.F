@@ -32,6 +32,10 @@ MODULE dbcsr_test_methods
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_type_1d_to_2d, &
        dbcsr_type_2d_to_1d
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_hold,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -44,12 +48,14 @@ MODULE dbcsr_test_methods
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution_hold, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_get_matrix_type, dbcsr_init, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total
+  USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
+                                             dbcsr_init,&
+                                             dbcsr_max_col_size,&
+                                             dbcsr_max_row_size,&
+                                             dbcsr_nblkcols_total,&
+                                             dbcsr_nblkrows_total,&
+                                             dbcsr_nfullcols_total,&
+                                             dbcsr_nfullrows_total
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mynode,&
                                              dbcsr_mp_new,&
                                              dbcsr_mp_numnodes,&

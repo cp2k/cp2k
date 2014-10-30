@@ -19,17 +19,23 @@ MODULE dbcsr_util
                                              array_i1d_obj
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_get_data
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_local_cols,&
+                                             dbcsr_distribution_local_rows,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_ncols,&
+                                             dbcsr_distribution_nlocal_cols,&
+                                             dbcsr_distribution_nlocal_rows,&
+                                             dbcsr_distribution_nrows
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_blk_col_offset, dbcsr_blk_row_offset, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_get_data_size_referenced, &
-       dbcsr_has_symmetry, dbcsr_is_initialized, dbcsr_valid_index
+  USE dbcsr_methods,                   ONLY: dbcsr_blk_col_offset,&
+                                             dbcsr_blk_row_offset,&
+                                             dbcsr_get_data_size_referenced,&
+                                             dbcsr_has_symmetry,&
+                                             dbcsr_is_initialized,&
+                                             dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                              dbcsr_mp_mypcol,&
                                              dbcsr_mp_myprow

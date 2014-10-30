@@ -17,16 +17,20 @@ MODULE dbcsr_vector_operations
   USE dbcsr_block_access,              ONLY: dbcsr_reserve_all_blocks
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_distribution_row_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_info, dbcsr_init, &
-       dbcsr_row_block_sizes
+  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
+                                             dbcsr_distribution,&
+                                             dbcsr_get_info,&
+                                             dbcsr_init,&
+                                             dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_scalar_type,&

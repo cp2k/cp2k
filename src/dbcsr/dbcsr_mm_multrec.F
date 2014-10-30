@@ -21,6 +21,12 @@ MODULE dbcsr_mm_multrec
   USE array_types,                     ONLY: array_data,&
                                              array_equality
   USE dbcsr_config,                    ONLY: multrec_limit
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
+                                             dbcsr_distribution_has_threads,&
+                                             dbcsr_distribution_local_cols,&
+                                             dbcsr_distribution_local_rows,&
+                                             dbcsr_distribution_row_dist,&
+                                             dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -28,12 +34,6 @@ MODULE dbcsr_mm_multrec
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
-                                             dbcsr_distribution_has_threads,&
-                                             dbcsr_distribution_local_cols,&
-                                             dbcsr_distribution_local_rows,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_distribution_thread_dist
   USE dbcsr_mm_csr,                    ONLY: dbcsr_mm_csr_finalize,&
                                              dbcsr_mm_csr_init,&
                                              dbcsr_mm_csr_lib_finalize,&
