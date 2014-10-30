@@ -33,6 +33,8 @@ MODULE graph_methods
   USE string_utilities,                ONLY: uppercase
 
   IMPLICIT NONE
+  PRIVATE
+
   PUBLIC :: fes_compute_low,&
             fes_write,&
             fes_only_write,&

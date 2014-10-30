@@ -115,7 +115,6 @@ cp_cfm_types.F.ast: Symbol "dcopy" in "cp_cfm_create" not defined
 cp_cfm_types.F.ast: Symbol "dcopy" in "cp_cfm_to_cfm_matrix" not defined
 cp_cfm_types.F.ast: Symbol "dlarnv" in "cp_cfm_init_random" not defined
 cp_cfm_types.F.ast: Symbol "zcopy" in "cp_cfm_to_cfm_columns" not defined
-cp_control_utils.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 cp_dbcsr_cholesky.F.ast: Symbol "dcopy" in "cp_dbcsr_cholesky_restore" not defined
 cp_dbcsr_cholesky.F.ast: Symbol "dpotrf" in "cp_dbcsr_cholesky_decompose" not defined
 cp_dbcsr_cholesky.F.ast: Symbol "dpotri" in "cp_dbcsr_cholesky_invert" not defined
@@ -127,7 +126,6 @@ cp_dbcsr_cholesky.F.ast: Symbol "spotrf" in "cp_dbcsr_cholesky_decompose" not de
 cp_dbcsr_cholesky.F.ast: Symbol "spotri" in "cp_dbcsr_cholesky_invert" not defined
 cp_dbcsr_cholesky.F.ast: Symbol "strmm" in "cp_dbcsr_cholesky_restore" not defined
 cp_dbcsr_cholesky.F.ast: Symbol "strsm" in "cp_dbcsr_cholesky_restore" not defined
-cp_dbcsr_interface.F.ast: Module "dbcsr_api" USEd without ONLY clause or not PRIVATE
 cp_dbcsr_operations.F.ast: Symbol "dcopy" in "cp_dbcsr_pack_vec" not defined
 cp_dbcsr_operations.F.ast: Symbol "dcopy" in "packed_vec_alltoall" not defined
 cp_dbcsr_operations.F.ast: Symbol "dcopy" in "packed_vec_bcast" not defined
@@ -225,7 +223,6 @@ cp_log_handling.F.ast: Symbol "stack_pointer" in procedure "cp_log_handling" is 
 cp_parser_types.F.ast: Symbol "empty_initial_variables" in procedure "cp_parser_types" is IMPLICIT-SAVE
 ct_methods.F.ast: Symbol "dsyev" in "diagonalize_diagonal_blocks" not defined
 d3_poly.F.ast: Symbol "random_number" in "poly_random" not defined
-dbcsr_api.F.ast: Module "min_heap" USEd without ONLY clause or not PRIVATE
 dbcsr_blas_operations.F.ast: Symbol "ccopy" in "dbcsr_blas_copy" not defined
 dbcsr_blas_operations.F.ast: Symbol "cgemm" in "dbcsr_blas_gemm" not defined
 dbcsr_blas_operations.F.ast: Symbol "clarnv" in "dbcsr_lapack_larnv" not defined
@@ -242,10 +239,6 @@ dbcsr_blas_operations.F.ast: Symbol "zcopy" in "dbcsr_blas_copy" not defined
 dbcsr_blas_operations.F.ast: Symbol "zgemm" in "dbcsr_blas_gemm" not defined
 dbcsr_blas_operations.F.ast: Symbol "zlarnv" in "dbcsr_lapack_larnv" not defined
 dbcsr_blas_operations.F.ast: Symbol "zscal" in "dbcsr_blas_scal" not defined
-dbcsr_block_access.F.ast: Module "btree_i8_k_cp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_block_access.F.ast: Module "btree_i8_k_dp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_block_access.F.ast: Module "btree_i8_k_sp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_block_access.F.ast: Module "btree_i8_k_zp2d_v" USEd without ONLY clause or not PRIVATE
 dbcsr_block_access.F.ast: Symbol "caxpy" in "dbcsr_put_block_c" not defined
 dbcsr_block_access.F.ast: Symbol "ccopy" in "dbcsr_get_2d_block_c" not defined
 dbcsr_block_access.F.ast: Symbol "ccopy" in "dbcsr_put_block_c" not defined
@@ -266,7 +259,6 @@ dbcsr_block_operations.F.ast: Symbol "spotrf" in "block_2d_chol_inv_s" not defin
 dbcsr_block_operations.F.ast: Symbol "spotri" in "block_2d_chol_inv_s" not defined
 dbcsr_block_operations.F.ast: Symbol "zpotrf" in "block_2d_chol_inv_z" not defined
 dbcsr_block_operations.F.ast: Symbol "zpotri" in "block_2d_chol_inv_z" not defined
-dbcsr_dist_operations.F.ast: Module "min_heap" USEd without ONLY clause or not PRIVATE
 dbcsr_dist_operations.F.ast: Symbol "idid" in procedure "dbcsr_dist_operations" is IMPLICIT-SAVE
 dbcsr_dist_operations.F.ast: Symbol "random_number" in "dbcsr_dist_bin" not defined
 dbcsr_dist_operations.F.ast: Symbol "random_number" in "test_create_bl_distribution" not defined
@@ -274,16 +266,8 @@ dbcsr_error_handling.F.ast: Symbol "external_timeset" in "dbcsr_error_set" not d
 dbcsr_error_handling.F.ast: Symbol "external_timeset" in procedure "dbcsr_error_handling" is IMPLICIT-SAVE
 dbcsr_error_handling.F.ast: Symbol "external_timestop" in "dbcsr_error_stop" not defined
 dbcsr_error_handling.F.ast: Symbol "external_timestop" in procedure "dbcsr_error_handling" is IMPLICIT-SAVE
-dbcsr_example_1.F.ast: Module "dbcsr_api" USEd without ONLY clause or not PRIVATE
-dbcsr_example_2.F.ast: Module "dbcsr_api" USEd without ONLY clause or not PRIVATE
 dbcsr_example_2.F.ast: Symbol "random_number" in "dbcsr_example_2" not defined
-dbcsr_example_3.F.ast: Module "dbcsr_api" USEd without ONLY clause or not PRIVATE
 dbcsr_example_3.F.ast: Symbol "random_number" in "dbcsr_example_3" not defined
-dbcsr_methods.F.ast: Module "btree_i8_k_cp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_methods.F.ast: Module "btree_i8_k_dp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_methods.F.ast: Module "btree_i8_k_sp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_methods.F.ast: Module "btree_i8_k_zp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_methods.F.ast: Module "min_heap" USEd without ONLY clause or not PRIVATE
 dbcsr_methods.F.ast: Symbol "random_number" in "make_threads" not defined
 dbcsr_mm_hostdrv.F.ast: Symbol "cgemm" in "blas_process_mm_stack_c" not defined
 dbcsr_mm_hostdrv.F.ast: Symbol "dgemm" in "blas_process_mm_stack_d" not defined
@@ -302,10 +286,6 @@ dbcsr_test_multiply.F.ast: Symbol "cgemm" in "dbcsr_check_multiply" not defined
 dbcsr_test_multiply.F.ast: Symbol "dgemm" in "dbcsr_check_multiply" not defined
 dbcsr_test_multiply.F.ast: Symbol "sgemm" in "dbcsr_check_multiply" not defined
 dbcsr_test_multiply.F.ast: Symbol "zgemm" in "dbcsr_check_multiply" not defined
-dbcsr_types.F.ast: Module "btree_i8_k_cp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_types.F.ast: Module "btree_i8_k_dp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_types.F.ast: Module "btree_i8_k_sp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_types.F.ast: Module "btree_i8_k_zp2d_v" USEd without ONLY clause or not PRIVATE
 dbcsr_vector_operations_low.F.ast: Symbol "cgemm" in "dbcsr_matrix_vector_mult_c" not defined
 dbcsr_vector_operations_low.F.ast: Symbol "cgemm" in "dbcsr_matrixt_vector_mult_c" not defined
 dbcsr_vector_operations_low.F.ast: Symbol "dgemm" in "dbcsr_matrix_vector_mult_d" not defined
@@ -314,10 +294,6 @@ dbcsr_vector_operations_low.F.ast: Symbol "sgemm" in "dbcsr_matrix_vector_mult_s
 dbcsr_vector_operations_low.F.ast: Symbol "sgemm" in "dbcsr_matrixt_vector_mult_s" not defined
 dbcsr_vector_operations_low.F.ast: Symbol "zgemm" in "dbcsr_matrix_vector_mult_z" not defined
 dbcsr_vector_operations_low.F.ast: Symbol "zgemm" in "dbcsr_matrixt_vector_mult_z" not defined
-dbcsr_work_operations.F.ast: Module "btree_i8_k_cp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_work_operations.F.ast: Module "btree_i8_k_dp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_work_operations.F.ast: Module "btree_i8_k_sp2d_v" USEd without ONLY clause or not PRIVATE
-dbcsr_work_operations.F.ast: Module "btree_i8_k_zp2d_v" USEd without ONLY clause or not PRIVATE
 dgs.F.ast: Symbol "copy_cr" in "dg_get_patch_1" not defined
 dgs.F.ast: Symbol "copy_cri" in "dg_get_patch_2" not defined
 dgs.F.ast: Symbol "rankup" in "dg_get_patch_1" not defined
@@ -368,13 +344,8 @@ farming_methods.F.ast: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F.ast: Found OPEN statement in procedure "farming_parse_input"
 fast.F.ast: Symbol "zgeru" in "rankup" not defined
 fast.F.ast: Symbol "zscal" in "rankup" not defined
-fft_lib.F.ast: Module "fft_plan" USEd without ONLY clause or not PRIVATE
-fft_lib.F.ast: Module "fftw3_lib" USEd without ONLY clause or not PRIVATE
-fft_tools.F.ast: Module "fft_lib" USEd without ONLY clause or not PRIVATE
-fft_tools.F.ast: Module "fft_plan" USEd without ONLY clause or not PRIVATE
 fft_tools.F.ast: Symbol "zero_c" in "fft3d_ps" not defined
 fftw3_lib.F.ast: Found GOTO statement in procedure "sortint"
-fftw3_lib.F.ast: Module "fft_plan" USEd without ONLY clause or not PRIVATE
 fist_pol_scf.F.ast: Symbol "debug_this_module" in procedure "fist_pol_scf" is IMPLICIT-SAVE
 gauss_colloc.F.ast: Found GOTO statement in procedure "collocgauss"
 gauss_colloc.F.ast: Found GOTO statement in procedure "collocgaussflat"
@@ -386,25 +357,19 @@ glbopt_history.F.ast: Symbol "dsyev" in "goedecker_fingerprint" not defined
 gle_system_dynamics.F.ast: Symbol "dgemm" in "gle_particles" not defined
 graph.F.ast: Found CLOSE statement in procedure "graph"
 graph.F.ast: Found OPEN statement in procedure "graph"
-graph.F.ast: Module "graph_methods" USEd without ONLY clause or not PRIVATE
-graph.F.ast: Module "graph_utils" USEd without ONLY clause or not PRIVATE
 graph.F.ast: Symbol "random_number" in "graph" not defined
 graph.F.ast: Symbol "random_seed" in "graph" not defined
 graph_methods.F.ast: Found CLOSE statement in procedure "fes_path"
 graph_methods.F.ast: Found OPEN statement in procedure "fes_cube_write"
 graph_methods.F.ast: Found OPEN statement in procedure "fes_path"
-graph_methods.F.ast: Module "graph_utils" USEd without ONLY clause or not PRIVATE
 graphcon.F.ast: Found GOTO statement in procedure "all_permutations"
 hartree_local_methods.F.ast: Symbol "daxpy" in "vh_1c_atom_integrals" not defined
-hfx_compression_methods.F.ast: Module "hfx_compression_core_methods" USEd without ONLY clause or not PRIVATE
 hfx_derivatives.F.ast: Found CLOSE statement in procedure "derivatives_four_center"
 hfx_derivatives.F.ast: Found OPEN statement in procedure "derivatives_four_center"
 hfx_energy_potential.F.ast: Found CLOSE statement in procedure "integrate_four_center"
 hfx_energy_potential.F.ast: Found OPEN statement in procedure "integrate_four_center"
 hfx_load_balance_methods.F.ast: Found CLOSE statement in procedure "hfx_recursive_load_balance"
 hfx_load_balance_methods.F.ast: Found OPEN statement in procedure "hfx_recursive_load_balance"
-input_cp2k_check.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
-input_cp2k_xc.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 input_section_types.F.ast: Found CLOSE statement in procedure "section_describe_html"
 input_section_types.F.ast: Found OPEN statement in procedure "section_describe_html"
 ipi_driver.F.ast: Symbol "hasdata" in procedure "run_driver" is IMPLICIT-SAVE
@@ -427,7 +392,6 @@ k290.F.ast: Symbol "rname_hexa" in procedure "k290" is IMPLICIT-SAVE
 kg_environment.F.ast: Found CLOSE statement in procedure "write_to_file"
 kg_environment.F.ast: Found OPEN statement in procedure "write_to_file"
 kg_tnadd_mat.F.ast: Symbol "dgemm" in "build_tnadd_mat" not defined
-kg_vertex_coloring_methods.F.ast: Module "kg_min_heap" USEd without ONLY clause or not PRIVATE
 library_tests.F.ast: Symbol "dgemm" in "matmul_test" not defined
 library_tests.F.ast: Symbol "max_memory" in procedure "library_tests" is IMPLICIT-SAVE
 library_tests.F.ast: Symbol "random_number" in "copy_test" not defined
@@ -470,7 +434,6 @@ machine_internal.F.ast: Symbol "cpu_time" in "m_cputime" not defined
 machine_internal.F.ast: Symbol "get_command_argument" in "m_getarg" not defined
 mathlib.F.ast: Symbol "dgetrf" in "invmat" not defined
 mathlib.F.ast: Symbol "dgetri" in "invmat" not defined
-md_run.F.ast: Module "mdctrl_methods" USEd without ONLY clause or not PRIVATE
 mdctrl_methods.F.ast: Symbol "failure" in procedure "mdctrl_callback" is IMPLICIT-SAVE
 message_passing.F.ast: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F.ast: Found OPEN statement in procedure "mp_file_open"
@@ -1379,7 +1342,6 @@ ps_wavelet_scaling_function.F.ast: Symbol "dcopy" in "wavelet_function" not defi
 ps_wavelet_util.F.ast: Found GOTO statement in procedure "f_fft_dimensions"
 ps_wavelet_util.F.ast: Found GOTO statement in procedure "p_fft_dimensions"
 ps_wavelet_util.F.ast: Found GOTO statement in procedure "s_fft_dimensions"
-pw_env_methods.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 pw_grids.F.ast: Symbol "grid_tag" in procedure "pw_grids" is IMPLICIT-SAVE
 pw_methods.F.ast: Symbol "copy_cr" in "fft_wrap_pw1pw2" not defined
 pw_methods.F.ast: Symbol "copy_rc" in "fft_wrap_pw1pw2" not defined
@@ -1556,9 +1518,7 @@ xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
-xc.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc.F.ast: Symbol "daxpy" in "xc_vxc_pw_create" not defined
-xc_b97.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_b97.F.ast: Symbol "params_b97_grimme" in procedure "xc_b97" is IMPLICIT-SAVE
 xc_b97.F.ast: Symbol "params_b97_mardirossian" in procedure "xc_b97" is IMPLICIT-SAVE
 xc_b97.F.ast: Symbol "params_b97_orig" in procedure "xc_b97" is IMPLICIT-SAVE
@@ -1566,7 +1526,6 @@ xc_cs1.F.ast: Symbol "debug_flag" in procedure "xc_cs1" is IMPLICIT-SAVE
 xc_cs1.F.ast: Symbol "eps_rho" in procedure "xc_cs1" is IMPLICIT-SAVE
 xc_cs1.F.ast: Symbol "fsig" in procedure "xc_cs1" is IMPLICIT-SAVE
 xc_derivatives.F.ast: Found GOTO statement in procedure "xc_functional_eval"
-xc_exchange_gga.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_exchange_gga.F.ast: Symbol "cx" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
 xc_exchange_gga.F.ast: Symbol "eps_rho" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
 xc_exchange_gga.F.ast: Symbol "fact" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
@@ -1575,7 +1534,6 @@ xc_exchange_gga.F.ast: Symbol "flsd" in procedure "xc_exchange_gga" is IMPLICIT-
 xc_exchange_gga.F.ast: Symbol "sfac" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
 xc_exchange_gga.F.ast: Symbol "t13" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
 xc_exchange_gga.F.ast: Symbol "tact" in procedure "xc_exchange_gga" is IMPLICIT-SAVE
-xc_ke_gga.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_ke_gga.F.ast: Symbol "b" in procedure "xc_ke_gga" is IMPLICIT-SAVE
 xc_ke_gga.F.ast: Symbol "b_lda" in procedure "xc_ke_gga" is IMPLICIT-SAVE
 xc_ke_gga.F.ast: Symbol "b_lsd" in procedure "xc_ke_gga" is IMPLICIT-SAVE
@@ -1589,11 +1547,8 @@ xc_ke_gga.F.ast: Symbol "t13" in procedure "xc_ke_gga" is IMPLICIT-SAVE
 xc_ke_gga.F.ast: Symbol "tact" in procedure "xc_ke_gga" is IMPLICIT-SAVE
 xc_pade.F.ast: Symbol "debug_flag" in procedure "xc_pade" is IMPLICIT-SAVE
 xc_pade.F.ast: Symbol "eps_rho" in procedure "xc_pade" is IMPLICIT-SAVE
-xc_pbe.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
-xc_perdew86.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_perdew86.F.ast: Symbol "debug_flag" in procedure "xc_perdew86" is IMPLICIT-SAVE
 xc_perdew86.F.ast: Symbol "eps_rho" in procedure "xc_perdew86" is IMPLICIT-SAVE
-xc_perdew_wang.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_perdew_wang.F.ast: Symbol "a" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
 xc_perdew_wang.F.ast: Symbol "a1" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
 xc_perdew_wang.F.ast: Symbol "b1" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
@@ -1608,7 +1563,6 @@ xc_perdew_wang.F.ast: Symbol "d0" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
 xc_perdew_wang.F.ast: Symbol "d1" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
 xc_perdew_wang.F.ast: Symbol "eps_rho" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
 xc_perdew_wang.F.ast: Symbol "initialized" in procedure "xc_perdew_wang" is IMPLICIT-SAVE
-xc_perdew_zunger.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_perdew_zunger.F.ast: Symbol "a" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
 xc_perdew_zunger.F.ast: Symbol "b" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
 xc_perdew_zunger.F.ast: Symbol "b1" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
@@ -1618,7 +1572,6 @@ xc_perdew_zunger.F.ast: Symbol "d" in procedure "xc_perdew_zunger" is IMPLICIT-S
 xc_perdew_zunger.F.ast: Symbol "eps_rho" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
 xc_perdew_zunger.F.ast: Symbol "ga" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
 xc_perdew_zunger.F.ast: Symbol "initialized" in procedure "xc_perdew_zunger" is IMPLICIT-SAVE
-xc_rho_set_types.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_tfw.F.ast: Symbol "cf" in procedure "xc_tfw" is IMPLICIT-SAVE
 xc_tfw.F.ast: Symbol "eps_rho" in procedure "xc_tfw" is IMPLICIT-SAVE
 xc_tfw.F.ast: Symbol "flda" in procedure "xc_tfw" is IMPLICIT-SAVE
@@ -1628,7 +1581,6 @@ xc_thomas_fermi.F.ast: Symbol "cf" in procedure "xc_thomas_fermi" is IMPLICIT-SA
 xc_thomas_fermi.F.ast: Symbol "eps_rho" in procedure "xc_thomas_fermi" is IMPLICIT-SAVE
 xc_thomas_fermi.F.ast: Symbol "flda" in procedure "xc_thomas_fermi" is IMPLICIT-SAVE
 xc_thomas_fermi.F.ast: Symbol "flsd" in procedure "xc_thomas_fermi" is IMPLICIT-SAVE
-xc_vwn.F.ast: Module "xc_input_constants" USEd without ONLY clause or not PRIVATE
 xc_vwn.F.ast: Symbol "b" in procedure "xc_vwn" is IMPLICIT-SAVE
 xc_vwn.F.ast: Symbol "ba" in procedure "xc_vwn" is IMPLICIT-SAVE
 xc_vwn.F.ast: Symbol "bf" in procedure "xc_vwn" is IMPLICIT-SAVE

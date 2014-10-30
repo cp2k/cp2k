@@ -15,6 +15,7 @@
 MODULE btree_i8_k_dp2d_v
 
   IMPLICIT NONE
+  PRIVATE
 
   !API
   PUBLIC :: btree, btree_new, btree_add, btree_remove, btree_find, &

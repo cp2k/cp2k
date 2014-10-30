@@ -135,6 +135,9 @@ MODULE dbcsr_api
                                              heap_reset_first,&
                                              heap_t
 
+  IMPLICIT NONE
+  PRIVATE
+
   PUBLIC :: heap_fill,&
             heap_get_first,&
             heap_new,&

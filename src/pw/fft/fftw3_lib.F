@@ -21,6 +21,7 @@ MODULE fftw3_lib
   !$ USE OMP_LIB
 
   IMPLICIT NONE
+  PRIVATE
 
   PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm
   PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d

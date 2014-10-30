@@ -20,6 +20,7 @@ MODULE mdctrl_methods
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
+  PRIVATE
 
  PUBLIC :: mdctrl_callback
 

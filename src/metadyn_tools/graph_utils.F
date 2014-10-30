@@ -18,6 +18,7 @@ MODULE graph_utils
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
+  PRIVATE
 
   TYPE mep_input_data_type
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: minima

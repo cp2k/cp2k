@@ -16,6 +16,8 @@ MODULE hfx_compression_core_methods
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
+  PRIVATE
+
   ! masks the corresponding number of bits from the right
   INTEGER(kind=int_8), PARAMETER :: mask_right(0:63)=&
      (/ 0_int_8, 1_int_8, 3_int_8, 7_int_8, 15_int_8, 31_int_8, 63_int_8, 127_int_8, 255_int_8, 511_int_8, &
@@ -50,6 +52,8 @@ MODULE hfx_compression_core_methods
         -131072_int_8, -65536_int_8, -32768_int_8, -16384_int_8, -8192_int_8, -4096_int_8, -2048_int_8, &
         -1024_int_8, -512_int_8, -256_int_8, -128_int_8,  -64_int_8, -32_int_8, -16_int_8, -8_int_8, -4_int_8, &
         -2_int_8 /)
+
+  PUBLIC :: bits2ints_specific, ints2bits_specific
 
   CONTAINS
 

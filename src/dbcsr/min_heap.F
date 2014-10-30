@@ -6,6 +6,7 @@
 MODULE min_heap
 
   IMPLICIT NONE
+  PRIVATE
 
   PUBLIC :: heap_t
   PUBLIC :: heap_get_first, heap_reset_first, heap_fill

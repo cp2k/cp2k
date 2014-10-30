@@ -8,14 +8,15 @@ MODULE kg_min_heap
                                              int_8
 
   IMPLICIT NONE
+  PRIVATE
 
-  PUBLIC :: heap_t
+  PUBLIC :: heap_t, keyt, valt
   PUBLIC :: heap_pop, heap_reset_node, heap_fill
   PUBLIC :: heap_new, heap_release
 
   ! Sets the types
   INTEGER, PARAMETER         :: keyt = int_4
-  INTEGER, PARAMETER, PUBLIC :: valt = int_8
+  INTEGER, PARAMETER         :: valt = int_8
 
   TYPE heap_node
      INTEGER(KIND=keyt) :: key
