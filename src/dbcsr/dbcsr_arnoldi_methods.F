@@ -24,8 +24,8 @@ MODULE dbcsr_arnoldi_methods
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_scale,&
-                                             dbcsr_get_info
+                                             dbcsr_get_info,&
+                                             dbcsr_scale
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj,&
                                              dbcsr_obj_type_p

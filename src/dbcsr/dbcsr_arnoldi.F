@@ -20,8 +20,8 @@ MODULE dbcsr_arnoldi
                                              get_control,&
                                              m_x_v_vectors
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_methods,                   ONLY: dbcsr_release
+  USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj_type_p
   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix,&
                                              create_replicated_col_vec_from_matrix,&
