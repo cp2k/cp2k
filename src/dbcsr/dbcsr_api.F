@@ -67,6 +67,9 @@ MODULE dbcsr_api
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
+  USE dbcsr_lib,                       ONLY: dbcsr_clear_mempools,&
+                                             dbcsr_finalize_lib,&
+                                             dbcsr_init_lib
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
@@ -86,14 +89,13 @@ MODULE dbcsr_api
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_clear_mempools, &
-       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_filter, &
-       dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_gershgorin_norm, &
-       dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
-       dbcsr_init_lib, dbcsr_init_random, dbcsr_maxabs, dbcsr_multiply, &
-       dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, &
-       dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
-       dbcsr_triu
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
+       dbcsr_copy_into_existing, dbcsr_filter, dbcsr_frobenius_norm, &
+       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_diag, &
+       dbcsr_hadamard_product, dbcsr_init_random, dbcsr_maxabs, &
+       dbcsr_multiply, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
+       dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
+       dbcsr_trace, dbcsr_triu
   USE dbcsr_operations_low,            ONLY: dbcsr_function_of_elements
   USE dbcsr_tests,                     ONLY: cp_test_multiplies
   USE dbcsr_toollib,                   ONLY: swap
