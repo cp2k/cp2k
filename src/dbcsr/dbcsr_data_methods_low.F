@@ -19,6 +19,13 @@ MODULE dbcsr_data_methods_low
                                              acc_devmem_deallocate
   USE acc_event,                       ONLY: acc_event_create,&
                                              acc_event_destroy
+  USE dbcsr_data_types,                ONLY: &
+       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_datatype_sizeof, &
+       dbcsr_memtype_type, dbcsr_scalar_type, dbcsr_type_complex_4, &
+       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, &
+       dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
+       dbcsr_type_real_8_2d
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
@@ -30,13 +37,6 @@ MODULE dbcsr_data_methods_low
                                              pointer_d_rank_remap2,&
                                              pointer_s_rank_remap2,&
                                              pointer_z_rank_remap2
-  USE dbcsr_types,                     ONLY: &
-       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_datatype_sizeof, &
-       dbcsr_memtype_type, dbcsr_obj, dbcsr_scalar_type, &
-       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
-       dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, &
-       dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
-       dbcsr_type_real_8_2d
   USE kinds,                           ONLY: dp,&
                                              real_4,&
                                              real_4_size,&
@@ -96,7 +96,6 @@ MODULE dbcsr_data_methods_low
 
   INTERFACE dbcsr_get_data
      MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z
-     MODULE PROCEDURE get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
      MODULE PROCEDURE get_data_2d_s, get_data_2d_d, get_data_2d_c, get_data_2d_z
   END INTERFACE
 

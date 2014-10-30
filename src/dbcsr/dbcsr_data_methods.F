@@ -35,6 +35,11 @@ MODULE dbcsr_data_methods
        dbcsr_scalar_set_type, dbcsr_scalar_zero, dbcsr_type_1d_to_2d, &
        dbcsr_type_2d_to_1d, dbcsr_type_is_2d, internal_data_allocate, &
        internal_data_deallocate
+  USE dbcsr_data_types,                ONLY: &
+       dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_memtype_default, &
+       dbcsr_memtype_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_int_4, dbcsr_type_int_8, dbcsr_type_real_4, &
+       dbcsr_type_real_8
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
@@ -43,11 +48,6 @@ MODULE dbcsr_data_methods
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
-  USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_memtype_default, &
-       dbcsr_memtype_type, dbcsr_obj, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_int_4, dbcsr_type_int_8, &
-       dbcsr_type_real_4, dbcsr_type_real_8
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -81,42 +81,8 @@ MODULE dbcsr_data_methods
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
   PUBLIC :: dbcsr_data_host2dev, dbcsr_data_dev2host
-  PUBLIC :: dbcsr_switch_data_area
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief Sets the data area of a matrix
-!> \param[in,out] matrix     matrix for which to set the data area
-!> \param[in] data_area      data area to set
-!> \param[out] previous_data_area  (optional) previous data area
-!> \param[in,out] error      error
-! *****************************************************************************
-  SUBROUTINE dbcsr_switch_data_area (matrix, data_area, previous_data_area, &
-       error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: data_area
-    TYPE(dbcsr_data_obj), INTENT(OUT), &
-      OPTIONAL                               :: previous_data_area
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_switch_data_area', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handler
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set (routineN, error_handler, error)
-    IF (PRESENT (previous_data_area)) THEN
-       previous_data_area = matrix%m%data_area
-    ELSE
-       CALL dbcsr_data_release (matrix%m%data_area)
-    ENDIF
-    matrix%m%data_area = data_area
-    CALL dbcsr_data_hold (matrix%m%data_area)
-    CALL dbcsr_error_stop (error_handler, error)
-  END SUBROUTINE dbcsr_switch_data_area
 
 ! *****************************************************************************
 !> \brief Transfers data from host- to device-buffer, asynchronously.

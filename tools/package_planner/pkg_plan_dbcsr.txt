@@ -2,7 +2,7 @@
          #======================================================================
          {'dirname':'dbcsr',
            'requires':["../base", "../mpiwrap", "../acc", "base", "data", "block",
-                       "mp", "vec", "mm", "rest", "arnoldi"],
+                       "mp", "vec", "mm", "rest", "arnoldi", "error"],
            'public': ["dbcsr_api.F"],
            'files':  [
                       "dbcsr_api.F",
@@ -22,36 +22,16 @@
          },
 
          #======================================================================
-         {'dirname':'dbcsr/base',
-           'requires':["../../mpiwrap", "../../acc", "../../base"],
-           'files': [
-                    "dbcsr_types.F",
-                    "array_types.F",
-                    "dbcsr_config.F",
-                    "dbcsr_error_handling.F",
-                    "dbcsr_methods.F",
-
-                    "btree_i8_k_cp2d_v.F",
-                    "btree_i8_k_dp2d_v.F",
-                    "btree_i8_k_sp2d_v.F",
-                    "btree_i8_k_zp2d_v.F",
-                    "btree__nametype1__k__nametype2__v.instantiation",
-                    "btree__nametype1__k__nametype2__v.template",
-
-                    "dbcsr_toollib.F",
-                    "dbcsr_array_i4_sort.F",
-                    "dbcsr_array_i8_sort.F",
-                    "dbcsr_array_d_sort.F",
-                    "dbcsr_array_s_sort.F",
-                    "dbcsr_array__nametype1__sort.instantiation",
-                    "dbcsr_array__nametype1__sort.template",
-                    ],
+         {'dirname':'dbcsr/error',
+           'requires':["../../mpiwrap", "../../base",],
+           'files': ["dbcsr_error_handling.F",]
          },
 
          #======================================================================
          {'dirname':'dbcsr/data',
-         'requires':["../../acc", "../../mpiwrap", "../../base", "../base"],
+         'requires':["../../acc", "../../mpiwrap", "../../base", "../error"],
           'files': [
+                    "dbcsr_data_types.F",
                     "dbcsr_data_methods.F",
                     "dbcsr_data_methods_low_c.f90",
                     "dbcsr_data_methods_low_d.f90",
@@ -75,8 +55,35 @@
          },
 
          #======================================================================
+         {'dirname':'dbcsr/base',
+           'requires':["../../mpiwrap", "../../acc", "../../base", "../data", "../error"],
+           'files': [
+                    "dbcsr_types.F",
+                    "array_types.F",
+                    "dbcsr_config.F",
+                    "dbcsr_methods.F",
+
+                    "btree_i8_k_cp2d_v.F",
+                    "btree_i8_k_dp2d_v.F",
+                    "btree_i8_k_sp2d_v.F",
+                    "btree_i8_k_zp2d_v.F",
+                    "btree__nametype1__k__nametype2__v.instantiation",
+                    "btree__nametype1__k__nametype2__v.template",
+
+                    "dbcsr_toollib.F",
+                    "dbcsr_array_i4_sort.F",
+                    "dbcsr_array_i8_sort.F",
+                    "dbcsr_array_d_sort.F",
+                    "dbcsr_array_s_sort.F",
+                    "dbcsr_array__nametype1__sort.instantiation",
+                    "dbcsr_array__nametype1__sort.template",
+
+                    ],
+         },
+
+         #======================================================================
          {'dirname':'dbcsr/mp',
-         'requires':["../../base", "../../mpiwrap", "../base", "../data"],
+         'requires':["../../base", "../../mpiwrap", "../base", "../data", "../error"],
           'files': [
                      "dbcsr_mp_methods.F",
                      "dbcsr_mp_operations_c.f90",
@@ -89,12 +96,13 @@
                      "dbcsr_dist_operations.F",
                      "dbcsr_dist_methods.F",
                      "min_heap.F",
+                     "dbcsr_util.F",
                     ]
          },
 
          #======================================================================
          {'dirname':'dbcsr/block',
-           'requires':["../../base", "../../acc", "../base", "../data", "../mp"],
+           'requires':["../../base", "../../acc", "../base", "../data", "../mp", "../error"],
            'files': [
                      "dbcsr_block_access_c.f90",
                      "dbcsr_block_access_d.f90",
@@ -132,20 +140,11 @@
                     ],
          },
 
-#         #======================================================================
-#         {'dirname':'dbcsr/work',
-#           'requires':["../base", "../../base", "../data", "../mp", "../block"],
-#           'files': [
-#
-#                    ],
-#         },
-
          #======================================================================
          {'dirname':'dbcsr/rest',
-           'requires':["../libsmm_acc", "../../base", "../../mpiwrap", 
-                       "../block", "../base", "../mp", "../data"],
+           'requires':["../libsmm_acc", "../../base", "../../mpiwrap",
+                       "../block", "../base", "../mp", "../data", "../error"],
            'files': [
-                     "dbcsr_util.F",
                      "dbcsr_blas_operations.F",
                      "dbcsr_io.F",
                      "dbcsr_operations.F",
@@ -156,13 +155,13 @@
                      "dbcsr_operations_s.f90",
                      "dbcsr_operations_z.f90",
                      "dbcsr_transformations.F",
-                     "smm.F",
                     ],
          },
 
          #======================================================================
          {'dirname':'dbcsr/vec',
-         'requires':["../../base", "../../mpiwrap", "../base", "../data", "../block", "../rest", "../mp"],
+         'requires':["../../base", "../../mpiwrap", "../base", "../data",
+                     "../block", "../rest", "../mp", "../error"],
           'files': [
                     "dbcsr_vector_operations.F",
                     "dbcsr_vector_operations_low_c.f90",
@@ -178,7 +177,7 @@
          #======================================================================
          {'dirname':'dbcsr/mm',
            'requires':["../../mpiwrap", "../../acc", "../libsmm_acc", "../../base",
-                       "../mp", "../base", "../block", "../data", "../rest"],
+                       "../mp", "../base", "../block", "../data", "../rest", "../error"],
            'public' : ["dbcsr_multiply_api.F",],
            'files': [
                      "dbcsr_mm_accdrv.F",
@@ -202,12 +201,14 @@
                      "dbcsr_mm_types.F",
                      "dbcsr_acc_operations.F",
                      "dbcsr_multiply_api.F",
+                     "smm.F",
                     ],
          },
 
          #======================================================================
          {'dirname':'dbcsr/arnoldi',
-           'requires':["../base", "../vec", "../rest", "../../base", "../data", "../../mpiwrap","../block"],
+           'requires':["../base", "../vec", "../rest", "../../base", "../data",
+                       "../../mpiwrap","../block", "../error"],
            'public' : ["dbcsr_arnoldi.F", "dbcsr_arnoldi_data_methods.F",],
            'files': [
                       "dbcsr_arnoldi.F",

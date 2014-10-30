@@ -37,9 +37,10 @@ MODULE dbcsr_operations
        dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
        dbcsr_get_data, dbcsr_scalar, dbcsr_scalar_are_equal, &
        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_switch_data_area, dbcsr_type_1d_to_2d
+       dbcsr_scalar_zero, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
-                                             dbcsr_data_copyall
+                                             dbcsr_data_copyall,&
+                                             dbcsr_switch_data_area
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_local_cols,&
                                              dbcsr_distribution_local_rows,&

@@ -284,23 +284,6 @@
     ENDIF
   END SUBROUTINE get_data_2d_s
 
-
-! *****************************************************************************
-!> \brief Returns the entire data for a matrix.
-!> \param matrix ...
-!> \param[out] DATA pointer to data
-!> \par Warning
-!>      This routine should only be used within DBCSR code.
-! *****************************************************************************
-  SUBROUTINE get_data_m_s (matrix, DATA)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    REAL(kind=real_4), DIMENSION(:), POINTER :: DATA
-
-    CALL get_data_s (matrix%m%data_area, DATA)
-  END SUBROUTINE get_data_m_s
-
-
-
 ! *****************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
 !> \param[in] scalar                    scalar to encapsulate

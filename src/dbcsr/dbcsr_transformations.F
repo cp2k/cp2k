@@ -33,8 +33,9 @@ MODULE dbcsr_transformations
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
-       dbcsr_get_data, dbcsr_switch_data_area, dbcsr_type_1d_to_2d
-  USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data
+       dbcsr_get_data, dbcsr_type_1d_to_2d
+  USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data,&
+                                             dbcsr_switch_data_area
   USE dbcsr_dist_methods,              ONLY: &
        dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &

@@ -38,10 +38,10 @@ MODULE dbcsr_work_operations
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
-       dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z, &
-       dbcsr_switch_data_area
+       dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
-                                             dbcsr_sort_data
+                                             dbcsr_sort_data,&
+                                             dbcsr_switch_data_area
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_has_threads,&
                                              dbcsr_distribution_hold,&
                                              dbcsr_distribution_make_threads,&

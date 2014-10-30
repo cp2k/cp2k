@@ -15,13 +15,13 @@ MODULE dbcsr_mem_methods
   USE dbcsr_data_methods_low,          ONLY: dbcsr_data_exists,&
                                              dbcsr_data_get_size,&
                                              internal_data_deallocate
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
-  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+  USE dbcsr_data_types,                ONLY: dbcsr_data_obj,&
                                              dbcsr_mempool_entry_type,&
                                              dbcsr_mempool_type,&
                                              dbcsr_memtype_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type
   USE kinds,                           ONLY: dp
 
   !$ USE OMP_LIB
