@@ -16,9 +16,6 @@ MODULE dbcsr_test_multiply
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj,&
                                              array_release
-  USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                             dbcsr_multiply,&
-                                             dbcsr_scale
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_sizes,&
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
@@ -43,6 +40,9 @@ MODULE dbcsr_test_multiply
        dbcsr_init, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_offsets, dbcsr_row_block_sizes
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_multiply,&
+                                             dbcsr_scale
   USE dbcsr_test_methods,              ONLY: atoi,&
                                              atol,&
                                              ator,&

@@ -32,8 +32,8 @@ MODULE dbcsr_tests
        dbcsr_mp_init, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_release, dbcsr_row_block_sizes
-  USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
-  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_multiply
   USE dbcsr_test_methods,              ONLY: dbcsr_make_random_block_sizes,&
                                              dbcsr_make_random_matrix
   USE dbcsr_transformations,           ONLY: dbcsr_redistribute
