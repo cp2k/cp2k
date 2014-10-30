@@ -92,44 +92,12 @@ MODULE dbcsr_methods
      MODULE PROCEDURE dbcsr_init_type, dbcsr_init_obj
   END INTERFACE
 
-  INTERFACE dbcsr_init_p
-     MODULE PROCEDURE dbcsr_init_obj_p
-  END INTERFACE
-
   INTERFACE dbcsr_valid_index
      MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
   END INTERFACE
 
   INTERFACE dbcsr_is_initialized
      MODULE PROCEDURE dbcsr_is_initialized_type, dbcsr_is_initialized_obj
-  END INTERFACE
-
-  !INTERFACE dbcsr_uses_special_memory
-  !   MODULE PROCEDURE uses_special_memory_matrix, uses_special_memory_area
-  !END INTERFACE
-
-  INTERFACE dbcsr_get_data_size
-     MODULE PROCEDURE get_data_size_matrix
-  END INTERFACE
-
-  INTERFACE dbcsr_get_data_size_used
-     MODULE PROCEDURE dbcsr_get_data_size_used
-  END INTERFACE
-
-  INTERFACE dbcsr_get_data_size_referenced
-     MODULE PROCEDURE get_data_size_ref_matrix
-  END INTERFACE
-
-  INTERFACE dbcsr_get_data_type
-     MODULE PROCEDURE dbcsr_get_data_type_obj
-  END INTERFACE
-
-  INTERFACE dbcsr_is_real
-     MODULE PROCEDURE dbcsr_is_real_obj
-  END INTERFACE
-
-  INTERFACE dbcsr_is_complex
-     MODULE PROCEDURE dbcsr_is_complex_obj
   END INTERFACE
 
   INTERFACE dbcsr_blk_row_size
@@ -244,11 +212,11 @@ CONTAINS
 !> \param[out] matrix         uninitialized matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_obj_p (matrix, error)
+  SUBROUTINE dbcsr_init_p (matrix, error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj_p', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_p', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -256,7 +224,7 @@ CONTAINS
     IF(ASSOCIATED(matrix)) CALL dbcsr_release_p(matrix, error)
     ALLOCATE(matrix)
     CALL dbcsr_init(matrix%m)
-  END SUBROUTINE dbcsr_init_obj_p
+  END SUBROUTINE dbcsr_init_p
 
 ! *****************************************************************************
 !> \brief Returns whether the index structure of the matrix is valid.
@@ -982,19 +950,19 @@ CONTAINS
 !> \param data_type           data_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_get_data_type_obj (matrix) RESULT (data_type)
+  PURE FUNCTION dbcsr_get_data_type (matrix) RESULT (data_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: data_type
 
     data_type = matrix%m%data_type
-  END FUNCTION dbcsr_get_data_type_obj
+  END FUNCTION dbcsr_get_data_type
 
 ! *****************************************************************************
 !> \brief Returns true if the data type of the matrix is real
 !> \param[in]  matrix              query this matrix
 !> \retval is_real ...
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_is_real_obj (matrix) RESULT (is_real)
+  PURE FUNCTION dbcsr_is_real (matrix) RESULT (is_real)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL                                  :: is_real
 
@@ -1004,14 +972,14 @@ CONTAINS
     ELSE
        is_real = .FALSE.
     ENDIF
-  END FUNCTION dbcsr_is_real_obj
+  END FUNCTION dbcsr_is_real
 
 ! *****************************************************************************
 !> \brief Returns true if the data type of the matrix is complex
 !> \param[in]  matrix              query this matrix
 !> \retval is_complex ...
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_is_complex_obj (matrix) RESULT (is_complex)
+  PURE FUNCTION dbcsr_is_complex (matrix) RESULT (is_complex)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL                                  :: is_complex
 
@@ -1021,7 +989,7 @@ CONTAINS
     ELSE
        is_complex = .FALSE.
     ENDIF
-  END FUNCTION dbcsr_is_complex_obj
+  END FUNCTION dbcsr_is_complex
 
 
 ! *****************************************************************************
@@ -1088,11 +1056,11 @@ CONTAINS
 !> \param[in] matrix      matrix
 !> \retval data_size      size of data
 ! *****************************************************************************
-  FUNCTION get_data_size_matrix (matrix) RESULT (data_size)
+  FUNCTION dbcsr_get_data_size (matrix) RESULT (data_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: data_size
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_data_size_matrix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size', &
       routineP = moduleN//':'//routineN
 
     TYPE(dbcsr_error_type)                   :: error
@@ -1121,19 +1089,19 @@ CONTAINS
             "Uninitialized data area",__LINE__,error)
        data_size = 0
     ENDIF
-  END FUNCTION get_data_size_matrix
+  END FUNCTION dbcsr_get_data_size
 
 ! *****************************************************************************
 !> \brief Get actual data storage used for matrix
 !> \param[in] matrix          Count data of this matrix
 !> \retval data_size_referenced Data size used by matrix
 ! *****************************************************************************
-  PURE FUNCTION get_data_size_ref_matrix (matrix) RESULT (data_size_referenced)
+  PURE FUNCTION dbcsr_get_data_size_referenced (matrix) RESULT (data_size_referenced)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER                                  :: data_size_referenced
 
     data_size_referenced = dbcsr_data_get_size_referenced (matrix%m%data_area)
-  END FUNCTION get_data_size_ref_matrix
+  END FUNCTION dbcsr_get_data_size_referenced
 
 ! *****************************************************************************
 !> \brief Count actual data storage used for matrix data.
