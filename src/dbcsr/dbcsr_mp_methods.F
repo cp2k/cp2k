@@ -14,6 +14,8 @@ MODULE dbcsr_mp_methods
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
+  USE dbcsr_methods,                   ONLY: dbcsr_mp_grid_remove,&
+                                             dbcsr_mp_release
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
   USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_sub,&
@@ -202,19 +204,6 @@ CONTAINS
   END SUBROUTINE dbcsr_mp_grid_setup
 
 ! *****************************************************************************
-!> \brief Removes an MPI cartesian process grid
-!> \param[in,out] mp_env      multiprocessor environment
-! *****************************************************************************
-  SUBROUTINE dbcsr_mp_grid_remove (mp_env)
-    TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
-
-    IF (mp_env%mp%subgroups_defined) THEN
-       CALL mp_comm_free (mp_env%mp%prow_group)
-       CALL mp_comm_free (mp_env%mp%pcol_group)
-    ENDIF
-  END SUBROUTINE dbcsr_mp_grid_remove
-
-! *****************************************************************************
 !> \brief Marks another use of the mp_env
 !> \param[in,out] mp_env      multiprocessor environment
 ! *****************************************************************************
@@ -225,28 +214,6 @@ CONTAINS
 
     mp_env%mp%refcount = mp_env%mp%refcount+1
   END SUBROUTINE dbcsr_mp_hold
-
-! *****************************************************************************
-!> \brief Releases and potentially destrops an mp_env
-!> \param[in,out] mp_env         multiprocessor environment
-! *****************************************************************************
-  SUBROUTINE dbcsr_mp_release(mp_env)
-    TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED (mp_env%mp)) THEN
-       mp_env%mp%refcount = mp_env%mp%refcount - 1
-       IF (mp_env%mp%refcount .LE. 0) THEN
-          CALL dbcsr_mp_grid_remove (mp_env)
-          ! KG workaround
-          !CALL mp_comm_free (mp_env%mp%mp_group)
-          DEALLOCATE (mp_env%mp%pgrid)
-          DEALLOCATE (mp_env%mp)
-          NULLIFY (mp_env%mp)
-       ENDIF
-    ENDIF
-  END SUBROUTINE dbcsr_mp_release
 
 ! *****************************************************************************
 !> \brief ...

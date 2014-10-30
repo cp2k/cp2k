@@ -30,8 +30,6 @@ MODULE dbcsr_methods
                                              dbcsr_data_hold,&
                                              dbcsr_data_init,&
                                              dbcsr_data_release
-  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_init,&
-                                             dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
@@ -41,12 +39,13 @@ MODULE dbcsr_methods
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_obj, dbcsr_imagedistribution_type, &
-       dbcsr_memtype_type, dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, &
-       dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_memtype_type, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
+       dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
        dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
   USE kinds,                           ONLY: default_string_length
+  USE message_passing,                 ONLY: mp_comm_free
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -86,6 +85,9 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_destroy,&
             dbcsr_mutable_release,&
             dbcsr_mutable_instantiated
+
+  PUBLIC :: dbcsr_distribution_release, dbcsr_distribution_init
+  PUBLIC :: dbcsr_mp_release, dbcsr_mp_grid_remove
 
   INTERFACE dbcsr_init
      MODULE PROCEDURE dbcsr_init_type, dbcsr_init_obj
@@ -209,6 +211,17 @@ CONTAINS
     CALL array_nullify (matrix%global_cols)
     NULLIFY (matrix%wms)
   END SUBROUTINE dbcsr_init_type
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_distribution_init (dist)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+
+    NULLIFY (dist%d)
+  END SUBROUTINE dbcsr_distribution_init
 
 ! *****************************************************************************
 !> \brief Initializes a DBCSR matrix but does not allocate any memory.
@@ -450,6 +463,110 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop (error_handle, error=error)
   END SUBROUTINE dbcsr_destroy
+
+! *****************************************************************************
+!> \brief Releases and potentially destrops a distribution
+!> \param dist ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_distribution_release(dist)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED (dist%d)) THEN
+       dist%d%refcount = dist%d%refcount - 1
+       IF (dist%d%refcount .EQ. 0) THEN
+          CALL array_release (dist%d%row_dist)
+          CALL array_release (dist%d%col_dist)
+          CALL array_release (dist%d%local_rows)
+          CALL array_release (dist%d%local_cols)
+          CALL dbcsr_mp_release (dist%d%mp_env)
+          IF (dist%d%has_thread_dist) &
+               CALL array_release (dist%d%thread_dist)
+          CALL array_release (dist%d%row_map)
+          CALL array_release (dist%d%col_map)
+          CALL dbcsr_dist_release_locals (dist, error)
+          DEALLOCATE (dist%d)
+          CALL dbcsr_distribution_init (dist)
+       ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_distribution_release
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_dist_release_locals (dist, error)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i
+
+    IF (dist%d%has_other_l_rows) THEN
+       DO i = LBOUND (dist%d%other_l_rows,1), UBOUND (dist%d%other_l_rows,1)
+          CALL array_release (dist%d%other_l_rows(i))
+       END DO
+       DEALLOCATE (dist%d%other_l_rows)
+       NULLIFY (dist%d%other_l_rows)
+    ENDIF
+    IF (dist%d%has_other_l_cols) THEN
+       DO i = LBOUND (dist%d%other_l_cols,1), UBOUND (dist%d%other_l_cols,1)
+          CALL array_release (dist%d%other_l_cols(i))
+       END DO
+       DEALLOCATE (dist%d%other_l_cols)
+       NULLIFY (dist%d%other_l_cols)
+    ENDIF
+    IF (dist%d%has_global_row_map) THEN
+       CALL array_release (dist%d%global_row_map)
+    ENDIF
+    IF (dist%d%has_global_col_map) THEN
+       CALL array_release (dist%d%global_col_map)
+    ENDIF
+    dist%d%has_other_l_rows = .FALSE.
+    dist%d%has_other_l_cols = .FALSE.
+    dist%d%has_global_row_map = .FALSE.
+    dist%d%has_global_col_map = .FALSE.
+  END SUBROUTINE dbcsr_dist_release_locals
+
+! *****************************************************************************
+!> \brief Releases and potentially destrops an mp_env
+!> \param[in,out] mp_env         multiprocessor environment
+! *****************************************************************************
+  SUBROUTINE dbcsr_mp_release(mp_env)
+    TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED (mp_env%mp)) THEN
+       mp_env%mp%refcount = mp_env%mp%refcount - 1
+       IF (mp_env%mp%refcount .LE. 0) THEN
+          CALL dbcsr_mp_grid_remove (mp_env)
+          ! KG workaround
+          !CALL mp_comm_free (mp_env%mp%mp_group)
+          DEALLOCATE (mp_env%mp%pgrid)
+          DEALLOCATE (mp_env%mp)
+          NULLIFY (mp_env%mp)
+       ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_mp_release
+
+! *****************************************************************************
+!> \brief Removes an MPI cartesian process grid
+!> \param[in,out] mp_env      multiprocessor environment
+! *****************************************************************************
+  SUBROUTINE dbcsr_mp_grid_remove (mp_env)
+    TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
+
+    IF (mp_env%mp%subgroups_defined) THEN
+       CALL mp_comm_free (mp_env%mp%prow_group)
+       CALL mp_comm_free (mp_env%mp%pcol_group)
+    ENDIF
+  END SUBROUTINE dbcsr_mp_grid_remove
 
 ! *****************************************************************************
 !> \brief ...

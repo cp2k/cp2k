@@ -22,12 +22,13 @@ MODULE dbcsr_dist_methods
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_init,&
+                                             dbcsr_distribution_release
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_hold,&
                                              dbcsr_mp_mypcol,&
                                              dbcsr_mp_myprow,&
                                              dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows,&
-                                             dbcsr_mp_release
+                                             dbcsr_mp_nprows
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
@@ -183,88 +184,6 @@ CONTAINS
 
     dist%d%refcount = dist%d%refcount + 1
   END SUBROUTINE dbcsr_distribution_hold
-
-! *****************************************************************************
-!> \brief Releases and potentially destrops a distribution
-!> \param dist ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_distribution_release(dist)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED (dist%d)) THEN
-       dist%d%refcount = dist%d%refcount - 1
-       IF (dist%d%refcount .EQ. 0) THEN
-          CALL array_release (dist%d%row_dist)
-          CALL array_release (dist%d%col_dist)
-          CALL array_release (dist%d%local_rows)
-          CALL array_release (dist%d%local_cols)
-          CALL dbcsr_mp_release (dist%d%mp_env)
-          IF (dist%d%has_thread_dist) &
-               CALL array_release (dist%d%thread_dist)
-          CALL array_release (dist%d%row_map)
-          CALL array_release (dist%d%col_map)
-          CALL dbcsr_dist_release_locals (dist, error)
-          DEALLOCATE (dist%d)
-          CALL dbcsr_distribution_init (dist)
-       ENDIF
-    ENDIF
-  END SUBROUTINE dbcsr_distribution_release
-
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_dist_release_locals (dist, error)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    INTEGER                                  :: i
-
-    IF (dist%d%has_other_l_rows) THEN
-       DO i = LBOUND (dist%d%other_l_rows,1), UBOUND (dist%d%other_l_rows,1)
-          CALL array_release (dist%d%other_l_rows(i))
-       END DO
-       DEALLOCATE (dist%d%other_l_rows)
-       NULLIFY (dist%d%other_l_rows)
-    ENDIF
-    IF (dist%d%has_other_l_cols) THEN
-       DO i = LBOUND (dist%d%other_l_cols,1), UBOUND (dist%d%other_l_cols,1)
-          CALL array_release (dist%d%other_l_cols(i))
-       END DO
-       DEALLOCATE (dist%d%other_l_cols)
-       NULLIFY (dist%d%other_l_cols)
-    ENDIF
-    IF (dist%d%has_global_row_map) THEN
-       CALL array_release (dist%d%global_row_map)
-    ENDIF
-    IF (dist%d%has_global_col_map) THEN
-       CALL array_release (dist%d%global_col_map)
-    ENDIF
-    dist%d%has_other_l_rows = .FALSE.
-    dist%d%has_other_l_cols = .FALSE.
-    dist%d%has_global_row_map = .FALSE.
-    dist%d%has_global_col_map = .FALSE.
-  END SUBROUTINE dbcsr_dist_release_locals
-
-
-
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_distribution_init (dist)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT)                            :: dist
-
-    NULLIFY (dist%d)
-  END SUBROUTINE dbcsr_distribution_init
 
 ! *****************************************************************************
 !> \brief ...
