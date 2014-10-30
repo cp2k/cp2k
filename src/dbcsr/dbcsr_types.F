@@ -48,7 +48,8 @@ MODULE dbcsr_types
             dbcsr_iterator,&
             dbcsr_1d_array_obj,&
             dbcsr_2d_array_obj,&
-            dbcsr_mutable_obj
+            dbcsr_mutable_obj,&
+            dbcsr_obj_type_p
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -646,6 +647,14 @@ MODULE dbcsr_types
   TYPE dbcsr_work_type_p
      TYPE(dbcsr_work_type), POINTER     :: w => Null()
   END TYPE dbcsr_work_type_p
+
+! *****************************************************************************
+!> \brief Pointer to a object.
+!> \var matrix         the dbcsr_object
+! *****************************************************************************
+  TYPE dbcsr_obj_type_p
+     TYPE(dbcsr_obj), POINTER           :: matrix => Null()
+  END TYPE dbcsr_obj_type_p
 
 ! *****************************************************************************
 !> \brief A 1-D array of DBCSR matrices

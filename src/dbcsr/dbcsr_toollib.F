@@ -14,8 +14,10 @@
 ! *****************************************************************************
 MODULE dbcsr_toollib
 
+  USE dbcsr_array_d_sort,              ONLY: dbcsr_1d_d_sort
   USE dbcsr_array_i4_sort,             ONLY: dbcsr_1d_i4_sort
   USE dbcsr_array_i8_sort,             ONLY: dbcsr_1d_i8_sort
+  USE dbcsr_array_s_sort,              ONLY: dbcsr_1d_s_sort
   USE kinds,                           ONLY: int_4,&
                                              int_8
 
@@ -43,6 +45,7 @@ MODULE dbcsr_toollib
 
   INTERFACE sort
      MODULE PROCEDURE dbcsr_1d_i4_sort, dbcsr_1d_i8_sort
+     MODULE PROCEDURE dbcsr_1d_s_sort, dbcsr_1d_d_sort
   END INTERFACE
 
 

@@ -20,10 +20,12 @@ MODULE cp_dbcsr_interface
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, add_work_coordinate, &
-       array_data, array_hold, array_i1d_obj, array_new, array_nullify, &
-       array_release, array_size, block_add_on_diag, block_chol_inv, &
-       block_set, convert_offsets_to_sizes, convert_sizes_to_offsets, &
+       arnoldi_is_converged, array_data, array_hold, array_i1d_obj, &
+       array_new, array_nullify, array_release, array_size, &
+       block_add_on_diag, block_chol_inv, block_set, &
+       convert_offsets_to_sizes, convert_sizes_to_offsets, &
        cp_dbcsr_iterator=>dbcsr_iterator, cp_test_multiplies, &
+       dbcsr_arnoldi_data, dbcsr_arnoldi_ev, &
        create_bl_distribution, create_col_vec_from_matrix, &
        create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
@@ -68,7 +70,7 @@ MODULE cp_dbcsr_interface
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_no_transpose, dbcsr_norm, dbcsr_norm_column, &
-       dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_print, &
+       dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_obj_type_p, dbcsr_print, &
        dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, &
        dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
@@ -86,10 +88,12 @@ MODULE cp_dbcsr_interface
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
        dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
-       dbcsr_work_create, has_acc, has_mpi, heap_fill, heap_get_first, &
-       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
-       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, swap
+       dbcsr_work_create, deallocate_arnoldi_data, get_all_selected_ritz_val, &
+       get_nval_out, get_selected_ritz_val, has_acc, has_mpi, heap_fill, &
+       heap_get_first, heap_new, heap_release, heap_reset_first, heap_t, &
+       mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
+       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, &
+       select_evals, set_eval_selection, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -237,7 +241,10 @@ MODULE cp_dbcsr_interface
             cp_dbcsr_create_col_vec_from_matrix,&
             cp_dbcsr_create_row_vec_from_matrix,&
             cp_dbcsr_create_rep_col_vec_from_matrix,&
-            cp_dbcsr_create_rep_row_vec_from_matrix
+            cp_dbcsr_create_rep_row_vec_from_matrix,&
+            cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data,&
+            select_evals, get_all_selected_ritz_val, get_selected_ritz_val,&
+            arnoldi_is_converged, get_nval_out, set_eval_selection
 
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix
@@ -1881,6 +1888,76 @@ CONTAINS
     CALL create_replicated_row_vec_from_matrix(vec%matrix,matrix%matrix,nrow,dbcsr_error)
 
   END SUBROUTINE  cp_dbcsr_create_rep_row_vec_from_matrix
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param arnoldi_data ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_arnoldi_ev(matrix,arnoldi_data,error)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_arnoldi_ev', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+    TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
+      DIMENSION(:)                           :: m_ptrs
+
+! convert cp_dbcsr_p_type to dbcsr_obj_type_p
+
+    ALLOCATE(m_ptrs(SIZE(matrix)))
+    DO i=1,SIZE(matrix)
+       m_ptrs(i)%matrix=>matrix(i)%matrix%matrix
+    END DO
+
+    CALL dbcsr_arnoldi_ev(m_ptrs,arnoldi_data,dbcsr_error)    
+    
+    DEALLOCATE(m_ptrs)
+    
+  END SUBROUTINE cp_dbcsr_arnoldi_ev  
+
+! *****************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param matrix ...
+!> \param max_iter ...
+!> \param threshold ...
+!> \param selection_crit ...
+!> \param nval_request ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_setup_arnoldi_data(arnoldi_data,matrix,max_iter, threshold,&
+                                            selection_crit, nval_request)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(cp_dbcsr_p_type), DIMENSION(:)      :: matrix
+    INTEGER                                  :: max_iter
+    REAL(real_8)                             :: threshold
+    INTEGER                                  :: selection_crit, nval_request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_setup_arnoldi_data', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
+      DIMENSION(:)                           :: m_ptrs
+
+! convert cp_dbcsr_p_type to dbcsr_obj_type_p
+
+    ALLOCATE(m_ptrs(SIZE(matrix)))
+    DO i=1,SIZE(matrix)
+       m_ptrs(i)%matrix=>matrix(i)%matrix%matrix
+    END DO
+
+    CALL setup_arnoldi_data(arnoldi_data,m_ptrs ,max_iter, threshold,& 
+                                            selection_crit, nval_request)
+
+    DEALLOCATE(m_ptrs)
+  END SUBROUTINE cp_dbcsr_setup_arnoldi_data
 
 ! *****************************************************************************
 !> \brief ...

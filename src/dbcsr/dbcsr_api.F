@@ -19,6 +19,11 @@ MODULE dbcsr_api
                                              array_nullify,&
                                              array_release,&
                                              array_size
+  USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev
+  USE dbcsr_arnoldi_data_methods,      ONLY: &
+       arnoldi_is_converged, dbcsr_arnoldi_data, deallocate_arnoldi_data, &
+       get_all_selected_ritz_val, get_nval_out, get_selected_ritz_val, &
+       select_evals, set_eval_selection, setup_arnoldi_data
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
@@ -117,8 +122,8 @@ MODULE dbcsr_api
        dbcsr_func_spread_from_zero, dbcsr_func_tanh, dbcsr_func_truncate, &
        dbcsr_iterator, dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
-       dbcsr_repl_full, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_obj_type_p, dbcsr_repl_full, dbcsr_scalar_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
@@ -177,6 +182,16 @@ MODULE dbcsr_api
             accdrv_priority_streams,&
             dbcsr_add,&
             dbcsr_add_on_diag,&
+            dbcsr_arnoldi_data,&
+            setup_arnoldi_data,&
+            deallocate_arnoldi_data,&
+            dbcsr_arnoldi_ev,&
+            select_evals,&
+            get_all_selected_ritz_val,&
+            get_selected_ritz_val,&
+            arnoldi_is_converged,&
+            get_nval_out,&
+            set_eval_selection,&
             dbcsr_binary_read,&
             dbcsr_binary_write,&
             dbcsr_btriu,&
@@ -295,6 +310,7 @@ MODULE dbcsr_api
             dbcsr_norm_maxabsnorm,&
             dbcsr_no_transpose,&
             dbcsr_obj,&
+            dbcsr_obj_type_p,&
             dbcsr_print,&
             dbcsr_print_block_sum,&
             dbcsr_put_block,&
