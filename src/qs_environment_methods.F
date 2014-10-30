@@ -25,13 +25,11 @@ MODULE qs_environment_methods
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
+  USE ewald_environment_types,         ONLY: ewald_environment_type
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
+  USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
-  USE ewald_environment_types,         ONLY: ewald_env_get,&
-                                             ewald_environment_type
-  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
-                                             ewald_pw_type
-  USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
   USE f77_blas
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              do_ppl_grid,&
