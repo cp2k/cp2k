@@ -208,7 +208,7 @@
          #======================================================================
          {'dirname':'dbcsr/arnoldi',
            'requires':["../base", "../vec", "../rest", "../../base", "../data",
-                       "../../mpiwrap","../block", "../error"],
+                       "../../mpiwrap","../block", "../error", "../mp"],
            'public' : ["dbcsr_arnoldi.F", "dbcsr_arnoldi_data_methods.F",],
            'files': [
                       "dbcsr_arnoldi.F",
