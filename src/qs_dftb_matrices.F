@@ -1320,9 +1320,6 @@ CONTAINS
                 charges_mm(Imp) = qmmm_env%mm_atom_chrg(Imm)
              END DO
              IF(ewald_type == do_ewald_ewald) THEN
-!                 CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
-!                       local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
-!                       charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, error=error)
                 CALL cp_unimplemented_error(fromWhere=routineP, &
                      message="Ewald not implemented for DFTB/QMMM", error=error, error_level=cp_fatal_level)
              ELSE IF(ewald_type == do_ewald_spme) THEN
@@ -1904,6 +1901,7 @@ CONTAINS
              CALL ewald_env_get(ewald_env,rcut=rcutoff(1),alpha=alpha,error=error)
              rcutoff(2) = 0.025_dp*rcutoff(1)
              nkind = SIZE(atomic_kind_set)
+             iqm = 0
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
                 NULLIFY(dftb_kind)
@@ -1915,6 +1913,7 @@ CONTAINS
                 IF (.NOT.defined .OR. natorb < 1) CYCLE
                 DO i = 1, SIZE(list)
                    iatom = list(i)
+                   iqm = iqm + 1
                    CALL build_mm_pot(qpot(iatom),1,eta_a(0),qmmm_env%Potentials,particles_mm,&
                      qmmm_env%mm_atom_chrg,qmmm_env%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
                    CALL build_mm_dpot(mcharge(iatom),1,eta_a(0),qmmm_env%Potentials,particles_mm,&

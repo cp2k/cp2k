@@ -1,3 +1,12 @@
 #
 wdim_scc.inp
 wdim_nonscc.inp
+# new coordinates
+wdim_scc.inp
+wdim_nonscc.inp
+wdimmc_scc.inp
+wdimmc_nonscc.inp
+epc_1.inp
+epc_2.inp
+epc_3.inp
+epc_4.inp
