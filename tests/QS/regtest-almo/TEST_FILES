@@ -6,4 +6,4 @@ almo-fullx.inp                   11     1e-13
 almo-no-deloc.inp                11     1e-13
 FH-chain.inp                     11     1e-13
 ion-pair.inp                     11     1e-13
-LiF.inp                          11     1e-13
+LiF.inp                          11     3e-13
