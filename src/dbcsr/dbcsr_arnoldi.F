@@ -19,7 +19,9 @@ MODULE dbcsr_arnoldi
                                              dbcsr_arnoldi_data,&
                                              get_control,&
                                              m_x_v_vectors
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_type,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop
   USE dbcsr_methods,                   ONLY: dbcsr_release
   USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj_type_p
@@ -61,12 +63,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_arnoldi_ev', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ncol_local, nrow_local
+    INTEGER                                  :: ncol_local, nrow_local, handle
     TYPE(arnoldi_control), POINTER           :: control
     TYPE(m_x_v_vectors)                      :: vectors
 
-!prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
+    CALL dbcsr_error_set(routineN, handle, error)
 
+!prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
     CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1, error)
     CALL create_col_vec_from_matrix(vectors%result_vec, matrix(1)%matrix, 1, error)
     CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1, error)
@@ -94,6 +97,8 @@ CONTAINS
     CALL dbcsr_release(vectors%result_vec)
     CALL dbcsr_release(vectors%rep_col_vec)
     CALL dbcsr_release(vectors%rep_row_vec)
+
+    CALL dbcsr_error_stop(handle,error)
 
   END SUBROUTINE dbcsr_arnoldi_ev
 

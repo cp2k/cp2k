@@ -20,6 +20,7 @@ MODULE dbcsr_arnoldi_data_methods
        get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, has_d_real, &
        has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, &
        set_data_s, set_data_z
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_grid_setup
   USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
@@ -110,6 +111,7 @@ CONTAINS
 
     ALLOCATE(control)
     CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
+    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
     control%mp_group=distri%d%mp_env%mp%mp_group
     control%myproc=distri%d%mp_env%mp%mynode
     control%pcol_group=distri%d%mp_env%mp%pcol_group
@@ -252,7 +254,7 @@ CONTAINS
     IF(has_d_real(ar_data)) THEN
        evals_d=>get_evals_d(ar_data);   eval_out=evals_d(ev_ind)     
     ELSE IF(has_s_real(ar_data)) THEN
-       evals_s=>get_evals_s(ar_data);   eval_out=evals_d(ev_ind)     
+       evals_s=>get_evals_s(ar_data);   eval_out=evals_s(ev_ind)     
     ELSE IF(has_d_cmplx(ar_data)) THEN
        evals_d=>get_evals_z(ar_data);   eval_out=evals_d(ev_ind)     
     ELSE IF(has_s_cmplx(ar_data)) THEN

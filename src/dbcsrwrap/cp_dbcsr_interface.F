@@ -24,7 +24,8 @@ MODULE cp_dbcsr_interface
        array_new, array_nullify, array_release, array_size, &
        block_add_on_diag, block_chol_inv, block_set, &
        convert_offsets_to_sizes, convert_sizes_to_offsets, &
-       cp_dbcsr_iterator=>dbcsr_iterator, cp_test_multiplies, &
+       cp_dbcsr_iterator=>dbcsr_iterator, dbcsr_run_tests, &
+       dbcsr_test_mm, dbcsr_test_arnoldi,&
        create_bl_distribution, create_col_vec_from_matrix, &
        create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
@@ -131,7 +132,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_put_block
   PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_repl_full
   PUBLIC :: block_add_on_diag, block_chol_inv, dbcsr_scale_mat
-  PUBLIC :: cp_test_multiplies, dbcsr_norm_maxabsnorm, dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads
+  PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_norm_maxabsnorm,&
+            dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release, dbcsr_name
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
   PUBLIC :: dbcsr_func_ddtanh, dbcsr_func_inverse_special

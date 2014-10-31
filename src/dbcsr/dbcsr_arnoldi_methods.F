@@ -17,7 +17,9 @@ MODULE dbcsr_arnoldi_methods
        get_data_d, get_data_s, get_data_z, has_d_cmplx, has_d_real, &
        has_s_cmplx, has_s_real, m_x_v_vectors
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_type,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop
   USE dbcsr_geev,                      ONLY: dbcsr_general_local_diag
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -58,10 +60,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_evals', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
     IF(has_d_real(arnoldi_data))  CALL compute_evals_d(arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL compute_evals_s(arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL compute_evals_z(arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL compute_evals_c(arnoldi_data)
+
+    CALL dbcsr_error_stop(handle,error)
 
   END SUBROUTINE compute_evals
 
@@ -82,11 +90,16 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init', &
       routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     IF(has_d_real(arnoldi_data))  CALL arnoldi_init_d (matrix, vectors, arnoldi_data, error)
     IF(has_s_real(arnoldi_data))  CALL arnoldi_init_s (matrix, vectors, arnoldi_data, error)
     IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_init_z (matrix, vectors, arnoldi_data, error)
     IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_init_c (matrix, vectors, arnoldi_data, error)
+
+    CALL dbcsr_error_stop(handle,error)
 
   END SUBROUTINE arnoldi_init
 
@@ -105,11 +118,16 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace', &
       routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     IF(has_d_real(arnoldi_data))  CALL build_subspace_d (matrix, vectors, arnoldi_data, error)
     IF(has_s_real(arnoldi_data))  CALL build_subspace_s (matrix, vectors, arnoldi_data, error)
     IF(has_d_cmplx(arnoldi_data)) CALL build_subspace_z (matrix, vectors, arnoldi_data, error)
     IF(has_s_cmplx(arnoldi_data)) CALL build_subspace_c (matrix, vectors, arnoldi_data, error)
+
+    CALL dbcsr_error_stop(handle,error)
 
   END SUBROUTINE build_subspace
 

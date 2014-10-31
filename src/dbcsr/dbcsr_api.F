@@ -106,7 +106,7 @@ MODULE dbcsr_api
        dbcsr_maxabs, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
        dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
        dbcsr_trace, dbcsr_triu
-  USE dbcsr_tests,                     ONLY: cp_test_multiplies
+  USE dbcsr_tests,                     ONLY: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi
   USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_desymmetrize_deep,&
@@ -168,7 +168,9 @@ MODULE dbcsr_api
             block_set,&
             convert_offsets_to_sizes,&
             convert_sizes_to_offsets,&
-            cp_test_multiplies,&
+            dbcsr_run_tests,&
+            dbcsr_test_mm,&
+            dbcsr_test_arnoldi,&
             create_bl_distribution,&
             accdrv_avoid_after_busy,&
             accdrv_binning_binsize,&

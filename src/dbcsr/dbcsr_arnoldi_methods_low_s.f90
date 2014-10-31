@@ -168,7 +168,7 @@
 
        ! Let's do the orthonormalization, to get the new f_vec. First try the Gram Schmidt scheme
        CALL Gram_Schmidt_ortho_s(h_vec, ar_data%f_vec, s_vec, w_vec, nrow_local, j, &
-                               ar_data%local_history, control%local_comp, control%pcol_group)
+                               ar_data%local_history, control%local_comp, control%pcol_group, error)
 
        ! compute the vector norm of the residuum and the norm of the projections
        CALL compute_norms_s(ar_data%f_vec, norm, rnorm, control%pcol_group)
@@ -176,7 +176,7 @@
 
        ! If Gram Schidt starts to loose precision improve by topping up with a DGKS step
        IF(rnorm<rnorm1) CALL DGKS_ortho_s(h_vec, ar_data%f_vec, s_vec, nrow_local, j, ar_data%local_history, &
-                                                    control%local_comp, control%pcol_group)
+                                                    control%local_comp, control%pcol_group, error)
        ! Finally we can put the projections into our Hessenberg matrix
        ar_data%Hessenberg(1:j+1, j+1)= h_vec(1:j+1)
        control%current_step=j+1
@@ -226,11 +226,19 @@
 ! *****************************************************************************
 !> \brief Gram-Schmidt in matrix vector form
 ! *****************************************************************************
-  SUBROUTINE Gram_Schmidt_ortho_s(h_vec, f_vec, s_vec, w_vec, nrow_local, j, local_history, local_comp, pcol_group)
+  SUBROUTINE Gram_Schmidt_ortho_s(h_vec, f_vec, s_vec, w_vec, nrow_local,&
+                                            j, local_history, local_comp, pcol_group, error)
     REAL(kind=real_4), DIMENSION(:)      :: h_vec, s_vec, f_vec, w_vec
     REAL(kind=real_4), DIMENSION(:, :)    :: local_history
     INTEGER                                          :: nrow_local, j, pcol_group
     LOGICAL                                          :: local_comp
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'Gram_Schmidt_ortho_s', &
+         routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     ! Let's do the orthonormalization, first try the Gram Schmidt scheme
     h_vec=0.0_real_4; f_vec=0.0_real_4; s_vec=0.0_real_4
@@ -242,16 +250,27 @@
                                       nrow_local, h_vec, 1, 0.0_real_4, f_vec, 1)
     f_vec(:)=w_vec(:)-f_vec(:)
 
+    CALL dbcsr_error_stop(handle,error)
+
   END SUBROUTINE Gram_Schmidt_ortho_s
 
 ! *****************************************************************************
 !> \brief Compute the  Daniel, Gragg, Kaufman and Steward correction
 ! *****************************************************************************
-  SUBROUTINE DGKS_ortho_s(h_vec, f_vec, s_vec, nrow_local, j, local_history, local_comp, pcol_group)
+  SUBROUTINE DGKS_ortho_s(h_vec, f_vec, s_vec, nrow_local, j, &
+                                    local_history, local_comp, pcol_group, error)
     REAL(kind=real_4), DIMENSION(:)      :: h_vec, s_vec, f_vec
     REAL(kind=real_4), DIMENSION(:, :)    :: local_history
     INTEGER                                          :: nrow_local, j, pcol_group
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'DGKS_ortho_s', &
+         routineP = moduleN//':'//routineN
+
     LOGICAL                                          :: local_comp
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     IF(local_comp)CALL sgemv('T', nrow_local, j+1, 1.0_real_4, local_history, &
                                        nrow_local, f_vec, 1, 0.0_real_4, s_vec, 1)
@@ -259,6 +278,8 @@
     IF(local_comp)CALL sgemv('N', nrow_local, j+1, -1.0_real_4, local_history, &
                                        nrow_local, s_vec, 1, 1.0_real_4, f_vec, 1)
     h_vec(1:j+1)=h_vec(1:j+1)+s_vec(1:j+1)
+
+    CALL dbcsr_error_stop(handle,error)
 
   END SUBROUTINE DGKS_ortho_s
 
