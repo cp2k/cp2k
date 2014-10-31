@@ -1,0 +1,5 @@
+{
+"description": "High level DBCSR operations",
+"archive": "libdbcsrops",
+"requires": ["../../acc", "../../mpiwrap", "../../base", "../error", "../data", "../base", "../dist", "../block"],
+}
