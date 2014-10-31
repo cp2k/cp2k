@@ -24,10 +24,8 @@ MODULE cp_dbcsr_interface
        array_new, array_nullify, array_release, array_size, &
        block_add_on_diag, block_chol_inv, block_set, &
        convert_offsets_to_sizes, convert_sizes_to_offsets, &
-       cp_dbcsr_iterator=>dbcsr_iterator, dbcsr_run_tests, &
-       dbcsr_test_mm, dbcsr_test_arnoldi,&
-       create_bl_distribution, create_col_vec_from_matrix, &
-       create_replicated_col_vec_from_matrix, &
+       cp_dbcsr_iterator=>dbcsr_iterator, create_bl_distribution, &
+       create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_arnoldi_data, dbcsr_arnoldi_ev, &
        dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
@@ -75,17 +73,18 @@ MODULE cp_dbcsr_interface
        dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
        dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
-       dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
-       dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
-       dbcsr_scalar_type, dbcsr_scalar_zero, dbcsr_scale, &
-       dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
+       dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
+       dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
+       dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, &
+       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
        dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
        dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
        dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_test_arnoldi, &
+       dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
        dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &

@@ -10,12 +10,12 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k
-  USE cp_dbcsr_interface,              ONLY: dbcsr_type_complex_4,&
+  USE cp_dbcsr_interface,              ONLY: dbcsr_test_arnoldi,&
+                                             dbcsr_test_mm,&
+                                             dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
-                                             dbcsr_type_real_8,&
-                                             dbcsr_test_mm,&
-                                             dbcsr_test_arnoldi
+                                             dbcsr_type_real_8
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              low_print_level,&

@@ -17,9 +17,9 @@ MODULE dbcsr_arnoldi_methods
        get_data_d, get_data_s, get_data_z, has_d_cmplx, has_d_real, &
        has_s_cmplx, has_s_real, m_x_v_vectors
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type
   USE dbcsr_geev,                      ONLY: dbcsr_general_local_diag
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -90,6 +90,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle
 
     CALL dbcsr_error_set(routineN, handle, error)
@@ -118,6 +119,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle
 
     CALL dbcsr_error_set(routineN, handle, error)

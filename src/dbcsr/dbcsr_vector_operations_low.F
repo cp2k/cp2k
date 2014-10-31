@@ -13,30 +13,30 @@
 MODULE dbcsr_vector_operations_low
   USE array_types,                     ONLY: array_data
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist, &
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_row_dist
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert, &
-                                             dbcsr_caller_error, &
-                                             dbcsr_error_type, &
-                                             dbcsr_fatal_level, &
-                                             dbcsr_error_set, &
-                                             dbcsr_error_stop
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left, &
-                                             dbcsr_iterator_next_block, &
-                                             dbcsr_iterator_start, &
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution, &
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_get_matrix_type
-  USE dbcsr_operations,                ONLY: dbcsr_get_info, &
+  USE dbcsr_operations,                ONLY: dbcsr_get_info,&
                                              dbcsr_set
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_obj, dbcsr_scalar_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
-  USE kinds,                           ONLY: real_4, &
+  USE kinds,                           ONLY: real_4,&
                                              real_8
-  USE message_passing,                 ONLY: mp_bcast, &
+  USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
 ! types for mapping matrix blocks
 
@@ -93,7 +93,7 @@ CONTAINS
       routineN = 'dbcsr_matrix_colvec_multiply_low_any', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: matrix_type, handle
+    INTEGER                                  :: handle, matrix_type
 
     CALL dbcsr_error_set(routineN, handle, error)
 

@@ -97,6 +97,7 @@ CONTAINS
 !> \param[in] alpha alpha value to use in multiply
 !> \param[in] beta beta value to use in multiply
 !> \param[in] data_type         matrix data type
+!> \param test_type ...
 !> \param[in] n_loops           number of repetition for each multiplication
 !> \param[in] eps               eps value for filtering
 !> \param retain_sparsity ...
@@ -276,6 +277,14 @@ CONTAINS
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
   END SUBROUTINE dbcsr_run_tests
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param io_unit ...
+!> \param n_loops ...
+!> \param eps ...
+! *****************************************************************************
   SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, eps)
     TYPE(dbcsr_obj), TARGET                  :: matrix_a, matrix_b
     INTEGER                                  :: io_unit, n_loops
@@ -284,8 +293,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'test_arnoldi', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
     COMPLEX(real_8)                          :: max_ev, min_ev
+    INTEGER                                  :: i
     REAL(kind=real_8)                        :: t1, t2
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(dbcsr_error_type)                   :: dbcsr_error

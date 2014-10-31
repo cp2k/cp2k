@@ -19,9 +19,9 @@ MODULE dbcsr_arnoldi
                                              dbcsr_arnoldi_data,&
                                              get_control,&
                                              m_x_v_vectors
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type
   USE dbcsr_methods,                   ONLY: dbcsr_release
   USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj_type_p
@@ -63,7 +63,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_arnoldi_ev', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ncol_local, nrow_local, handle
+    INTEGER                                  :: handle, ncol_local, nrow_local
     TYPE(arnoldi_control), POINTER           :: control
     TYPE(m_x_v_vectors)                      :: vectors
 
