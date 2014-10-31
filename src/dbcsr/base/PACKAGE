@@ -1,0 +1,5 @@
+{
+"description": "Central DBCSR matrix datastructure",
+"archive": "libdbcsrbase",
+"requires": ["../../acc", "../../mpiwrap", "../../base", "../error", "../data"],
+}
