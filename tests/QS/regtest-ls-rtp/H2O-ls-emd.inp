@@ -43,6 +43,13 @@
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
+    &PRINT
+      &MOMENTS MEDIUM
+         ADD_LAST NUMERIC
+         FILENAME output
+         PERIODIC .FALSE.
+      &END MOMENTS
+    &END PRINT
   &END DFT
   &SUBSYS
     &CELL

@@ -183,6 +183,7 @@ CONTAINS
     IF(rtp%converged)THEN
        IF(dft_control%qs_control%dftb)THEN
           IF (rtp%linear_scaling) THEN
+             CALL make_moment(qs_env,error)
              CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
              IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,particle_set,dft_section,&
                               atomic_kind_set,qs_kind_set,error)
@@ -196,6 +197,7 @@ CONTAINS
        ELSE
           dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
           IF (rtp%linear_scaling) THEN
+             CALL make_moment(qs_env,error)
              CALL write_mo_free_results(qs_env,error)
              CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
              IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,particle_set,dft_section,&
