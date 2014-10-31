@@ -1,0 +1,5 @@
+{
+"description": "DBCSR block level routines",
+"archive": "libdbcsrbblock",
+"requires": ["../../acc", "../../mpiwrap", "../../base", "../error", "../data", "../base", "../dist"],
+}
