@@ -122,10 +122,6 @@ MODULE dbcsr_error_handling
 
 CONTAINS
 
- !SUBROUTINE foobar(s)
- !   CHARACTER(len=default_string_length)  :: s
- !END SUBROUTINE
-
 ! *****************************************************************************
 !> \brief set the error
 !> \param[in]    name    name of the routine
