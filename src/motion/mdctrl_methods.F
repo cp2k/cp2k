@@ -45,8 +45,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mdctrl_callback', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mdctrl), cp_failure_level,routineP,error,failure)
 

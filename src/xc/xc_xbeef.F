@@ -293,8 +293,9 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbeef_lda_calc', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m = 30
 
-    INTEGER                                  :: i, ii, m = 30
+    INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ds_ndrho, ds_rho, dt, e_ueg, &
                                                 e_ueg_drho, epsilon_rho43, &
@@ -563,8 +564,9 @@ SUBROUTINE xbeef_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbeef_lsd_calc', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m = 30
 
-    INTEGER                                  :: i, ii, m = 30
+    INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     REAL(kind=dp) :: ds_ndrho, ds_rho, dt, e_ueg, e_ueg_drho, epsilon_rho43, &
       k_lsd, kf, my_epsilon_rho, my_rho, my_rho_1_3, s, s2, t, t3

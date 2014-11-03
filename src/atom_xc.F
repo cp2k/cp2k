@@ -83,14 +83,14 @@ CONTAINS
 
     INTEGER                                  :: extunit, handle, ierr, ir, &
                                                 nr, z
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: int1, int2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: deltarho, rho_dum, vxc, vxc1, &
                                                 vxc2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
     CALL timeset(routineN,handle)
-
+    failure = .FALSE.
 
     nr = atom%basis%grid%nr
     z  = atom%z
@@ -163,11 +163,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: extunit, handle, ierr, ir, nr
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
     CALL timeset(routineN,handle)
-
+    failure = .FALSE.
     nr = atom%basis%grid%nr
 
     ALLOCATE(rho(nr,1),STAT=ierr)

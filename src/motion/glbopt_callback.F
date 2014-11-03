@@ -52,13 +52,13 @@ MODULE glbopt_callback
 
     INTEGER                                  :: i, iw, n_atoms
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure = .FALSE., &
-                                                passed_minimum
+    LOGICAL                                  :: failure, passed_minimum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: positions
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(md_ener_type), POINTER              :: md_ener
 
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(mdctrl_data), cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,error,failure)
 

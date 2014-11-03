@@ -94,6 +94,7 @@ MODULE  rt_propagation_utils
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_S_derivs', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: col_atom, handle, i, j, m, &
                                                 maxder, n, nder, &
@@ -101,7 +102,6 @@ MODULE  rt_propagation_utils
     INTEGER, DIMENSION(6, 2)                 :: c_map_mat
     LOGICAL                                  :: failure, return_s_derivatives
     REAL(dp), DIMENSION(:), POINTER          :: block_values
-    REAL(KIND=dp)                            :: one = 1.0_dp, zero = 0.0_dp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -541,12 +541,12 @@ MODULE  rt_propagation_utils
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_c_mat_force_ls', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: handle, i, im, ispin, natom, &
                                                 re, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: one = 1.0_dp, zero = 0.0_dp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

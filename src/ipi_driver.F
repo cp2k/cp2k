@@ -238,8 +238,8 @@ MODULE ipi_driver
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, i_drv_unix, idir, &
                                                 ii, inet, ip, nat, socket
-    LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
-                                                ionode = .FALSE., should_stop
+    LOGICAL                                  :: drv_unix, hasdata, ionode, &
+                                                should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), &
                                                 mxmat(9), pot, vir(3,3)
     REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
@@ -252,6 +252,8 @@ MODULE ipi_driver
 ! buffers and temporaries for communication
 ! access cp2k structures
 
+    hasdata = .FALSE.
+    ionode = .FALSE.
     ionode=(default_para_env%source==default_para_env%mepos)
 
     ! reads driver parameters from input
