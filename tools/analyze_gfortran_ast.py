@@ -10,6 +10,40 @@ BANNED_STM  = ('GOTO', 'OPEN', 'CLOSE', )
 BANNED_CALL = ('CP_FM_GEMM', )
 USE_EXCEPTIONS = ("OMP_LIB", "OMP_LIB_KINDS", "F77_BLAS", "LAPACK",)
 
+# false positives
+UNDEF_EXCEPTIONS  = ('RANDOM_NUMBER', 'RANDOM_SEED', 'GET_COMMAND_ARGUMENT')
+
+#BLAS routines
+UNDEF_EXCEPTIONS += ('SROTG', 'DROTG', 'CROTG', 'ZROTG', 'SROTMG', 'DROTMG', 'SROT', 'DROT',
+                     'ZROT', 'CSROT', 'ZDROT', 'SROTM', 'DROTM', 'SSWAP', 'DSWAP', 'CSWAP',
+                     'ZSWAP', 'SSCAL', 'DSCAL', 'CSCAL', 'ZSCAL', 'CSSCAL', 'ZDSCAL', 'SCOPY',
+                     'DCOPY', 'CCOPY', 'ZCOPY', 'SAXPY', 'DAXPY', 'CAXPY', 'ZAXPY', 'SDOT',
+                     'DDOT', 'CDOTU', 'ZDOTU', 'CDOTC', 'ZDOTC', 'SNRM2', 'DNRM2', 'SCNRM2',
+                     'DZNRM2', 'SASUM', 'SCASUM', 'DASUM', 'DZASUM', 'ISAMAX', 'IDAMAX', 'ICAMAX',
+                     'IZAMAX',
+                     'SGEMV', 'DGEMV', 'CGEMV', 'ZGEMV', 'SGBMV', 'DGBMV', 'CGBMV', 'ZGBMV',
+                     'CHEMV', 'ZHEMV', 'CHBMV', 'ZHBMV', 'CHPMV', 'ZHPMV', 'SSYMV', 'DSYMV',
+                     'SSBMV', 'DSBMV', 'SSPMV', 'DSPMV', 'STRMV', 'DTRMV', 'CTRMV', 'ZTRMV',
+                     'STBMV', 'DTBMV', 'CTBMV', 'ZTBMV', 'STPMV', 'DTPMV', 'CTPMV', 'ZTPMV',
+                     'STRSV', 'DTRSV', 'CTRSV', 'ZTRSV', 'STBSV', 'DTBSV', 'CTBSV', 'ZTBSV',
+                     'STPSV', 'DTPSV', 'CTPSV', 'ZTPSV', 'SGER', 'DGER', 'CGERU', 'ZGERU',
+                     'CGERC', 'ZGERC', 'CHER', 'ZHER', 'CHPR', 'ZHPR', 'CHER2', 'ZHER2',
+                     'CHPR2', 'ZHPR2', 'SSYR', 'DSYR', 'SSPR', 'DSPR', 'SSYR2', 'DSYR2',
+                     'SSPR2', 'DSPR2',
+                     'SGEMM', 'DGEMM', 'CGEMM', 'ZGEMM', 'SSYMM', 'DSYMM', 'CSYMM', 'ZSYMM',
+                     'CHEMM', 'ZHEMM', 'SSYRK', 'DSYRK', 'CSYRK', 'ZSYRK', 'CHERK', 'ZHERK',
+                     'SSYR2K', 'DSYR2K', 'CSYR2K', 'ZSYR2K', 'CHER2K', 'ZHER2K', 'STRMM', 'DTRMM',
+                     'CTRMM', 'ZTRMM', 'STRSM', 'DTRSM', 'CTRSM', 'ZTRSM', 'SDSDOT', 'DSDOT',
+                     'DCABS1', 'LSAME', 'SCABS1')
+
+#LAPACK routines
+UNDEF_EXCEPTIONS += ('SGEEV', 'SLARNV', 'SPOTRF', 'SPOTRI',
+                     'DGEEV', 'DGEQRF', 'DGESDD', 'DGESV', 'DGETRF', 'DGETRI',
+                     'DGETRS', 'DLACPY', 'DLARNV', 'DPOTRF', 'DPOTRI', 'DSYEV', 'DSYEVD',
+                     'DSYEVX', 'DSYGST', 'DTRTRI',
+                     'CPOTRF', 'CPOTRI', 'CGEEV', 'CLARNV',
+                     'ZGEEV', 'ZGETRF', 'ZGETRS', 'ZHEEVD', 'ZLARNV', 'ZPOTRF', 'ZPOTRI', 'ZTRTRI')
+
 # precompile regex
 re_symbol    = re.compile(r"^\s*symtree.* symbol: '([^']+)'.*$")
 re_use       = re.compile(r" USE-ASSOC\(([^)]+)\)")
@@ -75,7 +109,7 @@ def process_log_file(fn, public_symbols, used_symbols):
 
         elif(line.startswith("symtree: ") or len(line)==0):
             if(curr_symbol):
-                if(not curr_symbol_defined):
+                if(not curr_symbol_defined and curr_symbol.upper() not in UNDEF_EXCEPTIONS):
                     issues.append(fn+': Symbol "'+curr_symbol+'" in "'+curr_procedure+'" not defined')
 
             curr_symbol = curr_symbol_defined = None
@@ -95,7 +129,7 @@ def process_log_file(fn, public_symbols, used_symbols):
                     issues.append(fn+': Module "'+mod+'" USEd without ONLY clause or not PRIVATE')
             #if(("SAVE" in line) and ("PARAMETER" not in line) and ("PUBLIC" in line)):
             #    issues.append(fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is PUBLIC-SAVE')
-            if(("IMPLICIT-SAVE" in line) and ("PARAMETER" not in line) and ("USE-ASSOC" not in line)):
+            if(("IMPLICIT-SAVE" in line) and ("PARAMETER" not in line) and ("USE-ASSOC" not in line) and (curr_procedure != module_name)):
                 issues.append(fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is IMPLICIT-SAVE')
             if(("IMPLICIT-TYPE" in line) and ("USE-ASSOC" not in line) and ("FUNCTION" not in line)): #TODO sure about last clause?
                 issues.append(fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is IMPLICIT-TYPE')
