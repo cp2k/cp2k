@@ -237,14 +237,11 @@ CONTAINS
         END IF
         rtp%converged=(rtp%delta_iter.LT.rtp_control%eps_ener)
     END IF
+
     IF(rtp%converged)THEN
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error) 
           IF(rtp_control%mcweeny_max_iter>0.OR.rtp_control%calc_idempotency) THEN
-             IF(SIZE(rho_new)==2) THEN
-                CALL cp_dbcsr_scale(rho_new(1)%matrix,one/2,error=error)
-                CALL cp_dbcsr_scale(rho_new(2)%matrix,one/2,error=error)
-             ENDIF
              IF(rtp_control%orthonormal) THEN
                 CALL purify_mcweeny_complex_orth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
                      rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
@@ -252,11 +249,7 @@ CONTAINS
                 CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
                      rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
              ENDIF
-             IF(SIZE(rho_new)==2) THEN
-                CALL cp_dbcsr_scale(rho_new(1)%matrix,one*2,error=error)
-                CALL cp_dbcsr_scale(rho_new(2)%matrix,one*2,error=error)
-             ENDIF
-             CALL calc_update_rho_sparse(qs_env,error)
+             IF(rtp_control%mcweeny_max_iter>0) CALL calc_update_rho_sparse(qs_env,error)
           ENDIF
           CALL report_density_occupation(rtp,rho_new,error=error)
           DO i=1,SIZE(rho_new)
@@ -602,6 +595,10 @@ CONTAINS
        CALL cp_dbcsr_init_p(tmp(i)%matrix,error=error)
        CALL cp_dbcsr_create(tmp(i)%matrix,template=P(1)%matrix,error=error)
     ENDDO
+    IF(SIZE(P)==2) THEN
+        CALL cp_dbcsr_scale(P(1)%matrix,one/2,error=error)
+        CALL cp_dbcsr_scale(P(2)%matrix,one/2,error=error)
+    ENDIF
     DO ispin=1,SIZE(P)/2
        re=2*ispin-1
        im=2*ispin
@@ -643,6 +640,10 @@ CONTAINS
        CALL cp_dbcsr_transposed(tmp(im)%matrix,P(im)%matrix,error=error)
        CALL cp_dbcsr_add(P(im)%matrix,tmp(im)%matrix,one/2,-one/2,error=error)
     END DO
+    IF(SIZE(P)==2) THEN
+       CALL cp_dbcsr_scale(P(1)%matrix,one*2,error=error)
+       CALL cp_dbcsr_scale(P(2)%matrix,one*2,error=error)
+    ENDIF
     CALL cp_dbcsr_deallocate_matrix_set(tmp,error)
     CALL cp_dbcsr_deallocate_matrix_set(PS,error)
     CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
@@ -701,6 +702,10 @@ CONTAINS
        CALL cp_dbcsr_init_p(tmp(i)%matrix,error=error)
        CALL cp_dbcsr_create(tmp(i)%matrix,template=P(1)%matrix,error=error)
     ENDDO
+    IF(SIZE(P)==2) THEN
+        CALL cp_dbcsr_scale(P(1)%matrix,one/2,error=error)
+        CALL cp_dbcsr_scale(P(2)%matrix,one/2,error=error)
+    ENDIF
     DO ispin=1,SIZE(P)/2
        re=2*ispin-1
        im=2*ispin
@@ -735,6 +740,10 @@ CONTAINS
           END IF
        END DO
     END DO
+    IF(SIZE(P)==2) THEN
+       CALL cp_dbcsr_scale(P(1)%matrix,one*2,error=error)
+       CALL cp_dbcsr_scale(P(2)%matrix,one*2,error=error)
+    ENDIF
     CALL cp_dbcsr_deallocate_matrix_set(tmp,error)
     CALL cp_dbcsr_deallocate_matrix_set(PP,error)
 
