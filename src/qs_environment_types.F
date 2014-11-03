@@ -155,8 +155,7 @@ MODULE qs_environment_types
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: se_taper_release,&
                                              se_taper_type
-  USE task_list_types,                 ONLY: deallocate_task_list,&
-                                             task_list_type
+  USE task_list_types,                 ONLY: task_list_type
   USE virial_types,                    ONLY: virial_type
   USE wannier_states_types,            ONLY: wannier_centres_type
   USE xas_env_types,                   ONLY: xas_env_release,&
@@ -254,7 +253,6 @@ MODULE qs_environment_types
     TYPE(qs_rho_type), POINTER                            :: rho_external
     TYPE(pw_p_type), POINTER                              :: external_vxc
     TYPE(pw_p_type), POINTER                              :: mask
-    TYPE(task_list_type), POINTER                         :: task_list_zmp
     TYPE(qs_charges_type), POINTER                        :: qs_charges
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
     TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
@@ -403,7 +401,6 @@ CONTAINS
 !> \param oce ...
 !> \param rho_atom_set ...
 !> \param task_list ...
-!> \param task_list_zmp ...
 !> \param task_list_aux_fit ...
 !> \param task_list_soft ...
 !> \param rho0_atom_set ...
@@ -477,7 +474,7 @@ CONTAINS
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
        vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr, local_particles,&
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,cp_subsys,oce,rho_atom_set,&
-       task_list,task_list_zmp,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
+       task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,do_kpoints,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
@@ -569,8 +566,7 @@ CONTAINS
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
-    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_zmp, &
-                                                task_list_aux_fit, &
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_aux_fit, &
                                                 task_list_soft
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
@@ -880,8 +876,6 @@ CONTAINS
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
     NULLIFY (qs_env%dftb_potential)
-    ! ZMP zmp task list
-    NULLIFY (qs_env%task_list_zmp)
 
     NULLIFY (qs_env%scp_env)
     NULLIFY (qs_env%se_taper)
@@ -953,7 +947,6 @@ CONTAINS
 !> \param wf_history ...
 !> \param scf_env ...
 !> \param use_harris ...
-!> \param task_list_zmp ...
 !> \param input ...
 !> \param oce ...
 !> \param rho_atom_set ...
@@ -1006,7 +999,6 @@ CONTAINS
        rho_external,external_vxc,mask,&
        kinetic,scf_control,rel_control,qs_charges,ks_env,&
        ks_qmmm_env,wf_history,scf_env,use_harris,&
-       task_list_zmp,&
        input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, efield,&
@@ -1043,7 +1035,6 @@ CONTAINS
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
     LOGICAL, OPTIONAL                        :: use_harris
-    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_zmp
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
@@ -1150,8 +1141,6 @@ CONTAINS
     IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
     IF (PRESENT(mo_derivs_aux_fit)) qs_env%mo_derivs_aux_fit=>mo_derivs_aux_fit
     IF (PRESENT(mo_loc_history)) qs_env%mo_loc_history=>mo_loc_history
-    ! ZMP pointer
-    IF (PRESENT(task_list_zmp)) qs_env%task_list_zmp=>task_list_zmp
     IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
     IF (PRESENT(rtp)) qs_env%rtp=>rtp
     IF (PRESENT(efield)) qs_env%efield=>efield
@@ -1449,10 +1438,6 @@ CONTAINS
           ENDIF
           CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env,&
                   error=error)
-          ! ZMP 
-          IF(ASSOCIATED(qs_env%task_list_zmp)) THEN
-             CALL deallocate_task_list(qs_env%task_list_zmp,error)
-          ENDIF
 
           !Only if do_xas_calculation
           IF(ASSOCIATED(qs_env%xas_env)) THEN
