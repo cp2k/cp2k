@@ -177,6 +177,8 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+       ELSE
+          use_virial = .FALSE.
        END IF
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (define_kind(nkind),rc_kind(nkind),STAT=istat)
