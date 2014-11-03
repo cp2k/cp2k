@@ -664,7 +664,7 @@ CONTAINS
                                                 ispin, istat, natom, nkind, &
                                                 nspins, output_unit
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: qmmm_el, zeff
+    REAL(KIND=dp)                            :: pc_ener, qmmm_el, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -767,6 +767,8 @@ CONTAINS
                matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
           energy%qmmm_el = energy%qmmm_el + qmmm_el
        END DO
+       pc_ener = qs_env%ks_qmmm_env%pc_ener
+       energy%qmmm_el = energy%qmmm_el + pc_ener
     END IF
 
     energy%total = energy%core + energy%hartree + energy%qmmm_el + &
@@ -1059,6 +1061,7 @@ CONTAINS
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, failure, found
+    REAL(KIND=dp)                            :: pc_ener, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qpot
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, sblock
@@ -1098,13 +1101,14 @@ CONTAINS
     ALLOCATE(qpot(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     qpot = 0.0_dp
+    pc_ener = 0.0_dp
 
     nkind = SIZE(atomic_kind_set)
     DO ikind=1,nkind
        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
        NULLIFY(dftb_kind)
        CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
-       CALL get_dftb_atom_param(dftb_kind,&
+       CALL get_dftb_atom_param(dftb_kind,zeff=zeff,&
             defined=defined,eta=eta_a,natorb=natorb)
        ! use mm charge smearing for non-scc cases
        IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
@@ -1121,12 +1125,15 @@ CONTAINS
                   qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,qmmm_env%spherical_cutoff,&
                   particles_qm,error)
           END IF
+          pc_ener = pc_ener + qpot(iatom)*zeff
        END DO
     END DO
     CALL mp_sum(qpot,para_env%group)
+    CALL mp_sum(pc_ener,para_env%group)
 
     ! Allocate the core Hamiltonian matrix
-    NULLIFY(matrix_h)
+    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
+    matrix_h => ks_qmmm_env_loc%matrix_h
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1146,8 +1153,8 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
     ks_qmmm_env_loc%matrix_h => matrix_h
+    ks_qmmm_env_loc%pc_ener = pc_ener
 
     DEALLOCATE(qpot,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1191,7 +1198,8 @@ CONTAINS
     CALL build_dftb_overlap(qs_env,0,matrix_s,error)
 
     ! Allocate the core Hamiltonian matrix
-    NULLIFY(matrix_h)
+    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
+    matrix_h => ks_qmmm_env_loc%matrix_h
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1199,8 +1207,6 @@ CONTAINS
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
                        name="QMMM HAMILTONIAN MATRIX",error=error)
     CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error)
-
-    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
     ks_qmmm_env_loc%matrix_h => matrix_h
 
     CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
@@ -1237,7 +1243,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, do_multipoles, &
                                                 failure, found
-    REAL(KIND=dp)                            :: alpha
+    REAL(KIND=dp)                            :: alpha, pc_ener, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(2)              :: rcutoff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges_mm, qpot
@@ -1363,12 +1369,13 @@ CONTAINS
           ! Set rcutoff to values compatible with alpha Ewald
           CALL ewald_env_get(ewald_env,rcut=rcutoff(1),alpha=alpha,error=error)
           rcutoff(2) = 0.025_dp*rcutoff(1)
+          rcutoff(1) = 2.0_dp*rcutoff(1)
           nkind = SIZE(atomic_kind_set)
           DO ikind=1,nkind
              CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
              NULLIFY(dftb_kind)
              CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
-             CALL get_dftb_atom_param(dftb_kind,&
+             CALL get_dftb_atom_param(dftb_kind,zeff=zeff,&
                   defined=defined,eta=eta_a,natorb=natorb)
              ! use mm charge smearing for non-scc cases
              IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
@@ -1390,6 +1397,7 @@ CONTAINS
                         qmmm_env%added_charges%added_particles,qmmm_env%added_charges%mm_atom_chrg,&
                         qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,rcutoff,particles_qm,error)
                 END IF
+                pc_ener = pc_ener + qpot(iatom)*zeff
              END DO
           END DO
        CASE(do_ewald_none)
@@ -1399,7 +1407,7 @@ CONTAINS
              CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
              NULLIFY(dftb_kind)
              CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
-             CALL get_dftb_atom_param(dftb_kind,&
+             CALL get_dftb_atom_param(dftb_kind,zeff=zeff,&
                   defined=defined,eta=eta_a,natorb=natorb)
              ! use mm charge smearing for non-scc cases
              IF(.NOT.dftb_control%self_consistent) eta_a(0) = eta_mm
@@ -1416,6 +1424,7 @@ CONTAINS
                         qmmm_env%added_charges%mm_atom_index,mm_cell,iatom,qmmm_env%spherical_cutoff,&
                         particles_qm,error)
                 END IF
+                pc_ener = pc_ener + qpot(iatom)*zeff
              END DO
           END DO
        CASE DEFAULT
@@ -1423,10 +1432,12 @@ CONTAINS
                message="Unknown Ewald type!", error=error, error_level=cp_fatal_level)
     END SELECT
 
+    CALL mp_sum(pc_ener,para_env%group)
     CALL mp_sum(qpot,para_env%group)
 
     ! Allocate the core Hamiltonian matrix
-    NULLIFY(matrix_h)
+    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
+    matrix_h => ks_qmmm_env_loc%matrix_h 
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1446,8 +1457,8 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
     ks_qmmm_env_loc%matrix_h => matrix_h
+    ks_qmmm_env_loc%pc_ener = pc_ener
 
     DEALLOCATE(qpot,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1637,7 +1648,7 @@ CONTAINS
              CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                   row=iatom,col=jatom,block=dsblock,found=found)
              CPPostcondition(found,cp_failure_level,routineP,error,failure)
-             fi = -1.0_dp*gmij*SUM(pblock*dsblock)
+             fi = -2.0_dp*gmij*SUM(pblock*dsblock)
              Forces_QM(i,iatom) = Forces_QM(i,iatom) + fi
              Forces_QM(i,jatom) = Forces_QM(i,jatom) - fi
           END DO
@@ -1850,6 +1861,7 @@ CONTAINS
                 DEALLOCATE(Forces_MM,stat=istat)
                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              END DO
+
              IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
                 DO ipot = 1,SIZE(qmmm_env%added_charges%Potentials)
                    Pot => qmmm_env%added_charges%Potentials(ipot)%Pot
@@ -1900,6 +1912,7 @@ CONTAINS
              ! Set rcutoff to values compatible with alpha Ewald
              CALL ewald_env_get(ewald_env,rcut=rcutoff(1),alpha=alpha,error=error)
              rcutoff(2) = 0.025_dp*rcutoff(1)
+             rcutoff(1) = 2.0_dp*rcutoff(1)
              nkind = SIZE(atomic_kind_set)
              iqm = 0
              DO ikind=1,nkind
@@ -2025,7 +2038,7 @@ CONTAINS
              CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                   row=iatom,col=jatom,block=dsblock,found=found)
              CPPostcondition(found,cp_failure_level,routineP,error,failure)
-             fi = -1.0_dp*gmij*SUM(pblock*dsblock)
+             fi = -2.0_dp*gmij*SUM(pblock*dsblock)
              Forces_QM(i,iatom) = Forces_QM(i,iatom) + fi
              Forces_QM(i,jatom) = Forces_QM(i,jatom) - fi
           END DO
@@ -2245,7 +2258,7 @@ CONTAINS
              ELSE
                 STOP
              END IF
-             force_ab = fsr * rij/dr
+             force_ab = -fsr * rij/dr
           ELSE
              force_ab = 0.0_dp
           END IF

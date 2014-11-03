@@ -14,6 +14,7 @@ MODULE qs_ks_qmmm_types
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE f77_blas
+  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
@@ -46,7 +47,7 @@ MODULE qs_ks_qmmm_types
   TYPE qs_ks_qmmm_env_type
      INTEGER :: n_evals, &
                 id_nr, ref_count
-
+     REAL(KIND=dp)                               :: pc_ener
      TYPE(pw_env_type), POINTER                  :: pw_env
      TYPE(pw_p_type)                             :: v_qmmm_rspace
      TYPE(pw_p_type)                             :: v_metal_rspace

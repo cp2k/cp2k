@@ -1,0 +1,116 @@
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        SELF_CONSISTENT    F
+        DO_EWALD           F
+        DISPERSION         F
+        &PARAMETER
+           PARAM_FILE_PATH  ../../../../data/DFTB/nonscc
+           PARAM_FILE_NAME  nonscc_parameter
+        &END PARAMETER
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+    &END SCF
+  &END DFT
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K 0.
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 78.198
+          SIGMA 3.166
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms O H
+          EPSILON 0.0
+          SIGMA 3.6705
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H H
+          EPSILON 0.0
+          SIGMA 3.30523
+          RCUT 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE SPME
+        ALPHA .44
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    ECOUPL POINT_CHARGE
+    CENTER SETUP_ONLY
+    NOCOMPATIBILITY
+    &MM_KIND H
+      RADIUS 0.44
+    &END MM_KIND
+    &MM_KIND O
+      RADIUS 0.78
+    &END MM_KIND
+    &QM_KIND H
+         MM_INDEX 2 3
+    &END QM_KIND
+    &QM_KIND O
+         MM_INDEX 1
+    &END QM_KIND
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+    &END CELL
+    &COORD
+   O     0.000000     0.000000     0.000000    H2O1
+   H     0.000000     0.000000     1.000000    H2O1
+   H     0.942809     0.000000    -0.333333    H2O1
+   O    -1.617979    -0.948062    -2.341650    H2O2
+   H    -2.529195    -1.296822    -2.122437    H2O2
+   H    -1.534288    -0.833088    -3.331486    H2O2
+   O    -1.507990     2.117783     1.555094    H2O3
+   H    -1.501128     2.645178     2.403050    H2O3
+   H    -2.090603     1.352766     1.597519    H2O3
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT test
+  PRINT_LEVEL LOW
+  RUN_TYPE DEBUG
+&END GLOBAL
+&DEBUG
+   DEBUG_FORCES T
+   DEBUG_STRESS_TENSOR F
+&END

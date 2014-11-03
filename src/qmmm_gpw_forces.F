@@ -66,7 +66,8 @@ MODULE qmmm_gpw_forces
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
-  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix_pc
+  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix,&
+                                             deriv_dftb_qmmm_matrix_pc
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -193,6 +194,8 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE(do_qmmm_coulomb)
+          CALL deriv_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+               need_f,Forces,Forces_added_charges,error)
        CASE(do_qmmm_pcharge)
           CALL deriv_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges,error)
