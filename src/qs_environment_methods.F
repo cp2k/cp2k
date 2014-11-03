@@ -408,34 +408,35 @@ SUBROUTINE qs_create_task_list(qs_env, error)
                                                 skip_load_balance_distributed,&
                                                 soft_valid
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(dft_control)
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    NULLIFY(ks_env, dft_control)
+    CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control, error=error)
 
     skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     IF (.NOT. (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) ) THEN
        ! generate task lists (non-soft)
        IF (.NOT. dft_control%qs_control%gapw) THEN
-          CALL get_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+          CALL get_ks_env(ks_env, task_list=task_list, error=error)
           IF (.NOT. ASSOCIATED(task_list)) THEN
              CALL allocate_task_list(task_list,error)
-             CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
+             CALL set_ks_env(ks_env, task_list=task_list, error=error)
           ENDIF
-          CALL generate_qs_task_list(qs_env, task_list, &
+          CALL generate_qs_task_list(ks_env, task_list, &
                  reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
                  skip_load_balance_distributed=skip_load_balance_distributed, error=error)
        ENDIF
        ! generate the soft task list
        IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-          CALL get_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)  ! task_list == soft_task_list
+          CALL get_ks_env(ks_env, task_list_soft=task_list, error=error)  ! task_list == soft_task_list
           IF (.NOT. ASSOCIATED(task_list)) THEN
              CALL allocate_task_list(task_list,error)
-             CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
+             CALL set_ks_env(ks_env, task_list_soft=task_list, error=error)
           ENDIF
-          CALL generate_qs_task_list(qs_env, task_list, &
+          CALL generate_qs_task_list(ks_env, task_list, &
                  reorder_rs_grid_ranks=.TRUE., soft_valid = .TRUE., &
                  skip_load_balance_distributed=skip_load_balance_distributed, error=error)
        ENDIF
@@ -443,12 +444,12 @@ SUBROUTINE qs_create_task_list(qs_env, error)
 
     IF( dft_control%do_admm) THEN
       ! generate the aux_fit task list
-      CALL get_qs_env(qs_env=qs_env,task_list_aux_fit=task_list,error=error)
+      CALL get_ks_env(ks_env, task_list_aux_fit=task_list, error=error)
       IF (.NOT. ASSOCIATED(task_list)) THEN
         CALL allocate_task_list(task_list,error)
-        CALL set_qs_env(qs_env=qs_env,task_list_aux_fit=task_list,error=error)
+        CALL set_ks_env(ks_env, task_list_aux_fit=task_list, error=error)
       ENDIF
-      CALL generate_qs_task_list(qs_env, task_list,&
+      CALL generate_qs_task_list(ks_env, task_list,&
            reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, &
                  skip_load_balance_distributed=skip_load_balance_distributed, error=error)
     END IF
@@ -472,7 +473,7 @@ SUBROUTINE qs_create_task_list(qs_env, error)
            CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
 
            ! generate the subset task list from the neighborlist
-           CALL generate_qs_task_list(qs_env, qs_env%kg_env%subset(isub)%task_list, &
+           CALL generate_qs_task_list(ks_env, qs_env%kg_env%subset(isub)%task_list, &
                 reorder_rs_grid_ranks=.FALSE., soft_valid = soft_valid, &
                 skip_load_balance_distributed=skip_load_balance_distributed, &
                 sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb, &

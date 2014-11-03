@@ -57,6 +57,8 @@ MODULE qs_ks_types
                                              qs_subsys_release,&
                                              qs_subsys_retain,&
                                              qs_subsys_type
+  USE task_list_types,                 ONLY: deallocate_task_list,&
+                                             task_list_type
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
@@ -184,6 +186,10 @@ MODULE qs_ks_types
                                                              sab_lrc => Null(),&
                                                              sab_almo => Null()
 
+    TYPE(task_list_type), POINTER                         :: task_list => Null()
+    TYPE(task_list_type), POINTER                         :: task_list_aux_fit => Null()
+    TYPE(task_list_type), POINTER                         :: task_list_soft => Null()
+
     TYPE(kpoint_type), POINTER                            :: kpoints => Null()
     TYPE(qs_subsys_type), POINTER                         :: subsys => Null()
     TYPE(dft_control_type), POINTER                       :: dft_control => Null()
@@ -278,6 +284,9 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_scp ...
 !> \param sab_vdw ...
 !> \param sab_almo ...
+!> \param task_list ...
+!> \param task_list_aux_fit ...
+!> \param task_list_soft ...
 !> \param kpoints ...
 !> \param do_kpoints ...
 !> \param atomic_kind_set ...
@@ -322,6 +331,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
+                        task_list, task_list_aux_fit, task_list_soft,&
                         kpoints, do_kpoints,&
                         atomic_kind_set,qs_kind_set,cell,cell_ref,use_ref_cell,&
                         particle_set,energy,force,local_particles,local_molecules,&
@@ -350,6 +360,8 @@ END SUBROUTINE qs_ks_env_create
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
       sab_scp, sab_vdw, sab_almo
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_aux_fit, &
+                                                task_list_soft
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     LOGICAL, OPTIONAL                        :: do_kpoints
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -441,6 +453,9 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_tbe)) sab_tbe =>  ks_env%sab_tbe
      IF (PRESENT(sab_core)) sab_core =>  ks_env%sab_core
      IF (PRESENT(sab_almo)) sab_almo =>  ks_env%sab_almo
+     IF (PRESENT(task_list)) task_list => ks_env%task_list
+     IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => ks_env%task_list_aux_fit
+     IF (PRESENT(task_list_soft)) task_list_soft => ks_env%task_list_soft
      IF (PRESENT(dft_control)) dft_control => ks_env%dft_control
      IF (PRESENT(dbcsr_dist)) dbcsr_dist => ks_env%dbcsr_dist
      IF (PRESENT(distribution_2d)) distribution_2d => ks_env%distribution_2d
@@ -524,6 +539,9 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_scp ...
 !> \param sab_vdw ...
 !> \param sab_almo ...
+!> \param task_list ...
+!> \param task_list_aux_fit ...
+!> \param task_list_soft ...
 !> \param subsys ...
 !> \param dft_control ...
 !> \param dbcsr_dist ...
@@ -544,6 +562,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
+                        task_list,task_list_aux_fit,task_list_soft,&
                         subsys,dft_control,dbcsr_dist,distribution_2d,pw_env,&
                         para_env,blacs_env,&
                         error)
@@ -566,6 +585,8 @@ END SUBROUTINE qs_ks_env_create
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
       sab_scp, sab_vdw, sab_almo
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_aux_fit, &
+                                                task_list_soft
     TYPE(qs_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
@@ -627,6 +648,10 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_tbe)) ks_env%sab_tbe => sab_tbe
      IF (PRESENT(sab_core)) ks_env%sab_core => sab_core
      IF (PRESENT(sab_almo)) ks_env%sab_almo => sab_almo
+
+     IF (PRESENT(task_list)) ks_env%task_list=>task_list
+     IF (PRESENT(task_list_aux_fit)) ks_env%task_list_aux_fit=>task_list_aux_fit
+     IF (PRESENT(task_list_soft)) ks_env%task_list_soft=>task_list_soft
 
      IF (PRESENT(subsys)) THEN
        CALL qs_subsys_release(ks_env%subsys,error)
@@ -730,6 +755,14 @@ END SUBROUTINE qs_ks_env_create
             CALL qs_rho_release(ks_env%rho_xc, error=error)
           IF(ASSOCIATED(ks_env%rho_aux_fit))&
             CALL qs_rho_release(ks_env%rho_aux_fit, error=error)
+          IF (ASSOCIATED(ks_env%distribution_2d)) &
+             CALL distribution_2d_release(ks_env%distribution_2d,error=error)
+          IF(ASSOCIATED(ks_env%task_list)) &
+             CALL deallocate_task_list(ks_env%task_list,error)
+          IF(ASSOCIATED(ks_env%task_list_aux_fit)) &
+             CALL deallocate_task_list(ks_env%task_list_aux_fit,error)
+          IF(ASSOCIATED(ks_env%task_list_soft)) &
+             CALL deallocate_task_list(ks_env%task_list_soft,error)
 
           IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
              CALL pw_release(ks_env%rho_nlcc_g%pw,error=error)
@@ -754,9 +787,6 @@ END SUBROUTINE qs_ks_env_create
           IF(ASSOCIATED(ks_env%dbcsr_dist)) THEN
              CALL cp_dbcsr_distribution_release(ks_env%dbcsr_dist)
              DEALLOCATE(ks_env%dbcsr_dist)
-          ENDIF
-          IF (ASSOCIATED(ks_env%distribution_2d)) THEN
-             CALL distribution_2d_release(ks_env%distribution_2d,error=error)
           ENDIF
 
           CALL release_sab(ks_env%sab_orb)

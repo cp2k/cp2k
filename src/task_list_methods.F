@@ -44,10 +44,10 @@ MODULE task_list_methods
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -85,7 +85,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
+!> \param ks_env ...
 !> \param task_list ...
 !> \param reorder_rs_grid_ranks Flag that indicates if this routine should
 !>        or should not overwrite the rs descriptor (see comment below)
@@ -105,12 +105,12 @@ CONTAINS
 !>        of performing a new optimization by leaving the rank order in
 !>        its current state.
 ! *****************************************************************************
-  SUBROUTINE generate_qs_task_list(qs_env, task_list,&
+  SUBROUTINE generate_qs_task_list(ks_env, task_list,&
                                    reorder_rs_grid_ranks, skip_load_balance_distributed, &
                                    soft_valid, basis_set_id, pw_env_external, sab_orb_external, error)
 
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list
     LOGICAL, INTENT(IN)                      :: reorder_rs_grid_ranks, &
                                                 skip_load_balance_distributed
@@ -178,7 +178,7 @@ CONTAINS
 
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
@@ -186,7 +186,7 @@ CONTAINS
            sab_orb=sab_orb,&
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
@@ -195,7 +195,7 @@ CONTAINS
            pw_env=pw_env,error=error)
     END SELECT
 
-    ! maybe just don't pas qs_env instead ??
+    ! maybe just don't pas ks_env instead ??
     IF (PRESENT(pw_env_external)) pw_env=>pw_env_external
     IF (PRESENT(sab_orb_external)) sab_orb=>sab_orb_external
 

@@ -277,9 +277,6 @@ MODULE qs_environment_types
     TYPE(hfx_type),DIMENSION(:,:), POINTER                :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
-    TYPE(task_list_type), POINTER                         :: task_list
-    TYPE(task_list_type), POINTER                         :: task_list_aux_fit
-    TYPE(task_list_type), POINTER                         :: task_list_soft
     TYPE(admm_type), POINTER                              :: admm_env
     ! LRI
     TYPE(lri_environment_type), POINTER                   :: lri_env
@@ -746,9 +743,6 @@ CONTAINS
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
     IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
     IF (PRESENT(efield)) efield => qs_env%efield
-    IF (PRESENT(task_list)) task_list => qs_env%task_list
-    IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => qs_env%task_list_aux_fit
-    IF (PRESENT(task_list_soft)) task_list_soft => qs_env%task_list_soft
     IF (PRESENT(WannierCentres)) WannierCentres => qs_env%WannierCentres
 
     CALL get_ks_env(qs_env%ks_env,&
@@ -797,6 +791,9 @@ CONTAINS
                     sab_tbe=sab_tbe,&
                     sab_core=sab_core,&
                     sab_almo=sab_almo,&
+                    task_list=task_list,&
+                    task_list_aux_fit=task_list_aux_fit,&
+                    task_list_soft=task_list_soft,&
                     kpoints=kpoints,&
                     do_kpoints=do_kpoints,&
                     local_molecules=local_molecules,&
@@ -883,9 +880,6 @@ CONTAINS
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
     NULLIFY (qs_env%dftb_potential)
-    NULLIFY (qs_env%task_list)
-    NULLIFY (qs_env%task_list_aux_fit)
-    NULLIFY (qs_env%task_list_soft)
     ! ZMP zmp task list
     NULLIFY (qs_env%task_list_zmp)
 
@@ -959,9 +953,6 @@ CONTAINS
 !> \param wf_history ...
 !> \param scf_env ...
 !> \param use_harris ...
-!> \param task_list ...
-!> \param task_list_aux_fit ...
-!> \param task_list_soft ...
 !> \param task_list_zmp ...
 !> \param input ...
 !> \param oce ...
@@ -1014,7 +1005,7 @@ CONTAINS
        ewald_env,ewald_pw,mpools,mpools_aux_fit,&
        rho_external,external_vxc,mask,&
        kinetic,scf_control,rel_control,qs_charges,ks_env,&
-       ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
+       ks_qmmm_env,wf_history,scf_env,use_harris,&
        task_list_zmp,&
        input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
@@ -1052,8 +1043,7 @@ CONTAINS
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
     LOGICAL, OPTIONAL                        :: use_harris
-    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_aux_fit, &
-                                                task_list_soft, task_list_zmp
+    TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_zmp
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
@@ -1160,9 +1150,6 @@ CONTAINS
     IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
     IF (PRESENT(mo_derivs_aux_fit)) qs_env%mo_derivs_aux_fit=>mo_derivs_aux_fit
     IF (PRESENT(mo_loc_history)) qs_env%mo_loc_history=>mo_loc_history
-    IF (PRESENT(task_list)) qs_env%task_list=>task_list
-    IF (PRESENT(task_list_aux_fit)) qs_env%task_list_aux_fit=>task_list_aux_fit
-    IF (PRESENT(task_list_soft)) qs_env%task_list_soft=>task_list_soft
     ! ZMP pointer
     IF (PRESENT(task_list_zmp)) qs_env%task_list_zmp=>task_list_zmp
     IF (PRESENT(run_rtp)) qs_env%run_rtp=run_rtp
@@ -1457,15 +1444,6 @@ CONTAINS
              CALL linres_control_release(qs_env%linres_control, error=error)
           END IF
 
-          IF(ASSOCIATED(qs_env%task_list)) THEN
-             CALL deallocate_task_list(qs_env%task_list,error)
-          ENDIF
-          IF(ASSOCIATED(qs_env%task_list_aux_fit)) THEN
-             CALL deallocate_task_list(qs_env%task_list_aux_fit,error)
-          ENDIF
-          IF(ASSOCIATED(qs_env%task_list_soft)) THEN
-             CALL deallocate_task_list(qs_env%task_list_soft,error)
-          ENDIF
           IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
              CALL ls_scf_release(qs_env%ls_scf_env,error)
           ENDIF

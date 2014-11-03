@@ -93,6 +93,7 @@ MODULE mp2_gpw
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -218,6 +219,7 @@ MODULE mp2_gpw
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list_sub
 
     CALL timeset(routineN,handle)
@@ -280,6 +282,7 @@ MODULE mp2_gpw
 
     ! get stuff
     CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
                     qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     particle_set=particle_set,&
@@ -431,7 +434,7 @@ MODULE mp2_gpw
     NULLIFY(task_list_sub)
     skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     CALL allocate_task_list(task_list_sub,error_sub)
-    CALL generate_qs_task_list(qs_env, task_list_sub, &
+    CALL generate_qs_task_list(ks_env, task_list_sub, &
                  reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
                  skip_load_balance_distributed=skip_load_balance_distributed,&
                  pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub, error=error_sub)
