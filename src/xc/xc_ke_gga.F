@@ -237,8 +237,14 @@ CONTAINS
        SELECT CASE (functional)
        CASE (ke_ol1)
           CALL efactor_ol1 ( s, fs, m )
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"OL1 functional currently not working properly",&
+               error,failure)
        CASE (ke_ol2)
           CALL efactor_ol2 ( s, fs, m )
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"OL2 functional currently not working properly",&
+               error,failure)
        CASE (ke_llp)
           CALL efactor_llp ( s, fs, m )
        CASE (ke_pw86)
