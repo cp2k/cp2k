@@ -60,7 +60,7 @@ def main():
     output += '<th>Revision</th><th>Summary</th><th>Since</th></tr>\n\n'
 
     def get_sortkey(s):
-        config.getint(s, "sortkey")
+        return config.getint(s, "sortkey")
 
     for s in sorted(config.sections(), key=get_sortkey):
         print "Working on: "+s
@@ -171,7 +171,7 @@ def rev_link(rev, trunk_rev):
 #===============================================================================
 def parse_regtest_report(report_txt):
     report = dict()
-    report['revision']  = int(re.search("revision (\d+)\.\n", report_txt).group(1))
+    report['revision']  = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
 
     m = re.search("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
     runtime_errors = int(m.group(1))
