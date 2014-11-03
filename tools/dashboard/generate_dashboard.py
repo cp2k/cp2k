@@ -57,7 +57,7 @@ def main():
     output += '<center><h1>CP2K DASHBOARD</h1>\n'
     output += '<table border="1">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
-    output += '<th>Revision</th><th>Summary</th><th>Since</th></tr>\n\n'
+    output += '<th>Revision</th><th>Summary</th><th>Last OK</th></tr>\n\n'
 
     def get_sortkey(s):
         return config.getint(s, "sortkey")
@@ -121,7 +121,7 @@ def main():
         #Since
         if(report['status'] != "OK"):
             if(last_ok.has_key(s)):
-                output += rev_link(last_ok[s]+1, trunk_revision)
+                output += rev_link(last_ok[s], trunk_revision)
             else:
                 output += '<td>N/A</td>'
         else:
