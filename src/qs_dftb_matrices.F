@@ -1289,6 +1289,7 @@ CONTAINS
     ALLOCATE(qpot(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     qpot = 0.0_dp
+    pc_ener = 0.0_dp
 
     ! Create Ewald environments
     poisson_section => section_vals_get_subs_vals(qs_env%input,"MM%POISSON",error=error)
