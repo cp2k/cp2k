@@ -55,7 +55,7 @@ def main():
     output += '<title>CP2K Dashboard</title>\n'
     output += '</head><body>\n'
     output += '<center><h1>CP2K DASHBOARD</h1>\n'
-    output += '<table border="1">\n'
+    output += '<table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th></tr>\n\n'
 
