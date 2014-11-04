@@ -119,6 +119,7 @@ MODULE qs_scf_post_gpw
                                              qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_molecules,                ONLY: wfc_to_molecule
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
@@ -1710,6 +1711,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
 ! for spin restricted systems
@@ -1717,9 +1719,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    NULLIFY(rho,rho_r,  drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools,tmp_g )
+    NULLIFY(rho,rho_r,  drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools,tmp_g, ks_env )
 
-    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, error=error)
+    CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, rho=rho, error=error)
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                             pw_pools=pw_pools,error=error)
@@ -1751,7 +1753,7 @@ CONTAINS
                rho=tau_r(ispin),&
                rho_gspace=tau_g(ispin),&
                total_rho=dum, &  
-               qs_env=qs_env, soft_valid=.FALSE., &
+               ks_env=ks_env, soft_valid=.FALSE., &
                compute_tau=.TRUE., error=error)
        END IF
 
@@ -1786,8 +1788,8 @@ CONTAINS
              CALL calculate_rho_elec(matrix_p=rho%rho_ao(ispin)%matrix,&
                   rho=drho_r(3*(ispin-1)+idir),&
                   rho_gspace=drho_g(3*(ispin-1)+idir),&
-                  total_rho=dum, &  
-                  qs_env=qs_env, soft_valid=.FALSE., &
+                  total_rho=dum, &
+                  ks_env=ks_env, soft_valid=.FALSE., &
                   compute_tau=.FALSE., compute_grad=.TRUE., idir =idir, error=error)
    
            END DO

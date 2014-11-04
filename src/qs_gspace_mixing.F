@@ -58,6 +58,7 @@ MODULE qs_gspace_mixing
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -177,19 +178,21 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type)                          :: kerker_pot_rspace, rhog
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
 
     NULLIFY(matrix_q,p_in)
-    NULLIFY(auxbas_pw_pool, matrix_s, rho, para_env, pw_env)
+    NULLIFY(auxbas_pw_pool, matrix_s, rho, para_env, pw_env, ks_env)
     NULLIFY(g2, pw_grid)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(p_out),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,  &
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
                     dft_control=dft_control,&
                     matrix_s=matrix_s,&
                     pw_env=pw_env,&
@@ -243,7 +246,7 @@ CONTAINS
             rho=rho%rho_r(ispin),&
             rho_gspace=rho%rho_g(ispin),&
             total_rho=rho%tot_rho_r(ispin),&
-            qs_env=qs_env,soft_valid=gapw,error=error)
+            ks_env=ks_env,soft_valid=gapw,error=error)
 
        CALL pw_zero(rhog%pw, error=error)
        ! point pw

@@ -108,6 +108,8 @@ MODULE qs_collocate_density
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_modify_pab_block,             ONLY: &
        FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DABpADB, &
        FUNC_DADB, FUNC_DER, FUNC_DX, FUNC_DXDX, FUNC_DXDY, FUNC_DY, &
@@ -1655,7 +1657,7 @@ CONTAINS
 !> \param rho ...
 !> \param rho_gspace ...
 !> \param total_rho ...
-!> \param qs_env ...
+!> \param ks_env ...
 !> \param soft_valid ...
 !> \param compute_tau ...
 !> \param compute_grad ...
@@ -1673,13 +1675,13 @@ CONTAINS
 !>      (in real and g-space respectively)
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
-       qs_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, &
+       ks_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, &
        task_list_external, pw_env_external, error)
 
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau, &
                                                 compute_grad
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id, der_type, idir
@@ -1794,7 +1796,7 @@ CONTAINS
 
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            dft_control=dft_control,&
@@ -1804,7 +1806,7 @@ CONTAINS
            task_list_soft=task_list_soft,&
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            dft_control=dft_control,&

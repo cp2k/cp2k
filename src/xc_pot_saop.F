@@ -62,6 +62,7 @@ MODULE xc_pot_saop
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_ks_atom,                      ONLY: update_ks_atom
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                              local_rho_set_release,&
                                              local_rho_type
@@ -164,6 +165,7 @@ CONTAINS
                                                 vxc_LB, vxc_SAOP, vxc_tau, &
                                                 vxc_tmp
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: input, xc_fun_section_orig, &
                                                 xc_fun_section_tmp, &
@@ -177,7 +179,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(pw_env, auxbas_pw_pool, input)
+    NULLIFY(ks_env, pw_env, auxbas_pw_pool, input)
     NULLIFY(rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
     NULLIFY(vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
     NULLIFY(mo_eigenvalues, deriv_set, deriv)
@@ -187,7 +189,8 @@ CONTAINS
 
     IF (ionode) WRITE (*, *) " in "//routineP
 
-    CALL get_qs_env(qs_env=qs_env,&
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
                     rho=rho_struct,&
                     pw_env=pw_env,&
                     input=input,&
@@ -366,7 +369,7 @@ CONTAINS
           CALL pw_zero(orbital_g%pw,error=error)
           CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
                                   orbital, orbital_g, &
-                                  tot_rho_psi, qs_env, error=error)
+                                  tot_rho_psi, ks_env, error=error)
 
           vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
                efac * orbital%pw%cr3d
@@ -437,7 +440,7 @@ CONTAINS
           CALL pw_zero(orbital_g%pw,error=error)
           CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
                                   orbital, orbital_g, &
-                                  tot_rho_psi, qs_env, error=error)
+                                  tot_rho_psi, ks_env, error=error)
 
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env,error)
 !TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))

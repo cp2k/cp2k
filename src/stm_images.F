@@ -52,6 +52,7 @@ MODULE stm_images
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -128,6 +129,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
@@ -135,11 +137,16 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
-     NULLIFY (mos, rho, pw_env, stm_th_torb, fm_struct_tmp)
+     NULLIFY (ks_env, mos, rho, pw_env, stm_th_torb, fm_struct_tmp)
      NULLIFY (auxbas_pw_pool, pw_pools, stm_density_ao, mo_coeff)
 
-     CALL get_qs_env(qs_env, mos=mos,rho=rho, pw_env=pw_env,&
-            error=error)
+     CALL get_qs_env(qs_env,&
+                     ks_env=ks_env,&
+                     mos=mos,&
+                     rho=rho,&
+                     pw_env=pw_env,&
+                     error=error)
+
      CALL section_vals_val_get(stm_section,"APPEND", l_val=append_cube,error=error)
      CALL section_vals_val_get(stm_section,"BIAS", r_vals=stm_biases,error=error)
      CALL section_vals_val_get(stm_section,"REF_ENERGY",r_val=ref_energy,explicit=use_ref_energy,error=error)
@@ -214,7 +221,7 @@ CONTAINS
      ENDDO
      IF(use_ref_energy) efermi = ref_energy
      
-     CALL stm_cubes(qs_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
+     CALL stm_cubes(ks_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                     occupation, efermi, stm_biases, stm_th_torb,  particles, &
                     output_unit, append_cube,  error=error)
      DO ispin = 1,nspin
@@ -248,7 +255,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes a simple approximation to the tunneling current for STM
-!> \param qs_env ...
+!> \param ks_env ...
 !> \param stm_section ...
 !> \param stm_density_ao ...
 !> \param wf_r ...
@@ -271,11 +278,11 @@ CONTAINS
 !> \note
 !>      requires the MOs that are passed to be eigenstates, and energy ordered
 ! *****************************************************************************
-  SUBROUTINE stm_cubes(qs_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
+  SUBROUTINE stm_cubes(ks_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                        occupation, efermi, stm_biases,  stm_th_torb, particles, &
                        output_unit, append_cube,  error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: stm_section
     TYPE(cp_dbcsr_type), POINTER             :: stm_density_ao
     TYPE(pw_p_type)                          :: wf_r, wf_g
@@ -393,7 +400,7 @@ CONTAINS
          iorb=stm_th_torb(i)
          CALL calculate_rho_elec(matrix_p=stm_density_ao,&
                  rho=wf_r,rho_gspace=wf_g, total_rho=total_rho,&
-                 qs_env=qs_env,  der_type=iorb, error=error)
+                 ks_env=ks_env,  der_type=iorb, error=error)
 
          oname = torb_string(iorb)
 !         fname = "STM_"//TRIM(torb_string(iorb))

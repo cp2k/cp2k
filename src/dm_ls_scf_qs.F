@@ -552,13 +552,15 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(pw_env,auxbas_pw_pool, pw_pools, particles, subsys, matrix_ks)
+    NULLIFY(ks_env, pw_env,auxbas_pw_pool, pw_pools, particles, subsys, matrix_ks)
 
     CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
                     subsys=subsys,&
                     pw_env=pw_env,&
                     matrix_ks=matrix_ks,&
@@ -594,7 +596,7 @@ CONTAINS
                             rho=wf_r,&
                             rho_gspace=wf_g,&
                             total_rho=tot_rho,&
-                            qs_env=qs_env, &
+                            ks_env=ks_env, &
                             error=error)
 
     ! write this to a cube

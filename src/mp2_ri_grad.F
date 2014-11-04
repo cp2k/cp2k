@@ -9,7 +9,6 @@
 !>      10.2013 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_grad
-! USE f77_blas
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -78,6 +77,7 @@ MODULE mp2_ri_grad
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              integrate_v_rspace
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
@@ -213,6 +213,7 @@ MODULE mp2_ri_grad
     TYPE(pw_p_type)                          :: dvg(3), psi_L, temp_pw_g
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -225,12 +226,12 @@ MODULE mp2_ri_grad
     dimen=nmo
     virtual=dimen-homo
     eps_filter=mp2_env%mp2_gpw%eps_filter
-    NULLIFY(mo_coeff_o, mo_coeff_v, G_P_ia)
+    NULLIFY(mo_coeff_o, mo_coeff_v, G_P_ia, ks_env)
     mo_coeff_o => mp2_env%ri_grad%mo_coeff_o
     mo_coeff_v => mp2_env%ri_grad%mo_coeff_v
     G_P_ia => mp2_env%ri_grad%G_P_ia
 
-    CALL get_qs_env(qs_env, molecule_set=molecule_set, &
+    CALL get_qs_env(qs_env, ks_env=ks_env, molecule_set=molecule_set, &
                     molecule_kind_set=molecule_kind_set, error=error)
 
     nkind = SIZE(atomic_kind_set)
@@ -619,7 +620,7 @@ MODULE mp2_ri_grad
                               total_rho=total_rho,&
                               task_list_external=task_list_sub,&
                               pw_env_external=pw_env_sub,&
-                              qs_env=qs_env,error=error_sub)
+                              ks_env=ks_env,error=error_sub)
       ! calculate associated hartree potential
       ! CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1

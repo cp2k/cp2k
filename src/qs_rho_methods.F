@@ -44,6 +44,7 @@ MODULE qs_rho_methods
                                              calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_local_rho_types,              ONLY: local_rho_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
@@ -385,6 +386,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(lri_density_type), POINTER          :: lri_density
     TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho_xc
     TYPE(task_list_type), POINTER            :: task_list
 
@@ -392,17 +394,23 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
     failure=.FALSE.
 
-    NULLIFY(dft_control,rho_xc)
+    NULLIFY(dft_control,rho_xc, ks_env)
     NULLIFY(lri_env, lri_density, para_env, atomic_kind_set)
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-      CALL get_qs_env(qs_env,dft_control=dft_control, task_list=task_list,&
-                      lri_density=lri_density, lri_env=lri_env,&
-                      atomic_kind_set=atomic_kind_set,  para_env=para_env,&
+      CALL get_qs_env(qs_env,&
+                      ks_env=ks_env,&
+                      dft_control=dft_control,&
+                      task_list=task_list,&
+                      lri_density=lri_density,&
+                      lri_env=lri_env,&
+                      atomic_kind_set=atomic_kind_set,&
+                      para_env=para_env,&
                       error=error)
+
       IF (PRESENT(task_list_external)) task_list => task_list_external 
 
       nspins=dft_control%nspins
@@ -427,7 +435,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                 rho=rho_struct%rho_r(ispin),&
                 rho_gspace=rho_struct%rho_g(ispin),&
                 total_rho=rho_struct%tot_rho_r(ispin),&
-                qs_env=qs_env,soft_valid=gapw,&
+                ks_env=ks_env,soft_valid=gapw,&
                 task_list_external=task_list, error=error)
         END DO
       END IF
@@ -459,7 +467,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                  rho=rho_struct%tau_r(ispin),&
                  rho_gspace=rho_struct%tau_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful
-                 qs_env=qs_env, soft_valid=gapw, &
+                 ks_env=ks_env, soft_valid=gapw, &
                  compute_tau=.TRUE.,&
                  error=error)
          END DO
@@ -489,7 +497,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                 rho=rho_xc%rho_r(ispin),&
                 rho_gspace=rho_xc%rho_g(ispin),&
                 total_rho=rho_xc%tot_rho_r(ispin),&
-                qs_env=qs_env,soft_valid=gapw_xc,error=error)
+                ks_env=ks_env,soft_valid=gapw_xc,error=error)
          END DO
          rho_xc%rho_r_valid=.TRUE.
          rho_xc%rho_g_valid=.TRUE.
@@ -511,7 +519,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                  rho=rho_xc%tau_r(ispin),&
                  rho_gspace=rho_xc%tau_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful
-                 qs_env=qs_env, soft_valid=gapw_xc, &
+                 ks_env=ks_env, soft_valid=gapw_xc, &
                  compute_tau=.TRUE., error=error)
            END DO
            rho_xc%tau_r_valid=.TRUE.

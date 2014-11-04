@@ -23,7 +23,6 @@ MODULE mp2_cphf
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
-! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -560,7 +559,7 @@ MODULE mp2_cphf
                             rho=rho_r,&
                             rho_gspace=rho_g,&
                             total_rho=tot_rho_r,&
-                            qs_env=qs_env,&
+                            ks_env=ks_env,&
                             soft_valid=.FALSE.,&
                             error=error)
     ! calculate the MP2 potential
@@ -609,7 +608,7 @@ MODULE mp2_cphf
                               rho=rho_r,&
                               rho_gspace=rho_g,&
                               total_rho=tot_rho_r,&
-                              qs_env=qs_env,&
+                              ks_env=ks_env,&
                               soft_valid=.FALSE.,&
                               error=error)
       ! and associated potential
@@ -744,13 +743,16 @@ MODULE mp2_cphf
                                                 my_recalc_hfx_integrals
     REAL(KIND=dp)                            :: ex_energy, pair_energy, &
                                                 total_rho
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
+    NULLIFY(ks_env)
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
     my_recalc_hfx_integrals=.FALSE.
     IF(PRESENT(recalc_hfx_integrals)) my_recalc_hfx_integrals=recalc_hfx_integrals
 
+    CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
     ! perform back transformation
     SELECT CASE(transf_type_in)
       CASE(1)
@@ -883,7 +885,7 @@ MODULE mp2_cphf
                             rho=rho_r,&
                             rho_gspace=rho_g,&
                             total_rho=total_rho,&
-                            qs_env=qs_env,error=error)
+                            ks_env=ks_env,error=error)
     ! and calculate potential
     CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw, error=error)
     CALL pw_transfer(pot_g%pw, rho_r%pw, error=error)

@@ -182,7 +182,7 @@ CONTAINS
             rho=rho_aux_fit%rho_r(ispin),&
             rho_gspace=rho_aux_fit%rho_g(ispin),&
             total_rho=rho_aux_fit%tot_rho_r(ispin),&
-            qs_env=qs_env,soft_valid=.FALSE.,&
+            ks_env=ks_env,soft_valid=.FALSE.,&
             basis_set_id=use_aux_fit_basis_set, error=error)
     END DO
     CALL set_qs_env(qs_env,admm_env=admm_env,error=error)

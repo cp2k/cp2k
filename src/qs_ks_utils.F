@@ -158,6 +158,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc, &
                                                 vxc_tau
     TYPE(pw_pool_type), POINTER              :: xc_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, low_spin_roks_section, &
                                                 xc_section
@@ -165,11 +166,21 @@ CONTAINS
 
     IF (.NOT. dft_control%low_spin_roks) RETURN
     failure=.FALSE.
+    NULLIFY(ks_env)
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
-                    input=input, cell=cell, virial=virial, error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    mo_derivs=mo_derivs,&
+                    mos=mo_array,&
+                    rho=rho,&
+                    pw_env=pw_env,&
+                    input=input,&
+                    cell=cell,&
+                    virial=virial,&
+                    error=error)
+
     compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
 
@@ -291,7 +302,7 @@ CONTAINS
           ! compute the densities on the grid
           CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix,&
                 rho=rho_r(ispin),rho_gspace=rho_g(ispin), total_rho=total_rho,&
-                qs_env=qs_env, error=error)
+                ks_env=ks_env, error=error)
        ENDDO
 
        ! compute the exchange energies / potential if needed
@@ -410,6 +421,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc, &
                                                 vxc_tau
     TYPE(pw_pool_type), POINTER              :: xc_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(virial_type), POINTER               :: virial
@@ -420,11 +432,20 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(tau,vxc_tau, mo_derivs)
+    NULLIFY(tau,vxc_tau, mo_derivs, ks_env)
 
     ! generate the lists of orbitals that need sic treatment
-    CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
-                    input=input, cell=cell, virial=virial, error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    mo_derivs=mo_derivs,&
+                    mos=mo_array,&
+                    rho=rho,&
+                    pw_env=pw_env, &
+                    input=input,&
+                    cell=cell,&
+                    virial=virial,&
+                    error=error)
+
     compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
 
@@ -604,7 +625,7 @@ CONTAINS
 
        CALL calculate_rho_elec(matrix_p=orb_density_matrix,&
                 rho=orb_rho_r,rho_gspace=orb_rho_g, total_rho=total_rho,&
-                qs_env=qs_env, error=error)
+                ks_env=ks_env, error=error)
 
        ! write(*,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
        ! write(*,*) 'Total orbital rho= ',total_rho
@@ -1411,13 +1432,15 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(pw_env,auxbas_pw_pool,poisson_env)
-    CALL get_qs_env(qs_env=qs_env,&
-         pw_env=pw_env,&
-         error=error)
+    NULLIFY(pw_env,auxbas_pw_pool,poisson_env,ks_env)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    pw_env=pw_env,&
+                    error=error)
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
          poisson_env=poisson_env,error=error)
 
@@ -1429,7 +1452,7 @@ CONTAINS
     CPAssert(nspins==1,cp_failure_level,routineP,error,failure)
     CALL calculate_rho_elec(matrix_p=ep_qs_env%dH_coeffs(1)%matrix,&
          rho=ep_rho_r,rho_gspace=ep_rho_g, total_rho=ep_qs_env%tot_rho,&
-         qs_env=qs_env, error=error)
+         ks_env=ks_env, error=error)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_r%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_g,&
