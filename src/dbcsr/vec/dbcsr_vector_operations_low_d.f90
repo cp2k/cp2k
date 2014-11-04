@@ -46,7 +46,7 @@
                                                 myprow, nblk_col, nblk_row, &
                                                 ncols, pcol_group, &
                                                 prow_group, row, row_size, &
-                                                handle, handle1, ithread, i, j ,k
+                                                handle, handle1, ithread 
     LOGICAL                                  :: transposed
     REAL(kind=real_8), DIMENSION(:), POINTER          :: data_vec
     REAL(kind=real_8), DIMENSION(:, :), POINTER       :: data_d, vec_res
@@ -83,7 +83,7 @@
 ! It is important to note, that the input and result vector are sitributed differently (row wise, col wise respectively)
     CALL dbcsr_error_set(routineN//"_local_mm", handle1, error)
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread,i,j,k) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread) &
 !$OMP          SHARED(matrix,blk_map_row,blk_map_col,ncols)
     !$ ithread = omp_get_thread_num ()
     CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
