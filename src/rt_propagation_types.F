@@ -58,6 +58,7 @@ MODULE rt_propagation_types
 
  TYPE rtp_rho_type
     TYPE(cp_dbcsr_p_type),POINTER, DIMENSION(:) :: new
+    TYPE(cp_dbcsr_p_type),POINTER, DIMENSION(:) :: last_iter
     TYPE(cp_dbcsr_p_type),POINTER, DIMENSION(:) :: old
     TYPE(cp_dbcsr_p_type),POINTER, DIMENSION(:) :: next
  END TYPE rtp_rho_type
@@ -71,6 +72,7 @@ MODULE rt_propagation_types
  TYPE rtp_mos_type
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: new
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: old
+    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: last_iter
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: next
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: admm
  END TYPE rtp_mos_type
@@ -93,8 +95,11 @@ MODULE rt_propagation_types
     REAL(KIND=dp)                               :: energy_new
     REAL(KIND=dp)                               :: dt
     REAL(KIND=dp)                               :: delta_iter
+    REAL(KIND=dp)                               :: delta_iter_old
     REAL(KIND=dp)                               :: filter_eps
     REAL(KIND=dp)                               :: filter_eps_small
+    REAL(KIND=dp)                               :: mixing_factor
+    LOGICAL                                     :: mixing
     LOGICAL                                     :: do_hfx
     INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
     INTEGER                                     :: nsteps,istep,i_start
@@ -182,6 +187,8 @@ CONTAINS
        CALL cp_dbcsr_allocate_matrix_set(rtp%rho%next,2*nspin,error=error)
        NULLIFY(rtp%rho%new)
        CALL cp_dbcsr_allocate_matrix_set(rtp%rho%new,2*nspin,error=error)
+       NULLIFY(rtp%rho%last_iter)
+       CALL cp_dbcsr_allocate_matrix_set(rtp%rho%last_iter,2*nspin,error=error)
        DO i=1,2*nspin
           CALL cp_dbcsr_init_p(rtp%rho%old(i)%matrix,error=error)
           CALL cp_dbcsr_create(rtp%rho%old(i)%matrix,template=template,matrix_type="N",error=error)
@@ -189,6 +196,8 @@ CONTAINS
           CALL cp_dbcsr_create(rtp%rho%next(i)%matrix,template=template,matrix_type="N",error=error)
           CALL cp_dbcsr_init_p(rtp%rho%new(i)%matrix,error=error)
           CALL cp_dbcsr_create(rtp%rho%new(i)%matrix,template=template,matrix_type="N",error=error)
+          CALL cp_dbcsr_init_p(rtp%rho%last_iter(i)%matrix,error=error)
+          CALL cp_dbcsr_create(rtp%rho%last_iter(i)%matrix,template=template,matrix_type="N",error=error)
       END DO
     ELSE
        CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
@@ -212,6 +221,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(rtp%mos%next(2*nspin),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(rtp%mos%last_iter(2*nspin),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        NULLIFY(rtp%mos%admm)
        IF(dft_control%do_admm)THEN
           ALLOCATE(rtp%mos%admm(2*nspin),stat=stat)
@@ -231,6 +242,10 @@ CONTAINS
                   name="mos_new"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                   error=error)
              CALL cp_fm_create(rtp%mos%next(2*(i-1)+j)%matrix,&
+                  matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
+                  name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
+                  error=error)
+             CALL cp_fm_create(rtp%mos%last_iter(2*(i-1)+j)%matrix,&
                   matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
                   name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                   error=error)
@@ -324,16 +339,20 @@ CONTAINS
 !> \param rho_old ...
 !> \param rho_next ...
 !> \param rho_new ...
+!> \param rho_last_iter ...
 !> \param mos ...
 !> \param mos_new ...
 !> \param mos_old ...
 !> \param mos_next ...
+!> \param mos_last_iter ...
 !> \param S_inv ...
 !> \param S_half ...
 !> \param S_minus_half ...
 !> \param B_mat ...
 !> \param C_mat ...
 !> \param propagator_matrix ...
+!> \param mixing ...
+!> \param mixing_factor ...
 !> \param S_der ...
 !> \param dt ...
 !> \param nsteps ...
@@ -342,22 +361,27 @@ CONTAINS
 !> \param admm_mos ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,rho_old,rho_next,rho_new,mos,mos_new,mos_old,mos_next,&
-                     S_inv,S_half,S_minus_half,B_mat,C_mat,propagator_matrix,&
+  SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,rho_old,rho_next,rho_new,rho_last_iter,mos,mos_new,mos_old,mos_next,mos_last_iter,&
+                     S_inv,S_half,S_minus_half,B_mat,C_mat,propagator_matrix,mixing,mixing_factor,&
                      S_der,dt,nsteps,SinvH,SinvB,admm_mos,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exp_H_old, exp_H_new, &
-                                                rho_old, rho_next, rho_new
+                                                rho_old, rho_next, rho_new, &
+                                                rho_last_iter
     TYPE(rtp_mos_type), OPTIONAL, POINTER    :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next
+      OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next, &
+                                                mos_last_iter
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: S_inv, S_half, S_minus_half, &
                                                 B_mat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
-                                                S_der
+      OPTIONAL, POINTER                      :: C_mat, propagator_matrix
+    LOGICAL, OPTIONAL                        :: mixing
+    REAL(dp), INTENT(out), OPTIONAL          :: mixing_factor
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: S_der
     REAL(dp), INTENT(out), OPTIONAL          :: dt
     INTEGER, INTENT(out), OPTIONAL           :: nsteps
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -381,10 +405,12 @@ CONTAINS
     IF (PRESENT(rho_old)) rho_old=>rtp%rho%old
     IF (PRESENT(rho_next)) rho_next=>rtp%rho%next
     IF (PRESENT(rho_new)) rho_new=>rtp%rho%new
+    IF (PRESENT(rho_last_iter)) rho_last_iter=>rtp%rho%last_iter
     IF (PRESENT(mos))mos=>rtp%mos
     IF (PRESENT(mos_old))mos_old=>rtp%mos%old
     IF (PRESENT(mos_new))mos_new=>rtp%mos%new
     IF (PRESENT(mos_next))mos_next=>rtp%mos%next
+    IF (PRESENT(mos_last_iter))mos_last_iter=>rtp%mos%last_iter
     IF (PRESENT(admm_mos))admm_mos=>rtp%mos%admm
 
     IF(PRESENT(S_inv))S_inv=>rtp%S_inv
@@ -397,6 +423,8 @@ CONTAINS
     IF(PRESENT(S_der))S_der=>rtp%S_der
 
     IF(PRESENT(dt))dt=rtp%dt
+    IF(PRESENT(mixing))mixing=rtp%mixing
+    IF(PRESENT(mixing_factor))mixing_factor=rtp%mixing_factor
     IF(PRESENT(nsteps))nsteps=rtp%nsteps
 
   END SUBROUTINE get_rtp
@@ -429,6 +457,8 @@ CONTAINS
             CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%next,error)
        IF(ASSOCIATED(rtp%rho%new))&
             CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%new,error)
+       IF(ASSOCIATED(rtp%rho%last_iter))&
+            CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%last_iter,error)
        DEALLOCATE(rtp%rho,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
@@ -438,6 +468,8 @@ CONTAINS
       IF(ASSOCIATED(rtp%mos%new))&
          CALL cp_fm_vect_dealloc(rtp%mos%new,error)
       IF(ASSOCIATED(rtp%mos%next))&
+         CALL cp_fm_vect_dealloc(rtp%mos%next,error)
+      IF(ASSOCIATED(rtp%mos%last_iter))&
          CALL cp_fm_vect_dealloc(rtp%mos%next,error)
       IF(ASSOCIATED(rtp%mos%admm))&
          CALL cp_fm_vect_dealloc(rtp%mos%admm,error)
