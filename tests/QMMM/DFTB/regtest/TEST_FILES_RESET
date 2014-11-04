@@ -17,3 +17,8 @@ epc_1.inp
 epc_2.inp
 epc_3.inp
 epc_4.inp
+#undef value access
+epc_1.inp
+epc_2.inp
+epc_3.inp
+epc_4.inp
