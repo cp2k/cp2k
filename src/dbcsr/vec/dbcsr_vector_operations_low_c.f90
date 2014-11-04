@@ -46,7 +46,7 @@
                                                 myprow, nblk_col, nblk_row, &
                                                 ncols, pcol_group, &
                                                 prow_group, row, row_size, &
-                                                handle, handle1
+                                                handle, handle1, ithread, i, j ,k
     LOGICAL                                  :: transposed
     COMPLEX(kind=real_4), DIMENSION(:), POINTER          :: data_vec
     COMPLEX(kind=real_4), DIMENSION(:, :), POINTER       :: data_d, vec_res
@@ -56,6 +56,7 @@
     TYPE(dbcsr_iterator)                     :: iter
 
     CALL dbcsr_error_set(routineN, handle, error)
+    ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
     CALL dbcsr_get_info(matrix=matrix, distribution=distri)
@@ -81,20 +82,24 @@
 ! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
 ! It is important to note, that the input and result vector are sitributed differently (row wise, col wise respectively)
     CALL dbcsr_error_set(routineN//"_local_mm", handle1, error)
-    CALL dbcsr_iterator_start(iter, matrix)
+
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread,i,j,k) &
+!$OMP          SHARED(matrix,blk_map_row,blk_map_col,ncols)
+    !$ ithread = omp_get_thread_num ()
+    CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed, row_size=row_size, col_size=col_size)
        IF(ASSOCIATED(blk_map_row(col)%ptr).AND.ASSOCIATED(blk_map_col(row)%ptr))THEN
-          CALL cgemm('N', 'T', row_size, ncols, col_size, &
-                     CMPLX(1.0, 0.0, real_4), data_d, row_size, &
-                     blk_map_row(col)%ptr, ncols, CMPLX(1.0, 0.0, real_4), blk_map_col(row)%ptr, row_size)
+          IF(blk_map_col(row)%assigned_thread .NE. ithread ) CYCLE
+          blk_map_col(row)%ptr=blk_map_col(row)%ptr+MATMUL(data_d,TRANSPOSE(blk_map_row(col)%ptr))
        ELSE
-          CALL cgemm('T', 'T', col_size, ncols, row_size, &
-                     CMPLX(1.0, 0.0, real_4), data_d, row_size, &
-                     blk_map_row(row)%ptr, ncols, CMPLX(1.0, 0.0, real_4), blk_map_col(col)%ptr, col_size)
+          IF(blk_map_col(col)%assigned_thread .NE. ithread ) CYCLE
+          blk_map_col(col)%ptr=blk_map_col(col)%ptr+MATMUL(TRANSPOSE(data_d),TRANSPOSE(blk_map_row(row)%ptr))
        END IF
     END DO
     CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
+
     CALL dbcsr_error_stop(handle1, error)
 
 ! sum all the data onto the first processor col where the original vector is stored
@@ -133,7 +138,7 @@
                                                 myprow, nblk_col, nblk_row, &
                                                 ncols, pcol_group, &
                                                 prow_group, row, row_size, &
-                                                handle, handle1
+                                                handle, handle1, ithread
     LOGICAL                                  :: transposed
     COMPLEX(kind=real_4), DIMENSION(:), POINTER          :: data_vec
     COMPLEX(kind=real_4), DIMENSION(:, :), POINTER       :: data_d, vec_bl, vec_res
@@ -143,6 +148,7 @@
     TYPE(dbcsr_iterator)                     :: iter
 
     CALL dbcsr_error_set(routineN, handle, error)
+    ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
     CALL dbcsr_get_info(matrix=matrix, distribution=distri)
@@ -174,23 +180,24 @@
 ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
     CALL dbcsr_error_set(routineN//"local_mm", handle1, error)
     CALL dbcsr_get_info(matrix=work_col, nfullcols_local=ncols)
-    CALL dbcsr_iterator_start(iter, matrix)
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread) &
+!$OMP          SHARED(matrix,blk_map_row,blk_map_col,skip_diag,ncols)
+    !$ ithread = omp_get_thread_num ()
+    CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed, row_size=row_size, col_size=col_size)
        IF(skip_diag.AND.col==row)CYCLE
        IF(ASSOCIATED(blk_map_row(col)%ptr).AND.ASSOCIATED(blk_map_col(row)%ptr))THEN
-          CALL cgemm('T', 'N', ncols, col_size, row_size, &
-                     CMPLX(1.0, 0.0, real_4), blk_map_col(row)%ptr, row_size, &
-                     data_d, row_size, &
-                     CMPLX(1.0, 0.0, real_4), blk_map_row(col)%ptr, ncols)
+          IF(blk_map_row(col)%assigned_thread .NE. ithread ) CYCLE
+          blk_map_row(col)%ptr=blk_map_row(col)%ptr+MATMUL(TRANSPOSE(blk_map_col(row)%ptr),data_d)
        ELSE
-          CALL cgemm('T', 'T', ncols, row_size, col_size, &
-                     CMPLX(1.0, 0.0, real_4), blk_map_col(col)%ptr, col_size, &
-                     data_d, row_size, &
-                     CMPLX(1.0, 0.0, real_4), blk_map_row(row)%ptr, ncols)
+          IF(blk_map_row(row)%assigned_thread .NE. ithread ) CYCLE
+          blk_map_row(row)%ptr=blk_map_row(row)%ptr+MATMUL(TRANSPOSE(blk_map_col(col)%ptr),TRANSPOSE(data_d))
        END IF
     END DO
     CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
+
     CALL dbcsr_error_stop(handle1, error)
 
 ! sum all the data within a processor column to obtain the replicated result
@@ -338,17 +345,27 @@
     CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_row_vec_block_ptr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, row, handle
+    INTEGER                                  :: col, row, handle, iblock, nthreads
     LOGICAL                                  :: transposed
     COMPLEX(kind=real_4), DIMENSION(:, :), POINTER       :: vec_bl
     TYPE(dbcsr_iterator)                     :: iter
 
+    nthreads = 1
+!$OMP PARALLEL DEFAULT(NONE) SHARED(nthreads)
+!$OMP MASTER
+    !$ nthreads = OMP_GET_NUM_THREADS()
+!$OMP END MASTER
+!$OMP END PARALLEL
+
     CALL dbcsr_error_set(routineN, handle, error)
 
+    iblock=0
     CALL dbcsr_iterator_start(iter, row_vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, vec_bl, transposed)
+       iblock=iblock+1
        row_blk_ptr(col)%ptr=>vec_bl
+       row_blk_ptr(col)%assigned_thread=MOD(iblock,nthreads)
     END DO
     CALL dbcsr_iterator_stop(iter)
 
@@ -364,17 +381,27 @@
     CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_col_vec_block_ptr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, row, handle
+    INTEGER                                  :: col, row, handle, iblock, nthreads
     LOGICAL                                  :: transposed
     COMPLEX(kind=real_4), DIMENSION(:, :), POINTER       :: vec_bl
     TYPE(dbcsr_iterator)                     :: iter
 
     CALL dbcsr_error_set(routineN, handle, error)
 
+    nthreads = 1
+!$OMP PARALLEL DEFAULT(NONE) SHARED(nthreads)
+!$OMP MASTER
+    !$ nthreads = OMP_GET_NUM_THREADS()
+!$OMP END MASTER
+!$OMP END PARALLEL
+
+    iblock=0
     CALL dbcsr_iterator_start(iter, col_vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, vec_bl, transposed)
+       iblock=iblock+1
        col_blk_ptr(row)%ptr=>vec_bl
+       col_blk_ptr(row)%assigned_thread=MOD(iblock,nthreads)
     END DO
     CALL dbcsr_iterator_stop(iter)
 
