@@ -19,6 +19,7 @@ from urllib2 import urlopen
 from os import path
 from pprint import pformat
 from xml.dom import minidom
+from glob import glob
 
 #===============================================================================
 def main():
@@ -48,14 +49,8 @@ def main():
     threshold_rev = revs_beyond_threshold[0]
     print "threshold_rev: ", threshold_rev
 
-    output  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n'
-    output += '<html><head>\n'
-    output += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n'
-    output += '<meta http-equiv="refresh" content="200">\n'
-    output += '<title>CP2K Dashboard</title>\n'
-    output += '</head><body>\n'
-    output += '<center><h1>CP2K DASHBOARD</h1>\n'
-    output += '<table border="1" cellspacing="3" cellpadding="5">\n'
+    output  = html_header(title="CP2K Dashboard")
+    output += '<center><table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th></tr>\n\n'
 
@@ -70,46 +65,22 @@ def main():
         report_url  = config.get(s,"report_url")
         info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
 
-        try:
-            report_txt = urlopen(report_url, timeout=5).read()
-
-            if(report_type == "regtest"):
-                report = parse_regtest_report(report_txt)
-            elif(report_type == "generic"):
-                report = parse_generic_report(report_txt)
-            else:
-                raise(Exception("Unkown report_type"))
-
-            if(report['revision'] < threshold_rev):
+        report_txt = retrieve_report(report_url)
+        report = parse_report(report_txt, report_type)
+        if(report['revision']):
+            if(report['revision']<threshold_rev):
                 report['status'] = "OUTDATED"
-
             fn = outdir+"archive/%s/rev_%d.txt.gz"%(s,report['revision'])
             write_file(fn, report_txt, gz=True)
-        except:
-            print traceback.print_exc()
-            report = dict()
-            report['status'] = "UNKOWN"
-            report['summary'] = "Error while processing report."
 
         output += '<tr align="center">'
-        if(info_url):
-            output += '<td align="left"><a href="%s">%s</a></td>'%(info_url, name)
-        else:
-            output += '<td align="left">%s</td>'%name
+        output += '<td align="left"><a href="archive/%s/index.html">%s</a></td>'%(s, name)
         output += '<td align="left">%s</td>'%host
-
-        #Status
-        if(report['status'] == "OK"):
-            bgcolor = "#00FF00"
-        elif(report['status'] == "FAILED"):
-            bgcolor = "#FF0000"
-        else:
-            bgcolor = "#d3d3d3"
-        output += '<td bgcolor="%s"><a href="%s">%s</a></td>'%(bgcolor, report_url, report['status'])
+        output += status_cell(report['status'], report_url)
 
         #Revision
         if(report.has_key('revision')):
-            output += rev_link(report['revision'], trunk_revision)
+            output += revision_cell(report['revision'], trunk_revision)
             if(report['status'] == "OK"):
                 last_ok[s] = report['revision']
         else:
@@ -118,10 +89,10 @@ def main():
         #Summary
         output += '<td align="left">%s</td>'%report['summary']
 
-        #Since
+        #Last OK
         if(report['status'] != "OK"):
             if(last_ok.has_key(s)):
-                output += rev_link(last_ok[s], trunk_revision)
+                output += revision_cell(last_ok[s], trunk_revision)
             else:
                 output += '<td>N/A</td>'
         else:
@@ -129,12 +100,66 @@ def main():
 
         output += '</tr>\n\n'
 
-    output += '</table></center>\n'
-    output += '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
-    output += '</body></html>'
+        # generate archive index
+        archive_output = html_header(title=name)
+        if(info_url):
+            archive_output += '<p>For more Information <a href="%s">go here</a></p>'%info_url
+        archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
+        archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th></tr>\n\n'
+        for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
+            archive_output += '<tr align="center">'
+            report_txt = gzip.open(fn, 'rb').read()
+            report = parse_report(report_txt, report_type)
+            archive_output += revision_cell(report['revision'], trunk_revision)
+            archive_output += status_cell(report['status'], path.basename(fn)[:-3])
+            archive_output += '<td align="left">%s</td>'%report['summary']
+            archive_output += '</tr>\n\n'
+        archive_output += '</table>\n' + html_footer(now)
+        write_file(outdir+"archive/%s/index.html"%s, archive_output)
 
+    output += '</table></center>\n' + html_footer(now)
     write_file(status_fn, pformat(last_ok))
     write_file(outdir+"index.html", output)
+
+#===============================================================================
+def retrieve_report(report_url):
+    try:
+        return urlopen(report_url, timeout=5).read()
+    except:
+        print traceback.print_exc()
+        return None
+
+#===============================================================================
+def parse_report(report_txt, report_type):
+    if(report_txt==None):
+        return( {'status':'UNKOWN', 'summary':'Error while retrieving report.'} )
+    try:
+        if(report_type == "regtest"):
+            return parse_regtest_report(report_txt)
+        elif(report_type == "generic"):
+            return parse_generic_report(report_txt)
+        else:
+            raise(Exception("Unkown report_type"))
+    except:
+        print traceback.print_exc()
+        return( {'status':'UNKOWN', 'summary':'Error while parsing report.'} )
+
+#===============================================================================
+def html_header(title):
+    output  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n'
+    output += '<html><head>\n'
+    output += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n'
+    output += '<meta http-equiv="refresh" content="200">\n'
+    output += '<title>%s</title>\n'%title
+    output += '</head><body>\n'
+    output += '<center><h1>%s</h1></center>\n'%title.upper()
+    return(output)
+
+#===============================================================================
+def html_footer(now):
+    output  = '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
+    output += '</body></html>'
+    return(output)
 
 #===============================================================================
 def write_file(fn, content, gz=False):
@@ -162,7 +187,17 @@ def svn_log(limit=100):
     return(revisions)
 
 #===============================================================================
-def rev_link(rev, trunk_rev):
+def status_cell(status, report_url):
+    if(status == "OK"):
+        bgcolor = "#00FF00"
+    elif(status == "FAILED"):
+        bgcolor = "#FF0000"
+    else:
+        bgcolor = "#d3d3d3"
+    return('<td bgcolor="%s"><a href="%s">%s</a></td>'%(bgcolor, report_url, status))
+
+#===============================================================================
+def revision_cell(rev, trunk_rev):
     rev_url = "http://sourceforge.net/p/cp2k/code/%d/"%rev
     rev_delta = "(%d)"%(rev - trunk_rev)
     output = '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, rev, rev_delta)
