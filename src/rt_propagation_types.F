@@ -470,7 +470,7 @@ CONTAINS
       IF(ASSOCIATED(rtp%mos%next))&
          CALL cp_fm_vect_dealloc(rtp%mos%next,error)
       IF(ASSOCIATED(rtp%mos%last_iter))&
-         CALL cp_fm_vect_dealloc(rtp%mos%next,error)
+         CALL cp_fm_vect_dealloc(rtp%mos%last_iter,error)
       IF(ASSOCIATED(rtp%mos%admm))&
          CALL cp_fm_vect_dealloc(rtp%mos%admm,error)
       DEALLOCATE(rtp%mos,stat=stat)
