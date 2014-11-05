@@ -70,8 +70,10 @@ def main():
         if(report['revision']):
             if(report['revision']<threshold_rev):
                 report['status'] = "OUTDATED"
-            fn = outdir+"archive/%s/rev_%d.txt.gz"%(s,report['revision'])
-            write_file(fn, report_txt, gz=True)
+            else:
+                # store only fresh reports, prevents overwritting archive
+                fn = outdir+"archive/%s/rev_%d.txt.gz"%(s,report['revision'])
+                write_file(fn, report_txt, gz=True)
 
         output += '<tr align="center">'
         output += '<td align="left"><a href="archive/%s/index.html">%s</a></td>'%(s, name)
@@ -102,8 +104,9 @@ def main():
 
         # generate archive index
         archive_output = html_header(title=name)
+        archive_output += '<p>Go back to <a href="../../index/html">main page</a></p>'
         if(info_url):
-            archive_output += '<p>For more Information <a href="%s">go here</a></p>'%info_url
+            archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th></tr>\n\n'
         for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
