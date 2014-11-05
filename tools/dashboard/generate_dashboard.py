@@ -104,7 +104,7 @@ def main():
 
         # generate archive index
         archive_output = html_header(title=name)
-        archive_output += '<p>Go back to <a href="../../index/html">main page</a></p>'
+        archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>'
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
