@@ -67,7 +67,7 @@ def main():
 
         report_txt = retrieve_report(report_url)
         report = parse_report(report_txt, report_type)
-        if(report['revision']):
+        if(report.has_key('revision')):
             if(report['revision']<threshold_rev):
                 report['status'] = "OUTDATED"
             else:
