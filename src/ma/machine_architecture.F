@@ -472,6 +472,7 @@ CONTAINS
  FUNCTION ma_get_core_node(core) RESULT (node)
     INTEGER                                  :: core, node
 
+    node = -1
     STOP "ma_get_core_node: HWLOC not compiled in"
  END FUNCTION ma_get_core_node
 
@@ -484,6 +485,7 @@ CONTAINS
  FUNCTION ma_get_netDev(coreId, myRank) RESULT (netDev)
     INTEGER                                  :: coreId, myRank, netDev
 
+    netDev = -1
     STOP "ma_get_netDev: HWLOC not compiled in"
  END FUNCTION ma_get_netDev
 
@@ -495,6 +497,7 @@ CONTAINS
  FUNCTION ma_get_nnetDev(node) RESULT (nnetDev)
     INTEGER                                  :: node, nnetDev
 
+    nnetDev = -1
     STOP "ma_get_nnetDev: HWLOC not compiled in"
  END FUNCTION ma_get_nnetDev
 
@@ -505,6 +508,7 @@ CONTAINS
  FUNCTION ma_get_node_netDev() RESULT (node)
     INTEGER                                  :: node
 
+    node = -1
     STOP "ma_get_node_netDev: HWLOC not compiled in"
  END FUNCTION ma_get_node_netDev
 
@@ -515,6 +519,7 @@ CONTAINS
  FUNCTION ma_get_thread_id() RESULT (id)
     INTEGER                                  :: id
 
+    id = -1
     STOP "ma_get_thread_id: HWLOC not compiled in"
  END FUNCTION ma_get_thread_id
 
@@ -527,6 +532,7 @@ CONTAINS
  FUNCTION ma_hw_set_mempol(mempol, node) RESULT (error)
     INTEGER                                  :: mempol, node, error
 
+    error = -1
     STOP "ma_hw_set_mempol: HWLOC not compiled in"
  END FUNCTION ma_hw_set_mempol
 #endif

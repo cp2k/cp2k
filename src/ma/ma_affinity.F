@@ -1071,7 +1071,7 @@ END SUBROUTINE ma_get_mempol
     cardId = -1
 
 #if defined (__HWLOC)
-     cardId = ma_get_netdev(my_info%core, my_info%mp_info%myproc)
+     cardId = ma_get_netDev(my_info%core, my_info%mp_info%myproc)
 #endif
    END SUBROUTINE ma_get_net_affinity
 
