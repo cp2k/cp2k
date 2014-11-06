@@ -21,7 +21,8 @@ MODULE qs_scf_post_scptb
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE particle_list_types,             ONLY: particle_list_type
@@ -29,10 +30,7 @@ MODULE qs_scf_post_scptb
   USE population_analyses,             ONLY: mulliken_population_analysis
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
   USE timings,                         ONLY: timeset,&
@@ -49,8 +47,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
-!> \param dft_section ...
-!> \param scf_env the scf_env whose info should be written out
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -59,10 +55,8 @@ CONTAINS
 !> \author  Ralph Koitz
 !> \note
 ! *****************************************************************************
-  SUBROUTINE scf_post_calculation_scptb(dft_section, scf_env,qs_env, error)
+  SUBROUTINE scf_post_calculation_scptb(qs_env,error)
 
-    TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -95,8 +89,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, iw, &
                                                 output_unit, print_level, &
                                                 unit_nr
-    LOGICAL                                  :: failure, print_it, write_ks, &
-                                                write_xc
+    LOGICAL                                  :: explicit, failure, print_it
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -110,7 +103,9 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_subsys_type), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER         :: dft_section, input, print_key
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                print_key, print_section, &
+                                                wfn_mix_section
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -133,12 +128,21 @@ CONTAINS
                        para_env=para_env,&
                        error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+       print_section => section_vals_get_subs_vals(dft_section,"PRINT",error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
+
+       ! Dipole Moments
+       print_key => section_vals_get_subs_vals(print_section,"MOMENTS", error=error)
+       IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Multipole moments from SCPTB calculation currently " //&
+               "not supported", error=error, error_level=cp_warning_level)
+       END IF
 
        ! Print the total density (electronic + core charge)
        ! Not implemented so far.
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
+            "TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Printing of cube files from SCPTB calculation currently " //&
                 "not supported", error=error, error_level=cp_warning_level)
@@ -146,8 +150,8 @@ CONTAINS
 
        ! Write cube file with electron density
        ! Not implemented so far.
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%E_DENSITY_CUBE",error=error),cp_p_file)) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
+                 "E_DENSITY_CUBE",error=error),cp_p_file)) THEN
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Printing of cube files from SCPTB calculation currently " //&
                 "not supported", error=error, error_level=cp_warning_level)
@@ -156,8 +160,8 @@ CONTAINS
 
        ! Print the hartree potential
        ! Not implemented so far.
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
+            "V_HARTREE_CUBE",error=error),cp_p_file)) THEN
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Printing of cube files from SCPTB calculation currently " //&
                 "not supported", error=error, error_level=cp_warning_level)
@@ -165,8 +169,8 @@ CONTAINS
 
        ! Print the Electrical Field Components
        ! Not implemented so far.
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%EFIELD_CUBE",error=error),cp_p_file)) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
+            "EFIELD_CUBE",error=error),cp_p_file)) THEN
 
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="Printing of cube files from SCPTB calculation currently " //&
@@ -174,57 +178,21 @@ CONTAINS
        END IF
 
        ! Write the density matrices
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
+                 "AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger,input,"AO_MATRICES/DENSITY",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
              CALL cp_dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
-          CALL cp_print_key_finished_output(iw,logger,input,&
-                                            "DFT%PRINT%AO_MATRICES/DENSITY",&
-                                            error=error)
-       END IF
-
-       ! Write the Kohn-Sham matrices
-       write_ks=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
-       write_xc=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
-       ! we need to update stuff before writing, potentially computing the matrix_vxc
-       IF (write_ks .OR. write_xc) THEN
-          IF (write_xc) qs_env%requires_matrix_vxc=.TRUE.
-          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
-          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
-                                   just_energy=.FALSE., error=error)
-          IF (write_xc) qs_env%requires_matrix_vxc=.FALSE.
-       END IF
-
-       ! Write the Kohn-Sham matrices
-       IF (write_ks) THEN
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-                                    extension=".Log",error=error)
-          DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,&
-                                            para_env,output_unit=iw,error=error)
-          END DO
-          CALL cp_print_key_finished_output(iw,logger,input,&
-                                            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-                                            error=error)
-       END IF
-
-       ! If user asked for XC Matrix, fail.
-       IF (write_xc) THEN
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Printing of XC Matrix not possible in SCPTB calculation.", &
-                error=error, error_level=cp_warning_level)
+          CALL cp_print_key_finished_output(iw,logger,input,"AO_MATRICES/DENSITY",error=error)
        END IF
 
        ! Compute the Mulliken charges
-       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
+       print_key => section_vals_get_subs_vals(print_section,"MULLIKEN", error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
+          unit_nr=cp_print_key_unit_nr(logger,print_section,"MULLIKEN",extension=".mulliken",&
                                        middle_name="",log_filename=.FALSE.,error=error)
           print_level = 1
           CALL section_vals_val_get(print_key,"PRINT_GOP",l_val=print_it,error=error)
@@ -232,7 +200,112 @@ CONTAINS
           CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it,error=error)
           IF (print_it) print_level = 3
           CALL mulliken_population_analysis(qs_env,unit_nr,print_level,error)
-          CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
+          CALL cp_print_key_finished_output(unit_nr, logger,print_section,"MULLIKEN",error=error)
+       END IF
+
+       ! KINETIC ENERGY 
+       print_key => section_vals_get_subs_vals(print_section,"KINETIC_ENERGY",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Kinetic energy not available for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! Xray diffraction spectrum
+       print_key => section_vals_get_subs_vals(print_section,"XRAY_DIFFRACTION_SPECTRUM",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Xray diffraction spectrum not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! Electric field gradients
+       print_key => section_vals_get_subs_vals(print_section,"ELECTRIC_FIELD_GRADIENT",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Electric field gradient not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! STM
+       print_key => section_vals_get_subs_vals(print_section,"STM",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="STM not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! MO 
+       print_key => section_vals_get_subs_vals(print_section,"MO",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Printing of MO properties not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! MO CUBES
+       print_key => section_vals_get_subs_vals(print_section,"MO_CUBES",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Printing of MO cube files not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! Wavefunction mixing
+       wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX",error=error)
+       CALL section_vals_get(wfn_mix_section,explicit=explicit,error=error)
+       IF(explicit.AND..NOT.qs_env%run_rtp) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Wavefunction mixing not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! PLUS_U
+       print_key => section_vals_get_subs_vals(print_section,"PLUS_U",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="DFT+U method not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! PDOS
+       print_key => section_vals_get_subs_vals(print_section,"PDOS",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Projected DOS not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! V_XC CUBE FILE 
+       print_key => section_vals_get_subs_vals(print_section,"V_XC_CUBE",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="XC potential cube file not available for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! ELF
+       print_key => section_vals_get_subs_vals(print_section,"ELF_CUBE",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="ELF not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! EPR Hyperfine Coupling
+       print_key => section_vals_get_subs_vals(print_section,"HYPERFINE_COUPLING_TENSOR",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Hyperfine Coupling not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
+       END IF
+
+       ! Lowdin
+       print_key => section_vals_get_subs_vals(print_section,"LOWDIN", error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Lowdin population analysis not implemented for SCPTB method.", &
+            error=error, error_level=cp_warning_level)
        END IF
 
     END IF

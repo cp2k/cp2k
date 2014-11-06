@@ -1111,7 +1111,7 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="print",&
+       CALL section_create(section,name="PRINT",&
             description="Section of possible print options in DFT code.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -1699,7 +1699,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PDOS",&
             description="Print out the DOS projected per kind and per angular momentum  ",&
-            print_level=high_print_level,common_iter_levels=1,filename="",&
+            print_level=debug_print_level,common_iter_levels=1,filename="",&
             error=error)
        CALL keyword_create(keyword, name="COMPONENTS",&
             description="Print out pdos distinguishing all angular momentum components.",&
@@ -1972,7 +1972,7 @@ CONTAINS
             name="BASIS_MOLOPT_QUANTITIES",&
             description="Print the two quantities needed in the basis molopt generation:"//&
             " total energy and condition number of the overlap matrix (S matrix)",&
-            print_level=high_print_level,&
+            print_level=debug_print_level,&
             filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -2084,42 +2084,11 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-!    CALL keyword_create(keyword, name="STM",&
-!         description="do stm",&
-!         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-!    CALL section_add_keyword(print_key,keyword,error=error)
-!    CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="APPEND",&
          description="append the cube files when they already exist",&
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-
-!    CALL keyword_create(keyword, name="STM_BIAS",&
-!         description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
-!                     "Orbital densities are summed according to the bias energy."//&
-!                     "For negative values, states in the range ]EF+bias,EF] are summed,"//&
-!                     "While positive values sum states in the range [EF,EF+bias[."//&
-!                     "If postive biases are used, sufficiently many unoccupied stated"//&
-!                     " (see ADDED_MOS and NLUMO ) should be computed.",&
-!         n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
-!    CALL section_add_keyword(print_key,keyword,error=error)
-!    CALL keyword_release(keyword,error=error)
-
-!    CALL keyword_create(keyword, name="TH_TORB",&
-!         description="Tip orbital symmetry in Tersoff-Hamann approximation to compute STM images",&
-!         required=.FALSE.,&
-!         repeats=.TRUE.,&
-!         default_i_val=orb_s,&
-!         usage="TH_TORB s dz2",&
-!         enum_c_vals=s2a("S","PX","PY","PZ","DXY","DYZ","DZX","DX2","DY2","DZ2"),&
-!         enum_i_vals=(/orb_s,orb_px,orb_py,orb_pz,orb_dxy,orb_dyz,orb_dzx,orb_dx2,orb_dy2,orb_dz2/),&
-!         enum_desc=s2a("s orbital","px orbital","py orbital","pz orbital",&
-!         "dxy orbital","dyz orbital","dzx orbital","x^2 orbital","y^2 orbital","z^2 orbital"),&
-!         error=error)
-!    CALL section_add_keyword(print_key,keyword,error=error)
-!    CALL keyword_release(keyword,error=error)
 
   END SUBROUTINE create_mo_cubes_section
 
@@ -2141,7 +2110,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"STM",&
          description="Controls the printing of cubes for the generation of STM images.", &
-         print_level=high_print_level,filename="",&
+         print_level=debug_print_level,filename="",&
          error=error)
     CALL keyword_create(keyword, name="stride",&
          description="The stride (X,Y,Z) used to write the cube file "//&

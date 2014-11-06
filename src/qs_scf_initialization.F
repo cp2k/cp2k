@@ -834,17 +834,21 @@ CONTAINS
     CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control, error=error )
 
     IF (dft_control%qs_control%semi_empirical) THEN
-       CALL scf_post_calculation_se (dft_section, scf_env, qs_env, error)
+       CALL scf_post_calculation_se (dft_section, qs_env, error)
     ELSEIF (dft_control%qs_control%dftb) THEN
        CALL scf_post_calculation_dftb (dft_section, scf_env, qs_env, error)
     ELSEIF (dft_control%qs_control%scptb) THEN
-       CALL scf_post_calculation_scptb (dft_section, scf_env, qs_env, error)
+       CALL scf_post_calculation_scptb (qs_env, error)
     ELSEIF (dft_control%qs_control%do_kg) THEN
-       ! Do Nothing
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="No properties from PRINT section available for KG methods", &
+            error=error, error_level=cp_warning_level)
     ELSEIF (dft_control%qs_control%ofgpw) THEN
-       ! Do Nothing
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="No properties from PRINT section available for OFGPW methods", &
+            error=error, error_level=cp_warning_level)
     ELSEIF (dft_control%qs_control%lri_optbas.AND.dft_control%qs_control%gpw) THEN
-        CALL optimize_lri_basis(qs_env,error)
+       CALL optimize_lri_basis(qs_env,error)
     ELSE
        CALL scf_post_calculation_gpw (dft_section, scf_env, qs_env, error)
     END IF
