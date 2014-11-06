@@ -114,6 +114,9 @@ MODULE admm_dm_types
       DEALLOCATE(admm_dm%matrix_a)
     ENDIF
 
+    IF(ASSOCIATED(admm_dm%block_map))&
+      DEALLOCATE(admm_dm%block_map)
+
     DEALLOCATE(admm_dm%mcweeny_history)
     DEALLOCATE(admm_dm)
 
