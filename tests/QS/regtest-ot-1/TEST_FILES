@@ -50,3 +50,5 @@ vib-int-mixed.inp       8
 #broyden
 H2O-broyden-1.inp                 1     3e-14
 H2O-broyden-2.inp                 1     6e-14
+#inverse_update_preconditioner solve
+H2O-inverse_up.inp                1
