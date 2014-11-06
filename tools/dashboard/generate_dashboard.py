@@ -211,6 +211,12 @@ def parse_regtest_report(report_txt):
     report = dict()
     report['revision']  = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
 
+    m = re.search("make: .* Error .*", report_txt)
+    if(m):
+        report['status'] = "FAILED"
+        report['summary'] = "Compilation failed."
+        return(report)
+
     m = re.search("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
     runtime_errors = int(m.group(1))
     wrong_results  = int(m.group(2))
