@@ -337,7 +337,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: msg
-    INTEGER                                  :: handle, ispin, n_loops, icall
+    INTEGER                                  :: handle, icall, ispin, n_loops
     LOGICAL :: do_co_rotate, failure, my_convert_to_dbcsr, &
       my_has_unit_metric, my_mixed_precision, use_mo_coeff_b
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
