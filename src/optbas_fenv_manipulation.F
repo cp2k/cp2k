@@ -256,8 +256,10 @@ CONTAINS
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
     qs_env%requires_mo_derivs=.FALSE.
     dft_control%do_admm=.FALSE.
+    dft_control%do_admm_mo=.FALSE.
     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
     dft_control%do_admm=.TRUE.
+    dft_control%do_admm_mo=.TRUE.
 
    END SUBROUTINE calculate_ks_matrix
 

@@ -37,8 +37,9 @@ MODULE input_cp2k_dft
        do_admm_blocked_projection, do_admm_blocking_purify_full, &
        do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
        do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
-       do_admm_purify_mo_no_diag, do_admm_purify_none, do_arnoldi, do_bch, &
-       do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
+       do_admm_purify_mo_no_diag, do_admm_purify_none, &
+       do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
+       do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
        do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
        do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
        do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
@@ -3050,16 +3051,17 @@ CONTAINS
             keyword=keyword,&
             name="ADMM_PURIFICATION_METHOD",&
             description="Method that shall be used for wavefunction fitting. Use MO_DIAG for MD.",&
-            enum_c_vals=s2a("NONE","CAUCHY","CAUCHY_SUBSPACE","MO_DIAG", "MO_NO_DIAG", "MCWEENY"),&
+            enum_c_vals=s2a("NONE","CAUCHY","CAUCHY_SUBSPACE","MO_DIAG", "MO_NO_DIAG", "MCWEENY", "NONE_DM"),&
             enum_i_vals=(/do_admm_purify_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace,&
                           do_admm_purify_mo_diag, do_admm_purify_mo_no_diag,&
-                          do_admm_purify_mcweeny/),&
+                          do_admm_purify_mcweeny, do_admm_purify_none_dm/),&
             enum_desc=s2a("Do not apply any purification", &
                           "Perform purification via general Cauchy representation", &
                           "Perform purification via Cauchy representation in occupied subspace", &
                           "Calculate MO derivatives via Cauchy representation by diagonalization", &
                           "Calculate MO derivatives via Cauchy representation by inversion",&
-                          "Perform original McWeeny purification via matrix multiplications"), &
+                          "Perform original McWeeny purification via matrix multiplications",&
+                          "Do not apply any purification, works directly with density matrix"), &
             default_i_val=do_admm_purify_mo_diag, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3082,6 +3084,12 @@ CONTAINS
             description="Specifies a list of atoms.",&
             usage="LIST {integer} {integer} .. {integer}", required=.FALSE.,&
             n_var=-1, type_of_var=integer_t, repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_FILTER",&
+            description="Define accuracy of DBCSR operations",&
+            usage="EPS_FILTER",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

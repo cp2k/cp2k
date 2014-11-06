@@ -639,7 +639,9 @@ MODULE input_constants
                                               do_admm_purify_cauchy_subspace=3,&
                                               do_admm_purify_mo_diag=4,&
                                               do_admm_purify_mo_no_diag=5,&
-                                              do_admm_purify_mcweeny=6
+                                              do_admm_purify_mcweeny=6,&
+                                              do_admm_purify_none_dm=7
+
   ! This parameter defines when to use blocking
   INTEGER, PARAMETER, PUBLIC               :: do_admm_basis_projection=0,&
                                               do_admm_blocking_purify_full=1,&

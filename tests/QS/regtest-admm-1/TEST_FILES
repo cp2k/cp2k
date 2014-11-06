@@ -5,5 +5,4 @@ CH3-BP-MO_DIAG.inp                1     1e-13
 CH3-BP-MO_NO_DIAG.inp             1     1e-13
 CH3-BP-NONE.inp                   1     6e-14
 CH3-BP-NONE_OT_OFF.inp            1     2e-14
-CH3-BP-McWeeny.inp                1
 H2O-admm-emd.inp                  2

@@ -17,8 +17,11 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_ks_methods
-  USE admm_methods,                    ONLY: admm_merge_ks_matrix,&
-                                             admm_merge_mo_derivs
+  USE admm_dm_methods,                 ONLY: admm_dm_calc_rho_aux,&
+                                             admm_dm_merge_ks_matrix
+  USE admm_methods,                    ONLY: admm_mo_calc_rho_aux,&
+                                             admm_mo_merge_derivs,&
+                                             admm_mo_merge_ks_matrix
   USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
@@ -60,7 +63,7 @@ MODULE qs_ks_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
-  USE hfx_admm_utils,                  ONLY: admm_density_matrix,&
+  USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                              hfx_ks_matrix
   USE input_constants,                 ONLY: do_ppl_grid
   USE input_section_types,             ONLY: section_vals_get,&
@@ -135,7 +138,7 @@ MODULE qs_ks_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
-  USE rtp_admm_methods,                ONLY: rtp_admm_density_matrix,&
+  USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                              rtp_admm_merge_ks_matrix
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
   USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
@@ -223,16 +226,14 @@ CONTAINS
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ks_matrix, ks_matrix_im, &
-      matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_p, &
-      matrix_p_aux_fit, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-      matrix_vxc, mo_derivs, my_rho
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+      matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_s, &
+      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, my_rho
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array, mos_aux_fit
+      POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
       v_hartree_rspace, v_sic_rspace, v_spin_ddapc_rest_r
@@ -256,14 +257,14 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, becke, cell, dft_control, ep_qs_env, logger, &
-         mo_array, mo_coeff, mo_coeff_aux_fit, mo_derivs, mos_aux_fit, my_rho, &
-         rho_struct, para_env, pw_env, virial, vppl_rspace, v_hartree_rspace%pw,&
-         adiabatic_rescaling_section,hfx_sections,input, scf_section,xc_section,&
-         matrix_h,matrix_p,matrix_p_aux_fit,matrix_s, auxbas_pw_pool,&
-         poisson_env, pw_pools, v_rspace_new, v_rspace_new_aux_fit,&
-         v_tau_rspace,v_tau_rspace_aux_fit,matrix_vxc,matrix_ks_aux_fit,matrix_ks_aux_fit_im,&
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc,&
-         ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc)
+         mo_array, mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
+         vppl_rspace, v_hartree_rspace%pw, adiabatic_rescaling_section, &
+         hfx_sections, input, scf_section, xc_section, matrix_h, matrix_s, &
+         auxbas_pw_pool, poisson_env, pw_pools, v_rspace_new, &
+         v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
+         matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc, ks_env, &
+         ks_matrix, ks_matrix_im, rho, energy, rho_xc)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -500,13 +501,18 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
 
        ! calculate the density matrix for the fitted mo_coeffs
-       IF( dft_control%do_admm ) THEN
-          IF(.NOT.qs_env%run_rtp)THEN
-             CALL admm_density_matrix(qs_env,ks_env,dft_control,input,error=error)
-          ELSE
-             CALL rtp_admm_density_matrix(qs_env,ks_env,dft_control,input,error=error)
-          END IF
-       END IF
+       IF(dft_control%do_admm) THEN
+          CALL hfx_admm_init(qs_env, error)
+          IF(dft_control%do_admm_mo) THEN
+             IF(qs_env%run_rtp)THEN
+                CALL rtp_admm_calc_rho_aux(qs_env, error)
+             ELSE
+                CALL admm_mo_calc_rho_aux(qs_env, error)
+             END IF
+          ELSEIF(dft_control%do_admm_dm) THEN
+             CALL admm_dm_calc_rho_aux(ks_env, error)
+          ENDIF
+       ENDIF
 
        ! only activate stress calculation if
        IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
@@ -517,7 +523,6 @@ CONTAINS
        IF( dft_control%do_admm ) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env,error=error)
          xc_section => admm_env%xc_section_aux
-   
          IF (gapw_xc) THEN
            CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error)
          ELSE
@@ -703,40 +708,15 @@ CONTAINS
        ENDIF
 
        !** merge the auxiliary KS matrix and the primary one
-       IF( dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env,&
-                         mos=mo_array,&
-                         mos_aux_fit=mos_aux_fit,&
-                         rho=rho_struct,&
-                         error=error)
-         matrix_p => rho_struct%rho_ao
-         DO ispin=1,nspins
-           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
-           CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
-           IF(.NOT.qs_env%run_rtp)THEN
-              CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
-                   mo_coeff_aux_fit, ks_matrix, matrix_ks_aux_fit, matrix_s,&
-                   matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
-                   matrix_p_aux_fit, matrix_p, error)
-           ELSE
-              CALL rtp_admm_merge_ks_matrix(ispin=ispin,&
-                                            rtp=qs_env%rtp,&
-                                            admm_env=qs_env%admm_env,&
-                                            mo_set=mo_array(ispin)%mo_set,&
-                                            mo_coeff=mo_coeff,&
-                                            mo_coeff_aux_fit=mo_coeff_aux_fit,&
-                                            matrix_ks=ks_matrix,&
-                                            matrix_ks_im=ks_matrix_im,&
-                                            matrix_ks_aux_fit=matrix_ks_aux_fit,&
-                                            matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
-                                            matrix_s=matrix_s,&
-                                            matrix_p_aux_fit=matrix_p_aux_fit,&
-                                            matrix_p=matrix_p,&
-                                            error=error)
-
-           END IF
-         END DO
-       END IF
+       IF(dft_control%do_admm_mo) THEN
+         IF(qs_env%run_rtp) THEN
+            CALL rtp_admm_merge_ks_matrix(qs_env, error)
+         ELSE
+            CALL admm_mo_merge_ks_matrix(qs_env, error)
+         ENDIF
+       ELSEIF(dft_control%do_admm_dm) THEN
+         CALL admm_dm_merge_ks_matrix(ks_env, error)
+       ENDIF
 
        ! Right now we can compute the orbital derivative here, as it depends currently only on the available
        ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
@@ -1102,7 +1082,7 @@ CONTAINS
                     mos=mo_array,&
                     error=error)
 
-    IF(dft_control%do_admm) THEN !fm->dbcsr
+    IF(dft_control%do_admm_mo) THEN !fm->dbcsr
        NULLIFY(mo_derivs_tmp)!fm->dbcsr
        ALLOCATE(mo_derivs_tmp(SIZE(mo_derivs)))
        DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
@@ -1120,7 +1100,7 @@ CONTAINS
        CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
              0.0_dp,mo_derivs(ispin)%matrix, error=error)
 
-       IF( dft_control%do_admm) THEN
+       IF(dft_control%do_admm_mo) THEN
          CALL get_qs_env(qs_env,&
                          mos_aux_fit=mos_aux_fit,&
                          mo_derivs_aux_fit=mo_derivs_aux_fit,&
@@ -1130,7 +1110,7 @@ CONTAINS
 
          CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,&
               mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
-         CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, &
+         CALL admm_mo_merge_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, &
               mo_coeff, mo_coeff_aux_fit, mo_derivs_tmp, mo_derivs_aux_fit, &
               matrix_ks_aux_fit, error=error)
          CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)!fm->dbcsr
@@ -1157,7 +1137,7 @@ CONTAINS
 
     ENDDO
 
-    IF(dft_control%do_admm) THEN !fm->dbcsr
+    IF(dft_control%do_admm_mo) THEN !fm->dbcsr
        DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
           CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
        ENDDO!fm->dbcsr
@@ -1767,7 +1747,7 @@ CONTAINS
     END IF
 
     ! Allocate matrix_ks_aux_fit if requested and put it in the QS environment
-    IF( dft_control%do_admm) THEN
+    IF(dft_control%do_admm) THEN
        NULLIFY(matrix_ks_aux_fit)
        CALL get_qs_env(qs_env,&
                        matrix_ks_aux_fit=matrix_ks_aux_fit,&

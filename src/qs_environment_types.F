@@ -10,6 +10,7 @@
 !> \author MK (23.01.2002)
 ! *****************************************************************************
 MODULE qs_environment_types
+  USE admm_dm_types,                   ONLY: admm_dm_type
   USE admm_types,                      ONLY: admm_env_release,&
                                              admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -439,6 +440,7 @@ CONTAINS
 !> \param se_nddo_mpole ...
 !> \param se_nonbond_env ...
 !> \param admm_env ...
+!> \param admm_dm ...
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param hfx_ri_env ...
@@ -479,7 +481,7 @@ CONTAINS
        mo_derivs_aux_fit, mo_loc_history,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
-       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
+       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, admm_dm, &
        lri_env,lri_density,hfx_ri_env,dispersion_env, vee,rho_external,external_vxc,mask,&
        mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,v_hartree_rspace,&
        s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,mscfg_env,&
@@ -616,6 +618,7 @@ CONTAINS
     TYPE(fist_nonbond_env_type), OPTIONAL, &
       POINTER                                :: se_nonbond_env
     TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
+    TYPE(admm_dm_type), OPTIONAL, POINTER    :: admm_dm
     TYPE(lri_environment_type), OPTIONAL, &
       POINTER                                :: lri_env
     TYPE(lri_density_type), OPTIONAL, &
@@ -819,6 +822,7 @@ CONTAINS
                     blacs_env=blacs_env,&
                     nelectron_total=nelectron_total,&
                     nelectron_spin=nelectron_spin,&
+                    admm_dm=admm_dm,&
                     error=error)
 
   END SUBROUTINE get_qs_env

@@ -12,7 +12,6 @@
 !> \author Florian Schiffmann
 ! *****************************************************************************
 MODULE rtp_admm_methods
-  USE admm_methods,                    ONLY: create_admm_xc_section
   USE admm_types,                      ONLY: admm_env_create,&
                                              admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -42,12 +41,12 @@ MODULE rtp_admm_methods
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE hfx_admm_utils,                  ONLY: create_admm_xc_section
   USE input_constants,                 ONLY: do_admm_basis_projection,&
                                              do_admm_purify_none,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: one,&
@@ -77,7 +76,7 @@ MODULE rtp_admm_methods
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: rtp_admm_density_matrix,rtp_admm_merge_ks_matrix, rt_admm_force
+  PUBLIC :: rtp_admm_calc_rho_aux,rtp_admm_merge_ks_matrix, rt_admm_force
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rtp_admm_methods'
 
@@ -87,27 +86,19 @@ CONTAINS
 !> \brief  Compute the ADMM density matrix in case of rtp (complex MO's)
 !>
 !> \param qs_env ...
-!> \param ks_env ...
-!> \param dft_control ...
-!> \param input ...
 !> \param error ...
 !> \par History
 ! *****************************************************************************
-  SUBROUTINE  rtp_admm_density_matrix(qs_env,ks_env,dft_control,input,error)
+  SUBROUTINE  rtp_admm_calc_rho_aux(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_density_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_calc_rho_aux', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, n_rep_hf, &
-                                                nspins
-    LOGICAL                                  :: do_hfx, failure, &
-                                                s_mstruct_changed
+    INTEGER                                  :: handle, ispin, nspins
+    LOGICAL                                  :: failure, s_mstruct_changed
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_p_aux_fit, &
@@ -116,55 +107,36 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
     TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(section_vals_type), POINTER         :: hfx_sections
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
-         mos_aux_fit, para_env,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb, rho)
+    NULLIFY(admm_env, matrix_p, matrix_p_aux_fit, mos, &
+         mos_aux_fit, para_env,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb, rho,&
+         ks_env,dft_control)
 
-    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
-    !! ** ADMM can only be used with HFX
-    IF ( .NOT. do_hfx ) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "Wavefunction fitting requested without Hartree-Fock."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-    END IF
-
-    ! ** Method only implemented for GPW
-    IF( dft_control%qs_control%gapw ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-                               message="ADMM only implemented for GPW", &
-                               error=error, error_level=cp_failure_level)
-    END IF
-
-    nspins=dft_control%nspins
     CALL get_qs_env(qs_env,&
-                    mos_aux_fit=mos_aux_fit,&
-                    rtp=rtp,&
-                    mos=mos,&
                     admm_env=admm_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
                     para_env=para_env,&
                     matrix_s_aux_fit=matrix_s_aux_fit,&
                     matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
-                    s_mstruct_changed=s_mstruct_changed,&
+                    mos=mos,&
+                    mos_aux_fit=mos_aux_fit,&
+                    rtp=rtp,&
                     rho=rho,&
                     rho_aux_fit=rho_aux_fit,&
+                    s_mstruct_changed=s_mstruct_changed,&
                     error=error)
 
-    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
-    IF ( n_rep_hf > 1 ) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "ADMM can handle only one HF section."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-    END IF
+    nspins = dft_control%nspins
+
     CALL get_rtp(rtp=rtp,admm_mos=rtp_coeff_aux_fit,error=error)
     CALL rtp_admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
                             matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
@@ -175,15 +147,15 @@ CONTAINS
        matrix_p_aux_fit => rho_aux_fit%rho_ao
        matrix_p => rho%rho_ao
        CALL rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mos_aux_fit(ispin)%mo_set,&
-                                       matrix_p_aux_fit(ispin)%matrix,&
-                                       rho_aux_fit%rho_ao_im(ispin)%matrix,&
-                                       ispin,nspins,error)
+                                  matrix_p_aux_fit(ispin)%matrix,&
+                                  rho_aux_fit%rho_ao_im(ispin)%matrix,&
+                                  ispin,nspins,error)
        CALL calculate_rho_elec(matrix_p=rho_aux_fit%rho_ao(ispin)%matrix,&
-            rho=rho_aux_fit%rho_r(ispin),&
-            rho_gspace=rho_aux_fit%rho_g(ispin),&
-            total_rho=rho_aux_fit%tot_rho_r(ispin),&
-            ks_env=ks_env,soft_valid=.FALSE.,&
-            basis_set_id=use_aux_fit_basis_set, error=error)
+                                  rho=rho_aux_fit%rho_r(ispin),&
+                                  rho_gspace=rho_aux_fit%rho_g(ispin),&
+                                  total_rho=rho_aux_fit%tot_rho_r(ispin),&
+                                  ks_env=ks_env,soft_valid=.FALSE.,&
+                                  basis_set_id=use_aux_fit_basis_set, error=error)
     END DO
     CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
     rho_aux_fit%rho_r_valid=.TRUE.
@@ -191,7 +163,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE rtp_admm_density_matrix
+  END SUBROUTINE rtp_admm_calc_rho_aux
 
 ! *****************************************************************************
 !> \brief ...
@@ -514,60 +486,54 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param ispin ...
-!> \param rtp ...
-!> \param admm_env ...
-!> \param mo_set ...
-!> \param mo_coeff ...
-!> \param mo_coeff_aux_fit ...
-!> \param matrix_ks ...
-!> \param matrix_ks_im ...
-!> \param matrix_ks_aux_fit ...
-!> \param matrix_ks_aux_fit_im ...
-!> \param matrix_s ...
-!> \param matrix_p_aux_fit ...
-!> \param matrix_p ...
+!> \param qs_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rtp_admm_merge_ks_matrix(ispin,rtp, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
-                                             matrix_ks, matrix_ks_im, &
-                                             matrix_ks_aux_fit, matrix_ks_aux_fit_im,&
-                                             matrix_s, matrix_p_aux_fit, matrix_p, error)
-    INTEGER, INTENT(IN)                      :: ispin
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks, matrix_ks_im, &
-      matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_s, matrix_p_aux_fit, &
-      matrix_p
+  SUBROUTINE rtp_admm_merge_ks_matrix(qs_env, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_merge_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_ks_aux_fit_im, &
+                                                matrix_ks_im
+    TYPE(dft_control_type), POINTER          :: dft_control
 
     failure = .FALSE.
-
+    NULLIFY(admm_env, dft_control,&
+            matrix_ks, matrix_ks_im, matrix_ks_aux_fit, matrix_ks_aux_fit_im)
     CALL timeset(routineN,handle)
 
-    SELECT CASE(admm_env%purification_method)
-    CASE(do_admm_purify_none)
-       CALL rt_merge_ks_matrix_none(ispin, admm_env, &
-            matrix_ks, matrix_ks_aux_fit, &
-            error)
-       CALL rt_merge_ks_matrix_none(ispin, admm_env, &
-            matrix_ks_im, matrix_ks_aux_fit_im, &
-            error)
-    CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "only purification NONE possible with RTP/EMD at the moment"//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-    END SELECT
+    CALL get_qs_env(qs_env,&
+                    admm_env=admm_env,&
+                    dft_control=dft_control,&
+                    matrix_ks=matrix_ks,&
+                    matrix_ks_im=matrix_ks_im,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
+                    error=error)
 
+    DO ispin=1, dft_control%nspins
+
+       SELECT CASE(admm_env%purification_method)
+       CASE(do_admm_purify_none)
+          CALL rt_merge_ks_matrix_none(ispin, admm_env, &
+                                       matrix_ks, matrix_ks_aux_fit, error)
+          CALL rt_merge_ks_matrix_none(ispin, admm_env,&
+                                       matrix_ks_im, matrix_ks_aux_fit_im, error)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                         "only purification NONE possible with RTP/EMD at the moment"//&
+                          CPSourceFileRef, only_ionode=.TRUE.)
+       END SELECT
+
+    ENDDO !spin loop
     CALL timestop(handle)
 
   END SUBROUTINE rtp_admm_merge_ks_matrix

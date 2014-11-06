@@ -340,7 +340,7 @@ CONTAINS
        END IF
 
        ! Add forces resulting from wavefunction fitting
-       IF (dft_control%do_admm.AND..NOT.qs_env%run_rtp ) THEN
+       IF (dft_control%do_admm_mo.AND..NOT.qs_env%run_rtp ) THEN
           CALL get_qs_env(qs_env=qs_env,&
                matrix_s_aux_fit=matrix_s_aux_fit,&
                matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
@@ -359,14 +359,13 @@ CONTAINS
                      mo_coeff, mo_coeff_aux_fit, matrix_ks_aux_fit, error=error)
                 IF(.FALSE.) CALL cp_fm_write(admm_env%H(ispin)%matrix, handle, .TRUE., .FALSE., error)
              END IF
-
              use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-
-             CALL calc_mixed_overlap_force(qs_env, para_env, ispin, admm_env, mo_coeff, &
-                                           matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger, &
-                                           iw, use_virial, error)
           END DO
+          CALL calc_mixed_overlap_force(qs_env, error)
        END IF
+
+       IF (dft_control%do_admm_dm)&
+          STOP "qs_force: Forces with ADMM DM methods not implemented"
 
        !  *** replicate forces ***
        DO ikind=1,SIZE(force)

@@ -159,3 +159,4 @@ QMMM/DFTB/regtest
 NEB/regtest-3
 QS/regtest-lsroks
 FE/regtest-2
+QS/regtest-admm-dm

@@ -10,6 +10,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_ks_types
+  USE admm_dm_types,                   ONLY: admm_dm_release,&
+                                             admm_dm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_type
   USE cell_types,                      ONLY: cell_type
@@ -198,6 +200,7 @@ MODULE qs_ks_types
     TYPE(pw_env_type), POINTER                            :: pw_env => Null()
     TYPE(cp_para_env_type), POINTER                       :: para_env => Null()
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env => Null()
+    TYPE(admm_dm_type), POINTER                           :: admm_dm => Null()
   END TYPE qs_ks_env_type
 
 ! *****************************************************************************
@@ -316,6 +319,7 @@ END SUBROUTINE qs_ks_env_create
 !> \param blacs_env ...
 !> \param nelectron_total ...
 !> \param nelectron_spin ...
+!> \param admm_dm ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_ks_env(ks_env,v_hartree_rspace,&
@@ -337,7 +341,7 @@ END SUBROUTINE qs_ks_env_create
                         particle_set,energy,force,local_particles,local_molecules,&
                         molecule_kind_set,molecule_set,subsys,cp_subsys,virial,results,atprop,&
                         nkind, natom, dft_control,dbcsr_dist,distribution_2d,pw_env,&
-                        para_env,blacs_env, nelectron_total, nelectron_spin,&
+                        para_env,blacs_env, nelectron_total, nelectron_spin,admm_dm,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -401,6 +405,7 @@ END SUBROUTINE qs_ks_env_create
       POINTER                                :: blacs_env
     INTEGER, OPTIONAL                        :: nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
+    TYPE(admm_dm_type), OPTIONAL, POINTER    :: admm_dm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "get_ks_env: not associated"
@@ -462,6 +467,7 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(pw_env)) pw_env => ks_env%pw_env
      IF (PRESENT(para_env)) para_env => ks_env%para_env
      IF (PRESENT(blacs_env)) blacs_env => ks_env%blacs_env
+     IF (PRESENT(admm_dm)) admm_dm => ks_env%admm_dm
 
      IF (PRESENT(kpoints)) kpoints => ks_env%kpoints
      IF (PRESENT(do_kpoints)) THEN
@@ -549,6 +555,7 @@ END SUBROUTINE qs_ks_env_create
 !> \param pw_env ...
 !> \param para_env ...
 !> \param blacs_env ...
+!> \param admm_dm ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_ks_env(ks_env,v_hartree_rspace,&
@@ -564,7 +571,7 @@ END SUBROUTINE qs_ks_env_create
                         sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
                         task_list,task_list_aux_fit,task_list_soft,&
                         subsys,dft_control,dbcsr_dist,distribution_2d,pw_env,&
-                        para_env,blacs_env,&
+                        para_env,blacs_env,admm_dm,&
                         error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -599,6 +606,7 @@ END SUBROUTINE qs_ks_env_create
       POINTER                                :: para_env
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env
+    TYPE(admm_dm_type), OPTIONAL, POINTER    :: admm_dm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
      IF(.NOT. ASSOCIATED(ks_env)) STOP "set_ks_env: not associated"
@@ -648,6 +656,7 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_tbe)) ks_env%sab_tbe => sab_tbe
      IF (PRESENT(sab_core)) ks_env%sab_core => sab_core
      IF (PRESENT(sab_almo)) ks_env%sab_almo => sab_almo
+     IF (PRESENT(admm_dm)) ks_env%admm_dm => admm_dm
 
      IF (PRESENT(task_list)) ks_env%task_list=>task_list
      IF (PRESENT(task_list_aux_fit)) ks_env%task_list_aux_fit=>task_list_aux_fit
@@ -811,6 +820,8 @@ END SUBROUTINE qs_ks_env_create
           CALL pw_env_release(ks_env%pw_env, error=error)
           CALL cp_para_env_release(ks_env%para_env,error=error)
           CALL cp_blacs_env_release(ks_env%blacs_env, error=error)
+          CALL admm_dm_release(ks_env%admm_dm, error=error)
+
           DEALLOCATE(ks_env)
        END IF
     END IF

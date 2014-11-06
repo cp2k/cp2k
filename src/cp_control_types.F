@@ -247,6 +247,7 @@ MODULE cp_control_types
   END TYPE admm_block_type
 
   TYPE admm_control_type
+    REAL(KIND = dp)                 :: eps_filter
     INTEGER                         :: purification_method
     INTEGER                         :: method
     TYPE(admm_block_type), DIMENSION(:), &
@@ -387,6 +388,8 @@ MODULE cp_control_types
                                           apply_external_potential,&
                                           eval_external_potential,&
                                           do_admm,&
+                                          do_admm_mo,&
+                                          do_admm_dm,&
                                           smear,&
                                           low_spin_roks,&
                                           apply_external_density,&

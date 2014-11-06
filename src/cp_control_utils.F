@@ -22,8 +22,9 @@ MODULE cp_control_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       constant_env, do_admm_basis_projection, do_admm_purify_mo_diag, &
-       do_admm_purify_mo_no_diag, do_ddapc_constraint, do_ddapc_restraint, &
+       constant_env, do_admm_basis_projection, do_admm_purify_mcweeny, &
+       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+       do_admm_purify_none_dm, do_ddapc_constraint, do_ddapc_restraint, &
        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
        do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
@@ -187,12 +188,16 @@ CPSourceFileRef,&
     !! check if we do wavefunction fitting
     tmp_section => section_vals_get_subs_vals(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD",error=error)
     CALL section_vals_get(tmp_section,explicit=is_present,error=error)
-    dft_control%do_admm = is_present
+    dft_control%do_admm    = is_present
+    dft_control%do_admm_mo = .FALSE.
+    dft_control%do_admm_dm = .FALSE.
     IF(is_present) THEN
       do_ot = .FALSE.
       CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=do_ot,error=error)
       CALL admm_control_create(dft_control%admm_control, error)
 
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%EPS_FILTER",&
+                                r_val=dft_control%admm_control%eps_filter, error=error)
       CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD",i_val=method_id,error=error)
       dft_control%admm_control%purification_method = method_id
 
@@ -201,17 +206,24 @@ CPSourceFileRef,&
 
       CALL read_admm_block_list(dft_control%admm_control, dft_section, error)
 
-      IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag .OR. &
+      IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag    .OR. &
          dft_control%admm_control%purification_method == do_admm_purify_mo_no_diag) THEN
           IF( dft_control%admm_control%method /= do_admm_basis_projection ) &
             CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: MO-based purification requires BASIS_PROJECTION", &
+              message="ADMM: Chosen purification requires BASIS_PROJECTION", &
                                         error=error, error_level=cp_failure_level)
 
            IF( .NOT. do_ot) CALL cp_unimplemented_error(fromWhere=routineP, &
                                message="ADMM: MO-based purification requires OT.", &
                                error=error, error_level=cp_failure_level)
       END IF
+
+      IF(dft_control%admm_control%purification_method == do_admm_purify_none_dm .OR. &
+         dft_control%admm_control%purification_method == do_admm_purify_mcweeny) THEN
+           dft_control%do_admm_dm = .TRUE.
+      ELSE
+           dft_control%do_admm_mo = .TRUE.
+      ENDIF
     END IF
 
     ! Set restricted to true, if both OT and ROKS are requested
