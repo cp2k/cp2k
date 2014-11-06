@@ -7,4 +7,4 @@ CH3-BP-NONE_DM_OT_OFF.inp         1
 CH4-BP-NONE_DM.inp                1
 CH4-BP-NONE_DM_OT_OFF.inp         1
 2H2O-BLOCKED-NONE_DM.inp          1
-H2+-BLOCKED-NONE_DM.inp           1
+H2+-BLOCKED-NONE_DM.inp           1    5e-14
