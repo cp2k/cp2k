@@ -993,3 +993,4 @@ He2_ddapc_constraint-3.inp
 He2_none.inp
 #do not accumulate shift in outer scf preconditioner
 He2_ddapc_constraint-4.inp
+He2_ddapc_constraint-2.inp
