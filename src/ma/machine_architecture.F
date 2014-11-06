@@ -37,7 +37,7 @@ MODULE machine_architecture
 
   PUBLIC :: ma_init_machine, ma_finalize_machine
 
-  PUBLIC :: ma_get_id
+  PUBLIC :: ma_get_id, ma_get_thread_id
 
   PUBLIC :: ma_get_nnodes, ma_get_ncores
   PUBLIC :: ma_get_nmachines
@@ -49,11 +49,9 @@ MODULE machine_architecture
   PUBLIC :: ma_show_topology, ma_show_machine_branch
   PUBLIC :: ma_show_machine_full
 
-#if defined (__HWLOC)
-#endif
-
-#if defined (__LIBNUMA)
-#endif
+  PUBLIC :: ma_get_netDev, ma_get_nnetDev
+  PUBLIC :: ma_get_node_netDev, ma_get_core_node
+  PUBLIC :: ma_hw_set_mempol
 
   ! These are for Machine architecture internal use.
   !
@@ -464,6 +462,75 @@ MODULE machine_architecture
 
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Empty routines needed to compile without HWLOC
+!> \param core ...
+!> \retval node ...
+! *****************************************************************************
+#if !defined (__HWLOC)
+ FUNCTION ma_get_core_node(core) RESULT (node)
+    INTEGER                                  :: core, node
+
+    STOP "ma_get_core_node: HWLOC not compiled in"
+ END FUNCTION ma_get_core_node
+
+! *****************************************************************************
+!> \brief ...
+!> \param coreId ...
+!> \param myRank ...
+!> \retval netDev ...
+! *****************************************************************************
+ FUNCTION ma_get_netDev(coreId, myRank) RESULT (netDev)
+    INTEGER                                  :: coreId, myRank, netDev
+
+    STOP "ma_get_netDev: HWLOC not compiled in"
+ END FUNCTION ma_get_netDev
+
+! *****************************************************************************
+!> \brief ...
+!> \param node ...
+!> \retval nnetDev ...
+! *****************************************************************************
+ FUNCTION ma_get_nnetDev(node) RESULT (nnetDev)
+    INTEGER                                  :: node, nnetDev
+
+    STOP "ma_get_nnetDev: HWLOC not compiled in"
+ END FUNCTION ma_get_nnetDev
+
+! *****************************************************************************
+!> \brief ...
+!> \retval node ...
+! *****************************************************************************
+ FUNCTION ma_get_node_netDev() RESULT (node)
+    INTEGER                                  :: node
+
+    STOP "ma_get_node_netDev: HWLOC not compiled in"
+ END FUNCTION ma_get_node_netDev
+
+! *****************************************************************************
+!> \brief ...
+!> \retval id ...
+! *****************************************************************************
+ FUNCTION ma_get_thread_id() RESULT (id)
+    INTEGER                                  :: id
+
+    STOP "ma_get_thread_id: HWLOC not compiled in"
+ END FUNCTION ma_get_thread_id
+
+! *****************************************************************************
+!> \brief ...
+!> \param mempol ...
+!> \param node ...
+!> \retval error ...
+! *****************************************************************************
+ FUNCTION ma_hw_set_mempol(mempol, node) RESULT (error)
+    INTEGER                                  :: mempol, node, error
+
+    STOP "ma_hw_set_mempol: HWLOC not compiled in"
+ END FUNCTION ma_hw_set_mempol
+#endif
+
 
 ! *****************************************************************************
 !> \brief Initialize the machine abstraction library
