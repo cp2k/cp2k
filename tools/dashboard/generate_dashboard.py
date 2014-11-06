@@ -38,14 +38,14 @@ def main():
     else:
         last_ok = dict()
 
-    svn_info = check_output("svn info svn://svn.code.sf.net/p/cp2k/code/trunk".split())
-    trunk_revision = int(re.search('Last Changed Rev: (\d+)\n', svn_info).group(1))
+    log = svn_log()
+    trunk_revision = log[0]['num']
+    log_index = dict([(r['num'], r) for r in log])
 
     # find latest revision that should have been tested by now
     now = datetime.utcnow().replace(microsecond=0)
     freshness_threshold = now - timedelta(hours=25)
-    log = svn_log()
-    revs_beyond_threshold = [r for r, d in log if d < freshness_threshold]
+    revs_beyond_threshold = [ r['num'] for r in log if r['date'] < freshness_threshold ]
     threshold_rev = revs_beyond_threshold[0]
     print "threshold_rev: ", threshold_rev
 
@@ -108,7 +108,7 @@ def main():
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
-        archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th></tr>\n\n'
+        archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
         for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
             archive_output += '<tr align="center">'
             report_txt = gzip.open(fn, 'rb').read()
@@ -116,6 +116,9 @@ def main():
             archive_output += revision_cell(report['revision'], trunk_revision)
             archive_output += status_cell(report['status'], path.basename(fn)[:-3])
             archive_output += '<td align="left">%s</td>'%report['summary']
+            rev = log_index[report['revision']]
+            archive_output += '<td align="left">%s</td>'%rev['author']
+            archive_output += '<td align="left">%s</td>'%rev['msg'].split("\n")[0]
             archive_output += '</tr>\n\n'
         archive_output += '</table>\n' + html_footer(now)
         write_file(outdir+"archive/%s/index.html"%s, archive_output)
@@ -176,17 +179,23 @@ def write_file(fn, content, gz=False):
     print("Wrote: "+fn)
 
 #===============================================================================
-def svn_log(limit=100):
+def svn_log(limit=500):
+    sys.stdout.write("Fetching svn log... ")
+    sys.stdout.flush()
     # xml version contains nice UTC timestamp
     cmd = "svn log --limit %d svn://svn.code.sf.net/p/cp2k/code/trunk --xml"%limit
     log_xml = check_output(cmd.split())
     dom = minidom.parseString(log_xml)
     revisions = []
     for entry in dom.getElementsByTagName("logentry"):
-        rev_num = int(entry.attributes['revision'].value)
+        rev = dict()
+        rev['num'] = int(entry.attributes['revision'].value)
         rev_date_str = entry.getElementsByTagName('date')[0].firstChild.nodeValue
-        rev_date = datetime.strptime(rev_date_str[:19], '%Y-%m-%dT%H:%M:%S')
-        revisions.append( (rev_num, rev_date) )
+        rev['date'] = datetime.strptime(rev_date_str[:19], '%Y-%m-%dT%H:%M:%S')
+        rev['author'] = entry.getElementsByTagName('author')[0].firstChild.nodeValue
+        rev['msg'] = entry.getElementsByTagName('msg')[0].firstChild.nodeValue
+        revisions.append(rev)
+    print("done.")
     return(revisions)
 
 #===============================================================================
