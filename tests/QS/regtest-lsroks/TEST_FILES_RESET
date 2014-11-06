@@ -57,3 +57,5 @@ LM-KSDO.inp
 Al2O3.inp
 #  
 O2.inp
+#do not accumulate shift in outer scf preconditioner
+O2.inp

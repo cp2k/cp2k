@@ -920,7 +920,7 @@ CONTAINS
 
     ! get an upper bound for the largest eigenvalue
     ! try using lancos first and fall back to gershgorin norm if it fails
-    max_iter=12; threshold=1.0E-03_dp
+    max_iter=30; threshold=1.0E-03_dp
     CALL lanczos_alg_serial(qs_ot_env%matrix_p, max_ev, min_ev, converged, threshold, max_iter, error=error)
     qs_ot_env % largest_eval_upper_bound=MAX(max_ev,ABS(min_ev))
 

@@ -734,3 +734,6 @@ H2O-broyden-1.inp
 H2O-broyden-2.inp
 #  
 H2O-OT-1.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-broyden-1.inp
+H2O-broyden-2.inp

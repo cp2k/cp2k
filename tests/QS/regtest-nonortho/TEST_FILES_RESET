@@ -204,3 +204,5 @@ graph_b111_gapw.inp
 graph_b111.inp
 # stabilize BFGS with model Hessian 
 graph_b111_gapw.inp
+#do not accumulate shift in outer scf preconditioner
+graphite-lumo.inp

@@ -41,7 +41,7 @@ MODULE preconditioner_types
 ! *****************************************************************************
   TYPE preconditioner_type
 !    PRIVATE
-       TYPE(cp_dbcsr_type),    POINTER :: sparse_matrix,sparse_matrix_inner
+       TYPE(cp_dbcsr_type),    POINTER :: sparse_matrix
        TYPE(cp_fm_type), POINTER :: fm
        TYPE(cp_dbcsr_type), POINTER           :: dbcsr_matrix
        TYPE(cp_para_env_type),  POINTER   :: para_env
@@ -86,7 +86,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY(preconditioner_env%sparse_matrix)
-    NULLIFY(preconditioner_env%sparse_matrix_inner)
     NULLIFY(preconditioner_env%fm)
     NULLIFY(preconditioner_env%dbcsr_matrix)
     NULLIFY(preconditioner_env%occ_evals)
@@ -120,9 +119,6 @@ CONTAINS
     IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
        CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
        NULLIFY(preconditioner_env%sparse_matrix)
-    ENDIF
-    IF (ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-       CALL cp_dbcsr_release_p (preconditioner_env%sparse_matrix_inner, error=error)
     ENDIF
 
     IF (ASSOCIATED(preconditioner_env%fm)) THEN

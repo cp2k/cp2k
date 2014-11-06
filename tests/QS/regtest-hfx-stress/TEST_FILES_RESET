@@ -8,3 +8,7 @@ ch3-admm.inp
 ch3.inp
 ch4-admm.inp
 h2o.inp
+#do not accumulate shift in outer scf preconditioner
+ch3-admm.inp
+#do not accumulate shift in outer scf preconditioner
+ch4-admm.inp

@@ -83,7 +83,6 @@ MODULE qs_scf
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: prepare_preconditioner,&
                                              restart_preconditioner
-  USE preconditioner_types,            ONLY: destroy_preconditioner
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
@@ -716,11 +715,11 @@ CPSourceFileRef)
           END IF
 
           CALL prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,scf_env%ot_preconditioner,&
-              scf_env%qs_ot_env(1)%settings%preconditioner_type,&
-              scf_env%qs_ot_env(1)%settings%precond_solver_type,&
-              scf_env%qs_ot_env(1)%settings%energy_gap,dft_control%nspins,&
-              has_unit_metric=has_unit_metric,&
-              mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision,error=error)
+               scf_env%qs_ot_env(1)%settings%preconditioner_type,&
+               scf_env%qs_ot_env(1)%settings%precond_solver_type,&
+               scf_env%qs_ot_env(1)%settings%energy_gap,dft_control%nspins,&
+               has_unit_metric=has_unit_metric,&
+               mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision,error=error)
 
           ! we have to treat the semi-empirical methods separately
           IF ( scp_nddo ) THEN
@@ -846,12 +845,7 @@ CPSourceFileRef)
 ! *** method dependent cleanup
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
-          DO ispin=1,SIZE(scf_env%ot_preconditioner)
-             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
-             DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
-          ENDDO
-          DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          !
        CASE(ot_diag_method_nr)
           !
        CASE(general_diag_method_nr)

@@ -591,3 +591,11 @@ H2O-uks-u_ramping.inp
 H2O-rks-u_ramping_reset.inp
 #  
 H2O-uks-u_ramping_reset.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-rks-u_ramping.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-uks-u_ramping.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-rks-u_ramping_reset.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-uks-u_ramping_reset.inp

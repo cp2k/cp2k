@@ -63,8 +63,9 @@ MODULE input_cp2k_dft
        ot_precond_full_single, ot_precond_full_single_inverse, &
        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
        ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-       outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
-       outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       ot_precond_solver_update, outer_scf_becke_constraint, &
+       outer_scf_ddapc_constraint, outer_scf_none, &
+       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_scp, plus_u_lowdin, &
        plus_u_mulliken, plus_u_mulliken_charges, pulay_mix, pw_interp, &
@@ -6171,14 +6172,17 @@ CONTAINS
             description="How the preconditioner is applied to the residual.",&
             usage="PRECOND_SOLVER DIRECT",&
             default_i_val=ot_precond_solver_default,&
-            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY"),&
+            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY","INVERSE_UPDATE"),&
             enum_desc=s2a("the default","Cholesky decomposition followed by triangular solve "//&
             "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
             "Cholesky decomposition followed by explicit inversion "//&
-            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
+            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
+            "Performs a Hotelling update of the inverse if a previous preconditioner is present. "//&
+            "Mainly useful for GPU accelerated systems (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
             enum_i_vals=(/ot_precond_solver_default,&
             ot_precond_solver_direct,&
-            ot_precond_solver_inv_chol/),&
+            ot_precond_solver_inv_chol,&
+            ot_precond_solver_update/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

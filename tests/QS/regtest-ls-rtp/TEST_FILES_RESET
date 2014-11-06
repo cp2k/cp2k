@@ -20,3 +20,11 @@ emd-KG.inp
 H2plus-ls-rtp.inp
 H2O-ls-ortho-emd.inp
 
+#do not accumulate shift in outer scf preconditioner
+H2O-ls-emd.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-ls-emd-scf-restart.inp
+H2O-ls-emd-mcweeny-rt-restart.inp
+H2O-ls-emd-mcweeny.inp
+emd-KG.inp
+H2O-ls-ortho-emd.inp

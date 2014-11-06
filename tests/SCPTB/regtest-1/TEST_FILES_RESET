@@ -48,3 +48,5 @@ hf_1.inp
 hf_2.inp
 hf_3.inp
 hf_4.inp
+#do not accumulate shift in outer scf preconditioner
+h2.inp

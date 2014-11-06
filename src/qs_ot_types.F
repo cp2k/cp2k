@@ -42,7 +42,7 @@ MODULE qs_ot_types
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
-       ot_precond_solver_inv_chol
+       ot_precond_solver_inv_chol, ot_precond_solver_update
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -1075,6 +1075,8 @@ error=error)
        settings%precond_solver_name="INVERSE_CHOLESKY"
     CASE(ot_precond_solver_direct)
        settings%precond_solver_name="DIRECT"
+    CASE(ot_precond_solver_update)
+       settings%precond_solver_name="INVERSE_UPDATE"
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"READ OTSCF SOLVER: Value unknown")
     END SELECT

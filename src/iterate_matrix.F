@@ -9,13 +9,16 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE iterate_matrix
+!  USE cp_dbcsr_arnoldi,                ONLY: cp_dbcsr_eig_arnoldi
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
+       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
+       cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, cp_dbcsr_get_info, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_norm_maxabsnorm, &
-       dbcsr_type_no_symmetry
+       cp_dbcsr_norm, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, cp_dbcsr_transposed, &
+       cp_dbcsr_type, dbcsr_arnoldi_data, dbcsr_norm_maxabsnorm, &
+       dbcsr_type_no_symmetry, deallocate_arnoldi_data, get_selected_ritz_val
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE f77_blas
   USE kinds,                           ONLY: dp,&
@@ -49,30 +52,35 @@ CONTAINS
 !> \param matrix ...
 !> \param threshold ...
 !> \param use_inv_as_guess ...
+!> \param norm_convergence ...
 !> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !>       2011.10 guess option added [Rustam Z Khaliullin]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,use_inv_as_guess,error)
+  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,use_inv_as_guess,&
+                              norm_convergence,error)
 
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_inverse, matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT), &
+      TARGET                                 :: matrix_inverse, matrix
     REAL(KIND=dp), INTENT(IN)                :: threshold
     LOGICAL, INTENT(IN), OPTIONAL            :: use_inv_as_guess
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: norm_convergence
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, unit_nr
+    INTEGER                                  :: handle, i, nrow, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2
     LOGICAL                                  :: prepare_to_exit, use_inv_guess
-    REAL(KIND=dp)                            :: frob_matrix, gershgorin_norm, &
-                                                maxnorm_matrix, occ_matrix, &
-                                                t1, t2
+    REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, max_abs_eig, &
+      max_ev, maxnorm_matrix, min_ev, occ_matrix, t1, t2, t3, t4
+    TYPE(cp_dbcsr_p_type), DIMENSION(2)      :: mymat
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
 ! turn this off for the time being
 
@@ -85,10 +93,11 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
+    convergence=threshold
+    IF(PRESENT(norm_convergence))convergence=norm_convergence
+
     use_inv_guess=.FALSE.
-    IF (PRESENT(use_inv_as_guess)) THEN
-       use_inv_guess=use_inv_as_guess
-    ENDIF
+    IF (PRESENT(use_inv_as_guess)) use_inv_guess=use_inv_as_guess
 
     IF (.NOT.use_inv_guess) THEN
        gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
@@ -96,6 +105,7 @@ CONTAINS
        CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
        CALL cp_dbcsr_add_on_diag(matrix_inverse,1/MIN(gershgorin_norm,frob_matrix),error=error)
     ENDIF
+    CALL cp_dbcsr_get_info(matrix, nfullrows_total=nrow )
 
     CALL cp_dbcsr_init(tmp1,error=error)
     CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
@@ -105,6 +115,22 @@ CONTAINS
     IF (unit_nr>0) WRITE(unit_nr,*)
 
     prepare_to_exit=.FALSE.
+
+    ! scale the approximate inverse to be within the convergnce radius
+    IF(use_inv_guess)THEN
+       t3 = m_walltime()
+       mymat(1)%matrix=>matrix
+       mymat(2)%matrix=>matrix_inverse
+       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-4_dp,&
+                                        selection_crit=1,nval_request=2)
+       CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
+       max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+       min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+       max_abs_eig=MAX(max_eV,ABS(min_eV))
+       CALL deallocate_arnoldi_data(my_arnoldi)
+       CALL cp_dbcsr_scale(matrix_inverse,1.0_dp/max_abs_eig,error=error)
+       t4=  m_walltime()
+    END IF
 
     DO i=1,100
 
@@ -116,7 +142,8 @@ CONTAINS
        ! for the convergence check
        !frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
        CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-       !frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+       frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+          
        CALL cp_dbcsr_norm(tmp1,&
                dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
 
@@ -133,23 +160,34 @@ CONTAINS
        t2 = m_walltime()
 
        IF (unit_nr>0) THEN
-          WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Hotelling iter",i,occ_matrix, &
-                                                             maxnorm_matrix,t2-t1,&
+          WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F12.3,F13.3)') "Hotelling iter",i,occ_matrix, &
+                                                             maxnorm_matrix,t2-t1, t4-t3, &
                                                                     (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
-       
-       ! use max_norm 
-       IF (maxnorm_matrix<threshold) EXIT 
+       !use the eigenvalues of the matrix to check conevrgence
+       IF(PRESENT(norm_convergence))THEN
+          mymat(1)%matrix=>matrix
+          mymat(2)%matrix=>matrix_inverse
+          CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-4_dp,&
+                                           selection_crit=1,nval_request=2)
+          CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
+          max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+          min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+          max_abs_eig=MAX(max_eV,ABS(min_eV))
+          CALL deallocate_arnoldi_data(my_arnoldi)
+          IF( ABS(max_abs_eig-1.0_dp) .LT. convergence)EXIT
+       ELSE
+!       ! use max_norm 
+          IF (maxnorm_matrix<convergence) EXIT 
+       END IF
 
     ENDDO
-
-    !! this check is not really needed
-    !CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
+!    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
     !!frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
     !CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-    !!frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+    !frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
     !CALL cp_dbcsr_norm(tmp1,&
     !        dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
     !occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
