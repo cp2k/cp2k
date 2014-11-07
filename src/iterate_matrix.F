@@ -115,6 +115,7 @@ CONTAINS
     IF (unit_nr>0) WRITE(unit_nr,*)
 
     prepare_to_exit=.FALSE.
+    t3 = 0.0_dp; t4 = 0.0_dp
 
     ! scale the approximate inverse to be within the convergnce radius
     IF(use_inv_guess)THEN
@@ -129,7 +130,7 @@ CONTAINS
        max_abs_eig=MAX(max_eV,ABS(min_eV))
        CALL deallocate_arnoldi_data(my_arnoldi)
        CALL cp_dbcsr_scale(matrix_inverse,1.0_dp/max_abs_eig,error=error)
-       t4=  m_walltime()
+       t4 = m_walltime()
     END IF
 
     DO i=1,100
@@ -143,7 +144,7 @@ CONTAINS
        !frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
        CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
        frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
-          
+
        CALL cp_dbcsr_norm(tmp1,&
                dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
 
