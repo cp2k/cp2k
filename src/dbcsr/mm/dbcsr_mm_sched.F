@@ -55,7 +55,8 @@ MODULE dbcsr_mm_sched
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
-  USE kinds,                           ONLY: int_4,&
+  USE kinds,                           ONLY: dp,&
+                                             int_4,&
                                              int_8
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast,&
@@ -607,8 +608,10 @@ MODULE dbcsr_mm_sched
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: i, j
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sort_idx, sort_key
-    REAL                                     :: percent
+    INTEGER(KIND=int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: sort_key
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sort_idx
+    REAL(KIND=dp)                            :: percent
 
     IF(output_unit<=0) RETURN
 
@@ -628,7 +631,7 @@ MODULE dbcsr_mm_sched
 
     !sorting stat entries by flops per multiplication
     ALLOCATE(sort_key(SIZE(report%num_mnk_stacks,1)-1))
-    sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)
+    sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)*(report%num_mnk_stacks(2:,4)+report%num_mnk_stacks(2:,5))
     ALLOCATE(sort_idx(SIZE(sort_key)))
     CALL sort(sort_key, SIZE(sort_key), sort_idx)
 
