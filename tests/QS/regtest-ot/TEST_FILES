@@ -8,7 +8,7 @@ C2H4-init.inp      1
 C2H4.inp                          1     3e-14
 # test ddapc constraints
 He2_ddapc_constraint.inp          1     5e-13
-He2_ddapc_constraint-2.inp        1     4e-06
+He2_ddapc_constraint-2.inp        1     8e-06
 He2_ddapc_constraint-3.inp        1     3e-10
 # outer scf loop none
 He2_none.inp                      1     3e-13
