@@ -67,7 +67,9 @@ def main():
 
         report_txt = retrieve_report(report_url)
         report = parse_report(report_txt, report_type)
+        uptodate = False
         if(report.has_key('revision')):
+            uptodate = report['revision'] == trunk_revision
             if(report['revision']<threshold_rev):
                 report['status'] = "OUTDATED"
             else:
@@ -78,7 +80,7 @@ def main():
         output += '<tr align="center">'
         output += '<td align="left"><a href="archive/%s/index.html">%s</a></td>'%(s, name)
         output += '<td align="left">%s</td>'%host
-        output += status_cell(report['status'], report_url)
+        output += status_cell(report['status'], report_url, uptodate)
 
         #Revision
         if(report.has_key('revision')):
@@ -199,11 +201,11 @@ def svn_log(limit=500):
     return(revisions)
 
 #===============================================================================
-def status_cell(status, report_url):
+def status_cell(status, report_url, uptodate=True):
     if(status == "OK"):
-        bgcolor = "#00FF00"
+        bgcolor = "#00FF00" if(uptodate) else "#8CE18C"
     elif(status == "FAILED"):
-        bgcolor = "#FF0000"
+        bgcolor = "#FF0000" if(uptodate) else "#E18C8C"
     else:
         bgcolor = "#d3d3d3"
     return('<td bgcolor="%s"><a href="%s">%s</a></td>'%(bgcolor, report_url, status))
