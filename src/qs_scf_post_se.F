@@ -11,12 +11,15 @@
 !> \author Teodoro Laino (07.2008)
 ! *****************************************************************************
 MODULE qs_scf_post_se
+! USE f77_blas
+  USE ai_moments,                      ONLY: moment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type
+  USE basis_set_types,                 ONLY: gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_nfullrows_total,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -25,17 +28,22 @@ MODULE qs_scf_post_se
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE f77_blas
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
+  USE moments_utils,                   ONLY: get_reference_point
   USE mulliken,                        ONLY: multipoles
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: debye
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -134,10 +142,10 @@ CONTAINS
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! Compute Atomic Charges
-       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
+       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, para_env, error)
 
        ! Moments of charge distribution
-       CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
+       CALL qs_scf_post_moments(input, logger, qs_env, error)
 
        ! MO_CUBES
        print_key => section_vals_get_subs_vals(section_vals=input,&
@@ -219,37 +227,286 @@ CONTAINS
   END SUBROUTINE scf_post_calculation_se
 
 ! *****************************************************************************
-!> \brief Computes and prints electric moments
+!> \brief Computes and prints electric dipole moments
+!>        We use the approximation for NDDO from
+!>        Pople and Beveridge, Approximate Molecular Orbital Theory,
+!>        Mc Graw Hill 1970
+!>        mu = \sum_A [ Q_A * R_a + Tr(P_A*D_A) ]
 !> \param input ...
 !> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
-!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_moments(input, logger, qs_env, output_unit, error)
+  SUBROUTINE qs_scf_post_moments(input, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: description, dipole_type
+    COMPLEX(KIND=dp)                         :: dzeta, zeta
+    COMPLEX(KIND=dp), DIMENSION(3)           :: dggamma, dzphase, ggamma, &
+                                                zphase
+    INTEGER                                  :: i, iat, iatom, ikind, istat, &
+                                                ix, j, nat, natom, natorb, &
+                                                nkind, nspin, reference, &
+                                                unit_nr
+    LOGICAL                                  :: do_berry, failure, found, &
+                                                scp_nddo
+    REAL(KIND=dp) :: charge_tot, ci(3), dci(3), dipole(3), dipole_deriv(3), &
+      drcc(3), dria(3), dtheta, gvec(3), q, rcc(3), ria(3), tcharge(2), &
+      theta, tmp(3), via(3), zeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ncharge
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: mom
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pblock
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: basis_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: print_key
+    TYPE(semi_empirical_type), POINTER       :: se_kind
 
-    print_key => section_vals_get_subs_vals(section_vals=input,&
-         subsection_name="DFT%PRINT%MOMENTS",error=error)
-
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MOMENTS", error=error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="ELECTRIC MOMENTS not implemented for Semi-Empirical calculations!!", &
+       ! Dipole Moments
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MOMENTS",&
+               extension=".data",middle_name="se_dipole",log_filename=.FALSE.,error=error)
+
+       ! Reference point
+       reference = section_get_ival(print_key,keyword_name="REFERENCE",error=error)
+       NULLIFY(ref_point)
+       description='[DIPOLE]'
+       CALL section_vals_val_get(print_key,"REF_POINT",r_vals=ref_point,error=error)
+       CALL section_vals_val_get(print_key,"PERIODIC",l_val=do_berry,error=error)
+       CALL get_reference_point(rcc,drcc,qs_env=qs_env,reference=reference,&
+                                ref_point=ref_point,error=error)
+       !
+       NULLIFY(particle_set)
+       CALL get_qs_env(qs_env=qs_env,&
+                       rho=rho,&
+                       cell=cell,&
+                       atomic_kind_set=atomic_kind_set,&
+                       natom=natom,&
+                       qs_kind_set=qs_kind_set,&
+                       particle_set=particle_set,&
+                       dft_control=dft_control,&
+                       error=error)
+
+
+       scp_nddo = dft_control%qs_control%se_control%scp
+       IF(scp_nddo) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="No Dipoles for SCP-NDDO implemented!!", &
             error=error, error_level=cp_warning_level)
+       ELSE
+          matrix_p => rho%rho_ao
+          nspin = SIZE(matrix_p)
+          nkind = SIZE(atomic_kind_set)
+          ! net charges
+          ALLOCATE (ncharge(natom),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ncharge = 0.0_dp
+          DO ikind=1,nkind
+             CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+             CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+             CALL get_se_param(se_kind,zeff=zeff,natorb=natorb)
+             DO iatom=1,nat
+                iat = atomic_kind_set(ikind)%atom_list(iatom)
+                tcharge = 0.0_dp
+                DO i=1,nspin
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
+                     block=pblock,found=found)
+                   IF(found) THEN
+                      DO j=1,natorb
+                         tcharge(i) = tcharge(i) + pblock(j,j)
+                      END DO
+                   END IF
+                END DO
+                ncharge(iat) = zeff - SUM(tcharge)
+             END DO
+          END DO
+          ! Contributions from net atomic charges
+          ! Dipole deriv will be the derivative of the Dipole(dM/dt=\sum e_j v_j)
+          dipole_deriv = 0.0_dp
+          dipole       = 0.0_dp
+          IF(do_berry)THEN
+             dipole_type="[BERRY PHASE]"
+             rcc = pbc(rcc,cell)
+             charge_tot = 0._dp
+             charge_tot=SUM(ncharge)
+             ria  = twopi * MATMUL(cell%h_inv, rcc)
+             zphase  = CMPLX(COS(ria), SIN(ria), dp)**charge_tot
+
+             dria = twopi * MATMUL(cell%h_inv, drcc)
+             dzphase = charge_tot * CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot-1.0_dp)* dria
+
+             ggamma  = CMPLX(1.0_dp,0.0_dp,KIND=dp)
+             dggamma = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+             DO ikind = 1, SIZE(atomic_kind_set)
+                CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+                DO i = 1, nat
+                   iat = atomic_kind_set(ikind)%atom_list(i)
+                   ria = particle_set(iat)%r(:)
+                   ria = pbc(ria,cell)
+                   via = particle_set(iat)%v(:)
+                   q=ncharge(iat)
+                   DO j = 1, 3
+                      gvec  = twopi*cell%h_inv(j,:)
+                      theta = SUM(ria(:)*gvec(:))
+                      dtheta= SUM(via(:)*gvec(:))
+                      zeta  = CMPLX(COS(theta),SIN(theta),KIND=dp)**(-q)
+                      dzeta = -q * CMPLX(-SIN(theta),COS(theta),KIND=dp)**(-q-1.0_dp)* dtheta
+                      dggamma(j)= dggamma(j)* zeta + ggamma(j)* dzeta
+                      ggamma(j) = ggamma(j)* zeta
+                   END DO
+                ENDDO
+             END DO
+             dggamma = dggamma * zphase + ggamma * dzphase
+             ggamma = ggamma * zphase
+             IF(ALL(REAL(ggamma,KIND=dp)/= 0.0_dp))THEN
+                tmp = AIMAG(ggamma)/REAL(ggamma,KIND=dp)
+                ci  = ATAN(tmp)
+                dci =(1.0_dp /(1.0_dp + tmp**2))* &
+                    (AIMAG(dggamma)*REAL(ggamma,KIND=dp)-AIMAG(ggamma)*&
+                     REAL(dggamma,KIND=dp))/(REAL(ggamma,KIND=dp))**2
+                dipole       = MATMUL(cell%hmat, ci)/twopi
+                dipole_deriv = MATMUL(cell%hmat, dci)/twopi
+             END IF
+          ELSE
+             dipole_type="[Non Periodic]"
+             DO i = 1, natom
+                ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
+                ria = particle_set(i)%r(:)
+                q=ncharge(i)
+                dipole = dipole - q *(ria-rcc)
+                dipole_deriv(:)= dipole_deriv(:)- q *(particle_set(i)%v(:)- drcc)
+             END DO
+          END IF
+          ! Contributions from atomic polarization
+          ! No contribution to dipole derivatives
+          DO ikind=1,nkind
+             CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+             CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set)
+             CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+             CALL get_se_param(se_kind,natorb=natorb)
+             ALLOCATE (mom(natorb,natorb,3),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             mom = 0.0_dp
+             CALL atomic_moments(mom,basis_set,error)
+             DO iatom=1,nat
+                iat = atomic_kind_set(ikind)%atom_list(iatom)
+                DO i=1,nspin
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
+                     block=pblock,found=found)
+                   IF(found) THEN
+                     CPPostcondition(natorb==SIZE(pblock,1),cp_failure_level,routineP,error,failure)
+                     ix=coset(1,0,0) - 1
+                     dipole(1)=dipole(1) + SUM(pblock*mom(:,:,ix))
+                     ix=coset(0,1,0) - 1
+                     dipole(2)=dipole(2) + SUM(pblock*mom(:,:,ix))
+                     ix=coset(0,0,1) - 1
+                     dipole(3)=dipole(3) + SUM(pblock*mom(:,:,ix))
+                   END IF
+                END DO
+             END DO
+             DEALLOCATE (mom,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END DO
+          IF(unit_nr>0)THEN
+             WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole
+             WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(Debye)|",dipole*debye
+             WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|",dipole_deriv
+          END IF
+       END IF
+       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
     END IF
 
   END SUBROUTINE qs_scf_post_moments
 
+! *****************************************************************************
+!> \brief Computes the dipole integrals for an atom (a|x|b), a,b on atom A
+!> \param mom ...
+!> \param basis_set ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE atomic_moments(mom,basis_set,error)
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: mom
+    TYPE(gto_basis_set_type), POINTER        :: basis_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atomic_moments', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iset, istat, jset, ncoa, &
+                                                ncob, nm, nset, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgf, nsgf
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: mab
+    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgf, sphi, zet
+
+    rac = 0.0_dp
+    rbc = 0.0_dp
+
+    first_sgf   =>  basis_set%first_sgf
+    la_max      =>  basis_set%lmax
+    la_min      =>  basis_set%lmin
+    npgf        =>  basis_set%npgf
+    nset        =   basis_set%nset
+    nsgf        =>  basis_set%nsgf_set
+    rpgf        =>  basis_set%pgf_radius
+    sphi        =>  basis_set%sphi
+    zet         =>  basis_set%zet
+
+    nm = 0
+    DO iset=1,nset
+      ncoa = npgf(iset)*ncoset(la_max(iset))
+      nm = MAX(nm,ncoa)
+    END DO
+    ALLOCATE (mab(nm,nm,4),work(nm,nm),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO iset=1,nset
+      ncoa = npgf(iset)*ncoset(la_max(iset))
+      sgfa = first_sgf(1,iset)
+      DO jset=1,nset
+        ncob = npgf(jset)*ncoset(la_max(jset))
+        sgfb = first_sgf(1,jset)
+        !*** Calculate the primitive integrals ***
+        CALL moment(la_max(iset),npgf(iset),zet(:,iset),rpgf(:,iset),la_min(iset),&
+                    la_max(jset),npgf(jset),zet(:,jset),rpgf(:,jset),1,rac,rbc,mab)
+        !*** Contraction step ***
+        DO i=1,3
+          CALL dgemm("N","N",ncoa,nsgf(jset),ncob,1.0_dp,mab(1,1,i),SIZE(mab,1),&
+                     sphi(1,sgfb),SIZE(sphi,1),0.0_dp,work(1,1),SIZE(work,1))
+          CALL dgemm("T","N",nsgf(iset),nsgf(jset),ncoa,1.0_dp,sphi(1,sgfa),SIZE(sphi,1),&
+                     work(1,1),SIZE(work,1),1.0_dp,mom(sgfa,sgfb,i),SIZE(mom,1))
+        END DO
+      END DO
+    END DO
+    DEALLOCATE (mab,work,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE atomic_moments
 ! *****************************************************************************
 !> \brief Computes and Prints Atomic Charges with several methods
 !> \param input ...
@@ -257,12 +514,11 @@ CONTAINS
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param rho ...
 !> \param matrix_s ...
-!> \param mos ...
 !> \param para_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, &
+  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, &
                                  para_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
@@ -270,8 +526,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -281,8 +535,8 @@ CONTAINS
     CHARACTER(LEN=2)                         :: ana
     CHARACTER(LEN=default_string_length)     :: aname
     INTEGER                                  :: i, iat, iatom, ikind, istat, &
-                                                j, nao, nat, natom, natorb, &
-                                                nkind, nspin, unit_nr
+                                                j, nat, natom, natorb, nkind, &
+                                                nspin, unit_nr
     LOGICAL                                  :: failure, found, scp_nddo
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
@@ -295,7 +549,6 @@ CONTAINS
       POINTER                                :: matrix_p
     TYPE(cp_dbcsr_type), POINTER             :: pscp
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -309,7 +562,6 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     natom=natom,&
                     qs_kind_set=qs_kind_set,&
-                    local_particles=local_particles,&
                     particle_set=particle_set,&
                     scp_env=scp_env,&
                     dft_control=dft_control,&
@@ -324,7 +576,6 @@ CONTAINS
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
                                     middle_name="",log_filename=.FALSE.,error=error)
        matrix_p => rho%rho_ao
-       nao = cp_dbcsr_nfullrows_total(matrix_p(1)%matrix)
        nspin = SIZE(matrix_p)
        ALLOCATE (charges(natom,nspin),mcharge(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
