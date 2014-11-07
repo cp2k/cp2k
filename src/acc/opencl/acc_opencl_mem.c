@@ -27,7 +27,7 @@ acc_opencl_host_buffer_node_type *host_buffer_list_tail = NULL;
 // defines the ACC interface
 #include "../include/acc.h"
 
-#define BUILD_OPTIONS "-I . -D__ACC\0"
+#define BUILD_OPTIONS "-I . -D__ACC"
 
 // debug flag
 static const int verbose_print = 0;
@@ -49,126 +49,130 @@ cl_error_type get_opencl_zero_kernel (cl_context opencl_ctx, cl_device_id opencl
 
   cl_program opencl_program = NULL;
 
-    // get device maximum number of work_item per work_group (1D)
-    // this makes the kernel device independent
-    if (verbose_print) fprintf(stdout,"get max. num. of work_item per work_group ...\n");
+  // get device maximum number of work_item per work_group (1D)
+  // this makes the kernel device independent
+  if (verbose_print) fprintf(stdout,"get max. num. of work_item per work_group ...\n");
 
-    cl_uint max_work_item_dims;
-    cl_error = clGetDeviceInfo(                       // cl_int
-                 opencl_dev,                          // cl_device_id device
-                 CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,  // cl_device_info param_name
-                 sizeof(cl_uint),                     // size_t param_value_size
-                 &max_work_item_dims,                 // void *param_value
-                 NULL);                               // size_t *param_value_size_ret
+  cl_uint max_work_item_dims;
+  cl_error = clGetDeviceInfo(                       // cl_int
+               opencl_dev,                          // cl_device_id device
+               CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,  // cl_device_info param_name
+               sizeof(cl_uint),                     // size_t param_value_size
+               &max_work_item_dims,                 // void *param_value
+               NULL);                               // size_t *param_value_size_ret
+  if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+
+  size_t *work_items = malloc(sizeof(size_t) * max_work_item_dims);
+  cl_error = clGetDeviceInfo(                      // cl_int
+               opencl_dev,                         // cl_device_id device
+               CL_DEVICE_MAX_WORK_ITEM_SIZES,      // cl_device_info param_name
+               sizeof(size_t) *max_work_item_dims, // size_t param_value_size
+               work_items,                         // void *param_value
+               NULL);                              // size_t *param_value_size_ret
+  if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+
+  *max_work_items = work_items[0]; // take only the first dimension
+  free(work_items);
+
+  // example: "#define BLOCKDIM 1024"
+  // note: Be ensure that the string is not larger than 'max_line_length'!
+  //       However with snprintf(..max_line_length..) we are sure not touching memory
+  //       beyond the string.
+  const int max_line_length = 1000;
+  char *kernel_source_config = (char *) malloc(max_line_length);
+  snprintf(kernel_source_config, max_line_length, "#define BLOCKDIM %zu\n", *max_work_items);
+
+  // the "zero" kernel code
+  const char *kernel_source =
+    "__kernel __attribute__ ((reqd_work_group_size(BLOCKDIM, 1, 1)))\n"
+    "void cl_memset_zero_n4bytes (__global unsigned int *buffer,\n"
+    "                                      unsigned long off,\n"
+    "                                      unsigned long len)\n"
+    "{\n"
+    "  size_t id = get_global_id(0);\n"
+    "  if (id >= len) return;\n"
+    "  buffer[off + id] = 0;\n"
+    "}";
+
+  // build complete kernel string
+  char *kernel_string = (char *) malloc(strlen(kernel_source_config) + strlen(kernel_source) + 1);
+  strcpy(kernel_string, kernel_source_config);
+  strcat(kernel_string, kernel_source);
+  size_t kernel_string_length = strlen(kernel_string);
+  free(kernel_source_config);
+
+  // get kernel code, build program and kernel
+  if (verbose_print) fprintf(stdout,"building zero kernel ...\n");
+  opencl_program = clCreateProgramWithSource(                // cl_program
+                     opencl_ctx,                             // cl_context   context
+                     (cl_uint) 1,                            // cl_uint      count
+                     (const char **) &kernel_string,         // const char   **strings
+                     (const size_t *) &kernel_string_length, // const size_t *lengths
+                     &cl_error);                             // cl_int       *errcode_ret
+  if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+  free(kernel_string);
+
+  // if requested - print used kernel code
+  if (cl_error == CL_SUCCESS && verbose_src){
+    fprintf(stdout, "\n@@@@@@@@@ SOURCE-DATA: @@@@@@@@@\n");
+    size_t src_sz;
+    cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, (size_t) 0, NULL, &src_sz);
     if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-
-    size_t *work_items = malloc(sizeof(size_t) * max_work_item_dims);
-    cl_error = clGetDeviceInfo(                       // cl_int
-                 opencl_dev,                          // cl_device_id device
-                 CL_DEVICE_MAX_WORK_ITEM_SIZES,       // cl_device_info param_name
-                 sizeof(size_t) * max_work_item_dims, // size_t param_value_size
-                 work_items,                          // void *param_value
-                 NULL);                               // size_t *param_value_size_ret
+    char *src = (char *) malloc(src_sz);
+    cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, src_sz, src, NULL);
     if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+    fprintf(stdout, "%.*s\n", src_sz, src);
+    free(src);
+    fprintf(stdout, "@@@@@@@@@ END SOURCE-DATA, SIZE=%zu @@@@@@@@@\n", src_sz);
+    fflush(stdout);
+  }
 
-    *max_work_items = work_items[0]; // take only the first dimension
-    free(work_items);
+  // compile the program
+  cl_error = clBuildProgram(                       // cl_int
+               opencl_program,                     // cl_program                     program
+               (cl_uint) 1,                        // cl_uint                        num_devices
+               (const cl_device_id *) &opencl_dev, // const cl_device_id             *device_list
+               BUILD_OPTIONS,                      // const char                     *options
+               NULL,                               // void (CL_CALLBACK* pfn_notify) (cl_program program, void *user_data)
+               NULL);                              // void                           *user_data
 
-    // example: "#define BLOCKDIM 1024"
-    char *kernel_source_config = (char *) malloc(17 + log10(*max_work_items) + 2); // line-break + zero
-    sprintf(kernel_source_config, "#define BLOCKDIM %d\n\0", *max_work_items);
-
-    // the "zero" kernel code
-    const char *kernel_source =
-      "__kernel __attribute__ ((reqd_work_group_size(BLOCKDIM, 1, 1)))\n"
-      "void cl_memset_zero_n4bytes (__global unsigned int *buffer,\n"
-      "                                      unsigned long off,\n"
-      "                                      unsigned long len)\n"
-      "{\n"
-      "  size_t id = get_global_id(0);\n"
-      "  if (id >= len) return;\n"
-      "  buffer[off + id] = 0;\n"
-      "}\0";
-
-    // build complete kernel string
-    char *kernel_string = (char *) malloc(strlen(kernel_source_config) + strlen(kernel_source) + 1);
-    strcpy(kernel_string, kernel_source_config);
-    strcat(kernel_string, kernel_source);
-    size_t kernel_string_length = strlen(kernel_string);
-    free(kernel_source_config);
-
-    // get kernel code, build program and kernel
-    if (verbose_print) fprintf(stdout,"building zero kernel ...\n");
-    opencl_program = clCreateProgramWithSource(                // cl_program
-                       opencl_ctx,                             // cl_context   context
-                       (cl_uint) 1,                            // cl_uint      count
-                       (const char **) &kernel_string,         // const char   **strings
-                       (const size_t *) &kernel_string_length, // const size_t *lengths
-                       &cl_error);                             // cl_int       *errcode_ret
+  // if requested - print build log
+  if (cl_error != CL_SUCCESS){
+    fprintf(stdout, "\n@@@@@@@@@ BUILD-DATA, ERROR=%d: @@@@@@@@@\n", (int) cl_error);
+    size_t bld_sz;
+    cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, (size_t) 0, NULL, &bld_sz);
     if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-    free(kernel_string);
-
-    // if requested - print used kernel code
-    if (cl_error == CL_SUCCESS && verbose_src){
-      fprintf(stdout, "\n@@@@@@@@@ SOURCE-DATA: @@@@@@@@@\n");
-      size_t src_sz;
-      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, (size_t) 0, NULL, &src_sz);
-      if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-      char *src = (char *) malloc(src_sz);
-      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_SOURCE, src_sz, src, NULL);
-      if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-      src[src_sz - 1] = '\0';
-      fprintf(stdout, "%s\n", src);
-      free(src);
-      fprintf(stdout, "@@@@@@@@@ END SOURCE-DATA, SIZE=%zu @@@@@@@@@\n", src_sz);
-    }
-
-    // compile the program
-    cl_error = clBuildProgram(                       // cl_int
-                 opencl_program,                     // cl_program                     program
-                 (cl_uint) 1,                        // cl_uint                        num_devices
-                 (const cl_device_id *) &opencl_dev, // const cl_device_id             *device_list
-                 BUILD_OPTIONS,                      // const char                     *options
-                 NULL,                               // void (CL_CALLBACK* pfn_notify) (cl_program program, void *user_data)
-                 NULL);                              // void                           *user_data
-
-    // if requested - print build log
-    if (cl_error != CL_SUCCESS){
-      fprintf(stdout, "\n@@@@@@@@@ BUILD-DATA, ERROR=%d: @@@@@@@@@\n", (int) cl_error);
-      size_t bld_sz;
-      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, (size_t) 0, NULL, &bld_sz);
-      if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-      char *bld = (char *) malloc(bld_sz);
-      cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, bld_sz, bld, NULL);
-      if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-      bld[bld_sz - 1] = '\0';
-      fprintf(stdout, "%s\n", bld);
-      free(bld);
-      fprintf(stdout, "@@@@@@@@@ END BUILD-DATA, SIZE=%zu @@@@@@@@@\n", bld_sz);
-    }
-
-    // if requested - print ptx (NVIDIA)  or binary (AMD, INTEL) code
-    if ((cl_error == CL_SUCCESS) && (verbose_ptx)) {
-      fprintf(stdout, "\n@@@@@@@@@ PTX-DATA: @@@@@@@@@\n");
-      size_t ptx_sz;
-      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &ptx_sz, NULL);
-      if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-      unsigned char *ptx = (unsigned char *) malloc(ptx_sz);
-      cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARIES, ptx_sz, &ptx, NULL);
-      if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
-      ptx[ptx_sz - 1] = '\0';
-      fprintf(stdout, "%s\n", ptx);
-      free(ptx);
-      fprintf(stdout, "@@@@@@@@@ END PTX-DATA, SIZE=%zu: @@@@@@@@@\n", ptx_sz);
-    }
-
-    *opencl_kernel = clCreateKernel(                                    // cl_kernel
-                       opencl_program,                                  // cl_program program
-                       "cl_memset_zero_n4bytes",                        // const char *kernel_name
-                       &cl_error);                                      // cl_int     *errcode_ret
+    char *bld = (char *) malloc(bld_sz);
+    cl_error = clGetProgramBuildInfo(opencl_program, opencl_dev, CL_PROGRAM_BUILD_LOG, bld_sz, bld, NULL);
     if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+    fprintf(stdout, "%.*s\n", bld_sz, bld);
+    free(bld);
+    fprintf(stdout, "@@@@@@@@@ END BUILD-DATA, SIZE=%zu @@@@@@@@@\n", bld_sz);
+    fflush(stdout);
+  }
 
-    return cl_error;
+  // if requested - print ptx (NVIDIA)  or binary (AMD, INTEL) code
+  if ((cl_error == CL_SUCCESS) && (verbose_ptx)) {
+    fprintf(stdout, "\n@@@@@@@@@ PTX-DATA: @@@@@@@@@\n");
+    size_t ptx_sz;
+    cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &ptx_sz, NULL);
+    if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+    unsigned char *ptx = (unsigned char *) malloc(ptx_sz);
+    cl_error = clGetProgramInfo(opencl_program, CL_PROGRAM_BINARIES, ptx_sz, &ptx, NULL);
+    if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+    fprintf(stdout, "%.*s\n", ptx_sz, ptx);
+    free(ptx);
+    fprintf(stdout, "@@@@@@@@@ END PTX-DATA, SIZE=%zu: @@@@@@@@@\n", ptx_sz);
+    fflush(stdout);
+  }
+
+  *opencl_kernel = clCreateKernel(                                    // cl_kernel
+                     opencl_program,                                  // cl_program program
+                     "cl_memset_zero_n4bytes",                        // const char *kernel_name
+                     &cl_error);                                      // cl_int     *errcode_ret
+  if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
+
+  return cl_error;
 }
 
 
