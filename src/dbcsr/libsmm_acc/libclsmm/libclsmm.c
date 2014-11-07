@@ -41,6 +41,35 @@ static const int verbose_ptx = 0;
 // global variables
 cl_int cl_error;
 
+/****************************************************************************/
+/*
+ * Open and read a file from given environment path.
+ */
+inline void read_file_at_path (char **string, size_t *slength, char *path_env,
+                               char *file_name)
+{
+  FILE *fIn;                     // a file
+  char *path = getenv(path_env); // the content of the environment variable
+  char *file_path = NULL;        // an absolute PATH to a file
+
+  if (! path) {
+    fprintf(stdout, "\n Missing ENVIRONMENT VARIABLE: \"%s\"!\n", path_env);
+    fprintf(stdout, " Please specify directory of kernel file: \"%s\".\n\n", file_name); 
+    fflush(stdout);
+    exit(-1);
+  }
+  file_path = malloc(strlen(path) + strlen(file_name) + 2);
+  strcpy(file_path, path); strcat(file_path, "/"); strcat(file_path, file_name);
+  fIn = fopen(file_path, "r");
+  fseek(fIn, 0L, SEEK_END);
+  *slength = ftell(fIn);
+  *string = (char *) malloc(sizeof(char) * (*slength + 1));
+  rewind(fIn);
+  fread(*string, sizeof(char), *slength, fIn);
+  fclose(fIn);
+  free(file_path);
+}
+
 
 /****************************************************************************/
 // Kernel launch

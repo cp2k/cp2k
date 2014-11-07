@@ -18,8 +18,6 @@ typedef struct buffer_node {
 extern acc_opencl_host_buffer_node_type *host_buffer_list_head;
 extern acc_opencl_host_buffer_node_type *host_buffer_list_tail;
 
-// keep compiled kernels
-static cl_kernel zero_kernel = NULL;
 #endif
 
 #endif
