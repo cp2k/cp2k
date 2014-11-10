@@ -394,9 +394,9 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief set all elements of a matrix to the same value,
 !>      and optionally the diagonal to a different one
-!> \param matrix ...
-!> \param alpha ...
-!> \param beta ...
+!> \param matrix input matrix
+!> \param alpha scalar used to set all elements of the matrix
+!> \param beta scalar used to set diagonal of the matrix
 !> \param error ...
 !> \note
 !>      can be used to zero a matrix
@@ -509,69 +509,6 @@ CPSourceFileRef,&
     CALL mp_sum(diag,matrix%matrix_struct%para_env%group)
 
   END SUBROUTINE cp_fm_get_diag
-
-! *****************************************************************************
-!> \brief returns the diagonal elements of a fm
-!> \param matrix ...
-!> \param diag ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE cp_fm_set_diag(matrix,diag,error)
-
-    IMPLICIT NONE
-
-    ! arguments
-    TYPE(cp_fm_type), POINTER                  :: matrix
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: diag
-    TYPE(cp_error_type), INTENT(inout)         :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_diag', &
-      routineP = moduleN//':'//routineN
-
-    ! locals
-    INTEGER :: i,nrow_global
-    LOGICAL :: failure
-#if defined(__SCALAPACK)
-    INTEGER, DIMENSION(9) :: desca
-    TYPE(cp_blacs_env_type), POINTER :: context
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-               nprow
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
-#endif
-
-    failure = .FALSE.
-
-    CALL cp_fm_get_info(matrix,nrow_global=nrow_global,error=error)
-
-    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
-
-#if defined(__SCALAPACK)
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    a => matrix%local_data
-    desca(:) = matrix%matrix_struct%descriptor(:)
-
-    DO i=1,nrow_global
-       CALL infog2l(i,i,desca,nprow,npcol,myprow,mypcol,&
-                    irow_local,icol_local,iprow,ipcol)
-       IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
-         a(irow_local,icol_local) = diag(i)
-       ENDIF
-    END DO
-#else
-    DO i=1, nrow_global
-       matrix%local_data(i,i)=diag(i)
-    ENDDO
-#endif
-
-  END SUBROUTINE cp_fm_set_diag
-
-
-
 
 ! *****************************************************************************
 !> \brief returns an element of a fm
