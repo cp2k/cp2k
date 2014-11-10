@@ -83,50 +83,6 @@ CONTAINS
   END SUBROUTINE cp_para_env_create
 
 ! *****************************************************************************
-!> \brief creates a new para environment by duplicating an environment
-!>      (and also the undelying mpi group)
-!> \param para_env the new group
-!> \param TEMPLATE the environment to copy
-!> \param source the source of the new para_env, defaults to template%source
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_para_env_duplicate(para_env, TEMPLATE, source,error)
-    TYPE(cp_para_env_type), POINTER          :: para_env, TEMPLATE
-    INTEGER, INTENT(in), OPTIONAL            :: source
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_duplicate', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(TEMPLATE),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-      CPPrecondition(template%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-      ALLOCATE(para_env,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-      para_env%ref_count=1
-      CALL mp_comm_dup(template%group,para_env%group)
-      para_env%source=template%source
-      para_env%owns_group=.TRUE.
-      IF (PRESENT(source)) para_env%source=source
-      CALL cp_para_env_update(para_env,error=error)
-      para_env%ionode=para_env%mepos==para_env%source
-    END IF
-  END SUBROUTINE cp_para_env_duplicate
-
-! *****************************************************************************
 !> \brief retains the para object (to be called when you want to keep a
 !>      shared copy of this object)
 !> \param para_env the new group
