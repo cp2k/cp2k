@@ -54,18 +54,6 @@ CONTAINS
   END SUBROUTINE dbcsr_mp_init
 
 ! *****************************************************************************
-!> \brief Checks whether the message passing environment exists.
-!> \param mp_env ...
-!> \retval exists ...
-! *****************************************************************************
-  FUNCTION dbcsr_mp_exists (mp_env) RESULT (exists)
-    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
-    LOGICAL                                  :: exists
-
-    exists = ASSOCIATED (mp_env%mp)
-  END FUNCTION dbcsr_mp_exists
-
-! *****************************************************************************
 !> \brief Checks whether this process is part of the message passing environment
 !> \param mp_env ...
 !> \retval active ...
@@ -372,31 +360,6 @@ CONTAINS
 
     col_group = mp_env%mp%pcol_group
   END FUNCTION dbcsr_mp_my_col_group
-! *****************************************************************************
-!> \brief ...
-!> \param mp_env1 ...
-!> \param mp_env2 ...
-!> \retval equal_pgrid ...
-! *****************************************************************************
-  FUNCTION dbcsr_mp_pgrid_equal(mp_env1, mp_env2) RESULT (equal_pgrid)
-    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env1, mp_env2
-    LOGICAL                                  :: equal_pgrid
-
-    INTEGER, DIMENSION(:, :), POINTER        :: pgrid1, pgrid2
-
-    IF (dbcsr_mp_nprows (mp_env1) .EQ. dbcsr_mp_nprows (mp_env2)&
-         .AND. dbcsr_mp_nprows (mp_env1) .EQ. dbcsr_mp_nprows (mp_env2)) THEN
-       pgrid1 => dbcsr_mp_pgrid (mp_env1)
-       pgrid2 => dbcsr_mp_pgrid (mp_env2)
-       IF (ALL (pgrid1 .EQ. pgrid2)) THEN
-          equal_pgrid = .TRUE.
-       ELSE
-          equal_pgrid = .FALSE.
-       ENDIF
-    ELSE
-       equal_pgrid = .FALSE.
-    ENDIF
-  END FUNCTION dbcsr_mp_pgrid_equal
 
 ! *****************************************************************************
 !> \brief Transposes a multiprocessor environment

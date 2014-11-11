@@ -83,47 +83,6 @@ CONTAINS
 
   END SUBROUTINE dbcsr_lapack_larnv
 
-!\> Interface to BLAS SCAL
-! *****************************************************************************
-!> \brief ...
-!> \param N ...
-!> \param alpha ...
-!> \param x ...
-!> \param INCX ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_blas_scal (N, alpha, x, INCX)
-    INTEGER, INTENT(IN)                      :: N
-    TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: x
-    INTEGER, INTENT(IN)                      :: INCX
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_blas_scal', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-    CALL dbcsr_assert (alpha%data_type, "EQ", x%d%data_type,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Incompatible data types",__LINE__,error)
-    SELECT CASE (alpha%data_type)
-    CASE (dbcsr_type_real_4)
-       !CALL BL_SCAL (n, alpha%r_sp, x%d%r_sp, incx)
-       CALL SSCAL (n, alpha%r_sp, x%d%r_sp, incx)
-    CASE (dbcsr_type_real_8)
-       !CALL BL_SCAL (n, alpha%r_dp, x%d%r_dp, incx)
-       CALL DSCAL (n, alpha%r_dp, x%d%r_dp, incx)
-    CASE (dbcsr_type_complex_4)
-       !CALL BL_SCAL (n, alpha%c_sp, x%d%c_sp, incx)
-       CALL CSCAL (n, alpha%c_sp, x%d%c_sp, incx)
-    CASE (dbcsr_type_complex_8)
-       !CALL BL_SCAL (n, alpha%c_dp, x%d%c_dp, incx)
-       CALL ZSCAL (n, alpha%c_dp, x%d%c_dp, incx)
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid data type",__LINE__,error)
-    END SELECT
-  END SUBROUTINE dbcsr_blas_scal
-
 !\> Interface to BLAS DGEMM
 ! *****************************************************************************
 !> \brief ...

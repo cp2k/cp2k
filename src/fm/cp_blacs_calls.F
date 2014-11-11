@@ -101,54 +101,14 @@ END SUBROUTINE cp_blacs_gridinfo
 ! *****************************************************************************
 !> \brief ...
 !> \param context ...
-!> \param myprow ...
-!> \param mypcol ...
-!> \retval pnum ...
-! *****************************************************************************
-FUNCTION cp_blacs_pnum(context,myprow,mypcol) RESULT(pnum)
-   INTEGER, INTENT(IN) :: context,myprow,mypcol
-   INTEGER :: pnum
-#if defined(__SCALAPACK)
-   INTEGER, EXTERNAL :: blacs_pnum
-   pnum = blacs_pnum(context,myprow,mypcol)
-#else
-   pnum = 0
-#endif
-END FUNCTION cp_blacs_pnum
-
-! WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env%group)
-! WHAT = 1 : The BLACS message ID range;
-! WHAT = 2 : The BLACS debug level the library was compiled with;
-! WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT;
-! WHAT = 11: Number of rings multiring topology is presently using;
-! WHAT = 12: Number of branches general tree topology is presently using.
-! *****************************************************************************
-!> \brief ...
-!> \param context ...
-!> \param what ...
-!> \param val ...
-! *****************************************************************************
-SUBROUTINE cp_blacs_get(context,what,val)
-   INTEGER, INTENT(IN)  :: context,what
-   INTEGER, INTENT(OUT) :: val
-#if defined(__SCALAPACK)
-   CALL blacs_get(context,what,val)
-#else
-   val = 0
-#endif
-END SUBROUTINE cp_blacs_get
-
-! WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env%group)
-! WHAT = 1 : The BLACS message ID range;
-! WHAT = 2 : The BLACS debug level the library was compiled with;
-! WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT;
-! WHAT = 11: Number of rings multiring topology is presently using;
-! WHAT = 12: Number of branches general tree topology is presently using.
-! WHAT = 15: If non-zero, makes topology choice for repeatable collectives
-! *****************************************************************************
-!> \brief ...
-!> \param context ...
-!> \param what ...
+!> \param what :
+!>     WHAT = 0 : Handle indicating default system context;  ! DO NOT USE (i.e. use para_env%group)
+!>     WHAT = 1 : The BLACS message ID range;
+!>     WHAT = 2 : The BLACS debug level the library was compiled with;
+!>     WHAT = 10: Handle indicating the system context used to define the BLACS context whose handle is ICONTXT;
+!>     WHAT = 11: Number of rings multiring topology is presently using;
+!>     WHAT = 12: Number of branches general tree topology is presently using.
+!>     WHAT = 15: If non-zero, makes topology choice for repeatable collectives
 !> \param val ...
 ! *****************************************************************************
 SUBROUTINE cp_blacs_set(context,what,val)
@@ -157,22 +117,6 @@ SUBROUTINE cp_blacs_set(context,what,val)
    CALL blacs_set(context,what,val)
 #endif
 END SUBROUTINE cp_blacs_set
-
-! the total number available to the system, not for a particular context (DO NOT USE)
-! *****************************************************************************
-!> \brief ...
-!> \param mype ...
-!> \param npe ...
-! *****************************************************************************
-SUBROUTINE cp_blacs_pinfo(mype,npe)
-   INTEGER, INTENT(OUT) :: mype,npe
-#if defined(__SCALAPACK)
-   CALL blacs_pinfo(mype,npe)
-#else
-   npe = 1
-   mype = 0
-#endif
-END SUBROUTINE cp_blacs_pinfo
 
 ! the strange scalar / array interface seems to be needed
 

@@ -15,7 +15,6 @@
 MODULE dbcsr_util
 
   USE array_types,                     ONLY: array_data,&
-                                             array_hold,&
                                              array_i1d_obj
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_data_get_size_referenced,&
@@ -340,29 +339,6 @@ CONTAINS
     ENDDO
     DEALLOCATE (off_acc)
   END SUBROUTINE get_internal_offsets
-
-
-! *****************************************************************************
-!> \brief Copies row and column block sizes from another matrix.
-!> \param[in,out] dst      target matrix 
-!> \param[in] src          source matrix 
-! *****************************************************************************
-  SUBROUTINE dbcsr_copy_block_sizes(dst, src)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: dst
-    TYPE(dbcsr_type), INTENT(IN)             :: src
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_block_sizes', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    dst%row_blk_size = src%row_blk_size
-    CALL array_hold (dst%row_blk_size)
-    dst%col_blk_size = src%col_blk_size
-    CALL array_hold (dst%col_blk_size)
-  END SUBROUTINE dbcsr_copy_block_sizes
-
-
 
 ! *****************************************************************************
 !> \brief Calculates explicit sizes for all data blocks.

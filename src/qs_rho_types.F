@@ -240,50 +240,6 @@ CONTAINS
   END SUBROUTINE qs_rho_clear
 
 ! *****************************************************************************
-!> \brief this function should be called wehn something changes to update the
-!>      internal status
-!> \param rho_struct the density structure that changed
-!> \param rho_r_valid , rho_g_valid, tau_r_valid, tau_g_valid: actual valid
-!>        representations
-!> \param drho_r_valid ...
-!> \param tau_r_valid ...
-!> \param rho_g_valid ...
-!> \param drho_g_valid ...
-!> \param tau_g_valid ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE qs_rho_did_change(rho_struct, rho_r_valid, drho_r_valid, tau_r_valid,&
-       rho_g_valid, drho_g_valid, tau_g_valid, error)
-    TYPE(qs_rho_type), POINTER               :: rho_struct
-    LOGICAL, INTENT(in), OPTIONAL            :: rho_r_valid, drho_r_valid, &
-                                                tau_r_valid, rho_g_valid, &
-                                                drho_g_valid, tau_g_valid
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_did_change', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
-       IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
-       IF (PRESENT(drho_r_valid)) rho_struct%drho_r_valid=drho_r_valid
-       IF (PRESENT(drho_g_valid)) rho_struct%drho_g_valid=drho_g_valid
-       IF (PRESENT(tau_r_valid)) rho_struct%tau_r_valid=tau_r_valid
-       IF (PRESENT(tau_g_valid)) rho_struct%tau_g_valid=tau_g_valid
-    END IF
-  END SUBROUTINE qs_rho_did_change
-
-! *****************************************************************************
 !> \brief returns info about the density described by this object.
 !>      If some representation is not available an error is issued
 !> \param rho_struct ...

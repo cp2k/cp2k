@@ -207,31 +207,6 @@ CONTAINS
   END FUNCTION lcm
 
 ! *****************************************************************************
-!> \brief Calculates partition
-!> \param[in] total_size      Length to partition
-!> \param[in] me              My position (from 0 to num-1)
-!> \param[in] num             Number of postitions
-!> \param[out] first          First element of my position
-!> \param[out] last           Last element of my position
-! *****************************************************************************
-  pure SUBROUTINE partitions (total_size, me, num, first, last)
-    INTEGER, INTENT(IN)                      :: total_size, me, num
-    INTEGER, INTENT(OUT)                     :: first, last
-
-    first = INT(&
-           (  INT(total_size,kind=int_8) &
-            * INT(me,kind=int_8) &
-           ) &
-         / INT(num,kind=int_8), kind=int_4) + 1
-    last = INT(&
-           (  INT(total_size,kind=int_8) &
-            * INT(me+1,kind=int_8) &
-           ) &
-         / INT(num,kind=int_8), kind=int_4)
-  END SUBROUTINE partitions
-
-
-! *****************************************************************************
 !> \brief generates the hash of a string and the index in the table
 !> \param key a string of any length
 !> \retval hash_index ...

@@ -188,55 +188,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dist ...
-!> \param row_map ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_distribution_add_row_map (dist, row_map)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_map
-
-    dist%d%row_map = row_map
-    CALL array_hold (dist%d%row_map)
-  END SUBROUTINE dbcsr_distribution_add_row_map
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
-!> \param col_map ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_distribution_add_col_map (dist, col_map)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-    TYPE(array_i1d_obj), INTENT(IN)          :: col_map
-
-    dist%d%col_map = col_map
-    CALL array_hold (dist%d%col_map)
-  END SUBROUTINE dbcsr_distribution_add_col_map
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_distribution_del_row_map (dist)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-
-    CALL array_release (dist%d%row_map)
-    CALL array_nullify (dist%d%row_map)
-  END SUBROUTINE dbcsr_distribution_del_row_map
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_distribution_del_col_map (dist)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-
-    CALL array_release (dist%d%col_map)
-    CALL array_nullify (dist%d%col_map)
-  END SUBROUTINE dbcsr_distribution_del_col_map
-
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
 !> \retval mp_env ...
 ! *****************************************************************************
   FUNCTION dbcsr_distribution_mp(dist) RESULT (mp_env)
