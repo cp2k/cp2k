@@ -2629,52 +2629,6 @@ CONTAINS
   END SUBROUTINE dbcsr_symmetrize_block_diag
 
 ! *****************************************************************************
-!> \brief  tril of a dbcsr matrix
-!> \param[inout] matrix_a  the matrix
-!>
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_tril(matrix_a, error)
-
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_tril', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                error_handler, i, j, row, &
-                                                row_size
-    LOGICAL                                  :: tr
-    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
-    TYPE(dbcsr_iterator)                     :: iter
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_iterator_start(iter, matrix_a)
-
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, block=DATA, transposed=tr, &
-            block_number=blk, row_size=row_size, col_size=col_size)
-       blk_nze = row_size * col_size
-       IF(row.GT.col) CALL dbcsr_remove_block(matrix_a, row, col, blk_nze, blk)
-       IF(row.EQ.col) THEN
-          DO j = 1,col_size
-          DO i = 1,j-1
-             DATA(i,j) = 0.0_dp
-          ENDDO
-          ENDDO
-       ENDIF
-    ENDDO
-
-    CALL dbcsr_iterator_stop(iter)
-
-    CALL dbcsr_finalize (matrix_a, error=error)
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_tril
-
-! *****************************************************************************
 !> \brief filter a dbcsr matrix
 !> \param[inout] matrix the matrix
 !> \param[in] eps          the threshold

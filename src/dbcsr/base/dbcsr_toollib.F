@@ -206,30 +206,6 @@ CONTAINS
     END IF
   END FUNCTION lcm
 
-
-! *****************************************************************************
-!> \brief Calculates the ceiling of a log base 2 for integers
-!> \param[in] lv    Value for which to calculate the function
-!> \retval cl2 Result of function on lv
-!> \note Should be careful for highest integer values.
-! *****************************************************************************
-  ELEMENTAL FUNCTION ceil_log2 (lv) RESULT (cl2)
-    INTEGER, INTENT(IN)                      :: lv
-    INTEGER                                  :: cl2
-
-    INTEGER                                  :: bit
-
-    bit = 0
-    DO WHILE (ISHFT(1, bit) .LT. lv .AND. bit .LT. BIT_SIZE(lv))
-       bit = bit + 1
-    ENDDO
-    bit = bit-1
-    ! Set to zero if lv is too big.
-    IF (bit .EQ. BIT_SIZE(lv)-2) bit = 0
-    cl2 = bit+1
-  END FUNCTION ceil_log2
-
-
 ! *****************************************************************************
 !> \brief Calculates partition
 !> \param[in] total_size      Length to partition

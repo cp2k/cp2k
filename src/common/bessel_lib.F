@@ -229,45 +229,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param fg ...
-!> \param g ...
-!> \param l ...
-!> \param r ...
-!> \param fr ...
-!> \param wr ...
-!> \param n ...
-! *****************************************************************************
-  SUBROUTINE bessel_transform (fg,g,l,r,fr,wr,n)
-    !
-    ! f(g) = 4Pi * INT(0..INF) r^2 * f(r) * B_L(g*r) dr
-    !      = 4Pi * SUM(1..n) r_i^2 * f(r_i) * B_L(g*r_i) * w(r_i)
-    !
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: fg
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: g
-    INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, fr, wr
-    INTEGER, INTENT(IN)                      :: n
-
-    INTEGER                                  :: i, j
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bfr
-
-    ALLOCATE (bfr(n))
-    DO i=1,SIZE(fg)
-      IF ( i > 1 .AND. g(i)==g(i-1) ) THEN
-        fg(i) = fg(i-1)
-        CYCLE
-      END IF
-      DO j=1,n
-        bfr(j) = wr(j)*fr(j)*bessel0(g(i)*r(j),l)
-      END DO
-      fg(i) = 4._dp*pi*SUM ( bfr(1:n) )
-    END DO
-    DEALLOCATE (bfr)
-
-  END SUBROUTINE bessel_transform
-
-! *****************************************************************************
-!> \brief ...
 !> \param x ...
 !> \param l ...
 ! *****************************************************************************
