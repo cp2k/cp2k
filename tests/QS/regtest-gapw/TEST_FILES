@@ -28,7 +28,7 @@ H2O-gapw-all_noortho.inp  1
 H2O-gapw-all_localize_noortho.inp   23     3e-11
 H2O-gapw-all_localize_crazy_noortho.inp  23
 # TPSS functional
-Be_GAPW.inp                       1     3e-13
+Be_GAPW.inp                       1     7e-13
 # Single atom isolated function
 Na_atom.inp                       1     5e-13
 #
