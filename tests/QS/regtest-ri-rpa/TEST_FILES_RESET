@@ -1,1 +1,6 @@
-# 
+# Changed default values in WFC_GPW
+RI_RPA_H2O_SYRK.inp
+RI_RPA_H2O.inp
+RI_RPA_minimax_H_atom.inp
+RI_RPA_H2O_minimax.inp
+RI_RPA_CH3.inp

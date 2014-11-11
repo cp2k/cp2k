@@ -1,2 +1,5 @@
 #do not accumulate shift in outer scf preconditioner
 H2O_ADMM_MP2.inp
+# Changed default values in WFC_GPW 
+H2O_NO_HFX.inp
+H2O_ADMM_MP2.inp

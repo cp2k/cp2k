@@ -1,1 +1,3 @@
-#  
+# Changed default values in WFC_GPW
+RI_laplace_MP2_H2O.inp
+RI_laplace_MP2_CH3.inp
