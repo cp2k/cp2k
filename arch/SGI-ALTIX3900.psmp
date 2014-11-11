@@ -1,0 +1,35 @@
+# by default some intel compilers put temporaries on the stack
+# this might lead to segmentation faults is the stack limit is set to low
+# stack limits can be increased by sysadmins or e.g with ulimit -s 256000
+# Note that the optimization level -O3 can give either compiler errors and/or
+# segmentation fault at the time of the execution
+# The following settings worked for SGI ALTIX 3900:
+# - SUSE Linux Enterprise Server 10.0 (x86_64) or later version
+# - Intel(R) Fortran Compiler for Intel(R) EM64T-based, Version 12.1.3 or later
+# - MPT version 2.06 or later
+# - AMD acml library version 3.6.0 or later
+# - SCALAPACK library        1.8.0 or later
+# If you want to (try to) use OpenMPI, refer to the commented parts below
+#
+#
+CC       = icc
+CPP      = /usr/bin/cpp
+#FC       = mpif90 -FR 
+#FC_fixed = mpif90 -FI
+#LD       = mpif90
+FC       = ifort -FR -lmpi -openmp
+FC_fixed = ifort -FI -lmpi -openmp
+LD       = ifort -lmpi -openmp
+AR       = /usr/bin/ar -r
+DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS = -C $(DFLAGS) -P -traditional
+FCFLAGS  = $(DFLAGS) -lmpi -O2 -static-intel -pc64 -unroll -heap-arrays 64 -align dcommons -override-limits
+LDFLAGS  = $(FCFLAGS) -lmpi -openmp -L$(HOME)/lib 
+LIBS     = -mkl=parallel -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 \
+           -lmkl_intel_thread -lmkl_core -lm -lpthread -liomp5 \
+           -lmpi -lstdc++ -openmp
+#LIBS     = -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lm -lpthread -liomp5 \
+#           -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 \
+#           -lmpi -lstdc++ -openmp
+
+OBJECTS_ARCHITECTURE = machine_intel.o
