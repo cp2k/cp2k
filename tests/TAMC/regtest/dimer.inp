@@ -41,8 +41,8 @@
   Stress_tensor analytical
   &DFT ! dft settings
     Charge 0
-    BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/BASIS_SET
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &QS
       Eps_default 1.0e-12
       Extrapolation ASPC
@@ -212,11 +212,11 @@
     &end topology
 
     &kind O
-      Basis_set TZV2P-MOLOPT-GTH
+      Basis_set DZVP-GTH-PADE
       Potential GTH-HCTH120-q6
     &end kind
     &kind H
-      Basis_set TZV2P-MOLOPT-GTH
+      Basis_set DZVP-GTH-PADE
       Potential GTH-HCTH120-q1
     &end kind
     &colvar
