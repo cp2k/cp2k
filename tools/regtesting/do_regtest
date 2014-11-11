@@ -690,14 +690,18 @@ for dir in ${dirs}; do
   # first reset reference outputs that have become out-dated since the last run
   #
   if [[ ${noreset} != "noreset" ]]; then
-     diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
-     cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
-     nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
-     for ((itest=1;itest<=nreset;itest++));
-     do
-        reset_file=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
-        rm -f ${dir_last}/${dir}/${reset_file}.out
-     done
+     if [[ -f TEST_FILES_RESET ]] ; then
+       diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
+       cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
+       nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
+       for ((itest=1;itest<=nreset;itest++));
+       do
+          reset_file=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+          rm -f ${dir_last}/${dir}/${reset_file}.out
+       done
+     else
+	echo " Missing file TEST_FILES_RESET in $dir ? "
+     fi
   fi
   #
   # run the tests now
@@ -831,7 +835,7 @@ for dir in ${dirs}; do
  #
  runningtasks=10000
  while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) )); do
-    sleep 1
+    sleep 0.1
     runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
  done
 
