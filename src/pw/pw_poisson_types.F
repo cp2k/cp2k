@@ -182,8 +182,9 @@ CONTAINS
 
     INTEGER                                  :: dim, i, ig, iz, n, nz, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: g2, g3d, gg, gxy, j0g, j1g, &
-                                                k0g, k1g, rlength, zlength
+    REAL(KIND=dp)                            :: g2, g3d, gg, gxy, gz, j0g, &
+                                                j1g, k0g, k1g, rlength, &
+                                                zlength
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
@@ -350,7 +351,7 @@ CONTAINS
           IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
 
        CASE ( ANALYTIC1D )
-
+          ! see 'ab initio molecular dynamics' table 3.1
           ! iz is the direction of the PBC ( can be 1,2,3 -> x,y,z )
           iz = green % special_dimension
           ! rlength is the radius of the tube
@@ -359,12 +360,18 @@ CONTAINS
              g2 = grid % gsq ( ig )
              g3d = fourpi / g2
              gxy = SQRT ( g2 - grid % g(iz,ig) * grid % g(iz,ig) )
+             gz  = ABS(grid % g(iz,ig))
              j0g = bessj0 ( rlength * gxy )
              j1g = bessj1 ( rlength * gxy )
-             k0g = bessk0 ( rlength * grid % g(iz,ig) )
-             k1g = bessk1 ( rlength * grid % g(iz,ig) )
-             gf % cc ( ig ) = g3d * ( 1.0_dp - rlength * &
-                  ( gxy * j1g * k0g - grid % g(iz,ig) * j0g * k1g ) )
+             IF (gz>0) THEN
+                k0g = bessk0 ( rlength * gz )
+                k1g = bessk1 ( rlength * gz )
+             ELSE
+                k0g = 0
+                k1g = 0
+             ENDIF
+             gf % cc ( ig ) = g3d * ( 1.0_dp + rlength * &
+                  ( gxy * j1g * k0g - gz * j0g * k1g ) )
           END DO
           IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
 
