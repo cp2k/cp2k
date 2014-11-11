@@ -5,7 +5,7 @@
 #
 # Geometry optimisation
 geo_opt_bfgs.inp 11
-geo_opt_cg_2pnt.inp 11
+geo_opt_cg_2pnt.inp              11     2e-14
 geo_opt_cg_fit.inp 11
 geo_opt_cg_gold.inp 11
 geo_opt_lbfgs.inp 11
