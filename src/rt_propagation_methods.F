@@ -113,7 +113,8 @@ CONTAINS
     INTEGER                                  :: aspc_order, handle, i
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: delta_P, matrix_ks, &
-                                                matrix_ks_im, rho_new
+                                                matrix_ks_im, matrix_s, &
+                                                rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -124,6 +125,7 @@ CONTAINS
     ! get everything needed and set some values
     CALL get_qs_env(qs_env,&
          rho=rho,&
+         matrix_s=matrix_s,&
          ks_env=ks_env,&
          error=error)
     IF(rtp%iter==1)THEN
@@ -131,7 +133,7 @@ CONTAINS
        rtp%mixing_factor=1.0_dp
        rtp%mixing=.FALSE.
        aspc_order=rtp_control%aspc_order
-       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error=error)
+       CALL aspc_extrapolate(rtp,matrix_s,aspc_order,error=error)
        IF(rtp%linear_scaling) THEN
           CALL calc_update_rho_sparse(qs_env,error=error)
        ELSE
@@ -248,7 +250,14 @@ CONTAINS
            CALL rt_convergence(rtp,s_mat(1)%matrix,delta_mos,rtp%delta_iter,error)
         END IF
         !Apply mixing of scf loop is not converging
-        IF(rtp_control%sc_check_start.LT.rtp%iter+1) CALL rt_mixing(qs_env,error=error)
+        IF(rtp_control%sc_check_start.LT.rtp%iter+1) THEN
+           CALL rt_mixing(rtp,error=error)
+           IF(rtp%linear_scaling) THEN
+              CALL calc_update_rho_sparse(qs_env,error)
+           ELSE
+              CALL calc_update_rho(qs_env,error)
+           ENDIF
+        ENDIF
         rtp%converged=(rtp%delta_iter.LT.rtp_control%eps_ener)
         IF(rtp%linear_scaling) THEN
            CALL get_rtp(rtp=rtp,rho_new=rho_new,rho_last_iter=rho_last_iter,error=error)
@@ -943,14 +952,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param rtp ...
+!> \param matrix_s ...
 !> \param aspc_order ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE aspc_extrapolate(qs_env,rtp,aspc_order,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE aspc_extrapolate(rtp,matrix_s,aspc_order,error)
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     INTEGER, INTENT(in)                      :: aspc_order
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -966,7 +976,7 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_cfm_type), POINTER               :: cfm_tmp, cfm_tmp1, csc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, rho_new, s_hist
+      POINTER                                :: rho_new, s_hist
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_hist
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -980,9 +990,6 @@ CONTAINS
     NULLIFY(rho_hist)
     CALL timeset(routineN,handle)
     CALL cite_reference(Kolafa2004)
-    CALL get_qs_env(qs_env,&
-                    matrix_s=matrix_s,&
-                    error=error)
 
     IF(rtp%linear_scaling) THEN
        CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
@@ -1152,12 +1159,12 @@ CONTAINS
 !> \brief Checks if the self copnsistent loop is not converging.
 !>        If the convergence is bad, then some mixing between the last and the
 !>        current iteration is applied to achieve to improve the convergence.
-!> \param qs_env ...
+!> \param rtp ...
 !> \param error ...
 !> \author Samuel Andermatt (11.14)
 ! *****************************************************************************
-  SUBROUTINE rt_mixing(qs_env,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE rt_mixing(rtp,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_mixing', &
@@ -1170,10 +1177,8 @@ CONTAINS
       POINTER                                :: rho_last_iter, rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_last_iter, mos_new
-    TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,mixing=mixing,mixing_factor=mixing_factor,error=error)
     IF(rtp%delta_iter>rtp%delta_iter_old) THEN
        mixing_factor=mixing_factor/2.0_dp
@@ -1186,13 +1191,11 @@ CONTAINS
           DO i=1,SIZE(rho_new)
              CALL cp_dbcsr_add(rho_new(i)%matrix,rho_last_iter(i)%matrix,mixing_factor,1.0_dp-mixing_factor,error)
           ENDDO
-          CALL calc_update_rho_sparse(qs_env,error)
        ELSE
           CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_last_iter=mos_last_iter,error=error)
           DO i=1,SIZE(rho_new)
              CALL cp_fm_scale_and_add(mixing_factor,mos_new(i)%matrix,1.0_dp-mixing_factor,mos_last_iter(i)%matrix,error)
           ENDDO
-          CALL calc_update_rho(qs_env,error)
        ENDIF
     ENDIF
 

@@ -484,17 +484,21 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the density matrix starting from the kohn-sham matrix
-!> \param qs_env ...
 !> \param rtp ...
+!> \param matrix_ks ...
+!> \param matrix_s ...
+!> \param nelectron_spin ...
 !> \param orthonormal ...
 !> \param error ...
 !> \author Samuel Andermatt (03.14)
 ! *****************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_ks(qs_env,rtp,orthonormal,error)
+   SUBROUTINE rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,orthonormal,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
     LOGICAL                                  :: orthonormal
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -504,18 +508,11 @@ CONTAINS
 
     INTEGER                                  :: i, im, ispin, &
                                                 nelectron_spin_real, re
-    INTEGER, DIMENSION(2)                    :: nelectron_spin
     REAL(KIND=dp)                            :: e_homo, e_lumo, e_mu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, rho_new, &
-                                                rho_old
+      POINTER                                :: rho_new, rho_old
     TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
 
-    CALL get_qs_env(qs_env,&
-                    matrix_ks=matrix_ks,&
-                    matrix_s=matrix_s,&
-                    nelectron_spin=nelectron_spin,&
-                    error=error)
     CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,rho_new=rho_new,error=error)
     !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
     CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
@@ -550,7 +547,6 @@ CONTAINS
     DO i=1,SIZE(rho_new)
        CALL cp_dbcsr_copy(rho_new(i)%matrix,rho_old(i)%matrix,error=error)
     ENDDO
-    CALL calc_update_rho_sparse(qs_env,error)
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
    END SUBROUTINE rt_initialize_rho_from_ks

@@ -56,6 +56,7 @@ MODULE rt_propagation
                                              apply_delta_pulse_periodic
   USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
   USE rt_propagation_methods,          ONLY: calc_update_rho,&
+                                             calc_update_rho_sparse,&
                                              propagation_step
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -97,7 +98,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -143,8 +147,15 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=rtp%newton_schulz_order,error=error)
     CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
 
-    IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn)&
-        CALL rt_initialize_rho_from_ks(qs_env,qs_env%rtp,rtp_control%orthonormal,error=error)
+    IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn) THEN
+       CALL get_qs_env(qs_env,&
+                       matrix_ks=matrix_ks,&
+                       matrix_s=matrix_s,&
+                       nelectron_spin=nelectron_spin,&
+                       error=error)
+       CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
+       CALL calc_update_rho_sparse(qs_env,error)
+    ENDIF
  
     ! Hmm, not really like to initialize with the structure of S but I reckon it is
     ! done everywhere like this
