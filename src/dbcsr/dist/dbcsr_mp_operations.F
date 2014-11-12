@@ -33,9 +33,14 @@ MODULE dbcsr_mp_operations
                                              dbcsr_type_real_8
   USE kinds,                           ONLY: real_4,&
                                              real_8
-  USE message_passing,                 ONLY: &
-       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_send, &
-       mp_type_descriptor_type, mp_type_make, mp_waitall
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_alltoall,&
+                                             mp_irecv,&
+                                             mp_isend,&
+                                             mp_send,&
+                                             mp_type_descriptor_type,&
+                                             mp_type_make,&
+                                             mp_waitall
 
   !$ USE OMP_LIB
 
@@ -447,42 +452,6 @@ CONTAINS
             routineN, "Incorrect data type", __LINE__, error=error)
     END SELECT
   END SUBROUTINE dbcsr_isend_any
-
-! *****************************************************************************
-!> \brief Blocking recv of encapsulated data.
-!> \param msgin ...
-!> \param source ...
-!> \param tag ...
-!> \param comm ...
-!> \param error ...
-!> \note see mp_recv_iv 
-! *****************************************************************************
-  SUBROUTINE dbcsr_recv_any(msgin,source,tag, comm, error)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: msgin
-    INTEGER, INTENT(IN)                      :: source, tag, comm
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_recv_any', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: io_comm, io_source, io_tag
-
-    io_source = source ; io_comm = comm; io_tag = tag
-
-    SELECT CASE (dbcsr_data_get_type (msgin))
-    CASE (dbcsr_type_real_4)
-       CALL mp_recv (msgin%d%r_sp, io_source, io_tag, io_comm)
-    CASE (dbcsr_type_real_8)
-       CALL mp_recv (msgin%d%r_dp, io_source, io_tag, io_comm)
-    CASE (dbcsr_type_complex_4)
-       CALL mp_recv (msgin%d%c_sp, io_source, io_tag, io_comm)
-    CASE (dbcsr_type_complex_8)
-       CALL mp_recv (msgin%d%c_dp, io_source, io_tag, io_comm)
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__, error=error)
-    END SELECT
-  END SUBROUTINE dbcsr_recv_any
 
 ! *****************************************************************************
 !> \brief Non-blocking recv of encapsulated data.

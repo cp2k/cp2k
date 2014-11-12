@@ -31,8 +31,7 @@ MODULE dbcsr_dist_methods
                                              dbcsr_mp_nprows
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_mp_obj,&
-                                             dbcsr_obj
+                                             dbcsr_mp_obj
   USE kinds,                           ONLY: sp
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
@@ -159,18 +158,6 @@ CONTAINS
     dist%d%has_global_row_map = .FALSE.
     dist%d%has_global_col_map = .FALSE.
   END SUBROUTINE dbcsr_distribution_new
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \retval distribution ...
-! *****************************************************************************
-  FUNCTION dbcsr_distribution (matrix) RESULT (distribution)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_distribution_obj)             :: distribution
-
-    distribution = matrix%m%dist
-  END FUNCTION dbcsr_distribution
 
 ! *****************************************************************************
 !> \brief Marks another use of the distribution

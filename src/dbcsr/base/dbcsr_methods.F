@@ -957,41 +957,6 @@ CONTAINS
   END FUNCTION dbcsr_get_data_type
 
 ! *****************************************************************************
-!> \brief Returns true if the data type of the matrix is real
-!> \param[in]  matrix              query this matrix
-!> \retval is_real ...
-! *****************************************************************************
-  PURE FUNCTION dbcsr_is_real (matrix) RESULT (is_real)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL                                  :: is_real
-
-    IF(matrix%m%data_type.EQ.dbcsr_type_real_4.OR.&
-       matrix%m%data_type.EQ.dbcsr_type_real_8) THEN
-       is_real = .TRUE.
-    ELSE
-       is_real = .FALSE.
-    ENDIF
-  END FUNCTION dbcsr_is_real
-
-! *****************************************************************************
-!> \brief Returns true if the data type of the matrix is complex
-!> \param[in]  matrix              query this matrix
-!> \retval is_complex ...
-! *****************************************************************************
-  PURE FUNCTION dbcsr_is_complex (matrix) RESULT (is_complex)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL                                  :: is_complex
-
-    IF(matrix%m%data_type.EQ.dbcsr_type_complex_4.OR.&
-       matrix%m%data_type.EQ.dbcsr_type_complex_8) THEN
-       is_complex = .TRUE.
-    ELSE
-       is_complex = .FALSE.
-    ENDIF
-  END FUNCTION dbcsr_is_complex
-
-
-! *****************************************************************************
 !> \brief Returns the type of memory used for data in the matrix
 !> \param[in] matrix           query this matrix
 !> \retval memory_type         memory type used for data
