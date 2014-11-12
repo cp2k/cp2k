@@ -318,25 +318,3 @@
 
     value = encapsulated_scalar%r_dp
   END SUBROUTINE dbcsr_scalar_get_value_d
-
-
-! *****************************************************************************
-!> \brief Used to determine appropriate type for data.
-!> \param[in] data                      data to query
-!> \retval data_type                    appropriate data_type 
-! *****************************************************************************
-  PURE FUNCTION query_type_d_1d (DATA) RESULT (data_type)
-    REAL(kind=real_8), DIMENSION(:), INTENT(IN) :: DATA
-    INTEGER                           :: data_type
-    data_type = dbcsr_type_real_8
-  END FUNCTION query_type_d_1d
-! *****************************************************************************
-!> \brief ...
-!> \param data ...
-!> \retval data_type ...
-! *****************************************************************************
-  PURE FUNCTION query_type_d_2d (DATA) RESULT (data_type)
-    REAL(kind=real_8), DIMENSION(:,:), INTENT(IN) :: DATA
-    INTEGER                             :: data_type
-    data_type = dbcsr_type_real_8_2d
-  END FUNCTION query_type_d_2d

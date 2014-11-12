@@ -318,25 +318,3 @@
 
     value = encapsulated_scalar%[base1]_[prec1]
   END SUBROUTINE dbcsr_scalar_get_value_[nametype1]
-
-
-! *****************************************************************************
-!> \brief Used to determine appropriate type for data.
-!> \param[in] data                      data to query
-!> \retval data_type                    appropriate data_type 
-! *****************************************************************************
-  PURE FUNCTION query_type_[nametype1]_1d (data) RESULT (data_type)
-    [type1], DIMENSION(:), INTENT(IN) :: data
-    INTEGER                           :: data_type
-    data_type = [dkind1]
-  END FUNCTION query_type_[nametype1]_1d
-! *****************************************************************************
-!> \brief ...
-!> \param data ...
-!> \retval data_type ...
-! *****************************************************************************
-  PURE FUNCTION query_type_[nametype1]_2d (data) RESULT (data_type)
-    [type1], DIMENSION(:,:), INTENT(IN) :: data
-    INTEGER                             :: data_type
-    data_type = [dkind1]_2d
-  END FUNCTION query_type_[nametype1]_2d

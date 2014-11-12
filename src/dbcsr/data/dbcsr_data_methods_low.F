@@ -115,13 +115,6 @@ MODULE dbcsr_data_methods_low
      MODULE PROCEDURE dbcsr_data_get_sizes_1, dbcsr_data_get_sizes_2
   END INTERFACE
 
-  INTERFACE dbcsr_data_query_type
-     MODULE PROCEDURE query_type_s_1d, query_type_d_1d,&
-                      query_type_c_1d, query_type_z_1d
-     MODULE PROCEDURE query_type_s_2d, query_type_d_2d,&
-                      query_type_c_2d, query_type_z_2d
-  END INTERFACE
-
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
   LOGICAL, PARAMETER :: debug_mod = .FALSE.
 
