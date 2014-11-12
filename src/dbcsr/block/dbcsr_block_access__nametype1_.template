@@ -462,64 +462,6 @@
   END SUBROUTINE dbcsr_reserve_block2d_[nametype1]
 
 ! *****************************************************************************
-!> \brief Get a 2D block from the working matrix
-!> \param[in.out] matrix      DBCSR matrix
-!> \param[in]  row            the row
-!> \param[in]  col            the column
-!> \param[in]  block          pointer to data block
-!> \param[out] tr             block is transposed
-!> \param[out] found          block was found
-! *****************************************************************************
-  SUBROUTINE dbcsr_get_tmp_block2d_[nametype1](matrix, row, col, block, tr,&
-       found)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    INTEGER, INTENT(IN)                      :: row, col
-    [type1], DIMENSION(:,:), POINTER         :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_tmp_block2d_[nametype1]', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(btree_2d_data_[nametype1])          :: data_block
-    INTEGER                                  :: stored_row, stored_col, iw, nwms
-!$  TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
-       found = .FALSE.
-       NULLIFY (block)
-       RETURN
-    ENDIF
-
-    stored_row = row ; stored_col = col
-    tr = .FALSE.
-    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
-    nwms = SIZE(matrix%m%wms)
-    iw = 1
-!$  CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
-!$     dbcsr_fatal_level, dbcsr_internal_error,&
-!$     routineN, "Number of work matrices not equal to number of threads", &
-!$     __LINE__, error=error)
-!$  iw = omp_get_thread_num () + 1
-    CALL btree_get_[nametype1] (matrix%m%wms(iw)%mutable%m%btree_[nametype1],&
-         make_coordinate_tuple(stored_row, stored_col),&
-         data_block, found)
-
-    IF (.NOT. found) THEN
-       !WRITE(*,*)routineN//" Block did not exist"
-       NULLIFY (block)
-       !block => data_block%p
-    ELSE
-       !WRITE(*,*)routineN//" Found block", ASSOCIATED (data_block%p)
-       block => data_block%p
-       tr = data_block%tr
-    ENDIF
-  END SUBROUTINE dbcsr_get_tmp_block2d_[nametype1]
-
-
-
-! *****************************************************************************
 !> \brief Put a 2-D block in a DBCSR matrix
 !> \param[in.out] matrix      DBCSR matrix
 !> \param[in]  row            the row

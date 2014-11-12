@@ -120,11 +120,6 @@ MODULE dbcsr_block_access
                       dbcsr_reserve_block2d_c, dbcsr_reserve_block2d_z
   END INTERFACE
 
-  INTERFACE dbcsr_get_tmp_block2d
-     MODULE PROCEDURE dbcsr_get_tmp_block2d_s, dbcsr_get_tmp_block2d_d,&
-                      dbcsr_get_tmp_block2d_c, dbcsr_get_tmp_block2d_z
-  END INTERFACE
-
   INTERFACE dbcsr_set_block_pointer
      MODULE PROCEDURE dbcsr_set_block_pointer_any
      MODULE PROCEDURE dbcsr_set_block_pointer_2d_s,&

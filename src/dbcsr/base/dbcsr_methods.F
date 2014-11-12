@@ -1110,19 +1110,6 @@ CONTAINS
   END FUNCTION dbcsr_get_num_blocks
 
 ! *****************************************************************************
-!> \brief Returns the number of non-zero elements in the matrix
-!> \param matrix     matrix from which to get data
-!> \retval num_nze ...
-! *****************************************************************************
-  PURE FUNCTION dbcsr_get_nze (matrix) RESULT (num_nze)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER                                  :: num_nze
-
-    num_nze = matrix%m%nze
-  END FUNCTION dbcsr_get_nze
-
-
-! *****************************************************************************
 ! Arrays
 ! *****************************************************************************
 
@@ -1661,25 +1648,6 @@ CONTAINS
     NULLIFY (mutable%m)
   END SUBROUTINE dbcsr_mutable_destroy
 
-
-! *****************************************************************************
-!> \brief Registers another reference to the mutable data type
-!> \param[in,out] mutable     mutable data
-! *****************************************************************************
-  SUBROUTINE dbcsr_mutable_hold (mutable)
-    TYPE(dbcsr_mutable_obj), INTENT(INOUT)   :: mutable
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_hold', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (mutable%m), dbcsr_fatal_level,&
-         dbcsr_caller_error, routineN, "Mutable data area not instantiated",__LINE__,error)
-    mutable%m%refcount = mutable%m%refcount + 1
-  END SUBROUTINE dbcsr_mutable_hold
 
 ! *****************************************************************************
 !> \brief Deregisters a reference to the mutable data type

@@ -31,8 +31,7 @@ MODULE dbcsr_index_operations
        dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
        dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_get_index_memory_type,&
-                                             dbcsr_wm_use_mutable
+                                             dbcsr_get_index_memory_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              memory_allocate,&
                                              memory_deallocate
@@ -734,31 +733,6 @@ CONTAINS
     CALL dbcsr_error_stop (error_handle, error)
 
   END SUBROUTINE dbcsr_sort_indices
-
-! *****************************************************************************
-!> \brief Sorts all work matrices.
-!> \param[in,out] matrix      sort work matrices in this matrix
-! *****************************************************************************
-  SUBROUTINE dbcsr_sort_many_indices(matrix)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_many_indices', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-
-!   ---------------------------------------------------------------------------
-
-    DO i = 1, SIZE (matrix%wms)
-       IF (.NOT. dbcsr_wm_use_mutable (matrix%wms(i))) THEN
-          IF (matrix%wms(i)%lastblk .GT. 0) THEN
-             CALL dbcsr_sort_indices (matrix%wms(i)%lastblk,&
-                  matrix%wms(i)%row_i,&
-                  matrix%wms(i)%col_i, matrix%wms(i)%blk_p)
-          ENDIF
-       ENDIF
-    ENDDO
-  END SUBROUTINE dbcsr_sort_many_indices
 
 ! *****************************************************************************
 !> \brief Removes the deleted blocks from the index.
