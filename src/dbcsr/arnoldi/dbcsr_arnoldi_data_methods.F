@@ -31,6 +31,7 @@ MODULE dbcsr_arnoldi_data_methods
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
+  USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix
   USE kinds,                           ONLY: real_4,&
                                              real_8
 
