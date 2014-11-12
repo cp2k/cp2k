@@ -994,3 +994,7 @@ He2_none.inp
 #do not accumulate shift in outer scf preconditioner
 He2_ddapc_constraint-4.inp
 He2_ddapc_constraint-2.inp
+# fix roundoff NaNs
+He_a_x.inp
+He_a_y.inp
+He_a_z.inp
