@@ -937,90 +937,6 @@ CONTAINS
     ENDIF
   END SUBROUTINE btree_find
 
-
-! *****************************************************************************
-!> \brief ...
-!> \param tree ...
-!> \param key ...
-!> \param value ...
-! *****************************************************************************
-  SUBROUTINE btree_pop_smallest (tree, key, value)
-    TYPE(btree), INTENT(INOUT)               :: tree
-    INTEGER(KIND=keyt), INTENT(OUT)          :: key
-    TYPE(cp2d), INTENT(OUT)                  :: value
-
-    TYPE(btree_node), POINTER                :: node
-
-!
-!
-
-    NULLIFY(node)
-    IF (tree%b%n .EQ. 0) RETURN
-    ! Try to find the key in the given node. If it's found, then
-    ! return the node.
-    node => tree%b%root
-    descent: DO WHILE (ASSOCIATED (node%subtrees(1)%node))
-       node => node%subtrees(1)%node
-    END DO descent
-    key = node%keys(1)
-    value = node%values(1)
-    tree%b%n = tree%b%n-1
-    CALL btree_remove_from (tree, node, key, before=1)
-  END SUBROUTINE btree_pop_smallest
-
-! *****************************************************************************
-!> \brief ...
-!> \param tree ...
-!> \param key ...
-!> \param value ...
-! *****************************************************************************
-  SUBROUTINE btree_pop_greatest (tree, key, value)
-    TYPE(btree), INTENT(INOUT)               :: tree
-    INTEGER(KIND=keyt), INTENT(OUT)          :: key
-    TYPE(cp2d), INTENT(OUT)                  :: value
-
-    INTEGER                                  :: lv
-    TYPE(btree_node), POINTER                :: node
-
-!
-!
-
-    NULLIFY(node)
-    IF (tree%b%n .EQ. 0) RETURN
-    ! Try to find the key in the given node. If it's found, then
-    ! return the node.
-    node => tree%b%root
-    descent: DO WHILE (ASSOCIATED (node%subtrees(node%filled+1)%node))
-       node => node%subtrees(node%filled+1)%node
-    END DO descent
-    lv = node%filled
-    key = node%keys(lv)
-    value = node%values(lv)
-    tree%b%n = tree%b%n-1
-    CALL btree_remove_from (tree, node, key, before=lv)
-  END SUBROUTINE btree_pop_greatest
-
-! *****************************************************************************
-!> \brief ...
-!> \param keys ...
-!> \param key ...
-!> \param position ...
-!> \param filled ...
-! *****************************************************************************
-  SUBROUTINE btree_node_find_ge2_pos (keys, key, position, filled)
-    INTEGER(KIND=keyt), DIMENSION(:)         :: keys
-    INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER, INTENT(OUT)                     :: position
-    INTEGER, INTENT(IN)                      :: filled
-
-!
-
-    position = 1
-    DO WHILE (position .LE. filled)
-       IF (keys(position) .GE. key) RETURN
-       position = position + 1
-    ENDDO
-  END SUBROUTINE btree_node_find_ge2_pos
 ! *****************************************************************************
 !> \brief ...
 !> \param keys ...
@@ -1058,27 +974,7 @@ CONTAINS
        position = MAX(ISHFT (left+right, -1),left)
     ENDDO
   END SUBROUTINE btree_node_find_ge_pos
-! *****************************************************************************
-!> \brief ...
-!> \param keys ...
-!> \param key ...
-!> \param position ...
-!> \param filled ...
-! *****************************************************************************
-  SUBROUTINE btree_node_find_gt2_pos (keys, key, position, filled)
-    INTEGER(KIND=keyt), DIMENSION(:)         :: keys
-    INTEGER(KIND=keyt), INTENT(IN)           :: key
-    INTEGER, INTENT(OUT)                     :: position
-    INTEGER, INTENT(IN)                      :: filled
 
-!
-
-    position = 1
-    DO WHILE (position .LE. filled)
-       IF (keys(position) .GT. key) RETURN
-       position = position + 1
-    ENDDO
-  END SUBROUTINE btree_node_find_gt2_pos
 ! *****************************************************************************
 !> \brief ...
 !> \param keys ...
@@ -1310,39 +1206,6 @@ CONTAINS
        CALL btree_print_short_node (node%subtrees(node%filled+1)%node)
     ENDIF
   END SUBROUTINE btree_print_short_node
-
-
-! *****************************************************************************
-!> \brief ...
-!> \param tree ...
-! *****************************************************************************
-  SUBROUTINE btree_print (tree)
-    TYPE(btree), INTENT(INOUT)               :: tree
-
-    INTEGER                                  :: count, max_leaf_level, &
-                                                min_leaf_level, num_nodes
-    INTEGER(KIND=keyt)                       :: lastv
-    LOGICAL                                  :: printing
-
-!
-!
-
-    CALL btree_verify (tree)
-    IF (ASSOCIATED (tree%b%root)) THEN
-       printing = .FALSE.
-       count = 0
-       num_nodes = 0
-       ! WRITE(*,*)'============',tree%b%n
-       CALL btree_print_node(tree%b%root, 0, lastv,&
-               count, num_nodes, max_leaf_level, min_leaf_level, printing)
-       ! WRITE(*,*)'------------',count, REAL(tree%b%n)/REAL(num_nodes*tree%b%max_fill)
-       CALL btree_print_bynode(tree%b%root, 0)
-       ! WRITE(*,*)'============'
-    ELSE
-       ! WRITE(*,*)'Tree is empty.'
-    ENDIF
-  END SUBROUTINE btree_print
-
 
 ! *****************************************************************************
 !> \brief ...
