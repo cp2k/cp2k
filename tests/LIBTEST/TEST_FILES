@@ -7,6 +7,7 @@ test_pw.inp            0
 test_pw_02.inp         0
 test_pw_03.inp         0
 test_pw_04.inp         0
+test_pw_05.inp         0
 test_cp_fm_gemm_01.inp 0
 test_cp_fm_gemm_02.inp 0
 eig.inp                0
