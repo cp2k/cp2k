@@ -12,3 +12,5 @@ H2O-MNDO-KDSOd.inp
 LM-KSDO.inp
 #do not accumulate shift in outer scf preconditioner
 LM-KSDO-D.inp
+# more FSI resets
+N3-rp_colvar.inp

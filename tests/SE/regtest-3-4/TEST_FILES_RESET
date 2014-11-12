@@ -15,3 +15,8 @@ N3_rp_md.inp
 N3_dp_md.inp
 #do not accumulate shift in outer scf preconditioner
 N3_rp_dp_md.inp
+# more FSI resets
+Co_complex.inp
+N3_rp_md.inp
+N3_dp_md.inp
+N3_rp_dp_md.inp
