@@ -4,24 +4,6 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Sets the diagonal of a square data block represented as a 1-D array
-!>        to a single value.
-!>        Non-diagonal elements are set to 0.
-!> \param[out] block_data     sets diagonal in this data block
-!> \param[in] value           value of the diagonal elements
-!> \param[in] d               dimension of the square data block
-! *****************************************************************************
-  PURE SUBROUTINE set_block_diagonal_d (block_data, value, d)
-    REAL(kind=real_8), DIMENSION(:), INTENT(OUT) :: block_data
-    REAL(kind=real_8), INTENT(IN)                :: value
-    INTEGER, INTENT(IN)                :: d
-
-!   ---------------------------------------------------------------------------
-
-    CALL block_set_d (d, d, block_data, value, 0.0_real_8)
-  END SUBROUTINE set_block_diagonal_d
-
-! *****************************************************************************
 !> \brief ...
 !> \param m ...
 !> \param n ...
