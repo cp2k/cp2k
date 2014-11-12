@@ -288,6 +288,10 @@ endif
 
 # this happens on stage 3
 makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES)
+ifeq ($(LD_SHARED),)
+	@echo "Removing stale archives for $(ONEVERSION) ... "
+	@$(TOOLSRC)/build_utils/check_archives.py $(firstword $(AR)) $(SRCDIR) $(LIBDIR)
+endif
 	@echo "Resolving dependencies for $(ONEVERSION) ... "
 	@$(TOOLSRC)/build_utils/makedep.py $(OBJDIR)/all.dep $(MODDEPS) $(MAKEDEPMODE) $(ARCHIVE_EXT) $(OBJ_SRC_FILES)
 
