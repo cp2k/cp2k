@@ -1,7 +1,0 @@
-# updates
-almo-x.inp
-almo-guess.inp
-almo-scf.inp
-almo-d.inp
-#do not accumulate shift in outer scf preconditioner
-almo-d.inp
