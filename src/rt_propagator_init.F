@@ -217,7 +217,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: eigvec_H, H_fm, S_half, &
                                                 S_inv_fm, S_minus_half, tmp, &
                                                 tmp_mat_H
-    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
