@@ -21,3 +21,5 @@ si8_broy_dav_md.inp
 si8_broy_davsparse_md.inp
 #  
 si8_broy_dav_t300_lsd.inp
+#do not accumulate shift in outer scf preconditioner
+bug_ai_moments.inp

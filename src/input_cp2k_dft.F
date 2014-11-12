@@ -6169,8 +6169,7 @@ CONTAINS
             "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
             "skip preconditioning"),&
             enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
-            ot_precond_full_kinetic,ot_precond_s_inverse,&
-            ot_precond_none/),&
+            ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_none/),&
             citations=(/VandeVondele2003/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

@@ -55,12 +55,25 @@
 
     INTEGER, DIMENSION(current_step)         :: indexing
     REAL(real_8), DIMENSION(current_step)        :: tmp_array
+    INTEGER                                   :: i
 
-    neval=2
+    neval=0
     tmp_array(1:current_step)=REAL(evals(1:current_step), real_8)
     CALL sort(tmp_array, current_step, indexing)
-    selected_ind(1)=indexing(1)
-    selected_ind(2)=indexing(current_step)
+    DO i=1,current_step
+       IF(ABS(AIMAG(evals(indexing(i))))<EPSILON(0.0_real_8))THEN
+          selected_ind(1)=indexing(i)
+          neval=neval+1
+          EXIT
+       END IF
+    END DO
+    DO i=current_step,1,-1
+       IF(ABS(AIMAG(evals(indexing(i))))<EPSILON(0.0_real_8))THEN
+          selected_ind(2)=indexing(i)
+          neval=neval+1
+          EXIT
+       END IF
+    END DO
 
   END SUBROUTINE index_min_max_real_eval_z
 

@@ -11,3 +11,5 @@ dimer.inp
 dimer.inp
 # speedup, change basis
 dimer.inp
+#do not accumulate shift in outer scf preconditioner
+dimer.inp

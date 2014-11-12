@@ -127,7 +127,7 @@
          routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, ncol_local, nrow_local
-    REAL(real_4)                        :: rnorm, rnorm1
+    REAL(real_4)                        :: rnorm
     TYPE(arnoldi_control), POINTER           :: control
     TYPE(arnoldi_data_s), POINTER            :: ar_data
     REAL(kind=real_4)                         :: norm
@@ -170,12 +170,9 @@
        CALL Gram_Schmidt_ortho_s(h_vec, ar_data%f_vec, s_vec, w_vec, nrow_local, j, &
                                ar_data%local_history, control%local_comp, control%pcol_group, error)
 
-       ! compute the vector norm of the residuum and the norm of the projections
-       CALL compute_norms_s(ar_data%f_vec, norm, rnorm, control%pcol_group)
-       norm=DOT_PRODUCT(h_vec(1:j+1), h_vec(1:j+1)); rnorm1=REAL(0.1, real_4)*SQRT(REAL(norm, real_4))
-
-       ! If Gram Schidt starts to loose precision improve by topping up with a DGKS step
-       IF(rnorm<rnorm1) CALL DGKS_ortho_s(h_vec, ar_data%f_vec, s_vec, nrow_local, j, ar_data%local_history, &
+       ! A bit more expensive but simpliy always top up with a DGKS correction, otherwise numerics
+       ! can becom a problem later on, there is probably a good check, but we don't perform it
+       CALL DGKS_ortho_s(h_vec, ar_data%f_vec, s_vec, nrow_local, j, ar_data%local_history, &
                                                     control%local_comp, control%pcol_group, error)
        ! Finally we can put the projections into our Hessenberg matrix
        ar_data%Hessenberg(1:j+1, j+1)= h_vec(1:j+1)

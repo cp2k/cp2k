@@ -155,7 +155,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     needs_homo=.FALSE.
 
     SELECT CASE(precon_type)
-    CASE (ot_precond_full_single_inverse,ot_precond_full_all)
+    CASE (ot_precond_full_all)
        needs_full_spectrum=.TRUE.
        ! both of them need the coefficients as fm's, more matrix mess
        IF(use_mo_coeff_b) THEN
@@ -165,7 +165,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        needs_homo=.TRUE.
        ! XXXX to be removed if homo estimate only is implemented
        needs_full_spectrum=.TRUE.
-    CASE (ot_precond_full_kinetic,ot_precond_s_inverse)
+    CASE (ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_full_single_inverse)
        ! these should be happy without an estimate for the homo energy
        ! preconditioning can  not depend on an absolute eigenvalue, only on eigenvalue differences
     CASE DEFAULT
@@ -263,14 +263,14 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     IF (ASSOCIATED(preconditioner)) THEN
        SELECT CASE(prec_type)
-       CASE(ot_precond_full_all,ot_precond_full_single, ot_precond_full_single_inverse) ! these depend on the ks matrix
+       CASE(ot_precond_full_all,ot_precond_full_single) ! these depend on the ks matrix
          DO ispin=1,SIZE(preconditioner)
             CALL destroy_preconditioner(preconditioner(ispin)%preconditioner,error=error)
             DEALLOCATE(preconditioner(ispin)%preconditioner)
          ENDDO
          DEALLOCATE(preconditioner,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse) ! these are 'independent'
+       CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_full_single_inverse) ! these are 'independent'
          ! do nothing
        CASE DEFAULT
            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -376,11 +376,12 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
       matrix_t => kinetic(1)%matrix
     END IF
 
-    !determins how often make preconditioner is called
+    !determins how often make preconditioner is called, spin dependent methods have to be called twice
     n_loops=1
+    IF(prec_type==ot_precond_full_single_inverse)n_loops=nspins
     ! check whether we need the ev and rotate the MOs
     SELECT CASE(prec_type)
-    CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+    CASE(ot_precond_full_all)
        ! if one of these preconditioners is used every spin needs to call make_preconditioner
        n_loops=nspins
 

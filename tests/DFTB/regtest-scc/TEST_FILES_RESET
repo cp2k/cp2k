@@ -273,3 +273,9 @@ h2o-4.inp
 h2o-5.inp
 h2o-7.inp
 h2o_atprop.inp
+#do not accumulate shift in outer scf preconditioner
+ch2o-ot3.inp
+#do not accumulate shift in outer scf preconditioner
+h2o-6.inp
+#do not accumulate shift in outer scf preconditioner
+h2o-7.inp

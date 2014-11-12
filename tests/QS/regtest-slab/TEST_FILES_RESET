@@ -1,1 +1,11 @@
 #
+#do not accumulate shift in outer scf preconditioner
+hbn3_1h2o_ff.inp
+#do not accumulate shift in outer scf preconditioner
+hbn3_1h2o_ff_pyz.inp
+#do not accumulate shift in outer scf preconditioner
+hbn3_1h2o_dipcor_ff.inp
+#do not accumulate shift in outer scf preconditioner
+hbn3_1h2o_dipcor_ff_pyz.inp
+#do not accumulate shift in outer scf preconditioner
+hbn3_1h2o_ff_pyz_2dps.inp

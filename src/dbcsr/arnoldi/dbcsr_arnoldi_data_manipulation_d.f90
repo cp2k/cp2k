@@ -39,3 +39,45 @@
     DEALLOCATE(ar_data)
 
   END SUBROUTINE deallocate_arnoldi_data_d
+
+  SUBROUTINE get_selected_ritz_vector_d(arnoldi_data,ind,matrix,vector,error)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    INTEGER                                  :: ind
+    TYPE(dbcsr_obj)                          :: matrix
+    TYPE(dbcsr_obj)                          :: vector
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector_d', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(arnoldi_data_d), POINTER           :: ar_data
+    INTEGER                                           :: vsize, myind, sspace_size, i
+    INTEGER, DIMENSION(:), POINTER           :: selected_ind
+    COMPLEX(real_8),DIMENSION(:),ALLOCATABLE       :: ritz_v
+    REAL(kind=real_8), DIMENSION(:), POINTER          :: data_vec
+
+    selected_ind=>get_sel_ind(arnoldi_data)
+    ar_data=>get_data_d(arnoldi_data)
+    sspace_size=get_subsp_size(arnoldi_data)
+    vsize=SIZE(ar_data%f_vec)
+    myind=selected_ind(ind)
+    ALLOCATE(ritz_v(vsize))
+    ritz_v=CMPLX(0.0,0.0,real_8)
+    CALL create_col_vec_from_matrix(vector,matrix,1,error)
+    IF(vsize.gt.0)THEN
+       DO i=1,sspace_size
+          ritz_v(:)=ritz_v(:)+ar_data%local_history(:,i)*ar_data%revec(i,myind)
+       END DO
+       data_vec => dbcsr_get_data_p (vector%m%data_area, coersion=0.0_real_8)
+       ! is a bit odd but ritz_v is always complex and matrix type determines where it goes
+       ! again I hope the user knows what is required
+       data_vec(1:vsize) =REAL(ritz_v(1:vsize),KIND=real_8)
+    END IF
+
+    DEALLOCATE(ritz_v)
+
+   END SUBROUTINE get_selected_ritz_vector_d
+     
+    
+
+    

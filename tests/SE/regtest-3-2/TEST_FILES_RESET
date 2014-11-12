@@ -2,3 +2,13 @@
 N3-rp_colvar.inp.out
 #  
 N3-rp_colvar.inp
+#do not accumulate shift in outer scf preconditioner
+O2.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-3.inp
+#do not accumulate shift in outer scf preconditioner
+N3-rp_colvar.inp
+H2O-MNDO-KDSOd.inp
+LM-KSDO.inp
+#do not accumulate shift in outer scf preconditioner
+LM-KSDO-D.inp

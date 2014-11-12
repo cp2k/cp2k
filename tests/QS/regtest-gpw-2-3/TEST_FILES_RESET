@@ -12,3 +12,19 @@ hcn_meta_coord.inp
 hcn_meta_chaincoord.inp
 #  
 hcn_meta_chaincoord_kind.inp
+#do not accumulate shift in outer scf preconditioner
+hcn_ts.inp
+hcn_ts_r.inp
+#do not accumulate shift in outer scf preconditioner
+hcn_md.inp
+#do not accumulate shift in outer scf preconditioner
+hcn_meta_coord.inp
+#do not accumulate shift in outer scf preconditioner
+hcn_meta_chaincoord.inp
+#do not accumulate shift in outer scf preconditioner
+hcn_meta_chaincoord_kind.inp
+#do not accumulate shift in outer scf preconditioner
+Au13ico_mtd.inp
+#do not accumulate shift in outer scf preconditioner
+Au12_rmsd_AB_mtd.inp
+Au12_rmsd_A_mtd.inp

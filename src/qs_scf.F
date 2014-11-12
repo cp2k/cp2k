@@ -550,7 +550,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nmo, &
                                                 number_of_OT_envs, stat
     LOGICAL                                  :: do_rotation, failure, &
-                                                has_unit_metric, scp_nddo
+                                                has_unit_metric, is_full_all, &
+                                                scp_nddo
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: ks_scp, orthogonality_metric, &
@@ -742,7 +743,9 @@ CPSourceFileRef)
                 ! this will rotate the MOs to be eigen states, which is not compatible with rotation
                 ! e.g. mo_derivs here do not yet include potentially different occupations numbers
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
-                CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
+                ! only full all needs rotation
+                is_full_all=scf_env%qs_ot_env(1)%settings%preconditioner_type==ot_precond_full_all
+                CPPrecondition(.NOT.(do_rotation.AND.is_full_all),cp_failure_level,routineP,error,failure)
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
                         scf_env%ot_preconditioner(ispin)%preconditioner,error=error)

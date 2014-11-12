@@ -607,3 +607,6 @@ stp2.inp
 2h2o_disp1.inp
 2h2o_disp2.inp
 2h2o_disp3.inp
+#do not accumulate shift in outer scf preconditioner
+stp3.inp
+scan_zn_1w_cp2k.inp

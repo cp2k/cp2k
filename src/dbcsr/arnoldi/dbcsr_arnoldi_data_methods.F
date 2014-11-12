@@ -20,10 +20,12 @@ MODULE dbcsr_arnoldi_data_methods
        get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, has_d_real, &
        has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, &
        set_data_s, set_data_z
-  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_grid_setup
+  USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
                                              dbcsr_obj_type_p,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -111,7 +113,7 @@ CONTAINS
 
     ALLOCATE(control)
     CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
-    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
+!    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
     control%mp_group=distri%d%mp_env%mp%mp_group
     control%myproc=distri%d%mp_env%mp%mynode
     control%pcol_group=distri%d%mp_env%mp%pcol_group

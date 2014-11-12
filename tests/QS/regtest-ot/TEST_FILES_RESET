@@ -998,3 +998,6 @@ He2_ddapc_constraint-2.inp
 He_a_x.inp
 He_a_y.inp
 He_a_z.inp
+#New FULL_SINGLE_INVERSE
+He2_none_full_inverse.inp
+H2-diffBECKE-ET_coupling.inp

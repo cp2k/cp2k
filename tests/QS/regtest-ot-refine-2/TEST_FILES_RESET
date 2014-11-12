@@ -371,3 +371,8 @@ h2o_ot_precond_5.inp
 h2o_ot_precond_6.inp
 h2o_ot_precond_7.inp
 h2o_ot_precond_8.inp
+#do not accumulate shift in outer scf preconditioner
+h2o_ot_precond_7.inp
+h2o_ot_precond_8.inp
+no_ot_precond_7.inp
+no_ot_precond_8.inp

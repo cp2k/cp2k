@@ -6,3 +6,12 @@ N3_dp_md.inp
 N3_rp_md.inp
 #  
 N3_rp_dp_md.inp
+#do not accumulate shift in outer scf preconditioner
+Al2O3.inp
+Co_complex.inp
+#do not accumulate shift in outer scf preconditioner
+N3_rp_md.inp
+#do not accumulate shift in outer scf preconditioner
+N3_dp_md.inp
+#do not accumulate shift in outer scf preconditioner
+N3_rp_dp_md.inp

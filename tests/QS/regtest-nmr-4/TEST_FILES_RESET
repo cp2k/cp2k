@@ -378,3 +378,5 @@ no_list-1.inp
 o2-gapw-uks-restart-1.inp
 #  
 c2h2_list-1.inp
+#do not accumulate shift in outer scf preconditioner
+h2o-no2-selected-states-1.inp

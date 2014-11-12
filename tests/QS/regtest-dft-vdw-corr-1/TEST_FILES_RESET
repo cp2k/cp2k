@@ -1,0 +1,2 @@
+#do not accumulate shift in outer scf preconditioner
+ch4-ch4-gpw-vdw.inp
