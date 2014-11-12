@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Routines for the prepares teh matrices for the propagators
+!> \brief Routines for that prepare rtp and EMD
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 MODULE rt_propagator_init
@@ -92,6 +92,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dt, prefac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
+                                                matrix_ks, matrix_ks_im, &
                                                 propagator_matrix, rho_old, &
                                                 s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -105,13 +106,15 @@ CONTAINS
          rtp=rtp,&
          dft_control=dft_control,&
          matrix_s=s_mat,&
+         matrix_ks=matrix_ks,&
+         matrix_ks_im=matrix_ks_im,&
          error=error)
 
     rtp_control=>dft_control%rtp_control
     CALL get_rtp (rtp=rtp,exp_H_old=exp_H_old,exp_H_new=exp_H_new,&
                   propagator_matrix=propagator_matrix,dt=dt,error=error)
     CALL s_matrices_create (s_mat,rtp,error)
-    CALL calc_SinvH(exp_H_new,qs_env,error)
+    CALL calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control,error)
     DO i=1,SIZE(exp_H_old)
        CALL cp_dbcsr_copy(exp_H_old(i)%matrix,exp_H_new(i)%matrix,error=error)
     END DO
@@ -120,9 +123,9 @@ CONTAINS
        rtp%orders(1,:)=0;rtp%orders(2,:)=1; rtp_control%mat_exp=do_pade; rtp_control%propagator=do_em
     ELSE IF(rtp_control%mat_exp==do_pade.OR.rtp_control%mat_exp==do_taylor) THEN
        IF(rtp%linear_scaling) THEN
-          CALL get_maxabs_eigval_sparse(rtp,qs_env,error)
+          CALL get_maxabs_eigval_sparse(rtp,s_mat,matrix_ks,rtp_control,error)
        ELSE
-          CALL get_maxabs_eigval(rtp,qs_env,error)
+          CALL get_maxabs_eigval(rtp,s_mat,matrix_ks,rtp_control,error)
        END IF
     END IF
     IF(rtp_control%mat_exp==do_pade.AND.rtp%linear_scaling) THEN
@@ -186,14 +189,18 @@ CONTAINS
 !>        calculates the order and number of squaring steps for Taylor or
 !>        Pade matrix exponential
 !> \param rtp ...
-!> \param qs_env ...
+!> \param s_mat ...
+!> \param matrix_ks ...
+!> \param rtp_control ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE get_maxabs_eigval(rtp,qs_env,error)
+  SUBROUTINE get_maxabs_eigval(rtp,s_mat,matrix_ks,rtp_control,error)
     TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s_mat, matrix_ks
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_maxabs_eigval', &
@@ -206,23 +213,14 @@ CONTAINS
     REAL(dp)                                 :: max_eval, min_eval, norm2, &
                                                 scale, t
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, s_mat
     TYPE(cp_dbcsr_type), POINTER             :: S_inv
     TYPE(cp_fm_type), POINTER                :: eigvec_H, H_fm, S_half, &
                                                 S_inv_fm, S_minus_half, tmp, &
                                                 tmp_mat_H
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control)
     failure=.FALSE.
-
-    CALL get_qs_env(qs_env,&
-                    matrix_ks=matrix_ks,&
-                    matrix_s=s_mat,&
-                    dft_control=dft_control,&
-                    error=error)
 
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t,error=error)
 
@@ -254,7 +252,7 @@ CONTAINS
 
     ndim=S_inv_fm%matrix_struct%nrow_global
     scale=1.0_dp
-    IF(dft_control%rtp_control%propagator==do_etrs) scale=2.0_dp
+    IF(rtp_control%propagator==do_etrs) scale=2.0_dp
     t=-t/scale
 
     ! Create the overlap matrices
@@ -285,9 +283,9 @@ CONTAINS
     CALL cp_fm_release(eigvec_H,error)
     CALL cp_fm_release(tmp,error)
 
-    IF(dft_control%rtp_control%mat_exp==do_taylor)method=1
-    IF(dft_control%rtp_control%mat_exp==do_pade)method=2
-    emd=(.NOT.dft_control%rtp_control%fixed_ions)
+    IF(rtp_control%mat_exp==do_taylor)method=1
+    IF(rtp_control%mat_exp==do_pade)method=2
+    emd=(.NOT.rtp_control%fixed_ions)
 
     DO ispin=1,SIZE(matrix_ks)
 
@@ -305,7 +303,7 @@ CONTAINS
        max_eval=MAXVAL(eigval_H)
        norm2=2.0_dp*MAX(ABS(min_eval),ABS(max_eval))
        CALL get_nsquare_norder(norm2,rtp%orders(1,ispin),rtp%orders(2,ispin),&
-            dft_control%rtp_control%eps_exp,method ,emd,error)
+            rtp_control%eps_exp,method ,emd,error)
     END DO
 
     DEALLOCATE(eigval_H,stat=stat)
@@ -327,14 +325,18 @@ CONTAINS
 !>        calculates the order and number of squaring steps for Taylor or
 !>        Pade matrix exponential. Based on the full matrix code.
 !> \param rtp ...
-!> \param qs_env ...
+!> \param s_mat ...
+!> \param matrix_ks ...
+!> \param rtp_control ...
 !> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
-  SUBROUTINE get_maxabs_eigval_sparse(rtp,qs_env,error)
+  SUBROUTINE get_maxabs_eigval_sparse(rtp,s_mat,matrix_ks,rtp_control,error)
     TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s_mat, matrix_ks
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_maxabs_eigval_sparse', &
@@ -345,22 +347,10 @@ CONTAINS
     LOGICAL                                  :: converged, emd
     REAL(dp)                                 :: max_ev, min_ev, norm2, scale, &
                                                 t
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, s_mat
     TYPE(cp_dbcsr_type), POINTER             :: s_half, s_minus_half, tmp, &
                                                 tmp2
-    TYPE(dft_control_type), POINTER          :: dft_control
-
-    NULLIFY(dft_control)
 
     CALL timeset(routineN,handle)
-
-    CALL get_qs_env(qs_env,&
-                    rtp=rtp,&
-                    matrix_ks=matrix_ks,&
-                    matrix_s=s_mat,&
-                    dft_control=dft_control,&
-                    error=error)
 
     CALL get_rtp(rtp=rtp,dt=t,error=error)
 
@@ -381,12 +371,12 @@ CONTAINS
     CALL cp_dbcsr_init(tmp2,error=error)
     CALL cp_dbcsr_create(tmp2,template=s_mat(1)%matrix,matrix_type="N",error=error)
     scale=1.0_dp
-    IF(dft_control%rtp_control%propagator==do_etrs)scale=2.0_dp
+    IF(rtp_control%propagator==do_etrs)scale=2.0_dp
     t=-t/scale
-    emd=(.NOT.dft_control%rtp_control%fixed_ions)
+    emd=(.NOT.rtp_control%fixed_ions)
 
-    IF(dft_control%rtp_control%mat_exp==do_taylor)method=1
-    IF(dft_control%rtp_control%mat_exp==do_pade)method=2
+    IF(rtp_control%mat_exp==do_taylor)method=1
+    IF(rtp_control%mat_exp==do_pade)method=2
     CALL matrix_sqrt_Newton_Schulz(s_half,s_minus_half,s_mat(1)%matrix,rtp%filter_eps,&
          rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
     DO ispin=1,SIZE(matrix_ks)
@@ -398,7 +388,7 @@ CONTAINS
             max_iter=rtp%lanzcos_max_iter, converged=converged, error=error)
        norm2=2.0_dp*MAX(ABS(min_ev),ABS(max_ev))
        CALL get_nsquare_norder(norm2,rtp%orders(1,ispin),rtp%orders(2,ispin),&
-            dft_control%rtp_control%eps_exp,method,emd,error)
+            rtp_control%eps_exp,method,emd,error)
     END DO
 
     CALL cp_dbcsr_deallocate_matrix(s_half,error=error)
@@ -497,16 +487,16 @@ CONTAINS
 !> \brief Computes the density matrix starting from the kohn-sham matrix
 !> \param qs_env ...
 !> \param rtp ...
-!> \param rtp_control ...
+!> \param orthonormal ...
 !> \param error ...
 !> \author Samuel Andermatt (03.14)
 ! *****************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_ks(qs_env,rtp,rtp_control,error)
+   SUBROUTINE rt_initialize_rho_from_ks(qs_env,rtp,orthonormal,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
+    LOGICAL                                  :: orthonormal
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
@@ -549,7 +539,7 @@ CONTAINS
             nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
             max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
        IF(SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
-       IF(rtp_control%orthonormal) THEN
+       IF(orthonormal) THEN
           CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)
           CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
           CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(im)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)

@@ -302,16 +302,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computs the convergence criterium for RTP and EMD
-!> \param qs_env ...
+!> \param rtp ...
+!> \param matrix_s Overlap matrix without the derivatives
 !> \param delta_mos ...
 !> \param delta_eps ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
- SUBROUTINE rt_convergence(qs_env,delta_mos,delta_eps,error)
+ SUBROUTINE rt_convergence(rtp,matrix_s,delta_mos,delta_eps,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos
     REAL(dp), INTENT(out)                    :: delta_eps
@@ -326,23 +328,17 @@ CONTAINS
                                                 nmo, nspin, re
     LOGICAL                                  :: double_col, double_row
     REAL(KIND=dp)                            :: alpha, max_alpha
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrixv_s
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1, &
                                                 tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: work, work1, work2
-    TYPE(rt_prop_type), POINTER              :: rtp
 
    NULLIFY(tmp_fm_struct)
 
    CALL timeset(routineN,handle)
 
-   CALL get_qs_env(qs_env=qs_env,matrix_s=matrixv_s,rtp=rtp,error=error)
    CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-   matrix_s=>matrixv_s(1)%matrix
 
    nspin=SIZE(delta_mos)/2
    max_alpha=0.0_dp
@@ -430,16 +426,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computs the convergence criterium for RTP and EMD based on the density matrix
-!> \param qs_env ...
+!> \param rtp ...
 !> \param delta_P ...
 !> \param delta_eps ...
 !> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
- SUBROUTINE rt_convergence_density(qs_env,delta_P,delta_eps,error)
+ SUBROUTINE rt_convergence_density(rtp,delta_P,delta_eps,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: delta_P
     REAL(dp), INTENT(out)                    :: delta_eps
@@ -458,13 +454,11 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_new
     TYPE(cp_dbcsr_type), POINTER             :: tmp
-    TYPE(rt_prop_type), POINTER              :: rtp
 
    CALL timeset(routineN,handle)
 
    failure=.FALSE.
 
-   CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
    CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
 
    DO i=1,SIZE(rho_new)
