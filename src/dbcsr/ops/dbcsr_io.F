@@ -35,7 +35,6 @@ MODULE dbcsr_io
        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
-                                             dbcsr_mp_numnodes,&
                                              dbcsr_mp_pgrid
   USE dbcsr_mp_operations,             ONLY: dbcsr_mp_type_from_anytype
   USE dbcsr_transformations,           ONLY: dbcsr_datablock_redistribute
@@ -656,30 +655,6 @@ CONTAINS
     ENDIF
   END SUBROUTINE printmat_z
 
-! *****************************************************************************
-!> \brief Prints the values from all processors
-!> \param[in] val   local value to print
-!> \param[in] desc  description of value
-!> \param[in] mp    message-passing environment
-! *****************************************************************************
-  SUBROUTINE all_print (val, desc, mp)
-    INTEGER, INTENT(IN)                      :: val
-    CHARACTER(LEN=*), INTENT(IN)             :: desc
-    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp
-
-    CHARACTER(LEN=80)                        :: fmt
-    INTEGER                                  :: n
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: infos
-
-!
-
-    n = dbcsr_mp_numnodes (mp)
-    WRITE(fmt,'("(1X,A,",I5,"(1X,I4))")')n
-    ALLOCATE (infos(n))
-    CALL mp_allgather(val, infos, dbcsr_mp_group(mp))
-    WRITE(*,fmt)desc,infos
-  END SUBROUTINE all_print
-  
 ! *****************************************************************************
 !> \brief Writes a DBCSR matrix in a file
 !>   file's header consists of 3 sub-headers:

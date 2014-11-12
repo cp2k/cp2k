@@ -50,8 +50,8 @@ MODULE dbcsr_ptr_util
   PUBLIC :: memory_allocate, memory_deallocate
   PUBLIC :: memory_zero
   PUBLIC :: pointer_view
-  PUBLIC :: pointer_s_rank_remap2, pointer_d_rank_remap2,&
-            pointer_c_rank_remap2, pointer_z_rank_remap2
+  PUBLIC :: pointer_rank_remap2
+            
 
   INTERFACE ensure_array_size
      MODULE PROCEDURE ensure_array_size_i, ensure_array_size_l

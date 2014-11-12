@@ -2442,53 +2442,6 @@ CONTAINS
   END SUBROUTINE dbcsr_triu
 
 ! *****************************************************************************
-!> \brief  symmetrize the block diagonal of a dbcsr matrix
-!> \param[inout] matrix_a  the matrix
-!>
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_symmetrize_block_diag(matrix_a, error)
-
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_symmetrize_block_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, col, col_size, &
-                                                error_handler, i, j, row, &
-                                                row_size
-    LOGICAL                                  :: tr
-    REAL(dp)                                 :: dum
-    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
-    TYPE(dbcsr_iterator)                     :: iter
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_iterator_start(iter, matrix_a)
-
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr, &
-            block_number=blk, row_size=row_size, col_size=col_size)
-       IF(col.NE.row) CYCLE
-       DO j = 1,col_size
-       DO i = j+1,row_size
-          dum = (DATA(i,j) + DATA(j,i)) / 2.0_dp
-          DATA(i,j) = dum
-          DATA(j,i) = dum
-       ENDDO
-       ENDDO
-    ENDDO
-
-    CALL dbcsr_iterator_stop(iter)
-
-    CALL dbcsr_finalize(matrix_a, error=error)
-    CALL dbcsr_error_stop(error_handler, error)
-
-  END SUBROUTINE dbcsr_symmetrize_block_diag
-
-! *****************************************************************************
 !> \brief filter a dbcsr matrix
 !> \param[inout] matrix the matrix
 !> \param[in] eps          the threshold

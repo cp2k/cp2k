@@ -58,11 +58,8 @@ MODULE dbcsr_block_access
        dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_use_mutable, dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mynode
-  USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
-                                             pointer_d_rank_remap2,&
-                                             pointer_s_rank_remap2,&
-                                             pointer_view,&
-                                             pointer_z_rank_remap2
+  USE dbcsr_ptr_util,                  ONLY: pointer_rank_remap2,&
+                                             pointer_view
   USE dbcsr_toollib,                   ONLY: make_coordinate_tuple,&
                                              swap
   USE dbcsr_types,                     ONLY: &

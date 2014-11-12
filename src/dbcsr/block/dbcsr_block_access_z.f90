@@ -721,7 +721,7 @@
     IF (careful_mod) CALL dbcsr_error_set (routineN, error_handler, error)
     CALL dbcsr_get_data (matrix%m%data_area, lin_blk_p,&
          lb=base_offset, ub=base_offset+rsize*csize-1)
-    CALL pointer_z_rank_remap2 (pointer_any, rsize, csize,&
+    CALL pointer_rank_remap2 (pointer_any, rsize, csize,&
          lin_blk_p)
     IF (careful_mod) CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_set_block_pointer_2d_z

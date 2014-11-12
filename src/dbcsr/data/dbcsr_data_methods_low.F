@@ -33,10 +33,7 @@ MODULE dbcsr_data_methods_low
   USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate,&
                                              memory_zero,&
-                                             pointer_c_rank_remap2,&
-                                             pointer_d_rank_remap2,&
-                                             pointer_s_rank_remap2,&
-                                             pointer_z_rank_remap2
+                                             pointer_rank_remap2
   USE kinds,                           ONLY: dp,&
                                              real_4,&
                                              real_8
@@ -511,7 +508,7 @@ MODULE dbcsr_data_methods_low
     CASE (dbcsr_type_real_4)
        IF (rmp) THEN
           r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
-          CALL pointer_s_rank_remap2(area%d%r2_sp, rsize, csize,&
+          CALL pointer_rank_remap2(area%d%r2_sp, rsize, csize,&
                r_sp)
        ELSE
           area%d%r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
@@ -521,7 +518,7 @@ MODULE dbcsr_data_methods_low
     CASE (dbcsr_type_real_8)
        IF (rmp) THEN
           r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
-          CALL pointer_d_rank_remap2(area%d%r2_dp, rsize, csize,&
+          CALL pointer_rank_remap2(area%d%r2_dp, rsize, csize,&
                r_dp)
        ELSE
           area%d%r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
@@ -531,7 +528,7 @@ MODULE dbcsr_data_methods_low
     CASE (dbcsr_type_complex_4)
        IF (rmp) THEN
           c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
-          CALL pointer_c_rank_remap2(area%d%c2_sp, rsize, csize,&
+          CALL pointer_rank_remap2(area%d%c2_sp, rsize, csize,&
                c_sp)
        ELSE
           area%d%c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
@@ -541,7 +538,7 @@ MODULE dbcsr_data_methods_low
     CASE (dbcsr_type_complex_8)
        IF (rmp) THEN
           c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
-          CALL pointer_z_rank_remap2(area%d%c2_dp, rsize, csize,&
+          CALL pointer_rank_remap2(area%d%c2_dp, rsize, csize,&
                c_dp)
        ELSE
           area%d%c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
@@ -851,19 +848,19 @@ MODULE dbcsr_data_methods_low
     SELECT CASE (dt1)
     CASE (dbcsr_type_real_4)
        r_sp => dbcsr_get_data_p_s (area, bp, bp+nze-1)
-       CALL pointer_s_rank_remap2(area%d%r2_sp, rowsize, csize,&
+       CALL pointer_rank_remap2(area%d%r2_sp, rowsize, csize,&
             r_sp)
     CASE (dbcsr_type_real_8)
        r_dp => dbcsr_get_data_p_d (area, bp, bp+nze-1)
-       CALL pointer_d_rank_remap2(area%d%r2_dp, rowsize, csize,&
+       CALL pointer_rank_remap2(area%d%r2_dp, rowsize, csize,&
             r_dp)
     CASE (dbcsr_type_complex_4)
        c_sp => dbcsr_get_data_p_c (area, bp, bp+nze-1)
-       CALL pointer_c_rank_remap2(area%d%c2_sp, rowsize, csize,&
+       CALL pointer_rank_remap2(area%d%c2_sp, rowsize, csize,&
             c_sp)
     CASE (dbcsr_type_complex_8)
        c_dp => dbcsr_get_data_p_z (area, bp, bp+nze-1)
-       CALL pointer_z_rank_remap2(area%d%c2_dp, rowsize, csize,&
+       CALL pointer_rank_remap2(area%d%c2_dp, rowsize, csize,&
             c_dp)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&

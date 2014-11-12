@@ -31,10 +31,7 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution
-  USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
-                                             pointer_d_rank_remap2,&
-                                             pointer_s_rank_remap2,&
-                                             pointer_z_rank_remap2
+  USE dbcsr_ptr_util,                  ONLY: pointer_rank_remap2
   USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&

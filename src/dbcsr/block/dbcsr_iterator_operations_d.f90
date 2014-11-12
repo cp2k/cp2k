@@ -123,7 +123,7 @@
        IF (transposed) CALL swap (rsize, csize)
        CALL dbcsr_get_data (iterator%data_area, lin_blk_p,&
             lb=bp, ub=bp+nze-1)
-       CALL pointer_d_rank_remap2 (block, rsize, csize, lin_blk_p)
+       CALL pointer_rank_remap2 (block, rsize, csize, lin_blk_p)
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        CALL iterator_advance (iterator)
