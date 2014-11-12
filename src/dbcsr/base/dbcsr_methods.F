@@ -34,14 +34,14 @@ MODULE dbcsr_methods
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
-       dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
-       dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_imagedistribution_obj, dbcsr_imagedistribution_type, &
-       dbcsr_memtype_type, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
-       dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
-       dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
+       dbcsr_2d_array_type, dbcsr_array_type, dbcsr_data_obj, &
+       dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
+       dbcsr_imagedistribution_type, dbcsr_memtype_type, dbcsr_mp_obj, &
+       dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_antihermitian, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
+       dbcsr_work_type
   USE kinds,                           ONLY: default_string_length
   USE message_passing,                 ONLY: mp_comm_free
 
@@ -109,34 +109,6 @@ MODULE dbcsr_methods
 
   ! For the 1-D and 2-D arrays
 
-  INTERFACE dbcsr_allocate_matrix_array
-     MODULE PROCEDURE array_init_1d, array_init_2d
-  END INTERFACE
-
-  INTERFACE dbcsr_array_new
-     MODULE PROCEDURE array_new_1d, array_new_2d
-  END INTERFACE
-
-  INTERFACE dbcsr_array_put
-     MODULE PROCEDURE array_put_1d, array_put_2d
-  END INTERFACE
-
-  INTERFACE dbcsr_array_get
-     MODULE PROCEDURE array_get_1d, array_get_2d
-  END INTERFACE
-
-  INTERFACE dbcsr_array_destroy
-     MODULE PROCEDURE array_destroy_1d, array_destroy_2d
-  END INTERFACE
-
-  INTERFACE dbcsr_array_hold
-     MODULE PROCEDURE array_hold_1d, array_hold_2d
-  END INTERFACE
-
-  INTERFACE dbcsr_array_release
-     MODULE PROCEDURE array_release_1d, array_release_2d
-  END INTERFACE
-
   INTERFACE dbcsr_destroy_array
      MODULE PROCEDURE dbcsr_destroy_2d_array, dbcsr_destroy_1d_array
   END INTERFACE
@@ -199,31 +171,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj', &
       routineP = moduleN//':'//routineN
 
-!TYPE(dbcsr_error_type), INTENT(INOUT)   :: error
-!   ---------------------------------------------------------------------------
-
     CALL dbcsr_init(matrix%m)
   END SUBROUTINE dbcsr_init_obj
 
-
-! *****************************************************************************
-!> \brief Initializes a DBCSR matrix but does not allocate any memory.
-!> \param[out] matrix         uninitialized matrix
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_init_p (matrix, error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_p', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    IF(ASSOCIATED(matrix)) CALL dbcsr_release_p(matrix, error)
-    ALLOCATE(matrix)
-    CALL dbcsr_init(matrix%m)
-  END SUBROUTINE dbcsr_init_p
 
 ! *****************************************************************************
 !> \brief Returns whether the index structure of the matrix is valid.
@@ -233,12 +183,6 @@ CONTAINS
   PURE FUNCTION dbcsr_valid_index_type (matrix) RESULT (valid_index)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     LOGICAL                                  :: valid_index
-
-!   ---------------------------------------------------------------------------
-!valid_index = .FALSE.
-!IF (ASSOCIATED (matrix%row_p)) THEN
-!   valid_index = SIZE (matrix%row_p) .GT. 0
-!ENDIF
 
     valid_index = matrix%valid
   END FUNCTION dbcsr_valid_index_type
@@ -252,8 +196,6 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL                                  :: valid_index
 
-!   ---------------------------------------------------------------------------
-
     valid_index = dbcsr_valid_index_type (matrix%m)
   END FUNCTION dbcsr_valid_index_obj
 
@@ -265,8 +207,6 @@ CONTAINS
   PURE FUNCTION dbcsr_is_initialized_type (matrix) RESULT (initialized)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     LOGICAL                                  :: initialized
-
-!   ---------------------------------------------------------------------------
 
     initialized = matrix%initialized
   END FUNCTION dbcsr_is_initialized_type
@@ -280,31 +220,8 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL                                  :: initialized
 
-!   ---------------------------------------------------------------------------
-
     initialized = dbcsr_is_initialized_type (matrix%m)
   END FUNCTION dbcsr_is_initialized_obj
-
-
-! *****************************************************************************
-!> \brief Registers another reference for a DBCSR matrix
-!> \param[in,out] matrix    DBCSR matrix
-! *****************************************************************************
-  SUBROUTINE dbcsr_hold (matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hold', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (matrix%m%initialized,&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Matrix not initialized",__LINE__,error)
-    matrix%m%refcount = matrix%m%refcount + 1
-  END SUBROUTINE dbcsr_hold
 
 
 ! *****************************************************************************
@@ -333,37 +250,6 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_release
-
-
-! *****************************************************************************
-!> \brief Releases a reference for a DBCSR matrix
-!>
-!> If there are no references left, the matrix is destroyed.
-!> \param[in,out] matrix DBCSR matrix
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_release_p (matrix,error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_release_p', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    IF(ASSOCIATED(matrix)) THEN
-       CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
-            dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Matrix not initialized",__LINE__,error)
-       IF (matrix%m%initialized) THEN
-          matrix%m%refcount = matrix%m%refcount - 1
-          IF (matrix%m%refcount .EQ. 0) THEN
-             CALL dbcsr_destroy (matrix, error)
-             DEALLOCATE(matrix)
-          ENDIF
-       ENDIF
-    ENDIF
-  END SUBROUTINE dbcsr_release_p
 
 ! *****************************************************************************
 !> \brief Deallocates and destroys a matrix.
@@ -1112,354 +998,6 @@ CONTAINS
 ! *****************************************************************************
 ! Arrays
 ! *****************************************************************************
-
-
-! *****************************************************************************
-!> \brief Initializes a 1-d array of DBCSR matrices
-!> \param[out] array    the array of matrices
-!> \param[in] n       (optional) number of matrices to be included
-! *****************************************************************************
-  SUBROUTINE array_init_1d (array, n)
-    TYPE(dbcsr_1d_array_obj), INTENT(OUT)    :: array
-    INTEGER, INTENT(IN), OPTIONAL            :: n
-
-    NULLIFY (array%s, array%refcount)
-    IF (PRESENT (n)) CALL dbcsr_array_new (array, n)
-  END SUBROUTINE array_init_1d
-
-! *****************************************************************************
-!> \brief Initializes a 2-d array of DBCSR matrices
-!> \param[out] array    the array of matrices
-!> \param[in] n       (optional) number of matrices to be included
-! *****************************************************************************
-  SUBROUTINE array_init_2d (array, n)
-    TYPE(dbcsr_2d_array_obj), INTENT(OUT)    :: array
-    INTEGER, DIMENSION(2), INTENT(IN), &
-      OPTIONAL                               :: n
-
-    NULLIFY (array%s, array%refcount)
-    IF (PRESENT (n)) CALL dbcsr_array_new (array, n)
-  END SUBROUTINE array_init_2d
-
-! *****************************************************************************
-!> \brief Allocates a 1-d array of DBCSR matrices
-!> \param[in,out] array  the array of matrices
-!> \param[in] n        number of matrices to be included
-! *****************************************************************************
-  SUBROUTINE array_new_1d (array, n)
-    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
-    INTEGER, INTENT(IN)                      :: n
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_new_1d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (.NOT. ASSOCIATED (array%s), dbcsr_warning_level,&
-         dbcsr_caller_error, routineN,&
-         "Array was already allocated, memory leakage will occur",__LINE__,error)
-    ALLOCATE (array%s(n))
-    ALLOCATE (array%refcount)
-    array%refcount = 1
-  END SUBROUTINE array_new_1d
-
-! *****************************************************************************
-!> \brief Allocates a 2-d array of DBCSR matrices
-!> \param[in,out] array  the array of matrices
-!> \param[in] n        number of matrices to be included
-! *****************************************************************************
-  SUBROUTINE array_new_2d (array, n)
-    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
-    INTEGER, DIMENSION(2), INTENT(IN)        :: n
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_new_2d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (.NOT. ASSOCIATED (array%s), dbcsr_warning_level,&
-         dbcsr_caller_error, routineN,&
-         "Array was already allocated, memory leakage will occur",__LINE__,error)
-    ALLOCATE (array%s(n(1), n(2)))
-    ALLOCATE (array%refcount)
-    array%refcount = 1
-  END SUBROUTINE array_new_2d
-
-! *****************************************************************************
-!> \brief Inserts a DBCSR matrix into the array
-!>
-!> The matrix is inserted into the array and its reference is registered.
-!> \param[in,out] array    the array of matrices
-!> \param[in] position   array position into which matrix is inserted
-!> \param[in] matrix     matrices to be included
-! *****************************************************************************
-  SUBROUTINE array_put_1d (array, position, matrix)
-    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
-    INTEGER, INTENT(IN)                      :: position
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_put_1d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not insert into unallocated array",__LINE__,error)
-    CALL dbcsr_assert(position .GE. LBOUND (array%s, 1)&
-         .AND. position .LE. UBOUND (array%s, 1),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Insertion position out of bounds.",__LINE__,error)
-    array%s(position) = matrix
-    CALL dbcsr_hold (array%s(position))
-  END SUBROUTINE array_put_1d
-
-! *****************************************************************************
-!> \brief Inserts a DBCSR matrix into the array
-!>
-!> The matrix is inserted into the array and its reference is registered.
-!> \param[in,out] array the array of matrices
-!> \param[in] position   array position into which matrix is inserted
-!> \param[in] matrix  matrices to be included
-! *****************************************************************************
-  SUBROUTINE array_put_2d (array, position, matrix)
-    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
-    INTEGER, DIMENSION(2), INTENT(IN)        :: position
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_put_2d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not insert into unallocated array",__LINE__,error)
-    CALL dbcsr_assert(position(1) .GE. LBOUND (array%s, 1)&
-         .AND. position(1) .LE. UBOUND (array%s, 1)&
-         .AND. position(2) .GE. LBOUND (array%s, 2)&
-         .AND. position(2) .LE. UBOUND (array%s, 2),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Insertion position out of bounds.",__LINE__,error)
-    array%s(position(1), position(2)) = matrix
-    CALL dbcsr_hold (array%s(position(1), position(2)))
-  END SUBROUTINE array_put_2d
-
-! *****************************************************************************
-!> \brief Gets a DBCSR matrix from the array
-!> \param[in] array     the array of matrices
-!> \param[in] position   array position into which matrix is inserted
-!> \param matrix      matrix (no new reference is registered)
-! *****************************************************************************
-  FUNCTION array_get_1d (array, position) RESULT (matrix)
-    TYPE(dbcsr_1d_array_obj), INTENT(IN)     :: array
-    INTEGER, INTENT(IN)                      :: position
-    TYPE(dbcsr_obj)                          :: matrix
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_get_1d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not read from an unallocated array",__LINE__,error)
-    CALL dbcsr_assert (position .GE. LBOUND (array%s,1)&
-         .AND. position .LE. UBOUND (array%s,1),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Read position out of bounds.",__LINE__,error)
-    matrix = array%s(position)
-  END FUNCTION array_get_1d
-
-! *****************************************************************************
-!> \brief Gets a DBCSR matrix from the array
-!> \param[in] array     the array of matrices
-!> \param[in] position   array position into which matrix is inserted
-!> \param matrix      matrix (no new reference is registered)
-! *****************************************************************************
-  FUNCTION array_get_2d (array, position) RESULT (matrix)
-    TYPE(dbcsr_2d_array_obj), INTENT(IN)     :: array
-    INTEGER, DIMENSION(2), INTENT(IN)        :: position
-    TYPE(dbcsr_obj)                          :: matrix
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_get_2d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not read from an unallocated array",__LINE__,error)
-    CALL dbcsr_assert(position(1) .GE. LBOUND (array%s, 1)&
-         .AND. position(1) .LE. UBOUND (array%s, 1)&
-         .AND. position(2) .GE. LBOUND (array%s, 2)&
-         .AND. position(2) .LE. UBOUND (array%s, 2),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Read position out of bounds.",__LINE__,error)
-    matrix = array%s(position(1), position(2))
-  END FUNCTION array_get_2d
-
-! *****************************************************************************
-!> \brief Destroys a 1-d array and releases all held resources
-!> \param[in,out] array    the array of matrices
-! *****************************************************************************
-  SUBROUTINE array_destroy_1d (array)
-    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_destroy_1d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not destroy an unallocated array",__LINE__,error)
-    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Reference count does not exist.",__LINE__,error)
-    CALL dbcsr_assert (array%refcount .EQ. 0, dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "References are still held",__LINE__,error)
-    DO i = LBOUND (array%s, 1), UBOUND (array%s, 1)
-       CALL dbcsr_release (array%s(i))
-    ENDDO
-    DEALLOCATE (array%s)
-    DEALLOCATE (array%refcount)
-    CALL dbcsr_allocate_matrix_array (array)
-  END SUBROUTINE array_destroy_1d
-
-! *****************************************************************************
-!> \brief Destroys a 2-d array and releases all held resources
-!> \param[in,out] array    the array of matrices
-! *****************************************************************************
-  SUBROUTINE array_destroy_2d (array)
-    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_destroy_2d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, j
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not destroy an unallocated array",__LINE__,error)
-    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Reference count does not exist.",__LINE__,error)
-    CALL dbcsr_assert (array%refcount .EQ. 0, dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "References are still held",__LINE__,error)
-    DO i = LBOUND (array%s, 1), UBOUND (array%s, 1)
-       DO j = LBOUND (array%s, 2), UBOUND (array%s, 2)
-          CALL dbcsr_release (array%s(i, j))
-       ENDDO
-    ENDDO
-    DEALLOCATE (array%s)
-    DEALLOCATE (array%refcount)
-    CALL dbcsr_allocate_matrix_array (array)
-  END SUBROUTINE array_destroy_2d
-
-
-! *****************************************************************************
-!> \brief Registers another reference for a 1-d array
-!> \param[in,out] array    the array of matrices
-! *****************************************************************************
-  SUBROUTINE array_hold_1d (array)
-    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_hold_1d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Reference count does not exist.",__LINE__,error)
-    array%refcount = array%refcount + 1
-  END SUBROUTINE array_hold_1d
-
-! *****************************************************************************
-!> \brief Registers another reference for a 2-d array
-!> \param[in,out] array    the array of matrices
-! *****************************************************************************
-  SUBROUTINE array_hold_2d (array)
-    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_hold_2d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Reference count does not exist.",__LINE__,error)
-    array%refcount = array%refcount + 1
-  END SUBROUTINE array_hold_2d
-
-
-! *****************************************************************************
-!> \brief Releases a reference for a 1-d array
-!>
-!> If there are no references left, the array is destroyed.
-!> \param[in,out] array    the array of matrices
-! *****************************************************************************
-  SUBROUTINE array_release_1d (array)
-    TYPE(dbcsr_1d_array_obj), INTENT(INOUT)  :: array
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_release_1d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Reference count does not exist.",__LINE__,error)
-    array%refcount = array%refcount - 1
-    IF (array%refcount .EQ. 0) THEN
-       CALL dbcsr_array_destroy (array)
-    ENDIF
-  END SUBROUTINE array_release_1d
-
-! *****************************************************************************
-!> \brief Releases a reference for a 2-d array
-!>
-!> If there are no references left, the array is destroyed.
-!> \param[in,out] array    the array of matrices
-! *****************************************************************************
-  SUBROUTINE array_release_2d (array)
-    TYPE(dbcsr_2d_array_obj), INTENT(INOUT)  :: array
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'array_release_2d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
-         dbcsr_failure_level, dbcsr_caller_error, routineN,&
-         "Reference count does not exist.",__LINE__,error)
-    array%refcount = array%refcount - 1
-    IF (array%refcount .EQ. 0) THEN
-       CALL dbcsr_array_destroy (array)
-    ENDIF
-  END SUBROUTINE array_release_2d
 
 ! *****************************************************************************
 !> \brief Releases all matrices in a 1-d arrray.

@@ -37,7 +37,6 @@ MODULE dbcsr_mp_operations
                                              mp_alltoall,&
                                              mp_irecv,&
                                              mp_isend,&
-                                             mp_send,&
                                              mp_type_descriptor_type,&
                                              mp_type_make,&
                                              mp_waitall
@@ -384,39 +383,6 @@ CONTAINS
        mp_type = mp_type_make (data_area%d%c_dp)
     END SELECT
   END FUNCTION dbcsr_mp_type_from_anytype
-
-
-! *****************************************************************************
-!> \brief Blocking send of encapsulated data.
-!> \param msgin ...
-!> \param dest ...
-!> \param tag ...
-!> \param comm ...
-!> \param error ...
-!> \note see mp_send_iv 
-! *****************************************************************************
-  SUBROUTINE dbcsr_send_any(msgin,dest,tag,comm, error)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
-    INTEGER, INTENT(IN)                      :: dest, tag, comm
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_send_any', &
-      routineP = moduleN//':'//routineN
-
-    SELECT CASE (dbcsr_data_get_type (msgin))
-    CASE (dbcsr_type_real_4)
-       CALL mp_send (msgin%d%r_sp, dest, tag, comm)
-    CASE (dbcsr_type_real_8)
-       CALL mp_send (msgin%d%r_dp, dest, tag, comm)
-    CASE (dbcsr_type_complex_4)
-       CALL mp_send (msgin%d%c_sp, dest, tag, comm)
-    CASE (dbcsr_type_complex_8)
-       CALL mp_send (msgin%d%c_dp, dest, tag, comm)
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__, error=error)
-    END SELECT
-  END SUBROUTINE dbcsr_send_any
 
 ! *****************************************************************************
 !> \brief Non-blocking send of encapsulated data.
