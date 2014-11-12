@@ -359,7 +359,7 @@ CONTAINS
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig )
              g3d = fourpi / g2
-             gxy = SQRT ( g2 - grid % g(iz,ig) * grid % g(iz,ig) )
+             gxy = SQRT ( MAX(0.0_dp, g2 - grid % g(iz,ig) * grid % g(iz,ig)) )
              gz  = ABS(grid % g(iz,ig))
              j0g = bessj0 ( rlength * gxy )
              j1g = bessj1 ( rlength * gxy )
