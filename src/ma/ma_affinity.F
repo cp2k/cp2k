@@ -26,8 +26,10 @@ MODULE ma_affinity
        ma_get_core_node, ma_get_id, ma_get_mycore, ma_get_mynode, &
        ma_get_ncores, ma_get_netDev, ma_get_nnetDev, ma_get_nnodes, &
        ma_get_node_netDev, ma_get_proc_core, ma_get_proc_node, &
-       ma_get_thread_id, ma_hw_set_mempol, ma_my_first_core, &
-       ma_set_proc_node, topology
+       ma_get_thread_id, ma_hw_get_mempol, ma_hw_set_mempol, &
+       ma_my_first_core, ma_set_core, ma_set_first_core, ma_set_proc_core, &
+       ma_set_proc_cores, ma_set_proc_node, ma_set_thread_allnodes, &
+       ma_set_thread_cores, ma_set_thread_node, topology
   USE machine_architecture_types,      ONLY: &
        def, group, has_mpi, interleave, linear, local, ma_mp_type, &
        ma_process, manual, mpi, nosched, os, scatter, thread_inf, threads

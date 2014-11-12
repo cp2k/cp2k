@@ -53,6 +53,12 @@ MODULE machine_architecture
   PUBLIC :: ma_get_node_netDev, ma_get_core_node
   PUBLIC :: ma_hw_set_mempol
 
+  PUBLIC :: ma_set_proc_cores, ma_set_thread_cores
+  PUBLIC :: ma_set_proc_core, ma_set_core
+  PUBLIC :: ma_hw_get_mempol
+  PUBLIC :: ma_set_thread_allnodes, ma_set_thread_node
+  PUBLIC :: ma_set_first_core
+
   ! These are for Machine architecture internal use.
   !
   PUBLIC :: topology
@@ -535,6 +541,89 @@ CONTAINS
     error = -1
     STOP "ma_hw_set_mempol: HWLOC not compiled in"
  END FUNCTION ma_hw_set_mempol
+
+! *****************************************************************************
+!> \brief ...
+!> \param mempol ...
+!> \param node ...
+! *****************************************************************************
+ SUBROUTINE ma_hw_get_mempol(mempol, node)
+    INTEGER                                  :: mempol, node
+
+    STOP "ma_hw_get_mempol: HWLOC not compiled in"
+ END SUBROUTINE ma_hw_get_mempol
+
+! *****************************************************************************
+!> \brief ...
+!> \param cpu ...
+! *****************************************************************************
+ SUBROUTINE ma_set_core(cpu)
+    INTEGER                                  :: cpu
+
+    STOP "ma_set_core: HWLOC not compiled in"
+ END SUBROUTINE ma_set_core
+
+! *****************************************************************************
+!> \brief ...
+!> \param node ...
+!> \param proc ...
+! *****************************************************************************
+ SUBROUTINE ma_set_first_core(node, proc)
+    INTEGER                                  :: node, proc
+
+    STOP "ma_set_first_core: HWLOC not compiled in"
+ END SUBROUTINE ma_set_first_core
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param core ...
+! *****************************************************************************
+ SUBROUTINE ma_set_proc_cores(dist, core)
+    INTEGER                                  :: dist, core
+
+    STOP "ma_set_proc_cores: HWLOC not compiled in"
+ END SUBROUTINE ma_set_proc_cores
+
+! *****************************************************************************
+!> \brief ...
+!> \param cpu ...
+! *****************************************************************************
+ SUBROUTINE ma_set_proc_core(cpu)
+    INTEGER                                  :: cpu
+
+    STOP "ma_set_proc_core: HWLOC not compiled in"
+ END SUBROUTINE ma_set_proc_core
+
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
+ SUBROUTINE ma_set_thread_allnodes()
+
+    STOP "ma_set_thread_allnodes: HWLOC not compiled in"
+ END SUBROUTINE ma_set_thread_allnodes
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param core ...
+! *****************************************************************************
+ SUBROUTINE ma_set_thread_cores(dist, core)
+    INTEGER                                  :: dist, core
+
+    STOP "ma_set_thread_cores: HWLOC not compiled in"
+ END SUBROUTINE ma_set_thread_cores
+
+! *****************************************************************************
+!> \brief ...
+!> \param node ...
+! *****************************************************************************
+ SUBROUTINE ma_set_thread_node(node)
+    INTEGER                                  :: node
+
+    STOP "ma_set_thread_node: HWLOC not compiled in"
+ END SUBROUTINE ma_set_thread_node
+
 #endif
 
 
