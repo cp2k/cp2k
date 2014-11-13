@@ -26,7 +26,7 @@ MODULE cp_blacs_calls
             cp_blacs_gridexit, cp_blacs_gridinfo
   ! actual message passing
   PUBLIC :: cp_blacs_zgebs2d, cp_blacs_zgebr2d, cp_blacs_dgebs2d,&
-            cp_blacs_dgebr2d, cp_blacs_igsum2d
+            cp_blacs_dgebr2d
 
   INTERFACE cp_blacs_zgebs2d
      MODULE PROCEDURE cp_blacs_zgebs2d_array, cp_blacs_zgebs2d_scalar

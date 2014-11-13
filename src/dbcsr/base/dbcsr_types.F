@@ -20,12 +20,11 @@ MODULE dbcsr_types
   USE btree_i8_k_zp2d_v,               ONLY: btree_2d_z => btree
   USE dbcsr_data_types,                ONLY: &
        dbcsr_data_area_type, dbcsr_data_obj, dbcsr_datatype_sizeof, &
-       dbcsr_mempool_entry_type, dbcsr_mempool_type, dbcsr_memtype_default, &
-       dbcsr_memtype_type, dbcsr_scalar_type, dbcsr_type_complex_4, &
-       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_memtype_default, dbcsr_memtype_type, dbcsr_scalar_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_complex_default, dbcsr_type_int_4, &
-       dbcsr_type_int_8, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
-       dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_real_default
+       dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
+       dbcsr_type_real_8_2d, dbcsr_type_real_default
   USE kinds,                           ONLY: default_string_length,&
                                              dp
 
@@ -49,8 +48,6 @@ MODULE dbcsr_types
             dbcsr_imagedistribution_type,&
             dbcsr_imagedistribution_obj,&
             dbcsr_iterator,&
-            dbcsr_1d_array_obj,&
-            dbcsr_2d_array_obj,&
             dbcsr_mutable_obj,&
             dbcsr_obj_type_p
   PUBLIC :: dbcsr_meta_size
@@ -84,11 +81,9 @@ MODULE dbcsr_types
             dbcsr_type_real_default, dbcsr_type_complex_default,&
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
             dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d,&
-            dbcsr_type_int_4, dbcsr_type_int_8
+            dbcsr_type_int_4
   PUBLIC :: dbcsr_datatype_sizeof
-  PUBLIC :: dbcsr_mempool_type,&
-            dbcsr_mempool_entry_type,&
-            dbcsr_memtype_type,&
+  PUBLIC :: dbcsr_memtype_type,&
             dbcsr_memtype_default
 
   PUBLIC :: dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_symmetric,&

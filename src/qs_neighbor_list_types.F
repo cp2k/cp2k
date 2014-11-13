@@ -117,7 +117,6 @@ MODULE qs_neighbor_list_types
             add_neighbor_node,&
             allocate_neighbor_list_set,&
             deallocate_neighbor_list_set,&
-            get_neighbor_list_set,&
             get_neighbor_list_set_p
 
 ! *** Iterator functions and types ***

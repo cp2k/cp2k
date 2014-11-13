@@ -41,9 +41,9 @@ MODULE ai_onecenter
 
   PRIVATE
   PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot,&
-            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc,&
+            sg_proj_ol, sg_coulomb, sg_exchange, sg_kinnuc,&
             sg_erfc
-  PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_conf
+  PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear
 
 CONTAINS
 

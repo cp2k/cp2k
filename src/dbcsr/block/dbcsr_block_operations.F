@@ -51,7 +51,6 @@ MODULE dbcsr_block_operations
 
   PUBLIC :: block_set, dbcsr_data_copy
   PUBLIC :: block_add_on_diag
-  PUBLIC :: block_chol_inv
 
   PUBLIC :: block_add
 

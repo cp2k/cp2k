@@ -20,10 +20,10 @@ MODULE dbcsr_api
                                              array_release,&
                                              array_size
   USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev
-  USE dbcsr_arnoldi_data_methods,      ONLY: &
-       arnoldi_is_converged, dbcsr_arnoldi_data, deallocate_arnoldi_data, &
-       get_all_selected_ritz_val, get_nval_out, get_selected_ritz_val, &
-       select_evals, set_eval_selection, setup_arnoldi_data
+  USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
+                                             deallocate_arnoldi_data,&
+                                             get_selected_ritz_val,&
+                                             setup_arnoldi_data
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
@@ -31,9 +31,7 @@ MODULE dbcsr_api
                                              dbcsr_reserve_block2d,&
                                              dbcsr_reserve_blocks,&
                                              dbcsr_reserve_diag_blocks
-  USE dbcsr_block_operations,          ONLY: block_add_on_diag,&
-                                             block_chol_inv,&
-                                             block_set
+  USE dbcsr_block_operations,          ONLY: block_set
   USE dbcsr_config,                    ONLY: &
        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
@@ -54,7 +52,7 @@ MODULE dbcsr_api
        multrec_limit
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_get_data, dbcsr_get_data_p, dbcsr_scalar, &
+       dbcsr_data_release, dbcsr_get_data_p, dbcsr_scalar, &
        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
        dbcsr_scalar_set_type, dbcsr_scalar_zero
   USE dbcsr_dist_methods,              ONLY: &
@@ -104,8 +102,8 @@ MODULE dbcsr_api
        dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_get_info, &
        dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init_random, &
        dbcsr_maxabs, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
-       dbcsr_scale_mat, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, &
-       dbcsr_trace, dbcsr_triu
+       dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
+       dbcsr_triu
   USE dbcsr_tests,                     ONLY: dbcsr_run_tests,&
                                              dbcsr_test_arnoldi,&
                                              dbcsr_test_mm
@@ -118,11 +116,8 @@ MODULE dbcsr_api
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_func_artanh, &
-       dbcsr_func_asin, dbcsr_func_cos, dbcsr_func_ddsin, dbcsr_func_ddtanh, &
-       dbcsr_func_dsin, dbcsr_func_dtanh, dbcsr_func_inverse, &
-       dbcsr_func_inverse_special, dbcsr_func_sin, &
-       dbcsr_func_spread_from_zero, dbcsr_func_tanh, dbcsr_func_truncate, &
-       dbcsr_iterator, dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
+       dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_iterator, &
+       dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
        dbcsr_obj_type_p, dbcsr_repl_full, dbcsr_scalar_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
@@ -165,8 +160,6 @@ MODULE dbcsr_api
             array_size,&
             array_nullify,&
             add_work_coordinate,&
-            block_add_on_diag,&
-            block_chol_inv,&
             block_set,&
             convert_offsets_to_sizes,&
             convert_sizes_to_offsets,&
@@ -190,12 +183,7 @@ MODULE dbcsr_api
             setup_arnoldi_data,&
             deallocate_arnoldi_data,&
             dbcsr_arnoldi_ev,&
-            select_evals,&
-            get_all_selected_ritz_val,&
             get_selected_ritz_val,&
-            arnoldi_is_converged,&
-            get_nval_out,&
-            set_eval_selection,&
             dbcsr_binary_read,&
             dbcsr_binary_write,&
             dbcsr_btriu,&
@@ -241,15 +229,6 @@ MODULE dbcsr_api
             dbcsr_func_dtanh,&
             dbcsr_func_inverse,&
             dbcsr_func_tanh,&
-            dbcsr_func_sin,&
-            dbcsr_func_cos,&
-            dbcsr_func_truncate,&
-            dbcsr_func_asin,&
-            dbcsr_func_ddsin,&
-            dbcsr_func_dsin,&
-            dbcsr_func_spread_from_zero,&
-            dbcsr_func_inverse_special,&
-            dbcsr_func_ddtanh,&
             dbcsr_function_of_elements,&
             dbcsr_gershgorin_norm,&
             dbcsr_get_block,&
@@ -264,7 +243,6 @@ MODULE dbcsr_api
             dbcsr_get_conf_nstacks,&
             dbcsr_get_conf_subcomm,&
             dbcsr_get_conf_use_comm_thread,&
-            dbcsr_get_data,&
             dbcsr_get_data_p,&
             dbcsr_get_data_size,&
             dbcsr_get_data_type,&
@@ -335,7 +313,6 @@ MODULE dbcsr_api
             dbcsr_scalar_zero,&
             dbcsr_scale,&
             dbcsr_scale_by_vector,&
-            dbcsr_scale_mat,&
             dbcsr_set,&
             dbcsr_set_conf_combtypes,&
             dbcsr_set_conf_comm_thread_load,&

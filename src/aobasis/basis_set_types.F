@@ -135,7 +135,6 @@ MODULE basis_set_types
   ! Public subroutines
   PUBLIC :: allocate_gto_basis_set,&
             deallocate_gto_basis_set,&
-            get_gto_basis_set_info,&
             get_gto_basis_set,&
             init_aux_basis_set,&
             init_cphi_and_sphi,&

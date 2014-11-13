@@ -101,7 +101,7 @@ MODULE qs_loc_utils
 ! *** Public ***
   PUBLIC :: jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
             retain_history, qs_loc_init,&
-            read_loc_section, set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
+            set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
 
 CONTAINS
 

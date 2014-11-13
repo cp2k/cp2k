@@ -45,9 +45,8 @@ MODULE domain_submatrix_methods
             release_submatrices, multiply_submatrices, add_submatrices,&
             construct_submatrices, init_submatrices,&
             construct_dbcsr_from_submatrices,&
-            trace_submatrices,&
             set_submatrices,&
-            print_submatrices, qblk_exists, maxnorm_submatrices
+            print_submatrices, maxnorm_submatrices
 
   INTERFACE init_submatrices
      MODULE PROCEDURE init_submatrices_0d 

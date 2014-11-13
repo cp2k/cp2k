@@ -92,7 +92,7 @@ MODULE input_cp2k_restarts
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts'
 
-  PUBLIC :: write_restart, update_input
+  PUBLIC :: write_restart
 
 CONTAINS
 

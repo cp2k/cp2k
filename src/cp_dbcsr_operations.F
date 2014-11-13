@@ -74,10 +74,7 @@ MODULE cp_dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
 
-  PUBLIC :: cp_dbcsr_multiply_local, cp_dbcsr_multiply_vec, cp_dbcsr_pack_vec,&
-            packed_vec_scale, cp_dbcsr_unpack_vec,&
-            packed_vec_bif_tech2, cp_dbcsr_copy_vec, packed_vec_build_u, packed_vec_bcast,&
-            packed_vec_ini
+  PUBLIC :: cp_dbcsr_multiply_local
 
   INTERFACE cp_dbcsr_multiply_local
      MODULE PROCEDURE cp_dbcsr_multiply_local_d,&

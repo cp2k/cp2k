@@ -90,8 +90,7 @@ MODULE almo_scf_optimizer
 
   PUBLIC :: almo_scf_block_diagonal,&
             almo_scf_xalmo_eigensolver,&
-            almo_scf_xalmo_pcg,&
-            harris_foulkes_correction
+            almo_scf_xalmo_pcg
 
   LOGICAL, PARAMETER :: debug_mode = .FALSE.
   LOGICAL, PARAMETER :: safe_mode = .FALSE.

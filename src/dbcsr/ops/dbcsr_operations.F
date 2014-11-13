@@ -118,7 +118,7 @@ MODULE dbcsr_operations
                           xc=dbcsr_type_no_symmetry
 
   PUBLIC :: dbcsr_trace, dbcsr_add_on_diag,&
-            dbcsr_set, dbcsr_scale, dbcsr_scale_mat, dbcsr_add, dbcsr_copy,&
+            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy,&
             dbcsr_copy_into_existing,&
             dbcsr_get_diag, dbcsr_set_diag,&
             dbcsr_get_block_diag, dbcsr_hadamard_product,&

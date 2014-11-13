@@ -29,8 +29,7 @@ MODULE ai_overlap
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap'
 
 ! *** Public subroutines ***
-  PUBLIC :: overlap, overlap_ab, overlap_aab, overlap_abb, &
-            overlap_aaab, overlap_aabb, overlap_abbb
+  PUBLIC :: overlap, overlap_ab
 
 CONTAINS
 

@@ -41,8 +41,8 @@ MODULE dbcsr_arnoldi_data_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_data_methods'
 
-  PUBLIC :: select_evals, get_all_selected_ritz_val, get_selected_ritz_val,&
-            arnoldi_is_converged, get_nval_out, set_eval_selection, dbcsr_arnoldi_data,&
+  PUBLIC :: select_evals, get_selected_ritz_val,&
+            dbcsr_arnoldi_data,&
             setup_arnoldi_data, deallocate_arnoldi_data
 
 CONTAINS 

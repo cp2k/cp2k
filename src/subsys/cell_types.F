@@ -73,9 +73,9 @@ MODULE cell_types
   PUBLIC :: cell_type, cell_p_type
 
   ! Public subroutines
-  PUBLIC :: get_cell, get_cell_param, init_cell, &
+  PUBLIC :: get_cell, get_cell_param, init_cell,&
             cell_create, cell_retain, cell_release,&
-            cell_clone, cell_copy, compare_cells, parse_cell_line, set_cell_param,&
+            cell_clone, cell_copy, parse_cell_line, set_cell_param,&
             pbc_cp2k_plumed_getset_cell, pbc_cp2k_plumed  !for plumed
 
   ! Public functions

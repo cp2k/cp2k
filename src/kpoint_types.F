@@ -48,8 +48,8 @@ MODULE kpoint_types
   PUBLIC :: kpoint_create, kpoint_release, get_kpoint_info, set_kpoint_info
   PUBLIC :: read_kpoint_section, write_kpoint_info
   PUBLIC :: kpoint_env_type, kpoint_env_p_type
-  PUBLIC :: kpoint_env_create, kpoint_env_release, get_kpoint_env
-  PUBLIC :: opmat_type, kp_opmat_create, kp_opmat_release
+  PUBLIC :: kpoint_env_create
+  PUBLIC :: kp_opmat_create
 
 ! *****************************************************************************  
 !> \brief Keeps operator matrices in real space form
