@@ -250,9 +250,8 @@
   END SUBROUTINE dbcsr_trace_ab_s
 
 
-  !> \brief Interface for matrix scaling by a scalar
 ! *****************************************************************************
-!> \brief ...
+!> \brief Interface for matrix scaling by a scalar
 !> \param matrix_a ...
 !> \param alpha_scalar ...
 !> \param last_column ...
@@ -285,9 +284,8 @@
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_scale_s
 
-  !> \brief Interface for matrix scaling by a vector
 ! *****************************************************************************
-!> \brief ...
+!> \brief Interface for matrix scaling by a vector
 !> \param matrix_a ...
 !> \param alpha ...
 !> \param side ...
@@ -312,38 +310,9 @@
     CALL dbcsr_data_release (enc_alpha_vec)
   END SUBROUTINE dbcsr_scale_by_vector_s
 
-  !> \brief Interface for matrix scaling by a matrix
-! *****************************************************************************
-!> \brief ...
-!> \param matrix_a ...
-!> \param alpha_matrix ...
-!> \param side ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_scale_s_m(matrix_a, alpha_matrix,&
-       side, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)             :: matrix_a
-    REAL(kind=real_4), DIMENSION(:), INTENT(IN), TARGET  :: alpha_matrix
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL     :: side
-    TYPE(dbcsr_error_type), INTENT(INOUT)      :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_s_m', &
-      routineP = moduleN//':'//routineN
-    REAL(kind=real_4), DIMENSION(:), POINTER             :: tmp_p
-    TYPE(dbcsr_data_obj)                       :: enc_alpha_mat
 
-    CALL dbcsr_data_init (enc_alpha_mat)
-    CALL dbcsr_data_new (enc_alpha_mat, dbcsr_type_real_4)
-    tmp_p => alpha_matrix
-    CALL dbcsr_data_set_pointer (enc_alpha_mat, tmp_p)
-    CALL dbcsr_scale_mat (matrix_a, side=side, alpha_matrix = enc_alpha_mat,&
-         error=error)
-    CALL dbcsr_data_clear_pointer (enc_alpha_mat)
-    CALL dbcsr_data_release (enc_alpha_mat)
-  END SUBROUTINE dbcsr_scale_s_m
-
-  !> \brief Interface for dbcsr_set
 ! *****************************************************************************
-!> \brief ...
+!> \brief Interface for dbcsr_set
 !> \param matrix ...
 !> \param alpha ...
 !> \param error ...

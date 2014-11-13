@@ -24,8 +24,7 @@ MODULE dbcsr_api
                                              deallocate_arnoldi_data,&
                                              get_selected_ritz_val,&
                                              setup_arnoldi_data
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
-                                             dbcsr_get_block_p,&
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_reserve_all_blocks,&
                                              dbcsr_reserve_block2d,&
@@ -98,14 +97,13 @@ MODULE dbcsr_api
                                              dbcsr_mp_release
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
   USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
-       dbcsr_copy_into_existing, dbcsr_filter, dbcsr_frobenius_norm, &
-       dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
-       dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_get_info, &
-       dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init_random, &
-       dbcsr_maxabs, dbcsr_norm, dbcsr_scale, dbcsr_scale_by_vector, &
-       dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
-       dbcsr_triu
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_copy_into_existing, &
+       dbcsr_filter, dbcsr_frobenius_norm, dbcsr_function_of_elements, &
+       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_diag, &
+       dbcsr_get_info, dbcsr_get_occupation, dbcsr_hadamard_product, &
+       dbcsr_init_random, dbcsr_maxabs, dbcsr_norm, dbcsr_scale, &
+       dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, &
+       dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu
   USE dbcsr_tests,                     ONLY: dbcsr_run_tests,&
                                              dbcsr_test_arnoldi,&
                                              dbcsr_test_mm
@@ -132,8 +130,7 @@ MODULE dbcsr_api
   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix,&
                                              create_replicated_col_vec_from_matrix,&
                                              create_replicated_row_vec_from_matrix,&
-                                             create_row_vec_from_matrix,&
-                                             dbcsr_matrix_colvec_multiply
+                                             create_row_vec_from_matrix
   USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                              dbcsr_create,&
                                              dbcsr_finalize,&
@@ -187,7 +184,6 @@ MODULE dbcsr_api
             get_selected_ritz_val,&
             dbcsr_binary_read,&
             dbcsr_binary_write,&
-            dbcsr_btriu,&
             dbcsr_triu,&
             dbcsr_checksum,&
             dbcsr_clear_mempools,&
@@ -232,7 +228,6 @@ MODULE dbcsr_api
             dbcsr_func_tanh,&
             dbcsr_function_of_elements,&
             dbcsr_gershgorin_norm,&
-            dbcsr_get_block,&
             dbcsr_get_block_diag,&
             dbcsr_get_block_p,&
             dbcsr_get_conf_combtypes,&
@@ -337,7 +332,6 @@ MODULE dbcsr_api
             dbcsr_verify_matrix,&
             dbcsr_wm_use_mutable,&
             dbcsr_work_create,&
-            dbcsr_matrix_colvec_multiply,&
             create_col_vec_from_matrix,&
             create_row_vec_from_matrix,&
             create_replicated_col_vec_from_matrix,&

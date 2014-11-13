@@ -27,7 +27,7 @@ MODULE cp_dbcsr_interface
        create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_arnoldi_data, dbcsr_arnoldi_ev, &
-       dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
+       dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, &
        dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
        dbcsr_copy_into_existing, dbcsr_create, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
@@ -44,23 +44,21 @@ MODULE cp_dbcsr_interface
        dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
        dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
-       dbcsr_gershgorin_norm, dbcsr_get_block, dbcsr_get_block_diag, &
-       dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
-       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_get_num_blocks, dbcsr_get_occupation, &
+       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
+       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
+       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
        dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_init, &
        dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, &
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_matrix_colvec_multiply, dbcsr_maxabs, dbcsr_mp_group, &
-       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_release, &
-       dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_local, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_maxabs, &
+       dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
+       dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_no_transpose, dbcsr_norm, dbcsr_norm_column, &
@@ -240,13 +238,6 @@ MODULE cp_dbcsr_interface
      MODULE PROCEDURE cp_dbcsr_create_template
   END INTERFACE
 
-  INTERFACE cp_dbcsr_matrix_colvec_multiply
-     MODULE PROCEDURE cp_dbcsr_matrix_colvec_multiply_d,&
-                      cp_dbcsr_matrix_colvec_multiply_s,&
-                      cp_dbcsr_matrix_colvec_multiply_z,&
-                      cp_dbcsr_matrix_colvec_multiply_c
-  END INTERFACE
-
   INTERFACE cp_dbcsr_conform_scalar
      MODULE PROCEDURE make_conformant_scalar_d,&
                       make_conformant_scalar_s,&
@@ -309,13 +300,6 @@ MODULE cp_dbcsr_interface
                       cp_dbcsr_get_2d_block_p_s,&
                       cp_dbcsr_get_2d_block_p_z,&
                       cp_dbcsr_get_2d_block_p_c
-  END INTERFACE
-
-  INTERFACE cp_dbcsr_get_block
-     MODULE PROCEDURE cp_dbcsr_get_block_d,&
-                      cp_dbcsr_get_block_s,&
-                      cp_dbcsr_get_block_z,&
-                      cp_dbcsr_get_block_c
   END INTERFACE
 
   INTERFACE cp_dbcsr_put_block
@@ -1258,28 +1242,6 @@ CONTAINS
 
     CALL dbcsr_sum_replicated (matrix%matrix, dbcsr_error)
   END SUBROUTINE cp_dbcsr_sum_replicated
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix_b ...
-!> \param matrix_a ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_btriu(matrix_b, matrix_a, error)
-
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_b
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_btriu', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL cp_dbcsr_create (matrix_b, name="BTRIU of"//cp_dbcsr_name (matrix_a),&
-         template=matrix_a, error=error)
-    CALL dbcsr_btriu(matrix_b%matrix, matrix_a%matrix, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_btriu
 
 ! *****************************************************************************
 !> \brief ...

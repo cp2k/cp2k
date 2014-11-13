@@ -17,8 +17,6 @@ MODULE dbcsr_operations
   USE array_types,                     ONLY: array_data,&
                                              array_get,&
                                              array_i1d_obj
-  USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy,&
-                                             dbcsr_blas_gemm
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_remove_block,&
@@ -124,7 +122,6 @@ MODULE dbcsr_operations
             dbcsr_get_block_diag, dbcsr_hadamard_product,&
             dbcsr_filter, dbcsr_scale_by_vector,&
             dbcsr_function_of_elements,&
-            dbcsr_btriu,&
             dbcsr_triu,&
             dbcsr_init_random
   PUBLIC :: dbcsr_sum_replicated
@@ -150,12 +147,6 @@ MODULE dbcsr_operations
      MODULE PROCEDURE dbcsr_scale_anytype
      MODULE PROCEDURE dbcsr_scale_s, dbcsr_scale_d,&
                       dbcsr_scale_c, dbcsr_scale_z
-  END INTERFACE
-
-  INTERFACE dbcsr_scale_mat
-     MODULE PROCEDURE dbcsr_scale_mat_any
-     MODULE PROCEDURE dbcsr_scale_s_m, dbcsr_scale_d_m,&
-                      dbcsr_scale_c_m, dbcsr_scale_z_m
   END INTERFACE
 
   INTERFACE dbcsr_scale_by_vector
@@ -433,136 +424,6 @@ CONTAINS
     frame_size = MAX(l - f + 1, 0)
     frame_offset = MIN(f - block_offset + 1, block_size)
   END SUBROUTINE frame_block_limit
-
-
-! *****************************************************************************
-!> \brief Scales a DBCSR matrix by a vector or a matrix
-!> \param[inout] matrix_a       DBCSR matrix
-!> \param[in] alpha_matrix      (optional) a list of matrices
-!> \param[in] side              (optional) ?
-!> \param[in,out] error         error
-! *****************************************************************************
-  SUBROUTINE dbcsr_scale_mat_any(matrix_a, alpha_matrix, side, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: alpha_matrix
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_mat_any', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: a_blk, a_col, a_col_size, &
-                                                a_nze, a_row, a_row_size, &
-                                                col_offset, error_handler, &
-                                                row_offset
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: m_offset
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: right, tr
-    TYPE(dbcsr_data_obj)                     :: buffer, data_any, mat_tmp
-    TYPE(dbcsr_iterator)                     :: iter
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-
-    !
-    ! set vars
-    right = .TRUE.
-    IF(PRESENT(side)) THEN
-       SELECT CASE(side)
-       CASE('right');right = .TRUE.
-       CASE('left' );right = .FALSE.
-       CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN,&
-               "wrong side="//side,__LINE__,error)
-       END SELECT
-    ENDIF
-    !
-    CALL dbcsr_data_init (buffer)
-    ! Clean up these maxvalues
-    CALL dbcsr_data_new (buffer, dbcsr_get_data_type(matrix_a),&
-         data_size=MAXVAL(array_data (matrix_a%m%row_blk_size)) &
-         *MAXVAL(array_data (matrix_a%m%col_blk_size)))
-    CALL dbcsr_data_clear (buffer) ! Zero the buffer
-    !
-    ! TODO: Clean up these offsets using the matrix-supplied ones
-    row_blk_size => array_data (matrix_a%m%row_blk_size)
-    col_blk_size => array_data (matrix_a%m%col_blk_size)
-    ALLOCATE(m_offset(dbcsr_nblkrows_total(matrix_a)))
-    m_offset(1) = 1
-    IF(right) THEN
-       DO a_col = 2,dbcsr_nblkcols_total(matrix_a)
-          a_col_size = col_blk_size(a_col-1)
-          m_offset(a_col) = m_offset(a_col-1) + a_col_size**2
-       ENDDO
-    ELSE
-       DO a_row = 2,dbcsr_nblkrows_total(matrix_a)
-          a_row_size = row_blk_size(a_row-1)
-          m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
-       ENDDO
-    ENDIF
-    !
-    ! This data area holds the current column
-    CALL dbcsr_data_init (mat_tmp)
-    CALL dbcsr_data_new (mat_tmp, dbcsr_data_get_type (alpha_matrix))
-    !
-    ! let's go
-    CALL dbcsr_data_init (data_any)
-    CALL dbcsr_data_new (data_any, dbcsr_get_data_type (matrix_a))
-    CALL dbcsr_iterator_start(iter, matrix_a)
-    iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_any, tr,&
-            block_number=a_blk,&
-            row_size=a_row_size, col_size=a_col_size, &
-            row_offset=row_offset, col_offset=col_offset)
-       a_nze = a_row_size * a_col_size
-       IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
-       !
-       ! let's scale
-       IF(right) THEN
-          !A = A * alpha
-          mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_col))
-          CALL dbcsr_blas_gemm ('N','N',&
-               a_row_size, a_col_size, a_col_size,&
-               dbcsr_scalar_one (alpha_matrix%d%data_type),&
-               data_any, a_row_size,&
-               mat_tmp, a_col_size,&
-               dbcsr_scalar_zero (alpha_matrix%d%data_type),&
-               buffer, a_row_size)
-          !CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
-          !     1.0_dp,data_any%d%r_dp(1),a_row_size,&
-          !     alpha_matrix%d%r_dp(m_offset(a_col)),a_col_size,&
-          !     0.0_dp,buffer%d%r_dp(1),a_row_size)
-          CALL dbcsr_blas_copy (a_nze, buffer, 1, data_any, 1)
-       ELSE
-          !A = alpha * A
-          mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_row))
-          CALL dbcsr_blas_gemm ('N','N',&
-               a_row_size, a_col_size, a_row_size,&
-               dbcsr_scalar_one (alpha_matrix%d%data_type),&
-               mat_tmp, a_row_size,&
-               data_any, a_row_size,&
-               dbcsr_scalar_zero (alpha_matrix%d%data_type),&
-               buffer, a_row_size)
-          !CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
-          !        &     1.0_dp,alpha_matrix%d%r_dp(m_offset(a_col)),a_row_size,&
-          !        &            data_any%d%r_dp(1),a_row_size,&
-          !        &     0.0_dp,buffer%d%r_dp(1),a_row_size)
-          CALL dbcsr_blas_copy(a_nze, buffer, 1, data_any, 1)
-       ENDIF
-    ENDDO iterations
-    CALL dbcsr_iterator_stop(iter)
-    CALL dbcsr_data_clear_pointer (data_any)
-    CALL dbcsr_data_release (data_any)
-    DEALLOCATE(m_offset)
-    !WRITE(*,*)"refs:", buffer%d%refcount, buffer%d%data_type
-    CALL dbcsr_data_release (buffer)
-    CALL dbcsr_data_clear_pointer (mat_tmp)
-    CALL dbcsr_data_release (mat_tmp)
-    CALL dbcsr_error_stop(error_handler, error)
-
-   END SUBROUTINE dbcsr_scale_mat_any
 
 
 ! *****************************************************************************
@@ -2354,46 +2215,6 @@ CONTAINS
 
 
 
-
-! *****************************************************************************
-!> \brief block triu of a dbcsr matrix
-!> \param[in] matrix_b  triu of the matrix
-!> \param[in] matrix_a  the matrix
-!>
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_btriu(matrix_b, matrix_a, error)
-
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_btriu', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                error_handler, row, row_size
-    TYPE(dbcsr_iterator)                     :: iter
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%m%name, error=error)
-
-    CALL dbcsr_iterator_start(iter, matrix_b)
-
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, blk=blk,&
-            row_size=row_size, col_size=col_size)
-       blk_nze = row_size * col_size
-       IF(row.GT.col) CALL dbcsr_remove_block(matrix_b, row, col, blk_nze, blk)
-    ENDDO
-
-    CALL dbcsr_iterator_stop(iter)
-
-    CALL dbcsr_finalize (matrix_b, error=error)
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_btriu
 
 ! *****************************************************************************
 !> \brief  triu of a dbcsr matrix

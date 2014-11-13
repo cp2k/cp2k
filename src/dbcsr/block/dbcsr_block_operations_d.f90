@@ -4,67 +4,6 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief ...
-!> \param m ...
-!> \param n ...
-!> \param blk ...
-!> \param alpha ...
-!> \param beta ...
-! *****************************************************************************
-  PURE SUBROUTINE block_2d_set_d (m, n, blk, alpha, beta)
-    INTEGER, INTENT(IN)                      :: m, n
-    REAL(kind=real_8), DIMENSION(m,n), INTENT(OUT)     :: blk
-    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: alpha, beta
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_2d_set_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    REAL(kind=real_8)                                  :: my_alpha, my_beta
-
-!   ---------------------------------------------------------------------------
-
-    IF(PRESENT(alpha)) THEN
-       my_alpha = alpha
-    ELSE
-       my_alpha = 0.0_real_8
-    ENDIF
-    IF(PRESENT(beta)) THEN
-       my_beta = beta
-    ELSE
-       my_beta = 0.0_real_8
-    ENDIF
-    blk(:,:) = my_beta
-    IF(m.EQ.n) THEN
-       FORALL (i = 1:m)
-          blk(i,i) = my_alpha
-       END FORALL
-    ENDIF
-  END SUBROUTINE block_2d_set_d
-
-! *****************************************************************************
-!> \brief ...
-!> \param m ...
-!> \param n ...
-!> \param blk ...
-!> \param alpha ...
-!> \param beta ...
-! *****************************************************************************
-  PURE SUBROUTINE block_set_d (m, n, blk, alpha, beta)
-    INTEGER, INTENT(IN)                      :: m, n
-    REAL(kind=real_8), DIMENSION(m*n), INTENT(OUT)     :: blk
-    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: alpha, beta
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_set_d', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    CALL block_2d_set_d (m, n, blk, alpha, beta)
-  END SUBROUTINE block_set_d
-
-
-! *****************************************************************************
 !> \brief Sets the diagonal of a square data block
 !> \param[out] block_data     sets the diagonal of this data block
 !> \param[in] diagonal        set diagonal of block_data to these values
@@ -661,56 +600,6 @@
        CALL block_2d_add_on_diag_d(m, blk, alpha, 1, m)
     ENDIF
   END SUBROUTINE block_add_on_diag_d
-
-! *****************************************************************************
-!> \brief ...
-!> \param m ...
-!> \param blk ...
-! *****************************************************************************
-  SUBROUTINE block_2d_chol_inv_d(m, blk)
-    INTEGER, INTENT(IN)                      :: m
-    REAL(kind=real_8), INTENT(INOUT), DIMENSION(m,m)   :: blk
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_2d_chol_inv_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, info, j
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-
-    CALL dpotrf( 'U', m, blk, m, info )
-    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "error in dpotrf",__LINE__,error)
-    CALL dpotri( 'U', m, blk, m, info )
-    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "error in dpotri",__LINE__,error)
-    !
-    ! symmetrize
-    DO i=1,m
-       DO j=i,m
-          blk(j,i) = blk(i,j)
-       ENDDO
-    ENDDO
-  END SUBROUTINE block_2d_chol_inv_d
-
-! *****************************************************************************
-!> \brief ...
-!> \param m ...
-!> \param blk ...
-! *****************************************************************************
-  SUBROUTINE block_chol_inv_d(m, blk)
-    INTEGER, INTENT(IN)                      :: m
-    REAL(kind=real_8), DIMENSION(m*m), INTENT(INOUT)   :: blk
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv_d', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    CALL block_2d_chol_inv_d(m, blk)
-  END SUBROUTINE block_chol_inv_d
 
 ! *****************************************************************************
 !> \brief ...

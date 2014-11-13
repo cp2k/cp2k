@@ -27,9 +27,7 @@ MODULE dbcsr_block_access
   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
                                              btree_add_z => btree_add,&
                                              btree_get_z => btree_find
-  USE dbcsr_block_operations,          ONLY: dbcsr_block_copy,&
-                                             dbcsr_block_transpose,&
-                                             dbcsr_data_clear,&
+  USE dbcsr_block_operations,          ONLY: dbcsr_data_clear,&
                                              dbcsr_data_set
   USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
@@ -82,19 +80,12 @@ MODULE dbcsr_block_access
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_access'
 
-  PUBLIC :: dbcsr_get_block, dbcsr_get_block_p,&
+  PUBLIC :: dbcsr_get_block_p,&
             dbcsr_put_block, dbcsr_remove_block
 
   PUBLIC :: dbcsr_reserve_block2d,&
             dbcsr_reserve_blocks, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks
 
-
-  INTERFACE dbcsr_get_block
-     MODULE PROCEDURE dbcsr_get_block_d, dbcsr_get_block_s,&
-                      dbcsr_get_block_z, dbcsr_get_block_c
-     MODULE PROCEDURE dbcsr_get_2d_block_d, dbcsr_get_2d_block_s,&
-                      dbcsr_get_2d_block_z, dbcsr_get_2d_block_c
-  END INTERFACE
 
   INTERFACE dbcsr_get_block_p
      MODULE PROCEDURE dbcsr_get_block_p_d, dbcsr_get_block_p_s,&

@@ -57,8 +57,7 @@ MODULE dbcsr_data_methods_low
             dbcsr_data_get_size, dbcsr_data_get_type
   PUBLIC :: dbcsr_get_data,&
             dbcsr_data_set_pointer,&
-            dbcsr_data_clear_pointer, dbcsr_data_set_2d_pointer,&
-            dbcsr_data_clear_2d_pointer,&
+            dbcsr_data_clear_pointer,&
             dbcsr_data_get_sizes, dbcsr_data_verify_bounds,&
             dbcsr_data_exists, dbcsr_data_get_memory_type
   PUBLIC :: dbcsr_data_zero
@@ -795,111 +794,6 @@ MODULE dbcsr_data_methods_low
        CALL dbcsr_error_stop(error_handle, error)
     ENDIF
   END SUBROUTINE dbcsr_data_zero
-
-
-
-! *****************************************************************************
-!> \brief Points a 2-d pointer to current 1-d data
-!>
-!> \param[in,out] area         data area to work on
-!> \param[in] rowsize          row size of 2-d data
-!> \param[in] colsize          (optional) column size of 2-d data
-!> \param[in] offset           (optional) offset
-! *****************************************************************************
-  SUBROUTINE dbcsr_data_set_2d_pointer (area, rowsize, colsize, offset)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    INTEGER, INTENT(IN)                      :: rowsize
-    INTEGER, INTENT(IN), OPTIONAL            :: colsize, offset
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_set_2d_pointer', &
-      routineP = moduleN//':'//routineN
-
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: c_sp
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: c_dp
-    INTEGER                                  :: bp, csize, dt1, nze
-    LOGICAL                                  :: compatible
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    dt1 = area%d%data_type
-    compatible = dt1 .EQ. dbcsr_type_real_4&
-            .OR. dt1 .EQ. dbcsr_type_real_8&
-            .OR. dt1 .EQ. dbcsr_type_complex_4&
-            .OR. dt1 .EQ. dbcsr_type_complex_8
-    CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "Must target 1-D data",__LINE__,error)
-    IF (PRESENT (offset)) THEN
-       bp = offset
-       nze = dbcsr_data_get_size (area) - offset + 1
-    ELSE
-       bp = 1
-       nze = dbcsr_data_get_size (area)
-    ENDIF
-    IF (PRESENT (colsize)) THEN
-       csize = colsize
-    ELSE
-       csize = nze / rowsize
-    ENDIF
-    SELECT CASE (dt1)
-    CASE (dbcsr_type_real_4)
-       r_sp => dbcsr_get_data_p_s (area, bp, bp+nze-1)
-       CALL pointer_rank_remap2(area%d%r2_sp, rowsize, csize,&
-            r_sp)
-    CASE (dbcsr_type_real_8)
-       r_dp => dbcsr_get_data_p_d (area, bp, bp+nze-1)
-       CALL pointer_rank_remap2(area%d%r2_dp, rowsize, csize,&
-            r_dp)
-    CASE (dbcsr_type_complex_4)
-       c_sp => dbcsr_get_data_p_c (area, bp, bp+nze-1)
-       CALL pointer_rank_remap2(area%d%c2_sp, rowsize, csize,&
-            c_sp)
-    CASE (dbcsr_type_complex_8)
-       c_dp => dbcsr_get_data_p_z (area, bp, bp+nze-1)
-       CALL pointer_rank_remap2(area%d%c2_dp, rowsize, csize,&
-            c_dp)
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Invalid data type",__LINE__,error)
-    END SELECT
-  END SUBROUTINE dbcsr_data_set_2d_pointer
-
-! *****************************************************************************
-!> \brief Nullifies a 2-d pointer to current 1-d data
-!>
-!> \param[in,out] area         data area to work on
-! *****************************************************************************
-  SUBROUTINE dbcsr_data_clear_2d_pointer (area)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_2d_pointer', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: dt1
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    dt1 = area%d%data_type
-    SELECT CASE (dt1)
-    CASE (dbcsr_type_real_4)
-       NULLIFY (area%d%r2_sp)
-    CASE (dbcsr_type_real_8)
-       NULLIFY (area%d%r2_dp)
-    CASE (dbcsr_type_complex_4)
-       NULLIFY (area%d%c2_sp)
-    CASE (dbcsr_type_complex_8)
-       NULLIFY (area%d%c2_dp)
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Invalid data type",__LINE__,error)
-    END SELECT
-  END SUBROUTINE dbcsr_data_clear_2d_pointer
-
 
 ! *****************************************************************************
 !> \brief Returns the allocated data size

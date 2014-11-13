@@ -4,44 +4,6 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief multiplies a dbcsr matrix with a column vector like dbcsr matrix.
-!>        v_out=beta*v_out+alpha*M*V
-!>        IMPORTANT: vector have to be created via the vec create routines:
-!>                   cp_dbcsr_create_col_vec_from_matrix,
-!>                   cp_dbcsr_create_row_vec_from_matrix,
-!>                   cp_dbcsr_create_rep_col_vec_from_matrix,
-!>                   cp_dbcsr_create_rep_row_vec_from_matrix
-!>        WARNING:   Do not filter the vectors as they are assumed to be non
-!>                   sparse in the underlying routines. If your vector is
-!>                   sparse, fill it!!!
-!> \param matrix a dbcsr matrix
-!> \param vec_in the vector to be multiplied (only available on proc_col 0)
-!> \param vec_out the result vector (only available on proc_col 0)
-!> \param alpha  as described in formula
-!> \param beta  as described in formula
-!> \param rep_row a work row vector replicated on all proc_cols. 
-!> \param rep_col a work col vector replicated on all proc_rows. 
-! *****************************************************************************
-   SUBROUTINE cp_dbcsr_matrix_colvec_multiply_d(matrix,vec_in,vec_out,alpha,beta,&
-                                                rep_row,rep_col,error)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: vec_in
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec_out
-    REAL(kind=real_8), INTENT(IN)                      :: alpha, beta
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: rep_row, rep_col
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_matrix_colvec_mult_d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_matrix_colvec_multiply(matrix%matrix,vec_in%matrix,vec_out%matrix,&
-                                  alpha,beta,rep_row%matrix,rep_col%matrix,dbcsr_error)
-
-   END SUBROUTINE cp_dbcsr_matrix_colvec_multiply_d
-
-! *****************************************************************************
 !> \brief Encapsulates a given scalar value and makes it conformant to the
 !>        type of the matrix.
 !> \param scalar ...
@@ -230,38 +192,6 @@
        summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block_d
-
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param row ...
-!> \param col ...
-!> \param block ...
-!> \param found ...
-!> \param row_size ...
-!> \param col_size ...
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_get_block_d (matrix,row,col,block,found,&
-       row_size, col_size)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER, INTENT(IN)                      :: row, col
-    REAL(kind=real_8), DIMENSION(:), INTENT(OUT)      :: block
-    LOGICAL, INTENT(OUT)                     :: found
-    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_d', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: tr
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
-    tr=.FALSE.
-    CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
-       row_size, col_size)
-
-  END SUBROUTINE cp_dbcsr_get_block_d
 
 
 ! *****************************************************************************

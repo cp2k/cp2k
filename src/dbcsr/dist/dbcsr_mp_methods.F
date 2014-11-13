@@ -220,27 +220,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param mp_env ...
-!> \param node ...
-!> \param prow ...
-!> \param pcol ...
-! *****************************************************************************
-  PURE SUBROUTINE dbcsr_mp_get_coordinates(mp_env, node, prow, pcol)
-    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
-    INTEGER, INTENT(IN)                      :: node
-    INTEGER, INTENT(OUT)                     :: prow, pcol
-
-    INTEGER                                  :: tmp
-
-    pcol = MOD (node, SIZE(mp_env%mp%pgrid,2))
-    prow = node / SIZE(mp_env%mp%pgrid,2)
-    IF (mp_env%mp%pgrid(prow, pcol) .NE. node) THEN
-       tmp = pcol ; pcol = prow ; prow = tmp
-    ENDIF
-  END SUBROUTINE dbcsr_mp_get_coordinates
-
-! *****************************************************************************
-!> \brief ...
-!> \param mp_env ...
 !> \retval pgrid ...
 ! *****************************************************************************
   FUNCTION dbcsr_mp_pgrid(mp_env) RESULT (pgrid)

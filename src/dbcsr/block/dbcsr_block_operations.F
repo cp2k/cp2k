@@ -135,13 +135,6 @@ MODULE dbcsr_block_operations
                       set_block2d_diagonal_c, set_block2d_diagonal_z
   END INTERFACE
 
-  INTERFACE block_set
-     MODULE PROCEDURE block_2d_set_d, block_2d_set_s,&
-                      block_2d_set_z, block_2d_set_c
-     MODULE PROCEDURE block_set_d, block_set_s,&
-                      block_set_z, block_set_c
-  END INTERFACE
-
   INTERFACE block_add_on_diag
      MODULE PROCEDURE block_add_on_diag_anytype
      MODULE PROCEDURE block_2d_add_on_diag_d, block_2d_add_on_diag_s,&
@@ -149,14 +142,6 @@ MODULE dbcsr_block_operations
      MODULE PROCEDURE block_add_on_diag_d, block_add_on_diag_s,&
                       block_add_on_diag_z, block_add_on_diag_c
   END INTERFACE
-
-  INTERFACE block_chol_inv
-     MODULE PROCEDURE block_2d_chol_inv_d, block_2d_chol_inv_s,&
-                      block_2d_chol_inv_z, block_2d_chol_inv_c
-     MODULE PROCEDURE block_chol_inv_d, block_chol_inv_s,&
-                      block_chol_inv_z, block_chol_inv_c
-  END INTERFACE
-
 
   INTERFACE block_add
      MODULE PROCEDURE block_add_anytype
