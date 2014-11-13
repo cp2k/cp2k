@@ -48,11 +48,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief invert a symmetric positive definite matrix by Hotelling's method
 !>        explicit symmetrization makes this code not suitable for other matrix types
+!>        Currently a bit messy with the options, to to be cleaned soon
 !> \param matrix_inverse ...
 !> \param matrix ...
-!> \param threshold ...
-!> \param use_inv_as_guess ...
-!> \param norm_convergence ...
+!> \param threshold convergence threshold nased on the max abs
+!> \param use_inv_as_guess logical whether input can be used as guess for inverse
+!> \param norm_convergence convergence threshold for the 2-norm, useful for approximate solutions
+!> \param filter_eps filter_eps for matrix multiplications, if not passed nothing is filteres
 !> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
@@ -60,13 +62,13 @@ CONTAINS
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,use_inv_as_guess,&
-                              norm_convergence,error)
+                              norm_convergence,filter_eps,error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT), &
       TARGET                                 :: matrix_inverse, matrix
     REAL(KIND=dp), INTENT(IN)                :: threshold
     LOGICAL, INTENT(IN), OPTIONAL            :: use_inv_as_guess
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: norm_convergence
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: norm_convergence, filter_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
@@ -135,7 +137,7 @@ CONTAINS
        t1 = m_walltime()
        ! tmp1 = S^-1 S
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix,&
-                              0.0_dp, tmp1,flop=flop1, error=error)
+                              0.0_dp, tmp1,flop=flop1, filter_eps=filter_eps, error=error)
 
        ! for the convergence check
        !frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
@@ -150,7 +152,7 @@ CONTAINS
 
        ! tmp2 = S^-1 S S^-1
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp1, matrix_inverse, 0.0_dp, tmp2,&
-                              flop=flop2, error=error)
+                              flop=flop2, filter_eps=filter_eps, error=error)
        ! S^-1_{n+1} = 2 S^-1 - S^-1 S S^-1
        CALL cp_dbcsr_add(matrix_inverse, tmp2, 2.0_dp, -1.0_dp, error=error)
 
