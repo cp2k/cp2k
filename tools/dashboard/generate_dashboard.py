@@ -111,16 +111,29 @@ def main():
             archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
+
+        # read all archived reports
+        archive_reports = dict()
         for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
-            archive_output += '<tr align="center">'
             report_txt = gzip.open(fn, 'rb').read()
             report = parse_report(report_txt, report_type)
-            archive_output += revision_cell(report['revision'], trunk_revision)
-            archive_output += status_cell(report['status'], path.basename(fn)[:-3])
-            archive_output += '<td align="left">%s</td>'%report['summary']
-            rev = log_index[report['revision']]
-            archive_output += '<td align="left">%s</td>'%rev['author']
-            archive_output += '<td align="left">%s</td>'%rev['msg'].split("\n")[0]
+            archive_reports[report['revision']] = report
+
+        # loop over all relevant revisions
+        rev_start = max(min(archive_reports.keys()), min(log_index.keys()))
+        rev_end = max(log_index.keys())
+        for r in range(rev_end, rev_start-1, -1):
+            archive_output += '<tr>'
+            archive_output += revision_cell(r, trunk_revision)
+            if(archive_reports.has_key(r)):
+                report = archive_reports[r]
+                archive_output += status_cell(report['status'], path.basename(fn)[:-3])
+                archive_output += '<td align="left">%s</td>'%report['summary']
+            else:
+                archive_output += 2*'<td></td>'
+            svn_rev = log_index[r]
+            archive_output += '<td align="left">%s</td>'%svn_rev['author']
+            archive_output += '<td align="left">%s</td>'%svn_rev['msg'].split("\n")[0]
             archive_output += '</tr>\n\n'
         archive_output += '</table>\n' + html_footer(now)
         write_file(outdir+"archive/%s/index.html"%s, archive_output)
