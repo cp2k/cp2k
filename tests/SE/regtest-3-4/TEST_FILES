@@ -7,5 +7,5 @@ gly_noangvel.inp    2
 Co_complex.inp                   11     2e-11
 #cv distance from path
 N3_rp_md.inp                     11     3e-08
-N3_dp_md.inp                     11     5e-09
+N3_dp_md.inp                     11     3e-08
 N3_rp_dp_md.inp                  11     4e-08
