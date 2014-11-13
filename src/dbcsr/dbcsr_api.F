@@ -31,7 +31,6 @@ MODULE dbcsr_api
                                              dbcsr_reserve_block2d,&
                                              dbcsr_reserve_blocks,&
                                              dbcsr_reserve_diag_blocks
-  USE dbcsr_block_operations,          ONLY: block_set
   USE dbcsr_config,                    ONLY: &
        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
@@ -89,11 +88,14 @@ MODULE dbcsr_api
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_release, dbcsr_row_block_sizes, dbcsr_valid_index, &
        dbcsr_wm_use_mutable
-  USE dbcsr_mp_methods,                ONLY: &
-       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
+                                             dbcsr_mp_hold,&
+                                             dbcsr_mp_mynode,&
+                                             dbcsr_mp_new,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_mp_nprows,&
+                                             dbcsr_mp_numnodes,&
+                                             dbcsr_mp_release
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
@@ -160,7 +162,6 @@ MODULE dbcsr_api
             array_size,&
             array_nullify,&
             add_work_coordinate,&
-            block_set,&
             convert_offsets_to_sizes,&
             convert_sizes_to_offsets,&
             dbcsr_run_tests,&
@@ -264,18 +265,14 @@ MODULE dbcsr_api
             dbcsr_maxabs,&
             dbcsr_max_col_size,&
             dbcsr_max_row_size,&
-            dbcsr_mp_get_coordinates,&
             dbcsr_mp_group,&
             dbcsr_mp_hold,&
             dbcsr_mp_mynode,&
-            dbcsr_mp_mypcol,&
-            dbcsr_mp_myprow,&
             dbcsr_mp_new,&
             dbcsr_mp_npcols,&
             dbcsr_mp_nprows,&
             dbcsr_mp_numnodes,&
             dbcsr_mp_obj,&
-            dbcsr_mp_pgrid,&
             dbcsr_mp_release,&
             dbcsr_multiply,&
             dbcsr_name,&

@@ -21,7 +21,7 @@ MODULE cp_dbcsr_interface
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, add_work_coordinate, &
        array_data, array_hold, array_i1d_obj, array_new, array_nullify, &
-       array_release, array_size, block_set, convert_offsets_to_sizes, &
+       array_release, array_size, convert_offsets_to_sizes, &
        convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
        create_bl_distribution, create_col_vec_from_matrix, &
        create_replicated_col_vec_from_matrix, &
@@ -57,10 +57,9 @@ MODULE cp_dbcsr_interface
        dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, &
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_matrix_colvec_multiply, dbcsr_maxabs, dbcsr_mp_get_coordinates, &
-       dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_pgrid, dbcsr_mp_release, &
+       dbcsr_matrix_colvec_multiply, dbcsr_maxabs, dbcsr_mp_group, &
+       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_release, &
        dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
@@ -109,19 +108,19 @@ MODULE cp_dbcsr_interface
             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
             dbcsr_set_conf_combtypes, dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, dbcsr_set_conf_nstacks,&
-            dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_mpi, add_work_coordinate, block_set,&
+            dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_mpi, add_work_coordinate,&
             create_bl_distribution
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows,&
-            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p, dbcsr_mp_get_coordinates,&
-            dbcsr_mp_hold, dbcsr_mp_pgrid
+            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p,&
+            dbcsr_mp_hold
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
   PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4
   PUBLIC :: dbcsr_type_complex_default, dbcsr_type_real_default, dbcsr_distribution_new
   PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
-  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, dbcsr_mp_mypcol, dbcsr_mp_myprow
+  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
   PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_put_block
   PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_repl_full

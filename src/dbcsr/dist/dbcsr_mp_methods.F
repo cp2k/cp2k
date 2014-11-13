@@ -34,7 +34,6 @@ MODULE dbcsr_mp_methods
             dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
             dbcsr_mp_myprow, dbcsr_mp_mypcol,&
-            dbcsr_mp_get_coordinates,&
             dbcsr_mp_my_row_group, dbcsr_mp_my_col_group,&
             dbcsr_mp_has_subgroups, dbcsr_mp_get_process,&
             dbcsr_mp_grid_setup, dbcsr_mp_grid_remove,&

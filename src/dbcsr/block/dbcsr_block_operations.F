@@ -49,7 +49,7 @@ MODULE dbcsr_block_operations
   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
   PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
 
-  PUBLIC :: block_set, dbcsr_data_copy
+  PUBLIC :: dbcsr_data_copy
   PUBLIC :: block_add_on_diag
 
   PUBLIC :: block_add
