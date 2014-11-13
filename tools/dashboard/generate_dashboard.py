@@ -117,6 +117,7 @@ def main():
         for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
             report_txt = gzip.open(fn, 'rb').read()
             report = parse_report(report_txt, report_type)
+            report['url'] = path.basename(fn)[:-3]
             archive_reports[report['revision']] = report
 
         # loop over all relevant revisions
@@ -127,7 +128,7 @@ def main():
             archive_output += revision_cell(r, trunk_revision)
             if(archive_reports.has_key(r)):
                 report = archive_reports[r]
-                archive_output += status_cell(report['status'], path.basename(fn)[:-3])
+                archive_output += status_cell(report['status'], report['url'])
                 archive_output += '<td align="left">%s</td>'%report['summary']
             else:
                 archive_output += 2*'<td></td>'
