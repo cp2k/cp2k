@@ -9,17 +9,10 @@ MODULE qs_gspace_mixing
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_info, &
-       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
-       dbcsr_type_symmetric
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
-                                             cp_fm_upper_to_full
-  USE cp_gemm_interface,               ONLY: cp_gemm
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_init, &
+       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -32,7 +25,6 @@ MODULE qs_gspace_mixing
                                              mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
                                              pw_integrate_function,&
@@ -43,11 +35,8 @@ MODULE qs_gspace_mixing
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                              broyden_mixing_nr,&
                                              cp_1d_z_p_type,&
@@ -57,8 +46,6 @@ MODULE qs_gspace_mixing
                                              pulay_mixing_nr
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -132,181 +119,6 @@ CONTAINS
 
   END SUBROUTINE self_consistency_check
 
-! *****************************************************************************
-!> \brief ...
-!> \param qs_env the qs_environment where to perform the scf procedure
-!> \param scf_env ...
-!> \param p_out ...
-!> \param delta ...
-!> \param eps_scf ...
-!> \param diis ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      02.2009
-!> \author MI
-!> \note At the moment the mixing of density matrix in g-space does not work,
-!>       The g-space mixing is then performed only on the grid and affects the potential only
-!>       This is done in gmix_potential_only
-! *****************************************************************************
-
-  SUBROUTINE  gspace_density_mixing(qs_env,scf_env,p_out,delta,eps_scf,diis,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: p_out
-    REAL(KIND=dp), INTENT(INOUT)             :: delta
-    REAL(KIND=dp), INTENT(IN)                :: eps_scf
-    LOGICAL, INTENT(in)                      :: diis
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'gspace_density_mixing', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ig, ispin, nao, ng, &
-                                                nspin
-    LOGICAL                                  :: failure, gapw
-    REAL(KIND=dp)                            :: a_mix, b_mix, t1, t2, tmp, &
-                                                trace
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: g2
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_q, matrix_s, p_in
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(pw_p_type)                          :: kerker_pot_rspace, rhog
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
-
-    CALL timeset(routineN,handle)
-
-    NULLIFY(matrix_q,p_in)
-    NULLIFY(auxbas_pw_pool, matrix_s, rho, para_env, pw_env, ks_env)
-    NULLIFY(g2, pw_grid)
-
-    failure = .FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(p_out),cp_failure_level,routineP,error,failure)
-
-    CALL get_qs_env(qs_env,&
-                    ks_env=ks_env,&
-                    dft_control=dft_control,&
-                    matrix_s=matrix_s,&
-                    pw_env=pw_env,&
-                    rho=rho,&
-                    para_env=para_env,&
-                    error=error)
-    p_in => rho%rho_ao
-    matrix_q => scf_env%p_delta
-
-    nspin = SIZE(p_in)
-
-    CALL cp_dbcsr_get_info(matrix= p_in(1)%matrix, nfullrows_total=nao)
-
-    ! Compute the difference (p_out - p_in)and check convergence
-    delta = 0.0_dp
-    DO ispin = 1,nspin
-       CALL cp_dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
- !      CALL cp_sm_mix(m1=p_in(ispin)%matrix,m2=p_out(ispin)%matrix,&
-       CALL cp_sm_mix(m1=p_out(ispin)%matrix,m2=p_in(ispin)%matrix,&
-            p_mix=1.0_dp,delta=tmp, para_env=para_env,&
-            m3=matrix_q(ispin)%matrix,error=error)
-      delta = MAX(tmp,delta)
-    END DO
-
-    ! For the moment skip the density matrix mixing in g-space
-    ! In its place, Matthias method of mixing only the potential is restored
-      scf_env%skip_mixing = .TRUE.
-    IF(delta<eps_scf .OR. diis .OR. scf_env%skip_mixing) THEN
-      scf_env%skip_mixing = .FALSE.
-      CALL timestop(handle)
-      RETURN
-    END IF
-
-    a_mix = scf_env%mixing_store%alpha
-    b_mix = scf_env%mixing_store%beta
-
-    !Collocate the density difference on the grid in realspace
-    gapw = dft_control%qs_control%gapw
-    CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           rhog%pw,&
-                           use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE,error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           kerker_pot_rspace%pw,&
-                           use_data=REALDATA3D, &
-                           in_space=REALSPACE,error=error)
-    DO ispin=1,nspin
-       !collocate the real space density on the real space grid
-       CALL calculate_rho_elec(matrix_p=matrix_q(ispin)%matrix,&
-            rho=rho%rho_r(ispin),&
-            rho_gspace=rho%rho_g(ispin),&
-            total_rho=rho%tot_rho_r(ispin),&
-            ks_env=ks_env,soft_valid=gapw,error=error)
-
-       CALL pw_zero(rhog%pw, error=error)
-       ! point pw
-       pw_grid => auxbas_pw_pool % pw_grid
-       ng = SIZE ( pw_grid % gsq )
-       g2 => pw_grid %gsq
-       CALL pw_transfer ( rho%rho_g(ispin)%pw, rhog%pw, error=error)
-!       rhog%pw =>  rho%rho_g(ispin)%pw
-       DO ig=1,ng
-!          rhog%pw%cc(ig) = rhog%pw%cc(ig) *  (1.0_dp-a_mix)*g2(ig)/(g2(ig)+b_mix*b_mix)
-          rhog%pw%cc(ig) = rhog%pw%cc(ig) *  g2(ig)/(g2(ig)+b_mix*b_mix)
-       ENDDO
-       CALL pw_transfer ( rhog%pw, kerker_pot_rspace%pw, error=error)
-
-       CALL pw_scale ( kerker_pot_rspace%pw, pw_grid%dvol, error=error)
-
-       CALL cp_dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
-       CALL integrate_v_rspace(v_rspace=kerker_pot_rspace, &
-            h=matrix_q(ispin), qs_env=qs_env,&
-            calculate_forces =.FALSE., gapw=gapw, error=error)
-
-       ! Impose Tr[S^-1 Q S^-1 S] = 0, i.e. the correction to P_out
-       ! should not change the total number of electrons
-    IF(.FALSE.) THEN
-       CALL copy_dbcsr_to_fm(matrix_q(ispin)%matrix,scf_env%scf_work2,error=error)
-       CALL cp_fm_upper_to_full(scf_env%scf_work2,scf_env%scf_work1(ispin)%matrix,error=error)
-       CALL cp_fm_trace(scf_env%s_minus_one,scf_env%scf_work2,trace,error=error)
-       trace = -trace / REAL(nao,KIND=dp)
-       CALL cp_dbcsr_add(matrix_a=matrix_q(ispin)%matrix,matrix_b=matrix_s(1)%matrix,&
-            alpha_scalar=1.0_dp,beta_scalar=trace,error=error)
-    END IF
-
-       CALL cp_dbcsr_trace(p_in(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
-       t1 = trace
-
-       CALL cp_dbcsr_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
-            scf_env%scf_work2, nao,error=error)
-       CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
-            scf_env%scf_work2,0.0_dp,scf_env%scf_work1(ispin)%matrix,error=error )
-
-!       a_mix = 1.0_dp-scf_env%p_mix_alpha
-!       CALL copy_fm_to_sm(scf_env%scf_work1(ispin)%matrix,&
-!            p_out(ispin)%matrix,a_mix,1.0_dp)
-
-       a_mix = scf_env%p_mix_alpha
-       CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-            p_out(ispin)%matrix,a_mix,0.0_dp,keep_sparsity=.TRUE., error=error)
-       CALL cp_dbcsr_add(p_out(ispin)%matrix,p_in(ispin)%matrix,&
-            alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
-       CALL cp_dbcsr_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, error=error)
-       t2 =t1/ trace
-       CALL cp_dbcsr_scale(p_out(ispin)%matrix,t2,error=error)
-
-    END DO  !ispin
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,rhog%pw,error=error)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,kerker_pot_rspace%pw,error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE gspace_density_mixing
 ! *****************************************************************************
 !> \brief  Driver for the g-space mixing, calls the proper routine given the
 !>requested method

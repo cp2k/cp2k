@@ -89,37 +89,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param cell_1 ...
-!> \param cell_2 ...
-!> \param error ...
-!> \retval compare ...
-! *****************************************************************************
-  FUNCTION compare_cells (cell_1, cell_2, error) RESULT(compare)
-
-    TYPE(cell_type), POINTER                 :: cell_1, cell_2
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL                                  :: compare
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'compare_cells', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    CPPrecondition(ASSOCIATED(cell_1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(cell_2),cp_failure_level,routineP,error,failure)
-
-    compare = ((cell_2%deth == cell_1%deth).AND.&
-               (ALL(cell_2%perd == cell_1%perd)).AND.&
-               (ALL(cell_2%hmat == cell_1%hmat)).AND.&
-               (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
-               (cell_2%orthorhombic.EQV.cell_1%orthorhombic).AND.&
-               (cell_2%symmetry_id == cell_1%symmetry_id))
-
-  END FUNCTION compare_cells
-
-! *****************************************************************************
-!> \brief ...
 !> \param cell_in ...
 !> \param cell_out ...
 !> \param error ...

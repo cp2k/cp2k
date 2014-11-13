@@ -43,7 +43,6 @@ MODULE replica_methods
                                              section_vals_write
   USE iso_c_binding
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
                                              dp
   USE message_passing,                 ONLY: MPI_COMM_NULL,&
                                              mp_cart_create,&
@@ -54,10 +53,8 @@ MODULE replica_methods
                                              set_qs_env
   USE qs_wf_history_methods,           ONLY: wfi_create
   USE qs_wf_history_types,             ONLY: wfi_retain
-  USE replica_types,                   ONLY: rep_env_release,&
-                                             rep_env_sync,&
+  USE replica_types,                   ONLY: rep_env_sync,&
                                              rep_env_sync_results,&
-                                             rep_env_write,&
                                              rep_envs_add_rep_env,&
                                              rep_envs_get_rep_env,&
                                              replica_env_type
@@ -560,160 +557,5 @@ MODULE replica_methods
     END IF
 
   END SUBROUTINE rep_env_calc_e_f_int
-
-
-! *****************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param input ...
-!> \param input_declaration ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE rep_env_test(para_env,input,input_declaration,error)
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: input
-    TYPE(section_type), POINTER              :: input_declaration
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_test', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=default_string_length)     :: project_name
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: err, max_err
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: e1, e2, e3
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: f1, f2, f3
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(replica_env_type), POINTER          :: rep_env
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,error,failure)
-    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
-    max_err=0._dp
-    IF (.NOT. failure) THEN
-       logger => cp_error_get_logger(error)
-       NULLIFY(rep_env,f1,f2,f3)
-       !FM     CALL cp_create_fenv_comm(i,"Ar-sys.inp","Ar-sys.out",&
-       !FM     0,stat)
-       !FM     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-       !FM     CALL cp_destroy_fenv(i,stat)
-       !FM     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-       CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
-            c_val=project_name,error=error)
-
-       CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
-            c_val=TRIM(project_name)//"t11",error=error)
-       CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-            input_declaration=input_declaration,nrep=1,prep=1,error=error)
-       CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-            error=error)
-       IF (ASSOCIATED(rep_env)) THEN
-          CALL rep_env_calc_e_f(rep_env,error=error)
-          ALLOCATE(f1(rep_env%ndim,rep_env%nrep),e1(rep_env%nrep),stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          f1=rep_env%f(:rep_env%ndim,:)
-          e1(:)=rep_env%f(rep_env%ndim+1,:)
-       END IF
-       CALL rep_env_release(rep_env,error=error)
-
-       CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
-            c_val=TRIM(project_name)//"t12",error=error)
-       CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-             input_declaration=input_declaration,nrep=1,prep=2,error=error)
-       CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-            error=error)
-       IF (ASSOCIATED(rep_env)) THEN
-          CALL rep_env_calc_e_f(rep_env,error=error)
-          ALLOCATE(f2(rep_env%ndim,rep_env%nrep),e2(rep_env%nrep),stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          f2=rep_env%f(:rep_env%ndim,:)
-          e2(:)=rep_env%f(rep_env%ndim+1,:)
-       END IF
-       CALL rep_env_release(rep_env,error=error)
-
-       CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
-            c_val=TRIM(project_name)//"t21",error=error)
-       CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-             input_declaration=input_declaration,nrep=2,prep=1,error=error)
-       CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-            error=error)
-       IF (ASSOCIATED(rep_env)) THEN
-          rep_env%r(:,2)=rep_env%r(:,1)+0.5_dp
-          CALL rep_env_calc_e_f(rep_env,error=error)
-          ALLOCATE(f3(rep_env%ndim,rep_env%nrep),e3(rep_env%nrep),stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          f3=rep_env%f(:rep_env%ndim,:)
-          e3(:)=rep_env%f(rep_env%ndim+1,:)
-       END IF
-       CALL rep_env_release(rep_env,error=error)
-
-       CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
-            c_val=TRIM(project_name),error=error)
-
-       IF (ASSOCIATED(f1).AND.ASSOCIATED(f2)) THEN
-          err=0._dp
-          DO i=1,SIZE(f1,1)
-             err=MAX(err,ABS(f1(i,1)-f2(i,1)))
-          END DO
-          CALL cp_log(logger,cp_note_level+1,routineP,"diff_f12="//cp_to_string(err),&
-               local=.FALSE.)
-          max_err=MAX(err,max_err)
-          err=ABS(e1(1)-e2(1))
-          max_err=MAX(err,max_err)
-          CALL cp_log(logger,cp_note_level+1,routineP,"diff_e12="//&
-               cp_to_string(err)//cp_to_string(e1(1))//&
-               cp_to_string(e2(1)), local=.FALSE.)
-       END IF
-       IF (ASSOCIATED(f1).AND.ASSOCIATED(f3)) THEN
-          err=0._dp
-          DO i=1,SIZE(f1,1)
-             err=MAX(err,ABS(f1(i,1)-f3(i,1)))
-          END DO
-          CALL cp_log(logger,cp_note_level+1,routineP,"diff_f13="//cp_to_string(err),&
-               local=.FALSE.)
-          max_err=MAX(err,max_err)
-          err=ABS(e1(1)-e3(1))
-          max_err=MAX(err,max_err)
-          CALL cp_log(logger,cp_note_level+1,routineP,"diff_e13="//&
-               cp_to_string(err)//cp_to_string(e1(1))//&
-               cp_to_string(e3(1)),&
-               local=.FALSE.)
-       END IF
-       IF (ASSOCIATED(f3)) THEN
-          err=0._dp
-          DO i=1,SIZE(f1,1)
-             err=MAX(err,ABS(f3(i,1)-f3(i,2)))
-          END DO
-          CALL cp_log(logger,cp_note_level+1,routineP,"diff_f33="//cp_to_string(err),&
-               local=.FALSE.)
-          max_err=MAX(err,max_err)
-          err=ABS(e3(1)-e3(2))
-          max_err=MAX(err,max_err)
-          CALL cp_log(logger,cp_note_level+1,routineP,"diff_e33="//&
-               cp_to_string(err)//cp_to_string(e3(1))//&
-               cp_to_string(e3(2)), local=.FALSE.)
-          DEALLOCATE(f3,e3,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF (ASSOCIATED(f1)) THEN
-          DEALLOCATE(f1,e1,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF (ASSOCIATED(f2)) THEN
-          DEALLOCATE(f2,e2,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       CALL cp_log(logger,cp_note_level+1,routineP,"CUMULATIVE ERROR"//&
-            cp_to_string(max_err), local=.FALSE.)
-       CPAssert(max_err<1.e-6,cp_failure_level,routineP,error,failure)
-    END IF
-  END SUBROUTINE rep_env_test
 
 END MODULE replica_methods
