@@ -4,8 +4,8 @@ Al2O3.inp                        11     6e-14
 #angvel_tol
 gly_noangvel.inp    2
 #extended cif test
-Co_complex.inp                   11     3e-12
+Co_complex.inp                   11     2e-11
 #cv distance from path
-N3_rp_md.inp                     11     1e-13
-N3_dp_md.inp                     11     6e-14
-N3_rp_dp_md.inp                  11     7e-14
+N3_rp_md.inp                     11     3e-08
+N3_dp_md.inp                     11     5e-09
+N3_rp_dp_md.inp                  11     4e-08
