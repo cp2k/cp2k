@@ -1,7 +1,7 @@
 hcn_ts.inp                        7     3e-10
 hcn_ts_r.inp                      7     1e-07
 #  chain of two coordination numbers
-hcn_md.inp               1
+hcn_md.inp                        1     2e-14
 hcn_meta_coord.inp                1     4e-14
 hcn_meta_chaincoord.inp           1     3e-14
 hcn_meta_chaincoord_kind.inp 1 1E-13
