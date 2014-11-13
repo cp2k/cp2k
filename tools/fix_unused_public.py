@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# author: Ole Schuett
+
 import re, sys
 from os import path
 from os.path import dirname, basename, normpath
@@ -56,7 +58,6 @@ def main():
 
 #=============================================================================
 def clean_publics(fn, unused):
-    print "fixing: ", fn
     content = open(fn).read()
     new_content = ""
     active = False
@@ -105,8 +106,12 @@ def clean_publics(fn, unused):
             active = False
             new_public = []
 
-    f = open(fn, "w")
-    f.write(new_content[:-1])
+    new_content = new_content[:-1] # remove last line break
+
+    if(new_content != content):
+        print "Fixed: ", fn
+        f = open(fn, "w")
+        f.write(new_content)
 
 
 #=============================================================================
