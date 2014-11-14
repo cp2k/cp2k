@@ -160,17 +160,17 @@ CONTAINS
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=n,&
          ncol_global=n,para_env=para_env,error=error)
     CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
-    IF(PRESENT(eigenvectors)) &
-         CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
+
+    IF(PRESENT(eigenvectors)) THEN
+       CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
+       CALL cp_fm_syevx(fm_matrix,fm_eigenvectors,eigenvalues,neig,work_syevx,error)
+       CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors, error=error)
+       CALL cp_fm_release(fm_eigenvectors, error)
+    ELSE
+       CALL cp_fm_syevx(fm_matrix,eigenvalues=eigenvalues,neig=neig,work_syevx=work_syevx,error=error)
+    ENDIF
+
     CALL cp_fm_struct_release(fm_struct,error=error)
-
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
-
-    CALL cp_fm_syevx(fm_matrix,fm_eigenvectors,eigenvalues,neig,work_syevx,error)
-
-    IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors, &
-         error=error)
-    IF(PRESENT(eigenvectors)) CALL cp_fm_release(fm_eigenvectors, error)
     CALL cp_fm_release(fm_matrix, error)
 
     CALL timestop(handle)
