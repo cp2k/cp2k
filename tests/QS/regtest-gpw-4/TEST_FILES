@@ -61,6 +61,8 @@ h2o-otdiag-lsd.inp   1 1E-13
 #external electrostatic field
 H2O-extpot.inp                   11     4e-14
 H-extpot.inp                     11     1e-12
+H2O-analytic_vee.inp             11
+H2O-read_cube.inp                11
 # welltempered metadynamics
 2H2O_meta_welltemp.inp            1     2e-14
 ND3_meta_welltemp.inp   1

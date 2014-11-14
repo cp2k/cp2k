@@ -1089,3 +1089,5 @@ H2-geo-4.inp
 Cu.inp
 # Merge of POTENTIAL files
 test-pdb.inp
+# Bug fix
+H2O-extpot.inp

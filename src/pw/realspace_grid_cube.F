@@ -7,6 +7,8 @@
 !> \brief Generate Gaussian cube files
 ! *****************************************************************************
 MODULE realspace_grid_cube
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_maxloc,&
@@ -24,7 +26,7 @@ MODULE realspace_grid_cube
 
   PRIVATE
 
-  PUBLIC :: pw_to_cube
+  PUBLIC :: pw_to_cube, cube_to_pw
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
 
@@ -205,5 +207,122 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE pw_to_cube
+  
+  
+! *****************************************************************************
+!> \brief  Computes the external density on the grid 
+!>         hacked from external_read_density
+!> \param grid     pw to read from cube file
+!> \param filename name of cube file
+!> \param scaling  scale values before storing
+!> \param error ...
+!> \date   01.2014
+!> \author M.Watkins
+! *****************************************************************************
+  SUBROUTINE cube_to_pw(grid, filename, scaling, error)
+
+    TYPE(pw_type), POINTER                   :: grid
+    CHARACTER(len=*), INTENT(in)             :: filename
+    REAL(kind=dp), INTENT(in)                :: scaling
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: extunit, gid, handle, i, ip, &
+                                                j, k, master, my_rank, nat, &
+                                                ndum, num_pe, tag
+    INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
+                                                npoints, npoints_local, &
+                                                ubounds, ubounds_local
+    LOGICAL                                  :: failure
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
+    REAL(kind=dp), DIMENSION(3)              :: dr, rdum
+
+    failure=.FALSE.
+    CALL timeset(routineN,handle)
+
+    !get rs grids and parallel envnment
+    gid     = grid%pw_grid%para%group
+    my_rank = grid%pw_grid%para%my_pos
+    num_pe  = grid%pw_grid%para%group_size   
+    tag     = 1
+
+    DO i =1,3
+       dr(i) = grid%pw_grid%dh(i,i)  
+    END DO
+    
+   npoints = grid%pw_grid%npts
+   lbounds = grid%pw_grid%bounds(1,:)
+   ubounds = grid%pw_grid%bounds(2,:)
+
+   npoints_local = grid%pw_grid%npts_local  
+   lbounds_local = grid%pw_grid%bounds_local(1,:)
+   ubounds_local = grid%pw_grid%bounds_local(2,:)
+
+   !pw grids at most pencils - all processors have a full set of z data for x,y 
+   ALLOCATE(buffer(lbounds(3):ubounds(3)))
+
+   IF ( my_rank == 0 ) THEN
+      WRITE(*,FMT="(/,(T3,A,T61,A30))")"Reading the cube file:     ",filename
+
+      CALL open_file(file_name=filename,&
+           file_status="OLD",&
+           file_form="FORMATTED",&
+           file_action="READ", &
+           unit_number=extunit)
+      
+      !skip header comments
+      DO i =1,2
+         READ(extunit,*) 
+      ENDDO
+      READ(extunit,*) nat,rdum
+      DO i=1,3
+         READ(extunit,*) ndum,rdum
+         IF (ndum/=npoints(i).OR.(ABS(rdum(i)-dr(i)) > 1e-4 )) THEN   
+            WRITE(*,*) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
+            WRITE(*,*) "Restart from density | ",ndum," DIFFERS FROM ", npoints(i) 
+            WRITE(*,*) "Restart from density | ",rdum," DIFFERS FROM ", dr(i)
+         ENDIF
+      ENDDO
+      !ignore atomic postion data - read from coord or topology instead
+      DO i =1,nat
+         READ(extunit,*)
+      ENDDO
+   ENDIF
+
+   !master sends all data to everyone
+   DO i=lbounds(1),ubounds(1)
+      DO j=lbounds(2),ubounds(2) 
+         IF ( my_rank .EQ. 0 ) THEN 
+            READ(extunit,*) (buffer(k),k=lbounds(3),ubounds(3))   
+            IF ( num_pe .GT. 1 ) THEN 
+               DO ip=1,num_pe-1
+                  CALL mp_send(buffer(lbounds(3):ubounds(3)),ip,tag,gid)
+               ENDDO
+            ENDIF
+         ELSE
+            master=0  
+            CALL mp_recv(buffer(lbounds(3):ubounds(3)),master,tag,gid)
+         ENDIF
+         CALL mp_sync(gid)
+         
+         !only use data that is local to me - i.e. in slice of pencil I own
+         IF ( (lbounds_local(1).le.i).AND.(i.le.ubounds_local(1)).AND.(lbounds_local(2).le.j)&
+              .AND.(j.le.ubounds_local(2)) ) THEN
+            !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
+            grid%cr3d(i,j,lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling
+         ENDIF
+
+      ENDDO
+   ENDDO
+
+   IF (my_rank == 0) CALL close_file(unit_number=extunit)
+       
+   CALL mp_sync(gid)
+
+   CALL timestop(handle)
+    
+  END SUBROUTINE cube_to_pw
 
 END MODULE realspace_grid_cube

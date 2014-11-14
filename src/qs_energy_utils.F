@@ -351,8 +351,10 @@ CONTAINS
        CALL calculate_ecore_self(qs_env,error=error)
        CALL calculate_ecore_efield(qs_env,calculate_forces=.FALSE.,error=error)
        CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.FALSE.,error=error)
-       CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
+       !swap external_e_potential before external_c_potential, to ensure 
+       !that external potential on grid is loaded before calculating energy of cores
        CALL external_e_potential(qs_env,error=error)
+       CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
 
        ! ZMP addition to read external density
        CALL external_read_density(qs_env,error)

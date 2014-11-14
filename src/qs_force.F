@@ -311,8 +311,10 @@ CONTAINS
                calculate_forces=.TRUE.,&
                error=error)
           CALL calculate_ecore_efield(qs_env,calculate_forces=.TRUE.,error=error)
-          CALL external_c_potential(qs_env,calculate_forces=.TRUE.,error=error)
+          !swap external_e_potential before external_c_potential, to ensure 
+          !that external potential on grid is loaded before calculating energy of cores
           CALL external_e_potential(qs_env,error)
+          CALL external_c_potential(qs_env,calculate_forces=.TRUE.,error=error)
        END IF
 
        ! Compute grid-based forces

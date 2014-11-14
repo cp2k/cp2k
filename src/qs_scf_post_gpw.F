@@ -654,6 +654,7 @@ CONTAINS
 
        ! Calculate ELF
        CALL qs_scf_post_elf(input, logger, qs_env, error)
+
     END IF
     CALL timestop(handle)
 
@@ -2286,7 +2287,7 @@ CONTAINS
     TYPE(pw_p_type)                          :: aux_g, aux_r, &
                                                 rho_elec_gspace, &
                                                 rho_elec_rspace, wf_r
-    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
+    TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core, vee
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -2306,7 +2307,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
          atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, matrix_s, &
-         dft_section, xc_section, input, particles, subsys, matrix_vxc,v_hartree_rspace)
+         dft_section, xc_section, input, particles, subsys, matrix_vxc,v_hartree_rspace, vee)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -2326,6 +2327,7 @@ CONTAINS
                        subsys=subsys,&
                        para_env=para_env,&
                        v_hartree_rspace=v_hartree_rspace,&
+                       vee=vee,&
                        error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
@@ -2715,6 +2717,40 @@ CONTAINS
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
        ENDIF
+
+       ! Print the external potential
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE",error=error),cp_p_file)) THEN
+          IF(dft_control%apply_external_potential)THEN
+             CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+             CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
+                                  use_data = REALDATA3D,&
+                                  in_space = REALSPACE, error=error)
+
+             append_cube = section_get_lval(input,"DFT%PRINT%EXTERNAL_POTENTIAL_CUBE%APPEND",error=error)
+             my_pos_cube="REWIND"
+             IF(append_cube) THEN
+                my_pos_cube="APPEND"
+             END IF
+             CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+             CALL pw_env_get(pw_env, error=error)
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%EXTERNAL_POTENTIAL_CUBE",&
+                  extension=".cube",middle_name="ext_pot",file_position=my_pos_cube,error=error)
+
+             CALL pw_copy(vee%pw,aux_r%pw, error=error)
+
+             CALL cp_pw_to_cube(aux_r%pw,unit_nr,"EXTERNAL POTENTIAL",particles=particles,&
+                  stride=section_get_ivals(dft_section,&
+                  "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE",error=error),&
+                  error=error)
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                  "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE",error=error)
+
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
+          ENDIF
+       ENDIF
+
 
        ! Print the Electrical Field Components
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&

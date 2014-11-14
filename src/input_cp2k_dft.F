@@ -1618,6 +1618,26 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"external_potential_cube",&
+            description="Controls the printing of a cube file with external "//&
+            " potential from the DFT%EXTERNAL_POTENTIAL section only.",&
+            print_level=high_print_level,filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
 ! ZMP adding the print section for  the v_xc cube 
        CALL cp_print_key_section_create(print_key,"v_xc_cube",&
@@ -5627,6 +5647,22 @@ CONTAINS
             description="Checks that the error in computing the derivative is not larger than "//&
             "the value set. In case prints a warning message.",&
             usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       !keyword for reading the external potential from cube file
+       CALL keyword_create(keyword, name="READ_FROM_CUBE",&
+            description="Switch for reading the external potential from file pot.cube. The values "//&
+                        "of the potential must be on the grid points of the realspace grid.",&
+            usage="READ_FROM_CUBE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       !keyword for scaling the external potential that is read from file by a constant factor
+       CALL keyword_create(keyword, name="SCALING_FACTOR",&
+            description="A factor for scaling the the external potential that is read from file."//&
+                        "The value of the potential at each grid point is multiplied by this factor.",&
+            usage="SCALING_FACTOR <REAL>", default_r_val=1.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
