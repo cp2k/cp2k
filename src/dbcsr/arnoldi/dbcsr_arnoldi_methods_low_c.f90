@@ -65,6 +65,7 @@
     CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ALLOCATE(v_vec(nrow_local))
     ALLOCATE(w_vec(nrow_local))
+    v_vec = 0 ; w_vec = 0
     ar_data%Hessenberg=CMPLX(0.0, 0.0, real_4)
 
     ! Setup the initial normalized random vector (sufficient if it only happens on proc_col 0)
@@ -140,6 +141,7 @@
     ! create the vectors required during the iterations
     CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ALLOCATE(v_vec(nrow_local));  ALLOCATE(w_vec(nrow_local))
+    v_vec = 0 ; w_vec = 0
     ALLOCATE(s_vec(control%max_iter)); ALLOCATE(h_vec(control%max_iter))
 
     DO j=control%current_step, control%max_iter-1
