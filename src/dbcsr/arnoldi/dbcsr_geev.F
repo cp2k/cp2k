@@ -127,15 +127,15 @@ CONTAINS
     ! if eval is complex, then the complex conj pair of evec can be constructed from the i and i+1st evec
     i=1
     DO WHILE (i.le.ndim)
-      IF(ABS(eval2(i)).LT.EPSILON(REAL(0.0,real_4)))THEN
-        revec(:,i)=CMPLX(evec_r(:,i),REAL(0.0,real_4),real_4)
-        levec(:,i)=CMPLX(evec_l(:,i),REAL(0.0,real_4),real_4)
+      IF(ABS(eval2(i)).LT.EPSILON(REAL(0.0,real_8)))THEN
+        revec(:,i)=CMPLX(evec_r(:,i),REAL(0.0,real_8),real_8)
+        levec(:,i)=CMPLX(evec_l(:,i),REAL(0.0,real_8),real_8)
         i=i+1
       ELSE IF(eval2(i).GT.EPSILON(REAL(0.0,real_4)))THEN
-        revec(:,i)=CMPLX(evec_r(:,i),evec_r(:,i+1),real_4)
-        revec(:,i+1)=CMPLX(evec_r(:,i),-evec_r(:,i+1),real_4)
-        levec(:,i)=CMPLX(evec_l(:,i),evec_l(:,i+1),real_4)
-        levec(:,i+1)=CMPLX(evec_l(:,i),-evec_l(:,i+1),real_4)
+        revec(:,i)=CMPLX(evec_r(:,i),evec_r(:,i+1),real_8)
+        revec(:,i+1)=CMPLX(evec_r(:,i),-evec_r(:,i+1),real_8)
+        levec(:,i)=CMPLX(evec_l(:,i),evec_l(:,i+1),real_8)
+        levec(:,i+1)=CMPLX(evec_l(:,i),-evec_l(:,i+1),real_8)
         i=i+2
       ELSE
         STOP 'something went wrong while sorting the EV in dbcsr_geev'
