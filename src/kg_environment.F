@@ -31,6 +31,7 @@ MODULE kg_environment
   USE kg_vertex_coloring_methods,      ONLY: kg_vertex_coloring
   USE kinds,                           ONLY: dp,&
                                              int_4,&
+                                             int_4_size,&
                                              int_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_gather,&
@@ -404,56 +405,44 @@ CONTAINS
 !> \param n number of pairs (in), number of disjunct pairs (out)
 !> \par History
 !>       2012.07 created [Martin Haeufel]
+!>       2014.11 simplified [Ole Schuett]
 !> \author Martin Haeufel
 ! *****************************************************************************
   SUBROUTINE kg_remove_duplicates(pairs_buffer, n)
-    INTEGER(KIND=int_4), ALLOCATABLE, &
-      DIMENSION(:, :), INTENT(INOUT)         :: pairs_buffer
+    INTEGER(KIND=int_4), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pairs_buffer
     INTEGER, INTENT(INOUT)                   :: n
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_remove_duplicates', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, npairs
-    INTEGER(KIND=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: work
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
+    INTEGER, DIMENSION(n)                    :: ind
+    INTEGER(KIND=int_8), DIMENSION(n)        :: sort_keys
+    INTEGER(KIND=int_4), DIMENSION(2, n)     :: work
 
     CALL timeset(routineN, handle)
 
-    IF (n.GT.0) THEN
+    IF (n>0) THEN
+      ! represent a pair of int_4 as a single int_8 number, simplifies sorting.
+      sort_keys(1:n) = ISHFT(INT(pairs_buffer(1,1:n), KIND=int_8), 8*int_4_size)
+      sort_keys(1:n) = sort_keys(1:n) + pairs_buffer(2,1:n) !upper + lower bytes
+      CALL sort(sort_keys, n, ind)
 
-      ! allocate work storage
-      ALLOCATE(work(n))
-  
-      ! copy the 2d int_4 array into a 1d int_8 array
-      work(1:n) = INT(pairs_buffer(1,1:n), KIND=int_8)*HUGE(pairs_buffer(1,1)) &
-                                       + pairs_buffer(2,1:n)
-      ! sort
-      ALLOCATE(ind(n))
-      CALL sort(work, n, ind)
-      DEALLOCATE(ind)
+      ! add first pair, the case npairs==0 was excluded above
+      npairs=1
+      work(:, 1) = pairs_buffer(:, ind(1))
 
-      npairs=1 ! n is always greater than 0
-  
       ! remove duplicates from the sorted list
       DO i=2, n
-        IF (work(i).NE.work(i-1)) THEN
-          npairs=npairs+1
-          work(npairs)=work(i)
+        IF (sort_keys(i) /= sort_keys(i-1)) THEN
+          npairs = npairs + 1
+          work(:, npairs) = pairs_buffer(:, ind(i))
         END IF
       END DO
-  
-      ! copy back to a 2d int_4 array
-      pairs_buffer(1,1:npairs) = work(1:npairs)/HUGE(pairs_buffer(1,1))
-      pairs_buffer(2,1:npairs) = work(1:npairs) &
-                                         - INT(pairs_buffer(1,1:npairs), KIND=int_8)*HUGE(pairs_buffer(1,1)) 
-  
-      ! deallocate work memory
-      DEALLOCATE(work)
-  
-      n = npairs
 
+      n = npairs
+      pairs_buffer(:, :n) = work(:, :n)
     END IF
 
     CALL timestop(handle)
