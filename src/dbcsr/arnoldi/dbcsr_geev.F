@@ -131,7 +131,7 @@ CONTAINS
         revec(:,i)=CMPLX(evec_r(:,i),REAL(0.0,real_8),real_8)
         levec(:,i)=CMPLX(evec_l(:,i),REAL(0.0,real_8),real_8)
         i=i+1
-      ELSE IF(eval2(i).GT.EPSILON(REAL(0.0,real_4)))THEN
+      ELSE IF(eval2(i).GT.EPSILON(REAL(0.0,real_8)))THEN
         revec(:,i)=CMPLX(evec_r(:,i),evec_r(:,i+1),real_8)
         revec(:,i+1)=CMPLX(evec_r(:,i),-evec_r(:,i+1),real_8)
         levec(:,i)=CMPLX(evec_l(:,i),evec_l(:,i+1),real_8)
