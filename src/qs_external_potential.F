@@ -390,7 +390,7 @@ CONTAINS
            END DO
            IF (my_rank == data_source) THEN
               IF (lower_inds(3) >= lbounds(3) .AND. upper_inds(3) <= ubounds(3)) THEN
-                 bcast_buffer = &
+                 bcast_buffer(:) = &
                       grid%cr3d(i_pbc,j_pbc,lower_inds(3):upper_inds(3))
               ELSE
                  DO k = lower_inds(3), upper_inds(3)
