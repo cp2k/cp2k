@@ -7,31 +7,31 @@
 ! *****************************************************************************
 !> \brief A dictionary (also known as hashtable or hashmap).
 !>        Internally the dictionary uses an array to holds its data.
-!>        If this array reaches a load-factor of 75%, a new array with twice the 
-!>        size will be allocated and the items are then copied over. 
-!>        This ensures that the dictionary will perform operations in O(1). 
+!>        If this array reaches a load-factor of 75%, a new array with twice the
+!>        size will be allocated and the items are then copied over.
+!>        This ensures that the dictionary will perform operations in O(1).
 !> \note
-!>    
+!>
 !>      **** DO NOT MODIFY THE .F FILES ****
 !>      modify dict__keytype___valuetype_.template instead
 !>
 !> \par History
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
-! ****************************************TOP**********************************
+! ******************************************************************************
 
 [macros]
 
 MODULE dict_[keytype]_[valuetype]
  [USE]
-  
+
   USE kinds,                                 ONLY: int_8
-  
+
   IMPLICIT NONE
   PRIVATE
-  
-  
-  
+
+
+
   !this is an internal type
   !Calculating hashes might be expensive, therefore they are stored
   !for use during change_capacity().
@@ -48,20 +48,20 @@ MODULE dict_[keytype]_[valuetype]
       PRIVATE
       TYPE(private_item_type), POINTER :: p => Null()  
   END TYPE private_item_p_type
-  
+
   ! this is the public type, which holds a dictionary-instance
   TYPE dict_[keytype]_[valuetype]_type
      PRIVATE
      TYPE(private_item_p_type), DIMENSION(:), POINTER      :: buckets => Null()
      INTEGER                                               :: size = -1
   END TYPE dict_[keytype]_[valuetype]_type
-  
+
   ! this is a public type, its returned by dict_items()
   TYPE dict_[keytype]_[valuetype]_item_type
      [keytype_fort]        :: key
      [valuetype_fort]      :: value
   END TYPE dict_[keytype]_[valuetype]_item_type
-  
+
   PUBLIC :: dict_[keytype]_[valuetype]_type
   PUBLIC :: dict_[keytype]_[valuetype]_item_type
   PUBLIC :: dict_[keytype]_[valuetype]_init
@@ -74,10 +74,10 @@ MODULE dict_[keytype]_[valuetype]
   PUBLIC :: dict_[keytype]_[valuetype]_items
   PUBLIC :: dict_[keytype]_[valuetype]_update
   PUBLIC :: dict_[keytype]_[valuetype]_destroy
-  
+
   CONTAINS
-  
-  
+
+
 ! *****************************************************************************
 ! This is joaat_hash from string_table.F
 !
@@ -96,7 +96,7 @@ FUNCTION hash_str(key) RESULT(hash)
     INTEGER(KIND=int_8)                      :: hash
     INTEGER(KIND=int_8), PARAMETER           :: b32 = 2_int_8**32-1_int_8
     INTEGER                                  :: i
-    
+
     hash=0_int_8
     DO i=1,LEN(key)
        hash=IAND(hash+ICHAR(key(i:i))                ,b32)
@@ -120,20 +120,20 @@ END FUNCTION hash_str
 SUBROUTINE dict_[keytype]_[valuetype]_init(dict, initial_capacity)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     INTEGER, INTENT(in), OPTIONAL                         :: initial_capacity
-    
+
     INTEGER :: initial_capacity_
     initial_capacity_ = 11
     IF(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
-    
+
     IF(initial_capacity_ < 1) & 
       STOP "dict_[keytype]_[valuetype]_init: initial_capacity < 1"
-      
+
     IF(ASSOCIATED(dict%buckets)) &
       STOP "dict_[keytype]_[valuetype]_init: dictionary is already initialized."
-    
+
     ALLOCATE(dict%buckets(initial_capacity_))
     dict%size = 0
-    
+
 END SUBROUTINE dict_[keytype]_[valuetype]_init
 
 
@@ -165,10 +165,10 @@ SUBROUTINE dict_[keytype]_[valuetype]_destroy(dict)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     TYPE(private_item_type), POINTER  :: item, prev_item
     INTEGER :: i
-        
+
     IF(.not. ASSOCIATED(dict%buckets)) &
       STOP "dict_[keytype]_[valuetype]_destroy: dictionary is not initialized."
-    
+
     do i = 1, size(dict%buckets)
         item => dict%buckets(i)%p
         do while(ASSOCIATED(item))
@@ -177,10 +177,10 @@ SUBROUTINE dict_[keytype]_[valuetype]_destroy(dict)
            deallocate(prev_item)
         end do
     end do
-        
+
     deallocate(dict%buckets)
     dict%size = -1
-    
+
 END SUBROUTINE dict_[keytype]_[valuetype]_destroy
 
 ! *****************************************************************************
@@ -199,7 +199,7 @@ SUBROUTINE dict_[keytype]_[valuetype]_set(dict, key, value)
     INTEGER(KIND=int_8)                                   :: hash
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_set: dictionary is not initialized."
-    
+
     hash = hash_[keytype](key)
     call set_hashed(dict, key, value, hash)
 END SUBROUTINE dict_[keytype]_[valuetype]_set
@@ -221,10 +221,10 @@ RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     [valuetype_fort], intent(in)                          :: value
     INTEGER(KIND=int_8), intent(in)                       :: hash
     TYPE(private_item_type), POINTER  :: item, new_item
-    INTEGER                      :: idx
-   
+    INTEGER(KIND=int_8)                                   :: idx
+
     idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
-    
+
     ! if allready in dict just update its value
     item => dict%buckets(idx)%p
     do while(ASSOCIATED(item))
@@ -236,14 +236,14 @@ RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
         END IF
         item => item%next
     end do
-    
+
     ! check load-factor
     IF(4*dict%size > 3*size(dict%buckets)) THEN ! load-factor > 75%
        call change_capacity(dict, 2*size(dict%buckets)) !double capacity
        idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
     END IF
-    
-    
+
+
     ! create a new item
     allocate(new_item)
     new_item%hash = hash
@@ -252,7 +252,7 @@ RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     new_item%next => dict%buckets(idx)%p
     dict%buckets(idx)%p => new_item
     dict%size = dict%size + 1
-    
+
 END SUBROUTINE set_hashed
 
 ! *****************************************************************************
@@ -279,8 +279,8 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
         STOP "dict_[keytype]_[valuetype]_change_capacity: new_capacity < 1."
     IF(4*dict%size > 3*new_cap) &
      STOP "dict_[keytype]_[valuetype]_change_capacity: new_capacity too small."
-       
-    old_size = dict%size    
+
+    old_size = dict%size
     old_buckets => dict%buckets
     ALLOCATE(dict%buckets(new_capacity))
     dict%size = 0
@@ -293,9 +293,9 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
            deallocate(prev_item)
         end do
     end do
-        
+
     deallocate(old_buckets)
-    
+
     IF(old_size /= dict%size) &
       STOP "dict_[keytype]_[valuetype]_change_capacity: assertion failed"
 END SUBROUTINE change_capacity
@@ -318,15 +318,14 @@ FUNCTION dict_[keytype]_[valuetype]_get(dict, key, default_value) RESULT(value)
     [valuetype_fort], intent(in), optional                :: default_value
     [valuetype_fort]                                      :: value
     TYPE(private_item_type), POINTER                      :: item
-    INTEGER(KIND=int_8)                                   :: hash
-    INTEGER                                               :: idx
-    
+    INTEGER(KIND=int_8)                                   :: hash, idx
+
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_get: dictionary is not initialized."
-    
+
     hash = hash_[keytype](key)
     idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
-    
+
     item => dict%buckets(idx)%p
     do while(ASSOCIATED(item))
         IF(item%hash == hash) THEN
@@ -337,12 +336,12 @@ FUNCTION dict_[keytype]_[valuetype]_get(dict, key, default_value) RESULT(value)
         END IF
         item => item%next
     end do
-    
+
     IF(PRESENT(default_value)) THEN
         value [value_assign] default_value
         return
     END IF
-    
+
     STOP "dict_[keytype]_[valuetype]_get: Key not found in dictionary."
 END FUNCTION dict_[keytype]_[valuetype]_get
 
@@ -360,15 +359,14 @@ SUBROUTINE dict_[keytype]_[valuetype]_del(dict, key)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort]                                        :: key
     TYPE(private_item_type), POINTER                      :: item, prev_item
-    INTEGER(KIND=int_8)                                   :: hash
-    INTEGER                                               :: idx
-    
+    INTEGER(KIND=int_8)                                   :: hash, idx
+
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_del: dictionary is not initialized."
-       
+
     hash = hash_[keytype](key)
     idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
-    
+
     item => dict%buckets(idx)%p
     prev_item => Null()
     do while(ASSOCIATED(item))
@@ -387,7 +385,7 @@ SUBROUTINE dict_[keytype]_[valuetype]_del(dict, key)
         prev_item => item
         item => item%next
     end do
-    
+
     STOP "dict_[keytype]_[valuetype]_del: Key not found in dictionary."
 END SUBROUTINE dict_[keytype]_[valuetype]_del
 
@@ -402,11 +400,11 @@ END SUBROUTINE dict_[keytype]_[valuetype]_del
 FUNCTION dict_[keytype]_[valuetype]_size(dict) RESULT(size)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     INTEGER :: size
-    
+
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_size: dictionary is not initialized."
-    
-    size = dict%size 
+
+    size = dict%size
 END FUNCTION dict_[keytype]_[valuetype]_size
 
 
@@ -424,18 +422,17 @@ FUNCTION dict_[keytype]_[valuetype]_haskey(dict, key) RESULT(res)
     [keytype_fort]                                        :: key
     LOGICAL                                               :: res
     TYPE(private_item_type), POINTER                      :: item
-    INTEGER(KIND=int_8)                                   :: hash
-    INTEGER                                               :: idx
-    
+    INTEGER(KIND=int_8)                                   :: hash, idx
+
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_haskey: dictionary is not initialized."
-    
+
     res = .FALSE.
     IF(dict%size==0) RETURN
-    
+
     hash = hash_[keytype](key)
     idx = MOD(hash, INT(size(dict%buckets),KIND=int_8)) + 1
-    
+
     item => dict%buckets(idx)%p
     do while(ASSOCIATED(item))
         IF(item%hash == hash) THEN
@@ -446,8 +443,8 @@ FUNCTION dict_[keytype]_[valuetype]_haskey(dict, key) RESULT(res)
         END IF
         item => item%next
     end do
-    
-    
+
+
 END FUNCTION dict_[keytype]_[valuetype]_haskey
 
 
@@ -463,13 +460,13 @@ END FUNCTION dict_[keytype]_[valuetype]_haskey
 FUNCTION dict_[keytype]_[valuetype]_items(dict) RESULT(items)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     TYPE(dict_[keytype]_[valuetype]_item_type), dimension(:), POINTER :: items
-    
+
     TYPE(private_item_type), POINTER  :: item
     INTEGER :: i, j
-    
+
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_items: dictionary is not initialized."
-       
+
     allocate(items(dict%size))
     j = 1
     do i = 1, size(dict%buckets)
@@ -481,7 +478,7 @@ FUNCTION dict_[keytype]_[valuetype]_items(dict) RESULT(items)
            item => item%next
         end do
     end do
-    
+
     IF(j /= dict%size + 1) &
        STOP "dict_[keytype]_[valuetype]_items: assertion failed!"
 END FUNCTION dict_[keytype]_[valuetype]_items
@@ -504,12 +501,12 @@ SUBROUTINE dict_[keytype]_[valuetype]_update(dict, from_dict)
     TYPE(dict_[keytype]_[valuetype]_item_type), dimension(:), &
        POINTER :: from_items
     INTEGER :: i
-    
+
     IF(.not. ASSOCIATED(dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_update: dictionary is not initialized."
     IF(.not. ASSOCIATED(from_dict%buckets)) &
        STOP "dict_[keytype]_[valuetype]_update: from_dict is not initialized."
-       
+
     from_items => dict_[keytype]_[valuetype]_items(from_dict)
     do i=1, size(from_items)
        call dict_[keytype]_[valuetype]_set(dict, &

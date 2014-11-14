@@ -7,18 +7,18 @@
 ! *****************************************************************************
 !> \brief A dictionary (also known as hashtable or hashmap).
 !>        Internally the dictionary uses an array to holds its data.
-!>        If this array reaches a load-factor of 75%, a new array with twice the 
-!>        size will be allocated and the items are then copied over. 
-!>        This ensures that the dictionary will perform operations in O(1). 
+!>        If this array reaches a load-factor of 75%, a new array with twice the
+!>        size will be allocated and the items are then copied over.
+!>        This ensures that the dictionary will perform operations in O(1).
 !> \note
-!>    
+!>
 !>      **** DO NOT MODIFY THE .F FILES ****
 !>      modify dict__keytype___valuetype_.template instead
 !>
 !> \par History
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
-! ****************************************TOP**********************************
+! ******************************************************************************
 
 #define isequal_str(k1,k2) (k1==k2)
 
@@ -29,9 +29,9 @@ MODULE dict_str_i4
 
   IMPLICIT NONE
   PRIVATE
-  
-  
-  
+
+
+
   !this is an internal type
   !Calculating hashes might be expensive, therefore they are stored
   !for use during change_capacity().
@@ -48,20 +48,20 @@ MODULE dict_str_i4
       PRIVATE
       TYPE(private_item_type), POINTER :: p => Null()  
   END TYPE private_item_p_type
-  
+
   ! this is the public type, which holds a dictionary-instance
   TYPE dict_str_i4_type
      PRIVATE
      TYPE(private_item_p_type), DIMENSION(:), POINTER      :: buckets => Null()
      INTEGER                                               :: size = -1
   END TYPE dict_str_i4_type
-  
+
   ! this is a public type, its returned by dict_items()
   TYPE dict_str_i4_item_type
      CHARACTER(LEN=default_string_length)        :: key
      INTEGER(kind=int_4)      :: value
   END TYPE dict_str_i4_item_type
-  
+
   PUBLIC :: dict_str_i4_type
   PUBLIC :: dict_str_i4_item_type
   PUBLIC :: dict_str_i4_init
@@ -74,10 +74,10 @@ MODULE dict_str_i4
   PUBLIC :: dict_str_i4_items
   PUBLIC :: dict_str_i4_update
   PUBLIC :: dict_str_i4_destroy
-  
+
   CONTAINS
-  
-  
+
+
 ! *****************************************************************************
 ! This is joaat_hash from string_table.F
 !
@@ -127,16 +127,16 @@ SUBROUTINE dict_str_i4_init(dict, initial_capacity)
 
     initial_capacity_ = 11
     IF(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
-    
+
     IF(initial_capacity_ < 1) & 
       STOP "dict_str_i4_init: initial_capacity < 1"
-      
+
     IF(ASSOCIATED(dict%buckets)) &
       STOP "dict_str_i4_init: dictionary is already initialized."
-    
+
     ALLOCATE(dict%buckets(initial_capacity_))
     dict%size = 0
-    
+
 END SUBROUTINE dict_str_i4_init
 
 
@@ -173,7 +173,7 @@ SUBROUTINE dict_str_i4_destroy(dict)
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
       STOP "dict_str_i4_destroy: dictionary is not initialized."
-    
+
     DO i = 1, SIZE(dict%buckets)
         item => dict%buckets(i)%p
         DO WHILE(ASSOCIATED(item))
@@ -182,10 +182,10 @@ SUBROUTINE dict_str_i4_destroy(dict)
            DEALLOCATE(prev_item)
         END DO
     END DO
-        
+
     DEALLOCATE(dict%buckets)
     dict%size = -1
-    
+
 END SUBROUTINE dict_str_i4_destroy
 
 ! *****************************************************************************
@@ -207,7 +207,7 @@ SUBROUTINE dict_str_i4_set(dict, key, value)
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_str_i4_set: dictionary is not initialized."
-    
+
     hash = hash_str(key)
     CALL set_hashed(dict, key, value, hash)
 END SUBROUTINE dict_str_i4_set
@@ -230,11 +230,11 @@ RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     INTEGER(kind=int_4), INTENT(in)          :: value
     INTEGER(KIND=int_8), INTENT(in)          :: hash
 
-    INTEGER                                  :: idx
+    INTEGER(KIND=int_8)                      :: idx
     TYPE(private_item_type), POINTER         :: item, new_item
 
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
-    
+
     ! if allready in dict just update its value
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))
@@ -246,14 +246,14 @@ RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
         END IF
         item => item%next
     END DO
-    
+
     ! check load-factor
     IF(4*dict%size > 3*SIZE(dict%buckets)) THEN ! load-factor > 75%
        CALL change_capacity(dict, 2*SIZE(dict%buckets)) !double capacity
        idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
     END IF
-    
-    
+
+
     ! create a new item
     ALLOCATE(new_item)
     new_item%hash = hash
@@ -262,7 +262,7 @@ RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     new_item%next => dict%buckets(idx)%p
     dict%buckets(idx)%p => new_item
     dict%size = dict%size + 1
-    
+
 END SUBROUTINE set_hashed
 
 ! *****************************************************************************
@@ -292,8 +292,8 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
         STOP "dict_str_i4_change_capacity: new_capacity < 1."
     IF(4*dict%size > 3*new_cap) &
      STOP "dict_str_i4_change_capacity: new_capacity too small."
-       
-    old_size = dict%size    
+
+    old_size = dict%size
     old_buckets => dict%buckets
     ALLOCATE(dict%buckets(new_capacity))
     dict%size = 0
@@ -306,9 +306,9 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
            DEALLOCATE(prev_item)
         END DO
     END DO
-        
+
     DEALLOCATE(old_buckets)
-    
+
     IF(old_size /= dict%size) &
       STOP "dict_str_i4_change_capacity: assertion failed"
 END SUBROUTINE change_capacity
@@ -332,16 +332,15 @@ FUNCTION dict_str_i4_get(dict, key, default_value) RESULT(value)
       OPTIONAL                               :: default_value
     INTEGER(kind=int_4)                      :: value
 
-    INTEGER                                  :: idx
-    INTEGER(KIND=int_8)                      :: hash
+    INTEGER(KIND=int_8)                      :: hash, idx
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_str_i4_get: dictionary is not initialized."
-    
+
     hash = hash_str(key)
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
-    
+
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))
         IF(item%hash == hash) THEN
@@ -352,12 +351,12 @@ FUNCTION dict_str_i4_get(dict, key, default_value) RESULT(value)
         END IF
         item => item%next
     END DO
-    
+
     IF(PRESENT(default_value)) THEN
         value = default_value
         RETURN
     END IF
-    
+
     STOP "dict_str_i4_get: Key not found in dictionary."
 END FUNCTION dict_str_i4_get
 
@@ -375,16 +374,15 @@ SUBROUTINE dict_str_i4_del(dict, key)
     TYPE(dict_str_i4_type), INTENT(inout)    :: dict
     CHARACTER(LEN=default_string_length)     :: key
 
-    INTEGER                                  :: idx
-    INTEGER(KIND=int_8)                      :: hash
+    INTEGER(KIND=int_8)                      :: hash, idx
     TYPE(private_item_type), POINTER         :: item, prev_item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_str_i4_del: dictionary is not initialized."
-       
+
     hash = hash_str(key)
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
-    
+
     item => dict%buckets(idx)%p
     prev_item => Null()
     DO WHILE(ASSOCIATED(item))
@@ -403,7 +401,7 @@ SUBROUTINE dict_str_i4_del(dict, key)
         prev_item => item
         item => item%next
     END DO
-    
+
     STOP "dict_str_i4_del: Key not found in dictionary."
 END SUBROUTINE dict_str_i4_del
 
@@ -421,8 +419,8 @@ FUNCTION dict_str_i4_size(dict) RESULT(size)
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_str_i4_size: dictionary is not initialized."
-    
-    size = dict%size 
+
+    size = dict%size
 END FUNCTION dict_str_i4_size
 
 
@@ -440,19 +438,18 @@ FUNCTION dict_str_i4_haskey(dict, key) RESULT(res)
     CHARACTER(LEN=default_string_length)     :: key
     LOGICAL                                  :: res
 
-    INTEGER                                  :: idx
-    INTEGER(KIND=int_8)                      :: hash
+    INTEGER(KIND=int_8)                      :: hash, idx
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_str_i4_haskey: dictionary is not initialized."
-    
+
     res = .FALSE.
     IF(dict%size==0) RETURN
-    
+
     hash = hash_str(key)
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
-    
+
     item => dict%buckets(idx)%p
     DO WHILE(ASSOCIATED(item))
         IF(item%hash == hash) THEN
@@ -463,8 +460,8 @@ FUNCTION dict_str_i4_haskey(dict, key) RESULT(res)
         END IF
         item => item%next
     END DO
-    
-    
+
+
 END FUNCTION dict_str_i4_haskey
 
 
@@ -487,7 +484,7 @@ FUNCTION dict_str_i4_items(dict) RESULT(items)
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
        STOP "dict_str_i4_items: dictionary is not initialized."
-       
+
     ALLOCATE(items(dict%size))
     j = 1
     DO i = 1, SIZE(dict%buckets)
@@ -499,7 +496,7 @@ FUNCTION dict_str_i4_items(dict) RESULT(items)
            item => item%next
         END DO
     END DO
-    
+
     IF(j /= dict%size + 1) &
        STOP "dict_str_i4_items: assertion failed!"
 END FUNCTION dict_str_i4_items
@@ -527,7 +524,7 @@ SUBROUTINE dict_str_i4_update(dict, from_dict)
        STOP "dict_str_i4_update: dictionary is not initialized."
     IF(.NOT. ASSOCIATED(from_dict%buckets)) &
        STOP "dict_str_i4_update: from_dict is not initialized."
-       
+
     from_items => dict_str_i4_items(from_dict)
     DO i=1, SIZE(from_items)
        CALL dict_str_i4_set(dict, &
