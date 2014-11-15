@@ -6,7 +6,7 @@
 import sys
 import re
 
-BANNED_STM  = ('GOTO', 'OPEN', 'CLOSE', )
+BANNED_STM  = ('GOTO', 'WHERE', 'FORALL', 'OPEN', 'CLOSE', )
 BANNED_CALL = ('CP_FM_GEMM', )
 USE_EXCEPTIONS = ("OMP_LIB", "OMP_LIB_KINDS", "F77_BLAS", "LAPACK",)
 
@@ -133,6 +133,8 @@ def process_log_file(fn, public_symbols, used_symbols):
                 issues.append(fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is IMPLICIT-SAVE')
             if(("IMPLICIT-TYPE" in line) and ("USE-ASSOC" not in line) and ("FUNCTION" not in line)): #TODO sure about last clause?
                 issues.append(fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is IMPLICIT-TYPE')
+            if("THREADPRIVATE" in line):
+                issues.append(fn+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is THREADPRIVATE')
             if("INTRINSIC-PROC" in line):
                 curr_symbol_defined = True
             if("INTRINSIC" in line):
