@@ -204,7 +204,7 @@ CONTAINS
             '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))')SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)
        xx = yy
     END IF
-    i = (xx-spl_p(1)%spline_data%x1)*invh + 1
+    i = INT((xx-spl_p(1)%spline_data%x1)*invh + 1)
     a = (spl_p(1)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
     b = 1.0_dp - a
 
@@ -245,7 +245,7 @@ CONTAINS
 
     h26 = spl%h26
     invh = spl%invh
-    i = (xx-spl%x1)*invh + 1
+    i = INT((xx-spl%x1)*invh + 1)
 
     a = (spl%x1-xx)*invh + REAL(i,kind=dp)
     b = 1.0_dp - a

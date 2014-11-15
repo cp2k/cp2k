@@ -144,7 +144,7 @@ CONTAINS
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
                 CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,error,failure)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
-                   new_size = (memory_usage+nints)*1.2_dp
+                   new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
                 END IF
                 store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1)=w(1:nints)
@@ -318,7 +318,7 @@ CONTAINS
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
                 CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,error,failure)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
-                   new_size = (memory_usage+nints)*1.2_dp
+                   new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
                 END IF
                 store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1)=w(1:nints)

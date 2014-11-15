@@ -98,7 +98,7 @@ SUBROUTINE clebsch_gordon_test (error)
                mp = m1 + m2
                IF ( lp < ABS(mp) ) CYCLE
                CALL y_lm(lebedev_grid(ll)%r,a3,lp,mp)
-               cn = SUM(a1*a2*CONJG(a3)*wa)
+               cn = REAL(SUM(a1*a2*CONJG(a3)*wa),KIND=dp)
                il = lp/2 + 1
                ca = cga(il)
                IF ( ABS(ca-cn) > 1.e-10_dp ) THEN

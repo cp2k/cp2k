@@ -502,7 +502,7 @@ loop:   DO I=1,SIZE(reference)
     hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
     ! hash is the real 32bit hash value of the string,
     ! hash_index is an index in the hash_table
-    hash_index=MOD(hash,INT(HUGE(hash_index),KIND=k64))
+    hash_index=INT(MOD(hash,INT(HUGE(hash_index),KIND=k64)),KIND=KIND(hash_index))
   END FUNCTION joaat_hash_i
 
 !===ACM Algorithm 323, Generation of Permutations in Lexicographic

@@ -1506,7 +1506,7 @@ CPSourceFileRef,&
     ALLOCATE(qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    qmmm_env%image_charge_pot%image_mm_list=0.
+    qmmm_env%image_charge_pot%image_mm_list=0
     num_image_mm_atom=1
 
     DO i = 1, n_var

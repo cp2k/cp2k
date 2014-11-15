@@ -482,8 +482,8 @@ CONTAINS
              END DO
 
              soft_thr = load_fraction + nthreads - 1
-             block_size0 = load_fraction*(group_size/soft_thr)
-             block_size = group_size/soft_thr
+             block_size0 = INT(load_fraction*(group_size/soft_thr))
+             block_size = INT(group_size/soft_thr)
 
              !blocks for master thread
              IF (block_size0 > 0) &

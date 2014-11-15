@@ -951,7 +951,7 @@ error)
     move_types%acc_prob(:,:) = 0.5_dp
     move_types%acc_count(:,:) = 0
     move_types%mv_count(:,:) = 0
-    move_types%subbox_acc_count(:,:) = 0.0_dp
+    move_types%subbox_acc_count(:,:) = 0
     move_types%subbox_count(:,:) = 0
   END SUBROUTINE clear_move_probs
 

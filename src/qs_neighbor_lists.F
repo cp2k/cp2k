@@ -1149,7 +1149,7 @@ CONTAINS
         subcell_scale=((125.0_dp**3)/deth)**(1.0_dp/6.0_dp)
 
         ! guess the number of subcells for optimal performance, guard against crazy stuff triggered by very small rabm
-        nsubcell(:) = MAX(1.0_dp,MIN(0.5_dp*subcells*subcell_scale/sab_max(:),0.5_dp*subcells*subcell_scale/sab_max_guard(:)))
+        nsubcell(:) = INT(MAX(1.0_dp,MIN(0.5_dp*subcells*subcell_scale/sab_max(:),0.5_dp*subcells*subcell_scale/sab_max_guard(:))))
 
         ! number of image cells to be considered
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)

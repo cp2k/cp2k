@@ -80,7 +80,7 @@ CPSourceFileRef)
          "setup to two different values!! Correct this error!!"//&
 CPSourceFileRef)
        cell => topology%cell_muc
-       natoms = topology%natoms*REAL(PRODUCT(multiple_unit_cell),KIND=dp)
+       natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 
        ! Check, if velocities are provided, that they are consistent in number with the atoms...
        work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)

@@ -1441,8 +1441,8 @@ END SUBROUTINE mc_conformation_change
       ALLOCATE(atom_b(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_b",natom)
-      connection(:,:)=0.0_dp
-      connectivity(:,:)=0.0_dp
+      connection(:,:)=0
+      connectivity(:,:)=0
       counter(:)=0
       atom_a(:)=0
       atom_b(:)=0
@@ -1638,8 +1638,8 @@ END SUBROUTINE mc_conformation_change
       ALLOCATE(atom_c(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_c",natom)
-      connection(:,:)=0.0_dp
-      connectivity(:,:)=0.0_dp
+      connection(:,:)=0
+      connectivity(:,:)=0
       counter(:)=0
       atom_a(:)=0
       atom_c(:)=0
@@ -1928,8 +1928,8 @@ END SUBROUTINE mc_conformation_change
       ALLOCATE(atom_d(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_d",natom)
-      connection(:,:)=0.0_dp
-      connectivity(:,:)=0.0_dp
+      connection(:,:)=0
+      connectivity(:,:)=0
       counter(:)=0
       atom_a(:)=0
       atom_d(:)=0

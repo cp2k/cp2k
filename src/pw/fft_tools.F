@@ -1422,7 +1422,7 @@ CONTAINS
     IF ( alltoall_sgl ) THEN
        ss => fft_scratch%ss
        tt => fft_scratch%tt
-       ss(:,:) = sb(:,:)
+       ss(:,:) = CMPLX(sb(:,:),KIND=sp)
        tt(:,:) = 0._sp
     ELSE
        rr => fft_scratch%rr
@@ -1555,7 +1555,7 @@ CONTAINS
              DO ir = 1, nray ( ip )
                 iy = yzp ( 1, ir, ip )
                 iz = yzp ( 2, ir, ip )
-                tt ( ir + ixx, ip ) = tb ( iy, iz, ix )
+                tt ( ir + ixx, ip ) = CMPLX(tb ( iy, iz, ix ),KIND=sp)
              END DO
           ELSE
              DO ir = 1, nray ( ip )
@@ -1754,7 +1754,7 @@ CONTAINS
            jy = yzp (1, ir, my_pos )
            IF( alltoall_sgl ) THEN
              DO jx = 0, nx - 1
-              yzbuf_sgl ( sdispl (ip) + jj + jx * scount(ip) / nx ) = sb( ir, jx + bo (1, 1, ipl) )
+              yzbuf_sgl ( sdispl (ip) + jj + jx * scount(ip) / nx ) = CMPLX(sb( ir, jx + bo (1, 1, ipl) ),KIND=sp)
              END DO
            ELSE
              DO jx = 0, nx - 1
@@ -1963,7 +1963,7 @@ CONTAINS
              IF ( alltoall_sgl ) THEN
                 DO jx = 0, nx - 1
                    ixx = jj + jx * scount ( ipl )/nx
-                   xzbuf_sgl ( ixx + sdispl(ipl) ) = sb ( jy, jz + jx * nz )
+                   xzbuf_sgl ( ixx + sdispl(ipl) ) = CMPLX(sb ( jy, jz + jx * nz ),KIND=sp)
                 END DO
              ELSE
                 DO jx = 0, nx - 1

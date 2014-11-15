@@ -1305,7 +1305,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     lwork = -1
     ALLOCATE(work(2*ndim),STAT=istat)
     CALL pdgeqrf( nrow, ncol, a, irow, icol, desca,  tau, work, lwork, info )
-    lwork = work(1)
+    lwork = INT(work(1))
     DEALLOCATE(work,STAT=istat)
     ALLOCATE(work(lwork),STAT=istat)
     CALL pdgeqrf( nrow, ncol, a, irow, icol, desca, tau, work, lwork, info )
@@ -1314,7 +1314,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     lwork = -1
     ALLOCATE(work(2*ndim),STAT=istat)
     CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )
-    lwork = work(1)
+    lwork = INT(work(1))
     DEALLOCATE(work,STAT=istat)
     ALLOCATE(work(lwork),STAT=istat)
     CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )

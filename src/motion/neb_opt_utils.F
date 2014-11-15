@@ -157,7 +157,7 @@ CONTAINS
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              lwork=-1
              CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
-             lwork=work_dgesdd(1)
+             lwork=INT(work_dgesdd(1))
              DEALLOCATE(work_dgesdd,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(work_dgesdd(lwork),stat=stat)

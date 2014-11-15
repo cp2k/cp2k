@@ -420,7 +420,7 @@ CONTAINS
 
         IF (PRESENT(nfree)) THEN
           ! re-initializing simpar%nfree to zero because of multiple thermostats in the adiabatic sampling
-           nfree = 0.0_dp
+           nfree = 0
         END IF
     END SELECT
 
@@ -715,7 +715,7 @@ CONTAINS
           IF (PRESENT(nfree)) THEN
              IF ((sum_of_thermostats>1).OR.(dis_type==do_thermo_no_communication)) THEN
                 ! re-initializing simpar%nfree to zero because of multiple thermostats
-                nfree = 0.0_dp
+                nfree = 0
              END IF
           END IF
        END IF

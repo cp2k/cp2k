@@ -1232,8 +1232,8 @@ CONTAINS
     CALL get_gto_basis_set(oba,maxco=maxcoa,maxl=maxla)
     CALL get_gto_basis_set(obb,maxco=maxcob,maxl=maxlb)
     maxco = MAX(maxcoa,maxcob)
-    maxla = 2._dp*maxla
-    maxlb = 2._dp*maxlb
+    maxla = 2*maxla
+    maxlb = 2*maxlb
     maxl = MAX(maxla,maxlb)
     lds = ncoset(maxl)
     ALLOCATE(sint(maxco,maxco,maxco,maxco),STAT=stat)

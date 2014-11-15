@@ -124,7 +124,7 @@ CONTAINS
       IF(incx.lt.0)ix = (-n+1)*incx + 1
       IF(incy.lt.0)iy = (-n+1)*incy + 1
       DO 10 i = 1,n
-        y(iy) = x(ix)
+        y(iy) = REAL(x(ix),KIND=sp)
         ix = ix + incx
         iy = iy + incy
    10 CONTINUE
@@ -138,18 +138,18 @@ CONTAINS
    20 m = MOD(n,7)
       IF( m .EQ. 0 ) go to 40
       DO 30 i = 1,m
-        y(i) = x(i)
+        y(i) = REAL(x(i),KIND=sp)
    30 CONTINUE
       IF( n .LT. 7 ) RETURN
    40 mp1 = m + 1
       DO 50 i = mp1,n,7
-        y(i) = x(i)
-        y(i + 1) = x(i + 1)
-        y(i + 2) = x(i + 2)
-        y(i + 3) = x(i + 3)
-        y(i + 4) = x(i + 4)
-        y(i + 5) = x(i + 5)
-        y(i + 6) = x(i + 6)
+        y(i) = REAL(x(i),KIND=sp)
+        y(i + 1) = REAL(x(i + 1),KIND=sp)
+        y(i + 2) = REAL(x(i + 2),KIND=sp)
+        y(i + 3) = REAL(x(i + 3),KIND=sp)
+        y(i + 4) = REAL(x(i + 4),KIND=sp)
+        y(i + 5) = REAL(x(i + 5),KIND=sp)
+        y(i + 6) = REAL(x(i + 6),KIND=sp)
    50 CONTINUE
       RETURN
 
@@ -250,7 +250,7 @@ CONTAINS
       IF(incx.lt.0)ix = (-n+1)*incx + 1
       IF(incy.lt.0)iy = (-n+1)*incy + 1
       DO 10 i = 1,n
-        y(iy) = x(ix)
+        y(iy) = CMPLX(x(ix),KIND=sp)
         ix = ix + incx
         iy = iy + incy
    10 CONTINUE
@@ -264,18 +264,18 @@ CONTAINS
    20 m = MOD(n,7)
       IF( m .EQ. 0 ) go to 40
       DO 30 i = 1,m
-        y(i) = x(i)
+        y(i) = CMPLX(x(i),KIND=sp)
    30 CONTINUE
       IF( n .LT. 7 ) RETURN
    40 mp1 = m + 1
       DO 50 i = mp1,n,7
-        y(i) = x(i)
-        y(i + 1) = x(i + 1)
-        y(i + 2) = x(i + 2)
-        y(i + 3) = x(i + 3)
-        y(i + 4) = x(i + 4)
-        y(i + 5) = x(i + 5)
-        y(i + 6) = x(i + 6)
+        y(i) = CMPLX(x(i),KIND=sp)
+        y(i + 1) = CMPLX(x(i + 1),KIND=sp)
+        y(i + 2) = CMPLX(x(i + 2),KIND=sp)
+        y(i + 3) = CMPLX(x(i + 3),KIND=sp)
+        y(i + 4) = CMPLX(x(i + 4),KIND=sp)
+        y(i + 5) = CMPLX(x(i + 5),KIND=sp)
+        y(i + 6) = CMPLX(x(i + 6),KIND=sp)
    50 CONTINUE
       RETURN
 

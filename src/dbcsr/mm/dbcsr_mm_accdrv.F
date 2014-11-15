@@ -505,8 +505,8 @@ MODULE dbcsr_mm_accdrv
      top = 1
      DO i=1,stack_size
         val(:) = params_in(:,i)
-        bin_id = 1 + MODULO(INT(val(6)*(val(6)+3),KIND=int_8), &
-                            INT(accdrv_binning_nbins,KIND=int_8))
+        bin_id = 1 + INT(MODULO(INT(val(6)*(val(6)+3),KIND=int_8), &
+                            INT(accdrv_binning_nbins,KIND=int_8)))
         IF(bin_top(bin_id) > accdrv_binning_binsize) THEN
            params_out(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
            top = top + bin_top(bin_id) - 1

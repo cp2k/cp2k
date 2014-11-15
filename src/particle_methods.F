@@ -369,13 +369,13 @@ CONTAINS
        IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "z4",natom*sp_size)
        IF (.NOT.cell%orthorhombic.AND.(output_format == dump_dcd_aligned_cell)) THEN
-          x4(1:natom) = MATMUL(h(1,1:3),arr(1:3,1:natom))
-          y4(1:natom) = MATMUL(h(2,1:3),arr(1:3,1:natom))
-          z4(1:natom) = MATMUL(h(3,1:3),arr(1:3,1:natom))
+          x4(1:natom) = REAL(MATMUL(h(1,1:3),arr(1:3,1:natom)),KIND=sp)
+          y4(1:natom) = REAL(MATMUL(h(2,1:3),arr(1:3,1:natom)),KIND=sp)
+          z4(1:natom) = REAL(MATMUL(h(3,1:3),arr(1:3,1:natom)),KIND=sp)
        ELSE
-          x4(1:natom) = arr(1,1:natom)
-          y4(1:natom) = arr(2,1:natom)
-          z4(1:natom) = arr(3,1:natom)
+          x4(1:natom) = REAL(arr(1,1:natom),KIND=sp)
+          y4(1:natom) = REAL(arr(2,1:natom),KIND=sp)
+          z4(1:natom) = REAL(arr(3,1:natom),KIND=sp)
        END IF
        WRITE (iunit) abc(1)*factor,angle_gamma,abc(2)*factor,&
                      angle_beta,angle_alpha,abc(3)*factor

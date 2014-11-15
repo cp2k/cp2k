@@ -1080,7 +1080,7 @@ CONTAINS
           ALLOCATE(iwork(8*(ib-1)),work_dgesdd(1))
              lwork=-1
              CALL DGESDD('S',ib-1,ib-1,work,ib-1,aval,au,ib-1,av,ib-1,work_dgesdd,lwork,iwork,info)
-             lwork=work_dgesdd(1)
+             lwork=INT(work_dgesdd(1))
              DEALLOCATE(work_dgesdd) ; ALLOCATE(work_dgesdd(lwork))
              CALL DGESDD('S',ib-1,ib-1,work,ib-1,aval,au,ib-1,av,ib-1,work_dgesdd,lwork,iwork,info)
              ! construct the inverse

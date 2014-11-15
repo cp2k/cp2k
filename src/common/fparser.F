@@ -676,7 +676,7 @@ CONTAINS
        n = cImmed
     ELSE                                                     ! Check for a variable
        n = VariableIndex (F, Var)
-       IF (n > 0) n = VarBegin+n-1
+       IF (n > 0) n = VarBegin+n-1_is
     END IF
   END FUNCTION MathItemIndex
   !
