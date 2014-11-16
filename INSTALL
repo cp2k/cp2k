@@ -218,6 +218,7 @@ How to compile CP2K code
      -D__HAS_NO_SHARED_GLIBC should be defined on systems where a shared glibc is
                        not available at runtime for some reason e.g. on HPC systems
                        where some filesystems are not available on the compute nodes
+     -D__DATA_DIR=<path> optional flag which points at a central parameter file directory.
 
  3c) CP2K currently assumes Fortran2003 compliance, even though few features are used.
      Explicitly required, are full ISO_C_BINDING support, rank remapping, procedure pointers.

@@ -330,6 +330,7 @@ CONTAINS
     CHARACTER(LEN=11) :: access_string, action_string, current_action, &
       current_form, form_string, pad_string, position_string, status_string
     CHARACTER(LEN=2*default_path_length)     :: message
+    CHARACTER(LEN=default_path_length)       :: real_file_name
     INTEGER                                  :: debug_unit, istat
     LOGICAL                                  :: exists, get_a_new_unit, &
                                                 is_open
@@ -377,18 +378,22 @@ CONTAINS
        debug_unit = 0 ! use default_output_unit for debugging
     END IF
 
+    real_file_name = file_name
+    IF (status_string == "OLD")&
+       real_file_name = discover_file(file_name)
+
     ! Check the specified input file name
-    INQUIRE (FILE=TRIM(file_name),EXIST=exists,OPENED=is_open,IOSTAT=istat)
+    INQUIRE (FILE=TRIM(real_file_name),EXIST=exists,OPENED=is_open,IOSTAT=istat)
 
     IF (istat /= 0) THEN
        WRITE (UNIT=message,FMT="(A,I0,A)")&
-         "An error occurred inquiring the file <"//TRIM(file_name)//&
+         "An error occurred inquiring the file <"//TRIM(real_file_name)//&
          "> (IOSTAT = ",istat,")"
        CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
     ELSE IF (status_string == "OLD") THEN
        IF (.NOT.exists) THEN
           WRITE (UNIT=message,FMT="(A)")&
-            "The specified OLD file <"//TRIM(ADJUSTL(file_name))//&
+            "The specified OLD file <"//TRIM(ADJUSTL(real_file_name))//&
             "> cannot be opened. It does not exist."
           CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        END IF
@@ -396,24 +401,24 @@ CONTAINS
 
     ! Open the specified input file
     IF (is_open) THEN
-       INQUIRE (FILE=TRIM(file_name),NUMBER=unit_number,&
+       INQUIRE (FILE=TRIM(real_file_name),NUMBER=unit_number,&
                 ACTION=current_action,FORM=current_form)
        IF (TRIM(position_string) == "REWIND") REWIND (UNIT=unit_number)
        IF (TRIM(status_string) == "NEW") THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Attempt to re-open the existing OLD file <"//&
-                            TRIM(file_name)//"> with status attribute NEW.")
+                            TRIM(real_file_name)//"> with status attribute NEW.")
        END IF
        IF (TRIM(current_form) /= TRIM(form_string)) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Attempt to re-open the existing "//&
-                            TRIM(current_form)//" file <"//TRIM(file_name)//&
+                            TRIM(current_form)//" file <"//TRIM(real_file_name)//&
                             "> as "//TRIM(form_string)//" file.")
        END IF
        IF (TRIM(current_action) /= TRIM(action_string)) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "Attempt to re-open the existing file <"//&
-                            TRIM(file_name)//"> with the modified ACTION attribute "//&
+                            TRIM(real_file_name)//"> with the modified ACTION attribute "//&
                             TRIM(action_string)//". The current ACTION attribute is "//&
                             TRIM(current_action)//".")
        END IF
@@ -423,16 +428,16 @@ CONTAINS
        IF (PRESENT(skip_get_unit_number)) THEN
           IF (skip_get_unit_number) get_a_new_unit = .FALSE.
        END IF
-       IF (get_a_new_unit) unit_number = get_unit_number(TRIM(file_name))
+       IF (get_a_new_unit) unit_number = get_unit_number(TRIM(real_file_name))
        IF (unit_number < 1) THEN
           WRITE (UNIT=message,FMT="(A)")&
-            "Cannot open the file <"//TRIM(ADJUSTL(file_name))//&
+            "Cannot open the file <"//TRIM(ADJUSTL(real_file_name))//&
             ">, because no unused logical unit number could be obtained."
           CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        END IF
        IF (TRIM(form_string)== "FORMATTED") THEN
           OPEN (UNIT=unit_number,&
-                FILE=TRIM(file_name),&
+                FILE=TRIM(real_file_name),&
                 STATUS=TRIM(status_string),&
                 ACCESS=TRIM(access_string),&
                 FORM=TRIM(form_string),&
@@ -442,7 +447,7 @@ CONTAINS
                 IOSTAT=istat)
        ELSE
           OPEN (UNIT=unit_number,&
-                FILE=TRIM(file_name),&
+                FILE=TRIM(real_file_name),&
                 STATUS=TRIM(status_string),&
                 ACCESS=TRIM(access_string),&
                 FORM=TRIM(form_string),&
@@ -452,14 +457,14 @@ CONTAINS
        END IF
        IF (istat /= 0) THEN
           WRITE (UNIT=message,FMT="(A,I0,A,I0,A)")&
-            "An error occurred opening the file <"//TRIM(ADJUSTL(file_name))//&
+            "An error occurred opening the file <"//TRIM(ADJUSTL(real_file_name))//&
             "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
           CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        END IF
     END IF
 
     IF (debug_unit > 0) THEN
-       INQUIRE (FILE=TRIM(file_name),OPENED=is_open,NUMBER=unit_number,&
+       INQUIRE (FILE=TRIM(real_file_name),OPENED=is_open,NUMBER=unit_number,&
                 POSITION=position_string,NAME=message,ACCESS=access_string,&
                 FORM=form_string,ACTION=action_string)
        WRITE (UNIT=debug_unit,FMT="(T2,A)") "BEGIN DEBUG "//TRIM(ADJUSTL(routineN))
@@ -475,6 +480,42 @@ CONTAINS
     END IF
 
   END SUBROUTINE open_file
+
+! *****************************************************************************
+!> \brief Checks various locations for a file name.
+!> \param file_name ...
+!> \retval real_file_name ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION discover_file(file_name) RESULT(real_file_name)
+    CHARACTER(LEN=*), INTENT(IN)             :: file_name
+    CHARACTER(LEN=default_path_length)       :: real_file_name
+
+    CHARACTER(LEN=default_path_length)       :: candidates(3), data_path
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: exists
+
+    candidates(:) = file_name
+
+    CALL GET_ENVIRONMENT_VARIABLE("CP2K_DATA_DIR", data_path, status=stat)
+    IF(stat == 0) &
+        candidates(2) = TRIM(data_path) // TRIM(file_name)
+
+#if defined(__DATA_DIR)
+     candidates(3) = __DATA_DIR // TRIM(file_name)
+#endif
+
+    real_file_name = file_name !fall back in case file not found
+
+    DO i=1, SIZE(candidates)
+       INQUIRE(file=TRIM(candidates(i)), exist=exists, iostat=stat)
+       IF(stat==0 .AND. exists) THEN
+           real_file_name = candidates(i)
+           EXIT
+       ENDIF
+    ENDDO
+
+  END FUNCTION discover_file
 
 ! *****************************************************************************
 !> \brief Print the list of preconnected units
