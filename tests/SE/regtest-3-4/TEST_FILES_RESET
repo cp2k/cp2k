@@ -20,3 +20,7 @@ Co_complex.inp
 N3_rp_md.inp
 N3_dp_md.inp
 N3_rp_dp_md.inp
+# reduce number of MD steps
+N3_rp_dp_md.inp
+N3_rp_md.inp
+N3_dp_md.inp
