@@ -352,7 +352,6 @@
     CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
                                                 trans_b
     LOGICAL                                  :: new_a_is_new, new_b_is_new
-    REAL(kind=[kind1])                       :: cs_b, cs_c
     TYPE(cp_dbcsr_type)                      :: new_a, new_b
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
