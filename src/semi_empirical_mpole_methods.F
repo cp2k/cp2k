@@ -64,8 +64,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     CHARACTER(LEN=3), DIMENSION(9), PARAMETER :: label_print_orb = (/"  s",&
       " px"," py"," pz","dx2","dzx","dz2","dzy","dxy"/)
-    INTEGER, DIMENSION(9), PARAMETER :: &
-      loc_index = (/1,2,2,2,3,3,3,3,3/)
+    INTEGER, DIMENSION(9), PARAMETER :: loc_index = (/1,2,2,2,3,3,3,3,3/)
 
     INTEGER                                  :: a, b, i, ind1, ind2, j, k, &
                                                 k1, k2, mu, natorb, ndim, nr
