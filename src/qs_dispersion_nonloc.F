@@ -558,14 +558,14 @@ CONTAINS
              uu  = uu + kernel_of_k(q2_i,q1_i)*theta(q1_i)
           END DO
           IF (ig < grid%first_gne0) THEN
-            vdW_xc_energy = vdW_xc_energy + (uu*CONJG(theta(q2_i)))
+            vdW_xc_energy = vdW_xc_energy + REAL(uu*CONJG(theta(q2_i)),KIND=dp)
           ELSE
-            vdW_xc_energy = vdW_xc_energy + G_multiplier * (uu*CONJG(theta(q2_i)))
+            vdW_xc_energy = vdW_xc_energy + G_multiplier * REAL(uu*CONJG(theta(q2_i)),KIND=dp)
           END IF
           IF (.NOT.energy_only) u_vdW(ig,q2_i)  = uu
           IF (use_virial .AND. ig >=grid%first_gne0) THEN
              DO q1_i = 1, Nqs
-                 gm = 0.5_dp * G_multiplier * grid%vol*theta(q1_i)*dkernel_of_dk(q1_i,q2_i)*CONJG(theta(q2_i))
+                 gm = 0.5_dp * G_multiplier * grid%vol*dkernel_of_dk(q1_i,q2_i)*REAL(theta(q1_i)*CONJG(theta(q2_i)),KIND=dp)
                  SELECT CASE (dispersion_env%nl_type)
                     CASE (vdw_nl_RVV10)
                        gm = 0.5_dp*gm
