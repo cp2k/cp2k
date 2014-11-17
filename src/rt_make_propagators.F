@@ -36,7 +36,7 @@ MODULE rt_make_propagators
                                              exp_pade_only_imaginary,&
                                              taylor_full_complex,&
                                              taylor_only_imaginary
-  USE rt_matrix_exp_dbcsr,             ONLY: bch_expansion_complex_propagator,&
+  USE rt_ls_matrix_exp,                ONLY: bch_expansion_complex_propagator,&
                                              bch_expansion_imaginary_propagator,&
                                              cp_complex_dbcsr_gemm_3,&
                                              taylor_full_complex_dbcsr,&

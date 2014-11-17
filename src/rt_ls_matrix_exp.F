@@ -9,7 +9,7 @@
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
-MODULE rt_matrix_exp_dbcsr
+MODULE rt_ls_matrix_exp
 
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
@@ -26,7 +26,7 @@ MODULE rt_matrix_exp_dbcsr
   PRIVATE
 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_matrix_exp_dbcsr'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_ls_matrix_exp'
 
   PUBLIC :: taylor_only_imaginary_dbcsr,&
             taylor_full_complex_dbcsr,&
@@ -594,4 +594,4 @@ END SUBROUTINE
 
    END SUBROUTINE
 
-END MODULE rt_matrix_exp_dbcsr
+END MODULE rt_ls_matrix_exp

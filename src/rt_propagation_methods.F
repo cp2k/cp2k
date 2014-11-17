@@ -64,7 +64,7 @@ MODULE rt_propagation_methods
                                              propagate_bch,&
                                              propagate_exp,&
                                              propagate_exp_density
-  USE rt_matrix_exp_dbcsr,             ONLY: cp_complex_dbcsr_gemm_3
+  USE rt_ls_matrix_exp,                ONLY: cp_complex_dbcsr_gemm_3
   USE rt_propagation_output,           ONLY: report_density_occupation,&
                                              rt_convergence,&
                                              rt_convergence_density
