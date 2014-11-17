@@ -495,8 +495,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
-    REAL(KIND=dp), PARAMETER                 :: rone = (1.0_dp,0.0_dp) , &
-                                                rzero = (0.0_dp,0.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
     INTEGER                                  :: handle, i, j, k, ldim, ndim, &
@@ -567,8 +566,8 @@ CONTAINS
           CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,T2,rzero,Tres,error)
 
           DO k=1,ldim
-             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX( Tres%local_data(:,k),0.0_dp,dp)
-             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX( Tres%local_data(:,k),0.0_dp,dp)
+             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN * Tres%local_data(:,k)
+             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD * Tres%local_data(:,k)
           END DO
 
           IF(2*j+1.le.q)THEN
@@ -634,10 +633,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    COMPLEX(KIND=dp)                         :: scaleD, scaleN
     INTEGER                                  :: handle, i, j, k, ldim, ndim, &
                                                 p, q
-    REAL(KIND=dp)                            :: my_fac, square_fac
+    REAL(KIND=dp)                            :: my_fac, scaleD, scaleN, &
+                                                square_fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mult_p
@@ -764,6 +763,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER :: col_group, handle, i, icol_local, idim, info, j, l, mydim, &
       nao, narnoldi, ncol_local, newdim, nmo, npade, pade_step, stat
@@ -809,7 +809,7 @@ CONTAINS
     double_col=.TRUE.
     double_row=.FALSE.
     CALL cp_fm_struct_double(newstruct,mo_struct,mo_struct%context,double_col,double_row,error)
-    H_approx_save=zero
+    H_approx_save=rzero
 
     DO i=1,narnoldi+1
        CALL cp_fm_create(V_mats(i)%matrix, matrix_struct=newstruct,&
@@ -926,8 +926,8 @@ CONTAINS
              N=0.0_dp
              D=0.0_dp
              DO idim=1,mydim
-                N(idim,idim)=1.0_dp
-                D(idim,idim)=one
+                N(idim,idim)=rone
+                D(idim,idim)=rone
              END DO
              N(:,:)=N+0.5_dp*mat1
              D(:,:)=D-0.5_dp*mat1
@@ -977,8 +977,8 @@ CONTAINS
    
           IF(conv_norm.LT.eps_exp.OR.i.GT.narnoldi)THEN
    
-             mos_new(1)%matrix%local_data=zero
-             mos_new(2)%matrix%local_data=zero
+             mos_new(1)%matrix%local_data=rzero
+             mos_new(2)%matrix%local_data=rzero
              DO icol_local=1,ncol_local
                 DO idim=1,mydim
                    prefac=H_approx(idim,1,icol_local)*norm1(icol_local)
@@ -1003,8 +1003,8 @@ CONTAINS
                    END DO
                  END DO
                END DO
-               mos_next(1)%matrix%local_data=zero
-               mos_next(2)%matrix%local_data=zero
+               mos_next(1)%matrix%local_data=rzero
+               mos_next(2)%matrix%local_data=rzero
                DO icol_local=1,ncol_local
                   DO idim=1,mydim
                      prefac=H_approx(idim,1,icol_local)*norm1(icol_local)
