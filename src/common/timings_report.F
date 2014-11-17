@@ -255,7 +255,7 @@ MODULE timings_report
     IF (maxcost >= 100000)  decimals = 1
     IF (maxcost >= 1000000) decimals = 0
     WRITE (UNIT=fmt,FMT="(A,I0,A)")&
-        "(T2,A31,I7,1X,F4.1,4(1X,F8.",decimals,"))"
+        "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.",decimals,"))"
 
     !write output
     DO i=num_routines,1,-1
