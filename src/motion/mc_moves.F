@@ -569,7 +569,8 @@ END SUBROUTINE mc_conformation_change
 ! call a random number to figure out which direction we're moving
       IF(ionode) rand=next_random_number(rng_stream,error=error)
       CALL mp_bcast(rand,source,group)
-      move_direction=AINT(3*rand)+1
+      ! 1,2,3 with equal prob
+      move_direction=INT(3*rand)+1
 
 ! call a random number to figure out how far we're moving
       IF(ionode) rand=next_random_number(rng_stream,error=error)
@@ -817,7 +818,8 @@ END SUBROUTINE mc_conformation_change
       IF(ionode) rand=next_random_number(rng_stream,error=error)
 !      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
-      dir=AINT(3*rand)+1
+      ! 1,2,3 with equal prob
+      dir=INT(3*rand)+1
 
       IF (dir .EQ. 1) THEN
          lx = .TRUE.

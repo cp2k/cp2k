@@ -1988,17 +1988,17 @@ CONTAINS
           IF ( pw1%in_use == REALDATA3D ) THEN
              integral_value = SUM ( pw1%cr3d ( :, :, : )** 2 )
           ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
-             integral_value = SUM ( CONJG ( pw1%cc3d ( :, :, : ) ) &
-                  * pw1%cc3d ( :, :, : )  )
+             integral_value = REAL(SUM ( CONJG ( pw1%cc3d ( :, :, : ) ) &
+                  * pw1%cc3d ( :, :, : )  ),KIND=dp)
           ELSE IF ( pw1%in_use == REALDATA1D ) THEN
              integral_value = SUM ( pw1%cr (:) ** 2 )
           ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-             integral_value = SUM ( CONJG ( pw1%cc (:) ) &
-                  * pw1%cc (:) )
+             integral_value = REAL(SUM ( CONJG ( pw1%cc (:) ) &
+                  * pw1%cc (:) ), KIND=dp)
              IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
                 integral_value = 2.0_dp * integral_value
                 IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
-                     CONJG ( pw1%cc ( 1 ) ) * pw1%cc ( 1 )
+                     REAL(CONJG ( pw1%cc ( 1 ) ) * pw1%cc ( 1 ),KIND=dp)
              END IF
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__,"No possible SQUARE DATA")
@@ -2012,16 +2012,17 @@ CONTAINS
        IF ( pw1%in_use == REALDATA3D ) THEN
           integral_value = SUM ( pw1%cr3d ( :, :, : ) )
        ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
-          integral_value = SUM ( pw1%cc3d ( :, :, : ) )
+          integral_value = SUM ( pw1%cc3d ( :, :, : ) ) !? where's the complex part 
        ELSE IF ( pw1%in_use == REALDATA1D ) THEN
           integral_value = SUM ( pw1%cr (:) )
        ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-          integral_value = SUM ( pw1%cc (:) )
+          integral_value = SUM ( pw1%cc (:) ) !? where's the complex part
        ELSE
           CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
        END IF
     END IF
 
+    !? surprising IF
     IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
        integral_value = integral_value * pw1%pw_grid%dvol
     ELSE
@@ -2182,13 +2183,8 @@ CONTAINS
        IF (iop==1) &
             CALL stop_program(routineN,moduleN,__LINE__,&
                               "Operator ABS not implemented")
-       IF (fun%in_use == COMPLEXDATA3D) THEN
-          total_fun = fun%pw_grid%vol*fun%cc3d(      &
-               fun%pw_grid%bounds(1,1), &
-               fun%pw_grid%bounds(1,2), &
-               fun%pw_grid%bounds(1,3))
-       ELSEIF (fun%in_use == COMPLEXDATA1D) THEN
-          IF ( fun%pw_grid%have_g0 ) total_fun = fun%pw_grid%vol*fun%cc(1)
+       IF (fun%in_use == COMPLEXDATA1D) THEN
+          IF ( fun%pw_grid%have_g0 ) total_fun = REAL(fun%pw_grid%vol*fun%cc(1),KIND=dp)
        ELSE
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "In_space/in_use combination not implemented")
