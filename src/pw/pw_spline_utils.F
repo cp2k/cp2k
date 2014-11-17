@@ -24,8 +24,7 @@ MODULE pw_spline_utils
                                              PW_MODE_LOCAL
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
-                                             pw_integral_aa_fast,&
-                                             pw_integral_ab_fast,&
+                                             pw_integral_ab,&
                                              pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
@@ -36,7 +35,6 @@ MODULE pw_spline_utils
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             SQUARE,&
                                              pw_p_type,&
                                              pw_type
   USE timings,                         ONLY: timeset,&
@@ -3352,21 +3350,21 @@ CPSourceFileRef,&
           CALL pw_axpy(values,r,error=error)
           CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
           CALL pw_copy(z,p,error=error)
-          r_z=pw_integral_ab_fast(r,z,error=error)
+          r_z=pw_integral_ab(r,z,error=error)
 
           DO iter=iiter,MIN(iiter+9,max_iter)
-             eps_r_att=SQRT(pw_integral_aa_fast(r,SQUARE,error=error))
+             eps_r_att=SQRT(pw_integral_ab(r,r,error=error))
              IF (eps_r_att==0._dp) THEN
                 eps_x_att=0._dp
                 last=.TRUE.
              ELSE
                 CALL pw_zero(Ap,error=error)
                 CALL linOp(pw_in=p,pw_out=Ap,error=error)
-                alpha=r_z/pw_integral_ab_fast(Ap,p,error=error)
+                alpha=r_z/pw_integral_ab(Ap,p,error=error)
 
                 CALL pw_axpy(p,coeffs,alpha=alpha,error=error)
 
-                eps_x_att=alpha*SQRT(pw_integral_aa_fast(p,SQUARE,error=error)) ! try to spare if unneded?
+                eps_x_att=alpha*SQRT(pw_integral_ab(p,p,error=error)) ! try to spare if unneded?
                 IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
              END IF
              !CALL cp_iterate(logger%iter_info,last=last,error=error)
@@ -3379,7 +3377,7 @@ CPSourceFileRef,&
 
              CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
 
-             r_z_new=pw_integral_ab_fast(r,z,error=error)
+             r_z_new=pw_integral_ab(r,z,error=error)
              beta=r_z_new/r_z
              r_z=r_z_new
 
