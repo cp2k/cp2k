@@ -60,11 +60,11 @@ MODULE rt_propagation_methods
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE rt_ls_matrix_exp,                ONLY: cp_complex_dbcsr_gemm_3
   USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                              propagate_bch,&
                                              propagate_exp,&
                                              propagate_exp_density
-  USE rt_ls_matrix_exp,                ONLY: cp_complex_dbcsr_gemm_3
   USE rt_propagation_output,           ONLY: report_density_occupation,&
                                              rt_convergence,&
                                              rt_convergence_density
