@@ -648,7 +648,7 @@ CONTAINS
 
        map_info => nhc%map_info
        ! Sum up the number of degrees of freedom on each thermostat.
-       ! first: initialize the target
+       ! first: initialize the target, via p_kin init s_kin
        map_info%s_kin = 0.0_dp
        DO j = 1, nshell_local
           DO i = 1, 3
@@ -665,7 +665,7 @@ CONTAINS
        DO i = 1, nhc%loc_num_nhc
           imap = map_info%map_index(i)
           nhc % nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin(imap)
-          nhc % nvt ( 1, i ) % degrees_of_freedom = map_info%s_kin(imap)
+          nhc % nvt ( 1, i ) % degrees_of_freedom = INT(map_info%s_kin(imap))
        END DO
 
        ! Getting the number of degrees of freedom times k_B T for the rest of the chain

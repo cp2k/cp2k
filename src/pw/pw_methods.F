@@ -1846,29 +1846,29 @@ CONTAINS
             * pw2%cr3d ( :, :, : ) )
     ELSE IF ( pw1%in_use == REALDATA3D &
          .AND. pw2%in_use == COMPLEXDATA3D ) THEN
-       integral_value = accurate_sum (  pw1%cr3d ( :, :, : )  &
-            * pw2%cc3d ( :, :, : ) )
+       integral_value = REAL(accurate_sum (  pw1%cr3d ( :, :, : )  &
+            * pw2%cc3d ( :, :, : ) ), KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA3D &
          .AND. pw2%in_use == REALDATA3D ) THEN
-       integral_value = accurate_sum ( pw1%cc3d ( :, :, : ) &
-            *  pw2%cr3d ( :, :, : ) )
+       integral_value = REAL(accurate_sum ( pw1%cc3d ( :, :, : ) &
+            *  pw2%cr3d ( :, :, : ) ), KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA3D &
          .AND. pw2%in_use == COMPLEXDATA3D ) THEN
-       integral_value = accurate_sum ( CONJG ( pw1%cc3d ( :, :, : ) ) &
-            * pw2%cc3d ( :, :, : ) )
+       integral_value = REAL(accurate_sum ( CONJG ( pw1%cc3d ( :, :, : ) ) &
+            * pw2%cc3d ( :, :, : ) ), KIND=dp) !? complex bit
 
     ELSE IF ( pw1%in_use == REALDATA1D &
          .AND. pw2%in_use == REALDATA1D ) THEN
        integral_value = accurate_sum ( pw1%cr (:) *  pw2%cr (:) )
     ELSE IF ( pw1%in_use == REALDATA1D &
          .AND. pw2%in_use == COMPLEXDATA1D ) THEN
-       integral_value = accurate_sum ( pw1%cr (:) * pw2%cc (:) )
+       integral_value = REAL(accurate_sum ( pw1%cr (:) * pw2%cc (:) ) , KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA1D &
          .AND. pw2%in_use == REALDATA1D ) THEN
-       integral_value = accurate_sum ( pw1%cc (:) * pw2%cr (:) )
+       integral_value = REAL(accurate_sum ( pw1%cc (:) * pw2%cr (:) ), KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA1D &
          .AND. pw2%in_use == COMPLEXDATA1D ) THEN
-       integral_value = accurate_sum ( CONJG ( pw1%cc (:) ) * pw2%cc (:) )
+       integral_value = REAL(accurate_sum ( CONJG ( pw1%cc (:) ) * pw2%cc (:) ), KIND=dp) !? complex bit
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
     END IF
@@ -1882,7 +1882,7 @@ CONTAINS
        IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
           integral_value = 2.0_dp * integral_value
           IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
-               CONJG ( pw1%cc ( 1 ) ) * pw2%cc ( 1 )
+               REAL(CONJG ( pw1%cc ( 1 ) ) * pw2%cc ( 1 ), KIND=dp)
        END IF
     END IF
 

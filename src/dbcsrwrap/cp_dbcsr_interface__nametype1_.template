@@ -348,8 +348,6 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_[nametype1]', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: prnt = .FALSE., &
-                                                verify = .FALSE.
 
     CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
                                                 trans_b
@@ -379,21 +377,6 @@
     ENDIF
     IF (new_b_is_new) THEN
        CALL cp_dbcsr_release (new_b, error=error)
-    ENDIF
-    IF (prnt) THEN
-       CALL cp_dbcsr_print (matrix_c, matlab_format=.TRUE.,&
-            variable_name="mpo", error=error)
-    ENDIF
-    IF (verify) cs_b = cp_dbcsr_checksum (matrix_c, error=error)
-
-    IF (verify) THEN
-       WRITE(*,'(A,4(1X,E9.3))')routineN//" checksums", cs_c, cs_b,&
-            cs_c-cs_b, ABS(cs_c-cs_b)/cs_b
-       WRITE(*,*)routineN//" multiply type",&
-            trans_a//shape_a//'_'&
-            //trans_b//shape_b
-
-       IF (ABS(cs_c-cs_b) .GT. 0.00001) STOP "Bad multiply"
     ENDIF
   END SUBROUTINE cp_dbcsr_multiply_[nametype1]
 

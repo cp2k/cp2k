@@ -647,7 +647,7 @@ CONTAINS
     ! translate cell
     DO ix=1,3
        delta(ix) = rt(ix)/dr(ix)
-       id(ix) = delta(ix)
+       id(ix) = INT(delta(ix))
        delta(ix) = rt(ix) - id(ix) * dr(ix)
     END DO
 
