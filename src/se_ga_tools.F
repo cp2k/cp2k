@@ -1129,9 +1129,9 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       idy = 1
       idz = 1
       DO i = ifac, 1, -1
-        ix = xdim / idx
-        iy = ydim / idy
-        iz = zdim / idz
+        ix = INT (xdim / idx)
+        iy = INT (ydim / idy)
+        iz = INT (zdim / idz)
         IF (ix>=iy.and.ix>=iz.and.ix>1) THEN
           idx = fac(i)*idx
         ELSEIF (iy>=ix.and.iy>=iz.and.iy>1) THEN

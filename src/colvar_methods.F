@@ -3067,7 +3067,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm_calc2
-    INTEGER                                  :: i, ii, j, jj, l, lmm, lpm, m, &
+    INTEGER                                  :: i, ii, j, jj, l, m, &
                                                 n_atoms_from, n_atoms_to
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: alpha, bond, costheta, dplm, dylm, exp_fac, fact, fi, &
@@ -3137,14 +3137,12 @@ CPSourceFileRef)
                 CALL stop_program(routineN,moduleN,__LINE__,&
                                   "(l-m) > maxfac")
              END IF
-             lmm = fac(l-m)
-             lpm = fac(l+m)
              bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r_tmp - rcut)))
              IF (bond > 1.0_dp) THEN
                 CALL stop_program(routineN,moduleN,__LINE__,&
                                   "bond > 1.0_dp")
              END IF
-             pre_fac = bond*SQRT(((2*l+1)*lmm)/(4*pi*lpm))
+             pre_fac = bond*SQRT(((2*l+1)*fac(l-m))/(4*pi*fac(l+m)))
              IF (plm < 0.0_dp) THEN
                 dylm = -pre_fac*dplm
              ELSE
@@ -3153,7 +3151,7 @@ CPSourceFileRef)
              ylm_calc = pre_fac*plm*(CMPLX(COS(m*fi),SIN(m*fi),KIND=dp))
              ylm = ylm + ylm_calc
              ylm_calc2 = pre_fac/bond*plm*(CMPLX(COS(m*fi),SIN(m*fi),KIND=dp))
-             ymag = (SQRT(ylm_calc2*CONJG(ylm_calc2)))
+             ymag = (SQRT(REAL(ylm_calc2*CONJG(ylm_calc2),KIND=dp)))
              ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
              grad(1) = grad(1) - dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
              grad(2) = grad(2) - dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
@@ -3175,7 +3173,7 @@ CPSourceFileRef)
           ylm = ylm/nbond
           grad(:) = grad(:)/nbond
           grad_nb(:) = grad_nb(:)/nbond
-          ymag1 = ylm*CONJG(ylm)
+          ymag1 = REAL(ylm*CONJG(ylm),KIND=dp)
           qlm = qlm + fact*ymag1
           grad_tot(:) = grad_tot(:) + fact*grad(:)
           grad_nb_tot(:) = grad_nb_tot(:) + fact*grad_nb(:)

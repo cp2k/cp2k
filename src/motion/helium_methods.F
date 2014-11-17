@@ -303,7 +303,7 @@ MODULE helium_methods
                  END IF
               ELSE ! ( expl_dens .AND. .NOT. expl_nats )
                  ! calculate the nearest number of atoms for given conditions
-                 helium%atoms = ANINT(helium%density * &
+                 helium%atoms = NINT(helium%density * &
                                 helium%cell_size**3.0_dp / cgeof)
                  ! adjust cell size to maintain correct density
                  ! (should be a small correction)
@@ -380,7 +380,7 @@ MODULE helium_methods
        msg_str = "BISECTION should be integer power of 2."
        CALL cp_assert(tcheck<100.0_dp*EPSILON(0.0_dp),cp_failure_level,&
             cp_assertion_failed, routineP, msg_str)
-       helium%bisctlog2 = ANINT(LOG(REAL(itmp))/LOG(2.0_dp))
+       helium%bisctlog2 = NINT(LOG(REAL(itmp,KIND=dp))/LOG(2.0_dp))
 
        ! hard coded He4 directly (mass so i get my original hb2m value)
        ! He4 mass defined as a constant in helium_types.F now [lwalewski]

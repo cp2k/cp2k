@@ -154,9 +154,9 @@ MODULE pint_public
     END IF
 
     ! if number of beads is not a power of 2 return
-    nlevels = ANINT(LOG(REAL(n,dp))/LOG(2.0_dp))
+    nlevels = NINT(LOG(REAL(n,KIND=dp))/LOG(2.0_dp))
     rtmp = 2**nlevels
-    tcheck=ABS(REAL(n,dp)-rtmp)
+    tcheck=ABS(REAL(n,KIND=dp)-rtmp)
     IF ( tcheck>100.0_dp*EPSILON(0.0_dp) ) THEN
       RETURN
     END IF

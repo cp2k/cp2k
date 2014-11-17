@@ -178,7 +178,7 @@ MODULE helium_sampling
       ! (this is needed to sample different fragments of the permutation
       ! paths in try_permutations)
       rnd = next_random_number(helium%rng_stream_uniform,error=error)
-      nslices = rnd * helium%beads
+      nslices = INT(rnd * helium%beads)
       CALL helium_rotate(helium,nslices,error)
 
       CALL helium_try_permutations(helium,pint_env,error)
