@@ -514,6 +514,12 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: xc_pot_none = 1000,&
                                               xc_pot_saop = 1001
 
+  ! Hirschfeld partitioning
+  INTEGER, PARAMETER, PUBLIC               :: shape_function_gaussian=1,&
+                                              shape_function_density=2
+  INTEGER, PARAMETER, PUBLIC               :: ref_charge_atomic=100,&
+                                              ref_charge_mulliken=200
+
   ! X-Ray spectra Calculation
   INTEGER, PARAMETER, PUBLIC               :: xas_none=0,&
                                               xas_tp_hh=1,&

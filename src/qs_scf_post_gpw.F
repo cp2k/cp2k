@@ -53,10 +53,20 @@ MODULE qs_scf_post_gpw
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE f77_blas
   USE hfx_ri_gemopt,                   ONLY: geminal_optimize
+  USE hirschfeld_methods,              ONLY: comp_hirschfeld_charges,&
+                                             comp_hirschfeld_i_charges,&
+                                             create_shape_function,&
+                                             write_hirschfeld_charges
+  USE hirschfeld_types,                ONLY: create_hirschfeld_type,&
+                                             hirschfeld_type,&
+                                             release_hirschfeld_type,&
+                                             set_hirschfeld_info
   USE input_constants,                 ONLY: do_loc_both,&
                                              do_loc_homo,&
                                              do_loc_lumo,&
                                              ot_precond_full_all,&
+                                             ref_charge_atomic,&
+                                             ref_charge_mulliken,&
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_ivals,&
@@ -76,6 +86,7 @@ MODULE qs_scf_post_gpw
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE moments_utils,                   ONLY: get_reference_point
+  USE mulliken,                        ONLY: mulliken_charges
   USE orbital_pointers,                ONLY: indso
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -141,6 +152,9 @@ MODULE qs_scf_post_gpw
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_pdos,                         ONLY: calculate_projected_dos
   USE qs_resp,                         ONLY: resp_fit
+  USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
+                                             mpole_rho_atom,&
+                                             rho0_mpole_type
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
@@ -2865,11 +2879,140 @@ CONTAINS
           CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
        END IF
 
+       ! Compute the Hirschfeld charges
+       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSCHFELD", error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%HIRSCHFELD",extension=".hirschfeld",&
+                                       middle_name="",log_filename=.FALSE.,error=error)
+          CALL hirschfeld_charges(qs_env,print_key,unit_nr,error)
+          CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%HIRSCHFELD",error=error)
+       END IF
+
     END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_free_results
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param input_section ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE hirschfeld_charges(qs_env,input_section,unit_nr,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: input_section
+    INTEGER, INTENT(IN)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'hirschfeld_charges', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iat, ikind, istat, natom, &
+                                                nkind, nspin, refc, shapef
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: do_sc, failure, paw_atom
+    REAL(KIND=dp)                            :: zeff
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+    TYPE(mpole_rho_atom), DIMENSION(:), &
+      POINTER                                :: mp_rho
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+
+    failure = .FALSE.
+
+    NULLIFY(hirschfeld_env)
+    CALL create_hirschfeld_type(hirschfeld_env,error)
+    !
+    CALL get_qs_env(qs_env,nkind=nkind,natom=natom,error=error)
+    ALLOCATE(hirschfeld_env%charges(natom),stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ! input options
+    CALL section_vals_val_get(input_section,"SELF_CONSISTENT",l_val=do_sc,error=error)
+    CALL section_vals_val_get(input_section,"SHAPE_FUNCTION",i_val=shapef,error=error)
+    CALL section_vals_val_get(input_section,"REFERENCE_CHARGE",i_val=refc,error=error)
+    CALL set_hirschfeld_info(hirschfeld_env,shape_function_type=shapef,&
+         iterative=do_sc,ref_charge=refc,error=error)
+    ! shape function
+    CALL get_qs_env(qs_env,qs_kind_set=qs_kind_set,atomic_kind_set=atomic_kind_set,error=error)
+    CALL create_shape_function(hirschfeld_env,qs_kind_set,atomic_kind_set,error)
+    ! reference charges
+    CALL get_qs_env(qs_env,rho=rho,error=error)
+    matrix_p => rho%rho_ao
+    nspin=SIZE(matrix_p)
+    ALLOCATE(charges(natom,nspin),stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    SELECT CASE (refc)
+       CASE (ref_charge_atomic)
+          DO ikind=1,nkind
+             CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
+             atomic_kind => atomic_kind_set(ikind)
+             CALL get_atomic_kind(atomic_kind,atom_list=atom_list)
+             DO iat=1,SIZE(atom_list)
+                i=atom_list(iat)
+                hirschfeld_env%charges(i) = zeff
+             END DO
+          END DO
+       CASE (ref_charge_mulliken)
+          CALL get_qs_env(qs_env,matrix_s=matrix_s,para_env=para_env,error=error)
+          CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,&
+                                charges,error)
+          DO iat=1,natom
+             hirschfeld_env%charges(iat) = SUM(charges(iat,:))
+          END DO
+       CASE DEFAULT
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Unknown type of reference charge for Hirschfeld partitioning.", &
+            error=error, error_level=cp_failure_level)
+    END SELECT
+    !
+    charges = 0.0_dp
+    IF(hirschfeld_env%iterative) THEN
+       ! Hirschfeld-I charges
+       CALL comp_hirschfeld_i_charges(qs_env,hirschfeld_env,charges,unit_nr,error)
+    ELSE
+       ! Hirschfeld charges
+       CALL comp_hirschfeld_charges(qs_env,hirschfeld_env,charges,error)
+    END IF
+    CALL get_qs_env(qs_env,particle_set=particle_set,dft_control=dft_control,error=error)
+    IF(dft_control%qs_control%gapw) THEN
+       ! GAPW: add core charges (rho_hard - rho_soft)
+       CALL get_qs_env(qs_env,rho0_mpole=rho0_mpole,error=error)
+       CALL get_rho0_mpole(rho0_mpole,mp_rho=mp_rho)
+       DO iat=1,natom
+          atomic_kind => particle_set(iat)%atomic_kind
+          CALL get_atomic_kind(atomic_kind,kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
+          IF(paw_atom) THEN
+             charges(iat,1:nspin) = charges(iat,1:nspin) + mp_rho(iat)%q0(1:nspin)
+          END IF
+       END DO
+    END IF
+    !
+    IF(unit_nr > 0) THEN
+       CALL write_hirschfeld_charges(charges,hirschfeld_env,particle_set,&
+            qs_kind_set,unit_nr,error)
+    END IF
+    !
+    CALL release_hirschfeld_type(hirschfeld_env,error)
+    DEALLOCATE(charges,stat=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE hirschfeld_charges
 
 ! *****************************************************************************
 !> \brief ...

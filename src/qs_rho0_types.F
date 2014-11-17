@@ -42,6 +42,7 @@ MODULE qs_rho0_types
                                                     Qlm_tot,&
                                                     Qlm_car
     REAL(dp)                                    ::  Qlm_z
+    REAL(dp), DIMENSION(2)                      ::  Q0
   END TYPE mpole_rho_atom
 
 ! *****************************************************************************
@@ -613,6 +614,7 @@ CONTAINS
    ELSE
       mp_rho%Qlm_z = 0.0_dp
    END IF
+   mp_rho%Q0 = 0.0_dp
 
   END SUBROUTINE initialize_mpole_rho
 
