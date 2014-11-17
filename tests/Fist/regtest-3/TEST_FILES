@@ -23,7 +23,7 @@ NaCl-H2O.inp              2
 water_2_TS.inp           25
 water_2_TS_CG.inp        25
 argon.inp                25
-2d_pot.inp                       25     1e-06
+2d_pot.inp                       25     5e-06
 #amber files
 ace_ala_nme.inp           7
 ace_ala_nme-ambconn.inp   7
