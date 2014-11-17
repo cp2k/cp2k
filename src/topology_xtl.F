@@ -286,7 +286,7 @@ CPSourceFileRef,&
                 natom = natom + 1
                 ! Resize in case needed
                 IF (natom > SIZE(atom_info%id_molname)) THEN
-                   newsize = pfactor*natom
+                   newsize = INT(pfactor*natom)
                    CALL reallocate(atom_info%id_molname,1,newsize)
                    CALL reallocate(atom_info%id_resname,1,newsize)
                    CALL reallocate(atom_info%resid,1,newsize)

@@ -971,7 +971,7 @@ MODULE mp2
                        (8*(2*dimen-occ_i)*INT(dimen,KIND=int_8)*my_J_batch_size/para_env_sub%num_pe))) &
                    ,my_I_batch_size)
     IF(max_batch_size<1) THEN
-       max_batch_size=(8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2
+       max_batch_size=INT((8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2)
        IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T73,I6,A2)') 'More memory required, at least:',max_batch_size,'MB'
        max_batch_size=1
     END IF

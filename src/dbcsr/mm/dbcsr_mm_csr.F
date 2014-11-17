@@ -207,8 +207,8 @@ MODULE dbcsr_mm_csr
     ! This has to be done here because ensure_array_size() expects a pointer.
     ! the maximum number of blocks can be safely estimated by considering both the rowxcol,
     ! but also the blocks the latter can never be larger than norec**2, which is a 'small' constant
-    max_new_nblks = MIN(INT(mf-mi+1,int_8) * INT(nf-ni+1,int_8), &
-                        INT(af-ai+1,int_8) * INT(bf-bi+1,int_8))
+    max_new_nblks = INT( MIN(INT(mf-mi+1,int_8) * INT(nf-ni+1,int_8), &
+                         INT(af-ai+1,int_8) * INT(bf-bi+1,int_8)))
 
     nblks_new = this%product_wm%lastblk + max_new_nblks
 
