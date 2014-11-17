@@ -51,7 +51,8 @@ MODULE rt_propagation_output
   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                              qs_kind_type
   USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_available_results,&
@@ -92,6 +93,7 @@ CONTAINS
 
     INTEGER                                  :: n_electrons, output_unit
     REAL(dp)                                 :: orthonormality, tot_rho_r
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: qs_tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -128,7 +130,9 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
     n_electrons = n_electrons - dft_control%charge
 
-    tot_rho_r = accurate_sum(rho%tot_rho_r)
+    CALL qs_rho_get(rho_struct=rho,tot_rho_r=qs_tot_rho_r,error=error)
+
+    tot_rho_r = accurate_sum(qs_tot_rho_r)
 
     output_unit=cp_print_key_unit_nr(logger,rtp_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".scfLog",error=error)

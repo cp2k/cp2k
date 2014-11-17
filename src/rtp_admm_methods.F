@@ -64,7 +64,8 @@ MODULE rtp_admm_methods
                                              mo_set_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_force
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -103,7 +104,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_p_aux_fit, &
                                                 matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb
+                                                matrix_s_aux_fit_vs_orb, &
+                                                rho_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -145,7 +147,8 @@ CONTAINS
 
     DO ispin=1,nspins
        matrix_p_aux_fit => rho_aux_fit%rho_ao
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
+       matrix_p => rho_ao
        CALL rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mos_aux_fit(ispin)%mo_set,&
                                   matrix_p_aux_fit(ispin)%matrix,&
                                   rho_aux_fit%rho_ao_im(ispin)%matrix,&

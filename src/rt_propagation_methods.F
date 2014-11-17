@@ -59,7 +59,8 @@ MODULE rt_propagation_methods
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE rt_ls_matrix_exp,                ONLY: cp_complex_dbcsr_gemm_3
   USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                              propagate_bch,&
@@ -788,6 +789,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, im, ncol, re
     REAL(KIND=dp)                            :: alpha
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao, rho_ao_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -805,17 +808,18 @@ CONTAINS
                     dft_control=dft_control,&
                     error=error)
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
+    CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,rho_ao_im=rho_ao_im,error=error)
     DO i=1,SIZE(mos)/2
        re=2*i-1 ; im =2*i
        alpha=3.0_dp-REAL(SIZE(mos)/2,dp)
-       CALL cp_dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rho_ao(i)%matrix,0.0_dp,error=error)
        CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
                                matrix_v=mos(re)%matrix,&
                                ncol=ncol,&
                                alpha=alpha,error=error)
        ! It is actually complex conjugate but i*i=-1 therfore it must be added
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
                         matrix_v=mos(im)%matrix,&
                         ncol=ncol,&
                         alpha=alpha,error=error)
@@ -824,7 +828,7 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env, error=error)
 
     IF(rtp%do_hfx)THEN
-       CALL calculate_P_imaginary(rtp, rho%rho_ao_im, dft_control%do_admm, error)
+       CALL calculate_P_imaginary(rtp, rho_ao_im, dft_control%do_admm, error)
     END IF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -853,7 +857,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, re
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_new
+      POINTER                                :: rho_ao, rho_new
     TYPE(cp_dbcsr_type), POINTER             :: S_minus_half, tmp, tmp2
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -871,6 +875,7 @@ CONTAINS
                    error=error)
     rtp_control=>dft_control%rtp_control
     CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+    CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
     IF(rtp_control%orthonormal) THEN
        CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error)
        ALLOCATE(tmp)
@@ -879,19 +884,19 @@ CONTAINS
        ALLOCATE(tmp2)
        CALL cp_dbcsr_init(tmp2,error=error)
        CALL cp_dbcsr_create(tmp2,template=rho_new(1)%matrix,error=error)
-       DO ispin=1,SIZE(rho%rho_ao)
+       DO ispin=1,SIZE(rho_ao)
           re = 2*ispin-1
           CALL cp_dbcsr_multiply("N","N",one,S_minus_half,rho_new(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps,error=error)
           CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,tmp2,filter_eps=rtp%filter_eps,error=error)
-          CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,zero,error=error)
-          CALL cp_dbcsr_copy_into_existing(rho%rho_ao(ispin)%matrix,tmp2,error=error)
+          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,zero,error=error)
+          CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix,tmp2,error=error)
        END DO
        CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
        CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
     ELSE
-       DO ispin=1,SIZE(rho%rho_ao)
-          CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,zero,error=error)
-          CALL cp_dbcsr_copy_into_existing(rho%rho_ao(ispin)%matrix,rho_new(ispin*2-1)%matrix,error=error)
+       DO ispin=1,SIZE(rho_ao)
+          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,zero,error=error)
+          CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix,rho_new(ispin*2-1)%matrix,error=error)
        END DO
     ENDIF
 
