@@ -147,6 +147,11 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=rtp%newton_schulz_order,error=error)
     CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
 
+    ! Hmm, not really like to initialize with the structure of S but I reckon it is
+    ! done everywhere like this
+    IF(rtp%do_hfx)&
+       CALL rtp_hfx_rebuild(qs_env,error)
+
     IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn) THEN
        CALL get_qs_env(qs_env,&
                        matrix_ks=matrix_ks,&
@@ -156,11 +161,6 @@ CONTAINS
        CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
        CALL calc_update_rho_sparse(qs_env,error)
     ENDIF
- 
-    ! Hmm, not really like to initialize with the structure of S but I reckon it is
-    ! done everywhere like this
-    IF(rtp%do_hfx)&
-       CALL rtp_hfx_rebuild(qs_env,error)
 
     IF(rtp_control%fixed_ions) THEN
        CALL init_propagation_run(qs_env,error)
