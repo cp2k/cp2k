@@ -47,7 +47,6 @@ MODULE rt_propagator_init
                                              compute_exponential_sparse,&
                                              propagate_arnoldi
   USE rt_matrix_exp,                   ONLY: get_nsquare_norder
-  USE rt_propagation_forces,           ONLY: calc_S_derivs
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
                                              calc_update_rho,&
                                              calc_update_rho_sparse,&
@@ -55,6 +54,7 @@ MODULE rt_propagator_init
                                              s_matrices_create
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
+  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"

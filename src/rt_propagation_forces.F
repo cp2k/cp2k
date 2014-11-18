@@ -16,17 +16,14 @@ MODULE  rt_propagation_forces
                                              rtp_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_get_block_p, &
-       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
+       array_i1d_obj, array_release, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
        cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_create_dist_r_unrot, dbcsr_distribution_obj, &
+       cp_dbcsr_type, dbcsr_create_dist_r_unrot, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -40,9 +37,7 @@ MODULE  rt_propagation_forces
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: one,&
                                              zero
-  USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
-  USE qs_dftb_matrices,                ONLY: build_dftb_overlap
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: add_qs_force,&
@@ -51,8 +46,7 @@ MODULE  rt_propagation_forces
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-  USE qs_overlap,                      ONLY: build_overlap_force,&
-                                             build_overlap_matrix
+  USE qs_overlap,                      ONLY: build_overlap_force
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -62,8 +56,7 @@ MODULE  rt_propagation_forces
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: calc_S_derivs, &
-            calc_c_mat_force, &
+  PUBLIC :: calc_c_mat_force, &
             rt_admm_force
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_forces'
@@ -71,167 +64,7 @@ MODULE  rt_propagation_forces
 
   CONTAINS
 
-! *****************************************************************************
-!> \brief Calculates dS/dR respectily the velocity weighted derivatves
-!>        only needed for ehrenfest MD.
-!>
-!> \param qs_env the qs environment
-!> \param error ...
-!>
-!> \par History
-!>      02.2009 created [Manuel Guidon]
-!>      02.2014 switched to dbcsr matrices [Samuel Andermatt]
-!> \author Florian Schiffmann
-! *****************************************************************************
-  SUBROUTINE calc_S_derivs(qs_env,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_S_derivs', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
-
-    INTEGER                                  :: col_atom, handle, i, j, m, &
-                                                maxder, n, nder, &
-                                                neighbor_list_id, row_atom
-    INTEGER, DIMENSION(6, 2)                 :: c_map_mat
-    LOGICAL                                  :: failure, return_s_derivatives
-    REAL(dp), DIMENSION(:), POINTER          :: block_values
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: C_mat, S_der, s_derivs
-    TYPE(cp_dbcsr_type), POINTER             :: B_mat, tmp_mat, tmp_mat2
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(rt_prop_type), POINTER              :: rtp
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-
-    return_s_derivatives=.TRUE.
-
-    NULLIFY (atomic_kind_set)
-    NULLIFY (force)
-    NULLIFY (particle_set)
-    NULLIFY (rtp)
-    NULLIFY (s_derivs)
-    NULLIFY (dft_control)
-    NULLIFY (ks_env)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    rtp=rtp,&
-                    atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set,&
-                    neighbor_list_id=neighbor_list_id,&
-                    sab_orb=sab_orb,&
-                    force=force,&
-                    dft_control=dft_control,&
-                    ks_env=ks_env,&
-                    error=error)
-
-    CALL get_rtp(rtp=rtp,B_mat=B_mat,C_mat=C_mat,S_der=S_der,error=error)
-
-    nder = 2
-    maxder = ncoset(nder)
-
-    NULLIFY(tmp_mat)
-    ALLOCATE(tmp_mat)
-    CALL cp_dbcsr_init(tmp_mat,error=error)
-    CALL cp_dbcsr_create(tmp_mat,template=S_der(1)%matrix,matrix_type="N",error=error)
-
-    IF(rtp%iter<2) THEN
-       ! calculate the overlap derivative matrices
-       IF(dft_control%qs_control%dftb)THEN
-          CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
-       ELSE
-          CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=s_derivs,&
-               basis_set_id_a=use_orb_basis_set,&
-               basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
-       END IF        
-
-       NULLIFY(tmp_mat2)
-       ALLOCATE(tmp_mat2)
-       CALL cp_dbcsr_init(tmp_mat2,error=error)
-       CALL cp_dbcsr_create(tmp_mat2,template=S_der(1)%matrix,matrix_type="S",error=error)
-       DO m=1,9
-          CALL cp_dbcsr_copy(tmp_mat2,s_derivs(m+1)%matrix,error=error)
-          CALL cp_dbcsr_desymmetrize(tmp_mat2,S_der(m)%matrix,error=error)
-          CALL cp_dbcsr_scale(S_der(m)%matrix,-one,error=error) 
-          CALL cp_dbcsr_filter(S_der(m)%matrix,rtp%filter_eps,error=error)
-          !The diagonal should be zero
-          CALL cp_dbcsr_iterator_start(iter, S_der(m)%matrix)
-          DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-             CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-             IF(row_atom==col_atom) block_values=0
-          END DO
-          CALL cp_dbcsr_iterator_stop (iter) 
-       END DO
-       CALL cp_dbcsr_deallocate_matrix_set(s_derivs,error=error)
-       CALL cp_dbcsr_deallocate_matrix(tmp_mat2,error=error)
-    END IF
-
-    !calculate scalar product v(Rb)*<alpha|d/dRb beta> (B_mat), and store the first derivatives
-
-     CALL cp_dbcsr_set(B_mat,zero,error=error)
-     DO m=1,3
-       CALL cp_dbcsr_copy(tmp_mat,S_der(m)%matrix,error=error)
-       CALL cp_dbcsr_iterator_start(iter, tmp_mat)
-       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-          IF(row_atom==col_atom) block_values=0
-          block_values=block_values*particle_set(col_atom)%v(m)
-       END DO
-       CALL cp_dbcsr_iterator_stop (iter) 
-       CALL cp_dbcsr_add(B_mat,tmp_mat,one,one,error=error)
-    END DO
-    CALL cp_dbcsr_filter(B_mat,rtp%filter_eps,error=error)
-    !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
-
-    c_map_mat=0
-    n=0
-    DO j=1,3
-       DO m=j,3
-          n=n+1
-          c_map_mat(n,1)=j
-          IF(m==j)CYCLE
-          c_map_mat(n,2)=m
-       END DO
-    END DO
-
-
-    DO i=1,3
-       CALL cp_dbcsr_set(C_mat(i)%matrix,zero,error=error)
-    END DO
-    DO m=1,6
-       CALL cp_dbcsr_copy(tmp_mat,S_der(m+3)%matrix,error=error)
-       DO j=1,2
-          IF(c_map_mat(m,j)==0)CYCLE
-          CALL cp_dbcsr_add(C_mat(c_map_mat(m,j))%matrix,tmp_mat,one,one,error)
-       END DO
-    END DO
-
-    DO m=1,3
-       CALL cp_dbcsr_iterator_start(iter, C_mat(m)%matrix)
-       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-          block_values=block_values*particle_set(row_atom)%v(m)
-       END DO
-       CALL cp_dbcsr_iterator_stop (iter)
-       CALL cp_dbcsr_filter(C_mat(m)%matrix,rtp%filter_eps,error=error)
-    END DO
-
-
-    CALL cp_dbcsr_deallocate_matrix(tmp_mat,error=error)
-    CALL timestop(handle)
-  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief calculates the three additional force contributions needed in EMD
