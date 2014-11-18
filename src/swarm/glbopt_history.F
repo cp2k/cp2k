@@ -330,7 +330,7 @@ MODULE glbopt_history
     DO WHILE(low < high)
        !linear interpolation
        slope = REAL(high - low) / (history%entries(high)%p%Epot - history%entries(low)%p%Epot)
-       mid = low + slope * (Efind - history%entries(low)%p%Epot)
+       mid = low + INT(slope * (Efind - history%entries(low)%p%Epot))
        mid = MIN(MAX(mid, low), high)
 
        IF (history%entries(mid)%p%Epot < Efind) THEN

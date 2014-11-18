@@ -285,7 +285,7 @@ MODULE glbopt_mincrawl
 
    DO
       r = next_random_number(this%rng_stream, error=this%error)
-      step = r*SIZE(minima%tempdist) + 1
+      step = INT(r*SIZE(minima%tempdist)) + 1
       a = 1.0 -  2.0*ABS(minima%tempdist(step)-0.5)
       r = next_random_number(this%rng_stream, error=this%error)
       IF(r < a) EXIT
@@ -340,7 +340,7 @@ MODULE glbopt_mincrawl
     REAL(KIND=dp)                            :: temp_in_au
     INTEGER                                  :: step
 
-   step = LOG(temp_in_au*kelvin)/LOG(this%tempstep_base)
+   step = INT(LOG(temp_in_au*kelvin)/LOG(this%tempstep_base))
    !WRITE(*,*) "temp: ", temp_in_au*kelvin, this%tempstep_base
    !WRITE(*,*) "step: ", step
    IF(step > this%tempstep_max) STOP "temp2tempstep: step > tempstep_max"
