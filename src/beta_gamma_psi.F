@@ -943,7 +943,7 @@ fn_val = gamln1(t)
 RETURN
 
 20 IF (a >= 10.0e0_dp) GO TO 30
-n = a - 1.25e0_dp
+n = INT(a - 1.25e0_dp)
 t = a
 w = 1.0e0_dp
 DO i = 1, n
@@ -1224,7 +1224,7 @@ RETURN
 !                REDUCTION OF A WHEN B .LE. 1000
 
 30 IF (b > 1000.0e0_dp) GO TO 50
-n = a - 1.0e0_dp
+n = INT(a - 1.0e0_dp)
 w = 1.0e0_dp
 DO i = 1, n
   a = a - 1.0e0_dp
@@ -1238,7 +1238,7 @@ RETURN
 
 !                 REDUCTION OF B WHEN B .LT. 8
 
-40 n = b - 1.0e0_dp
+40 n = INT(b - 1.0e0_dp)
 z = 1.0e0_dp
 DO i = 1,n
   b = b - 1.0e0_dp
@@ -1249,7 +1249,7 @@ RETURN
 
 !                REDUCTION OF A WHEN B .GT. 1000
 
-50 n = a - 1.0e0_dp
+50 n = INT(a - 1.0e0_dp)
 w = 1.0e0_dp
 DO i = 1,n
   a = a - 1.0e0_dp
@@ -1514,7 +1514,7 @@ IF (ierr1 > 0) STOP "Error in BGRAT"
 w = 0.5e0_dp + (0.5e0_dp - w1)
 GO TO 220
 
-140 n = b0
+140 n = INT(b0)
 b0 = b0 - n
 IF (b0 /= 0.0e0_dp) GO TO 141
 n = n - 1
@@ -1721,7 +1721,7 @@ GO TO 70
 !         PROCEDURE FOR A0 .LT. 1 AND 1 .LT. B0 .LT. 8
 
 40 u = gamln1(a0)
-m = b0 - 1.0e0_dp
+m = INT(b0 - 1.0e0_dp)
 IF (m < 1) GO TO 50
 c = 1.0e0_dp
 DO i = 1, m
@@ -1795,8 +1795,8 @@ mu = 0
 d = 1.0e0_dp
 IF (n == 1 .OR. a < 1.0e0_dp) GO TO 10
 IF (apb < 1.1e0_dp*ap1) GO TO 10
-mu = ABS(dxparg(1))
-k = dxparg(0)
+mu = INT(ABS(dxparg(1)))
+k = INT(dxparg(0))
 IF (k < mu) mu = k
 t = mu
 d = EXP(-t)
@@ -1817,7 +1817,7 @@ GO TO 30
 IF (r < 1.0e0_dp) GO TO 40
 k = nm1
 t = nm1
-IF (r < t) k = r
+IF (r < t) k = INT(r)
 
 !          ADD THE INCREASING TERMS OF THE SERIES
 
@@ -1994,7 +1994,7 @@ RETURN
 !                ALGORITHM FOR 1 .LT. B0 .LT. 8
 
 60 u = gamln1(a0)
-n = b0 - 1.0e0_dp
+n = INT(b0 - 1.0e0_dp)
 IF (n < 1) GO TO 70
 c = 1.0e0_dp
 DO i = 1, n
@@ -2122,7 +2122,7 @@ RETURN
 !                ALGORITHM FOR 1 .LT. B0 .LT. 8
 
 60 u = gamln1(a0)
-n = b0 - 1.0e0_dp
+n = INT(b0 - 1.0e0_dp)
 IF (n < 1) GO TO 70
 c = 1.0e0_dp
 DO i = 1, n
