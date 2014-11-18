@@ -335,7 +335,8 @@ CONTAINS
        END IF
        Vol = rho%rho_r(1)%pw%pw_grid%vol
        ch_dens = 0.0_dp
-       IF (rho_tot_g%pw_grid%have_g0) ch_dens = rho_tot_g%cc(1)
+       ! should use pw_integrate 
+       IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%cc(1),KIND=dp)
        CALL mp_sum(ch_dens,logger%para_env%group)
        !
        ! Get Input Parameters
