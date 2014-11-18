@@ -532,9 +532,9 @@ CONTAINS
       z11 = mii(idim)
       z22 = mjj(idim)
       z12 = mij(idim)
-      a12 = a12 + weights ( idim ) * REAL ( CONJG ( z12 ) * ( z11 - z22 ), dp )
-      b12 = b12 + weights ( idim ) * (  z12 * CONJG ( z12 ) -  &
-            0.25_dp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) )
+      a12 = a12 + weights ( idim ) * REAL ( CONJG ( z12 ) * ( z11 - z22 ), KIND=dp )
+      b12 = b12 + weights ( idim ) * REAL ( (  z12 * CONJG ( z12 ) -  &
+            0.25_dp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) ), KIND=dp)
     END DO
     IF ( ABS ( b12 ) > 1.e-10_dp ) THEN
       ratio = -a12/b12
@@ -640,7 +640,7 @@ CONTAINS
           zii = diag(row_indices(istate),idim)
           zjj = diag(col_indices(jstate),idim)
           gradsq_ij = gradsq_ij + weights ( idim ) * &
-                     4.0_dp * ( CONJG ( zii ) * zii + CONJG ( zjj ) * zjj )
+                     4.0_dp * REAL( ( CONJG ( zii ) * zii + CONJG ( zjj ) * zjj ), KIND=dp)
         END DO
         matrix % local_data ( istate, jstate ) = gradsq_ij
       END DO
@@ -1445,7 +1445,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: rmat_recv_all
     REAL(KIND=dp)                            :: ct, func, gmax, grad, ri, rj, &
                                                 st, t1, t2, theta, tolerance, &
-                                                xlow, xstate, xup
+                                                xlow, xstate, xup, zc, zr
     TYPE(cp_fm_type), POINTER                :: rmat
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(set_c_1d_type), DIMENSION(:), &
@@ -1914,9 +1914,9 @@ CONTAINS
       DO i=ns_bound(para_env%mepos,1),  ns_bound(para_env%mepos,2)
         k = i-ns_bound(para_env%mepos,1) + 1
         DO idim = 1,dim2
-          zi=REAL(cz_ij_loc(idim)%c_array(i,k),dp)
-          zj= AIMAG(cz_ij_loc(idim)%c_array(i,k))
-          func = func + weights(idim) *(1.0_dp - (zi*zi+zj*zj))/twopi/twopi
+          zr=REAL(cz_ij_loc(idim)%c_array(i,k),dp)
+          zc=AIMAG(cz_ij_loc(idim)%c_array(i,k))
+          func = func + weights(idim) *(1.0_dp - (zr*zr+zc*zc))/twopi/twopi
         END DO
       END DO
       CALL mp_sum(func,para_env%group)
