@@ -75,7 +75,8 @@ MODULE qs_initial_guess
                                              mo_set_restrict,&
                                              set_mo_occupation
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              eigensolver_simple
   USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
@@ -215,7 +216,7 @@ CONTAINS
                     error=error)
 
     nspin=dft_control%nspins
-    p_rmpv => rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=p_rmpv, error=error)
 
     work1 => scf_env%scf_work1
     work2 => scf_env%scf_work2
@@ -953,7 +954,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                 smear=scf_control%smear,&
                                 error=error)
          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       rho%rho_ao(ispin)%matrix,&
+                                       p_rmpv(ispin)%matrix,&
                                        error=error)
        END DO
 
@@ -966,8 +967,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                cp_assertion_failed,routineP,CPSourceFileRef)
        ELSE
           ! copy gamma point density matrix guess
-          p_rmpv => rho%rho_ao
-          denmat => rho%rho_ao_kp
+          CALL qs_rho_get(rho, rho_ao=p_rmpv, rho_ao_kp=denmat, error=error)
           DO ispin=1, dft_control%nspins
              DO ic=1,SIZE(denmat,2)
                 CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)

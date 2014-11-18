@@ -61,7 +61,8 @@ MODULE dm_ls_scf_qs
                                              set_ks_env
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
   USE timings,                         ONLY: timeset,&
@@ -407,7 +408,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -420,7 +421,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
-    NULLIFY(rho)
+    NULLIFY(rho,rho_ao)
 
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
@@ -445,18 +446,20 @@ CONTAINS
                            rho=rho,&
                            error=error)
 
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
     nspin=dft_control%nspins
 
     ! create an initial atomic guess
     DO ispin=1,nspin
-       CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp,error=error)
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-          CALL calculate_mopac_dm(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
+          CALL calculate_mopac_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
                                   dft_control,particle_set, atomic_kind_set, qs_kind_set,&
                                   ispin, nspin, nelectron_spin(ispin),&
                                   para_env, error)
        ELSE
-          CALL calculate_atomic_block_dm(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, &
+          CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, &
                                          particle_set, atomic_kind_set, qs_kind_set, &
                                          ispin, nspin, nelectron_spin(ispin), &
                                          unit_nr, error)
@@ -493,18 +496,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(energy, rho)
+    NULLIFY(energy, rho, rho_ao)
     CALL timeset(routineN,handle)
 
     nspin=ls_scf_env%nspins
     CALL get_qs_env(qs_env, energy=energy, rho=rho, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     ! set the new density matrix
     DO ispin=1,nspin
-         CALL matrix_ls_to_qs(rho%rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct, error=error)
+         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct, error=error)
     END DO
 
     ! compute the corresponding KS matrix and new energy

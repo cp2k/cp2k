@@ -86,7 +86,8 @@ MODULE scptb_ks_matrix
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scptb_types,                     ONLY: &
        get_scptb_parameter, scp_vector_add, scp_vector_copy, &
        scp_vector_create, scp_vector_dot, scp_vector_mult, scp_vector_p_type, &
@@ -225,7 +226,7 @@ CONTAINS
          CPPrecondition(.NOT.do_kp,cp_failure_level,routineP,error,failure)
          ! Mulliken charges
          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,matrix_s=matrix_s,error=error)
-         matrix_p => rho%rho_ao
+         CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
          natom=SIZE(particle_set)
          ALLOCATE(charges(natom,nspins),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -447,7 +448,7 @@ CONTAINS
           END IF
           IF ( .NOT. just_energy ) THEN
             CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-            matrix_p => rho%rho_ao
+            CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
             IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
               CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                    alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
@@ -565,7 +566,7 @@ CONTAINS
 
           IF(.NOT.just_energy.OR.calculate_forces) THEN
             IF ( calculate_forces ) THEN
-               matrix_p => rho%rho_ao
+               CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
                IF (SIZE(matrix_p) == 2) THEN
                   CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                        alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
@@ -703,7 +704,7 @@ CONTAINS
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                      kind_of=kind_of, atom_of_kind=atom_of_kind)
             IF ( calculate_forces ) THEN
-               matrix_p => rho%rho_ao
+               CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
                IF (SIZE(matrix_p) == 2) THEN
                   CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                        alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
@@ -965,7 +966,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
        IF ( calculate_forces ) THEN
-          matrix_p => rho%rho_ao
+          CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
           IF (SIZE(matrix_p) == 2) THEN
              CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                   alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)

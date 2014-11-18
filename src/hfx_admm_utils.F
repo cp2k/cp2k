@@ -371,7 +371,7 @@ CONTAINS
                 matrix_ks_orb => matrix_ks_im
              END IF
 
-             rho_ao_orb => rho_orb%rho_ao_im
+             CALL qs_rho_get(rho_orb, rho_ao_im=rho_ao_orb, error=error)
 
              DO ispin = 1,mspin
                 CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&

@@ -14,6 +14,7 @@ MODULE qs_linres_epr_nablavks
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -75,7 +76,8 @@ MODULE qs_linres_epr_nablavks
                                              rho_atom_coeff,&
                                              rho_atom_type
 ! R0
-  USE qs_rho_types,                    ONLY: qs_rho_p_type,&
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_p_type,&
                                              qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
@@ -135,6 +137,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -147,7 +151,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r, rho2_r, rho_r, &
+                                                v_rspace_new, v_tau_rspace
     TYPE(pw_p_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, &
       v_coulomb_gtemp, v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, &
       v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
@@ -211,6 +216,7 @@ CONTAINS
     NULLIFY(xc_section)
     NULLIFY(input)
     NULLIFY(ks_env)
+    NULLIFY(rho_r, rho_ao, rho1_r, rho2_r)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
@@ -242,13 +248,17 @@ CONTAINS
 
     DO ispin = 1,SIZE(nablavks_set,2)
        DO idir = 1,SIZE(nablavks_set,1)
-          CALL pw_zero(nablavks_set(idir,ispin)%rho%rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(idir,ispin)%rho, rho_r=rho_r, error=error)
+          CALL pw_zero(rho_r(1)%pw, error=error)
        END DO
     END DO
 
-    pwx => nablavks_set(1,1)%rho%rho_r(1)%pw
-    pwy => nablavks_set(2,1)%rho%rho_r(1)%pw
-    pwz => nablavks_set(3,1)%rho%rho_r(1)%pw
+    CALL qs_rho_get(nablavks_set(1, 1)%rho, rho_r=rho_r, error=error)
+    pwx => rho_r(1)%pw
+    CALL qs_rho_get(nablavks_set(2, 1)%rho, rho_r=rho_r, error=error)
+    pwy => rho_r(1)%pw
+    CALL qs_rho_get(nablavks_set(3, 1)%rho, rho_r=rho_r, error=error)
+    pwz => rho_r(1)%pw
 
     roffset = -REAL(MODULO(pwx%pw_grid%npts,2),dp)*pwx%pw_grid%dr/2.0_dp
 
@@ -317,7 +327,8 @@ CONTAINS
 
     IF (gapw) THEN
        ! need to rebuild the coeff !
-       CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao,error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL calculate_rho_atom_coeff(qs_env,rho_ao,error=error)
        CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
     END IF
 
@@ -896,8 +907,9 @@ CONTAINS
     END DO
 
     DO idir = 1,3
-       CALL pw_copy(nablavks_set(idir,1)%rho%rho_r(1)%pw,nablavks_set(idir,2)%rho%rho_r(1)%pw,&
-            error=error)
+       CALL qs_rho_get(nablavks_set(idir,1)%rho, rho_r=rho1_r, error=error)
+       CALL qs_rho_get(nablavks_set(idir,2)%rho, rho_r=rho2_r, error=error)
+       CALL pw_copy(rho1_r(1)%pw,rho2_r(1)%pw,error=error)
     END DO
 
 !   -------------------------------------
@@ -938,17 +950,20 @@ CONTAINS
           CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw, error=error)
           CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) , error=error)
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(1,ispin)%rho, rho_r=rho_r, error=error)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
 
           CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw, error=error)
           CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) , error=error)
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(2,ispin)%rho, rho_r=rho_r, error=error)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
 
           CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw, error=error)
           CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) , error=error)
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(3,ispin)%rho, rho_r=rho_r, error=error)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                error=error)
@@ -967,17 +982,20 @@ CONTAINS
           CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw, error=error)
           CALL pw_derive(v_xc_gtemp%pw, (/1,0,0/) , error=error)
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(1,ispin)%rho%rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(1,ispin)%rho, rho_r=rho_r, error=error)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
 
           CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw, error=error)
           CALL pw_derive(v_xc_gtemp%pw, (/0,1,0/) , error=error)
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(2,ispin)%rho%rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(2,ispin)%rho, rho_r=rho_r, error=error)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
 
           CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw, error=error)
           CALL pw_derive(v_xc_gtemp%pw, (/0,0,1/) , error=error)
           CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw, error=error)
-          CALL pw_axpy(v_xc_rtemp%pw, nablavks_set(3,ispin)%rho%rho_r(1)%pw, error=error)
+          CALL qs_rho_get(nablavks_set(3,ispin)%rho, rho_r=rho_r, error=error)
+          CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw, error=error)
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
                error=error)
@@ -1019,7 +1037,8 @@ CONTAINS
                in_space = REALSPACE, error=error)
        DO idir = 1,3
           CALL pw_zero(wf_r%pw, error=error)
-          CALL pw_copy(nablavks_set(idir,1)%rho%rho_r(1)%pw,wf_r%pw, error=error) ! RA
+          CALL qs_rho_get(nablavks_set(idir,1)%rho, rho_r=rho_r, error=error)
+          CALL pw_copy(rho_r(1)%pw,wf_r%pw, error=error) ! RA
           filename="nablavks"
           WRITE(ext,'(a2,I1,a5)')  "_d",idir,".cube"
           unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%NABLAVKS_CUBES",&

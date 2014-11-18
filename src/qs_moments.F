@@ -73,7 +73,8 @@ MODULE qs_moments
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -847,7 +848,7 @@ CONTAINS
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: eigrmat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s, rho_ao
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, opvec
@@ -901,11 +902,12 @@ CONTAINS
        END IF
 
        NULLIFY (dft_control,rho,cell,particle_set,results,para_env,&
-                local_particles,matrix_s,mos )
+                local_particles,matrix_s,mos,rho_ao)
 
        CALL get_qs_env(qs_env,&
                        dft_control=dft_control,&
-                       rho=rho, cell=cell,&
+                       rho=rho,&
+                       cell=cell,&
                        results=results,&
                        particle_set=particle_set,&
                        qs_kind_set=qs_kind_set,&
@@ -914,6 +916,8 @@ CONTAINS
                        matrix_s=matrix_s,&
                        mos=mos,&
                        error=error)
+
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        NULLIFY ( cosmat, sinmat )
        ALLOCATE(cosmat, sinmat)
@@ -1078,7 +1082,7 @@ CONTAINS
        ! charge
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
@@ -1428,7 +1432,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: magmom, matrix_s, moments
+      POINTER                                :: magmom, matrix_s, moments, &
+                                                rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1455,7 +1460,7 @@ CONTAINS
        NULLIFY ( moments )
        CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
 
-       NULLIFY (dft_control,rho,cell,particle_set,qs_kind_set,results,para_env,matrix_s)
+       NULLIFY (dft_control,rho,cell,particle_set,qs_kind_set,results,para_env,matrix_s,rho_ao)
        CALL get_qs_env(qs_env,&
                        dft_control=dft_control,&
                        rho=rho,&
@@ -1467,6 +1472,8 @@ CONTAINS
                        matrix_s=matrix_s,&
                        error=error)
 
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
        nm = SIZE(moments)
        ALLOCATE (rmom(nm+1,3),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1477,14 +1484,14 @@ CONTAINS
 
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
        DO i = 1, SIZE(moments)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
-            CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
+            CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
             strace = strace + trace
           END DO
           rmom(i+1,1) = strace
@@ -1502,7 +1509,7 @@ CONTAINS
           DO i = 1, SIZE(magmom)
              strace = 0._dp
              DO ispin=1,dft_control%nspins
-               CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
+               CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
                strace = strace + trace
              END DO
              mmom(i) = strace

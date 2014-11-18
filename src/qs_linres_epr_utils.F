@@ -40,7 +40,7 @@ MODULE qs_linres_epr_utils
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_release
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -54,6 +54,9 @@ MODULE qs_linres_epr_utils
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set
+  USE qs_rho_types,                    ONLY: qs_rho_clear,&
+                                             qs_rho_create,&
+                                             qs_rho_set
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -104,6 +107,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -197,23 +201,14 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO i_B = 1,3
       DO idir = 1,3
-        NULLIFY(epr_env%bind_set(idir,i_B)%rho)
-        ALLOCATE(epr_env%bind_set(idir,i_B)%rho,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        epr_env%bind_set(idir,i_B)%rho%ref_count = 1
-        NULLIFY( epr_env%bind_set(idir,i_B)%rho%rho_r)
-        NULLIFY( epr_env%bind_set(idir,i_B)%rho%rho_g)
-
-        ALLOCATE(epr_env%bind_set(idir,i_B)%rho%rho_r(1),stat=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(epr_env%bind_set(idir,i_B)%rho%rho_g(1),stat=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        CALL pw_pool_create_pw(auxbas_pw_pool,&
-             epr_env%bind_set(idir,i_B)%rho%rho_r(1)%pw,&
+        NULLIFY(epr_env%bind_set(idir,i_B)%rho, rho_r, rho_g)
+        CALL qs_rho_create(epr_env%bind_set(idir,i_B)%rho, error)
+        ALLOCATE(rho_r(1), rho_g(1))
+        CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw,&
              use_data=REALDATA3D,in_space=REALSPACE,error=error)
-        CALL pw_pool_create_pw(auxbas_pw_pool,&
-             epr_env%bind_set(idir,i_B)%rho%rho_g(1)%pw,&
+        CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1)%pw,&
              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+        CALL qs_rho_set(epr_env%bind_set(idir,i_B)%rho, rho_r=rho_r, rho_g=rho_g, error=error)
       END DO
     END DO
 
@@ -222,22 +217,15 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,3
       DO ispin = 1,nspins
-        NULLIFY(epr_env%nablavks_set(idir,ispin)%rho)
-        ALLOCATE(epr_env%nablavks_set(idir,ispin)%rho,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        epr_env%nablavks_set(idir,ispin)%rho%ref_count = 1
-        NULLIFY( epr_env%nablavks_set(idir,ispin)%rho%rho_r)
-        NULLIFY( epr_env%nablavks_set(idir,ispin)%rho%rho_g)
-        ALLOCATE(epr_env%nablavks_set(idir,ispin)%rho%rho_r(1),stat=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(epr_env%nablavks_set(idir,ispin)%rho%rho_g(1),stat=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        CALL pw_pool_create_pw(auxbas_pw_pool,&
-             epr_env%nablavks_set(idir,ispin)%rho%rho_r(1)%pw,&
+        NULLIFY(epr_env%nablavks_set(idir,ispin)%rho, rho_r, rho_g)
+        CALL qs_rho_create(epr_env%nablavks_set(idir,ispin)%rho, error)
+        ALLOCATE(rho_r(1), rho_g(1))
+        CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw,&
              use_data=REALDATA3D,in_space=REALSPACE,error=error)
-        CALL pw_pool_create_pw(auxbas_pw_pool,&
-             epr_env%nablavks_set(idir,ispin)%rho%rho_g(1)%pw,&
+        CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1)%pw,&
              use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+        CALL qs_rho_set(epr_env%nablavks_set(idir,ispin)%rho, &
+                       rho_r=rho_r, rho_g=rho_g, error=error)
       END DO
     END DO
 
@@ -276,7 +264,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i_B, idir, ispin, istat
+    INTEGER                                  :: i_B, idir, ispin, istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -287,18 +275,8 @@ CONTAINS
         IF(ASSOCIATED(epr_env%nablavks_set)) THEN
            DO ispin = 1,SIZE(epr_env%nablavks_set,2)
            DO idir = 1,SIZE(epr_env%nablavks_set,1)
-              DO i=1,SIZE(epr_env%nablavks_set(idir,ispin)%rho%rho_r)
-                 CALL pw_release(epr_env%nablavks_set(idir,ispin)%rho%rho_r(i)%pw,error=error)
-              END DO
-              DO i=1,SIZE(epr_env%nablavks_set(idir,ispin)%rho%rho_g)
-                 CALL pw_release(epr_env%nablavks_set(idir,ispin)%rho%rho_g(i)%pw,error=error)
-              END DO
-              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho%rho_g,stat=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho%rho_r,stat=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              CALL qs_rho_clear(epr_env%nablavks_set(idir,ispin)%rho, error)
+              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho)
            ENDDO
            ENDDO
            DEALLOCATE(epr_env%nablavks_set,STAT=istat)
@@ -316,18 +294,8 @@ CONTAINS
         IF(ASSOCIATED(epr_env%bind_set)) THEN
            DO i_B = 1,SIZE(epr_env%bind_set,2)
            DO idir = 1,SIZE(epr_env%bind_set,1)
-              DO i=1,SIZE(epr_env%bind_set(idir,i_B)%rho%rho_r)
-                 CALL pw_release(epr_env%bind_set(idir,i_B)%rho%rho_r(i)%pw,error=error)
-              END DO
-              DO i=1,SIZE(epr_env%bind_set(idir,i_B)%rho%rho_g)
-                 CALL pw_release(epr_env%bind_set(idir,i_B)%rho%rho_g(i)%pw,error=error)
-              END DO
-              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho%rho_r,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho%rho_g,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              CALL qs_rho_clear(epr_env%bind_set(idir,i_B)%rho, error)
+              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho)
            ENDDO
            ENDDO
           DEALLOCATE(epr_env%bind_set,STAT=istat)

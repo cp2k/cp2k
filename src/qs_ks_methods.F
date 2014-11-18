@@ -135,7 +135,8 @@ MODULE qs_ks_methods
                                              mo_set_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
@@ -227,7 +228,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ks_matrix, ks_matrix_im, &
       matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_s, &
-      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, my_rho
+      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, &
+      my_rho, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -237,7 +239,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
       v_hartree_rspace, v_sic_rspace, v_spin_ddapc_rest_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
@@ -264,7 +266,7 @@ CONTAINS
          v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
          matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc, ks_env, &
-         ks_matrix, ks_matrix_im, rho, energy, rho_xc)
+         ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -298,6 +300,8 @@ CONTAINS
                     energy=energy,&
                     error=error)
 
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_ao=rho_ao, error=error)
+
     IF(PRESENT(ext_ks_matrix)) &
        ks_matrix => ext_ks_matrix
 
@@ -327,8 +331,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho%rho_r_valid,cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
 
     ! Setup the possible usage of DDAPC charges
     do_ddapc = dft_control%qs_control%ddapc_restraint.OR.&
@@ -354,8 +356,6 @@ CONTAINS
 
     IF(gapw_xc) THEN
       CPPrecondition(ASSOCIATED(rho_xc),cp_failure_level,routineP,error,failure)
-      CPPrecondition(rho_xc%rho_r_valid,cp_failure_level,routineP,error,failure)
-      CPPrecondition(rho_xc%rho_g_valid,cp_failure_level,routineP,error,failure)
     END IF
 
     ! gets the tmp grids
@@ -458,7 +458,7 @@ CONTAINS
           ! Compute the energy due to the external potential
           ee_ener=0.0_dp
           DO ispin=1,nspins
-             ee_ener=ee_ener+accurate_sum(vee%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*&
+             ee_ener=ee_ener+accurate_sum(vee%pw%cr3d*rho_r(ispin)%pw%cr3d)*&
                   vee%pw%pw_grid%dvol
           END DO
           CALL mp_sum(ee_ener, para_env%group)
@@ -469,7 +469,7 @@ CONTAINS
        ! Adds the QM/MM potential
        IF (qs_env%qmmm) THEN
           CALL qmmm_calculate_energy (qs_env=qs_env,&
-                                      rho=rho%rho_r,&
+                                      rho=rho_r,&
                                       v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
                                       qmmm_energy=energy%qmmm_el,&
                                       error=error)
@@ -585,7 +585,7 @@ CONTAINS
        IF(do_ppl .AND. calculate_forces)THEN
           CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins
-             CALL integrate_ppl_rspace(rho%rho_r(ispin),qs_env,error=error)
+             CALL integrate_ppl_rspace(rho_r(ispin),qs_env,error=error)
           END DO
        END IF
 
@@ -633,7 +633,7 @@ CONTAINS
              my_rho => ep_qs_env%dH_coeffs
           ELSE
              ! Pointing my_rho to the density matrix rho_ao
-             my_rho => rho%rho_ao
+             my_rho => rho_ao
           END IF
           CALL  sum_up_and_integrate(ks_env,qs_env,ks_matrix,rho,my_rho,vppl_rspace,&
                 v_rspace_new,v_rspace_new_aux_fit,v_tau_rspace,v_tau_rspace_aux_fit,&
@@ -668,7 +668,7 @@ CONTAINS
 
        IF(gapw .OR. gapw_xc) THEN
           ! Single atom contributions in the KS matrix ***
-          CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,calculate_forces,error=error)
+          CALL update_ks_atom(qs_env,ks_matrix,rho_ao,calculate_forces,error=error)
        ENDIF
 
        !Calculation of Mulliken restraint, if requested
@@ -744,7 +744,7 @@ CONTAINS
          ecore_ppl = 0._dp
          DO ispin=1,nspins
            ecore_ppl = ecore_ppl+&
-              SUM(vppl_rspace%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
+              SUM(vppl_rspace%pw%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
          END DO
          CALL mp_sum(ecore_ppl,para_env%group)
          energy%core = energy%core+ecore_ppl
@@ -942,12 +942,12 @@ CONTAINS
            ! Getting nuclear force contribution from the core charge density
             CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
            ! Getting electronic force contribution from fitted LRI charge density
-            matrix_p => rho%rho_ao
+            CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
             CALL calculate_lri_forces(lri_env,lri_density,qs_env,matrix_p,atomic_kind_set,error)
        END IF
 
       ENDIF
-      
+
       ! Right now we can compute the orbital derivative here, as it depends currently only on the available
       ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
       ! from this routine, notice that this part of the calculation in not linear scaling
@@ -997,6 +997,7 @@ CONTAINS
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure, my_skip
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(qs_charges_type), POINTER           :: qs_charges
 
@@ -1010,27 +1011,29 @@ CONTAINS
                     dft_control=dft_control,&
                     error=error)
 
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+
     IF (.NOT.my_skip) THEN
        IF(dft_control%qs_control%gapw) THEN
            IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
               CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
               CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw, error=error)
               CALL pw_axpy(rho_core%pw,rho_tot_gspace%pw, error=error)
-              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw, error=error)
+              CALL pw_axpy(rho_g(1)%pw,rho_tot_gspace%pw, error=error)
            ELSE
               CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
               CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw, error=error)
-              CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw, error=error)
+              CALL pw_axpy(rho_g(1)%pw,rho_tot_gspace%pw, error=error)
            END IF
        ELSE
           CALL pw_copy(rho_core%pw,rho_tot_gspace%pw, error=error)
-          CALL pw_axpy(rho%rho_g(1)%pw,rho_tot_gspace%pw, error=error)
+          CALL pw_axpy(rho_g(1)%pw,rho_tot_gspace%pw, error=error)
        END IF
     ELSE
-       CALL pw_axpy(rho%rho_g(1)%pw, rho_tot_gspace%pw, error=error)
+       CALL pw_axpy(rho_g(1)%pw, rho_tot_gspace%pw, error=error)
     END IF
     DO ispin=2, dft_control%nspins
-       CALL pw_axpy(rho%rho_g(ispin)%pw, rho_tot_gspace%pw, error=error)
+       CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw, error=error)
     END DO
     IF (.NOT.my_skip) &
          qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw,isign=-1, error=error)
@@ -1260,9 +1263,10 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: do_kpoints
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_t
+      POINTER                                :: matrix_h, matrix_t, rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrixkp_h, matrixkp_t
+      POINTER                                :: matrixkp_h, matrixkp_t, &
+                                                rho_ao_kp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(qs_energy_type), POINTER            :: energy
@@ -1270,6 +1274,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(energy, rho, dft_control, matrixkp_t, matrixkp_h, matrix_t, matrix_h)
+    NULLIFY(rho_ao, rho_ao_kp)
 
     CALL get_qs_env(qs_env,&
                     do_kpoints=do_kpoints,&
@@ -1281,15 +1286,17 @@ CONTAINS
                     matrix_h=matrix_h,&
                     error=error)
 
+    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
+
     IF (do_kpoints) THEN
        CALL get_kpoint_info(kpoints,matrix_t=matrixkp_t,matrix_h=matrixkp_h,error=error)
-       CALL calculate_ptrace(matrixkp_h,rho%rho_ao_kp,energy%core,dft_control%nspins,error)
+       CALL calculate_ptrace(matrixkp_h,rho_ao_kp,energy%core,dft_control%nspins,error)
        IF(ASSOCIATED(matrixkp_t)) & ! kinetic energy
-          CALL calculate_ptrace(matrixkp_t,rho%rho_ao_kp,energy%kinetic,dft_control%nspins,error)
+          CALL calculate_ptrace(matrixkp_t,rho_ao_kp,energy%kinetic,dft_control%nspins,error)
     ELSE
-       CALL calculate_ptrace(matrix_h,rho%rho_ao,energy%core,dft_control%nspins,error)
+       CALL calculate_ptrace(matrix_h,rho_ao,energy%core,dft_control%nspins,error)
        IF(ASSOCIATED(matrix_t)) &   ! kinetic energy
-          CALL calculate_ptrace(matrix_t,rho%rho_ao,energy%kinetic,dft_control%nspins,error)
+          CALL calculate_ptrace(matrix_t,rho_ao,energy%kinetic,dft_control%nspins,error)
     END IF
 
     CALL timestop(handle)

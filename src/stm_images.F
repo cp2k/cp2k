@@ -11,11 +11,11 @@
 !> \author Joost VandeVondele 7.2008, MI 02.2009
 ! *****************************************************************************
 MODULE stm_images
-
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_set,&
                                              cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
@@ -55,7 +55,8 @@ MODULE stm_images
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -116,6 +117,8 @@ CONTAINS
                                                 stm_biases
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: evals, occupation
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(cp_dbcsr_type), POINTER             :: stm_density_ao
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mo_arrays
@@ -137,7 +140,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
-     NULLIFY (ks_env, mos, rho, pw_env, stm_th_torb, fm_struct_tmp)
+     NULLIFY (ks_env, mos, rho, rho_ao, pw_env, stm_th_torb, fm_struct_tmp)
      NULLIFY (auxbas_pw_pool, pw_pools, stm_density_ao, mo_coeff)
 
      CALL get_qs_env(qs_env,&
@@ -146,6 +149,8 @@ CONTAINS
                      rho=rho,&
                      pw_env=pw_env,&
                      error=error)
+
+     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
      CALL section_vals_val_get(stm_section,"APPEND", l_val=append_cube,error=error)
      CALL section_vals_val_get(stm_section,"BIAS", r_vals=stm_biases,error=error)
@@ -166,7 +171,7 @@ CONTAINS
 
      ALLOCATE(stm_density_ao)
      CALL cp_dbcsr_init(stm_density_ao, error=error)
-     CALL cp_dbcsr_copy(stm_density_ao,rho%rho_ao(1)%matrix,&
+     CALL cp_dbcsr_copy(stm_density_ao,rho_ao(1)%matrix,&
           name="stm_density_ao",error=error)
 
      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&

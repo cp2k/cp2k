@@ -156,7 +156,8 @@ MODULE qs_scf_post_gpw
                                              mpole_rho_atom,&
                                              rho0_mpole_type
   USE qs_rho_atom_types,               ONLY: rho_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type
   USE qs_scf_wfn_mix,                  ONLY: wfn_mix
@@ -232,7 +233,7 @@ CONTAINS
                                                 unoccupied_evals_stm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: kinetic_m, ks_rmpv, matrix_s, &
-                                                mo_derivs
+                                                mo_derivs, rho_ao
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, &
       lumo_localized, lumo_ptr, mo_loc_history, occupied_orbs, &
       unoccupied_orbs, unoccupied_orbs_stm
@@ -272,7 +273,7 @@ CONTAINS
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo,qs_loc_env_lumo, scf_control, &
          unoccupied_orbs,unoccupied_orbs_stm,  mo_eigenvalues, unoccupied_evals, unoccupied_evals_stm,  molecule_set, mo_derivs,&
          subsys, particles, input, print_key, kinetic_m,marked_states)
-    NULLIFY(homo_localized, lumo_localized,lumo_ptr)
+    NULLIFY(homo_localized, lumo_localized,lumo_ptr, rho_ao)
 
     has_homo=.FALSE.
     has_lumo=.FALSE.
@@ -295,6 +296,7 @@ CONTAINS
             particle_set=particle_set, atomic_kind_set=atomic_kind_set, &
             qs_kind_set=qs_kind_set, error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        !    **** the kinetic energy
        IF (cp_print_key_should_output(logger%iter_info,input,&
@@ -302,7 +304,7 @@ CONTAINS
           CALL get_qs_env(qs_env,kinetic=kinetic_m,error=error)
           CPPrecondition(ASSOCIATED(kinetic_m),cp_failure_level,routineP,error,failure)
           CPPrecondition(ASSOCIATED(kinetic_m(1)%matrix),cp_failure_level,routineP,error,failure)
-          CALL calculate_ptrace(kinetic_m,rho%rho_ao,e_kin,dft_control%nspins,error)
+          CALL calculate_ptrace(kinetic_m,rho_ao,e_kin,dft_control%nspins,error)
           unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
                extension=".Log",error=error)
           IF (unit_nr>0) THEN
@@ -1714,32 +1716,47 @@ CONTAINS
                                                 nspin, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: deriv_pw, failure
+    LOGICAL                                  :: deriv_pw, drho_r_valid, &
+                                                failure, tau_r_valid
     REAL(kind=dp)                            :: cfermi, dum, elf_kernel, &
                                                 norm_drho, rho_53, udvol
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_struct_ao
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: drho_g, drho_r, rho_r, tau_g, &
-                                                tau_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: drho_g, drho_r, &
+                                                drho_struct_r, rho_r, &
+                                                rho_struct_r, tau_g, tau_r, &
+                                                tau_struct_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho_struct
 
 ! for spin restricted systems
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    NULLIFY(rho,rho_r,  drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools,tmp_g, ks_env )
+    NULLIFY(rho_struct,rho_r, drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools,tmp_g, ks_env )
+    NULLIFY(rho_struct_ao,rho_struct_r,tau_struct_r,drho_struct_r)
 
-    CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, rho=rho, error=error)
+    CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, rho=rho_struct, error=error)
+
+    CALL qs_rho_get(rho_struct,&
+                   rho_ao=rho_struct_ao,&
+                   rho_r=rho_struct_r,&
+                   tau_r=tau_struct_r,&
+                   drho_r=drho_struct_r,&
+                   tau_r_valid=tau_r_valid,&
+                   drho_r_valid=drho_r_valid,&
+                   error=error)
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                             pw_pools=pw_pools,error=error)
-    nspin = SIZE(rho%rho_r)
-    bo = rho%rho_r(1)%pw%pw_grid%bounds_local
+    nspin = SIZE(rho_struct_r)
+    bo = rho_struct_r(1)%pw%pw_grid%bounds_local
     cfermi = (3.0_dp/10.0_dp)*(pi*pi*3.0_dp)**f23
 
     ALLOCATE(rho_r(nspin),STAT=stat)
@@ -1754,25 +1771,25 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO ispin = 1,nspin
-       rho_r(ispin)%pw => rho%rho_r(ispin)%pw
-       IF (rho%tau_r_valid) THEN
-         tau_r(ispin)%pw => rho%tau_r(ispin)%pw
+       rho_r(ispin)%pw => rho_struct_r(ispin)%pw
+       IF (tau_r_valid) THEN
+         tau_r(ispin)%pw => tau_struct_r(ispin)%pw
        ELSE
          CALL pw_pool_create_pw(auxbas_pw_pool,tau_r(ispin)%pw,&
                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
          CALL pw_pool_create_pw(auxbas_pw_pool,tau_g(ispin)%pw,&
                      use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-         CALL calculate_rho_elec(matrix_p=rho%rho_ao(ispin)%matrix,&
+         CALL calculate_rho_elec(matrix_p=rho_struct_ao(ispin)%matrix,&
                rho=tau_r(ispin),&
                rho_gspace=tau_g(ispin),&
-               total_rho=dum, &  
+               total_rho=dum, &
                ks_env=ks_env, soft_valid=.FALSE., &
                compute_tau=.TRUE., error=error)
        END IF
 
-       IF(rho%drho_r_valid) THEN
+       IF(drho_r_valid) THEN
          DO idir = 1,3
-           drho_r(3*(ispin-1)+idir)%pw => rho%drho_r(3*(ispin-1)+idir)%pw
+           drho_r(3*(ispin-1)+idir)%pw => drho_struct_r(3*(ispin-1)+idir)%pw
          END DO
        ELSE
          deriv_pw = .FALSE.
@@ -1781,11 +1798,11 @@ CONTAINS
            nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
            CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g,&
                       use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-           udvol = 1.0_dp/rho%rho_r(ispin)%pw%pw_grid%dvol
+           udvol = 1.0_dp/rho_struct_r(ispin)%pw%pw_grid%dvol
            DO idir = 1,3
              CALL pw_pool_create_pw(auxbas_pw_pool,drho_r(3*(ispin-1)+idir)%pw,&
                       use_data=REALDATA3D,in_space=REALSPACE,error=error)
-             CALL pw_transfer ( rho%rho_r(ispin)%pw, tmp_g , error=error)
+             CALL pw_transfer ( rho_struct_r(ispin)%pw, tmp_g , error=error)
              CALL pw_derive ( tmp_g, nd(:,idir) , error=error)
              CALL pw_transfer (tmp_g, drho_r(3*(ispin-1)+idir)%pw , error=error)
 !              CALL pw_scale(drho_r(3*(ispin-1)+idir)%pw,udvol,error=error)
@@ -1798,7 +1815,7 @@ CONTAINS
                       use_data=REALDATA3D,in_space=REALSPACE,error=error)
              CALL pw_pool_create_pw(auxbas_pw_pool,drho_g(3*(ispin-1)+idir)%pw,&
                        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-             CALL calculate_rho_elec(matrix_p=rho%rho_ao(ispin)%matrix,&
+             CALL calculate_rho_elec(matrix_p=rho_struct_ao(ispin)%matrix,&
                   rho=drho_r(3*(ispin-1)+idir),&
                   rho_gspace=drho_g(3*(ispin-1)+idir),&
                   total_rho=dum, &
@@ -1828,11 +1845,11 @@ CONTAINS
           END DO
        END DO
 
-      IF (.NOT. rho%tau_r_valid) THEN
+      IF (.NOT. tau_r_valid) THEN
         CALL pw_pool_give_back_pw(auxbas_pw_pool,tau_r(ispin)%pw, error=error)
         CALL pw_pool_give_back_pw(auxbas_pw_pool,tau_g(ispin)%pw, error=error)
       END IF
-      IF (.NOT. rho%drho_r_valid) THEN
+      IF (.NOT. drho_r_valid) THEN
         IF(deriv_pw) THEN
           CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g, error=error)
           DO idir = 1,3
@@ -2101,6 +2118,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -2117,7 +2135,7 @@ CONTAINS
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, mo_coeff, &
          mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set,&
          particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
-         molecule_set, input, particles, subsys)
+         molecule_set, input, particles, subsys, rho_r)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -2140,6 +2158,7 @@ CONTAINS
                        subsys=subsys,&
                        error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_rho_get(rho, rho_r=rho_r, error=error)
 
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
@@ -2207,8 +2226,8 @@ CONTAINS
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
-          CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw, error=error)
-          CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp, error=error)
+          CALL pw_copy(rho_r(1)%pw,wf_r%pw, error=error)
+          CALL pw_axpy(rho_r(2)%pw,wf_r%pw,alpha=-1._dp, error=error)
           total_abs_spin_dens=pw_integrate_function(wf_r%pw,oprt="ABS", error=error)
           IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T3,A,T61,F20.10))')&
                "Integrated absolute spin density  : ",total_abs_spin_dens
@@ -2289,7 +2308,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s, matrix_vxc
+      POINTER                                :: ks_rmpv, matrix_s, &
+                                                matrix_vxc, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -2301,6 +2321,7 @@ CONTAINS
     TYPE(pw_p_type)                          :: aux_g, aux_r, &
                                                 rho_elec_gspace, &
                                                 rho_elec_rspace, wf_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core, vee
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -2320,7 +2341,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
-         atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, matrix_s, &
+         atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, matrix_s, rho_ao, rho_r,&
          dft_section, xc_section, input, particles, subsys, matrix_vxc,v_hartree_rspace, vee)
 
     logger => cp_error_get_logger(error)
@@ -2345,6 +2366,7 @@ CONTAINS
                        error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao=rho_ao, error=error)
 
        ! Print the total density (electronic + core charge)
 
@@ -2375,7 +2397,7 @@ CONTAINS
              CALL pw_transfer(rho_core%pw,wf_r%pw,error=error)
           END IF
           DO ispin=1,dft_control%nspins
-             CALL pw_axpy(rho%rho_r(ispin)%pw,wf_r%pw, error=error)
+             CALL pw_axpy(rho_r(ispin)%pw,wf_r%pw, error=error)
           END DO
           filename = "TOTAL_DENSITY"
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
@@ -2638,8 +2660,8 @@ CONTAINS
                                        use_data=REALDATA3D,&
                                        in_space=REALSPACE,&
                                        error=error)
-                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw, error=error)
-                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw, error=error)
+                CALL pw_copy(rho_r(1)%pw,rho_elec_rspace%pw, error=error)
+                CALL pw_axpy(rho_r(2)%pw,rho_elec_rspace%pw, error=error)
                 filename = "ELECTRON_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
@@ -2655,8 +2677,8 @@ CONTAINS
                      error=error),error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                          "DFT%PRINT%E_DENSITY_CUBE",error=error)
-                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw, error=error)
-                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw,alpha=-1.0_dp, error=error)
+                CALL pw_copy(rho_r(1)%pw,rho_elec_rspace%pw, error=error)
+                CALL pw_axpy(rho_r(2)%pw,rho_elec_rspace%pw,alpha=-1.0_dp, error=error)
                 filename = "SPIN_DENSITY"
                 unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                                extension=".cube",middle_name=TRIM(filename),&
@@ -2686,7 +2708,7 @@ CONTAINS
                      "The electron density is written in cube file format to the file:",&
                      TRIM(filename)
                 END IF
-                CALL cp_pw_to_cube(rho%rho_r(1)%pw,unit_nr,"ELECTRON DENSITY",&
+                CALL cp_pw_to_cube(rho_r(1)%pw,unit_nr,"ELECTRON DENSITY",&
                      particles=particles,&
                      stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
                      error=error)
@@ -2817,7 +2839,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,6,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2952,7 +2974,7 @@ CONTAINS
     CALL create_shape_function(hirschfeld_env,qs_kind_set,atomic_kind_set,error)
     ! reference charges
     CALL get_qs_env(qs_env,rho=rho,error=error)
-    matrix_p => rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
     nspin=SIZE(matrix_p)
     ALLOCATE(charges(natom,nspin),stat=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)

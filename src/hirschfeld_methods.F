@@ -16,6 +16,7 @@ MODULE hirschfeld_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE f77_blas
@@ -47,7 +48,8 @@ MODULE hirschfeld_methods
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_modify_pab_block,             ONLY: FUNC_AB
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_desc_type,&
                                              realspace_grid_type,&
@@ -226,13 +228,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: is, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, rho_r_valid
     REAL(KIND=dp)                            :: tnfun
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rhonorm
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
 
+    NULLIFY(rho_ao, rho_r)
     failure = .FALSE.
     ! normalization function on grid
     CALL calculate_hirschfeld_normalization(qs_env,hirschfeld_env,error)
@@ -244,12 +250,13 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho,error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_r=rho_r, rho_r_valid=rho_r_valid, error=error)
     CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,rhonorm%pw,use_data=REALDATA3D,error=error)
     ! loop over spins
-    DO is=1,SIZE(rho%rho_ao)
-      IF(rho%rho_r_valid) THEN
-        CALL hfun_scale(rhonorm%pw%cr3d,rho%rho_r(is)%pw%cr3d,&
+    DO is=1,SIZE(rho_ao)
+      IF(rho_r_valid) THEN
+        CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
                         hirschfeld_env%fnorm%pw%cr3d,error)
       ELSE
         CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -333,13 +340,17 @@ CONTAINS
 
     CHARACTER(len=3)                         :: yesno
     INTEGER                                  :: iat, iloop, is, natom, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, rho_r_valid
     REAL(KIND=dp)                            :: res, tnfun
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rhonorm
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
 
+    NULLIFY(rho_ao, rho_r)
     failure = .FALSE.
 
     natom = SIZE(charges,1)
@@ -350,6 +361,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho,error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_ao=rho_ao, rho_r_valid=rho_r_valid, error=error)
     CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,rhonorm%pw,use_data=REALDATA3D,error=error)
     !
@@ -361,9 +373,9 @@ CONTAINS
        tnfun = pw_integrate_function(hirschfeld_env%fnorm%pw,error=error)
        tnfun = ABS(tnfun - SUM(hirschfeld_env%charges))
        ! loop over spins
-       DO is=1,SIZE(rho%rho_ao)
-         IF(rho%rho_r_valid) THEN
-           CALL hfun_scale(rhonorm%pw%cr3d,rho%rho_r(is)%pw%cr3d,&
+       DO is=1,SIZE(rho_ao)
+         IF(rho_r_valid) THEN
+           CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
                            hirschfeld_env%fnorm%pw%cr3d,error)
          ELSE
            CALL cp_unimplemented_error(fromWhere=routineP, &

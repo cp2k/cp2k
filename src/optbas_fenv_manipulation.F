@@ -60,7 +60,8 @@ MODULE optbas_fenv_manipulation
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: uppercase
 #include "./common/cp_common_uses.f90"
@@ -242,15 +243,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(rho, dft_control)
+    NULLIFY(rho, dft_control, rho_ao)
 
     CALL qs_energies_init(qs_env,.FALSE.,error)
     CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
     DO ispin=1, dft_control%nspins
-       CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set,rho%rho_ao(ispin)%matrix,error=error)
+       CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set,rho_ao(ispin)%matrix,error=error)
     END DO
     CALL qs_rho_update_rho(rho, qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)

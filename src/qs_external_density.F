@@ -29,7 +29,8 @@ MODULE qs_external_density
   USE pw_types,                        ONLY: pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_create,&
@@ -75,10 +76,12 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_ext
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_ext_g, rho_ext_r
     TYPE(qs_rho_type), POINTER               :: rho_external
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -89,6 +92,8 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, rs_rho_ext, input, ext_den_section, rs_descs, dft_control)
+    NULLIFY(rho_ext_r, rho_ext_g, tot_rho_r_ext)
+
     CALL get_qs_env(qs_env,&
                     cell=cell,&
                     rho_external=rho_external,&
@@ -98,6 +103,12 @@ CONTAINS
                     error=error)
 
     IF (dft_control%apply_external_density) THEN
+      CALL qs_rho_get(rho_external,&
+                    rho_r=rho_ext_r,&
+                    rho_g=rho_ext_g,&
+                    tot_rho_r=tot_rho_r_ext,&
+                    error=error)
+
       gridlevel_info=>pw_env%gridlevel_info
 
       CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
@@ -116,9 +127,9 @@ CONTAINS
                                                     error=error)
       CALL section_vals_val_get(ext_den_section,"FILE_DENSITY",c_val=filename,error=error)
 
-      gid     = rho_external%rho_r(1)%pw%pw_grid%para%group
-      my_rank = rho_external%rho_r(1)%pw%pw_grid%para%my_pos
-      num_pe  = rho_external%rho_r(1)%pw%pw_grid%para%group_size   
+      gid     = rho_ext_r(1)%pw%pw_grid%para%group
+      my_rank = rho_ext_r(1)%pw%pw_grid%para%my_pos
+      num_pe  = rho_ext_r(1)%pw%pw_grid%para%group_size
       tag     = 1
 
       IF (dft_control%read_external_density) THEN
@@ -130,9 +141,9 @@ CONTAINS
         lbounds = rs_descs(igrid_level)%rs_desc%lb
         ubounds = rs_descs(igrid_level)%rs_desc%ub
 
-        npoints_local = rho_external%rho_r(1)%pw%pw_grid%npts_local  
-        lbounds_local = rho_external%rho_r(1)%pw%pw_grid%bounds_local(1,:)
-        ubounds_local = rho_external%rho_r(1)%pw%pw_grid%bounds_local(2,:)
+        npoints_local = rho_ext_r(1)%pw%pw_grid%npts_local  
+        lbounds_local = rho_ext_r(1)%pw%pw_grid%bounds_local(1,:)
+        ubounds_local = rho_ext_r(1)%pw%pw_grid%bounds_local(2,:)
         
 !        IF ( my_rank .eq. 0 ) THEN
 !          WRITE(*,*) my_rank,npoints, lbounds, ubounds
@@ -200,13 +211,11 @@ CONTAINS
       ENDIF
 
 
-      CALL density_rs2pw(pw_env,rs_rho_ext,rho=rho_external%rho_r(1),&
-                         rho_gspace=rho_external%rho_g(1),error=error)
-      rho_external%tot_rho_r(1) = pw_integrate_function(rho_external%rho_r(1)%pw,&
-                                                        isign=1,error=error)
+      CALL density_rs2pw(pw_env,rs_rho_ext,rho=rho_ext_r(1),rho_gspace=rho_ext_g(1),error=error)
+      tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw,isign=1,error=error)
       IF (my_rank == 0) THEN
         WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ",&
-               rho_external%tot_rho_r(1)
+               tot_rho_r_ext(1)
       ENDIF
       DEALLOCATE(buffer,rs_rho_ext)
       CALL mp_sync(gid)

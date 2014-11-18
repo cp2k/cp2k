@@ -30,7 +30,8 @@ MODULE qs_scf_post_scptb
   USE population_analyses,             ONLY: mulliken_population_analysis
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
   USE timings,                         ONLY: timeset,&
@@ -94,7 +95,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
+      POINTER                                :: ks_rmpv, matrix_s, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -109,7 +110,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(dft_control, rho, ks_rmpv, input, para_env)
+    NULLIFY(dft_control, rho, ks_rmpv, input, para_env, rho_ao)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -127,6 +128,7 @@ CONTAINS
                        subsys=subsys,&
                        para_env=para_env,&
                        error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        print_section => section_vals_get_subs_vals(dft_section,"PRINT",error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
@@ -183,7 +185,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,input,"AO_MATRICES/DENSITY",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,6,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,"AO_MATRICES/DENSITY",error=error)

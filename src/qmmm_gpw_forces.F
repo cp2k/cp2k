@@ -72,7 +72,8 @@ MODULE qmmm_gpw_forces
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -122,6 +123,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -139,7 +141,7 @@ CONTAINS
     periodic = qmmm_env%periodic
     IF (PRESENT(calc_force)) need_f = calc_force
     NULLIFY(dft_control, ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,&
-            Forces_added_charges,input_section,rho0_s_gs)
+            Forces_added_charges,input_section,rho0_s_gs, rho_r)
     CALL get_qs_env(qs_env=qs_env,&
          rho=rho,&
          rho_core=rho_core,&
@@ -150,6 +152,9 @@ CONTAINS
          rho0_s_gs=rho0_s_gs,&
          dft_control=dft_control,&
          error=error)
+
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+
     logger => cp_error_get_logger(error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
     interp_section => section_vals_get_subs_vals(input_section,"QMMM%INTERPOLATOR",error=error)
@@ -245,8 +250,8 @@ CONTAINS
        END IF
        IF (need_f) THEN
           !
-          DO ispin=1,SIZE(rho%rho_r)
-             CALL pw_axpy(rho%rho_r(ispin)%pw,rho_tot_r,error=error)
+          DO ispin=1,SIZE(rho_r)
+             CALL pw_axpy(rho_r(ispin)%pw,rho_tot_r,error=error)
           END DO
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Evaluating forces on MM atoms due to the:"
           ! Electrostatic Interaction type...

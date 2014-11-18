@@ -81,7 +81,8 @@ MODULE mp2
                                              get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
@@ -1112,7 +1113,7 @@ MODULE mp2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
@@ -1123,7 +1124,7 @@ MODULE mp2
 
     t1=m_walltime()
 
-    NULLIFY(hfx_sections, input, para_env, matrix_ks, rho)
+    NULLIFY(hfx_sections, input, para_env, matrix_ks, rho, rho_ao)
 
     CALL get_qs_env(qs_env=qs_env, &
                     input=input, &
@@ -1132,6 +1133,7 @@ MODULE mp2
                     rho=rho, &
                     matrix_ks=matrix_ks, &
                     error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
 
@@ -1150,7 +1152,7 @@ MODULE mp2
     energy%ex=0.0_dp
 
     DO irep = 1,n_rep_hf
-      CALL integrate_four_center(qs_env, matrix_ks, energy, rho%rho_ao, hfx_sections,&
+      CALL integrate_four_center(qs_env, matrix_ks, energy, rho_ao, hfx_sections,&
                                  para_env, .TRUE., irep, .TRUE.,&
                                  ispin=1, error=error, do_exx=.TRUE.)
     END DO

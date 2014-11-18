@@ -48,7 +48,8 @@ MODULE qs_gspace_mixing
                                              qs_environment_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_atom_types,               ONLY: rho_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
@@ -147,22 +148,25 @@ CONTAINS
                                                 natom, ng, nspin
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: alpha
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho_tmp
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
     failure = .FALSE.
-
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
+    NULLIFY(auxbas_pw_pool, dft_control, pw_env, rho_atom, rho_g, rho_r, tot_rho_r)
 
-    NULLIFY(auxbas_pw_pool, dft_control, pw_env, rho_atom)
     CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env,error=error)
-    nspin = SIZE(rho%rho_g,1)
-    ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
+    CALL qs_rho_get(rho, rho_g=rho_g, rho_r=rho_r, tot_rho_r= tot_rho_r, error=error)
+
+    nspin = SIZE(rho_g,1)
+    ng = SIZE(rho_g(1)%pw%pw_grid%gsq)
     CPPrecondition((ng == SIZE(mixing_store%rhoin(1)%cc)),cp_failure_level,routineP,error,failure)
 
     alpha = mixing_store%alpha
@@ -175,18 +179,18 @@ CONTAINS
                            use_data=COMPLEXDATA1D,&
                            in_space=RECIPROCALSPACE,error=error)
       CALL pw_zero(rho_tmp%pw, error=error)
-      CALL pw_copy( rho%rho_g(1)%pw, rho_tmp%pw , error=error)
-      CALL pw_axpy(rho%rho_g(2)%pw,rho%rho_g(1)%pw, 1.0_dp, error=error)
-      CALL pw_axpy(rho_tmp%pw,rho%rho_g(2)%pw, -1.0_dp, error=error)
-      CALL pw_scale(rho%rho_g(2)%pw, -1.0_dp, error=error)
+      CALL pw_copy(rho_g(1)%pw, rho_tmp%pw , error=error)
+      CALL pw_axpy(rho_g(2)%pw,rho_g(1)%pw, 1.0_dp, error=error)
+      CALL pw_axpy(rho_tmp%pw,rho_g(2)%pw, -1.0_dp, error=error)
+      CALL pw_scale(rho_g(2)%pw, -1.0_dp, error=error)
     END IF
 
     IF(scf_env%iter_count+1 <= mixing_store%nskip_mixing) THEN
       ! skip mixing
       DO ispin = 1,nspin
         DO ig = 1,ng
-!          mixing_store%rhoin_buffer(1,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
-          mixing_store%rhoin(ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+!          mixing_store%rhoin_buffer(1,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
+          mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
         END DO
       END DO
       IF(gapw) THEN
@@ -204,10 +208,10 @@ CONTAINS
       END IF
       mixing_store%iter_method= "NoMix"
       IF(nspin==2) THEN
-        CALL pw_axpy(rho%rho_g(2)%pw,rho%rho_g(1)%pw, 1.0_dp, error=error)
-        CALL pw_scale(rho%rho_g(1)%pw, 0.5_dp, error=error)
-        CALL pw_axpy(rho%rho_g(1)%pw,rho%rho_g(2)%pw, -1.0_dp, error=error)
-        CALL pw_scale(rho%rho_g(2)%pw,-1.0_dp, error=error)
+        CALL pw_axpy(rho_g(2)%pw,rho_g(1)%pw, 1.0_dp, error=error)
+        CALL pw_scale(rho_g(1)%pw, 0.5_dp, error=error)
+        CALL pw_axpy(rho_g(1)%pw,rho_g(2)%pw, -1.0_dp, error=error)
+        CALL pw_scale(rho_g(2)%pw,-1.0_dp, error=error)
         CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tmp%pw,error=error)
       END IF
       RETURN
@@ -241,19 +245,19 @@ CONTAINS
     END IF
 
     IF(nspin==2) THEN
-        CALL pw_axpy(rho%rho_g(2)%pw,rho%rho_g(1)%pw, 1.0_dp, error=error)
-        CALL pw_scale(rho%rho_g(1)%pw, 0.5_dp, error=error)
-        CALL pw_axpy(rho%rho_g(1)%pw,rho%rho_g(2)%pw, -1.0_dp, error=error)
-        CALL pw_scale(rho%rho_g(2)%pw,-1.0_dp, error=error)
+        CALL pw_axpy(rho_g(2)%pw,rho_g(1)%pw, 1.0_dp, error=error)
+        CALL pw_scale(rho_g(1)%pw, 0.5_dp, error=error)
+        CALL pw_axpy(rho_g(1)%pw,rho_g(2)%pw, -1.0_dp, error=error)
+        CALL pw_scale(rho_g(2)%pw,-1.0_dp, error=error)
       CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tmp%pw,error=error)
     END IF
 
 
     DO ispin=1,nspin
-      CALL pw_transfer(rho%rho_g(ispin)%pw,rho%rho_r(ispin)%pw, error=error)
-      rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,isign=-1,error=error)
+      CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw, error=error)
+      tot_rho_r(ispin) = pw_integrate_function(rho_r(ispin)%pw,isign=-1,error=error)
 !dbg
-!  write(*,*) 'rho int 4', ispin , rho%tot_rho_r(ispin)
+!  write(*,*) 'rho int 4', ispin , tot_rho_r(ispin)
 !dbg
     END DO
 
@@ -290,6 +294,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: alpha, f_mix
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
@@ -298,17 +303,19 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mixing_store%kerker_factor),cp_failure_level,routineP,error,failure)
 
     CALL timeset(routineN,handle)
-    NULLIFY(cc_new, dft_control)
+    NULLIFY(cc_new, dft_control, rho_g)
 
     CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
-    nspin = SIZE(rho%rho_g,1)
-    ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq)
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+
+    nspin = SIZE(rho_g,1)
+    ng = SIZE(rho_g(1)%pw%pw_grid%gsq)
 
     gapw = dft_control%qs_control%gapw
     alpha = mixing_store%alpha
 
     DO ispin = 1,nspin
-      cc_new =>  rho%rho_g(ispin)%pw%cc
+      cc_new =>  rho_g(ispin)%pw%cc
       DO ig = 1,mixing_store%ig_max ! ng
          f_mix = mixing_store%alpha*mixing_store%kerker_factor(ig)
          cc_new(ig) = (1.0_dp-f_mix)*mixing_store%rhoin(ispin)%cc(ig)+f_mix*cc_new(ig)
@@ -377,16 +384,18 @@ CONTAINS
                                                 norm_c_inv, vol
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: alpha_c, ev
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, c, c_inv
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mixing_store%res_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store%rhoin_buffer),cp_failure_level,routineP,error,failure)
-
+    NULLIFY(rho_g)
     CALL timeset(routineN,handle)
 
-    nspin = SIZE(rho%rho_g,1)
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+    nspin = SIZE(rho_g,1)
     ng = SIZE(mixing_store%res_buffer(1,1)%cc)
-    vol = rho%rho_g(1)%pw%pw_grid%vol
+    vol = rho_g(1)%pw%pw_grid%vol
 
     alpha_kerker=mixing_store%alpha
     beta=mixing_store%beta
@@ -428,7 +437,7 @@ CONTAINS
       DO ig = 1,ng
           f_mix = mixing_store%kerker_factor(ig)
  !         f_mix = 1.0_dp
-          mixing_store%res_buffer(ib,ispin)%cc(ig) = f_mix*(rho%rho_g(ispin)%pw%cc(ig)-&
+          mixing_store%res_buffer(ib,ispin)%cc(ig) = f_mix*(rho_g(ispin)%pw%cc(ig)-&
                               mixing_store%rhoin_buffer(ib,ispin)%cc(ig))
       END DO
 
@@ -451,11 +460,11 @@ CONTAINS
       IF( nb==1) THEN
         DO ig = 1,ng
            f_mix = alpha_kerker*mixing_store%kerker_factor(ig)
-           cc_mix(ig) = rho%rho_g(ispin)%pw%cc(ig) -&
+           cc_mix(ig) = rho_g(ispin)%pw%cc(ig) -&
                          mixing_store%rhoin_buffer(ib,ispin)%cc(ig)
-           rho%rho_g(ispin)%pw%cc(ig) = f_mix*cc_mix(ig)+ &
+           rho_g(ispin)%pw%cc(ig) = f_mix*cc_mix(ig)+ &
                                         mixing_store%rhoin_buffer(ib,ispin)%cc(ig)
-           mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+           mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
         END DO
       ELSE
 
@@ -498,14 +507,14 @@ CONTAINS
         IF(alpha_pulay > 0.0_dp) THEN
           DO ig = 1,ng
             f_mix = alpha_pulay*mixing_store%kerker_factor(ig)
-            rho%rho_g(ispin)%pw%cc(ig) =  f_mix*rho%rho_g(ispin)%pw%cc(ig) +&
+            rho_g(ispin)%pw%cc(ig) =  f_mix*rho_g(ispin)%pw%cc(ig) +&
                       (1.0_dp-f_mix) *cc_mix(ig)
-            mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+            mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
           END DO
         ELSE
           DO ig = 1,ng
-            rho%rho_g(ispin)%pw%cc(ig) =  cc_mix(ig)
-            mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+            rho_g(ispin)%pw%cc(ig) =  cc_mix(ig)
+            mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
           END DO
         END IF
 
@@ -565,6 +574,7 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: c, g
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
@@ -573,11 +583,13 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mixing_store%rhoin),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store%rhoin_old),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store%drho_buffer),cp_failure_level,routineP,error,failure)
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, rho_g)
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
-    nspin = SIZE(rho%rho_g,1)
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+
+    nspin = SIZE(rho_g,1)
     ng = SIZE(mixing_store%res_buffer(1,1)%cc)
 
     alpha=mixing_store%alpha
@@ -623,16 +635,16 @@ CONTAINS
     DO ispin = 1,nspin
       res_rho  = CMPLX(0.0_dp,0.0_dp,KIND=dp)
       DO ig = 1,ng
-         res_rho(ig) = rho%rho_g(ispin)%pw%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
+         res_rho(ig) = rho_g(ispin)%pw%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
       END DO
 
       IF(ib==1) THEN
         DO ig = 1,ng
           mixing_store%last_res(ispin)%cc(ig) = res_rho(ig)
           f_mix = alpha*mixing_store%kerker_factor(ig)
-          rho%rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
+          rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
           mixing_store%rhoin_old(ispin)%cc(ig) =  mixing_store%rhoin(ispin)%cc(ig)
-          mixing_store%rhoin(ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+          mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
         END DO
 
         IF(gapw) THEN
@@ -764,10 +776,10 @@ CONTAINS
             cc_mix = cc_mix - G(jb)*mixing_store%drho_buffer(jb,ispin)%cc(ig)
           END DO
           f_mix = alpha*mixing_store%kerker_factor(ig)
-          rho%rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) +&
+          rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) +&
                    f_mix * res_rho(ig) + cc_mix
           mixing_store%rhoin_old(ispin)%cc(ig) =  mixing_store%rhoin(ispin)%cc(ig)
-          mixing_store%rhoin(ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+          mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
         END DO
 
         IF(gapw) THEN
@@ -854,6 +866,7 @@ CONTAINS
       POINTER                                :: tmp_z
     TYPE(cp_1d_z_p_type), DIMENSION(:, :), &
       POINTER                                :: delta_res, u_vec, z_vec
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mixing_store%rhoin_buffer),cp_failure_level,routineP,error,failure)
@@ -861,10 +874,12 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(delta_res, u_vec, z_vec)
-    NULLIFY(fmat)
-    nspin = SIZE(rho%rho_g,1)
+    NULLIFY(fmat, rho_g)
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+
+    nspin = SIZE(rho_g,1)
     ng = SIZE(mixing_store%rhoin_buffer(1,1)%cc)
-    vol = rho%rho_g(1)%pw%pw_grid%vol
+    vol = rho_g(1)%pw%pw_grid%vol
     sqt_vol =  SQRT(vol)
     uvol = 1.0_dp/vol
     sqt_uvol =  SQRT(uvol)
@@ -923,7 +938,7 @@ CONTAINS
       ! Residual multiplied by the metrics RP_i(G) = (rho_out(G)-rho_in(G)) * P(G)
       ! Delta is the norm of the residual, measures how far we are from convergence
       DO ig = 1,ng
-         res_rho(ig) = (rho%rho_g(ispin)%pw%cc(ig) - mixing_store%rhoin_buffer(ib,ispin)%cc(ig))*sqt_uvol
+         res_rho(ig) = (rho_g(ispin)%pw%cc(ig) - mixing_store%rhoin_buffer(ib,ispin)%cc(ig))*sqt_uvol
          res_rho_p(ig) = res_rho(ig)*p_metric(ig)
          norm_ig = REAL(res_rho(ig),dp)*REAL(res_rho(ig),dp)+AIMAG(res_rho(ig))*AIMAG(res_rho(ig))
          delta = delta + norm_ig
@@ -948,9 +963,9 @@ CONTAINS
         DO ig = 1,ng
           f_mix = alpha*mixing_store%kerker_factor(ig)
 !          mixing_store%rhoin_buffer(ib,ispin)%cc(ig) = mixing_store%rhoin_buffer(ib,ispin)%cc(ig)*sqt_vol
-          rho%rho_g(ispin)%pw%cc(ig) = (mixing_store%rhoin_buffer(ib,ispin)%cc(ig) + f_mix*res_rho(ig))
-          mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
-!          rho%rho_g(ispin)%pw%cc(ig) =  rho%rho_g(ispin)%pw%cc(ig)*sqt_vol
+          rho_g(ispin)%pw%cc(ig) = (mixing_store%rhoin_buffer(ib,ispin)%cc(ig) + f_mix*res_rho(ig))
+          mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
+!          rho_g(ispin)%pw%cc(ig) =  rho_g(ispin)%pw%cc(ig)*sqt_vol
         END DO
       ELSE
         norm = 0.0_dp
@@ -1172,7 +1187,7 @@ CONTAINS
         END IF
 
         ! Overwrite the density i reciprocal space
-        rho%rho_g(ispin)%pw%cc(:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+        rho_g(ispin)%pw%cc(:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
         DO jb =1,ib-1
           norm = 0.0_dp
           DO ig= 1,ng
@@ -1188,17 +1203,17 @@ CONTAINS
 !dbg
           ! Subtract |Z_jb)><DR_jb|P|R_{iter}>
           DO ig = 1,ng
-            rho%rho_g(ispin)%pw%cc(ig) = rho%rho_g(ispin)%pw%cc(ig) - norm * z_vec(jb,ispin)%cc(ig)* sqt_vol
+            rho_g(ispin)%pw%cc(ig) = rho_g(ispin)%pw%cc(ig) - norm * z_vec(jb,ispin)%cc(ig)* sqt_vol
 
           END DO
         END DO
 
         DO ig = 1,ng
           f_mix = alpha*mixing_store%kerker_factor(ig)
-          rho%rho_g(ispin)%pw%cc(ig) =rho%rho_g(ispin)%pw%cc(ig) +&
+          rho_g(ispin)%pw%cc(ig) =rho_g(ispin)%pw%cc(ig) +&
                    mixing_store%rhoin_buffer(ib,ispin)%cc(ig) + f_mix*res_rho(ig)
-          mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
-!          rho%rho_g(ispin)%pw%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)*sqt_vol
+          mixing_store%rhoin_buffer(ibb,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
+!          rho_g(ispin)%pw%cc(ig) = rho_g(ispin)%pw%cc(ig)*sqt_vol
         END DO
       END IF  ! ib
 
@@ -1280,21 +1295,24 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: b_matrix, binv_matrix
     REAL(dp), DIMENSION(:), POINTER          :: g2
     REAL(dp), SAVE                           :: sigma_old = 1.0_dp
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(gn)
+    NULLIFY(gn, rho_g)
 
     use_zgemm = .FALSE.
     use_zgemm_rev = .TRUE.
 !   use_zgemm_rev = .FALSE.
 
     ! prepare the parameters
-    nspin = SIZE(rho%rho_g,1)
-    ng_global = rho%rho_g(1)%pw%pw_grid%ngpts
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+
+    nspin = SIZE(rho_g,1)
+    ng_global = rho_g(1)%pw%pw_grid%ngpts
     ng = SIZE(mixing_store%rhoin_buffer(1,1)%cc)
     alpha=mixing_store%alpha
 
@@ -1323,7 +1341,7 @@ CONTAINS
       gn =>  mixing_store%res_buffer(ib,ispin)%cc
       gn_norm = 0.0_dp
       DO ig = 1,ng
-        gn(ig) = (rho%rho_g(ispin)%pw%cc(ig)-mixing_store%rhoin_buffer(ib,ispin)%cc(ig))
+        gn(ig) = (rho_g(ispin)%pw%cc(ig)-mixing_store%rhoin_buffer(ib,ispin)%cc(ig))
         gn_norm = gn_norm + &
            REAL(gn(ig),dp)*REAL(gn(ig),dp) + AIMAG( gn(ig))*AIMAG( gn(ig))
       END DO
@@ -1337,9 +1355,9 @@ CONTAINS
       DO ispin = 1,nspin
         DO ig = 1,ng
           f_mix = alpha*mixing_store%kerker_factor(ig)
-          rho%rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin_buffer(1,ispin)%cc(ig) + &
+          rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin_buffer(1,ispin)%cc(ig) + &
               f_mix*mixing_store%res_buffer(1,ispin)%cc(ig)
-          mixing_store%rhoin_buffer(ib_next,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+          mixing_store%rhoin_buffer(ib_next,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
         END DO
       END DO
       CALL timestop(handle)
@@ -1406,7 +1424,7 @@ CONTAINS
     ! step and the present residual (use stored rho_in and res_buffer)
 
     ! These quantities are pre-conditioned by means of Kerker factor multipliccation
-      g2 =>rho%rho_g(1)%pw%pw_grid%gsq
+      g2 =>rho_g(1)%pw%pw_grid%gsq
 
       DO jb = 1,nb+1
         IF(jb<ib) THEN
@@ -1597,9 +1615,9 @@ CONTAINS
       IF(para_env%ionode)  WRITE(*,*) 'step ', step_size, pgn_norm,gn_norm,sigma_tilde
       DO ig = 1,ng
          prec = mixing_store%kerker_factor(ig)
-         rho%rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin_buffer(ib,ispin)%cc(ig)  &
+         rho_g(ispin)%pw%cc(ig) = mixing_store%rhoin_buffer(ib,ispin)%cc(ig)  &
               -prec*step_size*ugn(ig) +  prec*pgn(ig)! - 0.1_dp * prec* gn(ig)
-         mixing_store%rhoin_buffer(ib_next,ispin)%cc(ig) = rho%rho_g(ispin)%pw%cc(ig)
+         mixing_store%rhoin_buffer(ib_next,ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
       END DO
 
     END DO ! ispin
@@ -1938,16 +1956,19 @@ CONTAINS
                                                 g2min, kmin
     REAL(dp), DIMENSION(:), POINTER          :: g2
     REAL(dp), DIMENSION(:, :), POINTER       :: g_vec
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(g2,g_vec)
+    NULLIFY(g2,g_vec,rho_g)
     failure = .FALSE.
-    nspin = SIZE(rho%rho_g)
-    ng = SIZE(rho%rho_g(1)%pw%pw_grid%gsq,1)
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+
+    nspin = SIZE(rho_g)
+    ng = SIZE(rho_g(1)%pw%pw_grid%gsq,1)
     mixing_store%ig_max = ng
-    g2 =>rho%rho_g(1)%pw%pw_grid%gsq
-    g_vec => rho%rho_g(1)%pw%pw_grid%g
+    g2 => rho_g(1)%pw%pw_grid%gsq
+    g_vec => rho_g(1)%pw%pw_grid%g
 
     IF(mixing_store%max_gvec_exp > 0._dp) THEN
       DO ig =1,ng
@@ -1971,7 +1992,7 @@ CONTAINS
     mixing_store%kerker_factor = 1.0_dp
     mixing_store%special_metric = 1.0_dp
     ig1 = 1
-    IF (rho%rho_g(1)%pw%pw_grid%have_g0) ig1 = 2
+    IF (rho_g(1)%pw%pw_grid%have_g0) ig1 = 2
     DO ig =ig1,mixing_store%ig_max
       mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig)+beta*beta),kmin)
       mixing_store%special_metric(ig) = 1.0_dp+50.0_dp/8.0_dp*( 1.0_dp+&
@@ -1985,7 +2006,7 @@ CONTAINS
       IF(.NOT. ASSOCIATED(mixing_store%rhoin(ispin)%cc)) THEN
         ALLOCATE(mixing_store%rhoin(ispin)%cc(ng),STAT=istat)
       END IF
-      mixing_store%rhoin(ispin)%cc = rho%rho_g(ispin)%pw%cc
+      mixing_store%rhoin(ispin)%cc = rho_g(ispin)%pw%cc
 
       IF(ASSOCIATED(mixing_store%rhoin_buffer)) THEN
         IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1,ispin)%cc)) THEN
@@ -1995,7 +2016,7 @@ CONTAINS
             END DO
          END IF
          mixing_store%rhoin_buffer(1,ispin)%cc(1:ng) = &
-                       rho%rho_g(ispin)%pw%cc(1:ng)
+                       rho_g(ispin)%pw%cc(1:ng)
       END IF
       IF(ASSOCIATED(mixing_store%res_buffer)) THEN
         IF(.NOT. ASSOCIATED(mixing_store%res_buffer(1,ispin)%cc)) THEN
@@ -2008,11 +2029,11 @@ CONTAINS
     END DO
 
     IF(nspin==2) THEN
-      mixing_store%rhoin(1)%cc =  rho%rho_g(1)%pw%cc +  rho%rho_g(2)%pw%cc
-      mixing_store%rhoin(2)%cc =  rho%rho_g(1)%pw%cc -  rho%rho_g(2)%pw%cc
+      mixing_store%rhoin(1)%cc =  rho_g(1)%pw%cc +  rho_g(2)%pw%cc
+      mixing_store%rhoin(2)%cc =  rho_g(1)%pw%cc -  rho_g(2)%pw%cc
       IF(ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-        mixing_store%rhoin_buffer(1,1)%cc =  rho%rho_g(1)%pw%cc +  rho%rho_g(2)%pw%cc
-        mixing_store%rhoin_buffer(1,2)%cc =  rho%rho_g(1)%pw%cc -  rho%rho_g(2)%pw%cc
+        mixing_store%rhoin_buffer(1,1)%cc =  rho_g(1)%pw%cc +  rho_g(2)%pw%cc
+        mixing_store%rhoin_buffer(1,2)%cc =  rho_g(1)%pw%cc -  rho_g(2)%pw%cc
       END IF
     END IF
 
@@ -2117,7 +2138,7 @@ CONTAINS
          DO ig = 1,ng
              mixing_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig),1.E-10_dp)
          END DO
-         IF(rho%rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
+         IF(rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
        END IF
 
     ELSEIF(mixing_method==broyden_mixing_new_nr) THEN
@@ -2148,7 +2169,7 @@ CONTAINS
          DO ig = 1,ng
              mixing_store%p_metric(ig) = (g2(ig)+fdamp)/MAX(g2(ig),1.E-10_dp)
          END DO
-         IF(rho%rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
+         IF(rho_g(1)%pw%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
 !dbg
 !        mixing_store%p_metric = 1.0_dp
 !dbg

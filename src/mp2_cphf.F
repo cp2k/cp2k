@@ -85,6 +85,7 @@ MODULE mp2_cphf
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_get,&
                                              qs_rho_release,&
                                              qs_rho_type
   USE timings,                         ONLY: timeset,&
@@ -163,7 +164,7 @@ MODULE mp2_cphf
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mat_mu_nu, matrix_ks, &
                                                 matrix_p_mp2, matrix_s, &
-                                                matrix_w_mp2
+                                                matrix_w_mp2, rho_ao
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_back, fm_G_mu_nu, L_jb, &
                                                 mo_coeff_o, mo_coeff_v, P_ia, &
@@ -216,6 +217,8 @@ MODULE mp2_cphf
                     rho_core=rho_core,&
                     sab_orb=sab_orb,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     ! check if we have to calculate the virial
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -272,7 +275,7 @@ MODULE mp2_cphf
     CALL cp_dbcsr_init(P_mu_nu%matrix,error=error)
     ! CALL cp_dbcsr_create(P_mu_nu%matrix,template=mat_mu_nu(1)%matrix,error=error)
     ! CALL cp_dbcsr_copy(P_mu_nu%matrix,mat_mu_nu(1)%matrix,name="P_mu_nu",error=error)
-    CALL cp_dbcsr_copy(P_mu_nu%matrix,rho%rho_ao(1)%matrix,name="P_mu_nu",error=error)
+    CALL cp_dbcsr_copy(P_mu_nu%matrix,rho_ao(1)%matrix,name="P_mu_nu",error=error)
     CALL cp_dbcsr_set(P_mu_nu%matrix,0.0_dp,error=error)
 
     NULLIFY(fm_G_mu_nu, fm_struct_tmp)
@@ -541,7 +544,7 @@ MODULE mp2_cphf
     DO ispin=1, dft_control%nspins
        ALLOCATE(matrix_p_mp2(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_p_mp2(ispin)%matrix,error=error)
-       CALL cp_dbcsr_copy(matrix_p_mp2(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
+       CALL cp_dbcsr_copy(matrix_p_mp2(ispin)%matrix,rho_ao(ispin)%matrix,&
             name="P MATRIX MP2",error=error)
        CALL cp_dbcsr_set(matrix_p_mp2(ispin)%matrix,0.0_dp,error=error)
        CALL copy_fm_to_dbcsr(P_mo, matrix_p_mp2(ispin)%matrix,keep_sparsity=.TRUE.,error=error)
@@ -575,7 +578,7 @@ MODULE mp2_cphf
        force(ikind)%rho_core=0.0_dp
     ENDDO
     ! right contribution
-    CALL integrate_v_rspace(v_rspace=rho_r,p=rho%rho_ao(1),h=matrix_ks(1),&
+    CALL integrate_v_rspace(v_rspace=rho_r,p=rho_ao(1),h=matrix_ks(1),&
                             qs_env=qs_env,calculate_forces=.TRUE.,error=error)
 
     IF(use_virial) THEN
@@ -604,7 +607,7 @@ MODULE mp2_cphf
       END DO
  
       ! calculate total SCF density and potential
-      CALL calculate_rho_elec(matrix_p=rho%rho_ao(1)%matrix,&
+      CALL calculate_rho_elec(matrix_p=rho_ao(1)%matrix,&
                               rho=rho_r,&
                               rho_gspace=rho_g,&
                               total_rho=tot_rho_r,&
@@ -643,7 +646,7 @@ MODULE mp2_cphf
     END IF
 
     DO ispin=1, dft_control%nspins
-      CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
+      CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
     END DO
 
     ! release stuff
@@ -743,9 +746,11 @@ MODULE mp2_cphf
                                                 my_recalc_hfx_integrals
     REAL(KIND=dp)                            :: ex_energy, pair_energy, &
                                                 total_rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_work_ao
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    NULLIFY(ks_env)
+    NULLIFY(ks_env, rho_work_ao)
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
@@ -898,12 +903,13 @@ MODULE mp2_cphf
                             error=error)
     ! update with the exchange like contributions
     ! copy mat_mu_nu into rho_ao work
-    CALL cp_dbcsr_set(rho_work%rho_ao(1)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_copy(rho_work%rho_ao(1)%matrix,P_mu_nu%matrix,error=error)
+    CALL qs_rho_get(rho_work, rho_ao=rho_work_ao, error=error)
+    CALL cp_dbcsr_set(rho_work_ao(1)%matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_copy(rho_work_ao(1)%matrix,P_mu_nu%matrix,error=error)
     ! save old EX energy
     ex_energy=energy%ex
     DO irep=1, n_rep_hf
-      CALL integrate_four_center(qs_env, mat_mu_nu, energy, rho_work%rho_ao, hfx_sections,&
+      CALL integrate_four_center(qs_env, mat_mu_nu, energy, rho_work_ao, hfx_sections,&
                                  para_env, my_recalc_hfx_integrals, irep, .TRUE.,&
                                  ispin=1, error=error)
     END DO

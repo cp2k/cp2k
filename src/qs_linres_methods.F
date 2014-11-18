@@ -693,7 +693,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: chksum
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho1_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_rho_type), POINTER               :: rho
@@ -701,7 +701,7 @@ CONTAINS
 !
 
     failure = .FALSE.
-    NULLIFY(dft_control,matrix_ks,matrix_s,linres_control)
+    NULLIFY(dft_control,matrix_ks,matrix_s,linres_control,rho1_ao)
     !
     !
     CALL timeset(routineN,handle)
@@ -745,8 +745,9 @@ CONTAINS
 
           CALL p_env_check_i_alloc(p_env,qs_env,error)
 
+          CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao, error=error)
           DO ispin = 1,nspins
-             CALL cp_dbcsr_copy(p_env%rho1%rho_ao(ispin)%matrix,p_env%p1(ispin)%matrix,error=error)
+             CALL cp_dbcsr_copy(rho1_ao(ispin)%matrix,p_env%p1(ispin)%matrix,error=error)
           ENDDO
 
              CALL qs_rho_update_rho(rho_struct=p_env%rho1,local_rho_set=p_env%local_rho_set,&
@@ -909,6 +910,8 @@ CONTAINS
                                                 lr_triplet, lsd
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho1_ao, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -916,8 +919,9 @@ CONTAINS
     TYPE(pw_p_type)                          :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g_pw, rho1_r, rho1_r_pw, &
-                                                tau_pw, v_rspace_new, v_xc
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g, rho1_g_pw, rho1_r, &
+                                                rho1_r_pw, tau_pw, &
+                                                v_rspace_new, v_xc
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -932,8 +936,8 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-            rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set,&
-            poisson_env, input, scf_section,rho,dft_control,logger)
+            rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, rho1_ao, rho_ao, &
+            poisson_env, input, scf_section,rho,dft_control,logger, rho1_g)
     logger => cp_error_get_logger(error)
 
     energy_hartree=0.0_dp
@@ -962,6 +966,8 @@ CONTAINS
             linres_control=linres_control,&
             dft_control=dft_control,&
             error=error)
+
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        lr_triplet = linres_control%lr_triplet
        CALL kpp1_check_i_alloc(p_env%kpp1_env,qs_env,lr_triplet,error=error)
@@ -1011,9 +1017,10 @@ CONTAINS
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
 
-       CALL pw_copy(rho1%rho_g(1)%pw,rho1_tot_gspace%pw, error=error)
+       CALL qs_rho_get(rho1, rho_g=rho1_g, error=error)
+       CALL pw_copy(rho1_g(1)%pw,rho1_tot_gspace%pw, error=error)
        DO ispin=2,nspins
-          CALL pw_axpy(rho1%rho_g(ispin)%pw, rho1_tot_gspace%pw, error=error)
+          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw, error=error)
        END DO
        IF (gapw) &
             CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw,&
@@ -1143,10 +1150,11 @@ CONTAINS
                    v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
 
                 END IF
+                CALL qs_rho_get(rho1, rho_ao=rho1_ao, error=error)
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                 CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho%rho_ao(ispin),&
+                     p=rho1_ao(ispin),&
                      h=p_env%kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
@@ -1158,7 +1166,7 @@ CONTAINS
                    v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
 
                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho%rho_ao(ispin),&
+                         p=rho_ao(ispin),&
                          h=p_env%kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=.FALSE.,gapw=gapw,error=error)
@@ -1167,7 +1175,7 @@ CONTAINS
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                 CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho%rho_ao(ispin),&
+                     p=rho_ao(ispin),&
                      h=p_env%kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
@@ -1178,7 +1186,7 @@ CONTAINS
                 END IF
                 v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho%rho_ao(ispin),&
+                         p=rho_ao(ispin),&
                          h=p_env%kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=.FALSE.,gapw=gapw,error=error)
@@ -1217,7 +1225,7 @@ CONTAINS
              CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
 
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                 p=rho%rho_ao(ispin),&
+                 p=rho_ao(ispin),&
                  h=p_env%kpp1_env%v_ao(ispin),&
                  qs_env=qs_env,&
                  calculate_forces=.FALSE.,gapw=gapw,error=error)
@@ -1241,7 +1249,7 @@ CONTAINS
 
 !         ***  Add single atom contributions to the KS matrix ***
 
-          CALL update_ks_atom(qs_env,p_env%kpp1,rho%rho_ao,.FALSE.,.TRUE.,p_env,error)
+          CALL update_ks_atom(qs_env,p_env%kpp1,rho_ao,.FALSE.,.TRUE.,p_env,error)
 
        END IF
 

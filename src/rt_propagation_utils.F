@@ -48,7 +48,8 @@ MODULE  rt_propagation_utils
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE rt_propagation_methods,          ONLY: calc_update_rho_sparse
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -288,7 +289,7 @@ MODULE  rt_propagation_utils
 
     id_nr=0
     nspin=SIZE(mo_array)
-    p_rmpv => rho_struct%rho_ao
+    CALL qs_rho_get(rho_struct, rho_ao=p_rmpv, error=error)
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
     SELECT CASE(dft_control%rtp_control%initial_wfn)
     CASE(use_restart_wfn)

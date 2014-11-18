@@ -118,7 +118,9 @@ MODULE qs_collocate_density
        prepare_dab_p_adb, prepare_dadb, prepare_diadib, prepare_diiadiib, &
        prepare_dijadijb
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
+                                             qs_rho_type
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_release, &
@@ -706,6 +708,7 @@ CONTAINS
     LOGICAL                                  :: failure, map_consistent
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -719,7 +722,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace, &
+                                                rho_g, rho_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -731,8 +735,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
 
     NULLIFY(aux_basis_set, atomic_kind_set, qs_kind_set, npgfa, cell, particle_set, &
-            sphi_a, rs_rho, pw_env, cube_info, dft_control, rho, atom_list, &
-            first_sgfa, pab, work)
+            sphi_a, rs_rho, pw_env, cube_info, dft_control, rho, rho_r, rho_g, atom_list, &
+            first_sgfa, pab, work, tot_rho_r)
     NULLIFY(gridlevel_info, rs_descs, pw_pools, mgrid_gspace, mgrid_rspace)
 
     CALL timeset(routineN,handle)
@@ -743,6 +747,8 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set, pw_env=pw_env, rho=rho, &
                     dft_control=dft_control, error=error)
+
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r, error=error)
 
     cube_info => pw_env%cube_info
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -827,11 +833,11 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=rho%rho_r(1)%pw, dir=rs2pw,error=error)
+      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=rho_r(1)%pw, dir=rs2pw,error=error)
       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-      CALL pw_transfer(rho%rho_r(1)%pw, rho%rho_g(1)%pw,error=error)
-      IF (rho%rho_r(1)%pw%pw_grid%spherical) THEN
-        CALL pw_transfer(rho%rho_g(1)%pw, rho%rho_r(1)%pw,error=error)
+      CALL pw_transfer(rho_r(1)%pw, rho_g(1)%pw,error=error)
+      IF (rho_r(1)%pw%pw_grid%spherical) THEN
+        CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw,error=error)
       END IF
     ELSE
       DO igrid_level = 1,gridlevel_info%ngrid_levels
@@ -840,18 +846,18 @@ CONTAINS
          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
       END DO
 
-      CALL pw_zero(rho%rho_g(1)%pw,error=error)
+      CALL pw_zero(rho_g(1)%pw,error=error)
       DO igrid_level=1, gridlevel_info%ngrid_levels
         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
                                    mgrid_gspace(igrid_level)%pw,error=error)
-        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho%rho_g(1)%pw,&
+        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_g(1)%pw,&
              error=error)
       END DO
-      CALL pw_transfer(rho%rho_g(1)%pw, rho%rho_r(1)%pw,error=error)
+      CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw,error=error)
     END IF
 
-    total_rho = pw_integrate_function(rho%rho_r(1)%pw,isign=-1,error=error)
-    rho%tot_rho_r = total_rho
+    total_rho = pw_integrate_function(rho_r(1)%pw,isign=-1,error=error)
+    tot_rho_r(:) = total_rho
     unit_nr=cp_logger_get_default_io_unit(logger)
     IF (unit_nr>0) THEN
       WRITE (unit_nr,*) "Total Rho =", total_rho
@@ -861,8 +867,7 @@ CONTAINS
     CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace, error=error)
     CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace, error=error)
 
-    rho%rho_r_valid = .TRUE.
-    rho%rho_g_valid = .TRUE.
+    CALL qs_rho_set(rho, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
 
     CALL timestop(handle)
 

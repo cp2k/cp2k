@@ -35,7 +35,8 @@ MODULE qs_dftb3_methods
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -144,7 +145,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 kind_of=kind_of,atom_of_kind=atom_of_kind)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
        IF ( SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
@@ -200,7 +201,7 @@ CONTAINS
     spin = SIZE(ks_matrix,1) > 1
     IF ( .NOT. just_energy ) THEN
        CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,natom=natom,error=error)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
        ALLOCATE (kind_of(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)

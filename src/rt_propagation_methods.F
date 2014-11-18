@@ -60,6 +60,7 @@ MODULE rt_propagation_methods
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
                                              qs_rho_type
   USE rt_ls_matrix_exp,                ONLY: cp_complex_dbcsr_gemm_3
   USE rt_make_propagators,             ONLY: propagate_arnoldi,&
@@ -830,6 +831,7 @@ CONTAINS
     IF(rtp%do_hfx)THEN
        CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im,error=error)
        CALL calculate_P_imaginary(rtp, rho_ao_im, dft_control%do_admm, error)
+       CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
     END IF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)

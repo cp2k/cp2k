@@ -81,6 +81,7 @@ MODULE qs_wf_history_methods
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type
@@ -635,7 +636,8 @@ END FUNCTION wfi_get_method_label
                                                 use_overlap
     REAL(KIND=dp)                            :: alpha, t0, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s, rho_ao, &
+                                                rho_frozen_ao
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
@@ -648,7 +650,7 @@ END FUNCTION wfi_get_method_label
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
     NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, &
-         rho, rho_xc)
+         rho, rho_xc, rho_ao, rho_frozen_ao)
     failure=.FALSE.
 
     use_overlap = wf_history%store_overlap
@@ -668,7 +670,7 @@ END FUNCTION wfi_get_method_label
             error=error)
        CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)
-
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
        ! chooses the method for this extrapolation
        IF (wf_history%snapshot_count<1) THEN
           actual_extrapolation_method_nr=wfi_use_guess_method_nr
@@ -703,9 +705,10 @@ END FUNCTION wfi_get_method_label
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
-          DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
-                             t0_state%rho_frozen%rho_ao(ispin)%matrix,&
+          CALL qs_rho_get(t0_state%rho_frozen, rho_ao=rho_frozen_ao, error=error)
+          DO ispin=1,SIZE(rho_frozen_ao)
+             CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
+                             rho_frozen_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
           END DO
@@ -722,12 +725,12 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
           END DO
-          rho%rho_g_valid=.TRUE.
+          CALL qs_rho_set(rho, rho_g_valid=.TRUE., error=error)
 
           ! does nothing
        CASE(wfi_use_prev_wf_method_nr)
@@ -742,7 +745,7 @@ END FUNCTION wfi_get_method_label
                   v_matrix=mo_coeff,&
                   n_col=nmo, error=error)
              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                  density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                  density_matrix=rho_ao(ispin)%matrix,error=error)
           END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
@@ -754,7 +757,7 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
@@ -805,7 +808,7 @@ END FUNCTION wfi_get_method_label
                      v_matrix=mo_coeff,&
                      n_col=nmo, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                     density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                     density_matrix=rho_ao(ispin)%matrix,error=error)
              END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env,  error=error)
 
@@ -828,10 +831,10 @@ END FUNCTION wfi_get_method_label
             t0=0.0_dp
             t1=t1_state%dt
             t2=t1+dt
-            DO ispin=1,SIZE(rho%rho_ao)
-               CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
+            DO ispin=1,SIZE(rho_ao)
+               CALL cp_dbcsr_add(rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
                     alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0),error=error) ! this copy should be unnecessary
-               CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
+               CALL cp_dbcsr_add(rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
                     alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0),error=error)
             END DO
             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -895,7 +898,7 @@ END FUNCTION wfi_get_method_label
                      v_matrix=mo_coeff,&
                      n_col=k, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                     density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                     density_matrix=rho_ao(ispin)%matrix,error=error)
              END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
              CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
@@ -954,7 +957,7 @@ END FUNCTION wfi_get_method_label
                   v_matrix=mo_coeff,&
                   n_col=k, error=error)
              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                  density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                  density_matrix=rho_ao(ispin)%matrix,error=error)
           END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
@@ -1031,7 +1034,7 @@ END FUNCTION wfi_get_method_label
                                               n_col=k,&
                                               error=error)
           CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                                        density_matrix=rho%rho_ao(ispin)%matrix,&
+                                        density_matrix=rho_ao(ispin)%matrix,&
                                         error=error)
         END DO
         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)

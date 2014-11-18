@@ -121,7 +121,8 @@ MODULE qs_core_hamiltonian
                                              create_oce_set,&
                                              oce_matrix_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -274,7 +275,7 @@ CONTAINS
        IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
 
        CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
        IF (do_ep) THEN
           IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN

@@ -31,7 +31,8 @@ MODULE surface_dipole
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -86,6 +87,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: vdip_r, wf_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -97,7 +99,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
-             pw_pools,subsys,v_hartree_rspace)
+             pw_pools,subsys,v_hartree_rspace,rho_r)
 
       CALL get_qs_env(qs_env,&
                       dft_control=dft_control,&
@@ -127,14 +129,14 @@ CONTAINS
       ELSE
           CALL pw_transfer(rho_core%pw,wf_r%pw,error=error)
       END IF
+      CALL qs_rho_get(rho, rho_r=rho_r, error=error)
       DO ispin=1,dft_control%nspins
-          CALL pw_axpy(rho%rho_r(ispin)%pw,wf_r%pw, error=error)
+          CALL pw_axpy(rho_r(ispin)%pw,wf_r%pw, error=error)
       END DO
 
       ngrid(1:3) = wf_r%pw%pw_grid%npts(1:3)
       idir_surfdip = dft_control%dir_surf_dip
 
-      
       DO i = 1,3
        IF(i /= idir_surfdip) THEN
            IF(ABS(wf_r%pw%pw_grid%dh(idir_surfdip,i)) > 1.E-7_dp) THEN

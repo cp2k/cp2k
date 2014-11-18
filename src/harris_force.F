@@ -127,7 +127,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: rho_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: harris_rho_g, harris_rho_r, &
+                                                my_rho_r, rho_g, rho_r, &
                                                 v_rspace_new, v_tau_rspace, &
                                                 v_xc
     TYPE(pw_p_type), POINTER                 :: rho_core
@@ -151,7 +152,8 @@ CONTAINS
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, para_env,&
-            v_xc, harris_force, rho_r, ks_env, poisson_env, input, rho_ao, subsys)
+            v_xc, harris_force, rho_r, rho_g, ks_env, poisson_env, input, rho_ao, subsys,&
+            harris_rho_g, harris_rho_r)
 
     logger => cp_error_get_logger(error)
 
@@ -173,6 +175,8 @@ CONTAINS
                       subsys=subsys,&
                       para_env=para_env,&
                       error=error)
+
+      CALL qs_rho_get(harris_env%rho, rho_g=harris_rho_g, rho_r=harris_rho_r, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -233,6 +237,7 @@ CONTAINS
                       ks_env=ks_env,&
                       matrix_ks=matrix_ks,&
                       error=error)
+      CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, rho_ao=rho_ao, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -249,7 +254,7 @@ CONTAINS
       ! *** Calculation of the forces due to the Hartree energy *** !
       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw,error=error)
       DO ispin = 1,nspins
-        CALL pw_axpy(harris_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
+        CALL pw_axpy(harris_rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
         ! old code seems to be wrong for spin polarized case
         ! CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
@@ -262,8 +267,6 @@ CONTAINS
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
-
-      rho_ao => rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -288,11 +291,10 @@ CONTAINS
       CALL zero_qs_force(force,error)
 
       ! *** Calculation of the forces of the xc-integral *** !
-      CALL qs_rho_get(rho_struct=rho, rho_r=rho_r, error=error)
       ALLOCATE(my_rho_r(SIZE(rho_r)), stat=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
       DO ispin=1, SIZE(rho_r)
-        my_rho_r(ispin)%pw => harris_env%rho%rho_r(ispin)%pw
+        my_rho_r(ispin)%pw => harris_rho_r(ispin)%pw
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
@@ -318,8 +320,8 @@ CONTAINS
 
       DO ispin = 1,nspins
         v_xc(ispin)%pw%cr3d = v_xc(ispin)%pw%cr3d * v_xc(ispin)%pw%pw_grid%dvol
-        v_rspace_new(ispin)%pw%cr3d = (rho%rho_r(ispin)%pw%cr3d &
-                                    - harris_env%rho%rho_r(ispin)%pw%cr3d) &
+        v_rspace_new(ispin)%pw%cr3d = (rho_r(ispin)%pw%cr3d &
+                                    - harris_rho_r(ispin)%pw%cr3d) &
                                     * v_xc(ispin)%pw%cr3d
         CALL pw_release(v_xc(ispin)%pw, error=error)
       END DO
@@ -332,8 +334,8 @@ CONTAINS
       ! + v_hartree[rho_out-rho_in]
       CALL pw_zero(rho_tot_gspace%pw, error=error)
       DO ispin = 1,nspins
-        CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
-        CALL pw_axpy(harris_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw,alpha=-1._dp,error=error)
+        CALL pw_axpy(rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
+        CALL pw_axpy(harris_rho_g(ispin)%pw,rho_tot_gspace%pw,alpha=-1._dp,error=error)
         ! this original code seems to be wrong for spin polarized cases (overwrites rho_tot_gspace)
         ! CALL pw_subtract(qs_env%rho%rho_g(ispin)%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
@@ -344,7 +346,7 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
 
-      rho_ao => harris_env%rho%rho_ao
+      CALL qs_rho_get(harris_env%rho, rho_ao=rho_ao, error=error)
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -400,7 +402,7 @@ CONTAINS
       ! *** The forces due to n_core *** !
       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw,error=error)
       DO ispin = 1,nspins
-        CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
+        CALL pw_axpy(rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
         ! old code seems to be wrong for spin polarized case
         ! CALL pw_add(rho_core%pw, qs_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
@@ -520,7 +522,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: rho_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: harris_rho_g, harris_rho_r, &
+                                                my_rho_r, rho_g, rho_r, &
                                                 v_rspace_new, v_tau_rspace, &
                                                 v_xc
     TYPE(pw_p_type), POINTER                 :: rho_core
@@ -543,7 +546,9 @@ CONTAINS
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
             pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, para_env,&
-            v_xc, harris_force, rho_r, ks_env, poisson_env, input,  subsys)
+            v_xc, harris_force, rho_r, ks_env, poisson_env, input,  subsys,&
+            harris_rho_g, harris_rho_r, rho_g)
+
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -564,6 +569,8 @@ CONTAINS
                       subsys=subsys,&
                       para_env=para_env,&
                       error=error)
+
+      CALL qs_rho_get(harris_env%rho, rho_g=harris_rho_g, rho_r=harris_rho_r, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -611,8 +618,8 @@ CONTAINS
       CALL zero_qs_force(force,error)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      ks_env=ks_env, matrix_ks=matrix_ks, &
-                      error=error)
+                      ks_env=ks_env, matrix_ks=matrix_ks, error=error)
+      CALL qs_rho_get(rho, rho_g=rho_g, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -629,7 +636,7 @@ CONTAINS
       ! *** Calculation of the forces due to the Hartree energy *** !
       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw,error=error)
       DO ispin = 1,nspins
-        CALL pw_axpy(harris_env%rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
+        CALL pw_axpy(harris_rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
         ! old code seems to be wrong for spin polarized case
         ! CALL pw_add(rho_core%pw, harris_env%rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
@@ -645,7 +652,7 @@ CONTAINS
                          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=Exc, &
                          just_energy=.FALSE., error=error)
 
-      rho_ao => rho%rho_ao
+      CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -671,7 +678,7 @@ CONTAINS
 
       ! ** Force computation of f_V  ** !
       DO ispin = 1,nspins
-        CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, ehartree=Ehartree, &
+        CALL pw_poisson_solve(poisson_env, rho_g(ispin)%pw, ehartree=Ehartree, &
                               vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
@@ -697,7 +704,7 @@ CONTAINS
       ALLOCATE(my_rho_r(SIZE(rho_r)), stat=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
       DO ispin=1, SIZE(rho_r)
-        my_rho_r(ispin)%pw => harris_env%rho%rho_r(ispin)%pw
+        my_rho_r(ispin)%pw => harris_rho_r(ispin)%pw
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
@@ -735,14 +742,14 @@ CONTAINS
 
       ! + v_hartree[rho_out]
       DO ispin = 1,nspins
-        CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, ehartree=Ehartree, &
+        CALL pw_poisson_solve(poisson_env, rho_g(ispin)%pw, ehartree=Ehartree, &
                                vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
 
-    rho_ao => harris_env%rho%rho_ao
+     CALL qs_rho_get(harris_env%rho, rho_ao=rho_ao, error=error)
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -830,7 +837,7 @@ CONTAINS
       ALLOCATE(my_rho_r(SIZE(rho_r)), stat=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
       DO ispin=1, SIZE(rho_r)
-        my_rho_r(ispin)%pw => harris_env%rho%rho_r(ispin)%pw
+        my_rho_r(ispin)%pw => harris_rho_r(ispin)%pw
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
@@ -869,14 +876,14 @@ CONTAINS
       CALL xc_rho_set_release(rho_set,error=error)
 
       DO ispin = 1,nspins
-        CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, ehartree=Ehartree, &
+        CALL pw_poisson_solve(poisson_env, rho_g(ispin)%pw, ehartree=Ehartree, &
                               vhartree=v_hartree_gspace%pw,error=error)
       END DO
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
       CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol, error=error)
 
-    rho_ao => harris_env%rho%rho_ao
+      CALL qs_rho_get(harris_env%rho, rho_ao=rho_ao, error=error)
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
         CALL pw_axpy(v_hartree_rspace%pw,v_rspace_new(ispin)%pw,error=error)
@@ -1213,7 +1220,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: rho_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, v_rspace_new, &
+                                                v_tau_rspace
     TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -1229,7 +1237,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(rho, v_rspace_new, matrix_ks, auxbas_pw_pool, pw_env, &
             rho_core, force_tmp, v_tau_rspace, poisson_env, dft_control, input,&
-            xc_section, subsys, ks_env)
+            xc_section, subsys, ks_env, rho_g)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1281,6 +1289,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       matrix_ks=matrix_ks, error=error)
+      CALL qs_rho_get(rho, rho_g=rho_g, error=error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -1292,7 +1301,7 @@ CONTAINS
                               in_space=RECIPROCALSPACE, error=error)
       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw, error=error)
       DO ispin = 1,nspins
-        CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
+        CALL pw_axpy(rho_g(ispin)%pw,rho_tot_gspace%pw,error=error)
         ! old code seems to be wrong for spin polarized case
         ! CALL pw_add(rho_core%pw, rho%rho_g(ispin)%pw, rho_tot_gspace%pw)
       END DO
@@ -1336,7 +1345,7 @@ CONTAINS
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
 
-    rho_ao => rho%rho_ao
+      CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
       DO ispin = 1,nspins
         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=rho_ao(ispin), &
                                 h=matrix_ks(ispin), qs_env=qs_env, &

@@ -14,7 +14,6 @@
 !>          Dorothea Golze  
 ! *****************************************************************************
 MODULE lri_environment_methods
-
   USE ai_overlap,                      ONLY: overlap
   USE ai_overlap3,                     ONLY: overlap3
   USE ai_overlap_aabb,                 ONLY: overlap_aabb
@@ -48,6 +47,7 @@ MODULE lri_environment_methods
                                              mp_sum
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -58,7 +58,8 @@ MODULE lri_environment_methods
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -569,7 +570,7 @@ CONTAINS
       jatom, jkind, jneighbor, nat, natom, nfa, nfb, nkind, nspin, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: aci, acj
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: aci, acj, tot_rho_r
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(lri_kind_type), DIMENSION(:), &
       POINTER                                :: lri_coef
@@ -579,11 +580,12 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(aci, acj, atomic_kind, atom_of_kind, lri_coef, lri_rho, &
-         nl_iterator, soo_list)
+         nl_iterator, soo_list, rho_r, rho_g, tot_rho_r)
 
     IF ( ASSOCIATED(lri_env%soo_list) ) THEN
       soo_list => lri_env%soo_list
@@ -638,12 +640,13 @@ CONTAINS
 
       END DO
 
-      !distribute fitted density on the grid 
+      !distribute fitted density on the grid
+      CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r, error=error)
       DO ispin=1,nspin
-       CALL calculate_lri_rho_elec(lri_rho_struct%rho_g(ispin),&
-                                   lri_rho_struct%rho_r(ispin), qs_env, lri_env,&
+       CALL calculate_lri_rho_elec(rho_g(ispin),&
+                                   rho_r(ispin), qs_env, lri_env,&
                                    lri_density%lri_coefs(ispin)%lri_kinds,&
-                                   lri_rho_struct%tot_rho_r(ispin), error)
+                                   tot_rho_r(ispin), error)
       ENDDO
 
       CALL set_qs_env(qs_env, lri_density=lri_density, error=error)

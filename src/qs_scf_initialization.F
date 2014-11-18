@@ -54,6 +54,7 @@ MODULE qs_scf_initialization
   USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: kpoint_type
   USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
+  USE pw_types,                        ONLY: pw_p_type
   USE qmmm_image_charge,               ONLY: calculate_image_matrix
   USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                              block_davidson_env_create
@@ -85,6 +86,7 @@ MODULE qs_scf_initialization
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_get,&
                                              qs_rho_type
   USE qs_scf_diagonalization,          ONLY: diag_subspace_allocate
   USE qs_scf_lanczos,                  ONLY: krylov_space_allocate
@@ -190,7 +192,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_scf_env', &
       routineP = moduleN//':'//routineN
 
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(qs_rho_type), POINTER               :: rho
+
+    NULLIFY(rho_g)
 
     IF (.NOT.ASSOCIATED(scf_env)) THEN ! i.e. for MD this is associated on the second step (it so seems)
        CALL scf_env_create(scf_env, error=error)
@@ -206,7 +211,8 @@ CONTAINS
            ! grid comparison, but the probability that the 1d lengths of the old and
            ! the new grid are accidentily equal is rather low
            CALL get_qs_env(qs_env,error=error, rho=rho)
-           IF (SIZE(rho%rho_g(1)%pw%pw_grid%gsq) /= SIZE(scf_env%mixing_store%rhoin(1)%cc)) &
+           CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+           IF (SIZE(rho_g(1)%pw%pw_grid%gsq) /= SIZE(scf_env%mixing_store%rhoin(1)%cc)) &
              CALL mixing_storage_release(scf_env%mixing_store,error=error)
          END IF
        END SELECT

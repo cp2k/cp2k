@@ -75,7 +75,7 @@ MODULE qs_linres_current_utils
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_release
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -101,7 +101,10 @@ MODULE qs_linres_current_utils
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_retain
+  USE qs_rho_types,                    ONLY: qs_rho_clear,&
+                                             qs_rho_create,&
+                                             qs_rho_retain,&
+                                             qs_rho_set
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              rs_grid_release
   USE scf_control_types,               ONLY: scf_control_type
@@ -656,6 +659,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -671,7 +675,7 @@ CONTAINS
     NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control,&
             logger, mos, mpools, current_section, particle_set, mo_coeff,&
             auxbas_pw_pool, pw_env, jrho1_atom_set, common_center, tmp_fm_struct,&
-            para_env, qs_loc_env,localized_wfn_control)
+            para_env, qs_loc_env,localized_wfn_control, rho_g, rho_r)
     !
     !
     CALL get_qs_env(qs_env=qs_env,&
@@ -1339,28 +1343,21 @@ CONTAINS
     ALLOCATE(current_env%jrho1_set(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,3
-       NULLIFY(current_env%jrho1_set(idir)%rho)
-       ALLOCATE(current_env%jrho1_set(idir)%rho,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       current_env%jrho1_set(idir)%rho%ref_count = 1
-       NULLIFY( current_env%jrho1_set(idir)%rho%rho_r)
-       NULLIFY( current_env%jrho1_set(idir)%rho%rho_g)
-
-       ALLOCATE(current_env%jrho1_set(idir)%rho%rho_r(nspins),stat=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(current_env%jrho1_set(idir)%rho%rho_g(nspins),stat=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(rho_r, rho_g)
+       ALLOCATE(rho_r(nspins), rho_g(nspins))
        DO ispin=1,nspins
-          CALL pw_pool_create_pw(auxbas_pw_pool,&
-                                 current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,&
+          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw,&
                                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
-          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,error=error)
-          CALL pw_pool_create_pw(auxbas_pw_pool,&
-                                 current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,&
+          CALL pw_zero(rho_r(ispin)%pw, error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin)%pw,&
                                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                                  error=error)
-          CALL pw_zero(current_env%jrho1_set(idir)%rho%rho_g(ispin)%pw,error=error)
+          CALL pw_zero(rho_g(ispin)%pw, error=error)
        ENDDO
+       NULLIFY(current_env%jrho1_set(idir)%rho)
+       CALL qs_rho_create(current_env%jrho1_set(idir)%rho, error)
+       CALL qs_rho_set(current_env%jrho1_set(idir)%rho,&
+                       rho_r=rho_r, rho_g=rho_g, error=error)
        CALL qs_rho_retain(current_env%jrho1_set(idir)%rho,error=error)
     ENDDO
     !
@@ -1523,22 +1520,10 @@ CONTAINS
           ! Current density on the grid
           IF(ASSOCIATED(current_env%jrho1_set)) THEN
              DO idir = 1,3
-                DO i=1,SIZE(current_env%jrho1_set(idir)%rho%rho_r)
-                   CALL pw_release(current_env%jrho1_set(idir)%rho%rho_r(i)%pw,error=error)
-                END DO
-                DO i=1,SIZE(current_env%jrho1_set(idir)%rho%rho_g)
-                   CALL pw_release(current_env%jrho1_set(idir)%rho%rho_g(i)%pw,error=error)
-                END DO
-                DEALLOCATE(current_env%jrho1_set(idir)%rho%rho_r,stat=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                DEALLOCATE(current_env%jrho1_set(idir)%rho%rho_g,stat=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                DEALLOCATE(current_env%jrho1_set(idir)%rho,STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                !
+                CALL qs_rho_clear(current_env%jrho1_set(idir)%rho, error)
+                DEALLOCATE(current_env%jrho1_set(idir)%rho)
              END DO
-             DEALLOCATE(current_env%jrho1_set,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE(current_env%jrho1_set)
           END IF
           !
           ! Local current density, atom by atom (only gapw)

@@ -70,7 +70,8 @@ MODULE qs_force
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                              qs_subsys_type
   USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
@@ -131,7 +132,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_aux_fit, &
       matrix_p_mp2, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-      matrix_w, matrix_w_mp2, mo_derivs
+      matrix_w, matrix_w_mp2, mo_derivs, rho_ao
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -170,7 +171,7 @@ CONTAINS
     NULLIFY (matrix_ks_aux_fit)
     NULLIFY (matrix_w_mp2)
     NULLIFY (particle_set)
-    NULLIFY (rho)
+    NULLIFY (rho, rho_ao)
     NULLIFY (scf_control)
     NULLIFY (admm_env)
     NULLIFY (matrix_s_aux_fit_vs_orb)
@@ -247,6 +248,8 @@ CONTAINS
                     rho=rho,&
                     error=error)
 
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
     IF (qs_env%run_rtp) THEN
        CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
        DO ispin=1,dft_control%nspins
@@ -280,7 +283,7 @@ CONTAINS
     ! from an eventual Mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
        CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-            para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w,error=error)
+            para_env,matrix_s(1)%matrix, rho_ao,w_matrix=matrix_w,error=error)
     END IF
 
     ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
@@ -328,7 +331,7 @@ CONTAINS
          ! with MP2 we have to recalculate the SCF energy with the
          ! correct density
          DO ispin=1, dft_control%nspins
-           CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
+           CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
          CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&

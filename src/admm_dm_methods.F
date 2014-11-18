@@ -26,10 +26,13 @@ MODULE admm_dm_methods
                                              use_aux_fit_basis_set
   USE iterate_matrix,                  ONLY: invert_Hotelling
   USE kinds,                           ONLY: dp
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_ks_types,                     ONLY: get_ks_env,&
                                              qs_ks_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -146,12 +149,14 @@ MODULE admm_dm_methods
     LOGICAL                                  :: s_mstruct_changed
     TYPE(admm_dm_type), POINTER              :: admm_dm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux, matrix_s_mixed
+      POINTER                                :: matrix_s_aux, matrix_s_mixed, &
+                                                rho_ao, rho_ao_aux
     TYPE(cp_dbcsr_type)                      :: matrix_s_aux_inv, matrix_tmp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux
 
     NULLIFY(dft_control, admm_dm, matrix_s_aux, matrix_s_mixed, rho, rho_aux)
+    NULLIFY(rho_ao, rho_ao_aux)
 
     CALL get_ks_env(ks_env,&
                     admm_dm=admm_dm,&
@@ -162,6 +167,9 @@ MODULE admm_dm_methods
                     rho=rho,&
                     rho_aux_fit=rho_aux,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, error=error)
 
     IF(s_mstruct_changed) THEN
         ! Calculate A = S_aux^(-1) * S_mixed
@@ -183,10 +191,10 @@ MODULE admm_dm_methods
     CALL cp_dbcsr_init(matrix_tmp, error=error)
     CALL cp_dbcsr_create(matrix_tmp, template=admm_dm%matrix_A, error=error)
     DO ispin=1, dft_control%nspins
-        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, admm_dm%matrix_A, rho%rho_ao(ispin)%matrix,&
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, admm_dm%matrix_A, rho_ao(ispin)%matrix,&
                            0.0_dp, matrix_tmp, error=error)
         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp, admm_dm%matrix_A, &
-                           0.0_dp, rho_aux%rho_ao(ispin)%matrix, error=error)
+                           0.0_dp, rho_ao_aux(ispin)%matrix, error=error)
     END DO
     CALL cp_dbcsr_release(matrix_tmp, error)
 
@@ -207,10 +215,12 @@ MODULE admm_dm_methods
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, sparse_block_aux
     TYPE(admm_dm_type), POINTER              :: admm_dm
     TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao, rho_ao_aux
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux
 
-    NULLIFY(dft_control, admm_dm, rho, rho_aux)
+    NULLIFY(dft_control, admm_dm, rho, rho_aux, rho_ao, rho_ao_aux)
 
     CALL get_ks_env(ks_env,&
                     admm_dm=admm_dm,&
@@ -219,15 +229,18 @@ MODULE admm_dm_methods
                     rho_aux_fit=rho_aux,&
                     error=error)
 
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, error=error)
+
     ! ** set blocked density matrix to 0
     DO ispin=1, dft_control%nspins
-       CALL cp_dbcsr_set(rho_aux%rho_ao(ispin)%matrix, 0.0_dp, error)
+       CALL cp_dbcsr_set(rho_ao_aux(ispin)%matrix, 0.0_dp, error)
        ! ** now loop through the list and copy corresponding blocks
-       CALL cp_dbcsr_iterator_start(iter, rho%rho_ao(ispin)%matrix)
+       CALL cp_dbcsr_iterator_start(iter, rho_ao(ispin)%matrix)
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
          IF(admm_dm%block_map(iatom,jatom) == 1) THEN
-           CALL cp_dbcsr_get_block_p(rho_aux%rho_ao(ispin)%matrix,&
+           CALL cp_dbcsr_get_block_p(rho_ao_aux(ispin)%matrix,&
                        row=iatom,col=jatom,BLOCK=sparse_block_aux,found=found)
            IF(found)&
               sparse_block_aux = sparse_block
@@ -248,32 +261,41 @@ MODULE admm_dm_methods
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_aux
     TYPE(admm_dm_type), POINTER              :: admm_dm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao_aux
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_rho_type), POINTER               :: rho, rho_aux
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g_aux, rho_r_aux
+    TYPE(qs_rho_type), POINTER               :: rho_aux
 
-    NULLIFY(dft_control, admm_dm, rho, rho_aux)
+    NULLIFY(dft_control,admm_dm,rho_aux,rho_ao_aux,rho_r_aux,rho_g_aux,tot_rho_r_aux)
 
     CALL get_ks_env(ks_env,&
                     admm_dm=admm_dm,&
                     dft_control=dft_control,&
-                    rho=rho,&
                     rho_aux_fit=rho_aux,&
+                    error=error)
+
+    CALL qs_rho_get(rho_aux,&
+                    rho_ao=rho_ao_aux,&
+                    rho_r=rho_r_aux,&
+                    rho_g=rho_g_aux,&
+                    tot_rho_r=tot_rho_r_aux,&
                     error=error)
 
     DO ispin=1, dft_control%nspins
        CALL calculate_rho_elec(ks_env=ks_env,&
-                               matrix_p=rho_aux%rho_ao(ispin)%matrix,&
-                               rho=rho_aux%rho_r(ispin),&
-                               rho_gspace=rho_aux%rho_g(ispin),&
-                               total_rho=rho_aux%tot_rho_r(ispin),&
+                               matrix_p=rho_ao_aux(ispin)%matrix,&
+                               rho=rho_r_aux(ispin),&
+                               rho_gspace=rho_g_aux(ispin),&
+                               total_rho=tot_rho_r_aux(ispin),&
                                soft_valid=.FALSE.,&
                                basis_set_id=use_aux_fit_basis_set,&
                                error=error)
     END DO
 
-    rho_aux%rho_r_valid=.TRUE.
-    rho_aux%rho_g_valid=.TRUE.
+    CALL qs_rho_set(rho_aux, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
 
  END SUBROUTINE update_rho_aux
 
@@ -380,7 +402,7 @@ MODULE admm_dm_methods
     REAL(KIND=dp)                            :: frob_norm
     TYPE(admm_dm_type), POINTER              :: admm_dm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit
+      POINTER                                :: matrix_s_aux_fit, rho_ao_aux
     TYPE(cp_dbcsr_type)                      :: matrix_ps, matrix_psp, &
                                                 matrix_test
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p, matrix_s
@@ -389,7 +411,9 @@ MODULE admm_dm_methods
     TYPE(qs_rho_type), POINTER               :: rho_aux_fit
 
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control, admm_dm, matrix_s_aux_fit, rho_aux_fit, new_hist_entry, matrix_p, matrix_s)
+    NULLIFY(dft_control, admm_dm, matrix_s_aux_fit, rho_aux_fit, new_hist_entry,&
+            matrix_p, matrix_s,rho_ao_aux)
+
     unit_nr = cp_logger_get_default_unit_nr()
     CALL get_ks_env(ks_env,&
                     dft_control=dft_control,&
@@ -398,7 +422,9 @@ MODULE admm_dm_methods
                     rho_aux_fit=rho_aux_fit,&
                     error=error)
 
-    matrix_p => rho_aux_fit%rho_ao(1)%matrix
+    CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux, error=error)
+
+    matrix_p => rho_ao_aux(1)%matrix
     CALL cp_dbcsr_init(matrix_PS,error=error)
     CALL cp_dbcsr_create(matrix_PS,template=matrix_p,matrix_type="N",error=error)
     CALL cp_dbcsr_init(matrix_PSP,error=error)
@@ -408,7 +434,7 @@ MODULE admm_dm_methods
 
     nspins = dft_control%nspins
     DO ispin=1, nspins
-       matrix_p => rho_aux_fit%rho_ao(ispin)%matrix
+       matrix_p => rho_ao_aux(ispin)%matrix
        matrix_s => matrix_s_aux_fit(1)%matrix
        history => admm_dm%mcweeny_history(ispin)%p
        IF(ASSOCIATED(history)) STOP "purify_dm_mcweeny: history already associated"

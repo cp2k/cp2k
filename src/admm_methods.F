@@ -56,6 +56,7 @@ MODULE admm_methods
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: dp
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -67,7 +68,9 @@ MODULE admm_methods
                                              mo_set_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_force
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -101,14 +104,17 @@ MODULE admm_methods
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: s_mstruct_changed
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_aux
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb
+                                                matrix_s_aux_fit_vs_orb, &
+                                                rho_ao, rho_ao_aux
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g_aux, rho_r_aux
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
 
@@ -116,6 +122,7 @@ MODULE admm_methods
 
     NULLIFY(ks_env, admm_env, mos, mos_aux_fit, matrix_s_aux_fit,&
             matrix_s_aux_fit_vs_orb, rho, rho_aux_fit, para_env)
+    NULLIFY(rho_g_aux, rho_r_aux, rho_ao, rho_ao_aux, tot_rho_r_aux)
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
@@ -129,6 +136,14 @@ MODULE admm_methods
                     s_mstruct_changed=s_mstruct_changed,&
                     rho=rho,&
                     rho_aux_fit=rho_aux_fit,&
+                    error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho_aux_fit,&
+                    rho_ao=rho_ao_aux,&
+                    rho_g=rho_g_aux,&
+                    rho_r=rho_r_aux,&
+                    tot_rho_r=tot_rho_r_aux,&
                     error=error)
 
     ! convert mos from full to dbcsr matrices
@@ -146,15 +161,15 @@ MODULE admm_methods
     DO ispin=1,dft_control%nspins
        IF(admm_env%block_dm) THEN
           CALL blockify_density_matrix(admm_env,&
-                                       density_matrix=rho%rho_ao(ispin)%matrix,&
-                                       density_matrix_aux=rho_aux_fit%rho_ao(ispin)%matrix,&
+                                       density_matrix=rho_ao(ispin)%matrix,&
+                                       density_matrix_aux=rho_ao_aux(ispin)%matrix,&
                                        ispin=ispin,&
                                        nspins=dft_control%nspins,&
                                        error=error)
        ELSE
           CALL calculate_dm_mo_no_diag(admm_env,&
                                        mo_set=mos(ispin)%mo_set,&
-                                       density_matrix=rho_aux_fit%rho_ao(ispin)%matrix,&
+                                       density_matrix=rho_ao_aux(ispin)%matrix,&
                                        ispin=ispin,&
                                        error=error)
        ENDIF
@@ -162,23 +177,22 @@ MODULE admm_methods
        IF(admm_env%purification_method == do_admm_purify_cauchy)&
          CALL purify_dm_cauchy(admm_env,&
                                mo_set=mos_aux_fit(ispin)%mo_set,&
-                               density_matrix=rho_aux_fit%rho_ao(ispin)%matrix,&
+                               density_matrix=rho_ao_aux(ispin)%matrix,&
                                ispin=ispin,&
                                blocked=admm_env%block_dm,&
                                error=error)
 
        CALL calculate_rho_elec(ks_env=ks_env,&
-                               matrix_p=rho_aux_fit%rho_ao(ispin)%matrix,&
-                               rho=rho_aux_fit%rho_r(ispin),&
-                               rho_gspace=rho_aux_fit%rho_g(ispin),&
-                               total_rho=rho_aux_fit%tot_rho_r(ispin),&
+                               matrix_p=rho_ao_aux(ispin)%matrix,&
+                               rho=rho_r_aux(ispin),&
+                               rho_gspace=rho_g_aux(ispin),&
+                               total_rho=tot_rho_r_aux(ispin),&
                                soft_valid=.FALSE.,&
                                basis_set_id=use_aux_fit_basis_set,&
                                error=error)
     END DO
 
-    rho_aux_fit%rho_r_valid=.TRUE.
-    rho_aux_fit%rho_g_valid=.TRUE.
+    CALL qs_rho_set(rho_aux_fit, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
 
     CALL timestop(handle)
 

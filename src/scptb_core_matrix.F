@@ -47,7 +47,8 @@ MODULE scptb_core_matrix
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scptb_parameter_p_type,&
                                              scptb_parameter_type
@@ -155,7 +156,7 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,force=force,matrix_w=matrix_w,error=error)
 
        CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)

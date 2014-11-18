@@ -71,6 +71,7 @@ MODULE qs_linres_nmr_shift
                                              get_nmr_env,&
                                              jrho_atom_type,&
                                              nmr_env_type
+  USE qs_rho_types,                    ONLY: qs_rho_get
   USE realspace_grid_types,            ONLY: realspace_grid_desc_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -127,6 +128,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: pw_gspace_work, &
                                                 shift_pw_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: jrho1_g
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: shift_pw_gspace
     TYPE(pw_p_type), POINTER                 :: jrho_gspace
@@ -141,7 +143,7 @@ CONTAINS
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
             cell,dft_control,pw_env,auxbas_rs_desc,auxbas_pw_pool,jrho_gspace,&
-            pw_pools,particle_set)
+            pw_pools,particle_set,jrho1_g)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
                     particle_set=particle_set,error=error)
@@ -189,7 +191,8 @@ CONTAINS
     DO ispin = 1,nspins
        !
        DO idir = 1,3
-          jrho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
+          CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g, error=error)
+          jrho_gspace => jrho1_g(ispin)
           ! Field gradient
           ! loop over the Gvec  components: x,y,z
           DO idir2 = 1,3

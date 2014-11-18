@@ -48,7 +48,8 @@ MODULE et_coupling
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -335,11 +336,12 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure=.FALSE.
-    NULLIFY(cell,particle_set,coeff,energy,rho,dft_control, para_env)
+    NULLIFY(cell,particle_set,coeff,energy,rho,dft_control,para_env,rho_r)
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,&
@@ -349,6 +351,8 @@ CONTAINS
                     dft_control=dft_control,&
                     para_env=para_env,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
 
     IF (dft_control%qs_control%becke_restraint) THEN
           target_val=dft_control%qs_control%becke_control%target
@@ -463,7 +467,7 @@ CONTAINS
 
        dE=0.0_dp
        DO i=1, dft_control%nspins
-             dE=dE+accurate_sum(becke_const%pw%cr3d*rho%rho_r(i)%pw%cr3d)*dvol
+             dE=dE+accurate_sum(becke_const%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
        END DO
        CALL get_qs_env(qs_env,energy=energy,error=error)
        CALL mp_sum(dE, para_env%group)
@@ -517,13 +521,14 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control,cell,particle_set,para_env)
+    NULLIFY(dft_control,cell,particle_set,para_env,rho_r)
 
     CALL get_qs_env(qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -535,6 +540,9 @@ CONTAINS
                     dft_control=dft_control,&
                     para_env=para_env,&
                     error=error)
+
+
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
 
     th=1.0e-8_dp
     IF(dft_control%qs_control%becke_restraint)THEN
@@ -718,7 +726,7 @@ CONTAINS
 
                 DO iatom=1,natom
                    DO ispin=1, dft_control%nspins
-                        integrated(:,iatom)=integrated(:,iatom) + dw_dR(:,iatom) * rho%rho_r(ispin)%pw%cr3d(k,j,i) * dvol
+                        integrated(:,iatom)=integrated(:,iatom) + dw_dR(:,iatom) * rho_r(ispin)%pw%cr3d(k,j,i) * dvol
                    END DO
                 END DO
              END DO

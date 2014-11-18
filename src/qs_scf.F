@@ -110,7 +110,8 @@ MODULE qs_scf
                                              ot_scf_read_input
   USE qs_outer_scf,                    ONLY: outer_loop_optimize,&
                                              outer_loop_update_qs_env
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_initialization,           ONLY: qs_scf_compute_properties,&
                                              qs_scf_env_initialize
   USE qs_scf_loop_utils,               ONLY: &
@@ -258,7 +259,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_result_type), POINTER            :: results
@@ -289,7 +292,7 @@ CONTAINS
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
-            scf_section, para_env, results, kpoints, pw_env)
+            scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -316,6 +319,7 @@ CONTAINS
                     para_env=para_env,&
                     error=error)
 
+    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
     ! Defining SCP logicals
     scp_nddo = dft_control%qs_control%se_control%scp
 
@@ -467,20 +471,20 @@ CONTAINS
           ! mixing methods have the new density matrix in p_mix_new
           IF (scf_env%mixing_method > 0) THEN
              IF(do_kpoints) THEN
-                DO ic=1,SIZE(rho%rho_ao_kp,2)
+                DO ic=1,SIZE(rho_ao_kp,2)
                    DO ispin=1,dft_control%nspins
-                      CALL cp_dbcsr_copy(rho%rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
-                                      name=TRIM(cp_dbcsr_name(rho%rho_ao_kp(ispin,ic)%matrix)),error=error)
+                      CALL cp_dbcsr_copy(rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
+                                      name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin,ic)%matrix)),error=error)
                    END DO
                 END DO
              ELSE
                 DO ispin=1,dft_control%nspins
-                   CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                   name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
+                   CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho_ao(ispin)%matrix)),error=error)
                 END DO
              END IF
           END IF
-          
+
           CALL qs_scf_rho_update(rho,qs_env,scf_env,ks_env,&
                     mix_rho=scf_env%mixing_method>=gspace_mixing_nr,error=error)
 

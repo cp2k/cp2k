@@ -81,7 +81,8 @@ MODULE qs_dftb_coulomb
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE realspace_grid_types,            ONLY: &
        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, &
        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
@@ -344,7 +345,7 @@ CONTAINS
 
     IF ( .NOT. just_energy ) THEN
       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-      matrix_p => rho%rho_ao
+      CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
         CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
@@ -478,7 +479,7 @@ CONTAINS
        !
        IF ( .NOT. just_energy ) THEN
           CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-          matrix_p => rho%rho_ao
+          CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
           IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
              CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&

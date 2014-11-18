@@ -86,7 +86,8 @@ MODULE qs_linres_module
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -283,7 +284,7 @@ CONTAINS
     INTEGER                                  :: ispin, output_unit
     LOGICAL                                  :: do_it, failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -298,7 +299,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)
-    NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks)
+    NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
 
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -308,6 +309,7 @@ CONTAINS
        CALL linres_control_release(linres_control,error=error)
        CALL get_qs_env(qs_env=qs_env, linres_control=linres_control,&
                        dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho,error=error)
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        ! Localized Psi0 are required when the position operator has to be defined (nmr)
        loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
@@ -323,7 +325,7 @@ CONTAINS
          CALL linres_localize(qs_env, linres_control,dft_control%nspins,error=error)
 
          DO ispin=1,dft_control%nspins
-            CALL calculate_density_matrix(mos(ispin)%mo_set,rho%rho_ao(ispin)%matrix,error=error)
+            CALL calculate_density_matrix(mos(ispin)%mo_set,rho_ao(ispin)%matrix,error=error)
          ENDDO
 ! ** update qs_env%rho
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)

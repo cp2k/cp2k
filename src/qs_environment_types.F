@@ -1460,7 +1460,6 @@ CONTAINS
           ENDIF
           ! ZMP
           IF(ASSOCIATED(qs_env%rho_external)) THEN
-             NULLIFY(qs_env%rho_external%rho_ao)
              CALL qs_rho_release(qs_env%rho_external, error=error)
           END IF
           IF (ASSOCIATED(qs_env%external_vxc)) THEN

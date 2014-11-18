@@ -105,6 +105,7 @@ MODULE ep_methods
   USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              preconditioner_p_type
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -147,7 +148,8 @@ MODULE ep_methods
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_set,&
                                              qs_subsys_type
@@ -203,6 +205,7 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
@@ -212,17 +215,18 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     IF (output_unit>0) THEN
-       NULLIFY(rho,energy,qs_charges,dft_control)
+       NULLIFY(rho,energy,qs_charges,dft_control,tot_rho_r)
        CALL get_qs_env(qs_env,rho=rho,energy=energy,dft_control=dft_control,&
             qs_charges=qs_charges,error=error)
+       CALL qs_rho_get(rho, tot_rho_r=tot_rho_r, error=error)
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
             "Total electronic density (r-space): ",&
-            accurate_sum(rho%tot_rho_r),&
+            accurate_sum(tot_rho_r),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace
        WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
             "Total charge density (r-space):     ",&
-            accurate_sum(rho%tot_rho_r)+&
+            accurate_sum(tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",qs_charges%total_rho_gspace
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
@@ -1553,7 +1557,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: at
-    LOGICAL                                  :: do_rotations, e0_only, failure
+    LOGICAL                                  :: do_rotations, e0_only, &
+                                                failure, rho1_r_valid
     REAL(dp)                                 :: e_corr_s, eps_lin_solv, maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1562,7 +1567,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: kinetic, matrix_ks, matrix_s, &
-                                                matrix_w
+                                                matrix_w, rho_ao
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi0
@@ -1576,6 +1581,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r, rho_r
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_force_type), DIMENSION(:), &
@@ -1594,7 +1600,7 @@ CONTAINS
 
     NULLIFY (atomic_kind_set, dft_control, force, ks_env, mos, matrix_ks, &
          matrix_s, matrix_w, particle_set, rho, scf_control,para_env,&
-         blacs_env,orbitals, kinetic, para_env)
+         blacs_env,orbitals, kinetic, para_env, rho_ao, rho1_r, rho_r)
 
     globenv => ep_env%globenv
     qs_env => ep_env%main_qs_env
@@ -1772,15 +1778,16 @@ CONTAINS
          extension=".epLog",message=routineP//&
          " update qs_env%rho and ks matrix",error=error)
     CALL get_qs_env(qs_env, rho=rho, mos=mos, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_r=rho_r, error=error)
     DO ispin=1,ep_env%nspins
-       CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,0._dp,error=error)
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(ispin)%matrix,&
+       CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0._dp,error=error)
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix,&
             matrix_v=mos(ispin)%mo_set%mo_coeff,&
             matrix_g=ep_env%main_p_env%psi0d(ispin)%matrix,&
             ncol=ep_env%full_nmo(ispin),&
             error=error)
        CALL get_mo_set(mos(ispin)%mo_set, maxocc=maxocc)
-       CALL cp_dbcsr_scale(rho%rho_ao(ispin)%matrix,alpha_scalar=maxocc,error=error)
+       CALL cp_dbcsr_scale(rho_ao(ispin)%matrix,alpha_scalar=maxocc,error=error)
     END DO
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -1914,14 +1921,15 @@ CONTAINS
             error=error)
     END IF
     IF (ASSOCIATED(ep_env%main_p_env%rho1)) THEN
-       IF (ep_env%main_p_env%rho1%rho_r_valid) THEN
+       CALL qs_rho_get(ep_env%main_p_env%rho1, rho_r=rho1_r, rho_r_valid=rho1_r_valid, error=error)
+       IF (rho1_r_valid) THEN
           IF (BTEST(cp_print_key_should_output(logger%iter_info,ep_env%input,&
                "PRINT%EP_RHO_CUBE/RHO1",error=error),cp_p_file) ) THEN
              DO ispin=1,dft_control%nspins
                 unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO1",&
                      extension=".cube",middle_name="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      log_filename=.FALSE.,error=error)
-                CALL cp_pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, unit_nr=unit_nr,&
+                CALL cp_pw_to_cube(rho1_r(1)%pw, unit_nr=unit_nr,&
                      title="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      particles=particles,&
                      stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
@@ -1940,7 +1948,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO0",&
                extension=".cube",middle_name="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                log_filename=.FALSE.,error=error)
-          CALL cp_pw_to_cube (rho%rho_r(1)%pw, unit_nr=unit_nr,&
+          CALL cp_pw_to_cube (rho_r(1)%pw, unit_nr=unit_nr,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                particles=particles,&
                stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&

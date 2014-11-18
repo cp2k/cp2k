@@ -69,7 +69,8 @@ MODULE qs_energy_utils
                                              mo_set_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf,                          ONLY: scf
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_dispersion,                  ONLY: scp_nddo_dispersion
@@ -393,7 +394,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, &
                                                 matrix_w, matrix_w_mp2, &
-                                                mo_derivs
+                                                mo_derivs, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -403,7 +404,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, rho_ao)
 
     ! if calculate forces, time to compute the w matrix
     CALL get_qs_env(qs_env,&
@@ -419,6 +420,8 @@ CONTAINS
                     rho=rho,&
                     dft_control=dft_control,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
        nspin = SIZE(mos)
@@ -436,7 +439,7 @@ CONTAINS
              ELSE
                 CALL calculate_w_matrix(mo_set=mo_set,&
                      matrix_ks=matrix_ks(ispin)%matrix,&
-                     matrix_p=rho%rho_ao(ispin)%matrix,&
+                     matrix_p=rho_ao(ispin)%matrix,&
                      matrix_w=matrix_w(ispin)%matrix,&
                      error=error)
              END IF
@@ -585,20 +588,21 @@ CONTAINS
     INTEGER                                  :: ispin
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks
+      POINTER                                :: matrix_h, matrix_ks, rho_ao
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(atprop,matrix_h,matrix_ks,rho)
+    NULLIFY(atprop,matrix_h,matrix_ks,rho,rho_ao)
     CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_h=matrix_h,&
                        rho=rho,atprop=atprop,error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     IF(atprop%energy) THEN
        ! E = 0.5*Tr(H*P+F*P)
        atprop%atener = 0._dp
-       DO ispin = 1,SIZE(rho%rho_ao)
-          CALL atom_trace(matrix_h(1)%matrix,rho%rho_ao(ispin)%matrix,&
+       DO ispin = 1,SIZE(rho_ao)
+          CALL atom_trace(matrix_h(1)%matrix,rho_ao(ispin)%matrix,&
                0.5_dp,atprop%atener,error)
-          CALL atom_trace(matrix_ks(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
+          CALL atom_trace(matrix_ks(ispin)%matrix,rho_ao(ispin)%matrix,&
                0.5_dp,atprop%atener,error)
        END DO
 

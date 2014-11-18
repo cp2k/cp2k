@@ -52,7 +52,8 @@ MODULE qs_scf_post_se
                                              qs_ks_update_qs_env
   USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_types,                     ONLY: mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
   USE scp_environment_types,           ONLY: get_scp_env,&
@@ -121,7 +122,7 @@ CONTAINS
 
     failure=.FALSE.
     my_localized_wfn = .FALSE.
-    NULLIFY(dft_control, mos, rho, matrix_s, &
+    NULLIFY(dft_control, mos, rho, matrix_s,&
          subsys, particles, input, print_key, para_env)
 
     logger => cp_error_get_logger(error)
@@ -313,7 +314,7 @@ CONTAINS
             message="No Dipoles for SCP-NDDO implemented!!", &
             error=error, error_level=cp_warning_level)
        ELSE
-          matrix_p => rho%rho_ao
+          CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
           nspin = SIZE(matrix_p)
           nkind = SIZE(atomic_kind_set)
           ! net charges
@@ -575,7 +576,7 @@ CONTAINS
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
                                     middle_name="",log_filename=.FALSE.,error=error)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
        nspin = SIZE(matrix_p)
        ALLOCATE (charges(natom,nspin),mcharge(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -647,7 +648,7 @@ CONTAINS
        END IF
        IF ( scp_nddo ) THEN
           CALL multipoles(atomic_kind_set,qs_kind_set,particle_set,&
-            rho%rho_ao,pscp,matrix_s(1)%matrix,para_env,unit_nr,"DFT%PRINT%MULLIKEN",error=error)
+            matrix_p,pscp,matrix_s(1)%matrix,para_env,unit_nr,"DFT%PRINT%MULLIKEN",error=error)
        END IF
 
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
@@ -693,7 +694,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv
+      POINTER                                :: ks_rmpv, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -712,7 +713,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(cell, dft_control, mos, atomic_kind_set, particle_set, rho, &
          ks_rmpv, dft_section, input, &
-         particles, subsys, para_env)
+         particles, subsys, para_env, rho_ao)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -733,6 +734,7 @@ CONTAINS
                        error=error)
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        IF (dft_control%nspins == 2) THEN
@@ -807,7 +809,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,6,qs_env,&
                   para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&

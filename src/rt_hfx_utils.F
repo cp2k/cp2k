@@ -26,7 +26,9 @@ MODULE rt_hfx_utils
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
+                                             qs_rho_type
   USE rt_propagation_types,            ONLY: rt_prop_type
 #include "./common/cp_common_uses.f90"
 
@@ -53,39 +55,50 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_im, matrix_s
+      POINTER                                :: matrix_ks_aux_im, &
+                                                matrix_ks_im, matrix_s, &
+                                                matrix_s_aux, rho_ao_im, &
+                                                rho_aux_ao_im
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
+      DIMENSION(:), POINTER                  :: sab_aux, sab_orb
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho, rho_aux
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    NULLIFY(ks_env, matrix_s, matrix_ks_im, dft_control, sab_orb, rtp, rho)
-
-    CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control,rtp=rtp,error=error)
-
-    IF(dft_control%do_admm)THEN
-       CALL get_qs_env(qs_env,&
-                       matrix_s_aux_fit=matrix_s,&
-                       sab_aux_fit=sab_orb,&
-                       rho_aux_fit=rho,&
-                       matrix_ks_aux_fit_im=matrix_ks_im,&
-                       error=error)
-       CALL rebuild_matrices(rho%rho_ao_im, matrix_ks_im, sab_orb, matrix_s,&
-                             dft_control%nspins,error)
-       CALL set_ks_env(ks_env, matrix_ks_aux_fit_im=matrix_ks_im, error=error)
-    END IF
+    NULLIFY(ks_env,matrix_s,matrix_ks_im,dft_control,sab_orb,rtp,rho,rho_ao_im)
+    NULLIFY(sab_aux, rho_aux, rho_aux_ao_im, matrix_ks_aux_im, matrix_s_aux)
 
     CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
+                    rtp=rtp,&
                     matrix_s=matrix_s,&
                     rho=rho,&
                     matrix_ks_im=matrix_ks_im,&
                     sab_orb=sab_orb,&
                     error=error)
-    CALL rebuild_matrices(rho%rho_ao_im, matrix_ks_im, sab_orb, matrix_s,&
+
+    CALL qs_rho_get(rho, rho_ao_im=rho_ao_im, error=error)
+    CALL rebuild_matrices(rho_ao_im, matrix_ks_im, sab_orb, matrix_s,&
                           dft_control%nspins, error)
     CALL set_ks_env(ks_env, matrix_ks_im=matrix_ks_im, error=error)
+    CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
+
+    IF(dft_control%do_admm)THEN
+       CALL get_qs_env(qs_env,&
+                       matrix_s_aux_fit=matrix_s_aux,&
+                       sab_aux_fit=sab_aux,&
+                       rho_aux_fit=rho_aux,&
+                       matrix_ks_aux_fit_im=matrix_ks_aux_im,&
+                       error=error)
+       CALL qs_rho_get(rho_aux, rho_ao_im=rho_aux_ao_im, error=error)
+       CALL rebuild_matrices(rho_aux_ao_im, matrix_ks_aux_im, sab_aux, matrix_s_aux,&
+                             dft_control%nspins,error)
+       CALL set_ks_env(ks_env, matrix_ks_aux_fit_im=matrix_ks_aux_im, error=error)
+       CALL qs_rho_set(rho_aux, rho_ao_im=rho_aux_ao_im, error=error)
+    END IF
+
   END SUBROUTINE rtp_hfx_rebuild
 
 ! *****************************************************************************

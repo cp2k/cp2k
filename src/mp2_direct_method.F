@@ -49,7 +49,8 @@ MODULE mp2_direct_method
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
   USE timings,                         ONLY: timeset,&
@@ -254,7 +255,7 @@ MODULE mp2_direct_method
 
     irep=1
 
-    rho_ao=>rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     logger => cp_error_get_logger(error)
 

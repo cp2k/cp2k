@@ -32,7 +32,8 @@ MODULE efield_utils
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -74,10 +75,11 @@ CONTAINS
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(dft_control, para_env)
+    NULLIFY(dft_control, para_env, rho_r)
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
@@ -87,6 +89,8 @@ CONTAINS
                     dft_control=dft_control,&
                     para_env=para_env,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
 
     v_efield_rspace%pw%cr3d=0.0_dp
 
@@ -110,7 +114,7 @@ CONTAINS
     END DO
     efield_ener=0.0_dp
     DO i=1,dft_control%nspins
-       efield_ener=efield_ener+accurate_sum(v_efield_rspace%pw%cr3d*rho%rho_r(i)%pw%cr3d)*dvol
+       efield_ener=efield_ener+accurate_sum(v_efield_rspace%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
     END DO
     CALL mp_sum(efield_ener,para_env%group)
     energy%efield=efield_ener

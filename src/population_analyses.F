@@ -50,7 +50,8 @@ MODULE population_analyses
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -150,7 +151,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
 
     sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    matrix_p => rho%rho_ao     ! Density matrices in sparse format
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error) ! Density matrices in sparse format
 
     nspin = SIZE(matrix_p)
 
@@ -324,7 +325,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
 
     sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    matrix_p => rho%rho_ao     ! Density matrices in sparse format
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error) ! Density matrices in sparse format
 
     nspin = SIZE(matrix_p)
 

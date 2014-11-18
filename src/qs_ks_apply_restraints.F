@@ -34,7 +34,8 @@ MODULE qs_ks_apply_restraints
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE s_square_methods,                ONLY: s2_restraint
 #include "./common/cp_common_uses.f90"
 
@@ -169,7 +170,7 @@ CONTAINS
     energy%mulliken = 0.0_dp
     IF (dft_control%qs_control%mulliken_restraint) THEN
 
-    rho_ao=>rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        IF (just_energy) THEN
           CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &

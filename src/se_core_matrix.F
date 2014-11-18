@@ -48,7 +48,8 @@ MODULE se_core_matrix
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE semi_empirical_int_arrays,       ONLY: rij_threshold
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
@@ -176,7 +177,7 @@ CONTAINS
      END IF
 
      IF(calculate_forces) THEN
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error)

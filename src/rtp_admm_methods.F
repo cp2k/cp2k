@@ -45,6 +45,7 @@ MODULE rtp_admm_methods
   USE mathconstants,                   ONLY: one,&
                                              zero
   USE particle_types,                  ONLY: particle_type
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -54,6 +55,7 @@ MODULE rtp_admm_methods
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
                                              qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
@@ -89,27 +91,29 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, s_mstruct_changed
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_aux
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_p_aux_fit, &
+      POINTER                                :: matrix_p_aux, &
+                                                matrix_p_aux_im, &
                                                 matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb, &
-                                                rho_ao
+                                                matrix_s_aux_fit_vs_orb
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g_aux, rho_r_aux
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(admm_env, matrix_p, matrix_p_aux_fit, mos, &
+    NULLIFY(admm_env, matrix_p_aux, matrix_p_aux_im, mos, &
          mos_aux_fit, para_env,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb, rho,&
-         ks_env,dft_control)
+         ks_env,dft_control,tot_rho_r_aux,rho_r_aux, rho_g_aux)
 
     CALL get_qs_env(qs_env,&
                     admm_env=admm_env,&
@@ -130,28 +134,33 @@ CONTAINS
 
     CALL get_rtp(rtp=rtp,admm_mos=rtp_coeff_aux_fit,error=error)
     CALL rtp_admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
-                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
-                            mos, mos_aux_fit,rtp,rtp_coeff_aux_fit,&
-                            s_mstruct_changed, error=error)
+                                matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
+                                mos, mos_aux_fit,rtp,rtp_coeff_aux_fit,&
+                                s_mstruct_changed, error=error)
 
     DO ispin=1,nspins
-       matrix_p_aux_fit => rho_aux_fit%rho_ao
-       CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
-       matrix_p => rho_ao
+       CALL qs_rho_get(rho_aux_fit,&
+                       rho_ao=matrix_p_aux,&
+                       rho_ao_im=matrix_p_aux_im,&
+                       rho_r=rho_r_aux,&
+                       rho_g=rho_g_aux,&
+                       tot_rho_r=tot_rho_r_aux,&
+                       error=error)
+
        CALL rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mos_aux_fit(ispin)%mo_set,&
-                                  matrix_p_aux_fit(ispin)%matrix,&
-                                  rho_aux_fit%rho_ao_im(ispin)%matrix,&
+                                  matrix_p_aux(ispin)%matrix,&
+                                  matrix_p_aux_im(ispin)%matrix,&
                                   ispin,nspins,error)
-       CALL calculate_rho_elec(matrix_p=rho_aux_fit%rho_ao(ispin)%matrix,&
-                                  rho=rho_aux_fit%rho_r(ispin),&
-                                  rho_gspace=rho_aux_fit%rho_g(ispin),&
-                                  total_rho=rho_aux_fit%tot_rho_r(ispin),&
-                                  ks_env=ks_env,soft_valid=.FALSE.,&
-                                  basis_set_id=use_aux_fit_basis_set, error=error)
+
+       CALL calculate_rho_elec(matrix_p=matrix_p_aux(ispin)%matrix,&
+                               rho=rho_r_aux(ispin),&
+                               rho_gspace=rho_g_aux(ispin),&
+                               total_rho=tot_rho_r_aux(ispin),&
+                               ks_env=ks_env,soft_valid=.FALSE.,&
+                               basis_set_id=use_aux_fit_basis_set, error=error)
     END DO
     CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
-    rho_aux_fit%rho_r_valid=.TRUE.
-    rho_aux_fit%rho_g_valid=.TRUE.
+    CALL qs_rho_set(rho_aux_fit, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
 
     CALL timestop(handle)
 
@@ -430,30 +439,31 @@ CONTAINS
     CALL cp_dbcsr_set(density_matrix_aux,0.0_dp,error=error)
     CALL cp_fm_get_info(rtp_coeff_aux_fit(re)%matrix,ncol_global=ncol,error=error)
     CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux,&
-                            matrix_v=rtp_coeff_aux_fit(re)%matrix,&
-                            matrix_g=rtp_coeff_aux_fit(re)%matrix,&
-                            ncol=ncol,&
-                            alpha=alpha,error=error)
+                               matrix_v=rtp_coeff_aux_fit(re)%matrix,&
+                               matrix_g=rtp_coeff_aux_fit(re)%matrix,&
+                               ncol=ncol,&
+                               alpha=alpha,error=error)
+
     ! It is actually complex conjugate but i*i=-1 therfore it must be added
     CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux,&
-                     matrix_v=rtp_coeff_aux_fit(im)%matrix,&
-                     matrix_g=rtp_coeff_aux_fit(im)%matrix,&
-                     ncol=ncol,&
-                     alpha=alpha,error=error)
+                               matrix_v=rtp_coeff_aux_fit(im)%matrix,&
+                               matrix_g=rtp_coeff_aux_fit(im)%matrix,&
+                               ncol=ncol,&
+                               alpha=alpha,error=error)
 
 !   compute the imaginary part of the dm
     CALL cp_dbcsr_set(density_matrix_aux_im,0.0_dp,error=error)
     CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im,&
-                            matrix_v=rtp_coeff_aux_fit(im)%matrix,&
-                            matrix_g=rtp_coeff_aux_fit(re)%matrix,&
-                            ncol=ncol,&
-                            alpha=alpha,error=error)
+                               matrix_v=rtp_coeff_aux_fit(im)%matrix,&
+                               matrix_g=rtp_coeff_aux_fit(re)%matrix,&
+                               ncol=ncol,&
+                               alpha=alpha,error=error)
     alpha=-alpha
     CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im,&
-                     matrix_v=rtp_coeff_aux_fit(re)%matrix,&
-                     matrix_g=rtp_coeff_aux_fit(im)%matrix,&
-                     ncol=ncol,&
-                     alpha=alpha,error=error)
+                               matrix_v=rtp_coeff_aux_fit(re)%matrix,&
+                               matrix_g=rtp_coeff_aux_fit(im)%matrix,&
+                               ncol=ncol,&
+                               alpha=alpha,error=error)
 
     CALL timestop(handle)
 

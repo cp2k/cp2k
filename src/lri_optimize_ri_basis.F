@@ -54,7 +54,8 @@ MODULE lri_optimize_ri_basis
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -112,7 +113,7 @@ CONTAINS
                     para_env=para_env,rho=rho_struct,error=error)
 
     ! density matrix
-    pmatrix => rho_struct%rho_ao
+    CALL qs_rho_get(rho_struct, rho_ao=pmatrix, error=error)
 
     logger => cp_error_get_logger(error)
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
@@ -212,7 +213,7 @@ CONTAINS
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,input=input,&
                     lri_env=lri_env,lri_density=lri_density,nkind=nkind,&
                     rho=rho_struct,para_env=para_env,error=error)
-    pmatrix => rho_struct%rho_ao
+    CALL qs_rho_get(rho_struct, rho_ao=pmatrix, error=error)
 
     objf=0._dp 
     logger => cp_error_get_logger(error)

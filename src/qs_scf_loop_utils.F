@@ -46,7 +46,8 @@ MODULE qs_scf_loop_utils
                                              ot_scf_mini
   USE qs_outer_scf,                    ONLY: outer_loop_gradient
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_diagonalization,          ONLY: do_block_davidson_diag,&
                                              do_block_krylov_diag,&
                                              do_general_diag,&
@@ -398,11 +399,15 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
 
     CALL timeset(routineN,handle)
-
+    NULLIFY(rho_ao)
     failure = .FALSE.
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     IF (has_unit_metric) THEN
       NULLIFY(orthogonality_metric)
@@ -427,7 +432,7 @@ CONTAINS
 
     DO ispin=1,SIZE(mos)
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    rho%rho_ao(ispin)%matrix,&
+                                    rho_ao(ispin)%matrix,&
                                     use_dbcsr=.TRUE.,&
                                     error=error)
     END DO
@@ -504,14 +509,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
 
     failure=.FALSE.
+    NULLIFY(rho_ao, rho_ao_kp)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
 
     IF(do_kpoints) THEN
        SELECT CASE(scf_env%mixing_method)
        CASE(direct_mixing_nr)
           CALL scf_env_density_mixing_kp(scf_env%p_mix_kp,&
-               scf_env%mixing_store, rho%rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
+               scf_env%mixing_store, rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
                diis=diis_step, error=error)
        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
             broyden_mixing_new_nr,multisecant_mixing_nr)
@@ -519,7 +531,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"KPoints not available with this mixing method: "//&
                cp_to_string(scf_env%mixing_method),error,failure)
-          CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+          CALL self_consistency_check(rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
                delta=scf_env%iter_delta, error=error)
        CASE(no_mixing_nr)
        CASE DEFAULT
@@ -531,12 +543,12 @@ CONTAINS
        SELECT CASE(scf_env%mixing_method)
        CASE(direct_mixing_nr)
           CALL scf_env_density_mixing(scf_env%p_mix_new,&
-               scf_env%mixing_store, rho%rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
+               scf_env%mixing_store, rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
                diis=diis_step, error=error)
        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
             broyden_mixing_new_nr,multisecant_mixing_nr)
           ! Compute the difference p_out-p_in
-          CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+          CALL self_consistency_check(rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
                delta=scf_env%iter_delta, error=error)
        CASE(no_mixing_nr)
        CASE DEFAULT
@@ -663,21 +675,28 @@ CONTAINS
 
     INTEGER                                  :: ic, ispin, nc
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
 
      failure = .FALSE.
+     NULLIFY(rho_ao, rho_ao_kp)
+
      IF (scf_env%mixing_method>0) THEN
+        CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
         IF(do_kpoints) THEN
            nc = SIZE(scf_env%p_mix_kp,2)
            SELECT CASE(scf_env%mixing_method)
            CASE(direct_mixing_nr)
              CALL scf_env_density_mixing_kp(scf_env%p_mix_kp,scf_env%mixing_store,&
-                                            rho%rho_ao_kp,para_env,scf_env%iter_delta,&
+                                            rho_ao_kp,para_env,scf_env%iter_delta,&
                                             scf_env%iter_count,diis=diis_step,&
                                             invert=.TRUE.,error=error)
              DO ic=1,nc
                 DO ispin=1,dft_control%nspins
-                   CALL cp_dbcsr_copy(rho%rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
-                                      name=TRIM(cp_dbcsr_name(rho%rho_ao_kp(ispin,ic)%matrix)),error=error)
+                   CALL cp_dbcsr_copy(rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
+                                      name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin,ic)%matrix)),error=error)
                 END DO
              END DO
            CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
@@ -687,8 +706,8 @@ CONTAINS
                cp_to_string(scf_env%mixing_method),error,failure)
              DO ic=1,nc
                 DO ispin=1,dft_control%nspins
-                   CALL cp_dbcsr_copy(rho%rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
-                                   name=TRIM(cp_dbcsr_name(rho%rho_ao_kp(ispin,ic)%matrix)),error=error)
+                   CALL cp_dbcsr_copy(rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin,ic)%matrix)),error=error)
                 END DO
              END DO
            END SELECT
@@ -696,18 +715,18 @@ CONTAINS
            SELECT CASE(scf_env%mixing_method)
            CASE(direct_mixing_nr)
              CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_store,&
-                                         rho%rho_ao,para_env,scf_env%iter_delta,&
+                                         rho_ao,para_env,scf_env%iter_delta,&
                                          scf_env%iter_count,diis=diis_step,&
                                          invert=.TRUE.,error=error)
              DO ispin=1,dft_control%nspins
-                CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                   name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
+                CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho_ao(ispin)%matrix)),error=error)
              END DO
            CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                 broyden_mixing_new_nr,multisecant_mixing_nr)
              DO ispin=1,dft_control%nspins
-                CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                   name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
+                CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho_ao(ispin)%matrix)),error=error)
              END DO
            END SELECT
         END IF

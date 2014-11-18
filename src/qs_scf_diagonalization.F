@@ -94,7 +94,8 @@ MODULE qs_scf_diagonalization
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_block_davidson,           ONLY: generate_extended_space,&
                                              generate_extended_space_sparse
   USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
@@ -573,7 +574,7 @@ CONTAINS
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: eval_first, occ_first
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_fm_type), POINTER                :: c0, chc, evec, mo_coeff, work
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -585,7 +586,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
-         mo_occupations, work, dft_control)
+         mo_occupations, work, dft_control, rho_ao)
 
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIAG_SUB_SCF",&
@@ -595,6 +596,7 @@ CONTAINS
     work  => scf_env%scf_work2
 
     nspin = SIZE(mos)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     ALLOCATE( eval_first(nspin), STAT=istat)
       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -614,8 +616,8 @@ CONTAINS
     END DO
 
     DO ispin=1,nspin
-       CALL cp_dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho%rho_ao(ispin)%matrix,error=error )
-       CALL cp_dbcsr_copy( rho%rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix,error=error )
+       CALL cp_dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho_ao(ispin)%matrix,error=error )
+       CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix,error=error )
     END DO
 
     subspace_env%p_matrix_mix => scf_env%p_mix_new
@@ -704,15 +706,15 @@ CONTAINS
 
       IF(subspace_env%mixing_method==direct_mixing_nr) THEN
          CALL scf_env_density_mixing(subspace_env%p_matrix_mix, &
-              scf_env%mixing_store, rho%rho_ao, para_env, iter_delta, iloop, &
+              scf_env%mixing_store, rho_ao, para_env, iter_delta, iloop, &
               error=error)
       ELSE
-          CALL self_consistency_check(rho%rho_ao,scf_env%p_delta,para_env,&
+          CALL self_consistency_check(rho_ao,scf_env%p_delta,para_env,&
                subspace_env%p_matrix_mix,delta=iter_delta,error=error)
       END IF
 
       DO ispin=1,nspin
-         CALL cp_dbcsr_copy( rho%rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin)%matrix ,error=error )
+         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin)%matrix ,error=error )
       END DO
       ! update of density
       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -741,8 +743,8 @@ CONTAINS
 
     NULLIFY (subspace_env%p_matrix_mix)
     DO ispin=1,nspin
-        CALL cp_dbcsr_copy( scf_env%p_mix_new(ispin)%matrix,rho%rho_ao(ispin)%matrix,error=error )
-        CALL cp_dbcsr_copy( rho%rho_ao(ispin)%matrix,  subspace_env%p_matrix_store(ispin)%matrix ,error=error )
+        CALL cp_dbcsr_copy(scf_env%p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix,error=error )
+        CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_store(ispin)%matrix ,error=error )
 
         DEALLOCATE(eval_first(ispin)%array,occ_first(ispin)%array)
     END DO

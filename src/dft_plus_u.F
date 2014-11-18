@@ -69,7 +69,8 @@ MODULE dft_plus_u
                                              get_qs_kind_set,&
                                              qs_kind_type,&
                                              set_qs_kind
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -327,7 +328,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
 
     sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    matrix_p => rho%rho_ao     ! Density matrices in sparse format
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)     ! Density matrices in sparse format
 
     energy%dft_plus_u = 0.0_dp
 
@@ -1029,7 +1030,7 @@ CONTAINS
 
     ! Get density matrices in sparse format
 
-    matrix_p => rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
     energy%dft_plus_u = 0.0_dp
 
@@ -1707,7 +1708,7 @@ CONTAINS
 
     ! Get density matrices in sparse format
 
-    matrix_p => rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
     energy%dft_plus_u = 0.0_dp
 

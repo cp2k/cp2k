@@ -60,7 +60,8 @@ MODULE xray_diffraction
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -570,6 +571,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(pw_p_type)                          :: rho_elec_gspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
@@ -602,7 +604,7 @@ CONTAINS
       NULLIFY (orb_basis_set)
       NULLIFY (pab)
       NULLIFY (particle_set)
-      NULLIFY (rho)
+      NULLIFY (rho, rho_r)
       NULLIFY (rho_atom)
       NULLIFY (rho_atom_set)
       NULLIFY (work)
@@ -618,6 +620,7 @@ CONTAINS
                       rho_atom_set=rho_atom_set,&
                       error=error)
 
+      CALL qs_rho_get(rho, rho_r=rho_r, error=error)
       eps_rho_gspace = dft_control%qs_control%eps_rho_gspace
       nkind = SIZE(atomic_kind_set)
       nspin = dft_control%nspins
@@ -634,7 +637,7 @@ CONTAINS
 
       DO ispin=1,nspin
         CALL pw_zero(rho_elec_gspace%pw,error=error)
-        CALL pw_transfer(rho%rho_r(ispin)%pw,rho_elec_gspace%pw,debug=.FALSE.,error=error)
+        CALL pw_transfer(rho_r(ispin)%pw,rho_elec_gspace%pw,debug=.FALSE.,error=error)
         IF (PRESENT(fsign).AND.(ispin == 2)) THEN
           alpha = fsign
         ELSE

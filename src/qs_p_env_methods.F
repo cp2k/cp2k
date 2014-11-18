@@ -83,6 +83,7 @@ MODULE qs_p_env_methods
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_get,&
                                              qs_rho_release,&
                                              qs_rho_type
   USE string_utilities,                ONLY: compress
@@ -471,7 +472,7 @@ END SUBROUTINE p_env_did_change
     LOGICAL                                  :: failure, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -490,7 +491,7 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         logger, input,lr_section, energy, matrix_ks, dft_control)
+         logger, input,lr_section, energy, matrix_ks, dft_control, rho_ao)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -507,6 +508,8 @@ END SUBROUTINE p_env_did_change
                     energy=energy,&
                     dft_control=dft_control,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     n_spins = dft_control%nspins
     IF (.NOT. failure) THEN
@@ -592,12 +595,12 @@ END SUBROUTINE p_env_did_change
              CALL get_mo_set(mos(spin)%mo_set,lfomo=lfomo,&
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
-                CALL cp_dbcsr_set(rho%rho_ao(spin)%matrix,0.0_dp,error=error)
-                CALL cp_dbcsr_plus_fm_fm_t(rho%rho_ao(spin)%matrix,&
+                CALL cp_dbcsr_set(rho_ao(spin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_plus_fm_fm_t(rho_ao(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
                      ncol=p_env%n_mo(spin),error=error)
-                CALL cp_dbcsr_scale(rho%rho_ao(spin)%matrix,alpha_scalar=maxocc,&
+                CALL cp_dbcsr_scale(rho_ao(spin)%matrix,alpha_scalar=maxocc,&
                      error=error)
              ELSE
                 CALL cp_unimplemented_error(fromWhere=routineP,&
@@ -847,12 +850,14 @@ END SUBROUTINE p_env_did_change
     INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: failure, gapw, gapw_xc
     REAL(KIND=dp)                            :: my_alpha, my_beta
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho1_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(dft_control, rho)
+    NULLIFY(dft_control, rho, rho1_ao)
 
     CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, error=error)
 
@@ -872,14 +877,14 @@ END SUBROUTINE p_env_did_change
        CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
        n_spins = dft_control%nspins
 
+       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao, error=error)
        DO ispin=1, SIZE(p1)
           ! hack to avoid crashes in ep regs
-          IF(.not.ASSOCIATED(p_env%rho1%rho_ao(ispin)%matrix,p1(ispin)%matrix)) THEN
-             CALL cp_dbcsr_copy(p_env%rho1%rho_ao(ispin)%matrix,p1(ispin)%matrix,error=error)
+          IF(.not.ASSOCIATED(rho1_ao(ispin)%matrix,p1(ispin)%matrix)) THEN
+             CALL cp_dbcsr_copy(rho1_ao(ispin)%matrix,p1(ispin)%matrix,error=error)
           ENDIF
        ENDDO
-       CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-                              qs_env=qs_env, error=error)
+       CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, error=error)
 
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
@@ -1204,7 +1209,7 @@ END SUBROUTINE p_env_did_change
             error=error)
        n_spins=dft_control%nspins
 
-       p1_new => p_env%rho1%rho_ao
+       CALL qs_rho_get(p_env%rho1, rho_ao=p1_new, error=error)
 
     END IF
     IF (.not.failure) THEN

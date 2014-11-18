@@ -72,7 +72,8 @@ MODULE almo_scf_qs
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -532,7 +533,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -550,7 +551,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
-    NULLIFY(rho, sab_orb)
+    NULLIFY(rho, sab_orb, rho_ao)
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -558,7 +559,7 @@ CONTAINS
     ELSE
        unit_nr=-1
     ENDIF
-    
+
     ! get basic quantities from the qs_env
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
@@ -577,6 +578,8 @@ CONTAINS
                     rho=rho,&
                     sab_orb=sab_orb,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
     CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,error,failure)
 
     nspin=dft_control%nspins
@@ -614,21 +617,21 @@ CONTAINS
     CASE (atomic_guess)
 
        DO ispin=1,nspin
-          CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp,error=error)
           IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-             CALL calculate_mopac_dm(rho%rho_ao(ispin)%matrix,&
+             CALL calculate_mopac_dm(rho_ao(ispin)%matrix,&
                   matrix_s(1)%matrix, has_unit_metric, &
                   dft_control, particle_set, atomic_kind_set, qs_kind_set,&
                   ispin, nspin, nelectron_spin(ispin),&
                   para_env, error)
           ELSE
-             CALL calculate_atomic_block_dm(rho%rho_ao(ispin)%matrix,&
+             CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix,&
                   matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
                   ispin, nspin, nelectron_spin(ispin), unit_nr, error)
           ENDIF
 
           ! copy the atomic-block dm into matrix_p_blk
-          CALL matrix_qs_to_almo(rho%rho_ao(ispin)%matrix,&
+          CALL matrix_qs_to_almo(rho_ao(ispin)%matrix,&
                                  almo_scf_env%matrix_p_blk(ispin),almo_scf_env,&
                                  .FALSE.,error)
           CALL cp_dbcsr_filter(almo_scf_env%matrix_p_blk(ispin),&
@@ -653,7 +656,7 @@ CONTAINS
 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              rho%rho_ao(ispin)%matrix,&
+                              rho_ao(ispin)%matrix,&
                               almo_scf_env,error)
     ENDDO
 
@@ -696,19 +699,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(rho)
+    NULLIFY(rho, rho_ao)
     CALL timeset(routineN,handle)
 
     nspin=almo_scf_env%nspins
     CALL get_qs_env(qs_env, energy=energy, rho=rho, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     ! set the new density matrix 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              rho%rho_ao(ispin)%matrix,&
+                              rho_ao(ispin)%matrix,&
                               almo_scf_env,&
                               error)
     END DO

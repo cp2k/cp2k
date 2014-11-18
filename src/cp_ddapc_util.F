@@ -55,7 +55,8 @@ MODULE cp_ddapc_util
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -259,6 +260,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     TYPE(pw_type), POINTER                   :: rho_tot_g
@@ -278,7 +280,7 @@ CONTAINS
     need_f          = .FALSE.
     IF (PRESENT(calc_force))  need_f      = calc_force
     logger => cp_error_get_logger(error)
-    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
+    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env, rho_g, rho_r,&
             radii, inp_radii, particle_set, qs_kind_set, qs_charges, cp_ddapc_env)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -293,6 +295,9 @@ CONTAINS
                        cell=cell,&
                        super_cell=super_cell,&
                        error=error)
+
+       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, error=error)
+
        IF (PRESENT(iwc)) THEN
           iw = iwc
        ELSE
@@ -323,17 +328,17 @@ CONTAINS
              ELSE
                 CALL pw_transfer(rho_core%pw,rho_tot_g, error=error)
              END IF
-             DO ispin=1,SIZE(rho%rho_g)
-                CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_g, error=error)
+             DO ispin=1,SIZE(rho_g)
+                CALL pw_axpy(rho_g(ispin)%pw,rho_tot_g, error=error)
              END DO
              type_of_density = "FULL DENSITY"
           CASE(do_spin_density)
-             CALL pw_copy (rho%rho_g(1)%pw,rho_tot_g, error=error)
-             CALL pw_axpy (rho%rho_g(2)%pw,rho_tot_g,alpha=-1._dp, error=error)
+             CALL pw_copy (rho_g(1)%pw,rho_tot_g, error=error)
+             CALL pw_axpy (rho_g(2)%pw,rho_tot_g,alpha=-1._dp, error=error)
              type_of_density = "SPIN DENSITY"
           END SELECT
        END IF
-       Vol = rho%rho_r(1)%pw%pw_grid%vol
+       Vol = rho_r(1)%pw%pw_grid%vol
        ch_dens = 0.0_dp
        ! should use pw_integrate 
        IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%cc(1),KIND=dp)

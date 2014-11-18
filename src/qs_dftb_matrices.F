@@ -88,7 +88,8 @@ MODULE qs_dftb_matrices
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE spme,                            ONLY: spme_forces,&
                                              spme_potential
   USE timings,                         ONLY: timeset,&
@@ -312,7 +313,7 @@ CONTAINS
                       rho=rho,matrix_w=matrix_w,&
                       virial=virial,&
                       force=force,error=error)
-      matrix_p => rho%rho_ao
+      CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
       IF (SIZE(matrix_p) == 2) THEN
          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
@@ -726,7 +727,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
            particle_set=particle_set,&
            matrix_s=matrix_s,error=error)
-      matrix_p => rho%rho_ao
+      CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
       natom=SIZE(particle_set)
       ALLOCATE(charges(natom,nspins),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -761,7 +762,7 @@ CONTAINS
           ! If QM/MM sumup the 1el Hamiltonian
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
                1.0_dp,1.0_dp,error=error)
-          matrix_p => rho%rho_ao
+          CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
           ! Compute QM/MM Energy
           CALL cp_dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
                matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
@@ -1544,7 +1545,7 @@ CONTAINS
 
        NULLIFY(matrix_s)
        CALL build_dftb_overlap(qs_env,1,matrix_s,error)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
        nspins = dft_control%nspins
        nkind  = SIZE(atomic_kind_set)
@@ -1767,7 +1768,7 @@ CONTAINS
 
        NULLIFY(matrix_s)
        CALL build_dftb_overlap(qs_env,1,matrix_s,error)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
        nspins = dft_control%nspins
        nkind  = SIZE(atomic_kind_set)
