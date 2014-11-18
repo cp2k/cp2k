@@ -985,14 +985,14 @@ MODULE hfx_derivatives
       IF(distribution_forces%number_of_atom_quartets == 0 .OR. &
          my_istart == -1_int_8) my_istart = nblocks **4
       atomic_blocks: DO atom_block = my_istart,nblocks**4-1,n_processes
-        latom_block = MODULO(atom_block,nblocks)+1
+        latom_block = INT(MODULO(atom_block,nblocks))+1
         tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
+        katom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(latom_block<katom_block) CYCLE
         tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
+        jatom_block = INT(MODULO(tmp_block,nblocks))+1
         tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
+        iatom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(jatom_block<iatom_block) CYCLE
         my_current_counter = my_current_counter + 1
         IF(my_current_counter > distribution_forces%number_of_atom_quartets) EXIT atomic_blocks
