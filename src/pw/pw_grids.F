@@ -32,6 +32,7 @@
 !>      CJM
 ! *****************************************************************************
 MODULE pw_grids
+  USE ISO_C_BINDING
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8,&
@@ -1808,10 +1809,6 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !>      Christopher Mundy
 ! *****************************************************************************
   SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
-
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-    USE ISO_C_BINDING
-#endif
 
     ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
