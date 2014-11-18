@@ -20,7 +20,7 @@ MODULE dbcsr_csr_conversions
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
                                              dbcsr_data_release
-  USE dbcsr_datatype,                  ONLY: dbcsr_type_complex_4,&
+  USE dbcsr_data_types,                ONLY: dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8,&
