@@ -48,6 +48,12 @@ MODULE dbcsr_api
        has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
        mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
        multrec_limit
+  USE dbcsr_csr_conversions,           ONLY: convert_csr_to_dbcsr,&
+                                             convert_dbcsr_to_csr,&
+                                             csr_create_from_dbcsr,&
+                                             csr_destroy,&
+                                             csr_type,&
+                                             csr_write
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_get_data_p, dbcsr_scalar, &
@@ -347,6 +353,15 @@ MODULE dbcsr_api
             mm_name_matmul,&
             mm_name_smm,&
             multrec_limit,&
-            swap, dbcsr_set_default_config, dbcsr_row_block_sizes, dbcsr_col_block_sizes
+            swap,&
+            dbcsr_set_default_config,&
+            dbcsr_row_block_sizes,&
+            dbcsr_col_block_sizes,&
+            convert_csr_to_dbcsr,&
+            convert_dbcsr_to_csr,&
+            csr_create_from_dbcsr,&
+            csr_destroy,&
+            csr_type,&
+            csr_write
 
 END MODULE dbcsr_api

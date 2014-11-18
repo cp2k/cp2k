@@ -65,9 +65,9 @@ MODULE dbcsr_methods
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
             dbcsr_get_index_memory_type, dbcsr_get_data_memory_type,&
-            dbcsr_name, &
+            dbcsr_name, dbcsr_get_data_size,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
-            dbcsr_get_data_size
+            dbcsr_get_nze, dbcsr_nfullrows_local, dbcsr_nfullcols_local
   PUBLIC :: dbcsr_get_data_size_used
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_data_area
@@ -994,6 +994,20 @@ CONTAINS
 
     num_blocks = matrix%m%nblks
   END FUNCTION dbcsr_get_num_blocks
+
+
+! *****************************************************************************
+!> \brief Returns the number of non-zero elements in the matrix
+!> \param matrix     matrix from which to get data
+!> \retval num_nze ...
+! *****************************************************************************
+  PURE FUNCTION dbcsr_get_nze (matrix) RESULT (num_nze)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: num_nze
+
+    num_nze = matrix%m%nze
+  END FUNCTION dbcsr_get_nze
+
 
 ! *****************************************************************************
 ! Arrays
