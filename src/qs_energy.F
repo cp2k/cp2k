@@ -28,11 +28,11 @@ MODULE qs_energy
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_scf,                          ONLY: scf
+  USE rt_propagation_forces,           ONLY: calc_S_derivs
   USE rt_propagation_methods,          ONLY: propagation_step,&
                                              s_matrices_create
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: rt_prop_type
-  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE rt_propagator_init,              ONLY: init_emd_propagators
   USE timings,                         ONLY: timeset,&
                                              timestop

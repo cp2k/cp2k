@@ -73,8 +73,8 @@ MODULE qs_force
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                              qs_subsys_type
-  USE rt_propagation_utils,            ONLY: calc_c_mat_force
-  USE rtp_admm_methods,                ONLY: rt_admm_force
+  USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
+                                             rt_admm_force
   USE scf_control_types,               ONLY: scf_control_type
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
