@@ -901,8 +901,10 @@ CONTAINS
 
        pw_grid % bounds_local = pw_grid % bounds
        pw_grid % npts_local = pw_grid % npts
-       pw_grid % ngpts_cut_local = pw_grid % ngpts_cut
-       pw_grid % ngpts_local = PRODUCT ( pw_grid % npts_local )
+CPPrecondition(pw_grid%ngpts_cut<HUGE(pw_grid%ngpts_cut_local),cp_failure_level,routineP,error,failure)
+       pw_grid % ngpts_cut_local = INT(pw_grid % ngpts_cut)
+CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP,error,failure)
+       pw_grid % ngpts_local = INT(pw_grid % ngpts)
        pw_grid % para % rs_dims=1
        CALL mp_cart_create ( MPI_COMM_SELF, 2, &
             pw_grid % para % rs_dims, &
