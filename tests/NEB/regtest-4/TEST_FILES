@@ -6,5 +6,5 @@
 NEB-MIXED.inp                         10     2e-14
 2gly_IT-NEB-CV.inp                    10     1e-9
 2gly_IT-NEB-CV-res.inp                10     2e-09
-UO2-2x2x2-CI-NEB-core-shell.inp       10     4e-12
-UO2-2x2x2-CI-NEB-core-shell-res.inp   10     2e-06
+UO2-2x2x2-CI-NEB-core-shell.inp   10     1e-11
+UO2-2x2x2-CI-NEB-core-shell-res.inp   10     5e-06
