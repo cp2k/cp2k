@@ -303,7 +303,7 @@ CONTAINS
 
     rho0 => dg_rho0 % pw % cr3d
 
-    DO gpt = 1, pw_grid % ngpts_cut
+    DO gpt = 1, pw_grid % ngpts_cut_local
        ghat => pw_grid % g_hat ( :, gpt )
 
        lp = pw_grid % mapl % pos ( ghat ( 1 ) )

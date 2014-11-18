@@ -819,7 +819,7 @@ CONTAINS
     END DO
 
     ! Looping over the positive g-vectors
-    DO gpt = 1, pw_grid%ngpts_cut
+    DO gpt = 1, pw_grid%ngpts_cut_local
        lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
        mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
        np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
@@ -857,7 +857,7 @@ CONTAINS
     IF (do_stress)  CALL mp_sum (summe_st, group)
 
     ! Looping over the positive g-vectors
-    DO gpt = 1, pw_grid%ngpts_cut
+    DO gpt = 1, pw_grid%ngpts_cut_local
        ! computing the potential energy
        lp = pw_grid%mapl%pos(pw_grid%g_hat(1,gpt))
        mp = pw_grid%mapm%pos(pw_grid%g_hat(2,gpt))
