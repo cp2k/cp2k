@@ -21,7 +21,6 @@ MODULE semi_empirical_int_gks
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
   USE erf_fn,                          ONLY: erfc
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi

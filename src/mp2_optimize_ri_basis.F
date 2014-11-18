@@ -21,7 +21,7 @@ MODULE mp2_optimize_ri_basis
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-! USE f77_blas
+! 
   USE hfx_libint_wrapper_types,        ONLY: build_eri_size
   USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                              hfx_basis_type

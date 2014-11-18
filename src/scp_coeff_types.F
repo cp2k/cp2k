@@ -18,7 +18,6 @@ MODULE scp_coeff_types
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
-  USE f77_blas
   USE input_constants,                 ONLY: copy_coeff,&
                                              copy_fcoeff,&
                                              use_aux_basis_set

@@ -12,7 +12,6 @@ MODULE mixed_main
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type

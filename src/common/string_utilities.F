@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE string_utilities
 
-  USE f77_blas
+  
   USE glob_matching,                   ONLY: pattern_match=>string_match
   USE kinds,                           ONLY: default_blank_character
 

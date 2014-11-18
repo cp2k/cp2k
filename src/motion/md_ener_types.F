@@ -8,7 +8,7 @@
 !>  \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
 ! *****************************************************************************
 MODULE md_ener_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 #include "../common/cp_common_uses.f90"
 

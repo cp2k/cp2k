@@ -11,7 +11,6 @@
 ! *****************************************************************************
 MODULE dimer_utils
   USE dimer_types,                     ONLY: dimer_env_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
                                              section_vals_type,&

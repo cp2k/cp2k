@@ -11,7 +11,6 @@
 MODULE topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE graphcon,                        ONLY: graph_type,&
                                              hash_molecule,&
                                              reorder_graph,&

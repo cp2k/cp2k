@@ -22,7 +22,7 @@
 ! *****************************************************************************
 MODULE spherical_harmonics
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: dfac,&

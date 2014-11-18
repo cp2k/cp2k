@@ -41,7 +41,6 @@ MODULE qs_neighbor_lists
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE f77_blas
   USE input_constants,                 ONLY: dispersion_uff,&
                                              do_method_lrigpw,&
                                              do_se_IS_slater,&

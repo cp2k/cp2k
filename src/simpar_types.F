@@ -10,7 +10,7 @@
 !>         reorganization of the original routines/modules
 ! *****************************************************************************
 MODULE simpar_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 

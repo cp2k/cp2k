@@ -25,7 +25,6 @@ MODULE qs_energy_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
-  USE f77_blas
   USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                              kg_tnadd_embed
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

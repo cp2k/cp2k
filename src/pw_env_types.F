@@ -12,7 +12,6 @@
 MODULE pw_env_types
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
-  USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_release,&

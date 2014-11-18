@@ -16,7 +16,7 @@
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
 SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_utils,        ONLY: rotmat
   USE semi_empirical_types,            ONLY: rotmat_create,&
@@ -152,7 +152,7 @@ END SUBROUTINE check_rotmat_der
 !>      Debug routine
 ! *****************************************************************************
 SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, invert, ii, kk, v_d, error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_utils,        ONLY: rotmat
   USE semi_empirical_int_arrays,       ONLY: indexb
@@ -257,7 +257,7 @@ END SUBROUTINE rot_2el_2c_first_debug
 !>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_taper,error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: ssss_nucint_num
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
@@ -311,7 +311,7 @@ END SUBROUTINE check_dssss_nucint_ana
 !>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_taper,error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: core_nucint_num
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
@@ -413,7 +413,7 @@ END FUNCTION check_value
 !>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, e1b, e2a, de1b, de2a, error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: rotnuc_num,&
                                              drotnuc_num
@@ -520,7 +520,7 @@ END SUBROUTINE check_drotnuc_ana
 !>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper, enuc, denuc, error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: corecore_num,&
                                              dcorecore_num
@@ -586,7 +586,7 @@ END SUBROUTINE check_dcorecore_ana
 !>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: terep_num
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
@@ -658,7 +658,7 @@ END SUBROUTINE check_dterep_ana
 !>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_num,          ONLY: rotint_num,&
                                              drotint_num

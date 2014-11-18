@@ -16,7 +16,6 @@ MODULE efield_utils
   USE cp_control_types,                ONLY: dft_control_type,&
                                              efield_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: constant_env,&
                                              gaussian_env,&
                                              ramp_env

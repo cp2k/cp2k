@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE memory_utilities
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&

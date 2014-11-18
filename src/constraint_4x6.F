@@ -12,7 +12,6 @@ MODULE constraint_4x6
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_g4x6
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
   USE mathlib,                         ONLY: dotprod_3d,&

@@ -20,7 +20,7 @@
 !> \author apsi
 ! *****************************************************************************
 MODULE pw_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&

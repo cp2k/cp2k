@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE ps_wavelet_util
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE ps_wavelet_base,                 ONLY: f_poissonsolver,&

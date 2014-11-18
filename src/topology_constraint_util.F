@@ -27,7 +27,6 @@ MODULE topology_constraint_util
   USE colvar_utils,                    ONLY: post_process_colvar
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE input_constants,                 ONLY: do_constr_atomic,&
                                              do_constr_molec
   USE input_section_types,             ONLY: section_vals_get,&

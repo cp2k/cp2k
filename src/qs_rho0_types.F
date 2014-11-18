@@ -7,7 +7,6 @@ MODULE qs_rho0_types
 
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size

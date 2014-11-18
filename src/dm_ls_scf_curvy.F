@@ -21,7 +21,6 @@ MODULE dm_ls_scf_curvy
        dbcsr_type_no_symmetry
   USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                              ls_scf_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: ls_scf_line_search_3point,&
                                              ls_scf_line_search_3point_2d
   USE iterate_matrix,                  ONLY: purify_mcweeny

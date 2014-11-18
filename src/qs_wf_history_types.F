@@ -18,7 +18,6 @@ MODULE qs_wf_history_types
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&

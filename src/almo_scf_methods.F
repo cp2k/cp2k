@@ -36,7 +36,6 @@ MODULE almo_scf_methods
                                              domain_submatrix_type,&
                                              select_row,&
                                              select_row_col
-  USE f77_blas
   USE input_constants,                 ONLY: almo_domain_layout_molecular,&
                                              almo_mat_distr_atomic,&
                                              almo_scf_diag

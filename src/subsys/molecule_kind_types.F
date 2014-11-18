@@ -30,7 +30,6 @@ MODULE molecule_kind_types
        xyz_diag_colvar_id, xyz_outerdiag_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE force_field_kind_types,          ONLY: &
        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
        opbend_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, &

@@ -23,7 +23,6 @@ MODULE scptb_core_matrix
                                              cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: get_kpoint_info,&

@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE xc_perdew86
 
-  USE f77_blas
+  
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&

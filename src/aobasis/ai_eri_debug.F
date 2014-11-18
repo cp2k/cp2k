@@ -13,7 +13,7 @@
 !> \author J. Hutter (07.2009)
 ! *****************************************************************************
 MODULE ai_eri_debug
-  USE f77_blas
+  
   USE gamma,                           ONLY: fgamma_ref
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi

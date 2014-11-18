@@ -6,7 +6,6 @@
 MODULE qs_local_rho_types
 
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE mathconstants,                   ONLY: fourpi,&

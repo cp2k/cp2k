@@ -13,7 +13,6 @@ MODULE qs_ks_qmmm_methods
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
   USE d3_poly,                         ONLY: init_d3_poly_module
-  USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_type

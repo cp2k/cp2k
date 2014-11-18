@@ -26,7 +26,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE cp_units
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: radians,&

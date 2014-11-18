@@ -18,7 +18,6 @@ MODULE qmmm_gpw_forces
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_spline_utils,                 ONLY: pw_restrict_s3
   USE cube_utils,                      ONLY: cube_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_coulomb,&
                                              do_qmmm_gauss,&

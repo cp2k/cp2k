@@ -10,7 +10,7 @@
 !>      none
 ! *****************************************************************************
 MODULE gopt_param_types
-  USE f77_blas
+  
   USE input_constants,                 ONLY: default_bfgs_method_id,&
                                              default_cell_method_id,&
                                              default_cg_method_id,&

@@ -8,7 +8,6 @@ MODULE mt_util
   USE bibliography,                    ONLY: Martyna1999,&
                                              cite_reference
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi,&

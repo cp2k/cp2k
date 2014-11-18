@@ -17,7 +17,6 @@ MODULE scp_environment
        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_distribution_obj, dbcsr_repl_full, dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_method_pnnl,&
                                              use_scp_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

@@ -23,7 +23,6 @@ MODULE metadynamics
                                              cp_rm_iter_level
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: do_wall_m,&

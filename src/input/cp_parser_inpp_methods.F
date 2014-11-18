@@ -18,7 +18,6 @@ MODULE cp_parser_inpp_methods
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_parser_inpp_types,            ONLY: inpp_type
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
   USE machine,                         ONLY: default_output_unit

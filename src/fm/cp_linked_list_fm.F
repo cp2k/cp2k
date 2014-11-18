@@ -47,7 +47,6 @@
 MODULE cp_linked_list_fm
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "../common/cp_common_uses.f90"
 

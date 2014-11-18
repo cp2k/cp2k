@@ -20,7 +20,6 @@ MODULE input_restart_force_eval
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eip_environment_types,           ONLY: eip_env_get
   USE ep_f77,                          ONLY: ep_f77_get_main_qs_env
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              multiple_fe_list,&

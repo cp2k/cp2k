@@ -56,7 +56,6 @@ MODULE force_env_methods
                                              ep_f77_release,&
                                              ep_f77_retain
   USE external_potential_methods,      ONLY: add_external_potential
-  USE f77_blas
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_env_retain,&
                                              fist_environment_type

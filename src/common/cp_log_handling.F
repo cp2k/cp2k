@@ -44,7 +44,6 @@ MODULE cp_log_handling
                                              cp_iteration_info_retain,&
                                              cp_iteration_info_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp

@@ -18,7 +18,6 @@ MODULE input_cp2k_xc
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              high_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, gaussian, slater, &
        vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, &

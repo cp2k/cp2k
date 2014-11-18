@@ -25,7 +25,6 @@ MODULE qs_dftb_parameters
                                              parser_create,&
                                              parser_release
   USE external_potential_types,        ONLY: set_potential
-  USE f77_blas
   USE input_constants,                 ONLY: dispersion_uff
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_path_length,&

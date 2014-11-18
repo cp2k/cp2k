@@ -18,7 +18,6 @@ MODULE cp_fm_struct
                                              cp_para_env_retain,&
                                              cp_para_env_write
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush

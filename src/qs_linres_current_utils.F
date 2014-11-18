@@ -48,7 +48,6 @@ MODULE qs_linres_current_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
                                              current_gauge_r_and_step_func,&

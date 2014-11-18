@@ -22,7 +22,6 @@ MODULE pw_poisson_types
                                              bessj1,&
                                              bessk0,&
                                              bessk1
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi

@@ -33,7 +33,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE mol_new_list_types
-  USE f77_blas
   USE molecule_types_new,              ONLY: deallocate_molecule_set,&
                                              molecule_type
 #include "../common/cp_common_uses.f90"

@@ -26,7 +26,6 @@ MODULE task_list_methods
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&

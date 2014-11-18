@@ -38,7 +38,6 @@ MODULE thermostat_methods
                                              initialize_nhc_shell,&
                                              initialize_nhc_slow
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE gle_system_dynamics,             ONLY: gle_particles,&

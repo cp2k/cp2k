@@ -34,7 +34,6 @@
 ! *****************************************************************************
 MODULE ai_spin_orbit
   USE ai_os_rr,                        ONLY: os_rr_coul
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&

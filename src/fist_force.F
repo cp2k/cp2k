@@ -38,7 +38,6 @@ MODULE fist_force
                                              ewald_self_atom
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_environment_type

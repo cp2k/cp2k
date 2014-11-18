@@ -8,7 +8,7 @@
 !> \author Florian Schiffmann (09.2007,fschiff)
 ! *****************************************************************************
 MODULE ps_wavelet_base
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall
   USE ps_wavelet_fft3d,                ONLY: ctrig,&

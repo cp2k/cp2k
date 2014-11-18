@@ -28,7 +28,6 @@ MODULE input_cp2k_subsys
                                              high_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_add, do_bondparm_covalent, do_bondparm_vdw, do_cell_cp2k, &
        do_cell_xsc, do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &

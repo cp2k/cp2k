@@ -31,7 +31,6 @@ MODULE qs_dispersion_pairpot
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE f77_blas
   USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
                                              vdw_pairpot_dftd3,&
                                              vdw_pairpot_dftd3bj,&

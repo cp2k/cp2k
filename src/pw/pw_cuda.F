@@ -19,7 +19,6 @@
 ! *****************************************************************************
 MODULE pw_cuda
   USE ISO_C_BINDING
-  USE f77_blas
   USE fft_tools,                       ONLY: &
        cube_transpose_1, cube_transpose_2, fft_scratch_sizes, &
        fft_scratch_type, get_fft_scratch, release_fft_scratch, x_to_yz, &

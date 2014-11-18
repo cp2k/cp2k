@@ -37,7 +37,7 @@
 !> \author Matthias Krack (22.08.2000)
 ! *****************************************************************************
 MODULE ai_coulomb
-  USE f77_blas
+  
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi

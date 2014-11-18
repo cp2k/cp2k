@@ -24,7 +24,6 @@ MODULE qmmm_per_elpot
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
-  USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
                                              do_qmmm_pcharge,&

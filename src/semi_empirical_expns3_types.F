@@ -8,7 +8,7 @@
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! *****************************************************************************
 MODULE semi_empirical_expns3_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 

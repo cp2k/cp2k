@@ -26,7 +26,6 @@ MODULE particle_methods
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential
-  USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_dcd_aligned_cell,&

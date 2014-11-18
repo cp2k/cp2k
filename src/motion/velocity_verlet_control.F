@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE velocity_verlet_control
 
-  USE f77_blas
+  
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &

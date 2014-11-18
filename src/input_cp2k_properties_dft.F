@@ -20,7 +20,6 @@ MODULE input_cp2k_properties_dft
                                              high_print_level,&
                                              low_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
        current_orb_center_atom, current_orb_center_box, &

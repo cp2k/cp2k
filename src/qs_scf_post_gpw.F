@@ -51,7 +51,6 @@ MODULE qs_scf_post_gpw
                                              put_results
   USE cp_result_types,                 ONLY: cp_result_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
-  USE f77_blas
   USE hfx_ri_gemopt,                   ONLY: geminal_optimize
   USE hirschfeld_methods,              ONLY: comp_hirschfeld_charges,&
                                              comp_hirschfeld_i_charges,&

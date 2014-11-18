@@ -12,7 +12,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_para_types
-  USE f77_blas
+  
 
   IMPLICIT NONE
   PRIVATE

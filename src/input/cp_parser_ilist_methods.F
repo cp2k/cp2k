@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE cp_parser_ilist_methods
   USE cp_parser_ilist_types,           ONLY: ilist_type
-  USE f77_blas
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE

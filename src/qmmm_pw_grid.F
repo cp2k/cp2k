@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave

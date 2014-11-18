@@ -20,7 +20,6 @@ MODULE se_fock_matrix_exchange
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_se_IS_kdso,&
                                              do_se_IS_kdso_d
   USE kinds,                           ONLY: dp

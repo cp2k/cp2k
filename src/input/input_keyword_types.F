@@ -14,7 +14,6 @@ MODULE input_keyword_types
                                              cp_unit_desc,&
                                              cp_unit_release,&
                                              cp_unit_type
-  USE f77_blas
   USE input_enumeration_types,         ONLY: enum_create,&
                                              enum_release,&
                                              enum_retain,&

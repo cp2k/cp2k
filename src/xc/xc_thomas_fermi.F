@@ -15,7 +15,6 @@
 ! *****************************************************************************
 MODULE xc_thomas_fermi
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

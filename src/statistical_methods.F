@@ -13,7 +13,6 @@
 ! *****************************************************************************
 MODULE statistical_methods
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number

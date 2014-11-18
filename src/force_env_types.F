@@ -26,7 +26,6 @@ MODULE force_env_types
   USE ep_f77,                          ONLY: ep_f77_get_energy,&
                                              ep_f77_get_main_qs_env,&
                                              ep_f77_release
-  USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_env_release,&

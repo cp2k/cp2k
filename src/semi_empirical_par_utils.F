@@ -12,7 +12,7 @@
 !> \date   03.2008 [tlaino]
 ! *****************************************************************************
 MODULE semi_empirical_par_utils
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac
   USE mathlib,                         ONLY: binomial

@@ -8,7 +8,7 @@
 !> \author jgh
 ! *****************************************************************************
 MODULE k290
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: invmat
   USE string_utilities,                ONLY: xstring

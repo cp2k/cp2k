@@ -14,7 +14,6 @@ MODULE input_cp2k_motion_print
                                              high_print_level,&
                                              low_print_level,&
                                              silent_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_dcd_aligned_cell,&

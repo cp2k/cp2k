@@ -16,9 +16,7 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_opt_utils
-  USE f77_blas
-  USE f77_blas_extra
-  USE f77_blas_generic
+  USE f77_blas_generic,                ONLY: bl_gemm
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&

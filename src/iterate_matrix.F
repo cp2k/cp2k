@@ -20,7 +20,6 @@ MODULE iterate_matrix
        cp_dbcsr_type, dbcsr_arnoldi_data, dbcsr_norm_maxabsnorm, &
        dbcsr_type_no_symmetry, deallocate_arnoldi_data, get_selected_ritz_val
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&

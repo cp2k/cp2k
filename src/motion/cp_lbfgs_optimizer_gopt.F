@@ -23,7 +23,6 @@ MODULE cp_lbfgs_optimizer_gopt
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE gopt_f_methods,                  ONLY: gopt_f_io
   USE gopt_f_types,                    ONLY: gopt_f_release,&

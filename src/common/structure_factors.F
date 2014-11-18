@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE structure_factors
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: twopi

@@ -48,7 +48,7 @@ This version of CP2K ONLY works with libxc version 2
 #if defined (__LIBXC2)
   USE bibliography,                    ONLY: Marques2012,&
                                              cite_reference
-  USE f77_blas
+  
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&

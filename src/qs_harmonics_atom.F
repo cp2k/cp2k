@@ -7,7 +7,6 @@ MODULE qs_harmonics_atom
 
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: lebedev_grid
   USE memory_utilities,                ONLY: reallocate

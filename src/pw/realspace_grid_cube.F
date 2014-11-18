@@ -9,7 +9,6 @@
 MODULE realspace_grid_cube
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_maxloc,&
                                              mp_recv,&

@@ -31,7 +31,6 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_set_element,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
   USE kinds,                           ONLY: default_string_length,&

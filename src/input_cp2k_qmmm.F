@@ -26,7 +26,6 @@ MODULE input_cp2k_qmmm
                                              medium_print_level,&
                                              silent_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        alpha_imomm_default, charge_scale_factor, do_fm_mom_conserv_buffer, &
        do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &

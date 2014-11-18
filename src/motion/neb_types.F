@@ -16,7 +16,7 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_types
-  USE f77_blas
+  
   USE force_env_types,                 ONLY: force_env_type
   USE input_constants,                 ONLY: do_band_cartesian,&
                                              do_band_collective

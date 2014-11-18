@@ -12,7 +12,6 @@
 MODULE hfx_load_balance_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
                                              build_pair_list
   USE hfx_types,                       ONLY: &

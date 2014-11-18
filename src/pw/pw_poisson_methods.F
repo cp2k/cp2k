@@ -9,7 +9,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE pw_poisson_methods
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE mt_util,                         ONLY: MT0D,&

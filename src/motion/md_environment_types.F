@@ -23,7 +23,6 @@ MODULE md_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type

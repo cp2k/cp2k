@@ -17,7 +17,6 @@
 MODULE kg_vertex_coloring_methods
   USE bibliography,                    ONLY: Brelaz1979,&
                                              cite_reference
-  USE f77_blas
   USE input_constants,                 ONLY: kg_color_dsatur,&
                                              kg_color_greedy
   USE kg_environment_types,            ONLY: kg_environment_type

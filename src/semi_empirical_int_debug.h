@@ -11,7 +11,6 @@
 ! *****************************************************************************
 INTERFACE check_rotmat_der
    SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
-     USE f77_blas
      USE kinds,                           ONLY: dp
      USE semi_empirical_types,            ONLY: rotmat_type,&
                                                 semi_empirical_type
@@ -36,7 +35,6 @@ END INTERFACE check_rotmat_der
 INTERFACE check_dssss_nucint_ana
   SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,&
        se_taper,error)
-    USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
@@ -64,7 +62,6 @@ END INTERFACE check_dssss_nucint_ana
 INTERFACE check_dcore_nucint_ana
   SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,&
        se_taper,error)
-    USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
@@ -92,7 +89,6 @@ END INTERFACE check_dcore_nucint_ana
 INTERFACE check_drotnuc_ana
    SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper,&
         e1b, e2a, de1b, de2a, error)
-    USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
@@ -123,7 +119,6 @@ END INTERFACE check_drotnuc_ana
 INTERFACE check_dcorecore_ana
   SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control,&
        se_taper, enuc, denuc, error)
-    USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
@@ -154,7 +149,6 @@ END INTERFACE check_dcorecore_ana
 INTERFACE rot_2el_2c_first_debug
   SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper,&
        invert, ii, kk, v_d, error)
-    USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
@@ -183,7 +177,6 @@ END INTERFACE rot_2el_2c_first_debug
 ! *****************************************************************************
 INTERFACE check_dterep_ana
   SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,error)
-    USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
@@ -210,7 +203,6 @@ END INTERFACE check_dterep_ana
 ! *****************************************************************************
 INTERFACE check_rotint_ana
   SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
-    USE f77_blas
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&

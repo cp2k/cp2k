@@ -31,7 +31,6 @@ MODULE force_fields_input
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE damping_dipole_types,            ONLY: damping_info_type
-  USE f77_blas
   USE force_field_kind_types,          ONLY: do_ff_amber,&
                                              do_ff_charmm,&
                                              do_ff_g87,&

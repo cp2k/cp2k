@@ -14,7 +14,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE mm_mapping_library
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_string_length
 #include "./common/cp_common_uses.f90"
 

@@ -21,7 +21,6 @@ MODULE input_cp2k
                                              low_print_level,&
                                              medium_print_level,&
                                              silent_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_diag_syevd, do_diag_syevx, do_mat_random, do_mat_read, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &

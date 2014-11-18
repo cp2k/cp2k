@@ -36,7 +36,6 @@ MODULE fist_environment_types
                                              ewald_pw_type
   USE exclusion_types,                 ONLY: exclusion_release,&
                                              exclusion_type
-  USE f77_blas
   USE fist_energy_types,               ONLY: deallocate_fist_energy,&
                                              fist_energy_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&

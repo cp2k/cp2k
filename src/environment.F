@@ -35,7 +35,6 @@ MODULE environment
                                              medium_print_level,&
                                              silent_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE fft_tools,                       ONLY: fft3d,&
                                              finalize_fft,&
                                              init_fft

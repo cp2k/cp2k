@@ -13,7 +13,6 @@ MODULE ep_types
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE iso_c_binding

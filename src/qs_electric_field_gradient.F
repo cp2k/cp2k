@@ -19,7 +19,6 @@ MODULE qs_electric_field_gradient
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE eigenvalueproblems,              ONLY: diagonalise
-  USE f77_blas
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

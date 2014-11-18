@@ -17,7 +17,6 @@ MODULE optimize_input
                                              parser_create,&
                                              parser_release
   USE environment,                     ONLY: cp2k_get_walltime
-  USE f77_blas
   USE f77_interface,                   ONLY: calc_force,&
                                              create_force_env,&
                                              destroy_force_env,&

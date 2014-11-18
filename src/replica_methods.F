@@ -25,7 +25,6 @@ MODULE replica_methods
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
-  USE f77_blas
   USE f77_interface,                   ONLY: calc_force,&
                                              create_force_env,&
                                              f_env_add_defaults,&

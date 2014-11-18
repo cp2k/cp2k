@@ -8,7 +8,7 @@
 !>      their derivatives.
 ! *****************************************************************************
 MODULE xc_derivative_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_give_back_cr3d,&
                                              pw_pool_type

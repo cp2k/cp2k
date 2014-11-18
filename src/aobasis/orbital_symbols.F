@@ -10,7 +10,7 @@
 !> \author Matthias Krack (08.06.2000)
 ! *****************************************************************************
 MODULE orbital_symbols
-  USE f77_blas
+  
 ! Index:
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)

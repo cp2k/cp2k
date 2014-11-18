@@ -8,7 +8,7 @@
 !> \author MJM Oct. 15-2003
 ! *****************************************************************************
 MODULE mc_environment_types
-  USE f77_blas
+  
   USE force_env_types,                 ONLY: force_env_type
   USE mc_types,                        ONLY: mc_simpar_type
 #include "../common/cp_common_uses.f90"

@@ -16,7 +16,6 @@ MODULE input_cp2k_hfx
                                              cp_print_key_section_create,&
                                              high_print_level,&
                                              medium_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
        do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &

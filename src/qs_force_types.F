@@ -13,7 +13,6 @@ MODULE qs_force_types
   !USE cp_control_types,                ONLY: qs_control_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 

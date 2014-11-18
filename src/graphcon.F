@@ -19,7 +19,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE graphcon
-  USE f77_blas
+  
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 

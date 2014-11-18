@@ -13,7 +13,6 @@ MODULE qs_external_potential
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE f77_blas
   USE force_fields_util,               ONLY: get_generic_info
   USE fparser,                         ONLY: evalf,&
                                              evalfd,&

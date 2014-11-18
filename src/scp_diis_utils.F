@@ -7,7 +7,6 @@
 MODULE scp_diis_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE linear_systems,                  ONLY: solve_system

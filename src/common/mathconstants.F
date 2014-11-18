@@ -12,7 +12,7 @@
 !> \author Matthias Krack
 ! *****************************************************************************
 MODULE mathconstants
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE

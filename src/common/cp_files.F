@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE cp_files
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_path_length
   USE machine,                         ONLY: default_input_unit,&
                                              default_output_unit

@@ -12,7 +12,6 @@
 MODULE hfx_compression_methods
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE hfx_compression_core_methods,    ONLY: bits2ints_specific,&
                                              ints2bits_specific
   USE hfx_types,                       ONLY: hfx_cache_type,&

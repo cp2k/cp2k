@@ -16,7 +16,6 @@ MODULE molecule_types_new
   USE colvar_types,                    ONLY: colvar_counters,&
                                              colvar_release,&
                                              colvar_type
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&

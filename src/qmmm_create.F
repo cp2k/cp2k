@@ -25,7 +25,6 @@ MODULE qmmm_create
   USE cp_subsys_methods,               ONLY: create_small_subsys
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_type
-  USE f77_blas
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_environment_type
   USE fist_main,                       ONLY: fist_create_force_env

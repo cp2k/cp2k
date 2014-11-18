@@ -45,7 +45,6 @@ MODULE cp2k_runs
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
-  USE f77_blas
   USE f77_interface,                   ONLY: create_force_env,&
                                              destroy_force_env,&
                                              f77_default_para_env => default_para_env,&

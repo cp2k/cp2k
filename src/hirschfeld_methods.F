@@ -19,7 +19,6 @@ MODULE hirschfeld_methods
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE f77_blas
   USE hirschfeld_types,                ONLY: get_hirschfeld_info,&
                                              hirschfeld_type,&
                                              set_hirschfeld_info

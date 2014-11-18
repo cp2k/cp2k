@@ -23,7 +23,7 @@
 !>      - zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 ! *****************************************************************************
 MODULE ai_overlap_aabb
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&

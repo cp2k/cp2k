@@ -13,7 +13,6 @@ MODULE ps_wavelet_methods
   USE bibliography,                    ONLY: Genovese2006,&
                                              Genovese2007,&
                                              cite_reference
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall,&
                                              mp_cart_rank

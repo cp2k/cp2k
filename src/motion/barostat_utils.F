@@ -13,7 +13,6 @@ MODULE barostat_utils
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: npe_f_ensemble,&
                                              npe_i_ensemble,&
                                              nph_uniaxial_damped_ensemble,&

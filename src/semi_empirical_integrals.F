@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE semi_empirical_integrals
 
-  USE f77_blas
+  
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_get_mult_cache_elements
   USE input_constants,                 ONLY: do_se_IS_slater

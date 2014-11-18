@@ -23,7 +23,6 @@ MODULE atom_utils
                                              get_unit_number,&
                                              open_file
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE input_constants,                 ONLY: do_rhf_atom,&
                                              do_rks_atom,&
                                              do_rohf_atom,&

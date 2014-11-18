@@ -18,7 +18,6 @@ MODULE input_cp2k_motion
                                              low_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        default_bfgs_method_id, default_cell_direct_id, &
        default_cell_geo_opt_id, default_cell_md_id, default_cg_method_id, &

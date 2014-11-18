@@ -63,7 +63,7 @@
 ! *****************************************************************************
 MODULE physcon
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
 

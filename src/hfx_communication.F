@@ -22,7 +22,6 @@ MODULE hfx_communication
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hfx_types,                       ONLY: hfx_2D_map,&
                                              hfx_basis_type,&
                                              hfx_type

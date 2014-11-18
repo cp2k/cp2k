@@ -45,7 +45,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_pw
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_methods,                      ONLY: pw_write
   USE pw_types,                        ONLY: pw_p_type,&

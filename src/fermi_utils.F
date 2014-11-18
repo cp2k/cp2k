@@ -9,7 +9,7 @@
 !> \date 09.2008
 ! *****************************************************************************
 MODULE fermi_utils
-  USE f77_blas
+  
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&

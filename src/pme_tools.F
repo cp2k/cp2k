@@ -16,7 +16,6 @@ MODULE pme_tools
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE realspace_grid_types,            ONLY: realspace_grid_type

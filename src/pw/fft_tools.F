@@ -26,7 +26,6 @@
 MODULE fft_tools
 
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE fft_lib,                         ONLY: &
        fft_1dm, fft_3d, fft_create_plan_1dm, fft_create_plan_3d, &
        fft_destroy_plan, fft_do_cleanup, fft_do_init, fft_get_lengths, &

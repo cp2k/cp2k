@@ -13,7 +13,6 @@ MODULE al_system_mapping
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: map_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_thermo_communication, do_thermo_no_communication, isokin_ensemble, &
        langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &

@@ -18,7 +18,6 @@ MODULE topology_types
                                              cell_type
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              colvar_release
-  USE f77_blas
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
                                              do_constr_none,&

@@ -40,7 +40,6 @@ MODULE input_parsing
                                              cp_unit_set_type,&
                                              cp_unit_to_cp2k1,&
                                              cp_unit_type
-  USE f77_blas
   USE input_enumeration_types,         ONLY: enum_c2i,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_describe,&

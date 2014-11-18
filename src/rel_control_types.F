@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE rel_control_types
 
-  USE f77_blas
+  
   USE input_constants,                 ONLY: rel_none,&
                                              rel_pot_full,&
                                              rel_trans_full,&

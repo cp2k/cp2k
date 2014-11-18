@@ -32,7 +32,6 @@ MODULE fist_neighbor_lists
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_add,&
                                              fist_neighbor_deallocate,&
                                              fist_neighbor_init,&

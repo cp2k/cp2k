@@ -10,7 +10,6 @@ MODULE qs_gapw_densities
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_charges_types,                ONLY: qs_charges_type

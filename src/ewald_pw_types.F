@@ -21,7 +21,6 @@ MODULE ewald_pw_types
   USE dgs,                             ONLY: dg_pme_grid_setup
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp

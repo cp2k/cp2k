@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE cg_test
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: deallocate_lebedev_grids,&
                                              get_number_of_lebedev_grid,&

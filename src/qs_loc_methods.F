@@ -43,7 +43,6 @@ MODULE qs_loc_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
        do_loc_none, dump_dcd, dump_dcd_aligned_cell, dump_xmol, op_loc_berry, &

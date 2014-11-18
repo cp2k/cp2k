@@ -14,7 +14,6 @@ MODULE kg_correction
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_trace
-  USE f77_blas
   USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                              kg_tnadd_embed
   USE kg_environment_types,            ONLY: kg_environment_type

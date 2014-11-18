@@ -29,7 +29,6 @@ MODULE gopt_f_methods
   USE dimer_types,                     ONLY: dimer_env_type
   USE dimer_utils,                     ONLY: update_dimer_vec
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_get_natom,&
                                              force_env_get_nparticle,&

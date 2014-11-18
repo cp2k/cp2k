@@ -36,7 +36,6 @@ MODULE distribution_methods
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_type,&
                                              distribution_2d_write
-  USE f77_blas
   USE input_constants,                 ONLY: model_block_count,&
                                              model_block_lmax
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

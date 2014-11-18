@@ -17,7 +17,6 @@ MODULE input_cp2k_vib
                                              low_print_level,&
                                              medium_print_level,&
                                              silent_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: do_rep_blocked,&
                                              do_rep_interleaved,&
                                              ms_guess_atomic,&

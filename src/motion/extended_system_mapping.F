@@ -17,7 +17,6 @@ MODULE extended_system_mapping
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              lnhc_parameters_type,&
                                              map_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_thermo_communication, do_thermo_no_communication, &
        do_thermo_only_master, isokin_ensemble, langevin_ensemble, &

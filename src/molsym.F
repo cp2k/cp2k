@@ -10,7 +10,7 @@
 !> \author jgh
 ! *****************************************************************************
 MODULE molsym
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: angle,&

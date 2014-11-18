@@ -21,7 +21,7 @@ MODULE hfx_libint_wrapper
                                              build_deriv1_eri_size
   USE orbital_pointers,                ONLY: nco
 
-  USE f77_blas
+  
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

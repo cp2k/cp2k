@@ -28,7 +28,6 @@ MODULE cp_output_handling
                                              cp_iteration_info_type,&
                                              each_desc_labels,&
                                              each_possible_labels
-  USE f77_blas
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

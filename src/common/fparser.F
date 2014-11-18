@@ -17,7 +17,7 @@ MODULE fparser
   ! Roland Schmehl <Roland.Schmehl@mach.uni-karlsruhe.de>
   !
   !------- -------- --------- --------- --------- --------- --------- --------- -------
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_string_length,&
                                              rn => dp
   USE termination,                     ONLY: stop_memory,&

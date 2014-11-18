@@ -11,7 +11,6 @@ MODULE barostat_types
   USE cell_types,                      ONLY: cell_type
   USE extended_system_init,            ONLY: initialize_npt
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type

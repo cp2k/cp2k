@@ -22,7 +22,6 @@ MODULE xas_env_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_density_mixing_types,         ONLY: mixing_storage_release,&
                                              mixing_storage_type

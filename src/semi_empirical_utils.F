@@ -15,7 +15,6 @@ MODULE semi_empirical_utils
   USE cell_types,                      ONLY: cell_type,&
                                              plane_distance
   USE cp_control_types,                ONLY: semi_empirical_control_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &

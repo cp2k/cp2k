@@ -20,7 +20,6 @@ MODULE gopt_f_types
                                              dimer_env_release,&
                                              dimer_env_retain,&
                                              dimer_env_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_get_natom,&
                                              force_env_release,&

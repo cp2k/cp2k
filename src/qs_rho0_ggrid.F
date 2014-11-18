@@ -14,7 +14,6 @@ MODULE qs_rho0_ggrid
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp,&
                                              dp_size,&

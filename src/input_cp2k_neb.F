@@ -22,7 +22,6 @@ MODULE input_cp2k_neb
                                              low_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        band_diis_opt, band_md_opt, do_b_neb, do_ci_neb, do_d_neb, do_eb, &
        do_it_neb, do_rep_blocked, do_rep_interleaved, do_sm, pot_neb_fe, &

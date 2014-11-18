@@ -18,7 +18,6 @@ MODULE qs_main
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE f77_blas
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_p_type,&
                                              force_env_type

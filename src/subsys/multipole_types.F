@@ -11,7 +11,6 @@ MODULE multipole_types
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

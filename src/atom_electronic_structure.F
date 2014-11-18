@@ -28,7 +28,6 @@ MODULE atom_electronic_structure
                                              calculate_atom_vxc_lda,&
                                              calculate_atom_vxc_lsd,&
                                              calculate_atom_zmp
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
        do_dkh4_atom, do_dkh5_atom, do_nonrel_atom, do_numeric, do_rhf_atom, &

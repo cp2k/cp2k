@@ -14,7 +14,6 @@ MODULE cp_external_control
 
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp

@@ -17,7 +17,6 @@ MODULE pair_potential
                                              get_atomic_kind
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE fparser,                         ONLY: finalizef,&
                                              initf,&
                                              parsef

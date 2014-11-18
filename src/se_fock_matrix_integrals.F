@@ -14,7 +14,7 @@
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Periodic SE
 ! *****************************************************************************
 MODULE se_fock_matrix_integrals
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: drotint,&

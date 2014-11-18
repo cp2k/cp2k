@@ -34,7 +34,6 @@ MODULE cp_error_handling
        cp_get_default_logger, cp_log, cp_logger_get_default_unit_nr, &
        cp_logger_release, cp_logger_retain, cp_logger_type, cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_max
   USE termination,                     ONLY: print_message

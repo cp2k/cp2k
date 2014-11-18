@@ -27,7 +27,6 @@ MODULE qmmm_init
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
-  USE f77_blas
   USE force_field_types,               ONLY: input_info_type
   USE force_fields_input,              ONLY: read_gd_section,&
                                              read_gp_section,&

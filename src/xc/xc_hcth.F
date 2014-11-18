@@ -9,7 +9,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE xc_hcth
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&

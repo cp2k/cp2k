@@ -18,7 +18,6 @@
 MODULE termination
 
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              int_8
   USE machine,                         ONLY: default_output_unit,&

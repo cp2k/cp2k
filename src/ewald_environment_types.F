@@ -16,7 +16,6 @@ MODULE ewald_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE input_cp2k_poisson,              ONLY: create_ewald_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type

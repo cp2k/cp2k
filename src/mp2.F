@@ -39,7 +39,6 @@ MODULE mp2
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_types,                       ONLY: &
        alloc_containers, dealloc_containers, hfx_basis_info_type, &

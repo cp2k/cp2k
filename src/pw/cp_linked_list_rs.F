@@ -45,7 +45,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_rs
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type

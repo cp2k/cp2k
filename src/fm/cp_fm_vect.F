@@ -15,7 +15,6 @@ MODULE cp_fm_vect
                                              cp_fm_retain,&
                                              cp_fm_set_all,&
                                              cp_fm_write
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "../common/cp_common_uses.f90"
 

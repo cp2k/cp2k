@@ -13,7 +13,6 @@ MODULE input_cp2k_ls
                                              VandeVondele2012
   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                              high_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: &
        ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &

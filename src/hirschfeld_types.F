@@ -11,7 +11,7 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE hirschfeld_types
-  USE f77_blas
+  
   USE input_constants,                 ONLY: shape_function_gaussian
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type,&

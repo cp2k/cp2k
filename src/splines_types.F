@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE splines_types
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

@@ -11,7 +11,6 @@ MODULE input_cp2k_almo
   USE bibliography,                    ONLY: Khaliullin2007,&
                                              Khaliullin2008,&
                                              Khaliullin2013
-  USE f77_blas
   USE input_constants,                 ONLY: &
        almo_deloc_none, almo_deloc_scf, almo_deloc_x, almo_deloc_x_then_scf, &
        almo_deloc_xalmo_1diag, almo_deloc_xalmo_scf, almo_deloc_xalmo_x, &

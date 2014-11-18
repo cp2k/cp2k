@@ -38,7 +38,6 @@ MODULE atom_energy
                                              calculate_atom_zmp
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE input_constants,                 ONLY: do_analytic
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&

@@ -37,7 +37,7 @@
 !> \author JGH (14.08.2004)
 ! *****************************************************************************
 MODULE semi_empirical_parameters
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndod,&
                                              do_method_pchg,&

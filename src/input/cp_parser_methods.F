@@ -29,7 +29,6 @@ MODULE cp_parser_methods
                                              inpp_process_directive
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_reset
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&

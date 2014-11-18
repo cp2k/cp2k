@@ -26,7 +26,6 @@ MODULE qs_linres_epr_nablavks
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE f77_blas
   USE hartree_local_methods,           ONLY: calculate_Vh_1center
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&

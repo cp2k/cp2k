@@ -8,7 +8,7 @@
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
 MODULE rmsd
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              matvec_3x3

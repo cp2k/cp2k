@@ -51,7 +51,6 @@ MODULE f77_interface
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
-  USE f77_blas
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: ep_create_force_env,&
                                              force_env_calc_energy_force

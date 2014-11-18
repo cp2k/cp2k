@@ -32,7 +32,6 @@ MODULE qs_interactions
                                              get_potential,&
                                              gth_potential_type,&
                                              set_potential
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&

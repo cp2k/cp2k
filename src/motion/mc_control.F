@@ -20,7 +20,6 @@ MODULE mc_control
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE environment,                     ONLY: cp2k_read
-  USE f77_blas
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type

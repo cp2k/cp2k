@@ -11,7 +11,6 @@
 MODULE mc_misc
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE force_env_types,                 ONLY: use_fist_force,&
                                              use_qs_force
   USE kinds,                           ONLY: default_string_length,&

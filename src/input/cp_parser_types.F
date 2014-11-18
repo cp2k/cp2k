@@ -35,7 +35,6 @@ MODULE cp_parser_types
   USE cp_parser_status_types,          ONLY: create_status_type,&
                                              release_status_type,&
                                              status_type
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              max_line_length

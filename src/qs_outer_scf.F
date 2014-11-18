@@ -14,7 +14,6 @@ MODULE qs_outer_scf
                                              ddapc_restraint_type,&
                                              dft_control_type,&
                                              s2_restraint_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_ddapc_constraint, do_s2_constraint, outer_scf_becke_constraint, &
        outer_scf_ddapc_constraint, outer_scf_none, &

@@ -10,7 +10,7 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE input_cp2k_kpoints
-  USE f77_blas
+  
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

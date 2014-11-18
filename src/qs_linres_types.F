@@ -17,7 +17,6 @@ MODULE qs_linres_types
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type

@@ -11,7 +11,6 @@
 ! *****************************************************************************
 MODULE atomic_charges
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&

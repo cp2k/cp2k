@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE topology_multiple_unit_cell
   USE cell_types,                      ONLY: cell_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_remove_values,&

@@ -19,7 +19,6 @@ MODULE qs_kpp1_env_types
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_types,                        ONLY: pw_p_type,&

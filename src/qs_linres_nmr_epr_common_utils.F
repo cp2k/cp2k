@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE qs_linres_nmr_epr_common_utils
   USE cell_types,                      ONLY: cell_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: gaussi
   USE pw_grid_types,                   ONLY: pw_grid_type

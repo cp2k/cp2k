@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE splines_methods
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE splines_types,                   ONLY: spline_data_p_type,&

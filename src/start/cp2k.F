@@ -45,7 +45,6 @@ PROGRAM cp2k
   USE cp2k_runs,                       ONLY: run_input,&
                                              write_cp2k_html_manual,&
                                              write_xml_file
-  USE f77_blas
   USE f77_interface,                   ONLY: check_input,&
                                              default_para_env,&
                                              finalize_cp2k,&

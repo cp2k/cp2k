@@ -18,7 +18,6 @@ MODULE rt_hfx_utils
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
        cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, dbcsr_type_antisymmetric
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE qs_environment_types,            ONLY: get_qs_env,&

@@ -28,7 +28,6 @@ MODULE qs_ot
        cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner

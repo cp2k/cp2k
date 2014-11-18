@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE xc_functionals_utilities
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE termination,                     ONLY: stop_program

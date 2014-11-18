@@ -40,7 +40,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_array_i_utils
-  USE f77_blas
   USE machine,                         ONLY: m_flush
 #include "cp_common_uses.f90"
 

@@ -24,7 +24,6 @@ MODULE qs_dispersion_nonloc
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: vdw_nl_DRSLL,&
                                              vdw_nl_LMKLL,&
                                              vdw_nl_RVV10,&

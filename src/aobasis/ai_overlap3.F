@@ -42,7 +42,7 @@ MODULE ai_overlap3
 
 ! *****************************************************************************
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&

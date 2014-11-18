@@ -19,7 +19,6 @@ MODULE topology_coordinate_util
                                              fist_potential_type,&
                                              get_potential,&
                                              set_potential
-  USE f77_blas
   USE input_constants,                 ONLY: do_fist,&
                                              do_skip_12,&
                                              do_skip_13,&

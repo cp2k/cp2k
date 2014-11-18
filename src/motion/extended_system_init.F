@@ -24,7 +24,6 @@ MODULE extended_system_init
                                              lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
-  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_thermo_only_master,&
                                              npe_f_ensemble,&

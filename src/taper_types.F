@@ -8,7 +8,7 @@
 !> \author Teodoro Laino [tlaino] - 10.2008 University of Zurich
 ! *****************************************************************************
 MODULE taper_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 

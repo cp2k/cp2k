@@ -18,7 +18,6 @@ MODULE input_cp2k_colvar
                                              cp_print_key_section_create,&
                                              high_print_level,&
                                              low_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: gaussian,&
                                              numerical,&
                                              rmsd_all,&

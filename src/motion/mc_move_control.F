@@ -10,7 +10,7 @@
 !> \author Matthew J. McGrath  (10.16.2003)
 ! *****************************************************************************
 MODULE mc_move_control
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: get_mc_molecule_info,&

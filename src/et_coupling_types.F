@@ -11,7 +11,6 @@ MODULE et_coupling_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 

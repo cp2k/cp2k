@@ -21,7 +21,7 @@
 !> \author apsi
 ! *****************************************************************************
 MODULE pw_methods
-  USE f77_blas
+  
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
                                              fft3d

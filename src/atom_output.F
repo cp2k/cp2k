@@ -16,7 +16,6 @@ MODULE atom_output
                                              get_maxn_occ
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
        do_dkh5_atom, do_nonrel_atom, do_rhf_atom, do_rks_atom, do_rohf_atom, &

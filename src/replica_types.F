@@ -27,7 +27,6 @@ MODULE replica_types
   USE cp_result_methods,               ONLY: cp_results_mp_bcast
   USE cp_result_types,                 ONLY: cp_result_p_type,&
                                              cp_result_release
-  USE f77_blas
   USE f77_interface,                   ONLY: destroy_force_env,&
                                              f_env_add_defaults,&
                                              f_env_rm_defaults,&

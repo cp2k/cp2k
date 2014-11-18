@@ -24,7 +24,6 @@ MODULE force_fields
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE ewald_environment_types,         ONLY: ewald_environment_type
-  USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE force_field_kind_types,          ONLY: do_ff_amber,&
                                              do_ff_charmm,&

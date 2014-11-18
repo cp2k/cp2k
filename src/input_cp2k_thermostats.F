@@ -19,7 +19,6 @@ MODULE input_cp2k_thermostats
                                              high_print_level,&
                                              low_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_constr_atomic, do_constr_molec, do_constr_none, do_region_defined, &
        do_region_global, do_region_massive, do_region_molecule, &

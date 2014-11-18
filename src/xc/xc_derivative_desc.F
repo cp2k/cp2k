@@ -24,9 +24,9 @@
 !> \author thomas & fawzi
 ! *****************************************************************************
 MODULE xc_derivative_desc
-  USE f77_blas
-#include "../common/cp_common_uses.f90"
+  
 
+#include "../common/cp_common_uses.f90"
   IMPLICIT NONE
 
   PRIVATE

@@ -32,7 +32,6 @@ MODULE dm_ls_scf_qs
                                              ls_cluster_molecular,&
                                              ls_mstruct_type,&
                                              ls_scf_env_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type

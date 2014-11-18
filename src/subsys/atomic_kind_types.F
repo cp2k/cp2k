@@ -24,7 +24,6 @@ MODULE atomic_kind_types
   USE external_potential_types,        ONLY: deallocate_potential,&
                                              fist_potential_type,&
                                              get_potential
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE periodic_table,                  ONLY: get_ptable_info

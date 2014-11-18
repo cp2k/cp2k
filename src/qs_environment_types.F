@@ -48,7 +48,6 @@ MODULE qs_environment_types
   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                              ewald_pw_retain,&
                                              ewald_pw_type
-  USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                              fist_nonbond_env_type
   USE ga_environment_types,            ONLY: ga_env_release,&

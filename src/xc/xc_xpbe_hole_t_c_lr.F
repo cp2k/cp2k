@@ -14,7 +14,6 @@
 
 MODULE xc_xpbe_hole_t_c_lr
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp

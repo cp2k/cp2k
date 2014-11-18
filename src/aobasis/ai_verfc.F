@@ -79,7 +79,7 @@
 
 
 MODULE ai_verfc
-  USE f77_blas
+  
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi

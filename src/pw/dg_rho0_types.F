@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE dg_rho0_types
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_zero

@@ -14,7 +14,6 @@ MODULE csvr_system_dynamics
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: map_info_type,&
                                              npt_info_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type

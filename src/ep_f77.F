@@ -10,7 +10,6 @@
 ! *****************************************************************************
 MODULE ep_f77
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_type

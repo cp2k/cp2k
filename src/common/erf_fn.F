@@ -9,7 +9,7 @@
 !>      adapted to F95
 ! *****************************************************************************
 MODULE erf_fn
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.f90"
 

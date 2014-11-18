@@ -15,7 +15,6 @@ MODULE qs_energy
                                              rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE dm_ls_scf,                       ONLY: ls_scf
-  USE f77_blas
   USE input_constants,                 ONLY: ehrenfest
   USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: qs_energy_type

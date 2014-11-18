@@ -13,7 +13,6 @@ MODULE qs_external_density
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
                                              open_file
-  USE f77_blas
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&

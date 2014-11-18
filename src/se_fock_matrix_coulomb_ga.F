@@ -33,7 +33,6 @@ MODULE se_fock_matrix_coulomb_ga
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
-  USE f77_blas
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE ga_environment_types,            ONLY: ga_environment_type,&

@@ -13,7 +13,7 @@
 !>              only integer/real global constants
 ! *****************************************************************************
 MODULE input_constants
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE

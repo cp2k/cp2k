@@ -54,7 +54,7 @@
 ! *****************************************************************************
 MODULE lebedev
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&

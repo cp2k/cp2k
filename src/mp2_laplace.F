@@ -9,7 +9,7 @@
 !>      11.2012 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_laplace
-! USE f77_blas
+! 
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_set_all,&
                                              cp_fm_type

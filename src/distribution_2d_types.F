@@ -18,7 +18,6 @@ MODULE distribution_2d_types
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_type,&
                                              cp_blacs_env_write
-  USE f77_blas
   USE machine,                         ONLY: m_flush
 #include "common/cp_common_uses.f90"
 

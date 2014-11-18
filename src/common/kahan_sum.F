@@ -40,7 +40,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE kahan_sum
-  USE f77_blas
+  
 
   IMPLICIT NONE
   PRIVATE

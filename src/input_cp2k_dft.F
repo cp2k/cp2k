@@ -27,7 +27,6 @@ MODULE input_cp2k_dft
                                              medium_print_level,&
                                              silent_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        atomic_guess, broy_mix, broy_mix_new, cholesky_dbcsr, &
        cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &

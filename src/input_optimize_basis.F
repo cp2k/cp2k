@@ -10,7 +10,7 @@
 !> \author Florian Schiffmann
 ! *****************************************************************************
 MODULE input_optimize_basis
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_opt_all,&
                                              do_opt_coeff,&
                                              do_opt_exps,&

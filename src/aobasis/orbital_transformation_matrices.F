@@ -14,7 +14,7 @@
 ! *****************************************************************************
 MODULE orbital_transformation_matrices
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size

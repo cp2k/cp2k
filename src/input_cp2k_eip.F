@@ -13,7 +13,6 @@ MODULE input_cp2k_eip
   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                              high_print_level,&
                                              medium_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: use_bazant_eip,&
                                              use_lenosky_eip
   USE input_keyword_types,             ONLY: keyword_create,&

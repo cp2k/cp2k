@@ -12,7 +12,6 @@
 MODULE topology_connectivity_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE force_field_kind_types,          ONLY: do_ff_charmm,&
                                              do_ff_harmonic
   USE input_constants,                 ONLY: do_conn_g87,&

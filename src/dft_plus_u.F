@@ -49,7 +49,6 @@ MODULE dft_plus_u
                                              cp_print_key_unit_nr,&
                                              low_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
                                              plus_u_mulliken_charges

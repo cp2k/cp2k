@@ -33,7 +33,6 @@ MODULE input_cp2k_global
                                              low_print_level,&
                                              medium_print_level,&
                                              silent_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: &
        bsse_run, callgraph_all, callgraph_master, callgraph_none, &
        cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_dbcsr, &

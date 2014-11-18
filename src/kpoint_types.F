@@ -22,7 +22,6 @@ MODULE kpoint_types
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
-  USE f77_blas
   USE input_cp2k_kpoints,              ONLY: use_complex_wfn,&
                                              use_real_wfn
   USE input_section_types,             ONLY: section_vals_get,&

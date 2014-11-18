@@ -28,7 +28,6 @@ MODULE integrator_utils
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              debug_uniaxial_limit,&
                                              npt_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        isokin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &

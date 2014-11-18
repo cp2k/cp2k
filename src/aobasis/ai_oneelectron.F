@@ -30,7 +30,7 @@
 !> \author jhu (05.2011)
 ! *****************************************************************************
 MODULE ai_oneelectron
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset

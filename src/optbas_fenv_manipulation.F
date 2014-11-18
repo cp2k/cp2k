@@ -27,7 +27,6 @@ MODULE optbas_fenv_manipulation
                                              cp_fm_type
   USE cp_output_handling,              ONLY: debug_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_admm_basis_projection,&
                                              do_admm_purify_mo_diag,&
                                              use_aux_fit_basis_set,&

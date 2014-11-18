@@ -18,7 +18,6 @@ MODULE thermostat_mapping
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: map_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_region_defined,&
                                              do_region_global,&
                                              do_region_massive,&

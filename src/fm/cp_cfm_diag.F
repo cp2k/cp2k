@@ -17,7 +17,6 @@ MODULE cp_cfm_diag
   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size

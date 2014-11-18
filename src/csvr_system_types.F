@@ -13,7 +13,6 @@ MODULE csvr_system_types
   USE extended_system_types,           ONLY: create_map_info_type,&
                                              map_info_type,&
                                              release_map_info_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp

@@ -14,7 +14,6 @@
 MODULE force_field_types
 
   USE damping_dipole_types,            ONLY: damping_info_type
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp

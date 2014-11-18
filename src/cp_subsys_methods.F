@@ -26,7 +26,6 @@ MODULE cp_subsys_methods
                                              cp_subsys_set,&
                                              cp_subsys_type
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_conn_off,&
                                              do_stress_analytical,&
                                              do_stress_diagonal_anal,&

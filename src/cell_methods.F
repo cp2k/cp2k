@@ -24,7 +24,6 @@ MODULE cell_methods
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: do_cell_cp2k,&
                                              do_cell_xsc
   USE input_cp2k_subsys,               ONLY: create_cell_section

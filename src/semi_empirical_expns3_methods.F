@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE semi_empirical_expns3_methods
   USE cp_control_types,                ONLY: semi_empirical_control_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_method_undef
   USE kinds,                           ONLY: dp
   USE qs_kind_types,                   ONLY: get_qs_kind,&

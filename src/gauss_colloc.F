@@ -13,7 +13,6 @@
 ! *****************************************************************************
 MODULE gauss_colloc
   USE d3_poly
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE lgrid_types,                     ONLY: lgrid_type

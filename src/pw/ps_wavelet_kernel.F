@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE ps_wavelet_kernel
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall
   USE ps_wavelet_base,                 ONLY: scramble_unpack

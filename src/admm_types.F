@@ -21,7 +21,6 @@ MODULE admm_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_admm_basis_projection,&
                                              do_admm_blocked_projection
   USE input_section_types,             ONLY: section_vals_release,&

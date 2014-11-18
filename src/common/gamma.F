@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE gamma
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: ifac,&

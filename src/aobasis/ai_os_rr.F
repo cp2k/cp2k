@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 MODULE ai_os_rr
-  USE f77_blas
+  
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset

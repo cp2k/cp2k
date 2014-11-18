@@ -15,7 +15,6 @@
 ! *****************************************************************************
 MODULE ai_overlap
   USE ai_os_rr,                        ONLY: os_rr_ovlp
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&

@@ -15,7 +15,6 @@
 MODULE ai_geminals
   USE ai_geminals_utils,               ONLY: acoff,&
                                              matv
-  USE f77_blas
   USE gamma,                           ONLY: fgamma=>fgamma_1
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi

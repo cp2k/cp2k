@@ -15,7 +15,7 @@
 ! *****************************************************************************
 MODULE cube_utils
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE mathlib,                         ONLY: matvec_3x3

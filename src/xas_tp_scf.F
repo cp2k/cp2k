@@ -34,7 +34,6 @@ MODULE xas_tp_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_kinetic,&
                                              ot_precond_solver_default,&
                                              xas_dscf,&

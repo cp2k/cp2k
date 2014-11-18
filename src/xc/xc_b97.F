@@ -23,7 +23,6 @@ MODULE xc_b97
   USE bibliography,                    ONLY: Becke1997,&
                                              Grimme2006,&
                                              cite_reference
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp

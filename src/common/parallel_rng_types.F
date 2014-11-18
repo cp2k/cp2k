@@ -52,7 +52,7 @@
 ! *****************************************************************************
 MODULE parallel_rng_types
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE string_utilities,                ONLY: compress

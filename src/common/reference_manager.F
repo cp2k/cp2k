@@ -21,7 +21,6 @@
 ! *****************************************************************************
 MODULE reference_manager
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length
   USE message_passing,                 ONLY: mp_max
   USE util,                            ONLY: sort

@@ -38,7 +38,6 @@ MODULE kpoint_methods
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
-  USE f77_blas
   USE fermi_utils,                     ONLY: fermikp
   USE k290,                            ONLY: csym_type,&
                                              kp_sym_gen,&

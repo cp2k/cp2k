@@ -47,7 +47,6 @@ MODULE qs_ks_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
        sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set

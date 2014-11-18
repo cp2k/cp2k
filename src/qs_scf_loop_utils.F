@@ -13,7 +13,6 @@ MODULE qs_scf_loop_utils
                                              cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
                                              harris_eigenvalue_trace_KS_Pmix,&

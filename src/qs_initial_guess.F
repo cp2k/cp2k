@@ -42,7 +42,6 @@ MODULE qs_initial_guess
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        atomic_guess, core_guess, densities_guess, history_guess, mopac_guess, &
        no_guess, random_guess, restart_guess, sparse_guess

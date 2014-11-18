@@ -14,7 +14,7 @@
 ! *****************************************************************************
 MODULE eigenvalueproblems
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_cgesvd,&
                                              lapack_chpev,&

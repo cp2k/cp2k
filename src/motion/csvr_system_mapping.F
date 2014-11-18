@@ -14,7 +14,6 @@ MODULE csvr_system_mapping
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              map_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_thermo_communication, do_thermo_no_communication, &
        do_thermo_only_master, isokin_ensemble, langevin_ensemble, &

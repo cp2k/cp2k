@@ -13,7 +13,7 @@
 !> \see functionals_utilities
 ! *****************************************************************************
 MODULE xc_perdew_wang
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&

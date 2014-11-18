@@ -23,7 +23,6 @@ MODULE dm_ls_scf_methods
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_mstruct_type
-  USE f77_blas
   USE input_constants,                 ONLY: ls_s_preconditioner_atomic,&
                                              ls_s_preconditioner_molecular,&
                                              ls_s_preconditioner_none

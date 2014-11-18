@@ -62,7 +62,6 @@ MODULE qs_scf
   USE cp_result_methods,               ONLY: get_results,&
                                              test_for_result
   USE cp_result_types,                 ONLY: cp_result_type
-  USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_postprocessing
   USE input_constants,                 ONLY: do_method_mndo,&

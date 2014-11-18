@@ -16,7 +16,7 @@
 ! *****************************************************************************
 MODULE periodic_table
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program

@@ -20,7 +20,6 @@ MODULE atom_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE f77_blas
   USE input_constants,                 ONLY: contracted_gto,&
                                              gaussian,&
                                              geometrical_gto,&

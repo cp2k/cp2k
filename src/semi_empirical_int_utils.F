@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE semi_empirical_int_utils
 
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_method_pchg,&
                                              do_se_IS_kdso_d
   USE kinds,                           ONLY: dp

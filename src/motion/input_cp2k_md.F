@@ -20,7 +20,6 @@ MODULE input_cp2k_md
                                              low_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &

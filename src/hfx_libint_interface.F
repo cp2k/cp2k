@@ -16,7 +16,6 @@ MODULE hfx_libint_interface
 
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
-  USE f77_blas
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_contraction_methods,         ONLY: contract
   USE hfx_libint_wrapper,              ONLY: get_derivs,&

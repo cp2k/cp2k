@@ -13,7 +13,7 @@
 !> \author APSI
 ! *****************************************************************************
 MODULE lapack
-  USE f77_blas
+  
 
   IMPLICIT NONE
   PUBLIC ! make all routines public

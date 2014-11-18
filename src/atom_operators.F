@@ -26,7 +26,6 @@ MODULE atom_operators
                                              wigner_slater_functional
   USE dkh_main,                        ONLY: dkh_atom_transformation
   USE erf_fn,                          ONLY: erfc
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
        do_dkh5_atom, do_nonrel_atom, do_sczoramp_atom, do_zoramp_atom

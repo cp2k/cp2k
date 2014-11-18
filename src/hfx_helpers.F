@@ -17,7 +17,6 @@ MODULE hfx_helpers
                                              cp_dbcsr_type,&
                                              dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
 #include "./common/cp_common_uses.f90"

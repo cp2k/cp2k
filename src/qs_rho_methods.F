@@ -21,7 +21,6 @@ MODULE qs_rho_methods
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: default_string_length,&

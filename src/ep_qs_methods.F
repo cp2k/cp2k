@@ -11,7 +11,6 @@
 ! *****************************************************************************
 MODULE ep_qs_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: qs_environment_type
   USE timings,                         ONLY: timeset,&

@@ -20,7 +20,6 @@ MODULE qs_ks_apply_restraints
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE et_coupling,                     ONLY: becke_restraint
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mulliken,                        ONLY: mulliken_restraint
   USE pw_methods,                      ONLY: pw_scale

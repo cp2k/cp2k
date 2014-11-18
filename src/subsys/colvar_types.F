@@ -11,7 +11,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE colvar_types
-  USE f77_blas
+  
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&

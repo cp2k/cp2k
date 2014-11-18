@@ -27,7 +27,6 @@ MODULE eip_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE eip_environment_types,           ONLY: eip_env_set,&
                                              eip_environment_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

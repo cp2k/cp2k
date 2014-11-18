@@ -37,7 +37,6 @@ MODULE preconditioner_makes
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
-  USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              ot_precond_full_kinetic,&
                                              ot_precond_full_single,&

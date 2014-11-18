@@ -18,7 +18,6 @@ MODULE cp_ddapc_types
   USE cp_output_handling,              ONLY: cp_printkey_is_on
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

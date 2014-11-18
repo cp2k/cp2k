@@ -25,7 +25,6 @@ MODULE force_fields_util
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_set,&
                                              fist_nonbond_env_type

@@ -19,7 +19,6 @@ MODULE input_cp2k_mp2
                                              low_print_level,&
                                              medium_print_level,&
                                              silent_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
        mp2_method_direct, mp2_method_gpw, mp2_method_none, &

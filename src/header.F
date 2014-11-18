@@ -14,7 +14,6 @@ MODULE header
                                              r_host_name,&
                                              r_pid,&
                                              r_user_name
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length
 #include "./common/cp_common_uses.f90"
 

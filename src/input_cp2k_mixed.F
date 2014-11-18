@@ -14,7 +14,6 @@ MODULE input_cp2k_mixed
                                              cp_print_key_section_create,&
                                              low_print_level,&
                                              medium_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: mix_coupled,&
                                              mix_generic,&
                                              mix_linear_combination,&

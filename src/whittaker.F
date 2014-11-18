@@ -9,7 +9,7 @@
 ! *****************************************************************************
     MODULE whittaker
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&

@@ -13,7 +13,6 @@
 MODULE cell_types
   USE cp_units,                        ONLY: cp_unit_to_cp2k,&
                                              cp_units_rad
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree,&
                                              sqrt3

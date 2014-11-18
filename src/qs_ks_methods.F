@@ -61,7 +61,6 @@ MODULE qs_ks_methods
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                              hfx_ks_matrix

@@ -21,7 +21,6 @@ MODULE topology_amber
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE force_field_types,               ONLY: amber_info_type
   USE input_cp2k_restarts_util,        ONLY: section_velocity_val_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

@@ -27,7 +27,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE bibliography
-  USE f77_blas
+  
   USE reference_manager,               ONLY: add_reference,&
                                              cite_reference
   USE string_utilities,                ONLY: s2a

@@ -28,7 +28,6 @@ MODULE force_fields_all
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
-  USE f77_blas
   USE force_field_kind_types,          ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_opbend_kind_set, &

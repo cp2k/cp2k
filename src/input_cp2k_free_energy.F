@@ -16,7 +16,6 @@ MODULE input_cp2k_free_energy
                                              high_print_level,&
                                              low_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_fe_ac, do_fe_meta, do_fe_ui, do_wall_gaussian, do_wall_m, &
        do_wall_none, do_wall_p, do_wall_quadratic, do_wall_quartic, &

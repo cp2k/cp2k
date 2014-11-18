@@ -33,7 +33,6 @@
 ! *****************************************************************************
 MODULE pw_grids
   USE ISO_C_BINDING
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8,&
                                              int_size

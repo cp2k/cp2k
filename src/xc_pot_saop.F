@@ -27,7 +27,6 @@ MODULE xc_pot_saop
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_method_gapw,&
                                              oe_gllb,&
                                              oe_lb,&

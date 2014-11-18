@@ -30,7 +30,6 @@ MODULE qs_environment_methods
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              do_ppl_grid,&
                                              kg_tnadd_embed,&

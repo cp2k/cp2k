@@ -17,7 +17,6 @@ MODULE thermostat_types
   USE extended_system_types,           ONLY: lnhc_dealloc,&
                                              lnhc_init,&
                                              lnhc_parameters_type
-  USE f77_blas
   USE gle_system_types,                ONLY: gle_dealloc,&
                                              gle_init,&
                                              gle_type

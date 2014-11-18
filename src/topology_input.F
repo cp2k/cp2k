@@ -12,7 +12,6 @@
 MODULE topology_input
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_p_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_conn_generate,&
                                              do_conn_mol_set,&
                                              do_conn_off,&

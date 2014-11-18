@@ -10,7 +10,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_enumeration_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_string_length
   USE string_utilities,                ONLY: a2s,&
                                              uppercase

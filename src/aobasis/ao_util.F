@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE ao_util
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: &

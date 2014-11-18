@@ -25,7 +25,6 @@ MODULE distribution_1d_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
                                              rng_stream_p_type
 #include "cp_common_uses.f90"

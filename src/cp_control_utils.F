@@ -20,7 +20,6 @@ MODULE cp_control_utils
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        constant_env, do_admm_basis_projection, do_admm_purify_mcweeny, &
        do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &

@@ -25,7 +25,6 @@ MODULE atoms_input
                                              cp_sll_val_type
   USE cp_parser_methods,               ONLY: read_float_object
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&

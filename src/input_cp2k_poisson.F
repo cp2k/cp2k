@@ -26,7 +26,6 @@ MODULE input_cp2k_poisson
                                              low_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: do_fist_pol_cg,&
                                              do_fist_pol_none,&
                                              do_fist_pol_sc

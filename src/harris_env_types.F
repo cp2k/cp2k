@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE harris_env_types
 
-  USE f77_blas
+  
   USE harris_energy_types,             ONLY: harris_energy_clear,&
                                              harris_energy_release,&
                                              harris_energy_type

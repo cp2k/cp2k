@@ -26,7 +26,6 @@ MODULE qs_matrix_pools
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE timings,                         ONLY: timeset,&

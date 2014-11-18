@@ -10,7 +10,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_cp2k_distribution
-  USE f77_blas
+  
   USE input_constants,                 ONLY: model_block_count,&
                                              model_block_lmax,&
                                              model_block_surface

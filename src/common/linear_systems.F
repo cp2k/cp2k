@@ -15,7 +15,7 @@
 ! *****************************************************************************
 MODULE linear_systems
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv
   USE termination,                     ONLY: stop_program

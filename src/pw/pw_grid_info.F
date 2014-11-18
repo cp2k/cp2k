@@ -10,7 +10,7 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE pw_grid_info
-  USE f77_blas
+  
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations

@@ -30,7 +30,6 @@ MODULE scptb_ks_matrix
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
-  USE f77_blas
   USE gamma,                           ONLY: fgamma_0
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type

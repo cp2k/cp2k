@@ -14,7 +14,6 @@ MODULE harris_functional
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_trace
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get,&
                                              harris_env_type

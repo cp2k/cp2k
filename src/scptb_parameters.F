@@ -20,7 +20,7 @@
 !> \author JGH (12.2012)
 ! *****************************************************************************
 MODULE scptb_parameters
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: ptable
   USE scptb_types,                     ONLY: scptb_parameter_type

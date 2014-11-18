@@ -10,7 +10,7 @@
 !> \author fxcoudert [2006.12]
 ! *****************************************************************************
 MODULE block_p_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 

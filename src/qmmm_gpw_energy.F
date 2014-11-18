@@ -21,7 +21,6 @@ MODULE qmmm_gpw_energy
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_spline_utils,                 ONLY: pw_prolongate_s3
   USE cube_utils,                      ONLY: cube_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_coulomb,&
                                              do_qmmm_gauss,&

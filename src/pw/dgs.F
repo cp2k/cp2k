@@ -9,7 +9,7 @@
 !>                          with dg_grid_change
 ! *****************************************************************************
 MODULE dgs
-  USE f77_blas
+  
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FFT_RADIX_NEXT_ODD,&

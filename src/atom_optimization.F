@@ -8,7 +8,6 @@
 ! *****************************************************************************
 MODULE atom_optimization
   USE atom_types,                      ONLY: atom_optimization_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgelss
 #include "./common/cp_common_uses.f90"

@@ -15,7 +15,6 @@ MODULE mm_collocate_potential
   USE cell_types,                      ONLY: cell_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_type
 #include "./common/cp_common_uses.f90"

@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE mixed_energy_types
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"

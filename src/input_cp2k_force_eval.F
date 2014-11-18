@@ -16,7 +16,6 @@ MODULE input_cp2k_force_eval
                                              low_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_eip, do_ep, do_fist, do_mixed, do_qmmm, do_qs, &
        do_stress_analytical, do_stress_diagonal_anal, &

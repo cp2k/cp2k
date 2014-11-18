@@ -11,7 +11,6 @@ MODULE fist_neighbor_list_types
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE timings,                         ONLY: timeset,&

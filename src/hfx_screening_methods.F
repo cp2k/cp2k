@@ -12,7 +12,6 @@
 MODULE hfx_screening_methods
   USE ao_util,                         ONLY: exp_radius_very_extended
   USE basis_set_types,                 ONLY: gto_basis_set_type
-  USE f77_blas
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
   USE hfx_libint_wrapper_types,        ONLY: lib_int
   USE hfx_types,                       ONLY: hfx_basis_type,&

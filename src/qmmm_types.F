@@ -13,7 +13,6 @@ MODULE qmmm_types
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                              ewald_pw_type
-  USE f77_blas
   USE force_field_types,               ONLY: deallocate_inp_info,&
                                              init_inp_info,&
                                              input_info_type

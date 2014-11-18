@@ -18,7 +18,6 @@ MODULE input_val_types
                                              cp_unit_release,&
                                              cp_unit_retain,&
                                              cp_unit_type
-  USE f77_blas
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enum_release,&
                                              enum_retain,&

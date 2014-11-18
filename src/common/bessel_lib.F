@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE bessel_lib
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
                                              pi

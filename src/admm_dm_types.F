@@ -13,7 +13,6 @@ MODULE admm_dm_types
   USE cp_control_types,                ONLY: admm_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
                                              cp_dbcsr_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_admm_basis_projection,&
                                              do_admm_purify_mcweeny
   USE kinds,                           ONLY: dp

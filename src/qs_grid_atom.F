@@ -5,7 +5,7 @@
 ! *****************************************************************************
 MODULE qs_grid_atom
 
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_gapw_gcs,&
                                              do_gapw_gct,&
                                              do_gapw_log

@@ -16,7 +16,6 @@
 ! *****************************************************************************
 MODULE particle_types
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_program

@@ -29,7 +29,6 @@ MODULE qs_resp
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: do_resp_minus_x_dir,&
                                              do_resp_minus_y_dir,&
                                              do_resp_minus_z_dir,&

@@ -26,7 +26,6 @@ MODULE external_potential_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_list_get,&
                                              section_vals_type,&

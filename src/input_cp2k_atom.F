@@ -13,7 +13,6 @@ MODULE input_cp2k_atom
                                              high_print_level,&
                                              medium_print_level,&
                                              silent_print_level
-  USE f77_blas
   USE input_constants,                 ONLY: &
        atom_basis_run, atom_energy_run, atom_no_run, atom_pseudo_run, &
        contracted_gto, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, &

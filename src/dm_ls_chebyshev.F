@@ -22,7 +22,6 @@ MODULE dm_ls_chebyshev
                                              cp_print_key_unit_nr
   USE dm_ls_scf_qs,                    ONLY: write_matrix_to_cube
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&

@@ -15,7 +15,6 @@ MODULE input_cp2k_resp
                                              high_print_level,&
                                              low_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: do_resp_minus_x_dir,&
                                              do_resp_minus_y_dir,&
                                              do_resp_minus_z_dir,&

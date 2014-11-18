@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE pair_potential_util
 
-  USE f77_blas
+  
   USE fparser,                         ONLY: EvalErrType,&
                                              evalf
   USE kinds,                           ONLY: dp

@@ -21,7 +21,6 @@ MODULE fp_methods
                                              cp_print_key_unit_nr
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE f77_blas
   USE fp_types,                        ONLY: fp_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&

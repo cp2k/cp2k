@@ -11,7 +11,7 @@
 !> \author Teodoro Laino (07.2008)
 ! *****************************************************************************
 MODULE qs_scf_post_se
-! USE f77_blas
+! 
   USE ai_moments,                      ONLY: moment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind

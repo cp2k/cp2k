@@ -17,7 +17,6 @@
 MODULE xc_pade
   USE bibliography,                    ONLY: Goedecker1996,&
                                              cite_reference
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&

@@ -15,7 +15,6 @@ MODULE qmmm_elpot
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
                                              do_qmmm_pcharge,&

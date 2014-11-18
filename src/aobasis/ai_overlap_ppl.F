@@ -24,7 +24,6 @@
 ! *****************************************************************************
 MODULE ai_overlap_ppl
   USE ai_oneelectron,                  ONLY: os_3center
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
                                              pi

@@ -21,7 +21,6 @@ MODULE timings_report
                                              dict_haskey,&
                                              dict_items
   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_item_type
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8

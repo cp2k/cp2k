@@ -15,7 +15,7 @@
 ! *****************************************************************************
 MODULE semi_empirical_int_ana
 
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_pchg,&
                                              do_method_pdg,&

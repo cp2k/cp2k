@@ -29,7 +29,6 @@ MODULE force_fields_ext
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE force_field_kind_types,          ONLY: do_ff_g96
   USE force_field_types,               ONLY: amber_info_type,&
                                              charmm_info_type,&

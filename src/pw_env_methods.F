@@ -28,7 +28,6 @@ MODULE pw_env_methods
                                              init_cube_info,&
                                              return_cube_max_iradius
   USE d3_poly,                         ONLY: init_d3_poly_module
-  USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
