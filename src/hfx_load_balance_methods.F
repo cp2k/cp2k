@@ -513,14 +513,14 @@ MODULE hfx_load_balance_methods
 
       DO atom_block = my_process_id,nblocks**4-1,n_processes
 
-        latom_block = MODULO(atom_block,nblocks)+1
+        latom_block = INT(MODULO(atom_block,nblocks))+1
         tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
+        katom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(latom_block<katom_block) CYCLE
         tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
+        jatom_block = INT(MODULO(tmp_block,nblocks))+1
         tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
+        iatom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(jatom_block<iatom_block) CYCLE
 
         iatom_start = x_data%blocks(iatom_block)%istart
@@ -608,14 +608,14 @@ END IF
       local_quartet_counter = 0
       last_bin_needs_to_be_filled = .FALSE.
       DO atom_block = my_process_id,nblocks**4-1,n_processes
-        latom_block = MODULO(atom_block,nblocks)+1
+        latom_block = INT(MODULO(atom_block,nblocks))+1
         tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
+        katom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(latom_block<katom_block) CYCLE
         tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
+        jatom_block = INT(MODULO(tmp_block,nblocks))+1
         tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
+        iatom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(jatom_block<iatom_block) CYCLE
 
         distribution_counter_end = distribution_counter_end + 1
@@ -1089,7 +1089,7 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
 
     ! calculate local cost for each processor!
     ! ****************************************
-    local_cost = 0.0
+    local_cost = 0
     DO i = 1,sizeP
         DO j= 1,sizeQ
 
@@ -1909,7 +1909,7 @@ END SUBROUTINE hfx_permute_binning
     sigma=p3(2)*0.1_dp*mu
     switch=1.0_dp/(1.0_dp+EXP((LOG(estimate1)-mu)/sigma))
     estimate=estimate1*(1.0_dp-switch)+estimate2*switch
-    res = estimate*0.001_dp+1
+    res = INT(estimate*0.001_dp,KIND=int_8)+1
 
   CONTAINS
 
@@ -2349,13 +2349,13 @@ END SUBROUTINE hfx_permute_binning
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
                                                           max_val2/log10_eps_schwarz,&
                                                           p1_energy,p2_energy,p3_energy)
-              estimate_block_cost = estimate_block_cost + cost_tmp
+              estimate_block_cost = estimate_block_cost + INT(cost_tmp,KIND=int_8)
             CASE (hfx_do_eval_forces)
               cost_tmp = cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
                                                           max_val2/log10_eps_schwarz,&
                                                           p1_forces,p2_forces,p3_forces)
-              estimate_block_cost = estimate_block_cost + cost_tmp
+              estimate_block_cost = estimate_block_cost + INT(cost_tmp,KIND=int_8)
             END SELECT
           ENDDO ! i_set_list_kl
         ENDDO ! i_set_list_ij
@@ -2570,13 +2570,13 @@ END SUBROUTINE hfx_permute_binning
       DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1
         j = j + 1
         shm_cost_vector(2*(i-1)+1) = x_data%distribution_energy(j)%cost
-        shm_cost_vector(2*i) = (x_data%distribution_energy(j)%time_first_scf*10000.0_dp)
+        shm_cost_vector(2*i) = INT(x_data%distribution_energy(j)%time_first_scf*10000.0_dp,KIND=int_8)
       END DO
     CASE (hfx_do_eval_forces)
        DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1
         j = j + 1
         shm_cost_vector(2*(i-1)+1) = x_data%distribution_forces(j)%cost
-        shm_cost_vector(2*i) = (x_data%distribution_forces(j)%time_forces*10000.0_dp)
+        shm_cost_vector(2*i) = INT(x_data%distribution_forces(j)%time_forces*10000.0_dp,KIND=int_8)
       END DO
     END SELECT
 !$OMP BARRIER
