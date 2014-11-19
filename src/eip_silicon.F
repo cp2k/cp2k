@@ -1902,9 +1902,9 @@ CONTAINS
 986     CONTINUE
 985     CONTINUE
 984     CONTINUE
-        rlc1i=ll1/alat(1)
-        rlc2i=ll2/alat(2)
-        rlc3i=ll3/alat(3)
+        rlc1i=INT(ll1/alat(1))
+        rlc2i=INT(ll2/alat(2))
+        rlc3i=INT(ll3/alat(3))
 
         DO 983,iat=1,nat
         rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
@@ -1948,9 +1948,9 @@ CONTAINS
 3986    CONTINUE
 3985    CONTINUE
 3984    CONTINUE
-        rlc1i=ll1/alat(1)
-        rlc2i=ll2/alat(2)
-        rlc3i=ll3/alat(3)
+        rlc1i=INT(ll1/alat(1))
+        rlc2i=INT(ll2/alat(2))
+        rlc3i=INT(ll3/alat(3))
 
         DO 6983,iat=1,nat
         l1=INT(rxyz0(1,iat)*rlc1i)
@@ -2743,7 +2743,7 @@ CONTAINS
                 ( 2.e0_dp*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
                  gjik=cof_ggg(8-1) + (costheta-tmax_ggg)*gjikp
         ELSE
-           klo_ggg=tt_ggg
+           klo_ggg=INT(tt_ggg)
            khi_ggg=klo_ggg+1
            cof_ggg_klo=cof_ggg(klo_ggg)
            dof_ggg_klo=dof_ggg(klo_ggg)
@@ -2780,7 +2780,7 @@ CONTAINS
         tt_fff=tt_fff*hi_fff
         costheta=costheta+fyij*fyik
         fzik=rel(3,kbr)
-        klo_fff=tt_fff
+        klo_fff=INT(tt_fff)
         costheta=costheta+fzij*fzik
         sik=rel(5,kbr)
         tt_ggg=(costheta-tmin_ggg)*hi_ggg
@@ -2816,7 +2816,7 @@ CONTAINS
           fik=fik + (yt1_fff+yt2_fff)*h2sixth_fff
           fikp=fikp + ( ypt1_fff - ypt2_fff )*hsixth_fff
          ELSE
-              klo_ggg=tt_ggg
+              klo_ggg=INT(tt_ggg)
               khi_ggg=klo_ggg+1
            khi_fff=klo_fff+1
               cof_ggg_klo=cof_ggg(klo_ggg)
@@ -3047,7 +3047,7 @@ CONTAINS
           y=ya(n-1) + (x-tmax)*yp
 ! otherwise evaluate cubic spline
         ELSE
-          klo=tt
+          klo=INT(tt)
           khi=klo+1
           ya_klo=ya(klo)
           y2a_klo=y2a(klo)
