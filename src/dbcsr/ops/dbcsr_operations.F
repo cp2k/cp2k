@@ -1105,14 +1105,14 @@ CONTAINS
              CALL dbcsr_put_block(matrix_c, row, col, c_data, tr_a, &
                   summation=.FALSE.)
           ELSE
-             IF (assume_blocks_in_b) THEN
+             IF (assume_blocks_in_b) THEN ! this makes not too much sense, to delete ?
                 SELECT CASE (data_type)
                 CASE (dbcsr_type_real_4)
-                   c_data%d%r_sp(1:nze) = a_data%d%r_sp(1:nze) * assumed_b_value 
+                   c_data%d%r_sp(1:nze) = a_data%d%r_sp(1:nze) * REAL(assumed_b_value,KIND=sp)
                 CASE (dbcsr_type_real_8)
                    c_data%d%r_dp(1:nze) = a_data%d%r_dp(1:nze) * assumed_b_value 
                 CASE (dbcsr_type_complex_4)
-                   c_data%d%c_sp(1:nze) = a_data%d%c_sp(1:nze) * assumed_b_value
+                   c_data%d%c_sp(1:nze) = a_data%d%c_sp(1:nze) * REAL(assumed_b_value,KIND=sp)
                 CASE (dbcsr_type_complex_8)
                    c_data%d%c_dp(1:nze) = a_data%d%c_dp(1:nze) * assumed_b_value
                 END SELECT
@@ -2858,7 +2858,7 @@ CONTAINS
           IF(any_sym.AND.row.NE.col) &
                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
                routineN,"Only nonsymmetric matrix so far",__LINE__,error)
-          norm = norm + fac * SUM(CONJG(data_z)*data_z)
+          norm = norm + fac * REAL(SUM(CONJG(data_z)*data_z),KIND=real_8)
        CASE DEFAULT
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
                routineN,"Wrong data type",__LINE__,error)

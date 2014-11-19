@@ -206,34 +206,35 @@
                 b_end = b_beg + nze - 1
                 fac = REAL(1.0,real_4)
                 IF(row.NE.a_col) fac = sym_fac
+                ! this is a mess, no need to support that..
                 IF(    matrix_a%m%data_type.EQ.dbcsr_type_real_4.AND.&
                        matrix_b%m%data_type.EQ.dbcsr_type_real_4) THEN
-                   trace = trace + fac * SDOT (nze,&
+                   trace = trace +REAL(fac * SDOT (nze,&
                         a_data_r(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_r(ABS(matrix_b%m%blk_p(b_blk))),1)
+                        b_data_r(ABS(matrix_b%m%blk_p(b_blk))),1),kind=real_4)
                 ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_4.AND.&
                      matrix_b%m%data_type.EQ.dbcsr_type_real_8) THEN
                    trace = trace + &
-                        fac * SUM ( a_data_r(a_beg:a_end) * b_data_d(b_beg:b_end) )
+                        REAL(fac * SUM ( a_data_r(a_beg:a_end) * b_data_d(b_beg:b_end) ),kind=real_4)
                 ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_8.AND.&
                        matrix_b%m%data_type.EQ.dbcsr_type_real_4) THEN
                    trace = trace + &
-                        fac * SUM ( a_data_d(a_beg:a_end) * b_data_r(b_beg:b_end) )
+                        REAL(fac * SUM ( a_data_d(a_beg:a_end) * b_data_r(b_beg:b_end) ),kind=real_4)
                 ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_8.AND.&
                        matrix_b%m%data_type.EQ.dbcsr_type_real_8) THEN
-                   trace = trace + fac * DDOT (nze,&
+                   trace = trace + REAL(fac * DDOT (nze,&
                         a_data_d(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_d(ABS(matrix_b%m%blk_p(b_blk))),1)
+                        b_data_d(ABS(matrix_b%m%blk_p(b_blk))),1),kind=real_4)
                 ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_complex_4.AND.&
                        matrix_b%m%data_type.EQ.dbcsr_type_complex_4) THEN
-                   trace = trace + fac * CDOTU (nze,&
+                   trace = trace + REAL(fac * CDOTU (nze,&
                         a_data_c(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_c(ABS(matrix_b%m%blk_p(b_blk))),1)
+                        b_data_c(ABS(matrix_b%m%blk_p(b_blk))),1),kind=real_4)
                 ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_complex_8.AND.&
                        matrix_b%m%data_type.EQ.dbcsr_type_complex_8) THEN
-                   trace = trace + fac * ZDOTU (nze,&
+                   trace = trace + REAL(fac * ZDOTU (nze,&
                         a_data_z(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1)
+                        b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1),kind=real_4)
                 ELSE
                    CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
                         routineN, "combination of types NYI",__LINE__,error)
