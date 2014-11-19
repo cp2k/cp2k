@@ -536,12 +536,12 @@ SUBROUTINE ma_hilbert_bits(ranks_order,ntask,mp_comm)
     IF(.NOT. PRESENT(ntask)) THEN
      ! Get a new MPI rank ordering, reduce comm costs
      CALL mp_environ(numtask,taskid,mp_comm)
-     grid_dim = SQRT(REAL(ma_find_min_square_grid(numtask),KIND=dp))
+     grid_dim = INT(SQRT(REAL(ma_find_min_square_grid(numtask),KIND=dp)))
      ALLOCATE(tmp_order(grid_dim*grid_dim),stat=stat)
      IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
     ELSE
      numtask = ntask
-     grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
+     grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp)))
      ALLOCATE(tmp_order(grid_dim*grid_dim),stat=stat)
      IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
     ENDIF
@@ -876,7 +876,7 @@ RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,&
  IF( (current_numtask .GE. 4) .AND. (numtask .GT. 0))THEN 
   IF (working_col) THEN
 
-   grid_dim = SQRT(REAL(ma_find_max_square_grid(current_numtask),KIND=dp))
+   grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(current_numtask),KIND=dp)))
   
    ALLOCATE(tmp_order(grid_dim*grid_dim),stat=stat)
    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
@@ -964,7 +964,7 @@ RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,&
   ELSE ! perform rows
 
    local_current_numtask = current_numtask
-   grid_dim = SQRT(REAL(ma_find_max_square_grid(local_current_numtask),KIND=dp))
+   grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(local_current_numtask),KIND=dp)))
 
    ALLOCATE(tmp_order(grid_dim*grid_dim),stat=stat)
    IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
@@ -1029,7 +1029,7 @@ RECURSIVE SUBROUTINE ma_hilbert_recursive(ranks_order,ncol,nrow,numtask,&
    local_current_numtask = (current_nrow - last_grid) * (current_nrow - last_grid)
    
    IF ( local_current_numtask .NE. 0 ) THEN
-      grid_dim = SQRT(REAL(ma_find_max_square_grid(local_current_numtask),KIND=dp))
+      grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(local_current_numtask),KIND=dp)))
       row_child = INT(last_grid/grid_dim)
       row_rest = MOD(local_current_numtask+last_grid,grid_dim)
       local_current_ncol = current_ncol
@@ -1113,12 +1113,12 @@ FUNCTION has_more_2dgrid(ncol,nrow,numtask) RESULT(has_2d)
  has_2d = 0 
 
 #if defined(__parallel)
- grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
+ grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp)))
  rest =  nrow - grid_dim
  rest_col = ncol - grid_dim
  !Now compute the remaining grids
  IF ( rest .EQ. rest_col ) THEN
-   grid_dim = SQRT(REAL(ma_find_max_square_grid(rest*rest),KIND=dp))
+   grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(rest*rest),KIND=dp)))
    IF (is_square(grid_dim)) has_2d = 1
  ENDIF
 #endif
@@ -1182,7 +1182,7 @@ SUBROUTINE ma_hilbert_peano(mp_new_comm,mp_comm)
     has_2dgrid = has_more_2dgrid(ncol,nrow,numtask)
   
     IF( numtask .GT. 4) THEN  !smallest grid
-     h_grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
+     h_grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp)))
   
      ! perfect hilbert grid
      IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN 
@@ -1242,7 +1242,7 @@ SUBROUTINE ma_hilbert_peano(mp_new_comm,mp_comm)
       rest_col = ncol-h_grid_dim
       rest_row = nrow-h_grid_dim
       index_order = 1
-      grid_dim = SQRT(REAL(numtask,KIND=dp))
+      grid_dim = INT(SQRT(REAL(numtask,KIND=dp)))
   
       DO ipe=0,nrow-1
        DO jpe=ipe*ncol+h_grid_dim, ipe*ncol+h_grid_dim+rest_col-1
@@ -1555,7 +1555,7 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
      contention_packed = SUM (contention)
      contention_packed = contention_packed+contention_packed/10
     
-      h_grid_dim = SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp))
+      h_grid_dim = INT(SQRT(REAL(ma_find_max_square_grid(numtask),KIND=dp)))
    
       IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN
        CALL ma_hilbert_order(ranks_order,h_grid_dim)
@@ -1623,7 +1623,7 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
        rest_col = ncol-h_grid_dim
        rest_row = nrow-h_grid_dim
        index_order = 1
-       grid_dim = SQRT(REAL(numtask,KIND=dp))
+       grid_dim = INT(SQRT(REAL(numtask,KIND=dp)))
    
        DO ipe=0,nrow-1
         DO jpe=ipe*ncol+h_grid_dim, ipe*ncol+h_grid_dim+rest_col-1
