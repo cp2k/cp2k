@@ -277,6 +277,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b
     TYPE(mo_set_type), POINTER               :: mo_set_a, mo_set_b
 
+    CALL timeset(routineN,handle)
+
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
     mo_set_a => mo_array(1)%mo_set
@@ -288,6 +290,7 @@ CONTAINS
        ELSE
           CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
        END IF
+       CALL timestop(handle)
        RETURN
     END IF
     CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,error,failure)
@@ -298,6 +301,7 @@ CONTAINS
           IF (smear%fixed_mag_mom /= -1.0_dp) THEN
              CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
              CALL set_mo_occupation_3(mo_array,smear=smear,error=error)
+             CALL timestop(handle)
              RETURN
           END IF
        ELSE
@@ -321,10 +325,9 @@ CONTAINS
           CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
           CALL set_mo_occupation_1(mo_set_b,smear=smear,error=error)
        END IF
+       CALL timestop(handle)
        RETURN
     END IF
-
-    CALL timeset(routineN,handle)
 
     nelec = mo_set_a%nelectron + mo_set_b%nelectron
 
