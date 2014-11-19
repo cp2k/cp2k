@@ -1,0 +1,16 @@
+H2O-32-dftb-ls-4.inp 11
+ace_ala_nme_pm6_01.inp           11     7e-14
+ace_ala_nme_pm6_02.inp           11     6e-14
+ace_ala_nme_pm6_03.inp           11     6e-14
+ace_ala_nme_pm6_04.inp           11     1e-13
+ace_ala_nme_pm6_05.inp           11     1e-13
+ace_ala_nme_pm6_06.inp           11     1e-13
+ace_ala_nme_pm6_07.inp           11     1e-07
+ace_ala_nme_pm6_08.inp           11     2e-07
+ace_ala_nme_pm6_09.inp           11     2e-07
+ace_ala_nme_pm6_10.inp           11     5e-07
+ace_ala_nme_pm6_11.inp           11     5e-07
+ace_ala_nme_pm6_12.inp           11     5e-07
+H2O-32-dftb-trs4.inp 11
+H2O-32-dftb-ls-5.inp 11
+H2O-32-dftb-ls-6.inp 11

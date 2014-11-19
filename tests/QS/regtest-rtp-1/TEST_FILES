@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# test mulliken constraints
+H2plus-rtp.inp                    1     4e-10
+H2plus-rtp-1.inp                  1     4e-10
+H2-rtp.inp 1
+H2-emd.inp 2
+H2plus-emd-1.inp 2
+H2plus-emd.inp 2
