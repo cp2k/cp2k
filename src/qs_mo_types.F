@@ -273,7 +273,7 @@ CONTAINS
                                                 multiplicity_new, &
                                                 multiplicity_old, nelec
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: threshold
+    REAL(KIND=dp)                            :: nelec_f, threshold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b
     TYPE(mo_set_type), POINTER               :: mo_set_a, mo_set_b
 
@@ -305,10 +305,10 @@ CONTAINS
              RETURN
           END IF
        ELSE
-          nelec = mo_set_a%n_el_f + mo_set_b%n_el_f
-          IF (ABS((mo_set_a%n_el_f - mo_set_b%n_el_f) - smear%fixed_mag_mom) > smear%eps_fermi_dirac*nelec) THEN
-             mo_set_a%n_el_f = nelec/2.0_dp + smear%fixed_mag_mom/2.0_dp
-             mo_set_b%n_el_f = nelec/2.0_dp - smear%fixed_mag_mom/2.0_dp
+          nelec_f = mo_set_a%n_el_f + mo_set_b%n_el_f
+          IF (ABS((mo_set_a%n_el_f - mo_set_b%n_el_f) - smear%fixed_mag_mom) > smear%eps_fermi_dirac*nelec_f) THEN
+             mo_set_a%n_el_f = nelec_f/2.0_dp + smear%fixed_mag_mom/2.0_dp
+             mo_set_b%n_el_f = nelec_f/2.0_dp - smear%fixed_mag_mom/2.0_dp
           END IF
           CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,error,failure)
           CALL set_mo_occupation_1(mo_set_a,smear=smear,error=error)
