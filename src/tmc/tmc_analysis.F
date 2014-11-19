@@ -1530,7 +1530,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: tmp_dip
 
     kB = boltzmann/joule
-    counter_tmp = ana_env%dip_ana%conf_counter
+    counter_tmp = INT(ana_env%dip_ana%conf_counter)
 
     ! TODO get correct constant using physcon
     e0 = 0.07957747154594767_dp !e^2*a0*me*hbar^-2
