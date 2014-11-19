@@ -1895,7 +1895,7 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
 
-    msglen = (msglen+SIZE(msgout,1))/2.0_dp
+    msglen = (msglen+SIZE(msgout,1)+1)/2
     t_end = m_walltime ( )
     CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
@@ -1973,7 +1973,7 @@
     END IF
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
 
-    msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2.0_dp
+    msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2)+1)/2
     t_end = m_walltime ( )
     CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
