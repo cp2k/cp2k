@@ -573,7 +573,7 @@ CPSourceFileRef,&
         dftb_potential(ikind,jkind)%fmat(:,1:llm) = fmat(:,1:llm)
         CALL skreorder(smat,lmax_a,lmax_b)
         dftb_potential(ikind,jkind)%smat(:,1:llm) = smat(:,1:llm)
-        dftb_potential(ikind,jkind)%ngrdcut = ngrd + slako_d0/dgrd
+        dftb_potential(ikind,jkind)%ngrdcut = ngrd +INT(slako_d0/dgrd)
         ! Splines
         IF(spdim > 0) THEN
           dftb_potential(ikind,jkind)%s_cut = s_cut

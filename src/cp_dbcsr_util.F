@@ -295,7 +295,7 @@ CONTAINS
     CALL create_rng_stream(rng_stream,name="lanczos_alg_serial",distribution_type=UNIFORM,&
                            extended_precision=.TRUE.,error=error)
     DO i=1,n
-      v(i,1) = next_random_number(rng_stream,error=error) - 0.5_dp
+      v(i,1) = REAL(next_random_number(rng_stream,error=error) - 0.5_dp,KIND=sp)
     END DO
     CALL delete_rng_stream(rng_stream,error=error)
     CALL mp_sum(v, mp_group)
