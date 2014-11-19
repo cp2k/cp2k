@@ -150,15 +150,12 @@ CONTAINS
   END SUBROUTINE initf
   !
 ! *****************************************************************************
-!> \brief ...
-!> \param i ...
-!> \param FuncStr ...
-!> \param Var ...
+!> \brief Parse ith function string FuncStr and compile it into bytecode
+!> \param i Function identifier
+!> \param FuncStr Function string
+!> \param Var Array with variable names
 ! *****************************************************************************
   SUBROUTINE parsef (i, FuncStr, Var)
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
-    ! Parse ith function string FuncStr and compile it into bytecode
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
     INTEGER, INTENT(in)                      :: i
     CHARACTER(LEN=*), INTENT(in)             :: FuncStr
     CHARACTER(LEN=*), DIMENSION(:), &
@@ -169,15 +166,16 @@ CONTAINS
 
     CHARACTER(LEN=LEN(FuncStr))              :: Func
 
-! Function identifier
-! Function string
-! Array with variable names
 ! Function string, local use
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
     IF (i < 1 .OR. i > SIZE(Comp)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "Function number is out of range")
+    END IF
+    IF (SIZE(var)>HUGE(0_is)) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Too many variables")
     END IF
     ALLOCATE (ipos(LEN_TRIM(FuncStr)))                       ! Char. positions in orig. string
     Func = FuncStr                                           ! Local copy of function string
@@ -516,7 +514,7 @@ CONTAINS
        END DO
        DO j=1,SIZE(Var)
           IF (str(ib:in-1) == Var(j)) THEN
-             n = j                                           ! Variable name found
+             n = INT(j,KIND=is)                              !  Variable name found
              EXIT
           END IF
        END DO
