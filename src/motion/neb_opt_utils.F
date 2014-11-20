@@ -16,7 +16,6 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_opt_utils
-  USE f77_blas_generic,                ONLY: bl_gemm
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -171,7 +170,7 @@ CONTAINS
                 ENDIF
                 VT(k,:)=VT(k,:)*S(k)
              ENDDO
-             CALL BL_GEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,wrk_inv,np)
+             CALL DGEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,wrk_inv,np)
              DEALLOCATE(iwork,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(S,stat=stat)
