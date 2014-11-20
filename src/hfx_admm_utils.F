@@ -91,7 +91,7 @@ MODULE hfx_admm_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_admm_utils'
 
 CONTAINS
- !TODO
+
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...

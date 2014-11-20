@@ -419,7 +419,8 @@ CONTAINS
 
       nspins = dft_control%nspins
       DO ispin = 1,nspins
-        CALL cp_dbcsr_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
+        ! does not yet handle k-points
+        CALL cp_dbcsr_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin, 1)%matrix, &
                             trace=harris_energy%sum_of_eigenvalues, &
                             error=error)
       END DO

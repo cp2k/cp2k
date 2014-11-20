@@ -7,13 +7,12 @@
 !> \brief Types and basic routines needed for a kpoint calculation
 !> \par History
 !>       2014.07 created [JGH]
+!>       2014.11 unified k-point and gamma-point code [Ole Schuett]
 !> \author JGH
 ! *****************************************************************************
 MODULE kpoint_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -48,31 +47,7 @@ MODULE kpoint_types
   PUBLIC :: read_kpoint_section, write_kpoint_info
   PUBLIC :: kpoint_env_type, kpoint_env_p_type
   PUBLIC :: kpoint_env_create
-  PUBLIC :: kp_opmat_create
 
-! *****************************************************************************  
-!> \brief Keeps operator matrices in real space form
-!> \param index_to_cell   given a real space index, returns a cell triple
-!> \param cell_to_index   given a cell triple, returns the real space index
-!> \param sab_nl          neighbourlist that defines real space matrices
-!> \param matrix_ks       Kohn-Sham matrices (spin,rs index)
-!> \param matrix_s        Overlap matrices (spin,rs index)
-!> \param matrix_t        Kinetic energy matrices (spin,rs index)
-!> \param matrix_vhxc     Potential matrices (spin,rs index)
-!> \param matrix_h        Core matrices (spin,rs index)
-!> \author JGH   
-! *****************************************************************************
-  TYPE opmat_type
-     INTEGER, DIMENSION(:,:), POINTER                  :: index_to_cell
-     INTEGER, DIMENSION(:,:,:), POINTER                :: cell_to_index
-     TYPE(neighbor_list_set_p_type), DIMENSION(:),&
-        POINTER                                        :: sab_nl
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER    :: matrix_ks
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER    :: matrix_s
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER    :: matrix_t
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER    :: matrix_vhxc
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER    :: matrix_h
-  END TYPE opmat_type
 
 ! *****************************************************************************  
 !> \brief Keeps information about a specific k-point
@@ -82,7 +57,7 @@ MODULE kpoint_types
 !> \param is_local  if this kpoint is calculated on a single thread
 !> \param mos       associated MOs (r/i,spin)
 !> \param pmat      associated density matrix (r/i,spin)
-!> \author JGH   
+!> \author JGH
 ! *****************************************************************************
   TYPE kpoint_env_type
      INTEGER                                           :: nkpoint
@@ -155,8 +130,9 @@ MODULE kpoint_types
      INTEGER, DIMENSION(:,:), POINTER        :: kp_dist => Null()
      INTEGER, DIMENSION(2)                   :: kp_range
      TYPE(cp_blacs_env_type), POINTER        :: blacs_env => Null()
-     ! operators
-     TYPE(opmat_type), POINTER               :: opmats => Null()
+     INTEGER, DIMENSION(:,:,:), POINTER      :: cell_to_index => Null()
+     TYPE(neighbor_list_set_p_type), &
+       DIMENSION(:), POINTER                 :: sab_nl => Null()
      ! environment
      TYPE(kpoint_env_p_type), DIMENSION(:),&
        POINTER                               :: kp_env => Null()
@@ -214,11 +190,12 @@ CONTAINS
     kpoint%iogrp = .FALSE.
     kpoint%kp_range = 0
 
-    NULLIFY(kpoint%opmats)
 
     NULLIFY(kpoint%kp_env)
     NULLIFY(kpoint%mpools)
 
+    ALLOCATE(kpoint%cell_to_index(0:0,0:0,0:0))
+    kpoint%cell_to_index(:,:,:) = 1
   END SUBROUTINE kpoint_create
 
 ! *****************************************************************************
@@ -266,7 +243,7 @@ CONTAINS
        CALL cp_para_env_release(kpoint%para_env_kp,error=error)
        CALL cp_para_env_release(kpoint%para_env_inter_kp,error=error)
 
-       CALL kp_opmat_release(kpoint%opmats,error=error)
+       IF(ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE(kpoint%cell_to_index)
 
        IF(ASSOCIATED(kpoint%kp_env)) THEN
           DO ik=1,SIZE(kpoint%kp_env)
@@ -314,23 +291,15 @@ CONTAINS
 !> \param iogrp         this kpoint group has the IO processor
 !> \param nkp_groups    number of kpoint groups
 !> \param kp_dist       kpoints distribution on groups
-!> \param index_to_cell given a real space index, returns a cell triple
 !> \param cell_to_index given a cell triple, returns the real space index
-!> \param ncount        number of real space matrices
 !> \param sab_nl        neighbourlist that defines real space matrices
-!> \param matrix_ks     Kohn-Sham matrices (spin,rs index)
-!> \param matrix_s      Overlap matrices (spin,rs index)
-!> \param matrix_t      Kinetic energy matrices (spin,rs index)
-!> \param matrix_vhxc   Potential matrices (spin,rs index)
-!> \param matrix_h      Core matrices (spin,rs index)
 !> \param error         CP2K error handling
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE get_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&
       full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp,&
       para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
-      kp_env, mpools, iogrp, nkp_groups, kp_dist, index_to_cell, cell_to_index, ncount, sab_nl,&
-      matrix_ks, matrix_s, matrix_t, matrix_vhxc, matrix_h,&
+      kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl,&
       error)
     TYPE(kpoint_type), POINTER               :: kpoint
     CHARACTER(LEN=*), OPTIONAL               :: kp_scheme
@@ -364,16 +333,11 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: iogrp
     INTEGER, OPTIONAL                        :: nkp_groups
     INTEGER, DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: kp_dist, index_to_cell
+      POINTER                                :: kp_dist
     INTEGER, DIMENSION(:, :, :), OPTIONAL, &
       POINTER                                :: cell_to_index
-    INTEGER, OPTIONAL                        :: ncount
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_nl
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: matrix_ks, matrix_s, &
-                                                matrix_t, matrix_vhxc, &
-                                                matrix_h
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpoint_info', &
@@ -415,24 +379,9 @@ CONTAINS
     IF(PRESENT(kp_env)) kp_env => kpoint%kp_env
     IF(PRESENT(mpools)) mpools => kpoint%mpools
 
-    IF(PRESENT(ncount)) ncount = 0
-    IF(ASSOCIATED(kpoint%opmats)) THEN
-       IF(PRESENT(index_to_cell)) index_to_cell => kpoint%opmats%index_to_cell
-       IF(PRESENT(cell_to_index)) cell_to_index => kpoint%opmats%cell_to_index
-       IF(PRESENT(ncount)) ncount = SIZE(kpoint%opmats%index_to_cell,2)
-       IF(PRESENT(sab_nl)) sab_nl => kpoint%opmats%sab_nl
-       IF(PRESENT(matrix_ks)) matrix_ks => kpoint%opmats%matrix_ks
-       IF(PRESENT(matrix_s)) matrix_s => kpoint%opmats%matrix_s
-       IF(PRESENT(matrix_t)) matrix_t => kpoint%opmats%matrix_t
-       IF(PRESENT(matrix_vhxc)) matrix_vhxc => kpoint%opmats%matrix_vhxc
-       IF(PRESENT(matrix_h)) matrix_h => kpoint%opmats%matrix_h
-    ELSE
-       IF(PRESENT(index_to_cell) .OR.  PRESENT(cell_to_index) .OR. PRESENT(ncount) &
-          .OR. PRESENT(sab_nl) .OR. PRESENT(matrix_ks) .OR. PRESENT(matrix_s) &
-          .OR. PRESENT(matrix_t) .OR. PRESENT(matrix_vhxc) .OR. PRESENT(matrix_h)) THEN
-          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-       END IF
-    END IF
+
+    IF(PRESENT(cell_to_index)) cell_to_index => kpoint%cell_to_index
+    IF(PRESENT(sab_nl)) sab_nl => kpoint%sab_nl
 
   END SUBROUTINE get_kpoint_info
 
@@ -466,22 +415,15 @@ CONTAINS
 !> \param iogrp         this kpoint group has the IO processor
 !> \param nkp_groups    number of kpoint groups
 !> \param kp_dist       kpoints distribution on groups
-!> \param index_to_cell given a real space index, returns a cell triple
 !> \param cell_to_index given a cell triple, returns the real space index
 !> \param sab_nl        neighbourlist that defines real space matrices
-!> \param matrix_ks     Kohn-Sham matrices (spin,rs index)
-!> \param matrix_s      Overlap matrices (spin,rs index)
-!> \param matrix_t      Kinetic energy matrices (spin,rs index)
-!> \param matrix_vhxc   Potential matrices (spin,rs index)
-!> \param matrix_h      Core matrices (spin,rs index)
 !> \param error         CP2K error handling
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose,&
       full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp,&
       para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env,&
-      kp_env, mpools, iogrp, nkp_groups, kp_dist, index_to_cell, cell_to_index, sab_nl,&
-      matrix_ks, matrix_s, matrix_t, matrix_vhxc, matrix_h,&
+      kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl,&
       error)
     TYPE(kpoint_type), POINTER               :: kpoint
     CHARACTER(LEN=*), OPTIONAL               :: kp_scheme
@@ -515,15 +457,11 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: iogrp
     INTEGER, OPTIONAL                        :: nkp_groups
     INTEGER, DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: kp_dist, index_to_cell
+      POINTER                                :: kp_dist
     INTEGER, DIMENSION(:, :, :), OPTIONAL, &
       POINTER                                :: cell_to_index
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_nl
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: matrix_ks, matrix_s, &
-                                                matrix_t, matrix_vhxc, &
-                                                matrix_h
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_kpoint_info', &
@@ -565,102 +503,12 @@ CONTAINS
     IF(PRESENT(kp_env)) kpoint%kp_env => kp_env
     IF(PRESENT(mpools)) kpoint%mpools => mpools
 
-    IF(ASSOCIATED(kpoint%opmats)) THEN
-       IF(PRESENT(index_to_cell)) kpoint%opmats%index_to_cell => index_to_cell
-       IF(PRESENT(cell_to_index)) kpoint%opmats%cell_to_index => cell_to_index
-       IF(PRESENT(sab_nl)) kpoint%opmats%sab_nl => sab_nl
-       IF(PRESENT(matrix_ks)) kpoint%opmats%matrix_ks => matrix_ks
-       IF(PRESENT(matrix_s)) kpoint%opmats%matrix_s => matrix_s
-       IF(PRESENT(matrix_t)) kpoint%opmats%matrix_t => matrix_t
-       IF(PRESENT(matrix_vhxc)) kpoint%opmats%matrix_vhxc => matrix_vhxc
-       IF(PRESENT(matrix_h)) kpoint%opmats%matrix_h => matrix_h
-    ELSE
-       CPAssert(.NOT.PRESENT(index_to_cell),cp_failure_level,routineP,error,failure)
-       CPAssert(.NOT.PRESENT(cell_to_index),cp_failure_level,routineP,error,failure)
-       CPAssert(.NOT.PRESENT(sab_nl),cp_failure_level,routineP,error,failure)
-       CPAssert(.NOT.PRESENT(matrix_ks),cp_failure_level,routineP,error,failure)
-       CPAssert(.NOT.PRESENT(matrix_s),cp_failure_level,routineP,error,failure)
-       CPAssert(.NOT.PRESENT(matrix_t),cp_failure_level,routineP,error,failure)
-       CPAssert(.NOT.PRESENT(matrix_h),cp_failure_level,routineP,error,failure)
-       CPAssert(.NOT.PRESENT(matrix_vhxc),cp_failure_level,routineP,error,failure)
-    END IF
+    IF(PRESENT(cell_to_index)) THEN
+       IF(ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE(kpoint%cell_to_index)
+       kpoint%cell_to_index => cell_to_index
+    ENDIF
 
   END SUBROUTINE set_kpoint_info
-
-! *****************************************************************************
-!> \brief  Creates an operator matrix type
-!> \param opmats  The operator matrix type
-!> \param error   CP2K error handling
-!> \author JGH
-! *****************************************************************************
-  SUBROUTINE kp_opmat_create(opmats, error)
-    TYPE(opmat_type), POINTER                :: opmats
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'kp_opmat_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ierr
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPAssert(.NOT.ASSOCIATED(opmats),cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(opmats,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-
-    NULLIFY(opmats%index_to_cell,opmats%cell_to_index)
-    NULLIFY(opmats%sab_nl)
-    NULLIFY(opmats%matrix_ks,opmats%matrix_s,opmats%matrix_t)
-    NULLIFY(opmats%matrix_vhxc,opmats%matrix_h)
-
-  END SUBROUTINE kp_opmat_create
-
-! *****************************************************************************  
-!> \brief Releases an operator matrix type
-!> \param opmats  The operator matrix type
-!> \param error   CP2K error handling
-!> \author JGH
-! *****************************************************************************
-  SUBROUTINE kp_opmat_release(opmats, error)
-    TYPE(opmat_type), POINTER                :: opmats
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'kp_opmat_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ierr
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    IF(ASSOCIATED(opmats)) THEN
-       IF(ASSOCIATED(opmats%index_to_cell)) THEN
-          DEALLOCATE(opmats%index_to_cell,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-          NULLIFY(opmats%index_to_cell)
-       END IF
-       IF(ASSOCIATED(opmats%cell_to_index)) THEN
-          DEALLOCATE(opmats%cell_to_index,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-          NULLIFY(opmats%cell_to_index)
-       END IF
-
-       NULLIFY(opmats%sab_nl)
-
-       CALL cp_dbcsr_deallocate_matrix_set(opmats%matrix_ks,error)
-       CALL cp_dbcsr_deallocate_matrix_set(opmats%matrix_s,error)
-       CALL cp_dbcsr_deallocate_matrix_set(opmats%matrix_t,error)
-       CALL cp_dbcsr_deallocate_matrix_set(opmats%matrix_vhxc,error)
-       CALL cp_dbcsr_deallocate_matrix_set(opmats%matrix_h,error)
-
-       DEALLOCATE(opmats,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-       NULLIFY(opmats)
-    END IF
-
-  END SUBROUTINE kp_opmat_release
 
 ! *****************************************************************************
 !> \brief Read the kpoint input section
@@ -687,7 +535,7 @@ CONTAINS
     CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
 
     CALL section_vals_get(kpoint_section,explicit=available, error=error)
-    
+
     IF (available) THEN
        CALL section_vals_val_get(kpoint_section,"SCHEME",c_vals=tmpstringlist,error=error)
        nval = SIZE(tmpstringlist)
@@ -897,7 +745,7 @@ CONTAINS
           DEALLOCATE(kp_env%mos,STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
        END IF
-      
+
        IF(ASSOCIATED(kp_env%pmat)) THEN
           DO is=1,SIZE(kp_env%pmat,2)
              DO ic=1,SIZE(kp_env%pmat,1)

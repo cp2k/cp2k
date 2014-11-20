@@ -38,6 +38,7 @@
 !>      - Mandes (10.2013)
 !>        intermediate energy communication with external communicator added
 !>      - kpoints (08.2014, JGH)
+!>      - unified k-point and gamma-point code (2014.11) [Ole Schuett]
 !> \author Matthias Krack (30.04.2001)
 ! *****************************************************************************
 MODULE qs_scf
@@ -257,8 +258,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_kp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -288,7 +287,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
+    NULLIFY(dft_control,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
@@ -302,15 +301,19 @@ CONTAINS
     t1 = m_walltime()
 
     CALL get_qs_env(qs_env=qs_env,&
-                    matrix_s=matrix_s,energy=energy,&
+                    energy=energy,&
                     particle_set=particle_set,&
                     qs_charges=qs_charges,&
                     ks_env=ks_env, &
                     harris_env=harris_env,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos,&
-                    input=input, dft_control=dft_control, scf_control=scf_control,&
+                    rho=rho,&
+                    rho_xc=rho_xc,&
+                    mos=mos,&
+                    input=input,&
+                    dft_control=dft_control,&
+                    scf_control=scf_control,&
                     do_kpoints=do_kpoints,&
                     kpoints=kpoints,&
                     results=results,&
@@ -318,7 +321,7 @@ CONTAINS
                     para_env=para_env,&
                     error=error)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
     ! Defining SCP logicals
     scp_nddo = dft_control%qs_control%se_control%scp
 
@@ -469,19 +472,12 @@ CONTAINS
 
           ! mixing methods have the new density matrix in p_mix_new
           IF (scf_env%mixing_method > 0) THEN
-             IF(do_kpoints) THEN
-                DO ic=1,SIZE(rho_ao_kp,2)
-                   DO ispin=1,dft_control%nspins
-                      CALL cp_dbcsr_copy(rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
-                                      name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin,ic)%matrix)),error=error)
-                   END DO
-                END DO
-             ELSE
+             DO ic=1,SIZE(rho_ao_kp,2)
                 DO ispin=1,dft_control%nspins
-                   CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                   name=TRIM(cp_dbcsr_name(rho_ao(ispin)%matrix)),error=error)
+                   CALL cp_dbcsr_copy(rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_new(ispin,ic)%matrix,&
+                                   name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin,ic)%matrix)),error=error)
                 END DO
-             END IF
+             END DO
           END IF
 
           CALL qs_scf_rho_update(rho,qs_env,scf_env,ks_env,&
@@ -583,8 +579,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
          dft_control=dft_control,&
-         mos=mos,matrix_ks=matrix_ks,&
-         matrix_s=matrix_s, error=error)
+         mos=mos,error=error)
 
     scp_nddo = dft_control%qs_control%se_control%scp.AND.&
               (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)
@@ -618,6 +613,7 @@ CONTAINS
        END IF
 
     CASE (ot_diag_method_nr)
+       CALL get_qs_env(qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s, error=error)
 
        IF(.NOT.scf_env%skip_diis) THEN
          IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
@@ -642,12 +638,15 @@ CONTAINS
             scf_control%diagonalization%ot_settings%preconditioner_type,&
             scf_control%diagonalization%ot_settings%precond_solver_type,&
             scf_control%diagonalization%ot_settings%energy_gap,dft_control%nspins,error=error)
-              
+
     CASE (block_davidson_diag_method_nr)
         ! Preconditioner initialized within the loop, when required
     CASE (ot_method_nr)
-
-       CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
+       CALL get_qs_env(qs_env,&
+                       has_unit_metric=has_unit_metric,&
+                       matrix_s=matrix_s,&
+                       matrix_ks=matrix_ks,&
+                       error=error)
 
        ! reortho the wavefunctions if we are having an outer scf and
        ! this is not the first iteration

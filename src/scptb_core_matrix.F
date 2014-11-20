@@ -9,6 +9,7 @@
 !> \par History  Some refactoring related to new overlap and 
 !>               kinetic energy integrals [07.2014, JGH]
 !>               Kpoints [08.2014, JGH]
+!>       2014.11 unified k-point and gamma-point code [Ole Schuett]
 !> \author JGH
 ! *****************************************************************************
 MODULE scptb_core_matrix
@@ -26,9 +27,7 @@ MODULE scptb_core_matrix
   USE input_constants,                 ONLY: use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                             kpoint_type,&
-                                             set_kpoint_info
-  USE orbital_pointers,                ONLY: ncoset
+                                             kpoint_type
   USE particle_types,                  ONLY: particle_type
   USE qs_core_hamiltonian,             ONLY: dump_info_core_hamiltonian
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -63,7 +62,7 @@ MODULE scptb_core_matrix
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_core_matrix'
 
-  PUBLIC :: build_scptb_core_matrix, build_scptb_core_matrix_kp
+  PUBLIC :: build_scptb_core_matrix
 
 CONTAINS
 
@@ -82,9 +81,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_scptb_core_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, iatom, icol, icor, ikind, inode, &
-      irow, istat, j, jatom, jkind, l, li, ll, maxder, natom, nder, nkind
+    INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, icor, ikind, &
+      inode, irow, istat, j, jatom, jkind, l, li, ll, natom, nder, nimg, &
+      nkind, nspins
+    INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
     LOGICAL, DIMENSION(:), POINTER           :: scptb_defined
@@ -97,11 +99,15 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                matrix_t, matrix_w
+      POINTER                                :: matrix_p, matrix_s, matrix_t, &
+                                                matrix_w
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_h_kp, matrix_s_kp, &
+                                                matrix_t_kp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -124,39 +130,48 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY(rho,force,atomic_kind_set,qs_kind_set,sab_orb,matrix_p,ks_env,dft_control)
+    NULLIFY(rho,force,atomic_kind_set,qs_kind_set,sab_orb,matrix_p,ks_env,&
+            dft_control, matrix_h_kp, matrix_s_kp, matrix_t_kp, kpoints)
 
-    CALL get_qs_env(qs_env=qs_env,&
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_h=matrix_h,&
-                    kinetic=matrix_t,&
-                    matrix_s=matrix_s,&
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     virial=virial,&
                     para_env=para_env,&
-                    ks_env=ks_env,&
-                    dft_control=dft_control,&
+                    kpoints=kpoints,&
                     error=error)
+
+    CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index, error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
+    nimg  = dft_control%nimages
+    nspins = dft_control%nspins
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+    ! filter for new matrices
+    eps_filter = dft_control%qs_control%eps_filter_matrix
 
     IF (calculate_forces) THEN
+       ! forces are not yet supported for k-points
        nder = 1
-
        ALLOCATE (atom_of_kind(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
-
-       CALL get_qs_env(qs_env=qs_env,force=force,matrix_w=matrix_w,error=error)
-
-       CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
+       CALL get_qs_env(qs_env,&
+                       rho=rho,&
+                       force=force,&
+                       matrix_w=matrix_w,&
+                       matrix_s=matrix_s,&
+                       kinetic=matrix_t,&
+                       error=error)
        CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
-       IF (SIZE(matrix_p) == 2) THEN
+
+       IF (nspins == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
           CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
@@ -164,21 +179,8 @@ CONTAINS
           CALL cp_dbcsr_add(matrix_w(1)%matrix, matrix_w(2)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
-    ELSE
-       IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
-          nder = 1
-       ELSE
-          nder = 0
-       END IF
-    END IF
 
-    ! filter for new matrices
-    eps_filter = dft_control%qs_control%eps_filter_matrix
 
-    maxder = ncoset(nder)
-
-    IF (calculate_forces) THEN
        ! S matrix
        CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
@@ -195,29 +197,53 @@ CONTAINS
                                  matrix_p=matrix_p(1)%matrix,&
                                  eps_filter=eps_filter,&
                                  error=error)
+
+       CALL set_ks_env(ks_env, matrix_s=matrix_s, kinetic=matrix_t, error=error)
     ELSE
+        IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
+          nder = 1
+       ELSE
+          nder = 0
+       END IF
+
+       CALL get_qs_env(qs_env,&
+                       matrix_s_kp=matrix_s_kp,&
+                       kinetic_kp=matrix_t_kp,&
+                       error=error)
        ! S matrix
-       CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(ks_env,nderivative=nder,matrixkp_s=matrix_s_kp,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
                                  sab_nl=sab_orb,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(ks_env,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t_kp,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,&
                                  eps_filter=eps_filter,&
                                  error=error)
+       CALL set_ks_env(ks_env, matrix_s_kp=matrix_s_kp, kinetic_kp=matrix_t_kp, error=error)
     END IF
 
+    !make sure we got the kpoint-version of these matrices
+    CALL get_qs_env(qs_env,&
+                    matrix_h_kp=matrix_h_kp,&
+                    matrix_s_kp=matrix_s_kp,&
+                    kinetic_kp=matrix_t_kp,&
+                    error=error)
+
     ! initialize H matrix
-    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error)
-    ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(matrix_h(1)%matrix, error=error)
-    CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_t(1)%matrix,name="CORE HAMILTONIAN MATRIX",error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_h_kp,1,nimg,error)
+    DO ic=1,nimg
+       ALLOCATE(matrix_h_kp(1,ic)%matrix)
+       CALL cp_dbcsr_init(matrix_h_kp(1,ic)%matrix, error=error)
+       CALL cp_dbcsr_copy(matrix_h_kp(1,ic)%matrix,matrix_t_kp(1,ic)%matrix,&
+                          name="CORE HAMILTONIAN MATRIX",error=error)
+    END DO
+
     !The band energy elements will be added to the kinetic energy.
 
     ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=istat)
@@ -245,11 +271,14 @@ CONTAINS
 
     CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,inode=inode,r=rij)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,inode=inode,r=rij,cell=cell)
        IF (.NOT.scptb_defined(ikind)) CYCLE
        IF (.NOT.scptb_defined(jkind)) CYCLE
 
        kh = kk(ikind,jkind)
+
+       ic = cell_to_index(cell(1),cell(2),cell(3))
+       CPPrecondition(ic > 0,cp_failure_level,routineP,error,failure)
 
        NULLIFY (h_block)
        IF (iatom <= jatom) THEN
@@ -259,7 +288,7 @@ CONTAINS
          irow = jatom
          icol = iatom
        END IF
-       CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,found)
+       CALL cp_dbcsr_get_block_p(matrix_h_kp(1,ic)%matrix,irow,icol,h_block,found)
        CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
 
        dr = SUM(rij(:)**2)
@@ -270,7 +299,7 @@ CONTAINS
           END DO
        ELSE
           NULLIFY(s_block) !s_block is overlap [sub]matrix ???
-          CALL cp_dbcsr_get_block_p(matrix_s(1)%matrix,irow,icol,s_block,found)
+          CALL cp_dbcsr_get_block_p(matrix_s_kp(1,ic)%matrix,irow,icol,s_block,found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
           IF ( irow == iatom ) THEN
             DO i=1,SIZE(h_block,1)
@@ -344,240 +373,13 @@ CONTAINS
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
-    CALL set_ks_env(ks_env,&
-                    matrix_s=matrix_s,&
-                    kinetic=matrix_t,&
-                    matrix_h=matrix_h,&
-                    error=error)
+    CALL set_ks_env(ks_env, matrix_h_kp=matrix_h_kp, error=error)
 
     ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
-         qs_env, calculate_forces, para_env, error)
+    CALL dump_info_core_hamiltonian(qs_env, calculate_forces, error)
     CALL timestop(handle)
 
   END SUBROUTINE build_scptb_core_matrix
-
-! *****************************************************************************
-!> \brief Builds the SCPTB core Hamiltonian matrix and its derivatives
-!>        for kpoint calculations
-!> \param qs_env           The QS environment
-!> \param calculate_forces Flag to toggle force calculation
-!> \param error            CP2K error reporting
-! *****************************************************************************
-  SUBROUTINE build_scptb_core_matrix_kp(qs_env,calculate_forces,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_scptb_core_matrix_kp', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, iatom, ic, icol, &
-                                                ikind, inode, irow, istat, j, &
-                                                jatom, jkind, l, li, ll, &
-                                                natom, ncount, nder, nkind
-    INTEGER, DIMENSION(3)                    :: cell
-    INTEGER, DIMENSION(:, :), POINTER        :: index_to_cell
-    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: defined, failure, found, &
-                                                use_virial
-    LOGICAL, DIMENSION(:), POINTER           :: scptb_defined
-    REAL(KIND=dp)                            :: dr, eps_filter, kh, kij
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: hmt, kk, umt
-    REAL(KIND=dp), DIMENSION(3)              :: rij
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, s_block
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_s
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_h, matrix_s, matrix_t
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(kpoint_type), POINTER               :: kpoints
-    TYPE(neighbor_list_iterator_p_type), &
-      DIMENSION(:), POINTER                  :: nl_iterator
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(scptb_parameter_p_type), &
-      DIMENSION(:), POINTER                  :: scptb_kind_param
-    TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a
-    TYPE(virial_type), POINTER               :: virial
-
-    CALL timeset(routineN,handle)
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-
-    NULLIFY(qs_kind_set,sab_orb,ks_env,dft_control)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    qs_kind_set=qs_kind_set,&
-                    kpoints=kpoints,&
-                    particle_set=particle_set,&
-                    sab_orb=sab_orb,&
-                    virial=virial,&
-                    para_env=para_env,&
-                    ks_env=ks_env,&
-                    dft_control=dft_control,&
-                    error=error)
-
-    CALL get_kpoint_info(kpoint=kpoints,&
-                         index_to_cell=index_to_cell,&
-                         cell_to_index=cell_to_index,&
-                         matrix_h=matrix_h,&
-                         matrix_s=matrix_s,&
-                         matrix_t=matrix_t,error=error)
-
-    nkind = SIZE(qs_kind_set)
-    natom = SIZE(particle_set)
-    ncount = SIZE(index_to_cell,2)
-
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-    nder = 0
-
-    ! filter for new matrices
-    eps_filter = dft_control%qs_control%eps_filter_matrix
-
-    ! S matrix
-    CALL build_overlap_matrix(ks_env,nderivative=nder,matrixkp_s=matrix_s,&
-                              matrix_name="OVERLAP MATRIX",&
-                              basis_set_id_a=use_orb_basis_set,&
-                              basis_set_id_b=use_orb_basis_set, &
-                              sab_nl=sab_orb,&
-!deb                          eps_filter=eps_filter,&
-                              error=error)
-    ! T matrix
-    CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
-                              matrix_name="KINETIC ENERGY MATRIX",&
-                              basis_set_id=use_orb_basis_set,&
-                              sab_nl=sab_orb,&
-                              eps_filter=eps_filter,&
-                              error=error)
-
-    ! initialize H matrix
-    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,ncount,error)
-    DO ic=1,ncount
-       ALLOCATE(matrix_h(1,ic)%matrix,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_dbcsr_init(matrix_h(1,ic)%matrix, error=error)
-       CALL cp_dbcsr_copy(matrix_h(1,ic)%matrix,matrix_t(1,ic)%matrix,&
-                          name="CORE HAMILTONIAN MATRIX",error=error)
-    END DO
-
-    ! initialize the overlap matrix in the qs_env (gamma)
-    ! used many times later as the template for the setup of matrices
-    CALL get_qs_env(qs_env=qs_env,matrix_s=gamma_s,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(gamma_s,1,error)
-    ALLOCATE(gamma_s(1)%matrix,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_init(gamma_s(1)%matrix, error=error)
-    CALL cp_dbcsr_copy(gamma_s(1)%matrix,matrix_s(1,1)%matrix,&
-                          name="OVERLAP MATRIX GAMMA",error=error)
-    DO ic=2,ncount
-       CALL cp_dbcsr_add(gamma_s(1)%matrix,matrix_s(1,ic)%matrix,&
-                   alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
-    END DO
-    CALL set_ks_env(ks_env, matrix_s=gamma_s, error=error)
-
-    ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (umt(100,nkind),hmt(100,nkind),kk(nkind,nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    umt = 0._dp
-    hmt = 0._dp
-    DO ikind=1,nkind
-       CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind_a)
-       scptb_kind_param(ikind)%scptb_param => scptb_kind_a
-       CALL get_scptb_parameter(scptb_kind_a,defined=defined)
-       scptb_defined(ikind)=defined
-       li = 0
-       DO l=0,scptb_kind_a%lmaxorb
-          ll = ((l+1)*(l+2))/2
-          DO i=1,scptb_kind_a%norb(l)
-            hmt(li+1:li+ll,ikind) = scptb_kind_a%hcore(i,l)
-            li = li + ll
-          END DO
-       END DO
-    END DO
-    !
-    kk = 0.5_dp
-
-    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
-    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
-            iatom=iatom,jatom=jatom,inode=inode,r=rij,cell=cell)
-       IF (.NOT.scptb_defined(ikind)) CYCLE
-       IF (.NOT.scptb_defined(jkind)) CYCLE
-
-       kh = kk(ikind,jkind)
-
-       ic = cell_to_index(cell(1),cell(2),cell(3))
-       CPPrecondition(ic > 0,cp_failure_level,routineP,error,failure)
-       NULLIFY (h_block)
-       IF (iatom <= jatom) THEN
-         irow = iatom
-         icol = jatom
-       ELSE
-         irow = jatom
-         icol = iatom
-       END IF
-       CALL cp_dbcsr_get_block_p(matrix_h(1,ic)%matrix,irow,icol,h_block,found)
-       CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
-
-       dr = SUM(rij(:)**2)
-       !actual core energy determination , eq. 2.17 in my notes ???
-       IF (iatom == jatom .AND. dr < 0.0001_dp) THEN
-          DO i=1,SIZE(h_block,1)
-             h_block(i,i)=h_block(i,i)+hmt(i,ikind)
-          END DO
-       ELSE
-          NULLIFY(s_block) !s_block is overlap [sub]matrix ???
-          CALL cp_dbcsr_get_block_p(matrix_s(1,ic)%matrix,irow,icol,s_block,found)
-          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
-          IF ( irow == iatom ) THEN
-            DO i=1,SIZE(h_block,1)
-              DO j=1,SIZE(h_block,2)
-                kij = kh*(hmt(i,ikind)+hmt(j,jkind))
-                h_block(i,j)=h_block(i,j)+kij*s_block(i,j)
-              END DO
-            END DO
-          ELSE
-            DO i=1,SIZE(h_block,1)
-              DO j=1,SIZE(h_block,2)
-                kij = kh*(hmt(j,ikind)+hmt(i,jkind))
-                h_block(i,j)=h_block(i,j)+kij*s_block(i,j)
-              END DO
-            END DO
-          END IF
-       END IF
-
-    END DO
-    CALL neighbor_list_iterator_release(nl_iterator)
-
-    DEALLOCATE (scptb_kind_param,scptb_defined,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (umt,hmt,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    ! *** Put the core Hamiltonian matrix in the QS environment ***
-    CALL set_kpoint_info(kpoint=kpoints,&
-                         matrix_s=matrix_s,&
-                         matrix_t=matrix_t,&
-                         matrix_h=matrix_h,error=error)
-
-!   ! Print matrices if requested
-!   CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
-!        qs_env, calculate_forces, para_env, error)
-    CALL timestop(handle)
-
-  END SUBROUTINE build_scptb_core_matrix_kp
 
 END MODULE scptb_core_matrix
 

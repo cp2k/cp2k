@@ -150,7 +150,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, rho_ao
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -163,7 +165,7 @@ CONTAINS
     TYPE(xas_control_type), POINTER          :: xas_control
 
     CALL timeset(routineN,handle)
-    NULLIFY(xas_control,matrix_s,matrix_ks,para_env, rho_ao)
+    NULLIFY(xas_control,matrix_s,matrix_ks,para_env, rho_ao_kp)
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
     NULLIFY(qs_charges)
 
@@ -202,7 +204,7 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"XAS_SCF",error=error)
 
     CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos,error=error)
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
 
     iter_count = 0
     diis_step = .FALSE.
@@ -250,12 +252,12 @@ CONTAINS
        SELECT CASE(xas_env%mixing_method)
        CASE(direct_mixing_nr)
           CALL scf_env_density_mixing(scf_env%p_mix_new,&
-               xas_env%mixing_store, rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
+               xas_env%mixing_store, rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
                diis=diis_step, error=error)
        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                  broyden_mixing_new_nr,multisecant_mixing_nr)
           ! Compute the difference p_out-p_in
-          CALL self_consistency_check(rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+          CALL self_consistency_check(rho_ao_kp,scf_env%p_delta,para_env,scf_env%p_mix_new,&
                 delta= scf_env%iter_delta, error=error)
        CASE(no_mixing_nr)
        CASE DEFAULT
@@ -316,7 +318,8 @@ CONTAINS
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (xas_env%mixing_method > 0) THEN
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+             ! does not yet handle k-points
+             CALL cp_dbcsr_copy(rho_ao_kp(ispin,1)%matrix,scf_env%p_mix_new(ispin,1)%matrix,&
                   error=error)
           END DO
        ENDIF

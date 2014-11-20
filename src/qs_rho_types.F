@@ -10,6 +10,7 @@
 !>      08.2002 created [fawzi]
 !>      08.2014 kpoints [JGH]
 !>      11.2014 make qs_rho_type PRIVATE [Ole Schuett]
+!>      11.2014 unified k-point and gamma-point code [Ole Schuett]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_rho_types
@@ -58,8 +59,7 @@ MODULE qs_rho_types
 ! *****************************************************************************
   TYPE qs_rho_type
      PRIVATE
-     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao => Null(),&
-                                                       rho_ao_im => Null()
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao_im => Null()
      TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: rho_ao_kp => Null()
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g  => Null(),&
                                                rho_r  => Null(),&
@@ -227,8 +227,6 @@ CONTAINS
        DEALLOCATE(rho_struct%tau_g)
     END IF
 
-    IF (ASSOCIATED(rho_struct%rho_ao))&
-       CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao,error=error)
     IF (ASSOCIATED(rho_struct%rho_ao_im))&
        CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_im,error=error)
     IF (ASSOCIATED(rho_struct%rho_ao_kp))&
@@ -301,7 +299,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(rho_ao)) rho_ao => rho_struct%rho_ao
+    IF (PRESENT(rho_ao)) rho_ao => get_gamma_point(rho_struct%rho_ao_kp)
+
     IF (PRESENT(rho_ao_im)) rho_ao_im => rho_struct%rho_ao_im
     IF (PRESENT(rho_ao_kp)) rho_ao_kp => rho_struct%rho_ao_kp
     IF (PRESENT(rho_r)) rho_r => rho_struct%rho_r
@@ -323,6 +322,26 @@ CONTAINS
 
   END SUBROUTINE qs_rho_get
 
+! *****************************************************************************
+!> \brief Smart getter, raises an error when called during a k-point calculation
+!> \param matrix_set ...
+!> \retval res ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION get_gamma_point(matrix_set) RESULT(res)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: res
+
+     IF(ASSOCIATED(matrix_set)) THEN
+        IF(SIZE(matrix_set, 2) /= 1) &
+           CALL cp_unimplemented_error("qs_rho_get","Method not implemented for k-points")
+        res => matrix_set(:,1)
+     ELSE
+        res => Null()
+     ENDIF
+  END FUNCTION get_gamma_point
 
 ! *****************************************************************************
 !> \brief ...
@@ -380,7 +399,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(rho_ao)) rho_struct%rho_ao => rho_ao
+    IF (PRESENT(rho_ao)) CALL set_gamma_point(rho_struct%rho_ao_kp, rho_ao)
     IF (PRESENT(rho_ao_im)) rho_struct%rho_ao_im => rho_ao_im
     IF (PRESENT(rho_ao_kp)) rho_struct%rho_ao_kp => rho_ao_kp
     IF (PRESENT(rho_r))  rho_struct%rho_r  => rho_r
@@ -401,6 +420,28 @@ CONTAINS
     IF (PRESENT(tot_rho_g)) rho_struct%tot_rho_g => tot_rho_g
 
   END SUBROUTINE qs_rho_set
+
+! *****************************************************************************
+!> \brief Assigns a 1D pointer to a 2D pointer and handles NULL() properly.
+!> \param matrix_set_kp ...
+!> \param matrix_set_gamma ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE set_gamma_point(matrix_set_kp, matrix_set_gamma)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_set_kp
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_set_gamma
+
+    INTEGER                                  :: n
+
+     IF(ASSOCIATED(matrix_set_gamma)) THEN
+        n = SIZE(matrix_set_gamma)
+        matrix_set_kp(1:n, 1:1) => matrix_set_gamma
+     ELSE
+         matrix_set_kp => Null()
+     ENDIF
+  END SUBROUTINE set_gamma_point
 
 END MODULE qs_rho_types
 

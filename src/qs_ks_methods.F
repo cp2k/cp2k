@@ -73,9 +73,6 @@ MODULE qs_ks_methods
   USE kg_correction,                   ONLY: kg_ekin_subset
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                             kpoint_type,&
-                                             set_kpoint_info
   USE lri_environment_types,           ONLY: lri_density_type,&
                                              lri_environment_type,&
                                              lri_kind_type
@@ -1260,43 +1257,31 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_kpoints
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_t, rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrixkp_h, matrixkp_t, &
                                                 rho_ao_kp
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
-    NULLIFY(energy, rho, dft_control, matrixkp_t, matrixkp_h, matrix_t, matrix_h)
-    NULLIFY(rho_ao, rho_ao_kp)
+    NULLIFY(energy, rho, dft_control, rho_ao_kp, matrixkp_t, matrixkp_h)
 
     CALL get_qs_env(qs_env,&
-                    do_kpoints=do_kpoints,&
-                    kpoints=kpoints,&
                     rho=rho,&
                     energy=energy,&
                     dft_control=dft_control,&
-                    kinetic=matrix_t,&
-                    matrix_h=matrix_h,&
+                    kinetic_kp=matrixkp_t,&
+                    matrix_h_kp=matrixkp_h,&
                     error=error)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
 
-    IF (do_kpoints) THEN
-       CALL get_kpoint_info(kpoints,matrix_t=matrixkp_t,matrix_h=matrixkp_h,error=error)
-       CALL calculate_ptrace(matrixkp_h,rho_ao_kp,energy%core,dft_control%nspins,error)
-       IF(ASSOCIATED(matrixkp_t)) & ! kinetic energy
-          CALL calculate_ptrace(matrixkp_t,rho_ao_kp,energy%kinetic,dft_control%nspins,error)
-    ELSE
-       CALL calculate_ptrace(matrix_h,rho_ao,energy%core,dft_control%nspins,error)
-       IF(ASSOCIATED(matrix_t)) &   ! kinetic energy
-          CALL calculate_ptrace(matrix_t,rho_ao,energy%kinetic,dft_control%nspins,error)
-    END IF
+    CALL calculate_ptrace(matrixkp_h, rho_ao_kp, energy%core, dft_control%nspins, error)
+
+    ! kinetic energy
+    IF(ASSOCIATED(matrixkp_t)) &
+       CALL calculate_ptrace(matrixkp_t, rho_ao_kp, energy%kinetic, dft_control%nspins, error)
 
     CALL timestop(handle)
  END SUBROUTINE evaluate_core_matrix_traces
@@ -1666,69 +1651,35 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: headline
-    INTEGER                                  :: ic, ispin, ncount
-    INTEGER, DIMENSION(:, :), POINTER        :: index_to_cell
-    LOGICAL                                  :: do_kpoints
+    INTEGER                                  :: ic, ispin, nimg
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s, matrix_s_aux_fit
+      POINTER                                :: matrix_ks_aux_fit, &
+                                                matrix_s_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrixkp_ks
+      POINTER                                :: matrix_s_kp, matrixkp_ks
     TYPE(cp_dbcsr_type), POINTER             :: refmatrix
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_aux_fit, sab_orb
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    NULLIFY(dft_control,ks_env,matrix_s, matrix_s_aux_fit, sab_orb, sab_aux_fit)
+    NULLIFY(dft_control,ks_env,matrix_s_kp, matrix_s_aux_fit, sab_orb, sab_aux_fit, matrixkp_ks)
+
     CALL get_qs_env(qs_env,&
-                    do_kpoints=do_kpoints,&
                     dft_control=dft_control,&
-                    matrix_s=matrix_s,&
+                    matrix_s_kp=matrix_s_kp,&
                     ks_env=ks_env,&
                     sab_orb=sab_orb,&
                     sab_aux_fit=sab_aux_fit,&
+                    matrix_ks_kp=matrixkp_ks,&
                     error=error)
 
-    IF(do_kpoints) THEN
-
-       NULLIFY(matrixkp_ks)
-       CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
-       CALL get_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
-       IF (.NOT.ASSOCIATED(matrixkp_ks)) THEN
-          headline="KOHN-SHAM MATRIX"
-          CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,error=error)
-          ncount = SIZE(index_to_cell,2)
-          CALL cp_dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, ncount, error)
-          refmatrix => matrix_s(1)%matrix
-          DO ispin=1,dft_control%nspins
-             DO ic=1,ncount
-                ALLOCATE(matrixkp_ks(ispin,ic)%matrix)
-                CALL cp_dbcsr_init(matrixkp_ks(ispin,ic)%matrix,error=error)
-                CALL cp_dbcsr_create(matrix=matrixkp_ks(ispin,ic)%matrix,&
-                  name=TRIM(headline),&
-                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
-                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
-                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
-                  nblks=0, nze=0, error=error)
-                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin,ic)%matrix,sab_orb,error=error)
-                CALL cp_dbcsr_set(matrixkp_ks(ispin,ic)%matrix,0.0_dp,error=error)
-             ENDDO
-          ENDDO
-          CALL set_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
-       END IF
-
-    ELSE
-
-       NULLIFY(matrix_ks)
-       CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
-       IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-          CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
-          refmatrix => matrix_s(1)%matrix
-          DO ispin=1,dft_control%nspins
-             ALLOCATE(matrix_ks(ispin)%matrix)
-             CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
+    IF (.NOT.ASSOCIATED(matrixkp_ks)) THEN
+       nimg = dft_control%nimages
+       CALL cp_dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, nimg, error)
+       refmatrix => matrix_s_kp(1,1)%matrix
+       DO ispin=1,dft_control%nspins
+          DO ic=1,nimg
              IF (dft_control%nspins > 1) THEN
                 IF (ispin == 1) THEN
                    headline="KOHN-SHAM MATRIX FOR ALPHA SPIN"
@@ -1738,19 +1689,21 @@ CONTAINS
              ELSE
                 headline="KOHN-SHAM MATRIX"
              END IF
-             CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
-                  name=TRIM(headline),&
-                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
-                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
-                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
-                  nblks=0, nze=0, error=error)
-             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb,error=error)
-             CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+             ALLOCATE(matrixkp_ks(ispin,ic)%matrix)
+             CALL cp_dbcsr_init(matrixkp_ks(ispin,ic)%matrix,error=error)
+             CALL cp_dbcsr_create(matrix=matrixkp_ks(ispin,ic)%matrix,&
+               name=TRIM(headline),&
+               dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+               col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+               nblks=0, nze=0, error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin,ic)%matrix,sab_orb,error=error)
+             CALL cp_dbcsr_set(matrixkp_ks(ispin,ic)%matrix,0.0_dp,error=error)
           ENDDO
-          CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
-       END IF
-
+       ENDDO
+       CALL set_ks_env(ks_env, matrix_ks_kp=matrixkp_ks, error=error)
     END IF
+
 
     ! Allocate matrix_ks_aux_fit if requested and put it in the QS environment
     IF(dft_control%do_admm) THEN

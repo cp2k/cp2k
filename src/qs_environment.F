@@ -245,8 +245,8 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, method_id, &
                                                 natom, nkind
-    LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, do_kp, failure, harris_flag, &
-      mp2_present, my_qmmm, qmmm_decoupl, use_ref_cell
+    LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, do_kpoints, failure, &
+      harris_flag, mp2_present, my_qmmm, qmmm_decoupl, use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -351,8 +351,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,blacs_env=blacs_env,error=error)
     kpoints%blacs_env_all => blacs_env
     CALL cp_blacs_env_retain(blacs_env, error)
-    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kp,error=error)
-    IF(do_kp) THEN
+    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints,error=error)
+    IF(do_kpoints) THEN
        CALL kpoint_env_initialize(kpoints, error)
        CALL kpoint_initialize_mos(kpoints, qs_env%mos, error)
     END IF

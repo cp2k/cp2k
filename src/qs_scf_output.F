@@ -487,16 +487,13 @@ END SUBROUTINE qs_scf_print_scf_summary
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
-                    matrix_ks=matrix_ks,rho=rho,mos=mos, &
-                    error=error)
-
-    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+    CALL get_qs_env(qs_env, rho=rho, mos=mos, error=error)
 
     DO ispin=1,dft_control%nspins
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
            dft_section,"PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+         CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
          iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/DENSITY",&
               extension=".Log",error=error)
          CALL cp_dbcsr_write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,&
@@ -509,6 +506,7 @@ END SUBROUTINE qs_scf_print_scf_summary
            dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
          iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
               extension=".Log",error=error)
+         CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, error=error)
          IF (dft_control%qs_control%semi_empirical) THEN
             CALL cp_dbcsr_write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,&
                  scale=evolt,output_unit=iw,error=error)
@@ -527,6 +525,7 @@ END SUBROUTINE qs_scf_print_scf_summary
        IF(scf_env%method==special_diag_method_nr) THEN
          CALL calculate_orthonormality(orthonormality,mos,error=error)
        ELSE
+         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
          CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix,error=error)
        END IF
        iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_ORTHONORMALITY",&

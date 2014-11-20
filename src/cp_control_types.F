@@ -368,7 +368,8 @@ MODULE cp_control_types
                                           ref_count,&
                                           id_nr,&
                                           plus_u_method_id,&
-                                          dir_surf_dip
+                                          dir_surf_dip,&
+                                          nimages = 1
      INTEGER                           :: sic_list_id
      REAL(KIND=dp)                     :: relax_multiplicity,&
                                           sic_scaling_a,&

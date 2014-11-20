@@ -486,8 +486,7 @@ CONTAINS
     END IF
 
     ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
-         qs_env, calculate_forces, para_env, error)
+    CALL dump_info_core_hamiltonian(qs_env, calculate_forces, error)
     CALL timestop(handle)
 
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -547,21 +546,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Possibly prints matrices after the construction of the Core
 !>     Hamiltonian Matrix
-!> \param matrix_s ...
-!> \param matrix_t ...
-!> \param matrix_h ...
 !> \param qs_env ...
 !> \param calculate_forces ...
-!> \param para_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, qs_env, &
-       calculate_forces, para_env, error)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_t, matrix_h
+  SUBROUTINE dump_info_core_hamiltonian(qs_env, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
@@ -569,19 +560,23 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, output_unit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_v
+      POINTER                                :: matrix_h, matrix_s, matrix_t, &
+                                                matrix_v
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger, matrix_v)
+    NULLIFY(logger, matrix_v, matrix_s, matrix_t, matrix_h, para_env)
     logger => cp_error_get_logger(error)
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
 
     ! *** Print the distribution of the overlap matrix blocks ***
     ! *** this duplicates causes duplicate printing at the force calc ***
     IF (.NOT. calculate_forces) THEN
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
+           CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
            output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%DISTRIBUTION",&
                                               extension=".distribution",error=error)
            CALL cp_dbcsr_write_matrix_dist(matrix_s(1)%matrix,output_unit,para_env,error)
@@ -595,6 +590,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
@@ -611,6 +607,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, kinetic=matrix_t, error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", error=error)
@@ -621,6 +618,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, kinetic=matrix_t, error=error)
        CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
        ALLOCATE(matrix_v(1)%matrix)
        CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
@@ -639,6 +637,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, matrix_h=matrix_h, error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)

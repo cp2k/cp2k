@@ -74,8 +74,7 @@ MODULE qs_energy_utils
   USE scf_control_types,               ONLY: scf_control_type
   USE scp_dispersion,                  ONLY: scp_nddo_dispersion
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
-  USE scptb_core_matrix,               ONLY: build_scptb_core_matrix,&
-                                             build_scptb_core_matrix_kp
+  USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
   USE se_ga_tools,                     ONLY: se_ga_initialize
@@ -118,8 +117,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: do_kpoints, failure, &
-                                                has_unit_metric, molecule_only
+    LOGICAL                                  :: failure, has_unit_metric, &
+                                                molecule_only
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, matrix_w, &
                                                 matrix_w_mp2
@@ -132,43 +131,38 @@ CONTAINS
     CALL qs_energies_init_kg(qs_env,molecule_only,error)
     CALL qs_energies_init_hamiltonians(qs_env,calc_forces,molecule_only,error)
     CALL qs_ks_allocate_basics(qs_env,error)
-
-    CALL get_qs_env(qs_env,&
-                    ks_env=ks_env,&
-                    has_unit_metric=has_unit_metric,&
-                    do_kpoints=do_kpoints,&
-                    matrix_w=matrix_w,&
-                    matrix_s=matrix_s,&
-                    dft_control=dft_control,&
-                    error=error)
+    CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric, error=error)
 
     ! need forces ?
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
-       IF(do_kpoints) THEN
-          CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
-       ELSE
-          CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
+       CALL get_qs_env(qs_env,&
+                       ks_env=ks_env,&
+                       has_unit_metric=has_unit_metric,&
+                       matrix_w=matrix_w,&
+                       matrix_s=matrix_s,&
+                       dft_control=dft_control,&
+                       error=error)
+       CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
+       DO ispin=1,dft_control%nspins
+          ALLOCATE(matrix_w(ispin)%matrix)
+          CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
+          CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+               name="W MATRIX",error=error)
+          CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+       END DO
+       CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
+       IF (ASSOCIATED(qs_env%mp2_env)) THEN
+          ! create the MP2 energy weighted density matrix
+          CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins,error=error)
           DO ispin=1,dft_control%nspins
-             ALLOCATE(matrix_w(ispin)%matrix)
-             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
-             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
-                  name="W MATRIX",error=error)
-             CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+             ALLOCATE(matrix_w_mp2(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix,error=error)
+             CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix_s(1)%matrix,&
+                  name="W MATRIX MP2",error=error)
+             CALL cp_dbcsr_set(matrix_w_mp2(ispin)%matrix,0.0_dp,error=error)
           END DO
-          CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
-          IF (ASSOCIATED(qs_env%mp2_env)) THEN
-             ! create the MP2 energy weighted density matrix
-             CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins,error=error)
-             DO ispin=1,dft_control%nspins
-                ALLOCATE(matrix_w_mp2(ispin)%matrix)
-                CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix,error=error)
-                CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix_s(1)%matrix,&
-                     name="W MATRIX MP2",error=error)
-                CALL cp_dbcsr_set(matrix_w_mp2(ispin)%matrix,0.0_dp,error=error)
-             END DO
-             CALL set_ks_env(ks_env,matrix_w_mp2=matrix_w_mp2,error=error)
-          END IF
-       ENDIF
+          CALL set_ks_env(ks_env,matrix_w_mp2=matrix_w_mp2,error=error)
+       END IF
     ENDIF
 
   END SUBROUTINE qs_energies_init
@@ -284,25 +278,27 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CALL get_qs_env(qs_env=qs_env,input=input,dft_control=dft_control,&
-                    para_env=para_env,kpoints=kpoints,do_kpoints=do_kpoints,error=error)
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    kpoints=kpoints,&
+                    do_kpoints=do_kpoints,&
+                    error=error)
 
     ! create neighbor lists for standard use in QS
     CALL build_qs_neighbor_lists(qs_env,para_env,molecular=molecule_only,&
                                  force_env_section=input,error=error)
     dft_control%qs_control%becke_control%need_pot=.TRUE.
+    IF(do_kpoints) THEN
+      CALL get_qs_env(qs_env, sab_orb=sab_nl, error=error)
+      CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control, error)
+    ENDIF
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
     IF ( dft_control%qs_control%semi_empirical ) THEN
-       IF(do_kpoints) THEN
-          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
-          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Kpoints not available with Semi-Empirical methods",error)
-       ELSE
-          CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
+       CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
                                     calculate_forces=.FALSE.,error=error)
-       END IF
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.FALSE., error=error)
        IF ( dft_control%qs_control%se_control%scp ) THEN
@@ -313,40 +309,19 @@ CONTAINS
        ! GA option
        CALL se_ga_initialize ( qs_env, error )
     ELSEIF ( dft_control%qs_control%dftb ) THEN
-       IF(do_kpoints) THEN
-          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
-          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Kpoints not available with DFTB",error)
-       ELSE
-          CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
-                                   calculate_forces=.FALSE.,error=error)
-       END IF
+       CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
+                                calculate_forces=.FALSE.,error=error)
        CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env,&
                               calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
     ELSEIF ( dft_control%qs_control%scptb ) THEN
-       IF(do_kpoints) THEN
-          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
-          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
-          CALL build_scptb_core_matrix_kp(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-       ELSE
-          CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-       END IF
+       CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL scptb_core_interaction(qs_env,calculate_forces=.FALSE.,error=error)
        CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
        CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
     ELSE
-       IF(do_kpoints) THEN
-          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
-          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Kpoints not available with GPW/GAPW/QUICKSTEP",error)
-       ELSE
-          CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-       END IF
-
+       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL calculate_ecore_self(qs_env,error=error)
        CALL calculate_ecore_efield(qs_env,calculate_forces=.FALSE.,error=error)
@@ -406,23 +381,25 @@ CONTAINS
     NULLIFY(dft_control, rho_ao)
 
     ! if calculate forces, time to compute the w matrix
-    CALL get_qs_env(qs_env,&
-                    has_unit_metric=has_unit_metric,&
-                    matrix_w=matrix_w,&
-                    ks_env=ks_env,&
-                    matrix_ks=matrix_ks,&
-                    matrix_s=matrix_s,&
-                    matrix_w_mp2=matrix_w_mp2,&
-                    mo_derivs=mo_derivs,&
-                    scf_control=scf_control,&
-                    mos=mos,&
-                    rho=rho,&
-                    dft_control=dft_control,&
-                    error=error)
-
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric, error=error)
 
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
+       CALL get_qs_env(qs_env,&
+                       has_unit_metric=has_unit_metric,&
+                       matrix_w=matrix_w,&
+                       ks_env=ks_env,&
+                       matrix_ks=matrix_ks,&
+                       matrix_s=matrix_s,&
+                       matrix_w_mp2=matrix_w_mp2,&
+                       mo_derivs=mo_derivs,&
+                       scf_control=scf_control,&
+                       mos=mos,&
+                       rho=rho,&
+                       dft_control=dft_control,&
+                       error=error)
+
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
        nspin = SIZE(mos)
        DO ispin=1,nspin
           mo_set => mos(ispin)%mo_set
@@ -565,7 +542,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE qs_energies_properties 
+  END SUBROUTINE qs_energies_properties
 
 
 ! *****************************************************************************

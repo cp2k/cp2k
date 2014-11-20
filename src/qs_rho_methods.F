@@ -25,8 +25,7 @@ MODULE qs_rho_methods
                                              use_orb_basis_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                             kpoint_type
+  USE kpoint_types,                    ONLY: kpoint_type
   USE lri_environment_methods,         ONLY: calculate_lri_densities
   USE lri_environment_types,           ONLY: lri_density_type,&
                                              lri_environment_type
@@ -100,15 +99,15 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, i, ic, &
-                                                my_basis_set_id, ncount, &
-                                                nspins
-    LOGICAL                                  :: dokp, failure, my_rebuild_ao, &
+                                                my_basis_set_id, nimg, nspins
+    LOGICAL                                  :: do_kpoints, failure, &
+                                                my_rebuild_ao, &
                                                 my_rebuild_grids
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, rho_ao
+      POINTER                                :: matrix_s
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrixkp_s, rho_ao_kp
+      POINTER                                :: matrix_s_kp, rho_ao_kp
     TYPE(cp_dbcsr_type), POINTER             :: refmatrix, tmatrix
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
@@ -119,8 +118,8 @@ CONTAINS
                                                 tau_g, tau_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-    NULLIFY (pw_env,auxbas_pw_pool,matrix_s,dft_control)
-    NULLIFY (tot_rho_r,rho_ao,rho_ao_kp,rho_r,rho_g,drho_r,drho_g,tau_r,tau_g)
+    NULLIFY (pw_env,auxbas_pw_pool,matrix_s,matrix_s_kp,dft_control)
+    NULLIFY (tot_rho_r,rho_ao_kp,rho_r,rho_g,drho_r,drho_g,tau_r,tau_g)
     NULLIFY (sab_orb)
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -135,29 +134,25 @@ CONTAINS
       my_basis_set_id = use_orb_basis_set
     END IF
 
-    CALL get_qs_env(qs_env, kpoints=kpoints, do_kpoints=dokp, error=error)
+    CALL get_qs_env(qs_env,&
+                    kpoints=kpoints,&
+                    do_kpoints=do_kpoints,&
+                    pw_env=pw_env,&
+                    dft_control=dft_control,&
+                    error=error)
 
-    IF(dokp) THEN
-       SELECT CASE (my_basis_set_id)
-       CASE (use_orb_basis_set)
-         CALL get_qs_env(qs_env, sab_orb=sab_orb, error=error)
-         CALL get_kpoint_info(kpoints, matrix_s=matrixkp_s, error=error)
-       CASE (use_aux_fit_basis_set)
-         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-       refmatrix => matrixkp_s(1,1)%matrix
-       CALL get_kpoint_info(kpoints, ncount=ncount, error=error)
-    ELSE
-       SELECT CASE (my_basis_set_id)
-       CASE (use_orb_basis_set)
-         CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb, error=error)
-       CASE (use_aux_fit_basis_set)
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s, sab_aux_fit=sab_orb, error=error)
-       END SELECT
-       refmatrix => matrix_s(1)%matrix
-    END IF
+    nimg = dft_control%nimages
 
-    CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control, error=error)
+    SELECT CASE (my_basis_set_id)
+      CASE (use_orb_basis_set)
+        CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp, sab_orb=sab_orb, error=error)
+        refmatrix => matrix_s_kp(1,1)%matrix
+      CASE (use_aux_fit_basis_set)
+        CPPostcondition(.NOT.do_kpoints, cp_failure_level,routineP,error,failure)
+        CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s, sab_aux_fit=sab_orb, error=error)
+        refmatrix => matrix_s(1)%matrix
+    END SELECT
+
 
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     nspins=dft_control%nspins
@@ -165,7 +160,6 @@ CONTAINS
     IF (.NOT.ASSOCIATED(rho)) STOP routineP//" rho not associated"
     CALL qs_rho_get(rho,&
                     tot_rho_r=tot_rho_r,&
-                    rho_ao=rho_ao,&
                     rho_ao_kp=rho_ao_kp,&
                     rho_r=rho_r,&
                     rho_g=rho_g,&
@@ -182,17 +176,14 @@ CONTAINS
     ENDIF
 
     ! rho_ao
-    IF (my_rebuild_ao.OR.(.NOT.ASSOCIATED(rho_ao))) THEN
-       IF (.NOT.failure) THEN
-          IF (ASSOCIATED(rho_ao)) THEN
-             CALL cp_dbcsr_deallocate_matrix_set(rho_ao,error=error)
-          END IF
-          ! Create a new density matrix set
-          CALL cp_dbcsr_allocate_matrix_set(rho_ao,nspins,error=error)
-          CALL qs_rho_set(rho, rho_ao=rho_ao, error=error)
-          DO i=1,nspins
-             ALLOCATE(rho_ao(i)%matrix)
-             tmatrix => rho_ao(i)%matrix
+    IF (my_rebuild_ao.OR.(.NOT.ASSOCIATED(rho_ao_kp))) THEN
+       IF (ASSOCIATED(rho_ao_kp)) &
+          CALL cp_dbcsr_deallocate_matrix_set(rho_ao_kp,error=error)
+       ! Create a new density matrix set
+       CALL cp_dbcsr_allocate_matrix_set(rho_ao_kp,nspins,nimg,error=error)
+       CALL qs_rho_set(rho, rho_ao_kp=rho_ao_kp, error=error)
+       DO i=1,nspins
+          DO ic=1,nimg
              IF (nspins > 1) THEN
                 IF (i == 1) THEN
                    headline = "DENSITY MATRIX FOR ALPHA SPIN"
@@ -202,6 +193,8 @@ CONTAINS
              ELSE
                 headline = "DENSITY MATRIX"
              END IF
+             ALLOCATE(rho_ao_kp(i,ic)%matrix)
+             tmatrix => rho_ao_kp(i,ic)%matrix
              CALL cp_dbcsr_init(tmatrix, error=error)
              CALL cp_dbcsr_create(matrix=tmatrix, name=TRIM(headline),&
                   dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
@@ -211,31 +204,7 @@ CONTAINS
              CALL cp_dbcsr_alloc_block_from_nbl(tmatrix,sab_orb,error=error)
              CALL cp_dbcsr_set(tmatrix,0.0_dp,error=error)
           END DO
-          ! kpoints
-          IF(dokp) THEN
-             IF (ASSOCIATED(rho_ao_kp)) THEN
-                CALL cp_dbcsr_deallocate_matrix_set(rho_ao_kp,error=error)
-             END IF
-             ! Create a new density matrix set
-             CALL cp_dbcsr_allocate_matrix_set(rho_ao_kp,nspins,ncount,error=error)
-             CALL qs_rho_set(rho, rho_ao_kp=rho_ao_kp, error=error)
-             DO i=1,nspins
-                DO ic=1,ncount
-                   ALLOCATE(rho_ao_kp(i,ic)%matrix)
-                   tmatrix => rho_ao_kp(i,ic)%matrix
-                   headline = "DENSITY MATRIX (lattice vector)"
-                   CALL cp_dbcsr_init(tmatrix, error=error)
-                   CALL cp_dbcsr_create(matrix=tmatrix, name=TRIM(headline),&
-                        dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
-                        row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
-                        col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
-                        nblks=0, nze=0, error=error)
-                   CALL cp_dbcsr_alloc_block_from_nbl(tmatrix,sab_orb,error=error)
-                   CALL cp_dbcsr_set(tmatrix,0.0_dp,error=error)
-                END DO
-             END DO
-          END IF
-       END IF
+       END DO
     END IF
 
     ! rho_r
@@ -432,7 +401,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                       error=error)
 
       CALL qs_rho_get(rho_struct,&
-                      rho_ao=rho_ao,&
                       rho_r=rho_r,&
                       rho_g=rho_g,&
                       tot_rho_r=tot_rho_r,&
@@ -458,12 +426,14 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
         !
         CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
       ELSEIF(dft_control%qs_control%lrigpw) THEN
+        CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
         CALL calculate_lri_densities(lri_env,lri_density,qs_env,rho_ao,&
                                      lri_rho_struct=rho_struct,&
                                      atomic_kind_set=atomic_kind_set,&
                                      para_env=para_env,error=error)
         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
       ELSE
+        CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
         DO ispin=1,nspins
            CALL calculate_rho_elec(matrix_p=rho_ao(ispin)%matrix,&
                 rho=rho_r(ispin),&
@@ -477,6 +447,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
       ! if needed compute also the gradient of the density
       IF (dft_control%drho_by_collocation) THEN
+         CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
          DO ispin=1,nspins
            CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
            CALL calculate_drho_elec(matrix_p=rho_ao(ispin)%matrix,&
@@ -493,6 +464,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
             CALL stop_program(routineN,moduleN,__LINE__,&
              "LRIGPW not implemented for meta-GGAs")
          ENDIF
+         CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
          DO ispin=1,nspins
             CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
             CALL calculate_rho_elec(matrix_p=rho_ao(ispin)%matrix,&
@@ -509,6 +481,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF(gapw ) THEN
          CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
+         CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
          IF(PRESENT(local_rho_set)) THEN
             CALL calculate_rho_atom_coeff(qs_env,rho_ao,local_rho_set%rho_atom_set,error=error)
          ELSE

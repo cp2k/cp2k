@@ -96,7 +96,8 @@ MODULE qs_scf_types
   TYPE subspace_env_type
       INTEGER :: max_iter, mixing_method
       REAL(dp) :: eps_diag_sub, eps_ene, eps_adapt
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store,p_matrix_mix
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store
+      TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: p_matrix_mix
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: chc_mat, c_vec, c0
       TYPE(mixing_storage_type), POINTER :: mixing_store
   END TYPE
@@ -116,8 +117,7 @@ TYPE qs_scf_env_type
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
    TYPE(krylov_space_type), POINTER :: krylov_space
-   TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
-   TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: p_mix_kp
+   TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: p_delta, p_mix_new
    TYPE(cp_dbcsr_type),  POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
@@ -184,7 +184,6 @@ CONTAINS
        NULLIFY (scf_env%ortho_dbcsr)
        NULLIFY (scf_env%ortho_m1)
        NULLIFY (scf_env%p_mix_new)
-       NULLIFY (scf_env%p_mix_kp)
        NULLIFY (scf_env%ot_preconditioner)
        NULLIFY (scf_env%qs_ot_env)
        NULLIFY (scf_env%scf_diis_buffer)
@@ -271,9 +270,6 @@ CONTAINS
        IF (ASSOCIATED(scf_env%p_delta)) THEN
           CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
        END IF
-       IF (ASSOCIATED(scf_env%p_mix_kp)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_kp,error=error)
-       END IF
     END IF
 
     CALL timestop(handle)
@@ -338,11 +334,6 @@ CONTAINS
              ! we should not end up here, and give back using the pools
              CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
              CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
-          END IF
-          IF (ASSOCIATED(scf_env%p_mix_kp)) THEN
-             ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
-             CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_kp,error=error)
           END IF
           IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
              DO i=1,SIZE(scf_env%ot_preconditioner)

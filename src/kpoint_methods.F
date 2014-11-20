@@ -7,6 +7,7 @@
 !> \brief Routines needed for kpoint calculation
 !> \par History
 !>       2014.07 created [JGH]
+!>       2014.11 unified k-point and gamma-point code [Ole Schuett]
 !> \author JGH
 ! *****************************************************************************
 MODULE kpoint_methods
@@ -14,6 +15,7 @@ MODULE kpoint_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_p, &
@@ -45,7 +47,6 @@ MODULE kpoint_methods
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                             kp_opmat_create,&
                                              kpoint_env_create,&
                                              kpoint_env_p_type,&
                                              kpoint_env_type,&
@@ -258,8 +259,6 @@ CPSourceFileRef,&
     para_env => kpoint%para_env
     CPAssert(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
     CPAssert(.NOT.ASSOCIATED(kpoint%kp_env),cp_failure_level,routineP,error,failure)
-
-    CALL kp_opmat_create(kpoint%opmats,error)
 
     NULLIFY(kp_env)
     nkp = kpoint%nkp
@@ -493,21 +492,24 @@ CPSourceFileRef,&
 !> \param kpoint    Kpoint environment
 !> \param sab_nl    Defining neighbour list
 !> \param para_env  Parallel environment
+!> \param dft_control ...
 !> \param error     CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_init_cell_index(kpoint, sab_nl, para_env, error)
+  SUBROUTINE kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control, error)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i1, i2, i3, ic, icount, ierr, &
-                                                it, ncount
+    INTEGER                                  :: i1, i2, i3, ic, icount, it, &
+                                                ncount
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: index_to_cell
     INTEGER, DIMENSION(3)                    :: cell, itm
     INTEGER, DIMENSION(:, :), POINTER        :: list
     INTEGER, DIMENSION(:, :, :), POINTER     :: cti
@@ -518,8 +520,7 @@ CPSourceFileRef,&
     failure = .FALSE.
     CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(list(3,125),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(list(3,125))
     list = 0
     icount = 1
 
@@ -551,17 +552,11 @@ CPSourceFileRef,&
     itm(3) = MAXVAL(ABS(list(3,1:icount)))
     CALL mp_max(itm,para_env%group)
     it = MAXVAL(itm(1:3))
-    IF(ASSOCIATED(kpoint%opmats%index_to_cell)) THEN
-       DEALLOCATE(kpoint%opmats%index_to_cell,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    IF(ASSOCIATED(kpoint%cell_to_index)) THEN
+       DEALLOCATE(kpoint%cell_to_index)
     END IF
-    IF(ASSOCIATED(kpoint%opmats%cell_to_index)) THEN
-       DEALLOCATE(kpoint%opmats%cell_to_index,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-    END IF
-    ALLOCATE(kpoint%opmats%cell_to_index(-itm(1):itm(1),-itm(2):itm(2),-itm(3):itm(3)),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-    cti => kpoint%opmats%cell_to_index
+    ALLOCATE(kpoint%cell_to_index(-itm(1):itm(1),-itm(2):itm(2),-itm(3):itm(3)))
+    cti => kpoint%cell_to_index
     cti(:,:,:) = 0
     DO ic=1,icount
        i1 = list(1,ic)
@@ -584,32 +579,33 @@ CPSourceFileRef,&
         END DO
       END DO
     END DO
-    ALLOCATE(kpoint%opmats%index_to_cell(3,ncount),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(index_to_cell(3,ncount))
     DO ic=1,ncount
        cell = MINLOC(cti)
        i1 = cell(1) - 1 - itm(1)
        i2 = cell(2) - 1 - itm(2)
        i3 = cell(3) - 1 - itm(3)
        cti(i1,i2,i3) = 1000000
-       kpoint%opmats%index_to_cell(1,ic) = i1
-       kpoint%opmats%index_to_cell(2,ic) = i2
-       kpoint%opmats%index_to_cell(3,ic) = i3
+       index_to_cell(1,ic) = i1
+       index_to_cell(2,ic) = i2
+       index_to_cell(3,ic) = i3
     END DO
     cti(:,:,:) = 0
     DO ic=1,ncount
-       i1 = kpoint%opmats%index_to_cell(1,ic)
-       i2 = kpoint%opmats%index_to_cell(2,ic)
-       i3 = kpoint%opmats%index_to_cell(3,ic)
+       i1 = index_to_cell(1,ic)
+       i2 = index_to_cell(2,ic)
+       i3 = index_to_cell(3,ic)
        cti(i1,i2,i3) = ic
     END DO
 
-    DEALLOCATE(list,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    ! keep pointer to this neighborlist
+    kpoint%sab_nl => sab_nl
 
-    ! keep pointer to this neighborlist 
-    kpoint%opmats%sab_nl => sab_nl
+    ! set number of images
+    dft_control%nimages = SIZE(index_to_cell, 2)
 
+    DEALLOCATE(list)
   END SUBROUTINE kpoint_init_cell_index
 
 ! *****************************************************************************
@@ -865,14 +861,18 @@ CPSourceFileRef,&
 !> \brief generate real space desnity matrices in DBCSR format
 !> \param kpoint  Kpoint environment
 !> \param denmat  Real space (DBCSR) density matrices
+!> \param matrix_s ...
+!> \param sab_nl ...
 !> \param fmwork  FM work matrices (kpoint group)
 !> \param error   CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_density_transform(kpoint,denmat,fmwork,error)
+  SUBROUTINE kpoint_density_transform(kpoint,denmat,matrix_s,sab_nl,fmwork,error)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: denmat
+      POINTER                                :: denmat, matrix_s
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_nl
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fmwork
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -882,8 +882,8 @@ CPSourceFileRef,&
 
     INTEGER                                  :: bcntxt, iatom, ic, icell, &
                                                 icol, ik, ikk, irow, ispin, &
-                                                jatom, nc, ncount, nkp, &
-                                                nspin, stat
+                                                jatom, nc, nimg, nkp, nspin, &
+                                                stat
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_symmetric, failure, found, &
@@ -891,16 +891,12 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: arg, coskl, fc, sinkl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wkp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cblock, dblock, rblock, xkp
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: refmatrix
     TYPE(cp_dbcsr_type), POINTER             :: cpmat, rpmat
     TYPE(cp_fm_type), POINTER                :: fmdummy
     TYPE(cp_para_env_type), POINTER          :: para_env_inter_kp
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_nl
 
     failure = .FALSE.
 
@@ -909,10 +905,9 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(rpmat,error=error)
     CALL cp_dbcsr_init(cpmat,error=error)
-    CALL get_kpoint_info(kpoint,matrix_s=refmatrix,sab_nl=sab_nl,error=error)
-    CALL cp_dbcsr_create(rpmat,template=refmatrix(1,1)%matrix,&
+    CALL cp_dbcsr_create(rpmat,template=matrix_s(1,1)%matrix,&
          matrix_type=dbcsr_type_symmetric,error=error)
-    CALL cp_dbcsr_create(cpmat,template=refmatrix(1,1)%matrix,&
+    CALL cp_dbcsr_create(cpmat,template=matrix_s(1,1)%matrix,&
          matrix_type=dbcsr_type_antisymmetric,error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(rpmat,sab_nl,error)
     CALL cp_dbcsr_alloc_block_from_nbl(cpmat,sab_nl,error)
@@ -920,16 +915,17 @@ CPSourceFileRef,&
     CALL get_kpoint_info(kpoint,nkp=nkp,xkp=xkp,wkp=wkp,&
                          para_env_inter_kp=para_env_inter_kp,&
                          sab_nl=sab_nl,cell_to_index=cell_to_index,&
-                         ncount=ncount,error=error)
+                         error=error)
     ! initialize real space density matrices
     kp => kpoint%kp_env(1)%kpoint_env
     nspin = SIZE(kp%mos,2)
     nc = SIZE(kp%mos,1)
+    nimg = SIZE(denmat, 2)
     real_only = (nc==1)
     bcntxt = kpoint%blacs_env_all%group
     NULLIFY(fmdummy)
     DO ispin=1,nspin
-       DO ic=1,ncount
+       DO ic=1,nimg
           CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)
        END DO
        !

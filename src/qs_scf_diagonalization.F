@@ -291,8 +291,9 @@ CONTAINS
     END IF
 
     DO ispin=1,nspin
+      ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin)%matrix,&
+                                    scf_env%p_mix_new(ispin,1)%matrix,&
                                     error=error)
     END DO
 
@@ -510,7 +511,7 @@ CONTAINS
     ! density matrices
     CALL kpoint_density_matrices(kpoints,error)
     ! density matrices in real space
-    CALL kpoint_density_transform(kpoints,scf_env%p_mix_kp,fmwork,error)
+    CALL kpoint_density_transform(kpoints,scf_env%p_mix_new,matrix_s,sab_nl,fmwork,error)
 
     CALL cp_dbcsr_deallocate_matrix(rmatrix,error=error)
     CALL cp_dbcsr_deallocate_matrix(cmatrix,error=error)
@@ -575,6 +576,8 @@ CONTAINS
       DIMENSION(:)                           :: eval_first, occ_first
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
     TYPE(cp_fm_type), POINTER                :: c0, chc, evec, mo_coeff, work
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -586,7 +589,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
-         mo_occupations, work, dft_control, rho_ao)
+         mo_occupations, work, dft_control, rho_ao, rho_ao_kp)
 
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIAG_SUB_SCF",&
@@ -596,7 +599,7 @@ CONTAINS
     work  => scf_env%scf_work2
 
     nspin = SIZE(mos)
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, error=error)
 
     ALLOCATE( eval_first(nspin), STAT=istat)
       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -616,8 +619,9 @@ CONTAINS
     END DO
 
     DO ispin=1,nspin
+       ! does not yet handle k-points
        CALL cp_dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho_ao(ispin)%matrix,error=error )
-       CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix,error=error )
+       CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin, 1)%matrix,error=error )
     END DO
 
     subspace_env%p_matrix_mix => scf_env%p_mix_new
@@ -693,8 +697,9 @@ CONTAINS
                            smear=scf_control%smear,&
                            error=error)
 
+         ! does not yet handle k-points
          CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                  subspace_env%p_matrix_mix(ispin)%matrix,&
+                                  subspace_env%p_matrix_mix(ispin, 1)%matrix,&
                                  error=error)
 
          DO i = 1, nmo
@@ -706,15 +711,16 @@ CONTAINS
 
       IF(subspace_env%mixing_method==direct_mixing_nr) THEN
          CALL scf_env_density_mixing(subspace_env%p_matrix_mix, &
-              scf_env%mixing_store, rho_ao, para_env, iter_delta, iloop, &
+              scf_env%mixing_store, rho_ao_kp, para_env, iter_delta, iloop, &
               error=error)
       ELSE
-          CALL self_consistency_check(rho_ao,scf_env%p_delta,para_env,&
+          CALL self_consistency_check(rho_ao_kp,scf_env%p_delta,para_env,&
                subspace_env%p_matrix_mix,delta=iter_delta,error=error)
       END IF
 
       DO ispin=1,nspin
-         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin)%matrix ,error=error )
+         ! does not yet handle k-points
+         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin,1)%matrix ,error=error )
       END DO
       ! update of density
       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -743,7 +749,8 @@ CONTAINS
 
     NULLIFY (subspace_env%p_matrix_mix)
     DO ispin=1,nspin
-        CALL cp_dbcsr_copy(scf_env%p_mix_new(ispin)%matrix,rho_ao(ispin)%matrix,error=error )
+        ! does not yet handle k-points
+        CALL cp_dbcsr_copy(scf_env%p_mix_new(ispin,1)%matrix,rho_ao(ispin)%matrix,error=error )
         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_store(ispin)%matrix ,error=error )
 
         DEALLOCATE(eval_first(ispin)%array,occ_first(ispin)%array)
@@ -931,8 +938,9 @@ END SUBROUTINE diag_subspace_allocate
                            error=error)
 
     DO ispin=1,nspin
+      ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin)%matrix,&
+                                    scf_env%p_mix_new(ispin, 1)%matrix,&
                                     error=error)
     END DO
 
@@ -1050,8 +1058,9 @@ END SUBROUTINE diag_subspace_allocate
                            error=error)
 
     DO ispin=1,nspin
+      ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin)%matrix,&
+                                    scf_env%p_mix_new(ispin, 1)%matrix,&
                                     error=error)
     END DO
 
@@ -1337,9 +1346,10 @@ END SUBROUTINE diag_subspace_allocate
 
     ! Calculate the new alpha and beta density matrix
 
-    CALL calculate_density_matrix(mos(1)%mo_set,scf_env%p_mix_new(1)%matrix,&
+    ! does not yet handle k-points
+    CALL calculate_density_matrix(mos(1)%mo_set,scf_env%p_mix_new(1, 1)%matrix,&
                                   error=error)
-    CALL calculate_density_matrix(mos(2)%mo_set,scf_env%p_mix_new(2)%matrix,&
+    CALL calculate_density_matrix(mos(2)%mo_set,scf_env%p_mix_new(2, 1)%matrix,&
                                   error=error)
 
     CALL timestop(handle)
@@ -1537,8 +1547,9 @@ END SUBROUTINE diag_subspace_allocate
                                 smear=scf_control%smear,&
                                 error=error)
 
+         ! does not yet handle k-points
          CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                       scf_env%p_mix_new(ispin)%matrix,&
+                                       scf_env%p_mix_new(ispin,1)%matrix,&
                                        error=error)
       END  IF
     END DO ! ispin
@@ -1667,8 +1678,9 @@ END SUBROUTINE diag_subspace_allocate
                              error=error)
 
     DO ispin=1,nspins
+      ! does not yet handle k-points
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin)%matrix,&
+                                    scf_env%p_mix_new(ispin, 1)%matrix,&
                                     error=error)
     END DO
 
