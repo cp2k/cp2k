@@ -2289,11 +2289,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: handle, i, iat, id, ikind, iso, ispin, istat, iw, l, nd(3), &
       ngto, niso, nkind, np, nr, output_unit, print_level, unit_nr
-    LOGICAL                                  :: append_cube, failure, &
-                                                print_it, &
-                                                print_total_density, &
-                                                write_ks, write_xc, &
-                                                xrd_interface
+    LOGICAL :: append_cube, failure, print_it, print_total_density, &
+      rho_r_valid, write_ks, write_xc, xrd_interface
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
                                                 rho_total, rho_total_rspace, &
                                                 udvol, volume
@@ -2380,8 +2377,6 @@ CONTAINS
 
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
                rho0_s_gs=rho0_s_gs,error=error)
-!          CALL pw_env_get(pw_env, error=error)
-!          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
@@ -2903,10 +2898,16 @@ CONTAINS
        ! Compute the Hirschfeld charges
        print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSCHFELD", error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%HIRSCHFELD",extension=".hirschfeld",&
-                                       middle_name="",log_filename=.FALSE.,error=error)
-          CALL hirschfeld_charges(qs_env,print_key,unit_nr,error)
-          CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%HIRSCHFELD",error=error)
+          ! we check if real space density is available
+          NULLIFY(rho)
+          CALL get_qs_env(qs_env=qs_env,rho=rho,error=error)
+          CALL qs_rho_get(rho,rho_r_valid=rho_r_valid,error=error)
+          IF(rho_r_valid) THEN
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%HIRSCHFELD",extension=".hirschfeld",&
+                                          middle_name="",log_filename=.FALSE.,error=error)
+             CALL hirschfeld_charges(qs_env,print_key,unit_nr,error)
+             CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%HIRSCHFELD",error=error)
+          END IF
        END IF
 
     END IF

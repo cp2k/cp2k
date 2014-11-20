@@ -448,18 +448,21 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
 
-      ! get tmp grids
       IF(dft_control%qs_control%semi_empirical) THEN
         !
+        CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
       ELSEIF(dft_control%qs_control%dftb) THEN
         !
+        CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
       ELSEIF(dft_control%qs_control%scptb) THEN
         !
+        CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
       ELSEIF(dft_control%qs_control%lrigpw) THEN
         CALL calculate_lri_densities(lri_env,lri_density,qs_env,rho_ao,&
                                      lri_rho_struct=rho_struct,&
                                      atomic_kind_set=atomic_kind_set,&
                                      para_env=para_env,error=error)
+        CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
       ELSE
         DO ispin=1,nspins
            CALL calculate_rho_elec(matrix_p=rho_ao(ispin)%matrix,&
@@ -469,9 +472,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                 ks_env=ks_env,soft_valid=gapw,&
                 task_list_external=task_list, error=error)
         END DO
+        CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
       END IF
-
-      CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
 
       ! if needed compute also the gradient of the density
       IF (dft_control%drho_by_collocation) THEN
