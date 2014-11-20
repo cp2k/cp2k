@@ -11,16 +11,11 @@
 ! *****************************************************************************
 MODULE input_cp2k_atprop
   USE bibliography,                    ONLY: Kikuchi2009
-  USE cp_output_handling,              ONLY: add_last_numeric,&
-                                             cp_print_key_section_create,&
-                                             low_print_level
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
   USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
                                              section_create,&
-                                             section_release,&
                                              section_type
 #include "./common/cp_common_uses.f90"
 
@@ -50,7 +45,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
 
