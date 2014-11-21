@@ -349,7 +349,7 @@ END SUBROUTINE
     CALL cp_dbcsr_add_on_diag(Tres,1.0_dp,error=error)
 
     DO i=1,ntaylor
-       CALL cp_dbcsr_scale(T1,one/CMPLX(0.0_dp,1.0_dp,KIND=dp),error=error)
+       CALL cp_dbcsr_scale(T1,one/CMPLX(i*1.0_dp,0.0_dp,KIND=dp),error=error)
        CALL cp_dbcsr_filter(T1,filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",square_fac,T1,T3,&
             zero,T2,filter_eps=filter_eps,error=error)
