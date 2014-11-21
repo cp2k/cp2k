@@ -257,6 +257,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        ALLOCATE(map(SIZE(cvalues)), stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       map=HUGE(0) ! init all, since used in a sort, but not all set in parallel.
        CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
        n_tot=0
        cvalues = 0.0_dp
