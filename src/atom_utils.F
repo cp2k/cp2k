@@ -246,7 +246,7 @@ CONTAINS
       IF (js==1) THEN
         l=i1
         i=i2
-        k = wfnocc(l,i)
+        k = NINT(wfnocc(l,i))
         IF(k > (2*l+1)) k=2*(2*l+1)-k
         IF(mult==-2) mult=k+1
         IF(mult==-3) mult=MOD(k,2)+1
@@ -1969,7 +1969,7 @@ CONTAINS
 
     density1 = 0._dp
     density2 = 0._dp
-    ne(1:4,1:7) = state%core(0:3,1:7) + state%occ(0:3,1:7)
+    ne(1:4,1:7) = NINT(state%core(0:3,1:7) + state%occ(0:3,1:7))
     DO l=0,state%maxl_occ
       DO i=1,SIZE(state%occ,2)
         IF ( state%occ(l,i) > 0._dp ) THEN
