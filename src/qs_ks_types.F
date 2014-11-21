@@ -79,11 +79,6 @@ MODULE qs_ks_types
   PUBLIC :: qs_ks_env_type, qs_ks_env_create
   PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env
 
- TYPE matrix_set_type
-     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: ptr_1d => Null()
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER        :: ptr_2d => Null()
- END TYPE matrix_set_type
-
 ! *****************************************************************************
 !> \brief calculation environement to calculate the ks matrix,
 !>      holds all the needed vars.
