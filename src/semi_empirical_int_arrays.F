@@ -285,14 +285,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_clm_array', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: CLM1, CLM1m
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: ALM1, ALMs15_49, ALMs15_49m, ALMs15m, ALMs20_49, &
-      ALMs20_49m, ALMs35, ALMs35m, ALMs45, ALMs5_49, ALMs5_49m, CLM1, CLM1m, &
-      CLM23, CLM23m, CLM43, CLM43m, CLMs13, CLMs13m, CLMs43, CLMs43m
+      ALMs20_49m, ALMs35, ALMs35m, ALMs45, ALMs5_49, ALMs5_49m, CLM23, &
+      CLM23m, CLM43, CLM43m, CLMs13, CLMs13m, CLMs43, CLMs43m
 
     failure = .FALSE.
-    CLM1       =  1.0_dp
-    CLM1m      = -1.0_dp
+    CLM1       =  1
+    CLM1m      = -1
     CLMs13     =  SQRT(1.0_dp/3.0_dp)
     CLMs13m    = -SQRT(1.0_dp/3.0_dp)
     CLM23      =  2.0_dp/3.0_dp
@@ -319,7 +320,7 @@ CONTAINS
     !          (4) py = pi_{\overline{pi}}  (7) d_{\overline{pi}} = dzy
 
     clm_d = 0.0_dp
-    clm_sp= 0.0_dp
+    clm_sp= 0
     alm   = 0.0_dp
     ! Let's fill all element of table 1 with resulting multipole lesser than 2
     ! Important Note: the value of the clm_sp does not reflect any phyisical
