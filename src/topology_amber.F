@@ -1705,7 +1705,9 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: label_a, label_b, label_c, &
                                                 label_d
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: k, m, phi0
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: k
+    INTEGER, DIMENSION(:), POINTER           :: m
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: phi0
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(INOUT)                   :: iphi
@@ -1767,7 +1769,12 @@ CPSourceFileRef,&
        label_c(iphi)  = work_label(3,1)
        label_d(iphi)  = work_label(4,1)
        k(iphi)    = pk   (icp(iwork(1)))*0.5_dp
-       m(iphi)    = pn   (icp(iwork(1)))
+       m(iphi)    = NINT(pn   (icp(iwork(1))))
+       IF (m(iphi)-pn   (icp(iwork(1))).GT.EPSILON(1.0_dp)) THEN
+         ! non integer torsions not supported
+         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       ENDIF
+
        phi0(iphi) = phase(icp(iwork(1)))
 
        DO i = 2, nphi
@@ -1796,7 +1803,11 @@ CPSourceFileRef,&
              label_c(iphi)  = work_label(3,i)
              label_d(iphi)  = work_label(4,i)
              k(iphi)    = pk   (icp(iwork(i)))*0.5_dp
-             m(iphi)    = pn   (icp(iwork(i)))
+             m(iphi)    = NINT(pn   (icp(iwork(i))))
+             IF (m(iphi)-pn   (icp(iwork(i))).GT.EPSILON(1.0_dp)) THEN
+               ! non integer torsions not supported
+               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             ENDIF
              phi0(iphi) = phase(icp(iwork(i)))
           END IF
        END DO
