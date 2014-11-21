@@ -11,7 +11,7 @@ svn up
 svn info
 
 cd makefiles
-make -j ARCH=Linux-x86-64-gfortran VERSION=dumpast
+make -j ARCH=Linux-x86-64-gfortran VERSION=dumpast >../make_conventions.out 2>&1
 
 cd ../obj/Linux-x86-64-gfortran/dumpast
 echo "Checking conventions..."

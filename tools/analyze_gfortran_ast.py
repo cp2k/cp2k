@@ -80,12 +80,16 @@ def main():
 
     issues = sorted(set(issues))
     issues_shown = [i for i in issues if(i not in suppress)]
+    issues_supp  = [i for i in issues if(i     in suppress)]
+
+    for i in issues_supp:
+        print i+" (suppressed)"
 
     for i in issues_shown:
         print i
 
     n = len(issues_shown)
-    m = len(issues) - n
+    m = len(issues_supp)
     print "Summary: Found %d issues (%d suppressed)"%(n, m)
     print "Status: " + ("OK" if n==0 else "FAILED")
 
