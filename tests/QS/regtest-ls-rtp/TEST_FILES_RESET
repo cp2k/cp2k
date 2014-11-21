@@ -28,3 +28,8 @@ H2O-ls-emd-mcweeny-rt-restart.inp
 H2O-ls-emd-mcweeny.inp
 emd-KG.inp
 H2O-ls-ortho-emd.inp
+#get the minimized rho through ls_scf fore more of the regtests
+H2O-ls-ortho-emd.inp
+H2O-ls-rtp-bch.inp
+emd-KG.inp
+
