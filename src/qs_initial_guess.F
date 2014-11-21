@@ -274,6 +274,7 @@ CONTAINS
         IF (para_env%ionode) &
            CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
         CALL mp_bcast(exist, para_env%source, para_env%group)
+        CALL mp_bcast(file_name, para_env%source, para_env%group)
         IF (.NOT.exist) THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                 "User requested to restart the wavefunction from the file named: "//&
@@ -288,6 +289,7 @@ CPSourceFileRef,&
        IF (para_env%ionode) &
           CALL wfn_restart_file_name(file_name,exist,dft_section,logger,error=error)
        CALL mp_bcast(exist, para_env%source, para_env%group)
+       CALL mp_bcast(file_name, para_env%source, para_env%group)
        nvec = qs_env%wf_history%memory_depth
        not_read = nvec+1
        ! At this level we read the saved backup RESTART files..
