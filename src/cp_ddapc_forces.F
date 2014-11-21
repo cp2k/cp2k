@@ -555,12 +555,12 @@ CONTAINS
 
     INTEGER                                  :: i, ip1, ip2, iparticle1, &
                                                 iparticle2, l, lmax, n_rep1, &
-                                                n_rep2, q1t, q2t, stat, weight
+                                                n_rep2, stat, weight
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, fixed_center
     REAL(KIND=dp) :: center(3), dcos1(3), dcos2(3), dpos1(3), dpos2(3), &
       eps_in, eps_out, factor1(3), factor2(3), lr, mass, mycos, pos1, pos1i, &
-      pos2, pos2i, ptcos, r1(3), r1s, r2(3), r2s, Rs, rvec(3)
+      pos2, pos2i, ptcos, q1t, q2t, r1(3), r1s, r2(3), r2s, Rs, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, LocP, M
 

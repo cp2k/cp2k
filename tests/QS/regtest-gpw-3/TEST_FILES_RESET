@@ -994,3 +994,5 @@ dynamics.inp
 He2H-.inp
 # Merge of POTENTIAL files
 rsgrid-dist-1.inp
+#  
+H2O-solv.inp
