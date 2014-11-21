@@ -785,6 +785,7 @@ CONTAINS
     nma = MAXVAL ( rcount ( 0 : np - 1 ) )
     ALLOCATE(sendbuf(nma),recvbuf(nma), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    sendbuf=1.0E99_dp ; recvbuf=1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
     grid=>rs%r
 
     IF ( dir == rs2pw ) THEN

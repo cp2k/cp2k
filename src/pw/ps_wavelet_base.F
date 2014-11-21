@@ -1796,6 +1796,7 @@ CONTAINS
     ALLOCATE(zt(2,lzt,n1),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(zmpi2(2,n1,md2/nproc,nd3),stat=i_stat)
+    zmpi2=1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
     i_all=i_all+i_stat
     ALLOCATE(cosinarr(2,n3/2),stat=i_stat)
     i_all=i_all+i_stat
