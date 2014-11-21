@@ -237,7 +237,7 @@ CONTAINS
         ! set occupations for pseudopotential calculation
         CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
         CALL atom_set_occupation(tmpstringlist,statepp%core,pocc,error=error)
-        zcore = zval - SUM(statepp%core)
+        zcore = zval - NINT(SUM(statepp%core))
         CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
 
         statepp%occ = state%occ - statepp%core

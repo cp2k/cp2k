@@ -264,7 +264,7 @@ CONTAINS
           ! get and set the core occupations
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
           CALL atom_set_occupation(tmpstringlist,state%core,pocc,error=error)
-          zcore = zval - SUM(state%core)
+          zcore = zval - NINT(SUM(state%core))
           CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
         ELSE
           state%core=0._dp
