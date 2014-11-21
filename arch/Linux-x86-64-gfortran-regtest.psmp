@@ -13,10 +13,10 @@ LIBXC_LIB  = $(GCC_DIR)/libxc/2.2.0-gnu-regtest/lib64
 DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC2\
              -D__parallel -D__SCALAPACK
 CPPFLAGS   =
-WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow\
-             -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all\
-             -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable\
-             -Wunused-variable -Werror
+WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
+             -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
+             -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
+             -Wunused-but-set-variable -Wunused-variable -Werror
 FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form\
              -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
              -fopenmp -g -mtune=generic -std=f2003\
