@@ -1313,7 +1313,9 @@ CONTAINS
     CALL qs_rho_get(rho, rho_g=rho_g, error=error)
 
     nspin = SIZE(rho_g,1)
-    ng_global = rho_g(1)%pw%pw_grid%ngpts
+    ! not implemented for large grids.
+    CPPrecondition(rho_g(1)%pw%pw_grid%ngpts<HUGE(ng_global),cp_failure_level,routineP,error,failure)
+    ng_global = INT(rho_g(1)%pw%pw_grid%ngpts)
     ng = SIZE(mixing_store%rhoin_buffer(1,1)%cc)
     alpha=mixing_store%alpha
 
