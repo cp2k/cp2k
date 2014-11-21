@@ -353,7 +353,7 @@ CONTAINS
        cosKVals(k)=COS(coeff*REAL(k,dp))
     END DO
 
-    !$omp parallel do default(none) private(ii,k,j,i,coeff,c23) shared(spline_g,cosJVals,cosKVals,cosIVals)
+    !$omp parallel do default(none) private(ii,k,j,i,coeff,c23) shared(spline_g,cosJVals,cosKVals,cosIVals,inv64)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
@@ -528,7 +528,7 @@ CONTAINS
        cosKVals(k)=COS(coeff*REAL(k,dp))
     END DO
 
-    !$omp parallel do private(ii,k,j,i,coeff,c23) default(none) shared(spline_g,cosIVals,cosJVals,cosKvals)
+    !$omp parallel do private(ii,k,j,i,coeff,c23) default(none) shared(spline_g,cosIVals,cosJVals,cosKvals,inv27)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
