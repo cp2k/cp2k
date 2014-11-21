@@ -28,6 +28,7 @@ MODULE dbcsr_io
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type,&
+                                             dbcsr_failure_level,&
                                              dbcsr_warning_level
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_get_data_size, &
@@ -984,7 +985,10 @@ CONTAINS
        data_area_size = values(2)
        IF (subh2_offsets(i) .EQ. 0 ) EXIT
        val_data(1,i) = nblocks  
-       val_data(2,i) = data_area_size
+       CALL dbcsr_assert (data_area_size < HUGE(val_data(2,i)),&
+            dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Data area too large, fix code.",__LINE__,error)
+       val_data(2,i) = INT(data_area_size)
        val_data(3,i) = worker_id+(i-1)*group_list_size+1   ! order 
        ! order = indices of an array of length size_of_pgrid to be accessed by the current node 
     END DO
