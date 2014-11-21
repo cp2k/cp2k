@@ -565,9 +565,10 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
 
+    INTEGER                                  :: extent(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-    REAL(KIND=dp)                            :: cutoff, extent(3), f, &
-                                                prefactor, rb(3), zetp
+    REAL(KIND=dp)                            :: cutoff, f, prefactor, rb(3), &
+                                                zetp
     REAL(KIND=dp), DIMENSION(3)              :: rp
 
 ! the radius for this task
@@ -590,10 +591,10 @@ CONTAINS
        CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     ELSE
        CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
-       !? unclear why extent is real, and if extent is computed correctly.
+       !? unclear if extent is computed correctly.
        extent(:)  = ub_cube(:) - lb_cube(:)
        lb_cube(:) = -extent(:) / 2 - 1
-       ub_cube(:) = extent(:) / 2
+       ub_cube(:) =  extent(:) / 2
     ENDIF
 
   END SUBROUTINE compute_pgf_properties
