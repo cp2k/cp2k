@@ -329,27 +329,6 @@ CONTAINS
   END SUBROUTINE qs_rho_get
 
 ! *****************************************************************************
-!> \brief Smart getter, raises an error when called during a k-point calculation
-!> \param matrix_set ...
-!> \retval res ...
-!> \author Ole Schuett
-! *****************************************************************************
-  FUNCTION get_gamma_point(matrix_set) RESULT(res)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: res
-
-     IF(ASSOCIATED(matrix_set)) THEN
-        IF(SIZE(matrix_set, 2) /= 1) &
-           CALL cp_unimplemented_error("qs_rho_get","Method not implemented for k-points")
-        res => matrix_set(:,1)
-     ELSE
-        res => Null()
-     ENDIF
-  END FUNCTION get_gamma_point
-
-! *****************************************************************************
 !> \brief ...
 !> \param rho_struct ...
 !> \param rho_ao ...
@@ -427,28 +406,6 @@ CONTAINS
     IF (PRESENT(tot_rho_g)) rho_struct%tot_rho_g => tot_rho_g
 
   END SUBROUTINE qs_rho_set
-
-! *****************************************************************************
-!> \brief Assigns a 1D pointer to a 2D pointer and handles NULL() properly.
-!> \param matrix_set_kp ...
-!> \param matrix_set_gamma ...
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE set_gamma_point(matrix_set_kp, matrix_set_gamma)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_set_kp
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_set_gamma
-
-    INTEGER                                  :: n
-
-     IF(ASSOCIATED(matrix_set_gamma)) THEN
-        n = SIZE(matrix_set_gamma)
-        matrix_set_kp(1:n, 1:1) => matrix_set_gamma
-     ELSE
-         matrix_set_kp => Null()
-     ENDIF
-  END SUBROUTINE set_gamma_point
 
 END MODULE qs_rho_types
 
