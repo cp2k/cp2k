@@ -853,7 +853,7 @@ CONTAINS
       CALL cp_ma_run_on(para_env, error, output_unit)
 
 
-!$omp parallel private(nid)
+!$omp parallel default(none) private(nid) shared(error)
 !$omp critical
 !$          nid = omp_get_thread_num()
 !$          CALL cp_ma_thread_sched(nid, error=error )
@@ -862,7 +862,7 @@ CONTAINS
 
        CALL cp_ma_thread_run_on(output_unit, error=error)
 
-!$omp parallel private(nid)
+!$omp parallel default(none) private(nid) shared(error)
 !$          nid = omp_get_thread_num()
 !$          CALL cp_ma_current_thread_run(nid, error=error)
 !$omp end parallel

@@ -339,21 +339,21 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
-    !$omp parallel do private(i)
+    !$omp parallel do default(none) private(i) shared(gbo,cosIVals,coeff)
     DO i=gbo(1,1),gbo(2,1)
        cosIVals(i)=COS(coeff*REAL(i,dp))
     END DO
     coeff=twopi/n_tot(2)
-    !$omp parallel do private(j)
+    !$omp parallel do default(none) private(j) shared(gbo,cosJVals,coeff)
     DO j=gbo(1,2),gbo(2,2)
        cosJVals(j)=COS(coeff*REAL(j,dp))
     END DO
-    !$omp parallel do private(k)
+    !$omp parallel do default(none) private(k) shared(gbo,cosKVals,coeff)
     DO k=gbo(1,3),gbo(2,3)
        cosKVals(k)=COS(coeff*REAL(k,dp))
     END DO
 
-    !$omp parallel do private(ii,k,j,i,coeff,c23)
+    !$omp parallel do default(none) private(ii,k,j,i,coeff,c23) shared(spline_g,cosJVals,cosKVals,cosIVals)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
@@ -433,21 +433,21 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
-    !$omp parallel do private(i)
+    !$omp parallel do private(i) default(none) shared(gbo,coeff,cosIVals)
     DO i=gbo(1,1),gbo(2,1)
        cosIVals(i)=COS(coeff*REAL(i,dp))
     END DO
     coeff=twopi/n_tot(2)
-    !$omp parallel do private(j)
+    !$omp parallel do private(j) default(none) shared(gbo,cosJVals,coeff)
     DO j=gbo(1,2),gbo(2,2)
        cosJVals(j)=COS(coeff*REAL(j,dp))
     END DO
-    !$omp parallel do private(k)
+    !$omp parallel do private(k) default(none) shared(gbo,cosKVals,coeff)
     DO k=gbo(1,3),gbo(2,3)
        cosKVals(k)=COS(coeff*REAL(k,dp))
     END DO
 
-    !$omp parallel do private(ii,k,j,i,coeff,c23)
+    !$omp parallel do private(ii,k,j,i,coeff,c23) default(none) shared(spline_g,cosJVals,cosKVals,cosIVals,r_coeffs)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
@@ -513,22 +513,22 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
-    !$omp parallel do private(i)
+    !$omp parallel do private(i) default(none) shared(coeff,cosIVals,gbo)
     DO i=gbo(1,1),gbo(2,1)
        cosIVals(i)=COS(coeff*REAL(i,dp))
     END DO
     coeff=twopi/n_tot(2)
-    !$omp parallel do private(j)
+    !$omp parallel do private(j) default(none) shared(coeff,gbo,cosJVals)
     DO j=gbo(1,2),gbo(2,2)
        cosJVals(j)=COS(coeff*REAL(j,dp))
     END DO
     coeff=twopi/n_tot(3)
-    !$omp parallel do private(k)
+    !$omp parallel do private(k) default(none) shared(coeff,cosKVals,gbo)
     DO k=gbo(1,3),gbo(2,3)
        cosKVals(k)=COS(coeff*REAL(k,dp))
     END DO
 
-    !$omp parallel do private(ii,k,j,i,coeff,c23)
+    !$omp parallel do private(ii,k,j,i,coeff,c23) default(none) shared(spline_g,cosIVals,cosJVals,cosKvals)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
