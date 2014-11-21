@@ -17,6 +17,12 @@ MODULE qs_rho_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type
   USE kinds,                           ONLY: dp
+  USE kpoint_transitional,             ONLY: get_1d_pointer,&
+                                             get_2d_pointer,&
+                                             kpoint_transitional_release,&
+                                             kpoint_transitional_type,&
+                                             set_1d_pointer,&
+                                             set_2d_pointer
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
 #include "./common/cp_common_uses.f90"
@@ -59,8 +65,8 @@ MODULE qs_rho_types
 ! *****************************************************************************
   TYPE qs_rho_type
      PRIVATE
+     TYPE(kpoint_transitional_type)         :: rho_ao
      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao_im => Null()
-     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: rho_ao_kp => Null()
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g  => Null(),&
                                                rho_r  => Null(),&
                                                drho_g => Null(),&
@@ -227,10 +233,10 @@ CONTAINS
        DEALLOCATE(rho_struct%tau_g)
     END IF
 
+    CALL kpoint_transitional_release(rho_struct%rho_ao, error)
+
     IF (ASSOCIATED(rho_struct%rho_ao_im))&
        CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_im,error=error)
-    IF (ASSOCIATED(rho_struct%rho_ao_kp))&
-       CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_kp,error=error)
     IF (ASSOCIATED(rho_struct%tot_rho_r))&
        DEALLOCATE(rho_struct%tot_rho_r)
     IF (ASSOCIATED(rho_struct%tot_rho_g))&
@@ -299,10 +305,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(rho_ao)) rho_ao => get_gamma_point(rho_struct%rho_ao_kp)
+    IF (PRESENT(rho_ao))    rho_ao    => get_1d_pointer(rho_struct%rho_ao)
+    IF (PRESENT(rho_ao_kp)) rho_ao_kp => get_2d_pointer(rho_struct%rho_ao)
 
     IF (PRESENT(rho_ao_im)) rho_ao_im => rho_struct%rho_ao_im
-    IF (PRESENT(rho_ao_kp)) rho_ao_kp => rho_struct%rho_ao_kp
     IF (PRESENT(rho_r)) rho_r => rho_struct%rho_r
     IF (PRESENT(drho_r)) drho_r => rho_struct%drho_r
     IF (PRESENT(rho_g)) rho_g => rho_struct%rho_g
@@ -399,9 +405,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(rho_ao)) CALL set_gamma_point(rho_struct%rho_ao_kp, rho_ao)
+    IF (PRESENT(rho_ao))    CALL set_1d_pointer(rho_struct%rho_ao, rho_ao)
+    IF (PRESENT(rho_ao_kp)) CALL set_2d_pointer(rho_struct%rho_ao, rho_ao_kp)
+
     IF (PRESENT(rho_ao_im)) rho_struct%rho_ao_im => rho_ao_im
-    IF (PRESENT(rho_ao_kp)) rho_struct%rho_ao_kp => rho_ao_kp
     IF (PRESENT(rho_r))  rho_struct%rho_r  => rho_r
     IF (PRESENT(rho_g))  rho_struct%rho_g  => rho_g
     IF (PRESENT(drho_r)) rho_struct%drho_r => drho_r

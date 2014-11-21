@@ -35,6 +35,12 @@ MODULE qs_ks_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE kpoint_transitional,             ONLY: get_1d_pointer,&
+                                             get_2d_pointer,&
+                                             kpoint_transitional_release,&
+                                             kpoint_transitional_type,&
+                                             set_1d_pointer,&
+                                             set_2d_pointer
   USE kpoint_types,                    ONLY: kpoint_create,&
                                              kpoint_release,&
                                              kpoint_type
@@ -72,6 +78,11 @@ MODULE qs_ks_types
 
   PUBLIC :: qs_ks_env_type, qs_ks_env_create
   PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env
+
+ TYPE matrix_set_type
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: ptr_1d => Null()
+     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER        :: ptr_2d => Null()
+ END TYPE matrix_set_type
 
 ! *****************************************************************************
 !> \brief calculation environement to calculate the ks matrix,
@@ -145,11 +156,11 @@ MODULE qs_ks_types
     ! ugly to keep it always around only for a cube output...
     TYPE(pw_type), POINTER                                :: v_hartree_rspace => Null()
 
-    TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER        :: matrix_ks_kp => Null(),&
-                                                             matrix_s_kp => Null(),&
-                                                             kinetic_kp => Null(),&
-                                                             matrix_h_kp => Null(),&
-                                                             matrix_vxc_kp => Null()
+    TYPE(kpoint_transitional_type)                        :: matrix_ks,&
+                                                             matrix_s,&
+                                                             kinetic,&
+                                                             matrix_h,&
+                                                             matrix_vxc
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im => Null(),&
                                                              matrix_w => Null(),&
@@ -429,17 +440,17 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(forces_up_to_date)) forces_up_to_date = ks_env%forces_up_to_date
      IF (PRESENT(v_hartree_rspace)) v_hartree_rspace => ks_env%v_hartree_rspace
 
-     IF (PRESENT(matrix_ks)) matrix_ks => get_gamma_point(ks_env%matrix_ks_kp)
-     IF (PRESENT(matrix_s)) matrix_s => get_gamma_point(ks_env%matrix_s_kp)
-     IF (PRESENT(kinetic)) kinetic => get_gamma_point(ks_env%kinetic_kp)
-     IF (PRESENT(matrix_h)) matrix_h => get_gamma_point(ks_env%matrix_h_kp)
-     IF (PRESENT(matrix_vxc)) matrix_vxc => get_gamma_point(ks_env%matrix_vxc_kp)
+     IF (PRESENT(matrix_ks)) matrix_ks         => get_1d_pointer(ks_env%matrix_ks)
+     IF (PRESENT(matrix_s)) matrix_s           => get_1d_pointer(ks_env%matrix_s)
+     IF (PRESENT(kinetic)) kinetic             => get_1d_pointer(ks_env%kinetic)
+     IF (PRESENT(matrix_h)) matrix_h           => get_1d_pointer(ks_env%matrix_h)
+     IF (PRESENT(matrix_vxc)) matrix_vxc       => get_1d_pointer(ks_env%matrix_vxc)
 
-     IF (PRESENT(matrix_ks_kp)) matrix_ks_kp => ks_env%matrix_ks_kp
-     IF (PRESENT(matrix_s_kp)) matrix_s_kp => ks_env%matrix_s_kp
-     IF (PRESENT(kinetic_kp)) kinetic_kp => ks_env%kinetic_kp
-     IF (PRESENT(matrix_h_kp)) matrix_h_kp => ks_env%matrix_h_kp
-     IF (PRESENT(matrix_vxc_kp)) matrix_vxc_kp => ks_env%matrix_vxc_kp
+     IF (PRESENT(matrix_ks_kp)) matrix_ks_kp   => get_2d_pointer(ks_env%matrix_ks)
+     IF (PRESENT(matrix_s_kp)) matrix_s_kp     => get_2d_pointer(ks_env%matrix_s)
+     IF (PRESENT(kinetic_kp)) kinetic_kp       => get_2d_pointer(ks_env%kinetic)
+     IF (PRESENT(matrix_h_kp)) matrix_h_kp     => get_2d_pointer(ks_env%matrix_h)
+     IF (PRESENT(matrix_vxc_kp)) matrix_vxc_kp => get_2d_pointer(ks_env%matrix_vxc)
 
      IF (PRESENT(matrix_ks_im)) matrix_ks_im => ks_env%matrix_ks_im
      IF (PRESENT(matrix_ks_aux_fit)) matrix_ks_aux_fit => ks_env%matrix_ks_aux_fit
@@ -518,27 +529,6 @@ END SUBROUTINE qs_ks_env_create
                         error=error)
 
   END SUBROUTINE get_ks_env
-
-! *****************************************************************************
-!> \brief Smart getter, raises an error when called during a k-point calculation
-!> \param matrix_set ...
-!> \retval res ...
-!> \author Ole Schuett
-! *****************************************************************************
-  FUNCTION get_gamma_point(matrix_set) RESULT(res)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: res
-
-     IF(ASSOCIATED(matrix_set)) THEN
-        IF(SIZE(matrix_set, 2) /= 1) &
-           CALL cp_unimplemented_error("get_ks_env","Method not implemented for k-points")
-        res => matrix_set(:,1)
-     ELSE
-        res => Null()
-     ENDIF
-  END FUNCTION get_gamma_point
 
 ! *****************************************************************************
 !> \brief ...
@@ -669,20 +659,20 @@ END SUBROUTINE qs_ks_env_create
           ks_env%forces_up_to_date=.FALSE.
      IF (PRESENT(v_hartree_rspace)) ks_env%v_hartree_rspace => v_hartree_rspace
 
-     IF (PRESENT(matrix_h_kp)) ks_env%matrix_h_kp => matrix_h_kp
-     IF (PRESENT(matrix_h))  CALL set_gamma_point(ks_env%matrix_h_kp, matrix_h)
+     IF (PRESENT(matrix_h))    CALL set_1d_pointer(ks_env%matrix_h, matrix_h)
+     IF (PRESENT(matrix_h_kp)) CALL set_2d_pointer(ks_env%matrix_h, matrix_h_kp)
 
-     IF (PRESENT(matrix_ks_kp)) ks_env%matrix_ks_kp => matrix_ks_kp
-     IF (PRESENT(matrix_ks)) CALL set_gamma_point(ks_env%matrix_ks_kp, matrix_ks)
+     IF (PRESENT(matrix_ks))    CALL set_1d_pointer(ks_env%matrix_ks, matrix_ks)
+     IF (PRESENT(matrix_ks_kp)) CALL set_2d_pointer(ks_env%matrix_ks, matrix_ks_kp)
 
-     IF (PRESENT(matrix_vxc_kp)) ks_env%matrix_vxc_kp => matrix_vxc_kp
-     IF (PRESENT(matrix_vxc)) CALL set_gamma_point(ks_env%matrix_vxc_kp, matrix_vxc)
+     IF (PRESENT(matrix_vxc))    CALL set_1d_pointer(ks_env%matrix_vxc, matrix_vxc)
+     IF (PRESENT(matrix_vxc_kp)) CALL set_2d_pointer(ks_env%matrix_vxc, matrix_vxc_kp)
 
-     IF (PRESENT(matrix_s_kp)) ks_env%matrix_s_kp => matrix_s_kp
-     IF (PRESENT(matrix_s)) CALL set_gamma_point(ks_env%matrix_s_kp, matrix_s)
+     IF (PRESENT(matrix_s))    CALL set_1d_pointer(ks_env%matrix_s, matrix_s)
+     IF (PRESENT(matrix_s_kp)) CALL set_2d_pointer(ks_env%matrix_s, matrix_s_kp)
 
-     IF (PRESENT(kinetic_kp)) ks_env%kinetic_kp => kinetic_kp
-     IF (PRESENT(kinetic))  CALL set_gamma_point(ks_env%kinetic_kp, kinetic)
+     IF (PRESENT(kinetic))    CALL set_1d_pointer(ks_env%kinetic, kinetic)
+     IF (PRESENT(kinetic_kp)) CALL set_2d_pointer(ks_env%kinetic, kinetic_kp)
 
      IF (PRESENT(matrix_ks_im)) ks_env%matrix_ks_im => matrix_ks_im
      IF (PRESENT(matrix_ks_aux_fit)) ks_env%matrix_ks_aux_fit => matrix_ks_aux_fit
@@ -763,28 +753,6 @@ END SUBROUTINE qs_ks_env_create
   END SUBROUTINE set_ks_env
 
 ! *****************************************************************************
-!> \brief Assigns a 1D pointer to a 2D pointer and handles NULL() properly.
-!> \param matrix_set_kp ...
-!> \param matrix_set_gamma ...
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE set_gamma_point(matrix_set_kp, matrix_set_gamma)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_set_kp
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_set_gamma
-
-    INTEGER                                  :: n
-
-     IF(ASSOCIATED(matrix_set_gamma)) THEN
-        n = SIZE(matrix_set_gamma)
-        matrix_set_kp(1:n, 1:1) => matrix_set_gamma
-     ELSE
-         matrix_set_kp => Null()
-     ENDIF
-  END SUBROUTINE set_gamma_point
-
-! *****************************************************************************
 !> \brief releases the ks_env (see doc/ReferenceCounting.html)
 !> \param ks_env the ks_env to be released
 !> \param error variable to control error logging, stopping,...
@@ -811,20 +779,19 @@ END SUBROUTINE qs_ks_env_create
        IF (ks_env%ref_count<1) THEN
           IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
             CALL pw_release(ks_env%v_hartree_rspace,error=error)
-          IF (ASSOCIATED(ks_env%matrix_h_kp)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_h_kp,error)
-          IF (ASSOCIATED(ks_env%matrix_ks_kp)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_kp,error)
           IF (ASSOCIATED(ks_env%matrix_ks_im)) &
             CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im,error)
-          IF (ASSOCIATED(ks_env%matrix_vxc_kp)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_vxc_kp,error)
+
+          CALL kpoint_transitional_release(ks_env%matrix_ks, error)
+          CALL kpoint_transitional_release(ks_env%matrix_h, error)
+          CALL kpoint_transitional_release(ks_env%matrix_vxc, error)
+          CALL kpoint_transitional_release(ks_env%matrix_s, error)
+          CALL kpoint_transitional_release(ks_env%kinetic, error)
+
           IF (ASSOCIATED(ks_env%matrix_ks_aux_fit)) &
             CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit,error)
           IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_im)) &
             CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im,error)
-          IF (ASSOCIATED(ks_env%matrix_s_kp)) &
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_kp,error)
           IF (ASSOCIATED(ks_env%matrix_s_aux_fit)) &
             CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit,error)
           IF (ASSOCIATED(ks_env%matrix_s_aux_fit_vs_orb)) &
@@ -837,8 +804,6 @@ END SUBROUTINE qs_ks_env_create
             CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2,error)
           IF (ASSOCIATED(ks_env%gamma_matrix)) &
             CALL cp_dbcsr_deallocate_matrix_set(ks_env%gamma_matrix,error)
-          IF (ASSOCIATED(ks_env%kinetic_kp))&
-            CALL cp_dbcsr_deallocate_matrix_set(ks_env%kinetic_kp,error)
           IF(ASSOCIATED(ks_env%rho))&
             CALL qs_rho_release(ks_env%rho, error=error)
           IF(ASSOCIATED(ks_env%rho_buffer))&
