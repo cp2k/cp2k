@@ -522,9 +522,9 @@ CONTAINS
     CALL cp_dbcsr_init(tmp,error=error)
     CALL cp_dbcsr_create(tmp,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
 
-    e_homo = 0
-    e_lumo = 0
-    e_mu = 0
+    e_homo = 0.0_dp
+    e_lumo = 0.0_dp
+    e_mu = 0.0_dp
 
     DO ispin=1,SIZE(matrix_ks)
        re=2*ispin-1

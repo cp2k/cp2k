@@ -232,14 +232,14 @@ END SUBROUTINE
     !the inverse of the prefactor in the taylor series
     tmp=1.0_dp
     DO i=1,nloop
-       CALL cp_dbcsr_scale(T1,1/(REAL(i,dp)*2.0_dp-1.0_dp),error=error)
+       CALL cp_dbcsr_scale(T1,1.0_dp/(REAL(i,dp)*2.0_dp-1.0_dp),error=error)
        CALL cp_dbcsr_filter(T1,filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",square_fac,im_matrix,T1,zero,&
             T2,filter_eps=filter_eps,error=error)
        Tfac=one
        IF(MOD(i,2)==0) Tfac=-Tfac
        CALL cp_dbcsr_add(Tres_im,T2,one,Tfac,error=error)
-       CALL cp_dbcsr_scale(T2,1/(REAL(i,dp)*2.0_dp),error=error)
+       CALL cp_dbcsr_scale(T2,1.0_dp/(REAL(i,dp)*2.0_dp),error=error)
        CALL cp_dbcsr_filter(T2,filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",square_fac,im_matrix,T2,zero,&
             T1,filter_eps=filter_eps,error=error)
@@ -349,7 +349,7 @@ END SUBROUTINE
     CALL cp_dbcsr_add_on_diag(Tres,1.0_dp,error=error)
 
     DO i=1,ntaylor
-       CALL cp_dbcsr_scale(T1,one/REAL(i,dp),error=error)
+       CALL cp_dbcsr_scale(T1,one/CMPLX(0.0_dp,1.0_dp,KIND=dp),error=error)
        CALL cp_dbcsr_filter(T1,filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",square_fac,T1,T3,&
             zero,T2,filter_eps=filter_eps,error=error)

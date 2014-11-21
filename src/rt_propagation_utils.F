@@ -166,7 +166,7 @@ MODULE  rt_propagation_utils
           CALL cp_dbcsr_iterator_start(iter, S_der(m)%matrix)
           DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
              CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-             IF(row_atom==col_atom) block_values=0
+             IF(row_atom==col_atom) block_values=0.0_dp
           END DO
           CALL cp_dbcsr_iterator_stop (iter) 
        END DO
@@ -182,7 +182,7 @@ MODULE  rt_propagation_utils
        CALL cp_dbcsr_iterator_start(iter, tmp_mat)
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
           CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-          IF(row_atom==col_atom) block_values=0
+          IF(row_atom==col_atom) block_values=0.0_dp
           block_values=block_values*particle_set(col_atom)%v(m)
        END DO
        CALL cp_dbcsr_iterator_stop (iter) 

@@ -512,7 +512,7 @@ CONTAINS
     q=npade !p==q seems to be neccesary for the rest of the code
 
     CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim,error=error)
-    square_fac=1/(2.0_dp**REAL(nsquare,dp))
+    square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
     ALLOCATE(cmult_p(2))
 
     CALL cp_cfm_create(Dpq,&
@@ -550,8 +550,8 @@ CONTAINS
     CALL cp_cfm_set_all(Dpq,zero,one,error)
 
     DO i=1,ldim
-       Npq%local_data(:,i)= Npq%local_data(:,i)+0.5_dp*square_fac*CMPLX(0.0_dp,local_data_im(:,i),dp)
-       Dpq%local_data(:,i)= Dpq%local_data(:,i)-0.5_dp*square_fac*CMPLX(0.0_dp,local_data_im(:,i),dp)
+       Npq%local_data(:,i)= Npq%local_data(:,i)+CMPLX(0.0_dp,0.5_dp*square_fac*local_data_im(:,i),dp)
+       Dpq%local_data(:,i)= Dpq%local_data(:,i)-CMPLX(0.0_dp,0.5_dp*square_fac*local_data_im(:,i),dp)
     END DO
 
 
@@ -561,8 +561,8 @@ CONTAINS
        DO j=1,FLOOR(npade/2.0_dp)
           i=2*j
           my_fac=(-1.0_dp)**j
-          IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
-          scaleD=my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
+          IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,dp)
+          scaleD=CMPLX(my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,dp)
           CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,T2,rzero,Tres,error)
 
           DO k=1,ldim
@@ -572,8 +572,8 @@ CONTAINS
 
           IF(2*j+1.le.q)THEN
           i=2*j+1
-          IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
-          scaleD=-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
+          IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,dp)
+          scaleD=CMPLX(-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,dp)
           CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,Tres,rzero,T2,error)
 
           DO k=1,ldim
