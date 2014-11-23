@@ -99,8 +99,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s, matrix_t, &
-                                                matrix_w
+      POINTER                                :: matrix_p, matrix_w
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_h_kp, matrix_s_kp, &
                                                 matrix_t_kp
@@ -143,6 +142,9 @@ CONTAINS
                     virial=virial,&
                     para_env=para_env,&
                     kpoints=kpoints,&
+                    matrix_s_kp=matrix_s_kp,&
+                    kinetic_kp=matrix_t_kp,&
+                    matrix_h_kp=matrix_h_kp,&
                     error=error)
 
     CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index, error=error)
@@ -166,9 +168,8 @@ CONTAINS
                        rho=rho,&
                        force=force,&
                        matrix_w=matrix_w,&
-                       matrix_s=matrix_s,&
-                       kinetic=matrix_t,&
                        error=error)
+
        CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
        IF (nspins == 2) THEN
@@ -182,7 +183,7 @@ CONTAINS
 
 
        ! S matrix
-       CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(ks_env,nderivative=nder,matrixkp_s=matrix_s_kp,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
@@ -190,15 +191,13 @@ CONTAINS
                                  matrix_p=matrix_w(1)%matrix,&
                                  error=error)
        ! T matrix
-       CALL build_kinetic_matrix(ks_env,matrix_t=matrix_t,&
+       CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t_kp,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                  matrix_p=matrix_p(1)%matrix,&
                                  eps_filter=eps_filter,&
                                  error=error)
-
-       CALL set_ks_env(ks_env, matrix_s=matrix_s, kinetic=matrix_t, error=error)
     ELSE
         IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
@@ -207,10 +206,6 @@ CONTAINS
           nder = 0
        END IF
 
-       CALL get_qs_env(qs_env,&
-                       matrix_s_kp=matrix_s_kp,&
-                       kinetic_kp=matrix_t_kp,&
-                       error=error)
        ! S matrix
        CALL build_overlap_matrix(ks_env,nderivative=nder,matrixkp_s=matrix_s_kp,&
                                  matrix_name="OVERLAP MATRIX",&
@@ -225,15 +220,9 @@ CONTAINS
                                  sab_nl=sab_orb,&
                                  eps_filter=eps_filter,&
                                  error=error)
-       CALL set_ks_env(ks_env, matrix_s_kp=matrix_s_kp, kinetic_kp=matrix_t_kp, error=error)
     END IF
 
-    !make sure we got the kpoint-version of these matrices
-    CALL get_qs_env(qs_env,&
-                    matrix_h_kp=matrix_h_kp,&
-                    matrix_s_kp=matrix_s_kp,&
-                    kinetic_kp=matrix_t_kp,&
-                    error=error)
+    CALL set_ks_env(ks_env, matrix_s_kp=matrix_s_kp, kinetic_kp=matrix_t_kp, error=error)
 
     ! initialize H matrix
     CALL cp_dbcsr_allocate_matrix_set(matrix_h_kp,1,nimg,error)
@@ -323,7 +312,7 @@ CONTAINS
             CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
             DO icor=1,3
               force_ab(icor) = 0._dp
-              CALL cp_dbcsr_get_block_p(matrix_s(icor+1)%matrix,irow,icol,ds_block,found)
+              CALL cp_dbcsr_get_block_p(matrix_s_kp(icor+1,ic)%matrix,irow,icol,ds_block,found)
               CPPostcondition(ASSOCIATED(ds_block),cp_failure_level,routineP,error,failure)
               IF ( irow == iatom ) THEN
                  DO i=1,SIZE(h_block,1)
