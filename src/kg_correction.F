@@ -130,8 +130,7 @@ CONTAINS
     LOGICAL                                  :: my_gapw, my_gapw_xc
     REAL(KIND=dp)                            :: ekin_imol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: density_matrix, matrix_h, &
-                                                my_mat
+      POINTER                                :: density_matrix, matrix_h
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -173,15 +172,14 @@ CONTAINS
 
     ! allocate and initialize the density
     CALL qs_rho_create(rho_struct, error)
-    CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_grids=.TRUE., error=error)
+
+    ! set the density matrix to the blocked matrix
+    CALL qs_rho_set(rho_struct, rho_ao=density_matrix, error=error) ! blocked_matrix
+
+    CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE., error=error)
 
     ! loop over all subsets
     DO isub=1,kg_env%nsubsets
-      CALL qs_rho_get(rho_struct, rho_ao=my_mat, error=error)
-
-      ! set the density matrix to the blocked matrix
-      CALL qs_rho_set(rho_struct, rho_ao=density_matrix, error=error) ! blocked_matrix
-
       ! for gapw the task_list_soft would be needed
       CALL cp_assert(.NOT.(my_gapw.OR.my_gapw_xc), cp_fatal_level, cp_assertion_failed, routineP, &
                      " KG is currently not compatible with all electron calculations.")  
@@ -197,8 +195,6 @@ CONTAINS
       ! calc Hohenberg-Kohn kin. energy of the density corresp. to the remaining molecular block(s)
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=kg_env%xc_section_kg, &
                         vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=ekin_imol, error=error)
-
-      CALL qs_rho_set(rho_struct, rho_ao=my_mat, error=error)
 
       ekin_mol = ekin_mol + ekin_imol
 
@@ -242,6 +238,7 @@ CONTAINS
     END DO
 
     ! clean up rho_struct
+    CALL qs_rho_set(rho_struct, rho_ao=Null(), error=error)
     CALL qs_rho_release(rho_struct, error)
 
     CALL timestop(handle)
