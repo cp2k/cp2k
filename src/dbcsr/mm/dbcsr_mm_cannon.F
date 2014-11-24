@@ -183,6 +183,8 @@ MODULE dbcsr_mm_cannon
 
   INTEGER(KIND=int_8),          PRIVATE, SAVE  :: marketing_flops = 0
 
+  INTEGER, PRIVATE, SAVE :: last_mpi_ranks_used = 0
+
   TYPE(dbcsr_memtype_type),     PRIVATE, SAVE  :: memtype_abpanel_1, memtype_abpanel_2,&
                                                   memtype_trsbuffer_1, memtype_trsbuffer_2
   TYPE(acc_stream_type), PRIVATE, SAVE         :: stream_1, stream_2
@@ -239,7 +241,7 @@ MODULE dbcsr_mm_cannon
     INTEGER, INTENT(IN)                      :: group, output_unit
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: ithread
+    INTEGER                                  :: isqrt, isqrt2, ithread
     INTEGER(KIND=int_8)                      :: total_marketing_flops
 
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
@@ -260,8 +262,20 @@ MODULE dbcsr_mm_cannon
      total_marketing_flops=marketing_flops
      CALL mp_sum(total_marketing_flops,group)
 
-     IF(output_unit>0) &
+     IF (output_unit>0) THEN
        WRITE (output_unit,'(A,T30,I20)') " marketing flops", total_marketing_flops
+       isqrt=NINT(SQRT(REAL(last_mpi_ranks_used,KIND=real_8)))
+       isqrt2=NINT(SQRT(REAL(last_mpi_ranks_used*2,KIND=real_8)))
+       IF (isqrt*isqrt .NE. last_mpi_ranks_used) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
+          WRITE (UNIT=output_unit,FMT="(T2,A)") &
+            "Warning: using a non-square number of MPI ranks might lead to poor performance."
+          WRITE (UNIT=output_unit,FMT="(T2,A,I0)") &
+            "         used ranks: ",last_mpi_ranks_used
+          WRITE (UNIT=output_unit,FMT="(T2,A,2(I0,1X))") &
+            "         suggested : ",isqrt**2,isqrt2**2
+       ENDIF
+     ENDIF
      IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
         CALL dbcsr_mempool_destruct(memtype_trsbuffer_1%pool, error)
      IF (ASSOCIATED(memtype_trsbuffer_2%pool)) &
@@ -632,6 +646,7 @@ MODULE dbcsr_mm_cannon
     ! update statistics (we count marketing flops per MPI rank), 
     ! note that this number can easily overflow
     numnodes = dbcsr_mp_numnodes (dbcsr_distribution_mp (dbcsr_distribution (matrix_c)))
+    last_mpi_ranks_used = numnodes
     marketing_flops = marketing_flops + &
                          (2_int_8*INT(l_row-f_row+1, int_8)*INT(l_col-f_col+1, int_8)/numnodes) * &
                          INT(l_k-f_k+1,     int_8)
