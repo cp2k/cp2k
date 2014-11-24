@@ -92,7 +92,7 @@ ORIG_TARGET = default_target
 fes :
 	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all :
+$(EXE_NAMES) all toolversions:
 	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -116,6 +116,20 @@ dirs:
 	@mkdir -p $(LIBDIR)
 	@mkdir -p $(EXEDIR)
 
+toolversions:
+ifneq ($(CC),)
+	@echo "=========== CC ($(ONEVERSION)) ==========="
+	$(CC) --version
+endif
+ifneq ($(FC),)
+	@echo "=========== FC ($(ONEVERSION)) ==========="
+	$(FC) --version
+endif
+ifneq ($(AR),)
+	@echo "=========== AR ($(ONEVERSION)) ==========="
+	$(firstword $(AR)) V
+	@echo ""
+endif
 else
 
 # stage 4: Include $(OBJDIR)/all.dep, expand target all, and perform actual build.
@@ -124,6 +138,7 @@ all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
 endif
 endif
 
+OTHER_HELP += "toolversions : Print versions of build tools"
 
 #   extract help text from doxygen "\brief"-tag
 help:
@@ -141,6 +156,9 @@ help:
 	@printf "%s\n" $(OTHER_HELP) | awk -F ':' '{printf "%-28s%s\n", $$1, $$2}'
 	@echo "help                         Print this help text"
 
+#
+# so far CP2K does not install, but give a hint to the user
+#
 install:
 	@echo ""
 	@echo "The CP2K executable is $(foreach v, $(VERSION), $(EXEDIR)/cp2k.$(v))"
@@ -197,10 +215,6 @@ TOOL_HELP += "templates : instantiate all templates"
 $(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
 	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
 	@touch $@
-
-#
-# so far CP2K does not install, but give a hint to the user
-#
 
 # Prettyfier stuff ==========================================================
 vpath %.pretty $(PRETTYOBJDIR)

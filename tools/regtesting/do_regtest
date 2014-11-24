@@ -500,10 +500,12 @@ fi
 if [[ ${nobuild} != "nobuild" ]]; then
    echo "----------------------------ARCH-file-------------------------------------"
    cat ${dir_base}/${cp2k_dir}/arch/${ARCH}.${cp2k_version}
+   echo "---------------------------Build-Tools------------------------------------"
+   cd ${dir_base}/${cp2k_dir}/makefiles
+   ${make} toolversions ${ARCH_SPEC} VERSION=${cp2k_version}
    echo "-------------------------compiling cp2k-----------------------------------"
    echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
    echo "(make output is written to ${make_out})"
-   cd ${dir_base}/${cp2k_dir}/makefiles
    ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
