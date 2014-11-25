@@ -112,6 +112,7 @@ MODULE dbcsr_api
        dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu
   USE dbcsr_tests,                     ONLY: dbcsr_run_tests,&
                                              dbcsr_test_arnoldi,&
+                                             dbcsr_test_binary_io,&
                                              dbcsr_test_mm
   USE dbcsr_toollib,                   ONLY: swap
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
@@ -170,6 +171,7 @@ MODULE dbcsr_api
             dbcsr_run_tests,&
             dbcsr_test_mm,&
             dbcsr_test_arnoldi,&
+            dbcsr_test_binary_io,&
             create_bl_distribution,&
             accdrv_avoid_after_busy,&
             accdrv_binning_binsize,&
