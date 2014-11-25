@@ -1,0 +1,59 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/BASIS_SET
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-10
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+      MAX_SCF 30
+      EPS_SCF 1.0E-6
+      &OUTER_SCF
+        MAX_SCF 10
+        EPS_SCF 1.0E-6
+      &END
+      &OT 
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    # cell and coords such that the overlap matrix is first dense
+    &CELL
+      ABC 6.0 6.0 30.0
+    &END CELL
+    &COORD
+    Ar     0.000000  0.000000  0.000000
+    Ar     0.000000  0.000000  2.000000
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q8
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT Ar-ref-2
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE REFTRAJ
+    STEPS 2
+    # next MD step, overlap matrix will be sparse
+    &REFTRAJ
+      TRAJ_FILE_NAME Ar-ref-2.xyz
+      EVAL_ENERGY_FORCES T
+    &END
+  &END MD
+&END MOTION
+
