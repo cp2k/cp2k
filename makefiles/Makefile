@@ -128,6 +128,7 @@ endif
 ifneq ($(NVCC),)
 	@echo "========== NVCC ($(ONEVERSION)) =========="
 	$(NVCC) --version
+	@echo ""
 endif
 ifneq ($(AR),)
 	@echo "=========== AR ($(ONEVERSION)) ==========="
