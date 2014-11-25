@@ -117,13 +117,17 @@ dirs:
 	@mkdir -p $(EXEDIR)
 
 toolversions:
+ifneq ($(FC),)
+	@echo "=========== FC ($(ONEVERSION)) ==========="
+	$(FC) --version
+endif
 ifneq ($(CC),)
 	@echo "=========== CC ($(ONEVERSION)) ==========="
 	$(CC) --version
 endif
-ifneq ($(FC),)
-	@echo "=========== FC ($(ONEVERSION)) ==========="
-	$(FC) --version
+ifneq ($(NVCC),)
+	@echo "========== NVCC ($(ONEVERSION)) =========="
+	$(NVCC) --version
 endif
 ifneq ($(AR),)
 	@echo "=========== AR ($(ONEVERSION)) ==========="
