@@ -1290,13 +1290,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \param resort ...
 !> \param reshuffle ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_finalize(matrix, resort, reshuffle, error)
+  SUBROUTINE cp_dbcsr_finalize(matrix, reshuffle, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle
+    LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize', &
@@ -1304,7 +1303,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_finalize(matrix%matrix, resort, reshuffle, error=dbcsr_error)
+    CALL dbcsr_finalize(matrix%matrix, reshuffle, error=dbcsr_error)
   END SUBROUTINE cp_dbcsr_finalize
 
 ! *****************************************************************************

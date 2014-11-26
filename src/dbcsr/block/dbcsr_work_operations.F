@@ -697,15 +697,13 @@ CONTAINS
 !>
 !> Deleted blocks are pruned from the index.
 !> \param[in,out] matrix      final matrix
-!> \param[in] resort          whether the indices should be sorted, default
-!>                            is true
 !> \param[in] reshuffle       whether the data should be reshuffled,
 !>                            default is false
 !> \param error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_finalize(matrix, resort, reshuffle, error)
+  SUBROUTINE dbcsr_finalize(matrix, reshuffle, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle
+    LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize', &
