@@ -1561,10 +1561,7 @@ CONTAINS
     IF (sort_data) THEN
        all_data_sizes(which_wm) = wm%datasize
     ELSE
-       all_data_sizes(which_wm) = wm%datasize
-       CALL dbcsr_assert (wm%datasize, "LE", dbcsr_data_get_size_referenced (wm%data_area),&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Data size mismatch.", __LINE__, error=error)
+       all_data_sizes(which_wm) = dbcsr_data_get_size_referenced (wm%data_area)
     ENDIF
     all_col_i(which_wm)%p => wm%col_i
     all_blk_p(which_wm)%p => wm%blk_p

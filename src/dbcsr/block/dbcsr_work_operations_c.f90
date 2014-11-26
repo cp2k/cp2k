@@ -21,7 +21,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_p, treesize, &
-                                                error_handler
+                                                error_handler, needed_size
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: keys
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: target_data
@@ -47,8 +47,13 @@
     ! be avoided and the data should be copied directly from the
     ! source in the subroutine's main loop.
     CALL ensure_array_size (wm%blk_p, ub=treesize, error=error)
+    needed_size=0
+    DO blk= 1, treesize
+       block_2d => values(blk)%p
+       needed_size=needed_size+SIZE(block_2d)
+    ENDDO
     CALL dbcsr_data_ensure_size (wm%data_area,&
-         wm%datasize, error=error)
+         needed_size, error=error)
     target_data => dbcsr_get_data_p_c (wm%data_area)
     blk_p = 1
     DO blk = 1, treesize
