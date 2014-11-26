@@ -6,7 +6,7 @@
 H2O_tddfpt-s-1.inp 37
 H2O_tddfpt-t-1.inp               37     7e-06
 NO_tddfpt-s-1.inp 37
-NO_tddfpt-t-1.inp                37     4e-04
+NO_tddfpt-t-1.inp                37     8e-04
 H2O_tddfpt-s-2.inp 37
 H2O_tddfpt-t-2.inp 37
 NO_tddfpt-t-2.inp 37
