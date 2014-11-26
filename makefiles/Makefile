@@ -171,21 +171,25 @@ install:
 OTHER_HELP += "install : Print installation help"
 
 #
-# delete the intermediate files, but not the libraries and executables. 
-# Most useful to save space on the disk
+# delete the intermediate files, but not the libraries and executables, or created directories.
+# Most useful to save space on the disk or e.g. for recompiles with PGO that still needs the .gcda files in the objdir
 #
 # cleaning stuff ============================================================
 clean:
-	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)) $(LIBCUSMM_DIR)/libcusmm.cu
-OTHER_HELP += "clean : Remove intermediate files, but not the libraries and executables, for given ARCH and VERSION"
+	rm -rf  $(LIBCUSMM_DIR)/libcusmm.cu
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.o)
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.mod $(MAINOBJDIR)/$(ARCH)/$(v)/*.MOD) 
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.dep) 
+OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
 
 #
-# delete the intermediate files, the programs and libraries and anything that might be in the objdir directory
-# Use this if you want to rebuild the executable (for a given compiler and or VERSION)
+# delete the intermediate files, the programs and libraries and anything that might be in the objdir or libdir directory
+# Use this if you want to fully rebuild an executable (for a given compiler and or VERSION)
 #
 realclean: clean
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v) $(EXEDIR)/*.$(v))
-OTHER_HELP += "realclean : Remove all file for given ARCH and VERSION"
+OTHER_HELP += "realclean : Remove all files for given ARCH and VERSION"
 
 #
 # Remove all files from previous builds
