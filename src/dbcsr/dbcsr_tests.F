@@ -47,7 +47,9 @@ MODULE dbcsr_tests
                                              dbcsr_mp_nprows,&
                                              dbcsr_mp_release
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
-  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_frobenius_norm
   USE dbcsr_test_methods,              ONLY: dbcsr_make_random_block_sizes,&
                                              dbcsr_make_random_matrix
   USE dbcsr_transformations,           ONLY: dbcsr_redistribute
@@ -296,7 +298,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=100)                       :: file_name
-    REAL(kind=real_8)                        :: post, pre
+    REAL(kind=real_8)                        :: norm, post, pre
     TYPE(dbcsr_obj)                          :: matrix_a_read
 
     file_name="test_dbcsr_binary_io.dat"
@@ -311,11 +313,14 @@ CONTAINS
                                       matrix_new=matrix_a_read, error=dbcsr_error)
 
     post=dbcsr_checksum (matrix_a_read, pos=.TRUE., error=dbcsr_error)
+    CALL dbcsr_add(matrix_a_read,matrix_a,-1.0_dp,1.0_dp,error=dbcsr_error)
+    norm=dbcsr_frobenius_norm(matrix_a_read)
     IF (io_unit>0) THEN
       WRITE(io_unit,*) "checksums",pre,post
+      WRITE(io_unit,*) "difference norm",norm
     ENDIF
 
-    CALL dbcsr_assert (pre==post, dbcsr_fatal_level,&
+    CALL dbcsr_assert (norm==0.0_dp, dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
          "bug in binary io",__LINE__,dbcsr_error)
 

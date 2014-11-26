@@ -725,6 +725,16 @@ CONTAINS
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
             alpha_scalar=dbcsr_scalar(REAL(alpha_scalar,real_4)),&
             beta_scalar=dbcsr_scalar(REAL(beta_scalar,real_4)), error=error)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_complex_4) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(CMPLX(alpha_scalar,0,real_4)),&
+            beta_scalar=dbcsr_scalar(CMPLX(beta_scalar,0,real_4)), error=error)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_8 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_complex_8) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(CMPLX(alpha_scalar,0,real_8)),&
+            beta_scalar=dbcsr_scalar(CMPLX(beta_scalar,0,real_8)), error=error)
     ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
            dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
