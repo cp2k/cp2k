@@ -378,7 +378,7 @@ CONTAINS
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
-         mp_group, data_type=data_type, dist=dist_c, nondet=.TRUE.,&
+         mp_group, data_type=data_type, dist=dist_c, &
          error=error)
     CALL dbcsr_distribution_release (dist_c)
     IF (trs(1)) THEN
@@ -389,7 +389,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=error)
        CALL array_release (row_dist_a)
        CALL array_release (col_dist_a)
@@ -399,7 +399,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=error)
        CALL array_release (col_dist_a)
     ENDIF
@@ -412,7 +412,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=error)
        CALL array_release (row_dist_b)
        CALL array_release (col_dist_b)
@@ -422,7 +422,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=error)
        CALL array_release (row_dist_b)
     ENDIF

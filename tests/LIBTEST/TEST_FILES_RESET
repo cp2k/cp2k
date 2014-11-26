@@ -5,3 +5,23 @@
 test_01.inp
 # Numerics differences due to different distribution 
 eig.inp
+#  
+dbcsr_blocks_01.inp
+#  
+dbcsr_blocks_02.inp
+#  
+dbcsr_blocks_03.inp
+#  
+dbcsr_blocks_04.inp
+#  
+dbcsr_blocks_05.inp
+#  
+dbcsr_types_01.inp
+#  
+dbcsr_types_02.inp
+#  
+dbcsr_types_03.inp
+#  
+dbcsr_types_04.inp
+#  
+dbcsr_types_05.inp

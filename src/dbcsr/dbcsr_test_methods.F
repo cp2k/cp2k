@@ -369,12 +369,10 @@ CONTAINS
 !> \param data_type ...
 !> \param symmetry ...
 !> \param dist ...
-!> \param[in] nondet     (optional) Specifies that deterministic behavior is
-!>                       unneeded.
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
-       name, sparsity, mp_group, data_type, symmetry, dist, nondet, error)
+       name, sparsity, mp_group, data_type, symmetry, dist, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
     TYPE(array_i1d_obj), INTENT(in)          :: row_blk_sizes, col_blk_sizes
     CHARACTER(len=*), INTENT(in)             :: name
@@ -384,7 +382,6 @@ CONTAINS
     CHARACTER, INTENT(in), OPTIONAL          :: symmetry
     TYPE(dbcsr_distribution_obj), &
       INTENT(IN), OPTIONAL                   :: dist
-    LOGICAL, INTENT(in), OPTIONAL            :: nondet
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_random_matrix', &
@@ -395,9 +392,10 @@ CONTAINS
                                                 my_data_type, my_proc, &
                                                 numproc, nze, p, row, s_col, &
                                                 s_row
-    INTEGER, DIMENSION(4), SAVE              :: iseed = (/4,3,2,1/)
+    INTEGER, DIMENSION(4)                    :: iseed
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL                                  :: quick, tr
+    INTEGER, SAVE                            :: imat_counter = 12341313
+    LOGICAL                                  :: tr
     REAL(kind=real_8)                        :: my_sparsity
     REAL(kind=real_8), DIMENSION(1)          :: value
     TYPE(dbcsr_data_obj)                     :: data_values, data_values_tr
@@ -406,7 +404,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
-    !
+    ! the counter goes into the seed. Every new call gives a new random matrix
+    imat_counter=imat_counter+1
     ! Create the matrix
     IF (PRESENT (dist)) THEN
        new_dist = dist
@@ -414,11 +413,6 @@ CONTAINS
     ELSE
        CALL dbcsr_make_null_dist (new_dist, array_size (row_blk_sizes),&
             array_size (col_blk_sizes), group=mp_group)
-    ENDIF
-    IF (PRESENT (nondet)) THEN
-       quick = nondet
-    ELSE
-       quick = .FALSE.
     ENDIF
     CALL dbcsr_init (matrix)
     my_data_type = dbcsr_type_real_default
@@ -457,14 +451,6 @@ CONTAINS
     my_proc = dbcsr_mp_mynode (dbcsr_distribution_mp (new_dist))
     DO row = 1, dbcsr_nblkrows_total (matrix)
        DO col = 1, dbcsr_nblkcols_total (matrix)
-          ! We have to extract random number generation outside so
-          ! that results are the same regardless of the process count.
-          IF (.NOT. quick) THEN
-             CALL dlarnv( 1, iseed, 1, value )
-             nze = rbs(row) * cbs(col)
-             CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
-          ENDIF
-          !
           ! build the upper matrix if some symmetry.
           s_row=row ; s_col=col
           IF (PRESENT (dist)) THEN
@@ -475,13 +461,12 @@ CONTAINS
           ELSE
              IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.LT.s_row) CYCLE
           ENDIF
-          IF (quick) CALL dlarnv( 1, iseed, 1, value )
           IF (.NOT. PRESENT (dist) .AND. my_proc .NE. 0) CYCLE
+          iseed=(/imat_counter,row,42,col/)
+          CALL dlarnv( 1, iseed, 1, value )
           IF (value(1) .LT. my_sparsity) CYCLE
-          IF (quick) THEN
-             nze = rbs(s_row) * cbs(s_col)
-             CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
-          ENDIF
+          nze = rbs(s_row) * cbs(s_col)
+          CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
           CALL dbcsr_put_block (matrix, s_row, s_col, data_values)
           IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.EQ.s_row) THEN
              SELECT CASE(my_symmetry)

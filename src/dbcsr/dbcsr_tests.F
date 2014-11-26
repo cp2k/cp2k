@@ -104,13 +104,12 @@ CONTAINS
 !> \param[in] n_loops           number of repetition for each multiplication
 !> \param[in] eps               eps value for filtering
 !> \param retain_sparsity ...
-!> \param[in] deterministic attempt deterministic behavior
 !> \param[in] always_checksum   checksum after each multiplication
 ! *****************************************************************************
   SUBROUTINE dbcsr_run_tests (mp_group, io_unit, nproc,&
        matrix_sizes, matrix_types, trs, &
        bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, test_type,&
-       n_loops, eps, retain_sparsity, deterministic, always_checksum)
+       n_loops, eps, retain_sparsity, always_checksum)
     INTEGER, INTENT(IN)                      :: mp_group, io_unit
     INTEGER, DIMENSION(:), POINTER           :: nproc
     INTEGER, DIMENSION(:), INTENT(in)        :: matrix_sizes
@@ -122,7 +121,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: data_type, test_type, n_loops
     REAL(kind=dp), INTENT(in)                :: eps
     LOGICAL, INTENT(in)                      :: retain_sparsity, &
-                                                deterministic, always_checksum
+                                                always_checksum
 
     CHARACTER(len=*), PARAMETER :: &
       fmt_desc = '(A,3(1X,I6),1X,A,2(1X,I5),1X,A,2(1X,L1))', &
@@ -183,7 +182,7 @@ CONTAINS
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
-         mp_group, data_type=data_type, dist=dist_c, nondet=.not.deterministic,&
+         mp_group, data_type=data_type, dist=dist_c, &
          error=dbcsr_error)
     CALL dbcsr_distribution_release (dist_c)
     IF (trs(1)) THEN
@@ -194,7 +193,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=dbcsr_error)
        CALL array_release (row_dist_a)
        CALL array_release (col_dist_a)
@@ -204,7 +203,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=dbcsr_error)
        CALL array_release (col_dist_a)
     ENDIF
@@ -217,7 +216,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=dbcsr_error)
        CALL array_release (row_dist_b)
        CALL array_release (col_dist_b)
@@ -227,7 +226,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=dbcsr_error)
        CALL array_release (row_dist_b)
     ENDIF

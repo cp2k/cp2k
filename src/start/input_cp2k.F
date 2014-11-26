@@ -1278,12 +1278,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="DETERMINISTIC",&
-         description="Attempt deterministic behavior (turn off for speed).",&
-         usage="DETERMINISTIC",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="ALWAYS_CHECKSUM",&
          description="perform a checksum after each multiplication",&
          usage="ALWAYS_CHECKSUM",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
