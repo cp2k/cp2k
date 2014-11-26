@@ -37,10 +37,11 @@ def main():
             src_basenames = [parts[0] for parts in file_parts if parts[-1] in KNOWN_EXTENSIONS]
 
             output = check_output([ar_exe, "t", archive_fn])
-            for obj in output.strip().split("\n"):
-                assert(obj.endswith(".o"))
-                if(obj[:-2] not in src_basenames):
-                    print "Could not find source for object %s in archive %s , removing archive."%(obj, archive_fn)
+            for line in output.strip().split("\n"):
+                if(line == "__.SYMDEF SORTED"): continue  # needed for MacOS
+                assert(line.endswith(".o"))
+                if(line[:-2] not in src_basenames):
+                    print "Could not find source for object %s in archive %s , removing archive."%(line, archive_fn)
                     os.remove(archive_fn)
                     break
 
