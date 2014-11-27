@@ -45,14 +45,21 @@ OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 ifeq ($(NVCC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
+ifneq ($(LD_SHARED),)
+ ARCHIVE_EXT := .$(ONEVERSION).so
+else
+ ARCHIVE_EXT := .a
+endif
 endif
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
+         toolversions libcp2k \
          doxifydir doxify doxifyclean \
          prettydir pretty prettyclean doxygen/clean doxygen \
-         install clean realclean distclean mrproper help templates instantiationdir templatesclean
+         install clean realclean distclean mrproper help templates \
+         instantiationdir templatesclean
 
 
 # Discover files and directories ============================================
@@ -79,7 +86,6 @@ ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
 ALL_NONEXE_OBJECTS = $(filter-out $(ALL_EXE_OBJECTS), $(ALL_OBJECTS))
 
-
 # Common Targets ============================================================
 default_target: all
 
@@ -92,7 +98,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions:
+$(EXE_NAMES) all toolversions libcp2k:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -110,6 +116,9 @@ $(EXE_NAMES): dirs makedep
 
 all: dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
+
+libcp2k: dirs makedep
+	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
 
 dirs:
 	@mkdir -p $(OBJDIR)
@@ -137,8 +146,9 @@ ifneq ($(AR),)
 endif
 else
 
-# stage 4: Include $(OBJDIR)/all.dep, expand target all, and perform actual build.
+# stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
 all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
+$(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
 
 endif
 endif
@@ -153,6 +163,7 @@ help:
 	basename  $$i | sed 's/^\(.*\)\..*/\1/' | awk '{printf "%-28s", $$1}'; \
 	grep "brief" $$i | head -n 1 | sed 's/^.*\\brief\s*//'; \
 	done
+	@echo "libcp2k                     Builds CP2K as a single library archive"
 	@echo ""
 	@echo "===================== Tools ====================="
 	@printf "%s\n" $(TOOL_HELP) | awk -F ':' '{printf "%-28s%s\n", $$1, $$2}'
@@ -301,12 +312,6 @@ else
  ifneq ($(MC),)
  MAKEDEPMODE = "mod_compiler"
  endif
-endif
-
-ifneq ($(LD_SHARED),)
- ARCHIVE_EXT = ".$(ONEVERSION).so"
-else
- ARCHIVE_EXT = ".a"
 endif
 
 # this happens on stage 3

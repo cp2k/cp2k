@@ -1,5 +1,5 @@
 {
 "description": "Main package of CP2K",
-"archive" : "libcp2k",
+"archive" : "libcp2kmain",
 "requires": ["common", "fm", "ma", "dbcsrwrap", "pw", "input", "aobasis", "xc", "acc", "base", "mpiwrap", "subsys"]
 }
