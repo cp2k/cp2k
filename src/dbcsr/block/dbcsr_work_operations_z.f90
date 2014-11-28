@@ -52,8 +52,9 @@
        block_2d => values(blk)%p
        needed_size=needed_size+SIZE(block_2d)
     ENDDO
+    wm%datasize=needed_size
     CALL dbcsr_data_ensure_size (wm%data_area,&
-         needed_size, error=error)
+         wm%datasize, error=error)
     target_data => dbcsr_get_data_p_z (wm%data_area)
     blk_p = 1
     DO blk = 1, treesize
