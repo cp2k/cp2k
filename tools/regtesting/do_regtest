@@ -78,6 +78,7 @@
 # -  end_test 5   : problem with retest option - no TEST directory with latest test results found
 # -  end_test 6   : problem with retest option - no error summary exists in the last TEST directory
 # -  end_test 7   : reference directory is locked
+# -  end_test 8   : ctrl-C (SIGINT) and various other signals trapped
 # -  end_test 100 : no svn changes since last run - clean exit without testing
 #
 # Script configuration. The value of the follow variables can be redefined, see below
@@ -334,6 +335,13 @@ function do_test() {
 
 # Check for lockfile
 lockfile=${dir_last}/LOCKFILE
+
+# install a trap handler for ctrl-C and other ways to die, doing IO is no good in case of SIGPIPE
+# kills all processes that have a PID of ppid (good for running jobs), removes the lockfile, and exits with code 8
+pgid=`ps -o "%r" $$ | grep "[0-9]"`
+trapcommand="rm -f ${lockfile} ; kill -- -$pgid  >& out.kill ; exit 8"
+trap "$trapcommand" SIGINT SIGTERM SIGKILL SIGPIPE
+
 if [[ -f ${lockfile} ]]; then
    echo "ERROR: Directory ${dir_last} is locked"
    echo "       Check if a regtest is already running for the same directory and if not then"
