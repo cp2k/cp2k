@@ -347,7 +347,7 @@ CONTAINS
           CASE (do_tree_mc) ! TMC entry point
              CALL do_tmc (input_declaration, root_section, para_env, globenv, error=suberror)
           CASE (do_tree_mc_ana)
-             CALL do_analyze_files(input_declaration, root_section, para_env, globenv, error=suberror )
+             CALL do_analyze_files(input_declaration, root_section, para_env, error=suberror )
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT

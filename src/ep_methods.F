@@ -478,7 +478,7 @@ CONTAINS
             extension=".epLog",message=routineP//" initial setup of main_qs_env",&
             error=error)
 
-       CALL ep_env_finish_qs_init(ep_env%main_qs_env, globenv, error)
+       CALL ep_env_finish_qs_init(ep_env%main_qs_env, error)
 
        CALL get_qs_env(ep_env%main_qs_env,dft_control=dft_control,&
             blacs_env=blacs_env,para_env=para_env,error=error)
@@ -656,16 +656,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief finish the initialization of the qs environement
 !> \param qs_env the qs_environment to fully initialize
-!> \param globenv global environment finish the the initialization
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
+  SUBROUTINE ep_env_finish_qs_init(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_finish_qs_init', &

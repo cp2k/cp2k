@@ -341,17 +341,15 @@ CONTAINS
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param 
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE do_analyze_files(input_declaration, root_section, para_env, globenv, error)
+  SUBROUTINE do_analyze_files(input_declaration, root_section, para_env, error)
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_analyze_files', &
