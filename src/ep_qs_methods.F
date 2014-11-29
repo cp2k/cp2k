@@ -31,7 +31,6 @@ CONTAINS
 !> \param ep_qs_env the environemt to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param qs_env the qs env the ep env will live in UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE ep_qs_create(ep_qs_env,error)
