@@ -45,7 +45,6 @@ MODULE rpa_ri_gpw
   USE mp2_laplace,                     ONLY: laplace_minimax_approx
   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                              mp2_type
-  USE qs_environment_types,            ONLY: qs_environment_type
   USE rpa_communication,               ONLY: fm_redistribute,&
                                              initialize_buffer,&
                                              release_buffer
@@ -70,7 +69,6 @@ MODULE rpa_ri_gpw
 !> \param Erpa ...
 !> \param mp2_env ...
 !> \param BIb_C ...
-!> \param qs_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param color_sub ...
@@ -95,7 +93,7 @@ MODULE rpa_ri_gpw
 !> \param sizes_B_virtual_beta ...
 !> \param starts_B_virtual_beta ...
 ! *****************************************************************************
-  SUBROUTINE rpa_ri_compute_en(Erpa,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+  SUBROUTINE rpa_ri_compute_en(Erpa,mp2_env,BIb_C,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,do_ri_sos_laplace_mp2,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
@@ -104,7 +102,6 @@ MODULE rpa_ri_gpw
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER                                  :: color_sub
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &

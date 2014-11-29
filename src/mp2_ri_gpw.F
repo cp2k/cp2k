@@ -450,7 +450,7 @@ MODULE mp2_ri_gpw
     END IF
 
     ! replicate the necessary row of the L^{-1} matrix on each proc
-    CALL grep_Lcols(qs_env,para_env_L,dimen_RI,fm_matrix_L,&
+    CALL grep_Lcols(para_env_L,dimen_RI,fm_matrix_L,&
                     my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows,&
                     error)
     ! clean the L^{-1} matrix
@@ -1102,7 +1102,6 @@ MODULE mp2_ri_gpw
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param para_env ...
 !> \param dimen_RI ...
 !> \param fm_matrix_L ...
@@ -1112,10 +1111,9 @@ MODULE mp2_ri_gpw
 !> \param my_Lrows ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE grep_Lcols(qs_env,para_env,dimen_RI,fm_matrix_L,&
+  SUBROUTINE grep_Lcols(para_env,dimen_RI,fm_matrix_L,&
                         my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows,&
                         error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: dimen_RI
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L
@@ -1394,7 +1392,6 @@ MODULE mp2_ri_gpw
 !> \param Emp2_Cou ...
 !> \param Emp2_EX ...
 !> \param BIb_C ...
-!> \param qs_env ...
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
@@ -1422,7 +1419,7 @@ MODULE mp2_ri_gpw
 !> \param sizes_B_virtual_beta ...
 !> \param starts_B_virtual_beta ...
 ! *****************************************************************************
-  SUBROUTINE mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+  SUBROUTINE mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                    ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                    Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
                                    open_shell_SS,BIb_C_beta,homo_beta,Eigenval_beta,&
@@ -1430,7 +1427,6 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER                                  :: color_sub

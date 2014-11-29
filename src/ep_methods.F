@@ -501,8 +501,7 @@ CONTAINS
 
        ! add ep_qs_env
        NULLIFY(ep_qs_env)
-       CALL ep_qs_create(ep_qs_env,ep_env%main_qs_env,error=error)
-!       CALL set_qs_env(ep_env%main_qs_env,ep_qs_env=ep_qs_env,error=error)
+       CALL ep_qs_create(ep_qs_env,error=error)
        CALL ep_qs_release(ep_qs_env,error=error)
        !
        CALL f_env_rm_defaults(f_env,new_error,ierr)

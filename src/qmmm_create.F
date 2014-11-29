@@ -526,7 +526,6 @@ CPSourceFileRef,&
                                 qm_cell_small=qm_cell_small,&
                                 mm_cell=mm_cell,&
                                 para_env=para_env,&
-                                qs_env=qs_env,&
                                 added_charges=qmmm_env_qm%added_charges,&
                                 print_section=print_section,&
                                 error=error)

@@ -1711,7 +1711,7 @@ MODULE mp2_optimize_ri_basis
 
       ! create the new basis
       NULLIFY(qs_kind_set(ikind)%ri_aux_basis_set)
-      CALL create_ri_basis(qs_env,qs_kind_set(ikind)%ri_aux_basis_set,&
+      CALL create_ri_basis(qs_kind_set(ikind)%ri_aux_basis_set,&
                            RI_nset,RI_l_expo,RI_exponents,error)
       DEALLOCATE(RI_exponents)
       DEALLOCATE(RI_l_expo)
@@ -1746,15 +1746,13 @@ MODULE mp2_optimize_ri_basis
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param gto_basis_set ...
 !> \param RI_nset ...
 !> \param RI_l_expo ...
 !> \param RI_exponents ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_ri_basis(qs_env,gto_basis_set,RI_nset,RI_l_expo,RI_exponents,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE create_ri_basis(gto_basis_set,RI_nset,RI_l_expo,RI_exponents,error)
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER                                  :: RI_nset
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: RI_l_expo

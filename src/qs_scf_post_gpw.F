@@ -472,7 +472,7 @@ CONTAINS
              ENDIF
 
              !write restart for localization of occupied orbitals
-             CALL loc_write_restart(qs_env,qs_loc_env_homo,loc_print_section,mos,&
+             CALL loc_write_restart(qs_loc_env_homo,loc_print_section,mos,&
                   homo_localized, do_homo, error=error)
              CALL cp_fm_vect_dealloc(homo_localized,error)
              DEALLOCATE(occupied_orbs,stat=istat)
@@ -572,7 +572,7 @@ CONTAINS
              CALL get_localization_info(qs_env,qs_loc_env_lumo,localize_section, &
                   lumo_localized, wf_r, wf_g,particles,&
                   unoccupied_orbs,unoccupied_evals,marked_states,error=error)
-             CALL loc_write_restart(qs_env,qs_loc_env_lumo,loc_print_section,mos,homo_localized, do_homo,&
+             CALL loc_write_restart(qs_loc_env_lumo,loc_print_section,mos,homo_localized, do_homo,&
                    evals=unoccupied_evals, error=error)
              lumo_ptr=>lumo_localized
           END IF

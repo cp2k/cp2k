@@ -103,16 +103,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief allocates and initializes a kpp1_env
 !> \param kpp1_env the environement to initialize
-!> \param qs_env the qs environment in which this environment lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE kpp1_create(kpp1_env,qs_env, error)
+  SUBROUTINE kpp1_create(kpp1_env, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', &

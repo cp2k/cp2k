@@ -305,7 +305,7 @@ CONTAINS
                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                         matrix_s_aux_fit=matrix_s_aux_fit,&
                         error=error)
-        CALL admm_fit_mo_coeffs(qs_env, qs_env%admm_env, para_env, matrix_s_aux_fit,&
+        CALL admm_fit_mo_coeffs(qs_env%admm_env, para_env, matrix_s_aux_fit,&
                                 matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit,&
                                 geometry_did_change=.TRUE. , error=error)
         CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,matrix_s_aux_fit_vs_orb(1)%matrix,&

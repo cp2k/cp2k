@@ -154,7 +154,7 @@ MODULE admm_methods
     ENDDO
 
     ! fit mo coeffcients
-    CALL admm_fit_mo_coeffs(qs_env, admm_env, para_env, &
+    CALL admm_fit_mo_coeffs(admm_env, para_env, &
                             matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
                             mos, mos_aux_fit, s_mstruct_changed, error=error)
 
@@ -291,7 +291,6 @@ MODULE admm_methods
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param admm_env ...
 !> \param para_env ...
 !> \param matrix_s_aux_fit ...
@@ -301,10 +300,9 @@ MODULE admm_methods
 !> \param geometry_did_change ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE admm_fit_mo_coeffs(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE admm_fit_mo_coeffs(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                 mos, mos_aux_fit, geometry_did_change, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -322,21 +320,21 @@ MODULE admm_methods
 
     CALL timeset(routineN,handle)
 
-    CALL fit_mo_coeffs(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+    CALL fit_mo_coeffs(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                  mos, mos_aux_fit, geometry_did_change,&
                                  blocked=admm_env%block_fit, error=error)
 
     SELECT CASE(admm_env%purification_method)
        CASE(do_admm_purify_mo_no_diag, do_admm_purify_cauchy_subspace)
-         CALL purify_mo_cholesky(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+         CALL purify_mo_cholesky(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                  mos, mos_aux_fit, error)
 
        CASE(do_admm_purify_mo_diag)
-         CALL purify_mo_diag(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+         CALL purify_mo_diag(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                              mos, mos_aux_fit, error)
 
        CASE DEFAULT
-         CALL purify_mo_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+         CALL purify_mo_none(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                              mos, mos_aux_fit, error)
     END SELECT
 
@@ -347,7 +345,6 @@ MODULE admm_methods
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param admm_env ...
 !> \param para_env ...
 !> \param matrix_s_aux_fit ...
@@ -358,9 +355,8 @@ MODULE admm_methods
 !> \param blocked ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE fit_mo_coeffs(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE fit_mo_coeffs(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                    mos, mos_aux_fit, geometry_did_change, blocked, error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -455,7 +451,6 @@ MODULE admm_methods
 !> \brief Calculates the MO coefficients for the auxiliary fitting basis set
 !>        by minimizing int (psi_i - psi_aux_i)^2 using Lagrangian Multipliers
 !>
-!> \param qs_env ...
 !> \param admm_env The ADMM env
 !> \param para_env The parallel env
 !> \param matrix_s_aux_fit the overlap matrix of the auxiliary fitting basis set
@@ -468,10 +463,9 @@ MODULE admm_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE purify_mo_cholesky(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE purify_mo_cholesky(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                 mos, mos_aux_fit, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -535,7 +529,6 @@ MODULE admm_methods
 !> \brief Calculates the MO coefficients for the auxiliary fitting basis set
 !>        by minimizing int (psi_i - psi_aux_i)^2 using Lagrangian Multipliers
 !>
-!> \param qs_env ...
 !> \param admm_env The ADMM env
 !> \param para_env The parallel env
 !> \param matrix_s_aux_fit the overlap matrix of the auxiliary fitting basis set
@@ -548,10 +541,9 @@ MODULE admm_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE purify_mo_diag(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE purify_mo_diag(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                 mos, mos_aux_fit, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -622,7 +614,6 @@ MODULE admm_methods
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param admm_env ...
 !> \param para_env ...
 !> \param matrix_s_aux_fit ...
@@ -631,9 +622,8 @@ MODULE admm_methods
 !> \param mos_aux_fit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE purify_mo_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE purify_mo_none(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                                 mos, mos_aux_fit, error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

@@ -12,7 +12,6 @@
 MODULE ep_qs_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE kinds,                           ONLY: dp
-  USE qs_environment_types,            ONLY: qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -30,14 +29,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates an ep_qs_env
 !> \param ep_qs_env the environemt to create
-!> \param qs_env the qs env the ep env will live in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param qs_env the qs env the ep env will live in UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)
+SUBROUTINE ep_qs_create(ep_qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_create', &

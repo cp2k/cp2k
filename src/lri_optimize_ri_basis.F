@@ -222,7 +222,7 @@ CONTAINS
     CALL calculate_lri_overlap_aabb(lri_env,qs_env,error)
     CALL calculate_lri_integrals(lri_env,qs_env,calculate_forces=.FALSE.,error=error)
     CALL calculate_avec(lri_env,lri_density,qs_env,pmatrix,error=error)
-    CALL calculate_objective(lri_env,lri_density,qs_env,pmatrix,para_env,objf,error)
+    CALL calculate_objective(lri_env,lri_density,pmatrix,para_env,objf,error)
     IF ( iunit > 0 ) THEN
       WRITE(iunit,'("OBJF",T71,F20.15)') objf
     ENDIF
@@ -370,7 +370,7 @@ CONTAINS
     CALL lri_basis_init(lri_env,atomic_kind_set,error)
     CALL calculate_lri_integrals(lri_env,qs_env,calculate_forces=.FALSE.,error=error)
     CALL calculate_avec(lri_env,lri_density,qs_env,pmatrix,error=error)
-    CALL calculate_objective(lri_env,lri_density,qs_env,pmatrix,para_env,&
+    CALL calculate_objective(lri_env,lri_density,pmatrix,para_env,&
                              opt_state%f,error)
 
 
@@ -382,19 +382,17 @@ CONTAINS
 !>        rhoexact is the exact pair density and rhofit the lri pair density
 !> \param lri_env ...
 !> \param lri_density ...
-!> \param qs_env ...
 !> \param pmatrix density matrix
 !> \param para_env ...
 !> \param fobj objective function
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE calculate_objective(lri_env,lri_density,qs_env,pmatrix,para_env,&
+  SUBROUTINE calculate_objective(lri_env,lri_density,pmatrix,para_env,&
                                  fobj,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: pmatrix
     TYPE(cp_para_env_type), POINTER          :: para_env

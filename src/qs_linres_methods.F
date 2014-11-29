@@ -222,7 +222,7 @@ CONTAINS
       CALL cp_fm_to_fm(mos_localized(ispin)%matrix,mo_coeff,error=error)
     END DO
 
-    CALL loc_write_restart(qs_env,qs_loc_env,loc_print_section,mos,&
+    CALL loc_write_restart(qs_loc_env,loc_print_section,mos,&
                  mos_localized, do_homo=.TRUE., error=error)
     CALL cp_fm_vect_dealloc(mos_localized,error)
 

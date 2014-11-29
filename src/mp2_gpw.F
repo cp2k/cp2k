@@ -385,7 +385,7 @@ MODULE mp2_gpw
     ! new routine: replicate a full matrix from one para_env to a smaller one
     ! keeping the memory usage as small as possible in this case the 
     ! output the two part of the C matrix (virtual, occupied)
-    CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
+    CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                    mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
 
     ! if open shell case replicate also the coefficient matrix for the beta orbitals 
@@ -398,7 +398,7 @@ MODULE mp2_gpw
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       Eigenval_beta(:)=mo_eigenvalues(:)
 
-      CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
+      CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
                                      mo_coeff_o_beta,mo_coeff_v_beta,blacs_env_sub,unit_nr,error,error_sub)
     END IF
 
@@ -577,13 +577,13 @@ MODULE mp2_gpw
     IF(my_do_ri_rpa.OR.my_do_ri_sos_laplace_mp2) THEN
       ! RI-RPA
       IF(nspins==2) THEN
-        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
                                ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
       ELSE
-        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2)
       END IF
@@ -592,13 +592,13 @@ MODULE mp2_gpw
         ! RI-MP2-GPW compute energy
         IF(nspins==2) THEN
           ! alpha-alpha component
-          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                      Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
                                      open_shell_SS=.TRUE.)
  
           ! beta-beta component
-          CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual_beta,sizes_array,&
                                      sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
                                      Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
@@ -606,7 +606,7 @@ MODULE mp2_gpw
 
 
           ! alpha-beta case
-          CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                      Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,.FALSE.,error,error_sub,&
                                      .FALSE.,BIb_C_beta,homo_beta,Eigenval_beta,&
@@ -614,7 +614,7 @@ MODULE mp2_gpw
 
         ELSE
           ! closed shell case
-          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                      Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub)
         END IF
@@ -1116,7 +1116,7 @@ MODULE mp2_gpw
     ! replicate on a local array on proc 0 the occupied and virtual wavevectior
     ! needed for the calculation of the WF's by calculate_wavefunction
     ! (external vector)
-    CALL grep_occ_virt_wavefunc(qs_env,para_env_sub,nmo,homo,virtual,&
+    CALL grep_occ_virt_wavefunc(para_env_sub,nmo,homo,virtual,&
                                 my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
                                 my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
                                 mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
@@ -1590,7 +1590,6 @@ MODULE mp2_gpw
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
@@ -1605,9 +1604,8 @@ MODULE mp2_gpw
 !> \param error ...
 !> \param error_sub ...
 ! *****************************************************************************
-  SUBROUTINE replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
+  SUBROUTINE replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                        mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1961,7 +1959,6 @@ MODULE mp2_gpw
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param para_env_sub ...
 !> \param dimen ...
 !> \param homo ...
@@ -1979,12 +1976,11 @@ MODULE mp2_gpw
 !> \param unit_nr ...
 !> \param error_sub ...
 ! *****************************************************************************
-  SUBROUTINE grep_occ_virt_wavefunc(qs_env,para_env_sub,dimen,homo,virtual,&
+  SUBROUTINE grep_occ_virt_wavefunc(para_env_sub,dimen,homo,virtual,&
                                     my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
                                     my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
                                     mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     INTEGER :: dimen, homo, virtual, my_I_occupied_start, my_I_occupied_end, &
       my_I_batch_size, my_A_virtual_start, my_A_virtual_end, my_A_batch_size

@@ -203,7 +203,7 @@ CONTAINS
        IF (PRESENT(kpp1_env)) THEN
           p_env%kpp1_env => kpp1_env
        ELSE
-          CALL kpp1_create(p_env%kpp1_env, qs_env=qs_env, error=error)
+          CALL kpp1_create(p_env%kpp1_env, error=error)
        END IF
 
        IF (PRESENT(p1_option)) THEN
