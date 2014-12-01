@@ -84,7 +84,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     LOGICAL                                  :: failure, found, spin, &
                                                 use_virial
-    REAL(KIND=dp)                            :: eb3, fi, gmij, ua, ui, uj
+    REAL(KIND=dp)                            :: eb3, eloc, fi, gmij, ua, ui, &
+                                                uj, zeff
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, ksblock, ksblock_2, &
                                                 pblock, sblock
@@ -113,20 +114,20 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                    qs_kind_set=qs_kind_set,atprop=atprop,error=error)
 
-    ! Atenergy
-    IF (atprop%energy) THEN
-       ! not implemented
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END IF
-
     eb3 = 0.0_dp
     CALL get_qs_env(qs_env=qs_env,local_particles=local_particles,error=error)
     DO ikind=1,SIZE(local_particles%n_el)
        CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
-       CALL get_dftb_atom_param(dftb_kind,dudq=ua)
+       CALL get_dftb_atom_param(dftb_kind,dudq=ua,zeff=zeff)
        DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
-          eb3 = eb3 - 1.0_dp/6.0_dp * ua * mcharge(iatom)**3
+          eloc = - 1.0_dp/6.0_dp * ua * mcharge(iatom)**3
+          eb3 = eb3 + eloc
+          IF(atprop%energy) THEN
+             ! we have to add the part not covered by 0.5*Tr(FP)
+             eloc = -0.5_dp*eloc - 0.25_dp * ua * zeff * mcharge(iatom)**2
+             atprop%atecoul(iatom) = atprop%atecoul(iatom) + eloc
+          END IF
        END DO
     END DO
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,error=error)
@@ -184,6 +185,10 @@ CONTAINS
              rij = particle_set(iatom)%r - particle_set(jatom)%r
              rij = pbc(rij,cell)
              CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
+             IF(atprop%stress) THEN
+                CALL virial_pair_force (atprop%atstress(:,:,iatom), -0.5_dp, fij, rij, error)
+                CALL virial_pair_force (atprop%atstress(:,:,jatom), -0.5_dp, fij, rij, error)
+             END IF
           END IF
        END DO
        CALL cp_dbcsr_iterator_stop(iter)

@@ -4,6 +4,7 @@
   &PROPERTIES
      &ATOMIC
         ENERGY
+        PRESSURE
      &END ATOMIC
   &END PROPERTIES
   &MM

@@ -48,3 +48,7 @@ h2o_disp3.inp         1
 # DFTB3
 h2o-6.inp           1
 h2o-7.inp           1
+# Properties stress
+h2o-atprop1.inp           1
+h2o-atprop2.inp           1
+h2o-atprop3.inp           1

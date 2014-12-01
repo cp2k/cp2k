@@ -69,13 +69,15 @@ CONTAINS
 !> \param use_virial ...
 !> \param charges ...
 !> \param e_coulomb ...
+!> \param pv_coulomb ...
 !> \param error ...
 !> \par History
 !>      JGH (21-Feb-2001) : changed name
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
-       local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, charges, e_coulomb, error )
+       local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, charges, e_coulomb,&
+       pv_coulomb, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -90,6 +92,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: charges, e_coulomb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: pv_coulomb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_evaluate', &
@@ -102,7 +106,7 @@ CONTAINS
       iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    LOGICAL                                  :: atenergy, failure, &
+    LOGICAL                                  :: atenergy, atstress, failure, &
                                                 use_charge_array
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, four_alpha_sq, gauss, &
@@ -125,6 +129,10 @@ CONTAINS
     atenergy=PRESENT(e_coulomb)
     IF (atenergy) atenergy=ASSOCIATED(e_coulomb)
     IF (atenergy) e_coulomb=0._dp
+
+    atstress=PRESENT(pv_coulomb)
+    IF (atstress) atstress=ASSOCIATED(pv_coulomb)
+    IF (atstress) pv_coulomb=0._dp
 
     ! pointing
     CALL ewald_env_get (ewald_env, alpha=alpha, group = group ,error=error)
@@ -256,11 +264,29 @@ CONTAINS
           pv_g(3,2) = pv_g(3,2) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(2,gpt)*denom)
           pv_g(3,3) = pv_g(3,3) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(3,gpt)*denom)
        END IF
+       IF (atstress) THEN
+          DO node = 1, nnodes
+             snode = CONJG ( exp_igr % ex ( lp, node ) &
+                           * exp_igr % ey ( mp, node ) &
+                           * exp_igr % ez ( np, node ) )
+             factor = gauss * charge ( node ) * REAL ( summe(gpt) * snode, KIND=dp )
+             pv_coulomb(1,1,node) = pv_coulomb(1,1,node) + factor*(1.0_dp - 2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(1,gpt)*denom)
+             pv_coulomb(1,2,node) = pv_coulomb(1,2,node) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(2,gpt)*denom)
+             pv_coulomb(1,3,node) = pv_coulomb(1,3,node) - factor*(         2.0_dp*pw_grid%g(1,gpt)*pw_grid%g(3,gpt)*denom)
+             pv_coulomb(2,1,node) = pv_coulomb(2,1,node) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(1,gpt)*denom)
+             pv_coulomb(2,2,node) = pv_coulomb(2,2,node) + factor*(1.0_dp - 2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(2,gpt)*denom)
+             pv_coulomb(2,3,node) = pv_coulomb(2,3,node) - factor*(         2.0_dp*pw_grid%g(2,gpt)*pw_grid%g(3,gpt)*denom)
+             pv_coulomb(3,1,node) = pv_coulomb(3,1,node) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(1,gpt)*denom)
+             pv_coulomb(3,2,node) = pv_coulomb(3,2,node) - factor*(         2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(2,gpt)*denom)
+             pv_coulomb(3,3,node) = pv_coulomb(3,3,node) + factor*(1.0_dp - 2.0_dp*pw_grid%g(3,gpt)*pw_grid%g(3,gpt)*denom)
+          END DO
+       END IF
     END DO
 
     vg_coulomb = vg_coulomb * pref
     IF (use_virial) pv_g = pv_g * pref
     IF (atenergy) e_coulomb = e_coulomb * pref
+    IF (atstress) pv_coulomb = pv_coulomb * pref
 
     fg_coulomb = fg_coulomb * (2.0_dp*pref)
 

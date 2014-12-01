@@ -450,11 +450,14 @@ CONTAINS
            CALL compute_block_sk(sblock,smatij,smatji,rij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
            CALL compute_block_sk(fblock,fmatij,fmatji,rij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
            IF(calculate_forces) THEN
-             force_ab = 0._dp; force_w  = 0._dp
-             n1 = SIZE(fblock,1); n2 = SIZE(fblock,2)
+             force_ab = 0._dp
+             force_w  = 0._dp
+             n1 = SIZE(fblock,1)
+             n2 = SIZE(fblock,2)
              ! make sure that displacement is in the correct direction depending on the position
              ! of the block (upper or lower triangle)
-             f0=1.0_dp; IF ( irow == iatom ) f0=-1.0_dp
+             f0=1.0_dp
+             IF ( irow == iatom ) f0=-1.0_dp
 
              ALLOCATE (dfblock(n1,n2),dsblock(n1,n2),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

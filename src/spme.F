@@ -31,7 +31,9 @@ MODULE spme
                                              set_list
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: get_pw_grid_info
-  USE pw_methods,                      ONLY: pw_integral_a2b,&
+  USE pw_methods,                      ONLY: pw_copy,&
+                                             pw_derive,&
+                                             pw_integral_a2b,&
                                              pw_transfer
   USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
                                              pw_poisson_solve
@@ -119,14 +121,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spme_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle, i, ipart, j, &
-                                                n, ncore, npart, nshell, &
+    INTEGER                                  :: group, handle, i, ig, ipart, &
+                                                j, n, ncore, npart, nshell, &
                                                 o_spline, p1, p1_shell, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
-    INTEGER, DIMENSION(3)                    :: npts
+    INTEGER, DIMENSION(3)                    :: nd, npts
     LOGICAL                                  :: do_shell, failure
-    REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa
+    REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa, ffb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
@@ -255,9 +257,12 @@ CONTAINS
                              error=error)
     CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, &
                             h_stress ,error=error)
-    ! Atomic Energy
+    !---------- END OF ELECTROSTATIC CALCULATION --------
+
+    ! Atomic Energy and Stress
     IF (atprop%energy .OR. atprop%stress) THEN
        CALL rs_grid_create (rpot, rs_desc, error=error)
+       CALL rs_grid_set_box ( grid_spme, rs=rpot, error=error )
        phi_g%cc = phi_g%cc * green%p3m_charge%cr
        CALL pw_transfer ( phi_g, rhob_r, error=error)
        CALL rs_pw_transfer (rpot, rhob_r, pw2rs, error=error)
@@ -308,19 +313,51 @@ CONTAINS
              END IF
           END DO
        END IF
+       IF (atprop%stress) THEN
+          ffa = ( 0.5_dp / alpha ) ** 2
+          ffb = 1.0_dp / fourpi
+          DO i = 1, 3
+             DO ig=grid_spme%first_gne0,grid_spme%ngpts_cut_local
+                phi_g%cc(ig) = ffb * dphi_g(i)%pw%cc(ig) * (ffa * grid_spme%gsq(ig) + 1.0_dp)
+                phi_g%cc(ig) = phi_g%cc(ig) * poisson_env%green_fft%influence_fn%cc(ig)
+             END DO
+             IF(grid_spme%have_g0) phi_g%cc(1) = 0.0_dp
+             DO j = 1, i
+                nd = 0
+                nd ( j ) = 1
+                CALL pw_copy ( phi_g, rhob_g, error=error)
+                CALL pw_derive ( rhob_g, nd , error=error)
+                rhob_g%cc = rhob_g%cc * green%p3m_charge%cr
+                CALL pw_transfer ( rhob_g, rhob_r, error=error)
+                CALL rs_pw_transfer ( rpot, rhob_r, pw2rs, error=error)
+
+                ipart = 0
+                DO
+                   CALL set_list ( particle_set, npart, center, p1, rden, ipart )
+                   IF ( p1 == 0 ) EXIT
+                   ! calculate function on small boxes
+                   CALL get_patch ( particle_set, box, green, grid_spme % npts, p1, rhos, &
+                        is_core=.FALSE., is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
+                   ! integrate box and potential
+                   CALL dg_sum_patch_force_1d ( rpot, rhos, center(:,p1), fat1 )
+                   atprop%atstress(i,j,p1) = atprop%atstress(i,j,p1) + fat1*dvols
+                   IF (i/=j) atprop%atstress(j,i,p1) = atprop%atstress(j,i,p1) + fat1*dvols
+                END DO
+
+             END DO
+          END DO
+       END IF
        CALL rs_grid_release ( rpot, error=error)
     END IF
 
     CALL pw_pool_give_back_pw ( pw_pool, phi_g ,error=error)
     CALL pw_pool_give_back_pw ( pw_pool, rhob_g ,error=error)
-    !---------- END OF ELECTROSTATIC CALCULATION --------
 
     !------------- STRESS TENSOR CALCULATION ------------
     IF (use_virial) THEN
        DO i = 1, 3
           DO j = i, 3
-             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
-                  dphi_g ( j ) % pw, error=error)
+             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, dphi_g ( j ) % pw, error=error)
              f_stress ( j, i ) = f_stress ( i, j )
           END DO
        END DO

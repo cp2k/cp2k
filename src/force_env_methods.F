@@ -89,6 +89,7 @@ MODULE force_env_methods
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -394,9 +395,9 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT="(T2,I8,1X,F20.10)")&
               (i,atprop_env%atener(i),i=1,SIZE(atprop_env%atener))
           END IF
-          sum_energy = SUM(atprop_env%atener(:))
+          sum_energy = accurate_sum(atprop_env%atener(:))
           checksum = ABS(e_pot - sum_energy)
-          WRITE (UNIT=output_unit,FMT="(/,(T2,A,1X,F25.13))")&
+          WRITE (UNIT=output_unit,FMT="(/,(T2,A,T56,F25.13))")&
            "Potential energy (Atomic):",sum_energy,&
            "Potential energy (Total) :",e_pot,&
            "Difference               :",checksum
@@ -405,49 +406,54 @@ CONTAINS
     END IF
     IF (atprop_env%stress) THEN
        CALL mp_sum(atprop_env%atstress,force_env%para_env%group)
+       ! symmetrize (same as pv_virial)
+       DO i=1,SIZE(atprop_env%atstress,3)
+          atprop_env%atstress(:,:,i) = 0.5_dp * (atprop_env%atstress(:,:,i)  &
+                                              + TRANSPOSE(atprop_env%atstress(:,:,i)))
+       END DO
        IF (output_unit > 0) THEN
           IF (logger%iter_info%print_level > low_print_level) THEN
              DO i=1,SIZE(atprop_env%atstress,3)
-                WRITE (UNIT=output_unit,FMT="(/,T2,I0,T11,A1,2(14X,A1))") i,"X","Y","Z"
-                WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(atprop_env%atstress(1,j,i),j=1,3)
-                WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(atprop_env%atstress(2,j,i),j=1,3)
-                WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(atprop_env%atstress(3,j,i),j=1,3)
-                WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Atomic stress tensor):",&
+                WRITE (UNIT=output_unit,FMT="(/,T2,I0,T16,A1,2(19X,A1))") i,"X","Y","Z"
+                WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "X",(atprop_env%atstress(1,j,i),j=1,3)
+                WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Y",(atprop_env%atstress(2,j,i),j=1,3)
+                WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Z",(atprop_env%atstress(3,j,i),j=1,3)
+                WRITE (UNIT=output_unit,FMT="(T2,A,F20.13)") "1/3 Trace(Atomic stress tensor):",&
                  (atprop_env%atstress(1,1,i) + atprop_env%atstress(2,2,i) + atprop_env%atstress(3,3,i))/3.0_dp
              END DO
           END IF
           atomic_stress_tensor(:,:) = 0.0_dp
           DO i=1,3
-             atomic_stress_tensor(i,i) = SUM(atprop_env%atstress(i,i,:))
+             atomic_stress_tensor(i,i) = accurate_sum(atprop_env%atstress(i,i,:))
              DO j=i+1,3
-                atomic_stress_tensor(i,j) = SUM(atprop_env%atstress(i,j,:))
+                atomic_stress_tensor(i,j) = accurate_sum(atprop_env%atstress(i,j,:))
                 atomic_stress_tensor(j,i) = atomic_stress_tensor(i,j)
              END DO
           END DO
-          WRITE (UNIT=output_unit,FMT="(/,T2,A,T11,A1,2(14X,A1))") "Atomic","X","Y","Z"
-          WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(atomic_stress_tensor(1,i),i=1,3)
-          WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(atomic_stress_tensor(2,i),i=1,3)
-          WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(atomic_stress_tensor(3,i),i=1,3)
-          WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Atomic stress tensor):",&
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T15,A1,2(19X,A1))") "Atomic","X","Y","Z"
+          WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "X",(atomic_stress_tensor(1,i),i=1,3)
+          WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Y",(atomic_stress_tensor(2,i),i=1,3)
+          WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Z",(atomic_stress_tensor(3,i),i=1,3)
+          WRITE (UNIT=output_unit,FMT="(T2,A,10X,F20.13)") "1/3 Trace(Atomic stress tensor):",&
            (atomic_stress_tensor(1,1) + atomic_stress_tensor(2,2) + atomic_stress_tensor(3,3))/3.0_dp
-          sum_stress_tensor = SUM(atomic_stress_tensor(:,:))
+          sum_stress_tensor = accurate_sum(atomic_stress_tensor(:,:))
           IF (virial%pv_availability.AND.calculate_forces) THEN
-             WRITE (UNIT=output_unit,FMT="(/,T2,A,T11,A1,2(14X,A1))") "Total","X","Y","Z"
-             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(virial%pv_virial(1,i),i=1,3)
-             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(virial%pv_virial(2,i),i=1,3)
-             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(virial%pv_virial(3,i),i=1,3)
-             WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Total stress tensor): ",&
+             WRITE (UNIT=output_unit,FMT="(/,T2,A,T16,A1,2(19X,A1))") "Total","X","Y","Z"
+             WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "X",(virial%pv_virial(1,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Y",(virial%pv_virial(2,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Z",(virial%pv_virial(3,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(T2,A,10X,F20.13)") "1/3 Trace(Total stress tensor): ",&
               (virial%pv_virial(1,1) + virial%pv_virial(2,2) + virial%pv_virial(3,3))/3.0_dp
              sum_pv_virial = SUM(virial%pv_virial(:,:))
              diff_stress_tensor(:,:) = ABS(virial%pv_virial(:,:) - atomic_stress_tensor(:,:))
-             WRITE (UNIT=output_unit,FMT="(/,T2,A,T11,A1,2(14X,A1))") "Diff","X","Y","Z"
-             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "X",(diff_stress_tensor(1,i),i=1,3)
-             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Y",(diff_stress_tensor(2,i),i=1,3)
-             WRITE (UNIT=output_unit,FMT="(A3,3F15.8)") "Z",(diff_stress_tensor(3,i),i=1,3)
-             WRITE (UNIT=output_unit,FMT="(T2,A,F15.8)") "1/3 Trace(Diff)               : ",&
+             WRITE (UNIT=output_unit,FMT="(/,T2,A,T16,A1,2(19X,A1))") "Diff","X","Y","Z"
+             WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "X",(diff_stress_tensor(1,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Y",(diff_stress_tensor(2,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Z",(diff_stress_tensor(3,i),i=1,3)
+             WRITE (UNIT=output_unit,FMT="(T2,A,10X,F20.13)") "1/3 Trace(Diff)               : ",&
               (diff_stress_tensor(1,1) + diff_stress_tensor(2,2) + diff_stress_tensor(3,3))/3.0_dp
-             checksum = SUM(diff_stress_tensor(:,:))
-             WRITE (UNIT=output_unit,FMT="(/,(T2,A,1X,F25.13))")&
+             checksum = accurate_sum(diff_stress_tensor(:,:))
+             WRITE (UNIT=output_unit,FMT="(/,(T2,A,11X,F25.13))")&
               "Checksum stress (Atomic) :",sum_stress_tensor,&
               "Checksum stress (Total)  :",sum_pv_virial,&
               "Difference               :",checksum

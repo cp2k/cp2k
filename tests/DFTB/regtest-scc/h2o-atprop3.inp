@@ -1,9 +1,8 @@
 &FORCE_EVAL
-  METHOD Quickstep
   STRESS_TENSOR ANALYTICAL
   &PROPERTIES
      &ATOMIC
-        ENERGY
+        ENERGY 
         PRESSURE
      &END ATOMIC
   &END PROPERTIES
@@ -11,22 +10,33 @@
     &QS
       METHOD DFTB
       &DFTB
-        SELF_CONSISTENT    F
-        DISPERSION         F
+        SELF_CONSISTENT    T
+        DO_EWALD           T
+        DISPERSION         T
+        DIAGONAL_DFTB3     T
+        HB_SR_GAMMA        T
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/DFTB/nonscc
-          PARAM_FILE_NAME  nonscc_parameter
+          PARAM_FILE_PATH  ../../../data/DFTB/scc
+          PARAM_FILE_NAME  scc_parameter
+          UFF_FORCE_FIELD  ../uff_table
         &END PARAMETER
       &END DFTB
     &END QS
     &SCF
-      SCF_GUESS NONE
+      SCF_GUESS CORE
       &MIXING
           METHOD DIRECT_P_MIXING
-          ALPHA   1.
+          ALPHA   0.75
       &END
-      MAX_SCF  7
+      MAX_SCF  20
     &END SCF
+    &POISSON
+      &EWALD
+       EWALD_TYPE SPME
+       GMAX 45
+       O_SPLINE 8
+      &END EWALD
+    &END POISSON
   &END DFT
   &SUBSYS
     &CELL
@@ -130,18 +140,36 @@
     H                   2.706   3.053   1.282   H2O
     H                   3.542   2.615   0.020   H2O
     &END COORD
+    &KIND O
+       DFTB3_PARAM   -0.14
+    &END
+    &KIND H
+       DFTB3_PARAM   -0.05
+    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT h2o-32_1
+  PROJECT h2o
   RUN_TYPE MD
-  PRINT_LEVEL MEDIUM
+  PRINT_LEVEL LOW
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NVE  
-    STEPS 2
+    ENSEMBLE NPT_I
+    STEPS 5
     TIMESTEP 0.48
     TEMPERATURE 330.0
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON [wavenumber_t] 2000
+        MTS 2
+      &END NOSE
+    &END
+    &BAROSTAT
+      PRESSURE 1.0
+      TIMECON 300
+    &END BAROSTAT
   &END MD
 &END MOTION
