@@ -52,8 +52,7 @@ MODULE rtp_admm_methods
                                              set_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_set,&
                                              qs_rho_type
@@ -147,10 +146,10 @@ CONTAINS
                        tot_rho_r=tot_rho_r_aux,&
                        error=error)
 
-       CALL rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mos_aux_fit(ispin)%mo_set,&
+       CALL rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,&
                                   matrix_p_aux(ispin)%matrix,&
                                   matrix_p_aux_im(ispin)%matrix,&
-                                  ispin,nspins,error)
+                                  ispin,error)
 
        CALL calculate_rho_elec(matrix_p=matrix_p_aux(ispin)%matrix,&
                                rho=rho_r_aux(ispin),&
@@ -170,22 +169,19 @@ CONTAINS
 !> \brief ...
 !> \param admm_env ...
 !> \param rtp_coeff_aux_fit ...
-!> \param mo_set ...
 !> \param density_matrix_aux ...
 !> \param density_matrix_aux_im ...
 !> \param ispin ...
-!> \param nspins ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit,mo_set, density_matrix_aux,&
-                                   density_matrix_aux_im, ispin, nspins, error)
+  SUBROUTINE rtp_admm_calculate_dm(admm_env,rtp_coeff_aux_fit, density_matrix_aux,&
+                                   density_matrix_aux_im, ispin,error)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: rtp_coeff_aux_fit
-    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix_aux, &
                                                 density_matrix_aux_im
-    INTEGER, INTENT(in)                      :: ispin, nspins
+    INTEGER, INTENT(in)                      :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rtp_admm_calculate_dm', &

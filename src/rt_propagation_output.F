@@ -171,7 +171,7 @@ CONTAINS
     IF(rtp%converged) THEN
        IF(.NOT.rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-          CALL rt_calculate_orthonormality(output_unit,orthonormality,&
+          CALL rt_calculate_orthonormality(orthonormality,&
                mos_new,matrix_s(1)%matrix,error)
           IF(output_unit>0)&
                WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
@@ -189,8 +189,7 @@ CONTAINS
           IF (rtp%linear_scaling) THEN
              CALL make_moment(qs_env,error)
              CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
-             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,particle_set,dft_section,&
-                              atomic_kind_set,qs_kind_set,error)
+             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error)
           ELSE
              CALL make_moment(qs_env,error)
              CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
@@ -204,8 +203,7 @@ CONTAINS
              CALL make_moment(qs_env,error)
              CALL write_mo_free_results(qs_env,error)
              CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
-             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,particle_set,dft_section,&
-                              atomic_kind_set,qs_kind_set,error)
+             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error)
           ELSE
              CALL make_moment(qs_env,error)
              CALL write_available_results(qs_env=qs_env,error=error)
@@ -223,15 +221,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the effective orthonormality of a set of mos given an s-matrix
 !>        orthonormality is the max deviation from unity of the C^T S C
-!> \param unit_nr ...
 !> \param orthonormality ...
 !> \param mos_new ...
 !> \param matrix_s ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
-  SUBROUTINE rt_calculate_orthonormality(unit_nr,orthonormality,mos_new,matrix_s,error)
-    INTEGER, INTENT(in)                      :: unit_nr
+  SUBROUTINE rt_calculate_orthonormality(orthonormality,mos_new,matrix_s,error)
     REAL(KIND=dp), INTENT(out)               :: orthonormality
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
@@ -605,26 +601,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Writes the density matrix and the atomic positions to a restart file
 !> \param rho_new ...
-!> \param particle_set ...
-!> \param dft_section ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
 !> \param error ...
 !> \author Samuel Andermatt (09.14)
 ! *****************************************************************************
 
-  SUBROUTINE write_rt_p_to_restart(rho_new,particle_set,dft_section,&
-                                     atomic_kind_set,qs_kind_set,error)
+  SUBROUTINE write_rt_p_to_restart(rho_new,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_new
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart', &

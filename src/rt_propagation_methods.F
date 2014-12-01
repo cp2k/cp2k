@@ -279,7 +279,7 @@ CONTAINS
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error) 
           IF(rtp_control%mcweeny_max_iter>0.OR.rtp_control%calc_idempotency) THEN
              IF(rtp_control%orthonormal) THEN
-                CALL purify_mcweeny_complex_orth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
+                CALL purify_mcweeny_complex_orth(rho_new,rtp%filter_eps,rtp%filter_eps_small,&
                      rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
              ELSE
                 CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
@@ -674,7 +674,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Does McWeeny for complex matrices in the orthonormal basis
 !> \param P ...
-!> \param s_mat ...
 !> \param eps ...
 !> \param eps_small ...
 !> \param max_iter ...
@@ -683,10 +682,10 @@ CONTAINS
 !> \author Samuel Andermatt (04.14)
 ! *****************************************************************************
 
-  SUBROUTINE purify_mcweeny_complex_orth(P,s_mat,eps,eps_small,max_iter,threshold,error)
+  SUBROUTINE purify_mcweeny_complex_orth(P,eps,eps_small,max_iter,threshold,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: P, s_mat
+      POINTER                                :: P
     REAL(KIND=dp), INTENT(in)                :: eps, eps_small
     INTEGER, INTENT(in)                      :: max_iter
     REAL(KIND=dp), INTENT(in)                :: threshold
@@ -794,19 +793,17 @@ CONTAINS
       POINTER                                :: rho_ao, rho_ao_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (rho,ks_env,mos,rtp,dft_control)
+    NULLIFY (rho,ks_env,mos,rtp)
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
                     rho=rho,&
                     rtp=rtp,&
-                    dft_control=dft_control,&
                     error=error)
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
     CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
@@ -830,7 +827,7 @@ CONTAINS
 
     IF(rtp%do_hfx)THEN
        CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im,error=error)
-       CALL calculate_P_imaginary(rtp, rho_ao_im, dft_control%do_admm, error)
+       CALL calculate_P_imaginary(rtp, rho_ao_im, error)
        CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
     END IF
 
@@ -926,14 +923,12 @@ CONTAINS
 !> \brief ...
 !> \param rtp ...
 !> \param matrix_p_im ...
-!> \param do_admm ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,do_admm,error)
+  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,error)
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p_im
-    LOGICAL, INTENT(in)                      :: do_admm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
@@ -963,8 +958,6 @@ CONTAINS
                         matrix_g=mos(im)%matrix,&
                         ncol=ncol,&
                         alpha=alpha,error=error)
-       
-       
     END DO
   
   END SUBROUTINE calculate_P_imaginary
