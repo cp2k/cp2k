@@ -1,0 +1,61 @@
+&GLOBAL
+  PROJECT argon
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    LSD
+    CHARGE 1
+    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 10
+      EPS_SCF 1.0e-4
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          PARAMETRIZATION revPBE
+          SCALE_C 0.0
+        &END PBE
+        &VWN
+        &END VWN
+      &END XC_FUNCTIONAL
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL NON_LOCAL
+         &NON_LOCAL
+           TYPE DRSLL
+           VERBOSE_OUTPUT
+           KERNEL_FILE_NAME ../../../data/vdW_kernel_table.dat
+           CUTOFF  80
+         &END NON_LOCAL
+      &END vdW_POTENTIAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.3 5.3 5.3
+      ALPHA_BETA_GAMMA 90 90 90
+    &END CELL
+    &COORD
+      SCALED .TRUE.
+      Ar 0.1 0.0 0.0
+      Ar 0.5 0.5 0.0
+      Ar 0.5 0.0 0.5
+      Ar 0.0 0.5 0.5
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q8
+      POTENTIAL GTH-PADE-q8
+    &END
+  &END SUBSYS
+&END FORCE_EVAL

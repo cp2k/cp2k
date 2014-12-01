@@ -337,8 +337,6 @@ CONTAINS
           ! this is dangerous, as it assumes a special connection xc_section -> qs_env
           IF (vdW_nl) THEN
              CALL get_ks_env(ks_env=ks_env, para_env=para_env, error=error)
-             ! no spin polarization allowed
-             CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
              ! no SIC functionals allowed
              CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
              ! 
