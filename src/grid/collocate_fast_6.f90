@@ -1,21 +1,21 @@
   SUBROUTINE collocate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), lp
-    REAL(wp), INTENT(IN) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
+    REAL(dp), INTENT(IN) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
     INTEGER, INTENT(IN)                      :: cmax
-    REAL(wp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
                                                 pol_y(1:2,0:lp,-cmax:0), &
                                                 pol_z(1:2,0:lp,-cmax:0)
     INTEGER, INTENT(IN)                      :: map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, lxp, lxy, lxyz, &
                                                 lyp, lzp, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s01, s02, s03, s04
 
@@ -28,7 +28,7 @@
        k=map(kg,3)
        k2=map(kg2,3)
 
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
        lxyz = 0
        DO lzp=0,lp
           lxy=0
@@ -52,7 +52,7 @@
           sci=sci+1
           igmax=1-igmin
 
-          coef_x=0.0_wp
+          coef_x=0.0_dp
           lxy=0
           DO lyp=0,lp
           DO lxp=0,lp-lyp
@@ -66,10 +66,10 @@
 
           DO ig=igmin,igmax
              i=map(ig,1)
-             s01=0.0_wp
-             s02=0.0_wp
-             s03=0.0_wp
-             s04=0.0_wp
+             s01=0.0_dp
+             s02=0.0_dp
+             s03=0.0_dp
+             s04=0.0_dp
              DO lxp=0,lp
                 s01=s01+coef_x(1,lxp)*pol_x(lxp,ig)
                 s02=s02+coef_x(2,lxp)*pol_x(lxp,ig)
@@ -87,21 +87,21 @@
 
   END SUBROUTINE collocate_core_default
   SUBROUTINE collocate_core_0(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 0
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, lxp, lxy, lxyz, &
                                                 lyp, lzp, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s01, s02, s03, s04
 
@@ -113,7 +113,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
        lxyz = 0
        DO lzp=0,lp
           lxy=0
@@ -135,7 +135,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
           lxy=0
           DO lyp=0,lp
           DO lxp=0,lp-lyp
@@ -146,10 +146,10 @@
           ENDDO
           DO ig=igmin,igmax
              i=map(ig,1)
-             s01=0.0_wp
-             s02=0.0_wp
-             s03=0.0_wp
-             s04=0.0_wp
+             s01=0.0_dp
+             s02=0.0_dp
+             s03=0.0_dp
+             s04=0.0_dp
                 s01=s01+coef_x(1,0)*pol_x(0,ig)
                 s02=s02+coef_x(2,0)*pol_x(0,ig)
                 s03=s03+coef_x(3,0)*pol_x(0,ig)
@@ -164,20 +164,20 @@
 
   END SUBROUTINE collocate_core_0
   SUBROUTINE collocate_core_1(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 1
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, lxp, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s(4)
 
@@ -189,7 +189,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
                 coef_xy(:,1)=coef_xy(:,1)+coef_xyz(1)*pol_z(:,0,kg)
                 coef_xy(:,2)=coef_xy(:,2)+coef_xyz(2)*pol_z(:,0,kg)
                 coef_xy(:,3)=coef_xy(:,3)+coef_xyz(3)*pol_z(:,0,kg)
@@ -203,7 +203,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1,0)=coef_x(1,0)+coef_xy(1,1)*pol_y(1,0,jg)
              coef_x(2,0)=coef_x(2,0)+coef_xy(2,1)*pol_y(1,0,jg)
              coef_x(3,0)=coef_x(3,0)+coef_xy(1,1)*pol_y(2,0,jg)
@@ -218,7 +218,7 @@
              coef_x(4,0)=coef_x(4,0)+coef_xy(2,3)*pol_y(2,1,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s(:)=0.0_wp
+             s(:)=0.0_dp
              DO lxp=0,lp
                 s(:)=s(:)+coef_x(:,lxp)*pol_x(lxp,ig)
              ENDDO
@@ -232,21 +232,21 @@
 
   END SUBROUTINE collocate_core_1
   SUBROUTINE collocate_core_2(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 2
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, lxp, lxy, lxyz, &
                                                 lyp, lzp, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s(4)
 
@@ -258,7 +258,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
        lxyz = 0
        DO lzp=0,lp
           lxy=0
@@ -280,7 +280,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1:2,0)=coef_x(1:2,0)+coef_xy(1:2,1)*pol_y(1,0,jg)
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,1)*pol_y(2,0,jg)
              coef_x(1:2,1)=coef_x(1:2,1)+coef_xy(1:2,2)*pol_y(1,0,jg)
@@ -295,7 +295,7 @@
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,6)*pol_y(2,2,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s(:)=0.0_wp
+             s(:)=0.0_dp
                 s(:)=s(:)+coef_x(:,0)*pol_x(0,ig)
                 s(:)=s(:)+coef_x(:,1)*pol_x(1,ig)
                 s(:)=s(:)+coef_x(:,2)*pol_x(2,ig)
@@ -309,21 +309,21 @@
 
   END SUBROUTINE collocate_core_2
   SUBROUTINE collocate_core_3(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 3
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, lxp, lxy, lxyz, &
                                                 lyp, lzp, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s01, s02, s03, s04
 
@@ -335,7 +335,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
        lxyz = 0
        DO lzp=0,lp
           lxy=0
@@ -356,7 +356,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
           lxy=0
           DO lyp=0,lp
           DO lxp=0,lp-lyp
@@ -369,10 +369,10 @@
           ENDDO
           DO ig=igmin,igmax
              i=map(ig,1)
-             s01=0.0_wp
-             s02=0.0_wp
-             s03=0.0_wp
-             s04=0.0_wp
+             s01=0.0_dp
+             s02=0.0_dp
+             s03=0.0_dp
+             s04=0.0_dp
              DO lxp=0,lp
                 s01=s01+coef_x(1,lxp)*pol_x(lxp,ig)
                 s02=s02+coef_x(2,lxp)*pol_x(lxp,ig)
@@ -389,20 +389,20 @@
 
   END SUBROUTINE collocate_core_3
   SUBROUTINE collocate_core_4(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 4
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, lxp, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s(4)
 
@@ -414,7 +414,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
                 coef_xy(1,1)=coef_xy(1,1)+coef_xyz(1)*pol_z(1,0,kg)
                 coef_xy(2,1)=coef_xy(2,1)+coef_xyz(1)*pol_z(2,0,kg)
                 coef_xy(1,2)=coef_xy(1,2)+coef_xyz(2)*pol_z(1,0,kg)
@@ -494,7 +494,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1,0)=coef_x(1,0)+coef_xy(1,1)*pol_y(1,0,jg)
              coef_x(2,0)=coef_x(2,0)+coef_xy(2,1)*pol_y(1,0,jg)
              coef_x(3,0)=coef_x(3,0)+coef_xy(1,1)*pol_y(2,0,jg)
@@ -557,7 +557,7 @@
              coef_x(4,0)=coef_x(4,0)+coef_xy(2,15)*pol_y(2,4,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s(:)=0.0_wp
+             s(:)=0.0_dp
              DO lxp=0,lp
                 s(:)=s(:)+coef_x(:,lxp)*pol_x(lxp,ig)
              ENDDO
@@ -571,20 +571,20 @@
 
   END SUBROUTINE collocate_core_4
   SUBROUTINE collocate_core_5(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 5
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, lxp, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s01, s02, s03, s04
 
@@ -596,7 +596,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
                 coef_xy(:,1)=coef_xy(:,1)+coef_xyz(1)*pol_z(:,0,kg)
                 coef_xy(:,2)=coef_xy(:,2)+coef_xyz(2)*pol_z(:,0,kg)
                 coef_xy(:,3)=coef_xy(:,3)+coef_xyz(3)*pol_z(:,0,kg)
@@ -662,7 +662,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1:2,0)=coef_x(1:2,0)+coef_xy(1:2,1)*pol_y(1,0,jg)
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,1)*pol_y(2,0,jg)
              coef_x(1:2,1)=coef_x(1:2,1)+coef_xy(1:2,2)*pol_y(1,0,jg)
@@ -707,10 +707,10 @@
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,21)*pol_y(2,5,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s01=0.0_wp
-             s02=0.0_wp
-             s03=0.0_wp
-             s04=0.0_wp
+             s01=0.0_dp
+             s02=0.0_dp
+             s03=0.0_dp
+             s04=0.0_dp
              DO lxp=0,lp
                 s01=s01+coef_x(1,lxp)*pol_x(lxp,ig)
                 s02=s02+coef_x(2,lxp)*pol_x(lxp,ig)
@@ -727,20 +727,20 @@
 
   END SUBROUTINE collocate_core_5
   SUBROUTINE collocate_core_6(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 6
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s(4)
 
@@ -752,7 +752,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
                 coef_xy(1,1)=coef_xy(1,1)+coef_xyz(1)*pol_z(1,0,kg)
                 coef_xy(2,1)=coef_xy(2,1)+coef_xyz(1)*pol_z(2,0,kg)
                 coef_xy(1,2)=coef_xy(1,2)+coef_xyz(2)*pol_z(1,0,kg)
@@ -930,7 +930,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1:2,0)=coef_x(1:2,0)+coef_xy(1:2,1)*pol_y(1,0,jg)
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,1)*pol_y(2,0,jg)
              coef_x(1:2,1)=coef_x(1:2,1)+coef_xy(1:2,2)*pol_y(1,0,jg)
@@ -989,7 +989,7 @@
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,28)*pol_y(2,6,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s(:)=0.0_wp
+             s(:)=0.0_dp
                 s(:)=s(:)+coef_x(:,0)*pol_x(0,ig)
                 s(:)=s(:)+coef_x(:,1)*pol_x(1,ig)
                 s(:)=s(:)+coef_x(:,2)*pol_x(2,ig)
@@ -1007,20 +1007,20 @@
 
   END SUBROUTINE collocate_core_6
   SUBROUTINE collocate_core_7(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 7
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s01, s02, s03, s04
 
@@ -1032,7 +1032,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
                 coef_xy(1,1)=coef_xy(1,1)+coef_xyz(1)*pol_z(1,0,kg)
                 coef_xy(2,1)=coef_xy(2,1)+coef_xyz(1)*pol_z(2,0,kg)
                 coef_xy(1,2)=coef_xy(1,2)+coef_xyz(2)*pol_z(1,0,kg)
@@ -1282,7 +1282,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1:2,0)=coef_x(1:2,0)+coef_xy(1:2,1)*pol_y(1,0,jg)
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,1)*pol_y(2,0,jg)
              coef_x(1:2,1)=coef_x(1:2,1)+coef_xy(1:2,2)*pol_y(1,0,jg)
@@ -1357,10 +1357,10 @@
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,36)*pol_y(2,7,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s01=0.0_wp
-             s02=0.0_wp
-             s03=0.0_wp
-             s04=0.0_wp
+             s01=0.0_dp
+             s02=0.0_dp
+             s03=0.0_dp
+             s04=0.0_dp
                 s01=s01+coef_x(1,0)*pol_x(0,ig)
                 s02=s02+coef_x(2,0)*pol_x(0,ig)
                 s03=s03+coef_x(3,0)*pol_x(0,ig)
@@ -1403,20 +1403,20 @@
 
   END SUBROUTINE collocate_core_7
   SUBROUTINE collocate_core_8(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 8
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s01, s02, s03, s04
 
@@ -1428,7 +1428,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
                 coef_xy(1,1)=coef_xy(1,1)+coef_xyz(1)*pol_z(1,0,kg)
                 coef_xy(2,1)=coef_xy(2,1)+coef_xyz(1)*pol_z(2,0,kg)
                 coef_xy(1,2)=coef_xy(1,2)+coef_xyz(2)*pol_z(1,0,kg)
@@ -1768,7 +1768,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1:2,0)=coef_x(1:2,0)+coef_xy(1:2,1)*pol_y(1,0,jg)
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,1)*pol_y(2,0,jg)
              coef_x(1:2,1)=coef_x(1:2,1)+coef_xy(1:2,2)*pol_y(1,0,jg)
@@ -1861,10 +1861,10 @@
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,45)*pol_y(2,8,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s01=0.0_wp
-             s02=0.0_wp
-             s03=0.0_wp
-             s04=0.0_wp
+             s01=0.0_dp
+             s02=0.0_dp
+             s03=0.0_dp
+             s04=0.0_dp
                 s01=s01+coef_x(1,0)*pol_x(0,ig)
                 s02=s02+coef_x(2,0)*pol_x(0,ig)
                 s03=s03+coef_x(3,0)*pol_x(0,ig)
@@ -1911,20 +1911,20 @@
 
   END SUBROUTINE collocate_core_8
   SUBROUTINE collocate_core_9(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
-    USE lib_kinds,                        ONLY: wp
+    USE kinds,                        ONLY: dp
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
-    REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
+    REAL(dp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1), &
       gridbounds(1,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 9
-    REAL(wp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
+    REAL(dp), INTENT(IN) :: pol_x(0:lp,-cmax:cmax), pol_y(1:2,0:lp,-cmax:0), &
       pol_z(1:2,0:lp,-cmax:0), coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
                                                 jg, jg2, jgmin, k, k2, kg, &
                                                 kg2, kgmin, sci
-    REAL(wp)                                 :: coef_x(4,0:lp), &
+    REAL(dp)                                 :: coef_x(4,0:lp), &
                                                 coef_xy(2,(lp+1)*(lp+2)/2), &
                                                 s01, s02, s03, s04
 
@@ -1936,7 +1936,7 @@
        kg2=1-kg
        k=map(kg,3)
        k2=map(kg2,3)
-       coef_xy=0.0_wp
+       coef_xy=0.0_dp
                 coef_xy(1,1)=coef_xy(1,1)+coef_xyz(1)*pol_z(1,0,kg)
                 coef_xy(2,1)=coef_xy(2,1)+coef_xyz(1)*pol_z(2,0,kg)
                 coef_xy(1,2)=coef_xy(1,2)+coef_xyz(2)*pol_z(1,0,kg)
@@ -2386,7 +2386,7 @@
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          coef_x=0.0_wp
+          coef_x=0.0_dp
              coef_x(1:2,0)=coef_x(1:2,0)+coef_xy(1:2,1)*pol_y(1,0,jg)
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,1)*pol_y(2,0,jg)
              coef_x(1:2,1)=coef_x(1:2,1)+coef_xy(1:2,2)*pol_y(1,0,jg)
@@ -2499,10 +2499,10 @@
              coef_x(3:4,0)=coef_x(3:4,0)+coef_xy(1:2,55)*pol_y(2,9,jg)
           DO ig=igmin,igmax
              i=map(ig,1)
-             s01=0.0_wp
-             s02=0.0_wp
-             s03=0.0_wp
-             s04=0.0_wp
+             s01=0.0_dp
+             s02=0.0_dp
+             s03=0.0_dp
+             s04=0.0_dp
                 s01=s01+coef_x(1,0)*pol_x(0,ig)
                 s02=s02+coef_x(2,0)*pol_x(0,ig)
                 s03=s03+coef_x(3,0)*pol_x(0,ig)
