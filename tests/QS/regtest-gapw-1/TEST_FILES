@@ -14,3 +14,5 @@ c8_pmix_gapw_all.inp              1     4e-04
 c8_pmix_gapw_all_xashh.inp        1     1e-04
 c8_broy_gapw_all.inp              1     1e-13
 c8_broy_gapw_all_xashh.inp        1     2e-11
+# different scf_env
+CO_xastpfh_gsot.inp               1     8e-14

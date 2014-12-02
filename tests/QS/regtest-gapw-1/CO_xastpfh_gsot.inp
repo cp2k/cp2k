@@ -1,7 +1,7 @@
-#CPQA DEPENDS CO_xastphh.inp
+#CPQA DEPENDS CO.inp
 
 &GLOBAL
- PROJECT      co_tphh_r
+ PROJECT      CO_xastpfh_gsot
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -13,7 +13,7 @@
     LSD
     BASIS_SET_FILE_NAME ../../../data/ALL_BASIS_SETS
     POTENTIAL_FILE_NAME ../../../data/POTENTIAL
-    RESTART_FILE_NAME   CO_xastphh-RESTART
+    RESTART_FILE_NAME   CO-RESTART
     &XC
       &XC_FUNCTIONAL PADE
       &END
@@ -40,8 +40,8 @@
       EPS_DIIS 0.4
       MAX_SCF 1
        
-      ADDED_MOS  1 1
-      &OT OFF
+#      ADDED_MOS  1 1
+      &OT # OFF
         PRECONDITIONER FULL_ALL
       &END OT
       &PRINT
@@ -51,7 +51,6 @@
            FILENAME =RESTART
         &END
       &END
-
     &END SCF
    &POISSON
      POISSON_SOLVER MT
@@ -64,11 +63,11 @@
 
     &XAS 
       &SCF
-        EPS_SCF 0.01
+        EPS_SCF 0.000001
         MAX_SCF 10
         EPS_DIIS   0.4
       &END
-      METHOD        TP_HH
+      METHOD        TP_FH
       DIPOLE_FORM   VELOCITY
       STATE_TYPE    1s
       STATE_SEARCH  2
@@ -77,21 +76,20 @@
       ADDED_MOS     20
       &LOCALIZE
       &END
-      RESTART
       &PRINT
          &PROGRAM_RUN_INFO
          &END 
          &RESTART
-             FILENAME ./co_tphh
              &EACH
                XAS_SCF 1
              &END
          &END 
-         &XAS_SPECTRUM
-           FILENAME ./co_tphh_r
+         &XES_SPECTRUM
          &END
-
+         &XAS_SPECTRUM
+         &END
       &END
+
     &END
 ##    &PRINT
 ##      &MO

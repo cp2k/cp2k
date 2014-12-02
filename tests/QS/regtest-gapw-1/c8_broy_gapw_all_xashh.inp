@@ -51,20 +51,23 @@
     &END XC
 
     &XAS
-      CONVERGENCE 1.0E-1
-      &SMEAR ON
-         METHOD FERMI_DIRAC
-         ELECTRONIC_TEMPERATURE [K] 300
+      &SCF
+        EPS_SCF 1.0E-1
+        MAX_SCF 500
+        &SMEAR ON
+           METHOD FERMI_DIRAC
+           ELECTRONIC_TEMPERATURE [K] 300
+        &END
+        &MIXING
+           METHOD  BROYDEN_MIXING
+           ALPHA 0.1
+           BETA 1.5
+           NBUFFER 8
+        &END MIXING
       &END
-      &MIXING
-         METHOD  BROYDEN_MIXING
-         ALPHA 0.1
-         BETA 1.5
-         NBUFFER 8
-      &END MIXING
+
       METHOD        TP_HH
       DIPOLE_FORM   VELOCITY
-      MAXSTEP       500
       STATE_TYPE    1s
       STATE_SEARCH  16
       ATOMS_LIST    3 4 5

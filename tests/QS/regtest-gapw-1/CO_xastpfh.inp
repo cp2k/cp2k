@@ -62,11 +62,13 @@
     &END POISSON
 
     &XAS 
-      CONVERGENCE 0.000001
-      EPS_DIIS   0.4
+      &SCF
+        EPS_SCF 0.000001
+        MAX_SCF 10
+        EPS_DIIS   0.4
+      &END
       METHOD        TP_FH
       DIPOLE_FORM   VELOCITY
-      MAXSTEP       10
       STATE_TYPE    1s
       STATE_SEARCH  2
       ATOMS_LIST    1
