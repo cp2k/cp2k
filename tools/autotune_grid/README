@@ -22,7 +22,7 @@ througout. The full process can take several hours depending on your hard- and s
 
 0) Unzip files all files that might be gzipped in this distribution
 
-tar -xzvf data.tar.gz
+tar -xzvf data.tgz
 
 1) Make sure the machine you use for timing is idle (i.e. other running jobs perturbe the timings).
 

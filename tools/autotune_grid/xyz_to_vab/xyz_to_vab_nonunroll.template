@@ -4,7 +4,7 @@
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
-      USE lib_kinds,                        ONLY: wp,dp
+      USE kinds,                        ONLY: dp
        ! PARAMETERS
        INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
                                maxl, lb_min_local, la_min_local, &
@@ -15,19 +15,19 @@
 
        REAL(KIND=dp), INTENT(IN) :: prefactor
        
-       REAL(kind=dp),  DIMENSION(((lp+1)*(lp+2)*(lp+3))/6),&
+       REAL(KIND=dp),  DIMENSION(((lp+1)*(lp+2)*(lp+3))/6),&
                          INTENT(INOUT) :: coef_xyz
-       REAL(kind=dp), DIMENSION(lvab,hvab), INTENT(INOUT) :: vab
-       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
+       REAL(KIND=dp), DIMENSION(lvab,hvab), INTENT(INOUT) :: vab
+       REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
        INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp, iaxis, l, k, lya,lyb,lza,lzb
        REAL(KIND=dp) :: a,b,binomial_k_lxa,binomial_l_lxb,const_rp,const_ra
  
 
-    REAL(kind=dp) :: alpha(0:(@<la_max_local>@+@<lb_max_local>@),0:@<la_max_local>@,0:@<lb_max_local>@,3)
-    REAL(kind=dp) :: coef_ttz(0:@<la_max_local>@,0:@<lb_max_local>@)
-    REAL(kind=dp) :: coef_tyz(0:@<la_max_local>@,0:@<lb_max_local>@,0:@<la_max_local>@,0:@<lb_max_local>@)
+    REAL(KIND=dp) :: alpha(0:(@<la_max_local>@+@<lb_max_local>@),0:@<la_max_local>@,0:@<lb_max_local>@,3)
+    REAL(KIND=dp) :: coef_ttz(0:@<la_max_local>@,0:@<lb_max_local>@)
+    REAL(KIND=dp) :: coef_tyz(0:@<la_max_local>@,0:@<lb_max_local>@,0:@<la_max_local>@,0:@<lb_max_local>@)
     
     coef_xyz=coef_xyz*prefactor
 
