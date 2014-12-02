@@ -116,8 +116,7 @@ MODULE xas_methods
                                              xas_env_create,&
                                              xas_env_release,&
                                              xas_environment_type
-  USE xas_restart,                     ONLY: xas_initialize_rho,&
-                                             xas_read_restart
+  USE xas_restart,                     ONLY: xas_read_restart
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf,&
                                              xes_scf_once
 #include "./common/cp_common_uses.f90"
