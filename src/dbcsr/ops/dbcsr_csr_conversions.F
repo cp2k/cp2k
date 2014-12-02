@@ -9,6 +9,7 @@
 !>       2014.10 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
+
 MODULE dbcsr_csr_conversions
 
   USE array_types,                     ONLY: array_data,&
@@ -163,7 +164,7 @@ MODULE dbcsr_csr_conversions
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, DIMENSION(:), POINTER           :: rowptr_local => NULL(),&
                                                 colind_local => NULL()
-    TYPE(csr_data_area_type)               :: nzval_local
+    TYPE(csr_data_area_type)                 :: nzval_local
     TYPE(csr_mapping_data)                   :: dbcsr_mapping
     LOGICAL                                  :: has_mapping = .FALSE.
     LOGICAL                                  :: valid = .FALSE.
@@ -173,7 +174,13 @@ MODULE dbcsr_csr_conversions
   PUBLIC :: csr_type,convert_csr_to_dbcsr,&
             csr_create_from_dbcsr,&
             csr_destroy, csr_conversion_test,&
-            convert_dbcsr_to_csr, csr_write
+            convert_dbcsr_to_csr, csr_write,&
+            csr_create, csr_create_new, csr_create_template,&
+            csr_copy, csr_create_nze_row
+
+  INTERFACE csr_create
+     MODULE PROCEDURE csr_create_new, csr_create_template
+  END INTERFACE
 
 CONTAINS
 
@@ -233,7 +240,7 @@ CONTAINS
     csr_mat%nze_local = nze_local
     ALLOCATE( csr_mat%colind_local(nze_local) )
     csr_mat%nrows_local = nrows_local
-    ALLOCATE( csr_mat%rowptr_local(nrows_local) )
+    ALLOCATE( csr_mat%rowptr_local(nrows_local + 1) )
 
     IF (PRESENT (data_type)) THEN
      SELECT CASE (data_type)
@@ -263,11 +270,140 @@ CONTAINS
   END SUBROUTINE csr_create_new
 
 ! *****************************************************************************
+!> \brief Create a new CSR matrix and allocate all internal data using 
+!>        an existing CSR matrix. Copies the indices but no actual matrix data.
+!> \param matrix_b ...
+!> \param matrix_a ...
+!> \param error ...
+!> \par History
+!>      11.2014 created [Patrick Seewald]
+!> \author Patrick Seewald
+! *****************************************************************************
+  SUBROUTINE csr_create_template(matrix_b, matrix_a, error)
+    TYPE(csr_type), INTENT(OUT)              :: matrix_b
+    TYPE(csr_type), INTENT(IN)               :: matrix_a
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_template', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handler
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
+      "Source CSR matrix must be created.",__LINE__, error)
+
+    CALL csr_create_new(matrix_b, matrix_a%nrows_total, matrix_a%ncols_total,&
+      matrix_a%nze_total, matrix_a%nze_local, matrix_a%nrows_local,&
+      matrix_a%nzval_local%data_type, error)
+
+    matrix_b%mp_group = matrix_a%mp_group
+    matrix_b%has_mapping = matrix_a%has_mapping
+    matrix_b%has_indices = matrix_a%has_indices
+
+    IF(matrix_a%has_indices) THEN
+      matrix_b%rowptr_local = matrix_a%rowptr_local
+      matrix_b%colind_local = matrix_a%colind_local
+    ENDIF
+
+    IF (matrix_a%has_mapping) THEN
+      ALLOCATE(matrix_b%dbcsr_mapping%csr_to_brd_ind(SIZE(matrix_a%dbcsr_mapping%csr_to_brd_ind)))
+      ALLOCATE(matrix_b%dbcsr_mapping%brd_to_csr_ind(SIZE(matrix_a%dbcsr_mapping%brd_to_csr_ind)))     
+      matrix_b%dbcsr_mapping%csr_to_brd_ind = matrix_a%dbcsr_mapping%csr_to_brd_ind
+      matrix_b%dbcsr_mapping%brd_to_csr_ind = matrix_a%dbcsr_mapping%brd_to_csr_ind
+      matrix_b%dbcsr_mapping%has_dbcsr_block_data = matrix_a%dbcsr_mapping%has_dbcsr_block_data
+      IF (matrix_b%dbcsr_mapping%has_dbcsr_block_data) THEN
+        matrix_b%dbcsr_mapping%dbcsr_nblkcols_total = matrix_a%dbcsr_mapping%dbcsr_nblkcols_total
+        matrix_b%dbcsr_mapping%dbcsr_nblkrows_total = matrix_a%dbcsr_mapping%dbcsr_nblkrows_total
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_row_blk_size(matrix_a%dbcsr_mapping%dbcsr_nblkrows_total))
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_col_blk_size(matrix_a%dbcsr_mapping%dbcsr_nblkcols_total))
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_row_p(matrix_a%dbcsr_mapping%dbcsr_nblkrows_total+1))
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_col_i(matrix_a%dbcsr_mapping%dbcsr_nblks_local))
+        matrix_b%dbcsr_mapping%dbcsr_nblks_local = matrix_a%dbcsr_mapping%dbcsr_nblks_local
+        matrix_b%dbcsr_mapping%dbcsr_row_p = matrix_a%dbcsr_mapping%dbcsr_row_p
+        matrix_b%dbcsr_mapping%dbcsr_col_i = matrix_a%dbcsr_mapping%dbcsr_col_i
+        matrix_b%dbcsr_mapping%dbcsr_row_blk_size = matrix_a%dbcsr_mapping%dbcsr_row_blk_size
+        matrix_b%dbcsr_mapping%dbcsr_col_blk_size = matrix_a%dbcsr_mapping%dbcsr_col_blk_size
+      ENDIF
+
+      CALL dbcsr_init(matrix_b%dbcsr_mapping%brd_mat)
+      CALL dbcsr_copy(matrix_b%dbcsr_mapping%brd_mat, matrix_a%dbcsr_mapping%brd_mat, error=error)
+
+    matrix_b%valid = .TRUE.
+      
+    ENDIF
+
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE csr_create_template
+
+! *****************************************************************************
+!> \brief Copy a CSR matrix.
+!> \param matrix_b Target CSR matrix
+!> \param matrix_a Source CSR matrix
+!> \param error ...
+!> \par History
+!>      10.2014 created [Patrick Seewald]
+!> \author Patrick Seewald
+! *****************************************************************************
+  SUBROUTINE csr_copy(matrix_b, matrix_a, error)
+    TYPE(csr_type), INTENT(OUT)              :: matrix_b
+    TYPE(csr_type), INTENT(IN)               :: matrix_a
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_copy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handler
+
+    CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
+      "Source CSR matrix must be created.",__LINE__, error)
+    CALL dbcsr_assert(matrix_a%has_indices,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
+      "Source CSR matrix must have indices.",__LINE__, error)
+
+    IF (.NOT. matrix_b%valid) THEN
+      CALL csr_create(matrix_b, matrix_a, error)
+    ENDIF
+
+    CALL dbcsr_assert(matrix_b%nzval_local%data_type, "EQ",&
+      matrix_a%nzval_local%data_type,dbcsr_fatal_level,dbcsr_wrong_args_error,&
+      routineN,"Matrices don't have the same datatype.",__LINE__, error)
+
+    CALL dbcsr_assert(matrix_b%nze_local, "EQ",&
+      matrix_a%nze_local,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
+      "Matrices don't have the same number of local non-zero elements.",__LINE__, error)
+
+    CALL dbcsr_assert(matrix_b%nrows_local, "EQ", matrix_a%nrows_local,&
+      dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
+      "Matrices don't have the same number of local rows.",__LINE__, error)
+
+    IF (.NOT. matrix_b%has_indices) THEN
+      matrix_b%rowptr_local = matrix_a%rowptr_local
+      matrix_b%colind_local = matrix_a%colind_local
+    ENDIF
+
+    SELECT CASE (matrix_a%nzval_local%data_type)
+       CASE (dbcsr_type_real_4)
+         matrix_b%nzval_local%r_sp = matrix_a%nzval_local%r_sp
+       CASE (dbcsr_type_real_8)
+         matrix_b%nzval_local%r_dp = matrix_a%nzval_local%r_dp
+       CASE (dbcsr_type_complex_4)
+         matrix_b%nzval_local%c_sp = matrix_a%nzval_local%c_sp
+       CASE (dbcsr_type_complex_8)
+         matrix_b%nzval_local%c_dp = matrix_a%nzval_local%c_dp
+     END SELECT
+
+  CALL dbcsr_error_stop(error_handler, error)
+
+  END SUBROUTINE csr_copy
+
+! *****************************************************************************
 !> \brief create a vector containing the number of non-zero elements in each
 !> row of a CSR matrix
 !> \param[in] csr_mat   CSR matrix
 !> \param[out] nze_row  number of non-zero elements in each row
 !> \param error ...
+!> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
@@ -288,12 +424,9 @@ CONTAINS
       "CSR matrix must be created.",__LINE__, error)
 
     ALLOCATE(nze_row(csr_mat%nrows_local))
-    DO k=1,csr_mat%nrows_local-1
+    DO k=1,csr_mat%nrows_local
       nze_row(k) = csr_mat%rowptr_local(k+1) - csr_mat%rowptr_local(k) 
     ENDDO
-
-    k = csr_mat%nrows_local 
-    IF(k .GT. 0) nze_row(k) = csr_mat%nze_local-csr_mat%rowptr_local(k) + 1
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE csr_create_nze_row
@@ -390,9 +523,8 @@ CONTAINS
     col_dist = dbcsr_distribution_col_dist(dist_current)
     cdist => array_data(col_dist)
 
-    CALL dbcsr_assert(COUNT(cdist .NE. 0),"EQ", 0, dbcsr_fatal_level,&
-      dbcsr_wrong_args_error,routineN, "DBCSR matrix not block-row distributed.",&
-      __LINE__, error)
+    CALL dbcsr_assert(ALL(cdist .EQ. 0), dbcsr_fatal_level,dbcsr_wrong_args_error,&
+      routineN, "DBCSR matrix not block-row distributed.",__LINE__, error)
  
     CALL dbcsr_get_info(brd_mat, nfullrows_total = nfullrows_total,&
       nfullcols_total = nfullcols_total)
@@ -437,8 +569,8 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: brd_mat
     INTEGER, DIMENSION(:), INTENT(OUT), &
       POINTER                                :: dbcsr_index, csr_index
-    INTEGER, ALLOCATABLE, DIMENSION(:), &
-      INTENT(IN), OPTIONAL                   :: dbcsr_zeroes
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: dbcsr_zeroes
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_get_dbcsr_mapping', &
@@ -599,18 +731,14 @@ CONTAINS
 !>        The DBCSR matrix must have a block structure consistent with the CSR matrix.
 !> \param[in] brd_mat        block-row distributed DBCSR matrix 
 !> \param[in,out] csr_mat    CSR matrix 
-!> \param[in] data_only      if true, only the values are copied, rowptr and 
-!>                           colind are left unchanged if they exist
 !> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-
-  SUBROUTINE convert_brd_to_csr (brd_mat, csr_mat, data_only, error)
+  SUBROUTINE convert_brd_to_csr (brd_mat, csr_mat, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: brd_mat
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
-    LOGICAL, INTENT(IN)                      :: data_only
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_brd_to_csr', &
@@ -626,7 +754,6 @@ CONTAINS
     LOGICAL                                  :: new_ind, tr
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj)                          :: brd_mat_nosym
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     NULLIFY(rowptr, colind, dbcsr_index, csr_index)
@@ -634,30 +761,24 @@ CONTAINS
     dbcsr_index => csr_mat%dbcsr_mapping%csr_to_brd_ind
     csr_index => csr_mat%dbcsr_mapping%brd_to_csr_ind 
 
-    ! Conversion does not support matrices in symmetric format, therefore desymmetrize
-    IF(dbcsr_has_symmetry(brd_mat)) THEN
-      CALL dbcsr_desymmetrize_deep(brd_mat,brd_mat_nosym,error=error)
-    ELSE
-      brd_mat_nosym = brd_mat
-    ENDIF
     
-    ! CSR indices are not recalculated if data_only is true and indices are already defined
-    new_ind = .NOT. ((data_only) .AND. (csr_mat%has_indices))
+    ! CSR indices are not recalculated if indices are already defined
+    new_ind = .NOT. (csr_mat%has_indices)
 
     ! Calculate mapping between CSR matrix and DBCSR matrix if not yet defined
     IF (.NOT. csr_mat%has_mapping ) THEN 
-      CALL csr_get_dbcsr_mapping (brd_mat_nosym, dbcsr_index, csr_index, error=error)
+      CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, error=error)
     ENDIF
    
-    CALL dbcsr_get_info(brd_mat_nosym, nblkrows_total = nblkrows_total)
+    CALL dbcsr_get_info(brd_mat, nblkrows_total = nblkrows_total)
     ALLOCATE( nfullcol_blkrow(nblkrows_total))
    
     ! iteration over blocks without touching data, 
     ! in order to get number of non-zero full columns in each block row
-    CALL dbcsr_iterator_start(iter, brd_mat_nosym, read_only = .TRUE.)
+    CALL dbcsr_iterator_start(iter, brd_mat, read_only = .TRUE.)
     blkrow = 0
     nfullcol_blkrow = 0 ! number of non-zero full columns in each block row
-    data_type = dbcsr_get_data_type(brd_mat_nosym)
+    data_type = dbcsr_get_data_type(brd_mat)
 
     DO WHILE (dbcsr_iterator_blocks_left(iter))
       CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk, col_size = col_blk_size,&
@@ -679,16 +800,16 @@ CONTAINS
     CALL dbcsr_data_init(block)
     CALL dbcsr_data_new(block, data_type)
 
-    CALL dbcsr_iterator_start(iter, brd_mat_nosym, read_only = .TRUE.)
+    CALL dbcsr_iterator_start(iter, brd_mat, read_only = .TRUE.)
 
-    rowptr(:) = 0 ! initialize to 0 in order to check which rows are 0 at a later time
+    IF (new_ind) rowptr(:) = 0 ! initialize to 0 in order to check which rows are 0 at a later time
     DO WHILE (dbcsr_iterator_blocks_left(iter))  
       CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, block, tr,&
         col_size = col_blk_size, row_size = row_blk_size, row_offset = row_blk_offset,&
         col_offset = col_blk_offset)
 
       CALL dbcsr_assert(.NOT. tr,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "DBCSR block data must no be transposed",__LINE__, error=error)
+        "DBCSR block data must not be transposed",__LINE__, error=error)
 
       IF(blkrow > prev_blkrow) THEN ! new block row
         local_row_ind = row_blk_offset-node_row_offset ! actually: local row index - 1
@@ -731,18 +852,22 @@ CONTAINS
       prev_blkrow = blkrow
       prev_row_blk_size = row_blk_size
     ENDDO
+    
+    IF (new_ind) THEN
+      ! Repeat previous row pointer for row pointers to zero rows
+      IF (csr_mat%nrows_local .GT. 0) rowptr(1) = 1
+      DO k=1, csr_mat%nrows_local
+        IF (rowptr(k) .LE. 0) rowptr(k) = rowptr(k-1)
+      ENDDO
 
-    ! Repeat previous row pointer for row pointer to zero rows
-    IF (csr_mat%nrows_local .GT. 0) rowptr(1) = 1
-    DO k=1, csr_mat%nrows_local
-      IF (rowptr(k) .LE. 0) rowptr(k) = rowptr(k-1)
-    ENDDO
+      rowptr(csr_mat%nrows_local+1) = csr_mat%nze_local + 1
+    ENDIF
 
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer (block)
     CALL dbcsr_data_release (block)
 
-    csr_mat%has_indices = .TRUE.
+    IF (new_ind) csr_mat%has_indices = .TRUE.
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE convert_brd_to_csr
@@ -762,6 +887,7 @@ CONTAINS
 !>                          process holding the remaining rows), if equal_dist 
 !>                          is set to true.
 !> \param error ...
+!> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
@@ -779,11 +905,11 @@ CONTAINS
                                                 nblkcols_total, &
                                                 nblkrows_total, nblks_local
     LOGICAL                                  :: fd
-    TYPE(dbcsr_obj)                          :: brd_mat
+    TYPE(dbcsr_obj)                          :: brd_mat, dbcsr_mat_nosym
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,& 
+    CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__, error=error)
 
     CALL dbcsr_assert(.NOT. PRESENT(floor_dist),"OR",equal_dist, dbcsr_warning_level,&
@@ -791,6 +917,13 @@ CONTAINS
     "optional argument floor_dist ignored as equal_dist is false",&
      __LINE__, error=error)
 
+    ! Conversion does not support matrices in symmetric format, therefore desymmetrize
+    IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
+      CALL dbcsr_init(dbcsr_mat_nosym)
+      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE., error=error)
+    ELSE
+      dbcsr_mat_nosym = dbcsr_mat
+    ENDIF
 
     IF (PRESENT(floor_dist)) THEN
       fd = floor_dist
@@ -799,35 +932,65 @@ CONTAINS
     ENDIF 
 
     ! Create BRD matrix from DBCSR matrix
-    CALL dbcsr_create_brd (dbcsr_mat, brd_mat, equal_dist, fd, error=error)
+    CALL dbcsr_create_brd (dbcsr_mat_nosym, brd_mat, equal_dist, fd, error=error)
 
     ! Create CSR matrix from BRD matrix
     CALL csr_create_from_brd(brd_mat, csr_mat, error)
 
     ! Store DBCSR block data inside CSR matrix 
     ! (otherwise, this data is lost when converting from DBCSR to CSR)
-    nblks_local = dbcsr_get_num_blocks(dbcsr_mat)
-    nblkrows_total = dbcsr_nblkrows_total(dbcsr_mat)
-    nblkcols_total = dbcsr_nblkcols_total(dbcsr_mat)
+    nblks_local = dbcsr_get_num_blocks(dbcsr_mat_nosym)
+    nblkrows_total = dbcsr_nblkrows_total(dbcsr_mat_nosym)
+    nblkcols_total = dbcsr_nblkcols_total(dbcsr_mat_nosym)
 
     csr_mat%dbcsr_mapping%dbcsr_nblkcols_total = nblkcols_total
     csr_mat%dbcsr_mapping%dbcsr_nblkrows_total = nblkrows_total
     csr_mat%dbcsr_mapping%dbcsr_nblks_local = nblks_local
     ALLOCATE(csr_mat%dbcsr_mapping%dbcsr_row_p(nblkrows_total+1))
-    csr_mat%dbcsr_mapping%dbcsr_row_p = dbcsr_mat%m%row_p
+    csr_mat%dbcsr_mapping%dbcsr_row_p = dbcsr_mat_nosym%m%row_p
     ALLOCATE(csr_mat%dbcsr_mapping%dbcsr_col_i(nblks_local))
-    csr_mat%dbcsr_mapping%dbcsr_col_i = dbcsr_mat%m%col_i
+    csr_mat%dbcsr_mapping%dbcsr_col_i = dbcsr_mat_nosym%m%col_i
 
     ALLOCATE(csr_mat%dbcsr_mapping%dbcsr_row_blk_size(nblkrows_total))
     ALLOCATE(csr_mat%dbcsr_mapping%dbcsr_col_blk_size(nblkcols_total))
 
-    csr_mat%dbcsr_mapping%dbcsr_row_blk_size = array_data(dbcsr_row_block_sizes(dbcsr_mat))
-    csr_mat%dbcsr_mapping%dbcsr_col_blk_size = array_data(dbcsr_col_block_sizes(dbcsr_mat))
+    csr_mat%dbcsr_mapping%dbcsr_row_blk_size = array_data(dbcsr_row_block_sizes(dbcsr_mat_nosym))
+    csr_mat%dbcsr_mapping%dbcsr_col_blk_size = array_data(dbcsr_col_block_sizes(dbcsr_mat_nosym))
 
     csr_mat%dbcsr_mapping%has_dbcsr_block_data = .TRUE.
 
+    IF(dbcsr_has_symmetry(dbcsr_mat)) CALL dbcsr_release(dbcsr_mat_nosym)
+ 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE csr_create_from_dbcsr
+
+! *****************************************************************************
+!> \brief Check if two DBCSR matrices have the same block structure (including
+!>        sparsity pattern)
+!> \param matrix_a  ...
+!> \param matrix_b ...
+!> \retval is_equal whether matrix_a and matrix_b have the same block structure
+!> \par History
+!>      11.2014 created [Patrick Seewald]
+!> \author Patrick Seewald
+! *****************************************************************************
+  FUNCTION dbcsr_has_same_block_structure(matrix_a, matrix_b) RESULT (is_equal)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    LOGICAL                                  :: is_equal
+
+    is_equal = .TRUE.
+  
+    IF (dbcsr_nblkcols_total(matrix_a) .NE. dbcsr_nblkcols_total(matrix_b)) is_equal = .FALSE.
+    IF (dbcsr_nblkrows_total(matrix_a) .NE. dbcsr_nblkrows_total(matrix_b)) is_equal = .FALSE.
+    IF ((matrix_a%m%nblks) .NE. (matrix_b%m%nblks)) is_equal = .FALSE.
+    IF (ANY(matrix_a%m%row_p .NE. matrix_b%m%row_p)) is_equal = .FALSE.
+    IF (ANY(matrix_a%m%col_i .NE. matrix_b%m%col_i)) is_equal = .FALSE.
+    IF (ANY(array_data(dbcsr_row_block_sizes(matrix_a)) .NE.&
+      array_data(dbcsr_row_block_sizes(matrix_b)))) is_equal = .FALSE.
+    IF (ANY(array_data(dbcsr_row_block_sizes(matrix_a)) .NE.&
+      array_data(dbcsr_row_block_sizes(matrix_b)))) is_equal = .FALSE.
+
+  END FUNCTION dbcsr_has_same_block_structure
 
 
 ! *****************************************************************************
@@ -836,6 +999,7 @@ CONTAINS
 !> \param csr_mat ...
 !> \param dbcsr_mat ...
 !> \param error ...
+!> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
@@ -896,24 +1060,21 @@ CONTAINS
 !> \brief Convert a DBCSR matrix to a CSR matrix.
 !> \param[in] dbcsr_mat DBCSR matrix to convert
 !> \param[in,out] csr_mat correctly allocated CSR matrix
-!> \param[in] data_only if true (default), only the data is transferred during the 
-!>  conversion if the indices (colind, rowptr) of csr_mat are already defined 
-!>  at input
 !> \param error ...
+!> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE convert_dbcsr_to_csr(dbcsr_mat, csr_mat, data_only, error)
+  SUBROUTINE convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
-    LOGICAL, INTENT(IN), OPTIONAL            :: data_only
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_dbcsr_to_csr', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
-    LOGICAL                                  :: dat
+    TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
@@ -928,18 +1089,21 @@ CONTAINS
         "CSR_mat must contain mapping to DBCSR format",&
         __LINE__, error=error)
 
-    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat, error)
-
-    IF(PRESENT(data_only)) THEN
-      dat = data_only
+    IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
+      CALL dbcsr_init(dbcsr_mat_nosym)
+      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE., error=error)
     ELSE
-      dat = .TRUE.
+      dbcsr_mat_nosym = dbcsr_mat
     ENDIF
 
+    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat_nosym, error)
+
     ! 1) DBCSR -> BRD
-    CALL dbcsr_complete_redistribute(dbcsr_mat,csr_mat%dbcsr_mapping%brd_mat,error=error)
+    CALL dbcsr_complete_redistribute(dbcsr_mat_nosym,csr_mat%dbcsr_mapping%brd_mat,error=error)
     ! 2) BRD -> CSR
-    CALL convert_brd_to_csr(csr_mat%dbcsr_mapping%brd_mat, csr_mat, dat, error=error)
+    CALL convert_brd_to_csr(csr_mat%dbcsr_mapping%brd_mat, csr_mat, error=error)
+
+    IF(dbcsr_has_symmetry(dbcsr_mat)) CALL dbcsr_release(dbcsr_mat_nosym)
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE convert_dbcsr_to_csr
@@ -949,6 +1113,7 @@ CONTAINS
 !> \param[in,out] dbcsr_mat correctly allocated DBCSR matrix
 !> \param[in,out] csr_mat CSR matrix to convert
 !> \param error ...
+!> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
@@ -962,6 +1127,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
+    TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
@@ -978,13 +1144,22 @@ CONTAINS
         "CSR_mat must contain mapping to DBCSR format",&
         __LINE__, error=error)
 
-    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat, error)
+    IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
+      CALL dbcsr_init(dbcsr_mat_nosym)
+      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE., error=error)
+    ELSE
+      dbcsr_mat_nosym = dbcsr_mat
+    ENDIF
+
+    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat_nosym, error)
     
+    IF(dbcsr_has_symmetry(dbcsr_mat)) CALL dbcsr_release(dbcsr_mat_nosym)
+
     ! 1) CSR -> BRD
     CALL convert_csr_to_brd(csr_mat%dbcsr_mapping%brd_mat, csr_mat, error)
 
     ! 2) BRD -> DBCSR
-    CALL dbcsr_complete_redistribute(csr_mat%dbcsr_mapping%brd_mat,dbcsr_mat, error=error )
+    CALL dbcsr_complete_redistribute(csr_mat%dbcsr_mapping%brd_mat, dbcsr_mat, error=error )
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE convert_csr_to_dbcsr
@@ -992,7 +1167,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Test the conversion by converting to CSR format and converting back and 
 !>        calculating the Frobenius norm of the differences between the original 
-!>        and the back-converted matrix
+!>        and the back-converted matrix.
 !> \param[in] dbcsr_mat ...
 !> \param csr_mat ...
 !> \param[out] norm ...
@@ -1019,7 +1194,7 @@ CONTAINS
     CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, equal_dist=.TRUE.,&
       floor_dist = .TRUE.,error=error)
 
-    CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat, data_only = .TRUE.,error=error)
+    CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error=error)
 
     CALL dbcsr_init(dbcsr_mat_conv)
     CALL dbcsr_copy(dbcsr_mat_conv, dbcsr_mat, error=error)
@@ -1040,6 +1215,7 @@ CONTAINS
 !> \param[in] upper_triangle    If true (default: false), write only upper 
 !>                              triangular part of matrix
 !> \param error ...
+!> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************

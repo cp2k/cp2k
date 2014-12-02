@@ -48,12 +48,10 @@ MODULE dbcsr_api
        has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
        mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
        multrec_limit
-  USE dbcsr_csr_conversions,           ONLY: convert_csr_to_dbcsr,&
-                                             convert_dbcsr_to_csr,&
-                                             csr_create_from_dbcsr,&
-                                             csr_destroy,&
-                                             csr_type,&
-                                             csr_write
+  USE dbcsr_csr_conversions,           ONLY: &
+       convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_conversion_test, &
+       csr_create, csr_create_from_dbcsr, csr_create_new, csr_create_nze_row, &
+       csr_create_template, csr_destroy, csr_type, csr_write
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_get_data_p, dbcsr_scalar, &
@@ -88,11 +86,11 @@ MODULE dbcsr_api
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_init, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_name, &
-       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_valid_index, &
-       dbcsr_wm_use_mutable
+       dbcsr_has_symmetry, dbcsr_init, dbcsr_max_col_size, &
+       dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_local, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                              dbcsr_mp_hold,&
                                              dbcsr_mp_mynode,&
@@ -359,11 +357,17 @@ MODULE dbcsr_api
             dbcsr_set_default_config,&
             dbcsr_row_block_sizes,&
             dbcsr_col_block_sizes,&
+            dbcsr_has_symmetry,&
             convert_csr_to_dbcsr,&
             convert_dbcsr_to_csr,&
             csr_create_from_dbcsr,&
             csr_destroy,&
             csr_type,&
-            csr_write
+            csr_create,&
+            csr_create_new,&
+            csr_create_template,&
+            csr_write,&
+            csr_conversion_test,&
+            csr_create_nze_row
 
 END MODULE dbcsr_api
