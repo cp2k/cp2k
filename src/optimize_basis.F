@@ -411,7 +411,7 @@ CONTAINS
                              mpi_comm=mpi_comm_opt,&
                              ierr=stat)
 
-       ! some weirdness with the default stacks defaults have to addded to get the 
+       ! some weirdness with the default stacks defaults have to be addded to get the 
        ! correct default program name this causes trouble with the timer stack if kept
        CALL f_env_add_defaults(f_env_id(icalc), f_env, suberror(icalc), failure)
        force_env => f_env%force_env

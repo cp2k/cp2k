@@ -343,17 +343,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads the parameters of the scf section into the given scf_control
 !> \param scf_control the object that wil contain the values read
-!> \param dft_section ...
+!> \param inp_section ...
 !> \param error controls log and error handling
 !> \par History
 !>      05.2001 created [Matthias]
 !>      09.2002 creaded separated scf_control type [fawzi]
 !> \author Matthias Krack
 ! *****************************************************************************
-  SUBROUTINE scf_c_read_parameters(scf_control,dft_section,error)
+  SUBROUTINE scf_c_read_parameters(scf_control,inp_section,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: inp_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
@@ -373,7 +373,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition((scf_control%ref_count > 0),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+       scf_section => section_vals_get_subs_vals(inp_section,"SCF",error=error)
        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
             l_val=scf_control%use_diag,error=error)
        IF(scf_control%use_diag) THEN

@@ -15,8 +15,7 @@ MODULE cp_control_types
                                              default_string_length,&
                                              dp
   USE pw_types,                        ONLY: pw_p_type
-  USE xas_control,                     ONLY: xas_control_create,&
-                                             xas_control_release,&
+  USE xas_control,                     ONLY: xas_control_release,&
                                              xas_control_type
 #include "./common/cp_common_uses.f90"
 
@@ -425,7 +424,6 @@ MODULE cp_control_types
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
             dft_control_create,&
-            xas_control_create,&
             tddfpt_control_create,&
             admm_control_create,&
             ddapc_control_create

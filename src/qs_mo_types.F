@@ -788,7 +788,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, i_first, imo, nmo, &
+    INTEGER                                  :: handle, i_first, imo, nmo, &
                                                 nomo, stat, xas_estate
     LOGICAL                                  :: equal_size, failure, is_large
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
@@ -812,46 +812,35 @@ CONTAINS
       RETURN
     END IF
 
-    IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN
-      nomo = NINT(mo_set%nelectron/mo_set%maxocc)
-      ! Initialize MO occupations
-      mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
-    ELSE
-      nomo = INT(mo_set%nelectron/mo_set%maxocc) + 1
-      ! Initialize MO occupations
-      mo_set%occupation_numbers(1:nomo-1) = mo_set%maxocc
-      mo_set%occupation_numbers(nomo) = mo_set%nelectron -(nomo-1)* mo_set%maxocc
-    END IF
-    nmo  = SIZE(mo_set%eigenvalues)
     xas_estate =  -1
     occ_estate = 0.0_dp
+    IF(PRESENT(xas_env)) THEN
+      CALL get_xas_env(xas_env=xas_env, xas_nelectron=xas_nelectron, occ_estate=occ_estate,xas_estate=xas_estate,error=error)
+      nomo = INT(xas_nelectron + 1 - occ_estate)
+      IF(MOD(xas_nelectron + 1 - occ_estate,1.0_dp)>EPSILON(0.0_dp)) nomo = nomo+1
+
+      mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
+      IF(xas_estate>0) mo_set%occupation_numbers(xas_estate) = occ_estate
+      el_count = SUM( mo_set%occupation_numbers(1:nomo))
+      IF(el_count>xas_nelectron) mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - (el_count-xas_nelectron)
+      el_count = SUM( mo_set%occupation_numbers(1:nomo))
+      CPPrecondition((el_count==xas_nelectron),cp_failure_level,routineP,error,failure)
+    ELSE
+     IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN
+        nomo = NINT(mo_set%nelectron/mo_set%maxocc)
+        ! Initialize MO occupations
+        mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
+      ELSE
+        nomo = INT(mo_set%nelectron/mo_set%maxocc) + 1
+        ! Initialize MO occupations
+        mo_set%occupation_numbers(1:nomo-1) = mo_set%maxocc
+        mo_set%occupation_numbers(nomo) = mo_set%nelectron -(nomo-1)* mo_set%maxocc
+      END IF
+    END IF
+    nmo  = SIZE(mo_set%eigenvalues)
 
     CPPrecondition((nmo >= nomo),cp_failure_level,routineP,error,failure)
     CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,error,failure)
-
-    IF(PRESENT(xas_env) )THEN
-      CALL get_xas_env(xas_env=xas_env,occ_estate=occ_estate,xas_estate=xas_estate,&
-                  xas_nelectron=xas_nelectron,error=error)
-      IF(xas_estate>-1) THEN
-        mo_set%occupation_numbers(xas_estate) = occ_estate
-        el_count = 0.0_dp
-        DO i = 1,nomo
-          el_count = el_count + mo_set%occupation_numbers(i)
-          IF((el_count-xas_nelectron) >EPSILON(0.0_dp)) THEN
-            nomo = i
-            mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - &
-                 (el_count-xas_nelectron)
-            EXIT
-           END IF
-        END DO
-        IF((xas_nelectron - el_count) > EPSILON(0.0_dp) ) THEN
-          nomo = nomo + 1
-          mo_set%occupation_numbers(nomo) = xas_nelectron -  el_count
-        END IF
-      END IF
-    ENDIF
-    ! zeros don't count as uniform
-    !MK mo_set%uniform_occupation = ALL(mo_set%occupation_numbers==mo_set%maxocc)
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
@@ -1023,6 +1012,9 @@ CONTAINS
       END IF
 
     END IF ! do smear
+
+    ! zeros don't count as uniform
+    mo_set%uniform_occupation = ALL(mo_set%occupation_numbers==mo_set%maxocc)
 
     CALL timestop(handle)
 

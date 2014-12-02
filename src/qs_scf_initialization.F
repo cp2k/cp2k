@@ -60,7 +60,6 @@ MODULE qs_scf_initialization
   USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                              mixing_storage_create,&
                                              mixing_storage_release,&
-                                             mixing_storage_type,&
                                              no_mixing_nr
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -77,8 +76,7 @@ MODULE qs_scf_initialization
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_occupation,&
-                                             set_mo_set
+                                             set_mo_occupation
   USE qs_outer_scf,                    ONLY: outer_loop_extrapolate,&
                                              outer_loop_variables_count
   USE qs_rho_atom_types,               ONLY: rho_atom_type
@@ -98,7 +96,7 @@ MODULE qs_scf_initialization
        block_davidson_diag_method_nr, block_krylov_diag_method_nr, &
        diag_subspace_env_create, general_diag_method_nr, krylov_space_create, &
        ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_create, &
-       scf_env_release, special_diag_method_nr
+       special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: reorthogonalize_vectors,&
                                              wfi_extrapolate,&
                                              wfi_get_method_label,&
@@ -125,54 +123,65 @@ CONTAINS
 !>        previous runs to fill scf_env with the values required for scf
 !> \param qs_env the qs_environment where to perform the scf procedure
 !> \param scf_env ...
-!> \param do_xas_tp ...
+!> \param scf_control ...
+!> \param scf_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
 
-  SUBROUTINE qs_scf_env_initialize(qs_env,scf_env,do_xas_tp,error)
+  SUBROUTINE qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_xas_tp
+    TYPE(scf_control_type), OPTIONAL, &
+      POINTER                                :: scf_control
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: scf_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_env_initialize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_my_xas_tp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scf_control_type), POINTER          :: my_scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
-                                                scf_section
-
-    do_my_xas_tp=.FALSE.
-    IF(PRESENT(do_xas_tp))do_my_xas_tp=do_xas_tp
+                                                my_scf_section
 
     CALL get_qs_env(qs_env,error=error,input=input, rho=rho,&
-                       dft_control=dft_control,scf_control=scf_control)
+                       dft_control=dft_control)
+    
+    IF(PRESENT(scf_control)) THEN
+      my_scf_control => scf_control
+    ELSE
+      CALL get_qs_env(qs_env,error=error,scf_control=my_scf_control)
+    ENDIF
+
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-    scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+    IF(PRESENT(scf_section)) THEN
+     my_scf_section => scf_section
+    ELSE
+      my_scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+    END IF
 
     CALL qs_scf_ensure_scf_env(qs_env,scf_env,error)
 
-    CALL section_vals_val_get(scf_section,"CHOLESKY",i_val=scf_env%cholesky_method,error=error)
+    CALL section_vals_val_get(my_scf_section,"CHOLESKY",i_val=scf_env%cholesky_method,error=error)
 
-    CALL qs_scf_ensure_mos(qs_env,scf_env,do_my_xas_tp,error)
+    CALL qs_scf_ensure_mos(qs_env,scf_env,error=error)
 
     ! set flags for diagonalization
-    CALL qs_scf_ensure_diagonalization(scf_env,scf_section,qs_env,&
-                                     scf_control,qs_env%has_unit_metric,error)
+    CALL qs_scf_ensure_diagonalization(scf_env,my_scf_section,qs_env,&
+                                     my_scf_control, qs_env%has_unit_metric, error=error)
     ! set parameters for mixing/DIIS during scf
-    CALL qs_scf_ensure_mixing(scf_control,scf_section,scf_env,dft_control,error)
+    CALL qs_scf_ensure_mixing(my_scf_control,my_scf_section,scf_env,dft_control,error=error)
 
-    CALL qs_scf_ensure_work_matrices(qs_env,scf_env,error)    
+    CALL qs_scf_ensure_work_matrices(qs_env,scf_env,error=error)    
 
-    CALL qs_scf_ensure_mixing_store(qs_env,do_my_xas_tp,error)
+    CALL qs_scf_ensure_mixing_store(qs_env,scf_env,error=error)
 
-    CALL qs_scf_ensure_outer_loop_vars(scf_env,scf_control,dft_control,error)
+    CALL qs_scf_ensure_outer_loop_vars(scf_env,my_scf_control,dft_control,error=error)
 
-    CALL init_scf_run(scf_env, qs_env, scf_section, do_my_xas_tp, error)
+    CALL init_scf_run(scf_env, qs_env, my_scf_section, my_scf_control, error=error)
 
   END SUBROUTINE qs_scf_env_initialize
 
@@ -198,9 +207,9 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(scf_env)) THEN ! i.e. for MD this is associated on the second step (it so seems)
        CALL scf_env_create(scf_env, error=error)
-       CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
-       CALL scf_env_release(scf_env,error=error)
-       CALL get_qs_env(qs_env=qs_env,scf_env=scf_env,error=error)
+!       CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
+!       CALL scf_env_release(scf_env,error=error)
+!       CALL get_qs_env(qs_env=qs_env,scf_env=scf_env,error=error)
     ELSE
        ! Reallocate mixing store, if the g space grid (cell) has changed
        SELECT CASE (scf_env%mixing_method)
@@ -257,36 +266,25 @@ CONTAINS
 ! *****************************************************************************
 !> \brief performs allocation of the mixing storage
 !> \param qs_env ...
-!> \param do_xas_tp ...
+!> \param scf_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_ensure_mixing_store(qs_env,do_xas_tp,error)
+  SUBROUTINE qs_scf_ensure_mixing_store(qs_env,scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL                                  :: do_xas_tp
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_mixing_store', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: mixing_method
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(mixing_storage_type), POINTER       :: mixing_store
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(xas_environment_type), POINTER      :: xas_env
 
-    NULLIFY(dft_control,scf_env,xas_env)
+    NULLIFY(dft_control)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-                    scf_env=scf_env,xas_env=xas_env,error=error)
+                    error=error)
  
-    IF(do_xas_tp) THEN
-      mixing_method = xas_env%mixing_method
-      mixing_store => xas_env%mixing_store
-    ELSE
-      mixing_method = scf_env%mixing_method
-      mixing_store => scf_env%mixing_store
-    END IF
-    IF (mixing_method>0) THEN
-      CALL mixing_allocate(qs_env,mixing_method,mixing_store,dft_control%nspins,error)
+    IF (scf_env%mixing_method>0) THEN
+      CALL mixing_allocate(qs_env,scf_env,dft_control%nspins,error=error)
     ELSE
        NULLIFY(scf_env%p_mix_new)
     END IF
@@ -444,13 +442,11 @@ CONTAINS
 !> \brief performs allocation of the MO matrices  
 !> \param qs_env ...
 !> \param scf_env ...
-!> \param do_xas_tp ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_ensure_mos(qs_env,scf_env,do_xas_tp,error)
+  SUBROUTINE qs_scf_ensure_mos(qs_env,scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    LOGICAL, INTENT(IN)                      :: do_xas_tp
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_mos', &
@@ -528,13 +524,6 @@ CONTAINS
              CALL array_release (col_blk_size)! fm->dbcsr
              CALL array_release (col_dist)! fm->dbcsr
           ENDIF
-    ! very first tests for xas
-          IF(do_xas_tp .AND. ispin==1) THEN
-            CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=xas_env%smear,&
-                 xas_env=xas_env,error=error)
-            CALL set_mo_set(mos(ispin)%mo_set,&
-                 uniform_occupation=.FALSE.,error=error)
-          END IF
        END DO
     END IF
 !   *** get the mo_derivs OK if needed ***
@@ -574,9 +563,6 @@ CONTAINS
                     "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                     error=error)
             END IF
-            IF(do_xas_tp .AND. ispin==1) THEN
-              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-            END IF
          END DO
       END IF
       IF (qs_env%requires_mo_derivs) THEN
@@ -602,7 +588,7 @@ CONTAINS
             routineP,"No MO derivative methods allowed with kpoints",error,failure)
        CALL cp_assert(.NOT.(dft_control%do_admm),cp_failure_level,cp_assertion_failed,&
             routineP,"No ADMM implemented with kpoints",error,failure)
-       CALL cp_assert(.NOT.(do_xas_tp),cp_failure_level,cp_assertion_failed,&
+       CALL cp_assert(.NOT.(dft_control%do_xas_calculation),cp_failure_level,cp_assertion_failed,&
             routineP,"No XAS implemented with kpoints",error,failure)
        DO ik=1,SIZE(kpoints%kp_env)
           CALL mpools_get(kpoints%mpools, ao_mo_fm_pools=ao_mo_fm_pools,error=error)
@@ -724,9 +710,10 @@ CONTAINS
       routineN = 'qs_scf_ensure_diagonalization', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: ispin, nao, nmo
     LOGICAL                                  :: do_kpoints, failure, &
                                                 need_coeff_b, not_se_or_dftb
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -781,7 +768,8 @@ CONTAINS
            CALL block_davidson_env_create(scf_env%block_davidson_env,dft_control%nspins,&
                                           scf_section,error=error)
         DO ispin=1,dft_control%nspins
-          CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mos(ispin)%mo_set, error=error)
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+          CALL block_davidson_allocate(scf_env%block_davidson_env(ispin),mo_coeff, nao, nmo, error=error)
         END DO
         need_coeff_b=.TRUE.
       CASE DEFAULT
@@ -869,17 +857,17 @@ CONTAINS
 !> \param scf_env ...
 !> \param qs_env ...
 !> \param scf_section ...
-!> \param do_xas_tp ...
+!> \param scf_control ...
 !> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE init_scf_run(scf_env, qs_env, scf_section, do_xas_tp, error)
+  SUBROUTINE init_scf_run(scf_env, qs_env, scf_section,scf_control, error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_xas_tp
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
@@ -888,7 +876,7 @@ CONTAINS
     INTEGER                                  :: handle, ikind, iw, nao, ndep, &
                                                 output_unit
     LOGICAL :: dft_plus_u_atom, do_kpoints, failure, init_u_ramping_each_scf, &
-      my_transition_potential, s_minus_half_available
+      s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -901,14 +889,13 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(scf_control, qs_kind_set, matrix_s, dft_control, mos, rho)
+    NULLIFY( qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho,xas_env)
     failure=.FALSE.
-    my_transition_potential = .FALSE.
-    IF(PRESENT(do_xas_tp)) my_transition_potential = do_xas_tp
+!
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -919,15 +906,14 @@ CONTAINS
 
     s_minus_half_available = .FALSE.
     CALL get_qs_env(qs_env,&
-                    scf_control=scf_control,&
                     dft_control=dft_control,&
                     qs_kind_set=qs_kind_set,&
                     mos=mos,&
                     rho=rho,&
-    !                matrix_s=matrix_s,&
                     nelectron_total=scf_env%nelectron,&
                     do_kpoints=do_kpoints,&
                     para_env=para_env,&
+                    xas_env=xas_env,&
                     error=error)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set)
@@ -1015,12 +1001,15 @@ CONTAINS
     ENDIF
 
     ! initializes rho and the mos
-    IF( my_transition_potential) THEN
+    IF( ASSOCIATED(qs_env%xas_env)) THEN
+    ! if just optimized wfn, e.g. ground state
+    ! changes come from a perturbation, e.g., the occupation numbers
+    ! it could be generalized for other cases, at the moment used only for core level spectroscopy
       ! initialize the density with the localized mos
-        CALL xas_initialize_rho(qs_env,error=error)
+      CALL xas_initialize_rho(qs_env,scf_env,scf_control,error=error)
     ELSE
       CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
-           scf_section=scf_section, error=error)
+           scf_section=scf_section, scf_control=scf_control, error=error)
     END IF
 
     ! Frozen density approximation
@@ -1055,16 +1044,18 @@ CONTAINS
 !> \param scf_env the scf env in which to do the scf
 !> \param qs_env the qs env the scf_env lives in
 !> \param scf_section ...
+!> \param scf_control ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, scf_section, error)
+  SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, scf_section, scf_control, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_initial_rho_setup', &
@@ -1078,13 +1069,15 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(mo_coeff, rho, dft_control, para_env)
+    NULLIFY(mo_coeff, rho, dft_control, para_env, mos)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1092,10 +1085,11 @@ CONTAINS
 
     CALL get_qs_env(qs_env,&
                     rho=rho,&
+                    mos=mos,&
                     dft_control=dft_control,&
                     para_env=para_env,&
                     error=error)
-
+ 
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
@@ -1107,14 +1101,14 @@ CONTAINS
           IF ((.NOT.orthogonal_wf).AND.&
               (scf_env%method == ot_method_nr).AND.&
               (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
-             DO ispin=1,SIZE(qs_env%mos)
-                CALL get_mo_set(qs_env%mos(ispin)%mo_set, &
+             DO ispin=1,SIZE(mos)
+                CALL get_mo_set(mos(ispin)%mo_set, &
                      mo_coeff=mo_coeff, nmo=nmo)
                 CALL reorthogonalize_vectors(qs_env, &
                      v_matrix=mo_coeff, n_col=nmo,&
                      error=error)
-                CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, &
-                     smear=qs_env%scf_control%smear, error=error)
+                CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
+                     smear=scf_control%smear, error=error)
              END DO
           END IF
        END IF
@@ -1130,7 +1124,7 @@ CONTAINS
             "PRINT%PROGRAM_RUN_INFO", error=error)
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,error=error)
-          IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
+          IF (.NOT.(scf_control%density_guess==densities_guess)) THEN
             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
             CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                  error=error)
@@ -1138,22 +1132,22 @@ CONTAINS
        END IF
 
        ! Some preparation for the mixing
-       IF(qs_env%scf_env%mixing_method>1) THEN
+       IF(scf_env%mixing_method>1) THEN
           IF(dft_control % qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env,&
                  rho_atom_set=rho_atom,error=error)
-            CALL mixing_init(qs_env%scf_env%mixing_method,rho,qs_env%scf_env%mixing_store,&
+            CALL mixing_init(scf_env%mixing_method,rho,scf_env%mixing_store,&
                              para_env,rho_atom=rho_atom,error=error)
           ELSE
-            CALL mixing_init(qs_env%scf_env%mixing_method,rho,qs_env%scf_env%mixing_store,&
+            CALL mixing_init(scf_env%mixing_method,rho,scf_env%mixing_store,&
                              para_env,error=error)
           END IF
        END IF
 
-       DO ispin=1,SIZE(qs_env%mos)!fm->dbcsr
-          IF(qs_env%mos(ispin)%mo_set%use_mo_coeff_b) THEN
-             CALL copy_fm_to_dbcsr(qs_env%mos(ispin)%mo_set%mo_coeff,&
-                  qs_env%mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+       DO ispin=1,SIZE(mos)!fm->dbcsr
+          IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN
+             CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
+                  mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
           ENDIF
        ENDDO!fm->dbcsr
 

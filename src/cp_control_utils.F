@@ -16,7 +16,7 @@ MODULE cp_control_utils
        admm_control_create, admm_control_type, ddapc_control_create, &
        ddapc_restraint_type, dft_control_create, dft_control_type, &
        efield_type, qs_control_type, tddfpt_control_create, &
-       tddfpt_control_type, xas_control_create
+       tddfpt_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -51,7 +51,6 @@ MODULE cp_control_utils
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
   USE xc_input_constants,              ONLY: &
        xc_debug_new_routine, xc_deriv_collocate, xc_deriv_nn10_smooth, &
@@ -301,10 +300,6 @@ CPSourceFileRef,&
        ! Override with section parameter
        CALL section_vals_val_get(tmp_section,"_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
-       IF (dft_control%do_xas_calculation) THEN
-          CALL xas_control_create(dft_control%xas_control,error=error)
-          CALL read_xas_control(dft_control%xas_control,dft_section,error=error)
-       END IF
     END IF
 
     ! Read the finite field input section

@@ -118,7 +118,6 @@ CONTAINS
 
     NULLIFY(dft_control, energy)
     CALL qs_energies_init(qs_env, calc_forces, error=error)
-
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
 
     ! *** Perform a SCF run ***

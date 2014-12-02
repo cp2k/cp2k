@@ -85,8 +85,8 @@ MODULE input_cp2k_dft
        wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, &
        xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &
-       xas_none, xas_scf_default, xas_scf_general, xas_tp_fh, xas_tp_hh, &
-       xas_tp_xfh, xas_tp_xhh, xes_tp_val
+       xas_none, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
+       xes_tp_val
   USE input_cp2k_almo,                 ONLY: create_almo_scf_section
   USE input_cp2k_atom,                 ONLY: create_powell_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section
@@ -6765,20 +6765,38 @@ CONTAINS
             description="Method to be used to calculate core-level excitation spectra",&
             usage="METHOD TP_HH",&
             default_i_val=xas_none,&
-            enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "DSCF"),&
+            enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "DSCF","TP_FLEX"),&
             enum_desc=s2a(&
             "No core electron spectroscopy", "Transition potential half-hole",&
             "Transition potential full-hole", "Hole in homo for X-ray emission only " , &
             "Transition potential excited half-hole", &
             "Transition potential excited full-hole " , &
-            "DSCF calculations to compute the first (core)excited state"),&
+            "DSCF calculations to compute the first (core)excited state", &
+            "Transition potential with generalized core occupation and total number of electrons"),&
             enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xes_tp_val,xas_tp_xhh,&
-            xas_tp_xfh,xas_dscf/), error=error)
+            xas_tp_xfh,xas_dscf,xas_tp_flex/), error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="XAS_CORE",&
+            description="Occupation of the core state in XAS calculation by TP_FLEX.",&
+            usage="XAS_CORE 0.5",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="XAS_TOT_EL",&
+            description="Total number of electrons in XAS calculation by TP_FLEX."//&
+            "If negative value, the number of electrons is set to GS number of electron "//&
+            " minus the amount subtracted from the core state",&
+            usage="XAS_CORE 0.5",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        CALL keyword_create(keyword, name="XES_CORE",&
-            description="occupation of the core state in XES calculation by TP_VAL."//&
+            description="Occupation of the core state in XES calculation by TP_VAL."//&
             "The homo is emptied by the same amount",&
             usage="XES_CORE 0.5",&
             default_r_val=1._dp,error=error)
@@ -6805,42 +6823,17 @@ CONTAINS
                           "Velocity form &lang; i | d/dr | j &rang;"),&
             enum_i_vals=(/xas_dip_len2,xas_dip_vel/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
-
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="SCF_OPTIMIZER",&
-            description="Optimization algorithm: diagonalization or OT",&
-            usage="SCF_OPTIMIZER GENERAL",&
-            default_i_val=xas_scf_general,&
-            enum_c_vals=s2a( "DEFAULT", "GENERAL"),&
-            enum_desc=s2a("same as in std SCF", "diagonalization"),&
-            enum_i_vals=(/xas_scf_default,xas_scf_general/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MAXSTEP",&
-            description="Max # of steps in the cls-scf for one excitation",&
-            usage="MAXSTEP 150",&
-            default_i_val=150,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONVERGENCE",&
-            variants=(/"CONV"/),&
-            description="Convergence criterion for the xas-scf",&
-            usage="CONVERGENCE 0.00005",&
-            default_r_val=0.5E-6_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!   replace the specialized keyword with standard scf section
+!    scf_env is added to xas_env
 
-       CALL keyword_create(keyword, name="EPS_DIIS",&
-            description="treshold on the convergence to start"//&
-            " using DIAG/DIIS for the cls-scf"//&
-            "if default, the scf_control value is used",&
-            usage="EPS_DIIS 0.5",&
-            default_r_val=-1._dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       NULLIFY(subsection)
+       CALL create_scf_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
 
        CALL keyword_create(keyword, name="STATE_TYPE",&
             variants=(/"TYPE"/),&
@@ -7007,14 +7000,6 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_mixing_section(subsection,error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_smear_section(subsection,error)
-       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
     END IF

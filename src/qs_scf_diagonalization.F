@@ -179,11 +179,7 @@ CONTAINS
                          error=error)
     END DO
 
-    IF(PRESENT(xas_env) ) THEN
-       eps_diis = xas_env%eps_diis
-    ELSE
-       eps_diis = scf_control%eps_diis
-    END IF
+    eps_diis = scf_control%eps_diis
 
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
@@ -276,7 +272,7 @@ CONTAINS
     IF (PRESENT(xas_env)) THEN
       CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
       CALL set_mo_occupation(mo_set=mos(1)%mo_set,&
-                             smear=xas_env%smear,&
+                             smear=scf_control%smear,&
                              xas_env=xas_env,&
                              error=error)
       DO ispin=2,nspin
@@ -637,8 +633,8 @@ CONTAINS
 
     ! mixing storage allocation
     IF (subspace_env%mixing_method>=gspace_mixing_nr) THEN
-         CALL mixing_allocate(qs_env,subspace_env%mixing_method,subspace_env%mixing_store,&
-              nspins=nspin,error=error)
+         CALL mixing_allocate(qs_env,scf_env,nspins=nspin,mixing_method=subspace_env%mixing_method,&
+                mixing_store=subspace_env%mixing_store, error=error)
          IF(dft_control%qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env,&
                  rho_atom_set=rho_atom,error=error)
@@ -657,6 +653,9 @@ CONTAINS
           WRITE(output_unit,"(T4,A,T13,A,T21,A,T38,A,T51,A,T65,A/,T4,A)")   &
            "In-step","Time","Convergence", "Band ene.","Total ene.","Energy diff.",REPEAT("-",74)
     END IF
+
+   ! recalculate density matrix here
+
    ! update of density
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
 

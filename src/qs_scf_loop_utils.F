@@ -147,16 +147,18 @@ CONTAINS
 !>        and or density matrix
 !> \param qs_env ...
 !> \param scf_env ...
+!> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
 !> \param energy_only ...
 !> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE qs_scf_new_mos(qs_env,scf_env,scf_section,diis_step,&
+  SUBROUTINE qs_scf_new_mos(qs_env,scf_env,scf_control,scf_section,diis_step,&
                             energy_only,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL                                  :: diis_step, energy_only
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -175,18 +177,17 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
     failure=.FALSE.
-    NULLIFY(energy, ks_env, scp_env, matrix_ks, rho, mos, dft_control, &
-         scf_control, ks_scp, pscp)
+    NULLIFY(energy, ks_env, scp_env, matrix_ks, matrix_s, rho, mos, dft_control, &
+          ks_scp, pscp)
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,energy=energy,&
                     ks_env=ks_env, scp_env=scp_env, &
                     matrix_ks=matrix_ks,rho=rho,mos=mos, &
-                    dft_control=dft_control, scf_control=scf_control, &
+                    dft_control=dft_control, &
                     has_unit_metric=has_unit_metric,&
                     error=error)
     scf_env%iter_param = 0.0_dp
@@ -283,15 +284,17 @@ CONTAINS
 !>        Kpoint code           
 !> \param qs_env ...
 !> \param scf_env ...
+!> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
 !> \param energy_only ...
 !> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE qs_scf_new_mos_kp(qs_env,scf_env,scf_section,diis_step,energy_only,error)
+  SUBROUTINE qs_scf_new_mos_kp(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL                                  :: diis_step, energy_only
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -304,13 +307,12 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
-    TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, kpoints, matrix_ks, matrix_s)
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,scf_control=scf_control,&
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     kpoints=kpoints,error=error)
     scf_env%iter_param = 0.0_dp
 
@@ -715,13 +717,17 @@ CONTAINS
   END SUBROUTINE qs_scf_rho_update
 ! *****************************************************************************
 !> \brief Performes the necessary steps before leaving innner scf loop
+!> \param scf_env ...
+!> \param scf_control ...
 !> \param qs_env ...
 !> \param harris_flag ...
 !> \param diis_step ...
 !> \param output_unit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_inner_finalize(qs_env,harris_flag,diis_step,output_unit,error)
+  SUBROUTINE qs_scf_inner_finalize(scf_env,scf_control,qs_env,harris_flag,diis_step,output_unit,error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL                                  :: harris_flag, diis_step
     INTEGER, INTENT(IN)                      :: output_unit
@@ -737,15 +743,13 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
-    NULLIFY(energy, rho, dft_control, scf_control, scf_env, harris_env, ks_env)
+    NULLIFY(energy, rho, dft_control, harris_env, ks_env)
 
-    CALL get_qs_env(qs_env=qs_env,scf_env=scf_env, energy=energy,ks_env=ks_env,&
+    CALL get_qs_env(qs_env=qs_env, energy=energy,ks_env=ks_env,&
                     rho=rho, dft_control=dft_control,harris_env=harris_env,&
-                    scf_control=scf_control, para_env=para_env,&
+                    para_env=para_env,&
                     do_kpoints=do_kpoints, error=error)
 
     scp_nddo = dft_control%qs_control%se_control%scp

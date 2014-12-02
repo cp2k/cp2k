@@ -23,12 +23,15 @@ MODULE xas_env_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE kinds,                           ONLY: dp
-  USE qs_density_mixing_types,         ONLY: mixing_storage_release,&
-                                             mixing_storage_type
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
-  USE scf_control_types,               ONLY: smear_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type,&
+                                             scf_env_release,&
+                                             scf_env_retain
+  USE scf_control_types,               ONLY: scf_c_release,&
+                                             scf_c_retain,&
+                                             scf_control_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -72,7 +75,7 @@ MODULE xas_env_types
     INTEGER :: nao,exc_state, xas_estate
     INTEGER :: nexc_search, nexc_atoms
     INTEGER :: nvirtual,nvirtual2
-    INTEGER :: scf_method, mixing_method
+!    INTEGER :: scf_method, mixing_method
     INTEGER :: unoccupied_max_iter
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
@@ -80,7 +83,7 @@ MODULE xas_env_types
     INTEGER, DIMENSION(:), POINTER :: mykind_of_atom
     INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
     INTEGER, DIMENSION(:), POINTER :: exc_atoms
-    REAL(dp) :: eps_diis, ip_energy, occ_estate, unoccupied_eps, xas_nelectron, homo_occ
+    REAL(dp) :: ip_energy, occ_estate, unoccupied_eps, xas_nelectron, homo_occ
     REAL(dp), DIMENSION(:), POINTER :: all_evals
     REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
@@ -96,10 +99,13 @@ MODULE xas_env_types
     TYPE( cp_fm_type ), POINTER :: unoccupied_orbs
     TYPE( cp_fm_type ), POINTER :: all_vectors
     TYPE( cp_fm_type ), POINTER :: fm_work
-    TYPE(mixing_storage_type), POINTER :: mixing_store
+!    TYPE(mixing_storage_type), POINTER :: mixing_store
     TYPE( cp_dbcsr_p_type ), DIMENSION(:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
-    TYPE(smear_type), POINTER   :: smear
+    TYPE(qs_scf_env_type), POINTER                        :: scf_env
+!    TYPE(smear_type), POINTER   :: smear
+    TYPE(scf_control_type), POINTER          :: scf_control
+
 
   END TYPE xas_environment_type
 
@@ -132,7 +138,6 @@ CONTAINS
 !> \param unoccupied_eps ...
 !> \param all_vectors ...
 !> \param all_evals ...
-!> \param eps_diis ...
 !> \param my_gto_basis ...
 !> \param qs_loc_env ...
 !> \param stogto_overlap ...
@@ -141,6 +146,8 @@ CONTAINS
 !> \param xas_estate ...
 !> \param nexc_atoms ...
 !> \param nexc_search ...
+!> \param scf_env ...
+!> \param scf_control ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,nvirtual2,&
@@ -148,8 +155,8 @@ CONTAINS
              state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
              dip_fm_set,excvec_coeff,excvec_overlap,fm_work,&
              unoccupied_orbs, unoccupied_evals,unoccupied_max_iter,unoccupied_eps,&
-             all_vectors,all_evals,eps_diis, my_gto_basis,qs_loc_env,&
-             stogto_overlap,occ_estate,xas_nelectron,xas_estate,nexc_atoms,nexc_search,error)
+             all_vectors,all_evals, my_gto_basis,qs_loc_env,&
+             stogto_overlap,occ_estate,xas_nelectron,xas_estate,nexc_atoms,nexc_search,scf_env,scf_control,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     INTEGER, INTENT(OUT), OPTIONAL           :: iter_count, exc_state, nao, &
@@ -175,7 +182,6 @@ CONTAINS
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: all_vectors
     REAL(dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: all_evals
-    REAL(dp), INTENT(OUT), OPTIONAL          :: eps_diis
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: my_gto_basis
     TYPE(qs_loc_env_new_type), OPTIONAL, &
@@ -185,6 +191,9 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL          :: occ_estate, xas_nelectron
     INTEGER, INTENT(OUT), OPTIONAL           :: xas_estate, nexc_atoms, &
                                                 nexc_search
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
+    TYPE(scf_control_type), OPTIONAL, &
+      POINTER                                :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_xas_env', &
@@ -202,7 +211,6 @@ CONTAINS
        IF(PRESENT(nao)) nao=xas_env%nao
        IF(PRESENT(nvirtual)) nvirtual=xas_env%nvirtual
        IF(PRESENT(nvirtual2)) nvirtual2=xas_env%nvirtual2
-       IF(PRESENT(eps_diis))  eps_diis=xas_env%eps_diis
        IF(PRESENT(xas_nelectron))  xas_nelectron=xas_env%xas_nelectron
        IF(PRESENT(occ_estate))  occ_estate=xas_env%occ_estate
        IF(PRESENT(xas_estate))  xas_estate=xas_env%xas_estate
@@ -231,7 +239,8 @@ CONTAINS
        IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
        IF(PRESENT(my_gto_basis)) my_gto_basis => xas_env%my_gto_basis
        IF(PRESENT(stogto_overlap)) stogto_overlap => xas_env%stogto_overlap
-
+       IF (PRESENT(scf_env)) scf_env => xas_env%scf_env
+       IF (PRESENT(scf_control)) scf_control => xas_env%scf_control
      END IF
   END SUBROUTINE get_xas_env
 
@@ -239,7 +248,6 @@ CONTAINS
 !> \brief ...
 !> \param xas_env ...
 !> \param iter_count ...
-!> \param eps_diis ...
 !> \param nexc_search ...
 !> \param nexc_atoms ...
 !> \param nvirtual ...
@@ -250,22 +258,26 @@ CONTAINS
 !> \param xas_estate ...
 !> \param xas_nelectron ...
 !> \param homo_occ ...
+!> \param scf_env ...
+!> \param scf_control ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE set_xas_env(xas_env,iter_count,eps_diis,nexc_search,nexc_atoms,&
+  SUBROUTINE set_xas_env(xas_env,iter_count,nexc_search,nexc_atoms,&
              nvirtual,nvirtual2, ip_energy, occ_estate, qs_loc_env,&
-             xas_estate, xas_nelectron, homo_occ,error)
+             xas_estate, xas_nelectron, homo_occ, scf_env, scf_control,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    INTEGER, INTENT(IN), OPTIONAL            :: iter_count
-    REAL(dp), INTENT(IN), OPTIONAL           :: eps_diis
-    INTEGER, INTENT(IN), OPTIONAL            :: nexc_search, nexc_atoms, &
-                                                nvirtual, nvirtual2
+    INTEGER, INTENT(IN), OPTIONAL            :: iter_count, nexc_search, &
+                                                nexc_atoms, nvirtual, &
+                                                nvirtual2
     REAL(dp), INTENT(IN), OPTIONAL           :: ip_energy, occ_estate
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
     INTEGER, INTENT(IN), OPTIONAL            :: xas_estate
     REAL(dp), INTENT(IN), OPTIONAL           :: xas_nelectron, homo_occ
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
+    TYPE(scf_control_type), OPTIONAL, &
+      POINTER                                :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
@@ -284,7 +296,6 @@ CONTAINS
       IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_atoms
       IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
       IF (PRESENT(nvirtual2)) xas_env%nvirtual2 = nvirtual2
-      IF (PRESENT(eps_diis)) xas_env%eps_diis = eps_diis
       IF (PRESENT(occ_estate)) xas_env%occ_estate = occ_estate
       IF (PRESENT(xas_nelectron)) xas_env%xas_nelectron = xas_nelectron
       IF (PRESENT(homo_occ)) xas_env%homo_occ = homo_occ
@@ -295,6 +306,16 @@ CONTAINS
         IF(ASSOCIATED(xas_env%qs_loc_env)) &
             CALL qs_loc_env_release(xas_env%qs_loc_env,error=error)
         xas_env%qs_loc_env => qs_loc_env
+      END IF
+      IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
+         CALL scf_env_retain(scf_env,error=error)
+         CALL scf_env_release(xas_env%scf_env, error=error)
+         xas_env%scf_env => scf_env
+      END IF
+      IF (PRESENT(scf_control)) THEN ! accept also null pointers?
+         CALL scf_c_retain(scf_control,error=error)
+         CALL scf_c_release(xas_env%scf_control,error=error)
+         xas_env%scf_control => scf_control
       END IF
 
     END IF
@@ -327,7 +348,7 @@ CONTAINS
       xas_env%iter_count=0
       xas_env%nvirtual=0
       xas_env%nvirtual2=0
-      xas_env%mixing_method=1
+!      xas_env%mixing_method=1
 
       NULLIFY(xas_env%ao_mo_fm_pools)
       NULLIFY(xas_env%my_gto_basis)
@@ -341,8 +362,12 @@ CONTAINS
       NULLIFY(xas_env%all_evals,xas_env%all_vectors)
       NULLIFY(xas_env%unoccupied_evals,xas_env%unoccupied_orbs)
       NULLIFY(xas_env%stogto_overlap)
-      NULLIFY(xas_env%mixing_store)
-      NULLIFY(xas_env%smear)
+      NULLIFY(xas_env%scf_env)
+      NULLIFY(xas_env%scf_control)
+!
+!      NULLIFY(xas_env%mixing_store)
+!      NULLIFY(xas_env%smear)
+!
 
     END IF
 
@@ -451,18 +476,9 @@ CONTAINS
            CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
 
-         IF (ASSOCIATED(xas_env%mixing_store)) THEN
-           CALL mixing_storage_release(xas_env%mixing_store,error=error)
-         END IF
+         CALL scf_env_release(xas_env%scf_env, error=error)
+         CALL scf_c_release(xas_env%scf_control, error=error)
 
-         IF (ASSOCIATED(xas_env%smear)) THEN
-           IF (ASSOCIATED(xas_env%smear%list)) THEN
-              DEALLOCATE(xas_env%smear%list,stat=istat)
-              CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
-           ENDIF
-           DEALLOCATE(xas_env%smear,stat=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
-         END IF
 
          DEALLOCATE(xas_env,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)

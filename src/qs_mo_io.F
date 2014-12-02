@@ -1696,7 +1696,7 @@ CPSourceFileRef,&
        fmtstr6 = "(A,T17,F24.  ,/)"
        WRITE (UNIT=fmtstr6(12:13),FMT="(I2)") after
        WRITE (UNIT=iw,FMT=fmtstr6) "  Fermi energy:",mo_set%mu
-       IF ((mo_set%uniform_occupation).AND.(last_mo > mo_set%homo)) THEN
+       IF ((mo_set%occupation_numbers(mo_set%homo)==mo_set%maxocc).AND.(last_mo > mo_set%homo)) THEN
           gap = mo_set%eigenvalues(mo_set%homo+1) -&
                 mo_set%eigenvalues(mo_set%homo)
           fmtstr7 = "(A,T17,F24.  ,A,F6.2,A,/)"

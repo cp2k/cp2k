@@ -94,7 +94,8 @@ MODULE qs_scf
                                              qs_diis_b_create
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -129,6 +130,7 @@ MODULE qs_scf
                                              ot_diag_method_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type,&
+                                             scf_env_release,&
                                              special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
@@ -181,50 +183,61 @@ CONTAINS
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure .AND. qs_env%scf_control%max_scf > 0) THEN
+    IF (.NOT.failure) THEN
       CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input, &
                        dft_control=dft_control,scf_control=scf_control)
+      IF(scf_control%max_scf > 0) THEN
 
-      dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-      scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+        scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
-      CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
+        IF(.NOT. ASSOCIATED(scf_env)) THEN
+          CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
+!       Moved here from qs_scf_env_initialize to be able to have more scf_env
+          CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
+          CALL scf_env_release(scf_env,error=error)
+          CALL get_qs_env(qs_env=qs_env,scf_env=scf_env,error=error)
+        ELSE
+          CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
+        ENDIF
 
-      IF ((qs_env%scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
-        max_scf_tmp = qs_env%scf_control%max_scf
-        qs_env%scf_control%max_scf = 1
-        outer_scf_loop = qs_env%scf_control%outer_scf%have_scf
-        qs_env%scf_control%outer_scf%have_scf = .FALSE.
-      END IF
+        IF ((scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
+          max_scf_tmp = scf_control%max_scf
+          scf_control%max_scf = 1
+          outer_scf_loop = scf_control%outer_scf%have_scf
+          scf_control%outer_scf%have_scf = .FALSE.
+        END IF
 
-      CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
+        CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
                           converged=converged, should_stop=should_stop, error=error)
 
-      !   *** add the converged wavefunction to the wavefunction history
-      IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
-          ((qs_env%scf_control%density_guess .NE. history_guess) .OR. &
-           (.NOT. first_step_flag))) THEN
-          CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp, error=error)
-      ELSE IF ((qs_env%scf_control%density_guess .EQ. history_guess) .AND. &
-               (first_step_flag)) THEN
-        qs_env%scf_control%max_scf = max_scf_tmp
-        qs_env%scf_control%outer_scf%have_scf = outer_scf_loop
-        first_step_flag = .FALSE.
+        !   *** add the converged wavefunction to the wavefunction history
+        IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
+            ((scf_control%density_guess .NE. history_guess) .OR. &
+             (.NOT. first_step_flag))) THEN
+            CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp, error=error)
+        ELSE IF ((scf_control%density_guess .EQ. history_guess) .AND. &
+                 (first_step_flag)) THEN
+          scf_control%max_scf = max_scf_tmp
+          scf_control%outer_scf%have_scf = outer_scf_loop
+          first_step_flag = .FALSE.
+        END IF
+
+        ! *** compute properties that depend on the converged wavefunction
+        IF (.NOT.(should_stop)) CALL qs_scf_compute_properties(qs_env,dft_section,error)
+
+        ! *** cleanup
+        CALL scf_env_cleanup(scf_env,error=error)
+
       END IF
-
-      ! *** compute properties that depend on the converged wavefunction
-      IF (.NOT.(should_stop)) CALL qs_scf_compute_properties(qs_env,dft_section,error)
-
-      ! *** cleanup
-      CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
-
-    END IF
+     END IF
 
   END SUBROUTINE scf
 
 ! *****************************************************************************
 !> \brief perform an scf loop
 !> \param scf_env the scf_env where to perform the scf procedure
+!> \param scf_control ...
 !> \param qs_env the qs_env, the scf_env lives in
 !> \param converged will be true / false if converged is reached
 !> \param should_stop ...
@@ -238,9 +251,10 @@ CONTAINS
 !> \author Matthias Krack
 !> \note
 ! *****************************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,qs_env,converged,should_stop,error)
+  SUBROUTINE scf_env_do_scf(scf_env,scf_control,qs_env,converged,should_stop,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -278,7 +292,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
-    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
                                                 input, scf_section
@@ -288,7 +301,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(dft_control,rho,rho_xc,energy, &
-            scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
+            logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
 
@@ -313,7 +326,6 @@ CONTAINS
                     mos=mos,&
                     input=input,&
                     dft_control=dft_control,&
-                    scf_control=scf_control,&
                     do_kpoints=do_kpoints,&
                     kpoints=kpoints,&
                     results=results,&
@@ -388,7 +400,7 @@ CONTAINS
             scf_section=scf_section, error=error)
 
        CALL qs_scf_set_loop_flags(scp_nddo,scf_control,scf_env,diis_step,&
-                      energy_only,just_energy,exit_inner_loop,error)
+                      energy_only,just_energy,exit_inner_loop,error=error)
 
        scf_loop: DO
 
@@ -407,23 +419,23 @@ CONTAINS
                                    calculate_forces=.FALSE., error=error)
 
           ! print 'heavy weight' or relatively expensive quantities
-          CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
+          CALL qs_scf_loop_print(qs_env,scf_env,para_env,error=error)
 
           IF(do_kpoints) THEN
              ! kpoints
-             CALL qs_scf_new_mos_kp(qs_env,scf_env,scf_section,diis_step,energy_only,error)
+             CALL qs_scf_new_mos_kp(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error=error)
           ELSE
              ! Gamma points only
-             CALL qs_scf_new_mos(qs_env,scf_env,scf_section,diis_step,energy_only,error)
+             CALL qs_scf_new_mos(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error=error)
           END IF
 
           ! another heavy weight print object, print controlled by dft_section
-          CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,.FALSE.,error)
+          CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,.FALSE.,error=error)
           
           CALL qs_scf_harris_e_correct(qs_env,harris_env,para_env,scf_env,energy,harris_section,&
                                        harris_flag,error)
 
-          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error)
+          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error=error)
 
           t2 = m_walltime()
 
@@ -445,7 +457,7 @@ CONTAINS
           ! is really the last SCF step
           IF (exit_inner_loop) THEN
 
-             CALL qs_scf_inner_finalize(qs_env,harris_flag,diis_step,output_unit,error)
+             CALL qs_scf_inner_finalize(scf_env,scf_control,qs_env,harris_flag,diis_step,output_unit,error)
 
              CALL qs_scf_check_outer_exit(qs_env,scf_env,scf_control,should_stop,&
                                          outer_loop_converged,exit_outer_loop,error)
@@ -790,16 +802,14 @@ CPSourceFileRef)
 !> \brief perform cleanup operations (like releasing temporary storage)
 !>      at the end of the scf
 !> \param scf_env ...
-!> \param qs_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_cleanup(scf_env,qs_env,error)
+  SUBROUTINE scf_env_cleanup(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_cleanup', &
@@ -814,7 +824,6 @@ CPSourceFileRef)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
 
 !   *** Release SCF work storage ***

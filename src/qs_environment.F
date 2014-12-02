@@ -91,9 +91,9 @@ MODULE qs_environment
        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_method_scptb, do_qmmm_gauss, do_qmmm_swave, &
-       general_roks, rel_none, rel_trans_atom, restart_guess, &
-       use_aux_fit_basis_set, use_lri_basis_set, vdw_pairpot_dftd3, &
-       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+       general_roks, rel_none, rel_trans_atom, use_aux_fit_basis_set, &
+       use_lri_basis_set, vdw_pairpot_dftd3, xc_vdw_fun_none, &
+       xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -190,7 +190,7 @@ MODULE qs_environment
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xas_control,                     ONLY: write_xas_control
+!  USE xas_control,                     ONLY: write_xas_control
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1063,17 +1063,12 @@ CONTAINS
        END IF
     END IF
 
+
     ! The transition potential method to calculate XAS needs LSD
     IF (dft_control%do_xas_calculation) THEN
        IF (dft_control%nspins == 1) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Use the LSD option for XAS with transition potential",para_env)
-       END IF
-       IF (dft_control%xas_control%xas_restart.AND.&
-           scf_control%density_guess/= restart_guess) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Restart of XAS orbitals possible only if the GS orbitals"//&
-               " are also read from restart file.",para_env)
        END IF
     END IF
 
@@ -1292,7 +1287,7 @@ CONTAINS
     ! Print XES/XAS control parameters
     IF (dft_control%do_xas_calculation) THEN
        CALL cite_reference(Iannuzzi2007)
-       CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
+!       CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
     END IF
 
     ! Print the unnormalized basis set information (input data)

@@ -42,15 +42,19 @@ MODULE xas_restart
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gspace_mixing,                ONLY: mixing_init
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_mo_io,                        ONLY: wfn_restart_file_name
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_occupation
+                                             set_mo_occupation,&
+                                             set_mo_set
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -375,20 +379,24 @@ CPSourceFileRef,&
 !> \brief Once the mos and the occupation numbers are initialized
 !>      the electronic density of the excited state can be calclated
 !> \param qs_env ...
+!> \param scf_env ...
+!> \param scf_control ...
 !> \param error ...
 !> \par History
 !>      09-2006 MI created
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xas_initialize_rho(qs_env,error)
+  SUBROUTINE xas_initialize_rho(qs_env,scf_env,scf_control,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_initialize_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
+    INTEGER                                  :: handle, ispin, nelectron
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
@@ -415,22 +423,28 @@ CPSourceFileRef,&
     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
     DO ispin=1,SIZE(mos)
        IF(ispin==1) THEN
-         CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=xas_env%smear,&
+         IF(xas_env%homo_occ == 0) THEN
+           CALL get_mo_set(mos(ispin)%mo_set,nelectron=nelectron)
+           nelectron = nelectron - 1
+           CALL set_mo_set(mos(ispin)%mo_set,nelectron=nelectron,error=error)
+         END IF
+         CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=scf_control%smear,&
               xas_env=xas_env, error=error)
        ELSE
-         CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=xas_env%smear,&
+         CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=scf_control%smear,&
               error=error)
        END IF
-       CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+      CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
             density_matrix=rho_ao(ispin)%matrix,error=error)
-
     END DO
 
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
+    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
+                 error=error)
 
-    IF(xas_env%mixing_method>1) THEN
+    IF(scf_env%mixing_method>1) THEN
        CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom,error=error)
-       CALL mixing_init(xas_env%mixing_method,rho,xas_env%mixing_store,&
+       CALL mixing_init(scf_env%mixing_method,rho,scf_env%mixing_store,&
                            para_env,rho_atom=rho_atom,error=error)
     END IF
 

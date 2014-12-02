@@ -24,8 +24,6 @@ MODULE qs_block_davidson_types
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -113,29 +111,29 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param bdav_env ...
-!> \param mo_set ...
+!> \param mo_coeff ...
+!> \param nao ...
+!> \param nmo ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE block_davidson_allocate(bdav_env,mo_set,error)
+  SUBROUTINE block_davidson_allocate(bdav_env,mo_coeff, nao, nmo,error)
 
     TYPE(davidson_type)                      :: bdav_env
-    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    INTEGER, INTENT(IN)                      :: nao, nmo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nao, nmo, nmox2
+    INTEGER                                  :: handle, nmox2
     LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(fm_struct_tmp, mo_coeff)
+    NULLIFY(fm_struct_tmp)
 
-
-    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
 
     nmox2 = 2*nmo
 !    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmox2, ncol_global=nmox2,&

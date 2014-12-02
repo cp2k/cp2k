@@ -18,8 +18,7 @@ MODULE xas_control
                                              xas_tp_xfh,&
                                              xas_tp_xhh,&
                                              xes_tp_val
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
@@ -34,8 +33,6 @@ MODULE xas_control
 ! *****************************************************************************
   TYPE xas_control_type
     INTEGER                             :: ref_count
-    INTEGER                             :: max_scf
-    INTEGER                             :: scf_method
     INTEGER                             :: nexc_atoms
     INTEGER                             :: nexc_search
     INTEGER                             :: state_type
@@ -46,15 +43,14 @@ MODULE xas_control
     INTEGER                             :: ngauss
     INTEGER                             :: stride
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms
-!    LOGICAL                             :: emission
     LOGICAL                             :: cubes, do_centers
     LOGICAL                             :: xas_restart
     INTEGER, DIMENSION(:), POINTER      :: list_cubes
-    REAL(dp)                            :: eps_scf
-    REAL(dp)                            :: eps_diis
+!
     REAL(dp)                            :: eps_added
     REAL(dp)                            :: xes_core_occupation
     REAL(dp)                            :: xes_homo_occupation
+    REAL(dp)                            :: nel_tot, xas_core_occupation
   END TYPE xas_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
@@ -74,15 +70,15 @@ CONTAINS
 !> \brief read from input the instructions for a xes/xas calculation
 !> \param xas_control control variables
 !>       error
-!> \param dft_section ...
+!> \param xas_section ...
 !> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
-  SUBROUTINE read_xas_control(xas_control,dft_section,error)
+  SUBROUTINE read_xas_control(xas_control,xas_section,error)
 
     TYPE(xas_control_type)                   :: xas_control
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: xas_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_xas_control', &
@@ -91,33 +87,18 @@ CONTAINS
     INTEGER                                  :: i, ir, istat, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, hempty, was_present
-    TYPE(section_vals_type), POINTER         :: xas_section
 
     failure=.FALSE.
     was_present = .FALSE.
 
-    NULLIFY(xas_section)
-    xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
 
     NULLIFY(list)
-
-    CALL section_vals_val_get(xas_section,"CONVERGENCE", &
-         r_val=xas_control%eps_scf,error=error)
-
-    CALL section_vals_val_get(xas_section,"EPS_DIIS", &
-         r_val=xas_control%eps_diis,error=error)
 
     CALL section_vals_val_get(xas_section,"METHOD",&
          i_val=xas_control%xas_method,error=error)
 
     CALL section_vals_val_get(xas_section,"DIPOLE_FORM",&
          i_val=xas_control%dipole_form,error=error)
-
-    CALL section_vals_val_get(xas_section,"MAXSTEP",&
-         i_val=xas_control%max_scf,error=error)
-
-    CALL section_vals_val_get(xas_section,"SCF_OPTIMIZER",&
-         i_val=xas_control%scf_method,error=error)
 
     CALL section_vals_val_get(xas_section,"RESTART",&
          l_val=xas_control%xas_restart,error=error)
@@ -127,6 +108,9 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"STATE_SEARCH",&
          i_val=xas_control%nexc_search,error=error)
+
+    CALL section_vals_val_get(xas_section,"XAS_CORE", &
+         r_val=xas_control%xas_core_occupation,error=error)
 
     CALL section_vals_val_get(xas_section,"XES_CORE", &
          r_val=xas_control%xes_core_occupation,error=error)
@@ -182,8 +166,6 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"NGAUSS",&
          i_val=xas_control%ngauss,error=error)
 
-!    CALL section_vals_val_get(xas_section,"EMISSION",&
-!         l_val=xas_control%emission,error=error)
 
   END SUBROUTINE read_xas_control
 
@@ -283,10 +265,7 @@ CONTAINS
     xas_control%nexc_atoms = 1
     xas_control%nexc_search = -1
     xas_control%state_type = xas_1s_type
-    xas_control%max_scf = 150
-    xas_control%eps_scf = 0.5e-6_dp
     xas_control%xas_restart = .FALSE.
-!    xas_control%emission = .FALSE.
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
     xas_control%xes_homo_occupation=1.0_dp

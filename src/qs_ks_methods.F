@@ -339,10 +339,6 @@ CONTAINS
     gapw_xc = dft_control%qs_control%gapw_xc
     IF(gapw_xc .AND. gapw) CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                            " GAPW and GAPW_XC are not compatible",error,failure)
-!    IF((gapw_xc .OR. gapw) .AND. use_virial) &
-!       CALL cp_unimplemented_error(fromWhere=routineP, &
-!            message="Virial for GAPW not debugged!!", &
-!            error=error, error_level=cp_warning_level)
 
     do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
     IF ( do_ppl ) THEN
@@ -1208,6 +1204,7 @@ CONTAINS
     do_rebuild = do_rebuild .OR. s_mstruct_changed
     do_rebuild = do_rebuild .OR. potential_changed
     do_rebuild = do_rebuild .OR. (c_forces.AND..NOT.forces_up_to_date)
+
 
     IF (do_rebuild) THEN
        CALL evaluate_core_matrix_traces(qs_env,error)

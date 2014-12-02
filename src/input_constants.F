@@ -527,7 +527,8 @@ MODULE input_constants
                                               xes_tp_val=3,&
                                               xas_tp_xhh=4,&
                                               xas_tp_xfh=5,&
-                                              xas_dscf=6
+                                              xas_dscf=6,&
+                                              xas_tp_flex=7
   INTEGER, PARAMETER, PUBLIC               :: xas_1s_type=1,&
                                               xas_2s_type=2,&
                                               xas_2p_type=3,&
