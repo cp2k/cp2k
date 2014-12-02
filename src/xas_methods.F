@@ -581,7 +581,6 @@ CONTAINS
 !> \param logger ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param xas_control parameters for the xas calculation UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI
