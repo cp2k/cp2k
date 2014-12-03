@@ -10,6 +10,11 @@
 ! *****************************************************************************
 MODULE dgs
   
+  USE fast,                            ONLY: copy_cr,&
+                                             copy_cri,&
+                                             rankup,&
+                                             vc_x_vc,&
+                                             vr_x_vc
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FFT_RADIX_NEXT_ODD,&
@@ -935,11 +940,11 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
   zb = CMPLX ( charge1, 0.0_dp,KIND=dp)
   CALL rankup ( nd, za, cd, zb, ex1, ey1, ez1, zs )
   IF ( rho0 % pw % in_use == REALDATA3D ) &
-      CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
+      CALL vr_x_vc ( rho0 % pw % cr3d, cd )
   IF ( rho0 % pw % in_use == COMPLEXDATA3D ) &
-      CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
+      CALL vc_x_vc ( rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
-  CALL copy_cr ( n, cd, rhos1 % pw % cr3d )
+  CALL copy_cr ( cd, rhos1 % pw % cr3d )
 
   DEALLOCATE (zs,STAT=ierr)
   IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"zs")
@@ -1000,11 +1005,11 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
   zb = CMPLX ( charge1, 0.0_dp,KIND=dp)
   CALL rankup ( nd, za, cd, zb, ex1, ey1, ez1, zs )
   IF ( rho0 % pw % in_use == REALDATA3D ) &
-      CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
+      CALL vr_x_vc ( rho0 % pw % cr3d, cd )
   IF ( rho0 % pw % in_use == COMPLEXDATA3D ) &
-      CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
+      CALL vc_x_vc ( rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
-  CALL copy_cri ( n, cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )
+  CALL copy_cri ( cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )
 
   DEALLOCATE (zs,stat=ierr)
   IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"zs")

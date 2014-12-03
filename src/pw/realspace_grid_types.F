@@ -15,6 +15,8 @@
 ! *****************************************************************************
 MODULE realspace_grid_types
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE fast,                            ONLY: copy_cr,&
+                                             copy_rc
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -721,7 +723,7 @@ CONTAINS
           IF ( pw % in_use == REALDATA3D ) THEN
              CALL dcopy ( nn, rs % r, 1, pw % cr3d, 1 )
           ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-             CALL copy_rc ( nn, rs % r, pw % cc3d )
+             CALL copy_rc ( rs % r, pw % cc3d )
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
           END IF
@@ -729,7 +731,7 @@ CONTAINS
           IF ( pw % in_use == REALDATA3D ) THEN
              CALL dcopy ( nn, pw % cr3d, 1, rs % r, 1 )
           ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-             CALL copy_cr ( nn, pw % cc3d, rs % r )
+             CALL copy_cr ( pw % cc3d, rs % r )
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
           END IF
@@ -824,7 +826,7 @@ CONTAINS
        IF ( pw % in_use == REALDATA3D ) THEN
           CALL dcopy ( nn, sendbuf, 1, pw % cr3d, 1 )
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-          CALL copy_rc ( nn, sendbuf, pw % cc3d )
+          CALL copy_rc (RESHAPE(sendbuf, SHAPE(pw % cc3d)), pw % cc3d )
        ELSE
           CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
        END IF

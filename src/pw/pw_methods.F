@@ -22,6 +22,9 @@
 ! *****************************************************************************
 MODULE pw_methods
   
+  USE fast,                            ONLY: copy_cr,&
+                                             copy_rc,&
+                                             zero_c
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
                                              fft3d
@@ -1234,7 +1237,7 @@ CONTAINS
 
     ngpts = SIZE ( pw%pw_grid%gsq  )
 
-    IF ( .NOT. PRESENT ( scale ) ) CALL zero_c(SIZE(c),c)
+    IF ( .NOT. PRESENT ( scale ) ) CALL zero_c(c)
 
     IF ( PRESENT ( scale ) ) THEN
 !$omp parallel do default(none), &
@@ -1340,7 +1343,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
     INTEGER                                  :: dir, handle, handle2, my_pos, &
-                                                nrays, nsize, out_space, stat
+                                                nrays, out_space, stat
     INTEGER, DIMENSION(3)                    :: nloc
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: failure, test, use_pw_cuda
@@ -1443,8 +1446,7 @@ CONTAINS
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                           "c_out",2*dp_size*PRODUCT(n(1:3)))
-          nsize=SIZE(pw1%cr3d,1)*SIZE(pw1%cr3d,2)*SIZE(pw1%cr3d,3)
-          CALL copy_rc(nsize,pw1%cr3d,c_out)
+          CALL copy_rc(pw1%cr3d,c_out)
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           CALL pw_gather ( pw2, c_out, error = error)
           DEALLOCATE ( c_out, STAT = stat )
@@ -1483,8 +1485,7 @@ CONTAINS
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           ! use real part only
           IF ( test ) WRITE ( *,'(A)') "  REAL part "
-          nsize=SIZE(pw2%cr3d,1)*SIZE(pw2%cr3d,2)*SIZE(pw2%cr3d,3)
-          CALL copy_cr(nsize,c_out,pw2%cr3d)
+          CALL copy_cr(c_out,pw2%cr3d)
           DEALLOCATE ( c_out, STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
@@ -1526,7 +1527,7 @@ CONTAINS
        CASE ( "FW_C3DC1D" )
           !..prepare input
           c_in => pw1%cc3d
-          CALL zero_c(SIZE(grays),grays)
+          CALL zero_c(grays)
           !..transform
           IF ( pw1%pw_grid%para%ray_distribution ) THEN
              CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1556,9 +1557,8 @@ CONTAINS
              ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat)
              IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                              "c_in",2*dp_size*PRODUCT(nloc(1:3)))
-             nsize=nloc(1)*nloc(2)*nloc(3)
-             CALL copy_rc(nsize,pw1%cr3d,c_in)
-             CALL zero_c(SIZE(grays),grays)
+             CALL copy_rc(pw1%cr3d,c_in)
+             CALL zero_c(grays)
              !..transform
              IF ( pw1%pw_grid%para%ray_distribution ) THEN
                 CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1580,7 +1580,7 @@ CONTAINS
           !..prepare input
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
-          CALL zero_c(SIZE(grays),grays)
+          CALL zero_c(grays)
           CALL pw_scatter ( pw1, grays, error=error)
           c_in => pw2%cc3d
           !..transform
@@ -1607,13 +1607,12 @@ CONTAINS
              !..prepare input
              IF ( test .AND. pw1%pw_grid%para%group_head ) &
                   WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
-             CALL zero_c(SIZE(grays),grays)
+             CALL zero_c(grays)
              CALL pw_scatter ( pw1, grays, error=error)
              nloc = pw2%pw_grid%npts_local
              ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
              IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                              "c_in",2*dp_size*PRODUCT(nloc(1:3)))
-             nsize=nloc(1)*nloc(2)*nloc(3)
              !..transform
              IF ( pw1%pw_grid%para%ray_distribution ) THEN
                 CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1627,7 +1626,7 @@ CONTAINS
              !..prepare output
              IF ( test .AND. pw1%pw_grid%para%group_head ) &
                   WRITE ( *,'(A)') "  Real part "
-             CALL copy_cr(nsize,c_in,pw2%cr3d)
+             CALL copy_cr(c_in,pw2%cr3d)
              DEALLOCATE ( c_in, STAT = stat )
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
