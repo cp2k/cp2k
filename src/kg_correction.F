@@ -55,8 +55,6 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param gapw ...
 !> \param gapw_xc ...
-!> \param v_rspace_new ...
-!> \param v_tau_rspace ...
 !> \param ekin_mol ...
 !> \param calc_force ...
 !> \param error ...
@@ -65,13 +63,11 @@ CONTAINS
 !>       2014.01 added atomic potential option [JGH]
 !> \author Martin Haeufel and Florian Schiffmann
 ! *****************************************************************************
-  SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, &
-       v_tau_rspace, ekin_mol, calc_force, error)
+  SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in), OPTIONAL            :: gapw, gapw_xc
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
     REAL(KIND=dp), INTENT(out)               :: ekin_mol
     LOGICAL                                  :: calc_force
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -86,8 +82,8 @@ CONTAINS
 
     IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
 
-       CALL kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, &
-                          v_tau_rspace, ekin_mol, calc_force, error)
+       CALL kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, &
+                          ekin_mol, calc_force, error)
 
     ELSE IF (kg_env%tnadd_method == kg_tnadd_atomic) THEN
 
@@ -105,19 +101,15 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param gapw ...
 !> \param gapw_xc ...
-!> \param v_rspace_new ...
-!> \param v_tau_rspace ...
 !> \param ekin_mol ...
 !> \param calc_force ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, &
-       v_tau_rspace, ekin_mol, calc_force, error)
+  SUBROUTINE kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in), OPTIONAL            :: gapw, gapw_xc
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, v_tau_rspace
     REAL(KIND=dp), INTENT(out)               :: ekin_mol
     LOGICAL                                  :: calc_force
     TYPE(cp_error_type), INTENT(inout)       :: error

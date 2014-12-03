@@ -592,7 +592,7 @@ CONTAINS
        ! calculate KG correction
        IF (dft_control%qs_control%do_kg.AND.just_energy) THEN
 
-         CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, v_tau_rspace, ekin_mol, &
+         CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, &
                              calculate_forces, error)
 
          ! substract kg corr from the total energy
@@ -633,7 +633,7 @@ CONTAINS
                 becke,calculate_forces,error=error)
 
           IF (dft_control%qs_control%do_kg) THEN
-            CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, v_rspace_new, v_tau_rspace, ekin_mol, &
+            CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, &
                                 calculate_forces, error)
             ! substract kg corr from the total energy
             energy%exc = energy%exc - ekin_mol

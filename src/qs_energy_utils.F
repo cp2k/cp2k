@@ -210,7 +210,7 @@ CONTAINS
       qs_env%kg_env%molecule_set => molecule_set
 
       ! build the (new) full neighborlist
-      CALL kg_build_neighborlist(qs_env%kg_env, qs_env, sab_orb=qs_env%kg_env%sab_orb_full, error=error)
+      CALL kg_build_neighborlist(qs_env, sab_orb=qs_env%kg_env%sab_orb_full, error=error)
 
       IF (.NOT.ALLOCATED(qs_env%kg_env%atom_to_molecule)) THEN
         ALLOCATE(qs_env%kg_env%atom_to_molecule(natom))
@@ -227,14 +227,12 @@ CONTAINS
 
          DO isubset=1,qs_env%kg_env%nsubsets
            ! build the (new) molecular neighborlist of the current subset
-           CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
-                                      sab_orb=qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
+           CALL kg_build_neighborlist(qs_env, sab_orb=qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
                                       subset_of_mol=qs_env%kg_env%subset_of_mol, current_subset=isubset, error=error)
          END DO
       ELSE IF (qs_env%kg_env%tnadd_method == kg_tnadd_atomic) THEN
          ! build the A-C list for the nonadditive kinetic energy potential
-         CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
-                                    sac_kin=qs_env%kg_env%sac_kin, error=error)
+         CALL kg_build_neighborlist(qs_env, sac_kin=qs_env%kg_env%sac_kin, error=error)
       END IF
 
     END IF

@@ -242,7 +242,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief builds either the full neighborlist or neighborlists of molecular
 !> \brief subsets, depending on parameter values
-!> \param kg_env ...
 !> \param qs_env ...
 !> \param sab_orb the return type, a neighborlist 
 !> \param sac_kin ...
@@ -254,9 +253,8 @@ CONTAINS
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
 ! *****************************************************************************
-  SUBROUTINE kg_build_neighborlist(kg_env, qs_env, sab_orb, sac_kin,&
+  SUBROUTINE kg_build_neighborlist(qs_env, sab_orb, sac_kin,&
              molecular, subset_of_mol, current_subset, error)
-    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_kin
