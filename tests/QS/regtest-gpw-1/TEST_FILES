@@ -68,6 +68,8 @@ Li2-3-nSCF-EV93.inp 52
 Li2-4-nSCF-EV93.inp 48
 # debug
 Ne_debug.inp                      1     1e-13
-# chaing sparsities
+# changing sparsities
 Ar-ref-1.inp                      1
 Ar-ref-2.inp                      1
+Ar-ref-3.inp                      1
+Ar-ref-4.inp                      1

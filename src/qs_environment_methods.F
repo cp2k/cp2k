@@ -15,7 +15,9 @@ MODULE qs_environment_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: dbcsr_distribution_obj
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type,&
+                                             dbcsr_distribution_obj
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
@@ -263,6 +265,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
     INTEGER                                  :: handle
     LOGICAL                                  :: do_ppl, failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -285,6 +289,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
                     para_env=para_env,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
+                    matrix_ks=matrix_ks,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     distribution_2d=distribution_2d,&
                     rho_core=rho_core,&
                     vppl=vppl,&
@@ -292,6 +298,21 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
                     rho_nlcc_g=rho_nlcc_g,&
                     pw_env=pw_env,&
                     error=error)
+
+    ! *** deallocate matrices that will have the wrong structure ***
+    ! TODO: figure out where these actually get deallocated as well.
+    !       doing this here triggers a bug in the intel compiler (<=15.0)
+    !       should presumably be done where mstruct is declared changed.
+    IF (.FALSE.) THEN
+      CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error=error)
+      CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
+    ENDIF
+
+    IF( dft_control%do_admm) THEN
+      ! *** deallocate matrices that will have the wrong structure ***
+      CALL cp_dbcsr_deallocate_matrix_set(matrix_ks_aux_fit,error=error)
+      CALL set_ks_env(ks_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+    END IF
 
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
