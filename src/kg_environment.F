@@ -448,22 +448,20 @@ CONTAINS
 
   END SUBROUTINE
 
-  ! writes the graph to file using the DIMACS standard format
-  ! for a definition of the file format see 
-  ! mat.gsia.cmu.edu?COLOR/general/ccformat.ps
-  ! in brief:
-  ! c comment line
-  ! p edge NODES EDGES
-  ! with NODES - number of nodes
-  !      EDGES - numer of edges
-  ! e W V
-  ! ...
-  ! there is one edge descriptor line for each edge in the graph
-  ! for an edge (w,v) the fields W and V specify its endpoints
 ! *****************************************************************************
-!> \brief ...
+!> \brief writes the graph to file using the DIMACS standard format
+!>        for a definition of the file format see 
+!>        mat.gsia.cmu.edu?COLOR/general/ccformat.ps
+!>        c comment line
+!>        p edge NODES EDGES
+!>        with NODES - number of nodes
+!>        EDGES - numer of edges
+!>        e W V
+!>        ...
+!>        there is one edge descriptor line for each edge in the graph
+!>        for an edge (w,v) the fields W and V specify its endpoints
 !> \param pairs ...
-!> \param nnodes ...
+!> \param nnodes the total number of nodes
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_to_file(pairs, nnodes, error)

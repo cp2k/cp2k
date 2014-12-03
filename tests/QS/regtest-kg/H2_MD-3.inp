@@ -16,6 +16,9 @@
       LS_SCF
       KG_METHOD
     &END QS
+    &KG_METHOD
+      COLORING_METHOD GREEDY
+    &END KG_METHOD
     &LS_SCF
       MAX_SCF     40
       EPS_FILTER  1.0E-6
