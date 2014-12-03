@@ -417,7 +417,6 @@ MODULE dbcsr_types
      LOGICAL                            :: valid
      LOGICAL                            :: initialized = .FALSE.
      CHARACTER(LEN=default_string_length) :: name
-     !REAL(kind=dp), DIMENSION(:), POINTER :: DATA => Null()
      TYPE(dbcsr_data_obj)               :: data_area
      INTEGER, DIMENSION(:), POINTER     :: index => Null()
      INTEGER, DIMENSION(:), POINTER     :: row_p => Null(),&
@@ -446,11 +445,9 @@ MODULE dbcsr_types
      INTEGER                 :: data_type
      CHARACTER               :: replication_type
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
-     !LOGICAL                 :: transpose
      LOGICAL                 :: bcsc, local_indexing, list_indexing
      TYPE(dbcsr_memtype_type):: data_memory_type, index_memory_type
      TYPE(dbcsr_block_buffer_obj) :: buffers
-     !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms => Null()
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
