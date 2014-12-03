@@ -25,8 +25,7 @@ MODULE dbcsr_types
        dbcsr_type_complex_8_2d, dbcsr_type_complex_default, dbcsr_type_int_4, &
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
        dbcsr_type_real_8_2d, dbcsr_type_real_default
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: default_string_length
 
   !$ USE OMP_LIB
 
