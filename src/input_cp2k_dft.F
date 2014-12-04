@@ -1820,7 +1820,7 @@ CONTAINS
        CALL create_dipoles_section(print_key,"MOMENTS",high_print_level,error)
        CALL keyword_create(keyword=keyword,&
             name="MAX_MOMENT",&
-            description="Maximum moment to be calculated",&
+            description="Maximum moment to be calculated. Values higher than 1 not implemented under periodic boundaries.",&
             usage="MAX_MOMENT {integer}",&
             repeats=.FALSE.,&
             required=.FALSE.,&
@@ -1832,7 +1832,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword=keyword,&
             name="MAGNETIC",&
-            description="Calculate also magnetic moments",&
+            description="Calculate also magnetic moments, only implemented without periodic boundaries",&
             usage="MAGNETIC yes",&
             repeats=.FALSE.,&
             required=.FALSE.,&

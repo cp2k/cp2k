@@ -1101,7 +1101,7 @@ CONTAINS
                 IF(qs_env%run_rtp)THEN
                    CALL get_qs_env(qs_env,rtp=rtp,error=error)
                    CALL get_rtp(rtp,mos_new=mos_new,error=error)
-                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
+                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
                 ELSE
                    CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
                 END IF
@@ -1134,7 +1134,7 @@ CONTAINS
                   IF(qs_env%run_rtp)THEN
                      CALL get_qs_env(qs_env,rtp=rtp,error=error)
                      CALL get_rtp(rtp,mos_new=mos_new,error=error)
-                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
+                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
                   ELSE
                      CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
                   END IF
@@ -1304,11 +1304,10 @@ CONTAINS
 !> \param sinmat ...
 !> \param mos ...
 !> \param op_fm_set ...
-!> \param opvec ...
 !> \param mos_new ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
+  SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
 
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1316,7 +1315,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: op_fm_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: opvec, mos_new
+      POINTER                                :: mos_new
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: i, icol, lcol, nao, newdim, &
@@ -1514,6 +1513,7 @@ CONTAINS
              END DO
              mmom(i) = strace
           END DO
+          CALL cp_dbcsr_deallocate_matrix_set(magmom,error=error)
        END IF
 
        ! nuclear contribution

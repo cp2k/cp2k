@@ -1,0 +1,60 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/BASIS_SET
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      WF_INTERPOLATION ASPC
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &SCF
+      &OUTER_SCF
+        EPS_SCF 1.E-2
+        MAX_SCF 5
+      &END OUTER_SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 30
+      EPS_SCF 1.E-2
+      &OT T
+        MINIMIZER DIIS
+        N_DIIS 9
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL HCTH120
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MOMENTS
+        MAGNETIC
+        PERIODIC .FALSE.
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+ O        -0.0005010000         1.5173980000         0.0000000000
+ H         0.0944820000         0.5534860000         0.0000000000
+ H         0.9013420000         1.8476590000         0.0000000000
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-HCTH120-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-HCTH120-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O-magnetic
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL LOW
+&END GLOBAL
