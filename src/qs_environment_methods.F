@@ -303,7 +303,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     ! TODO: figure out where these actually get deallocated as well.
     !       doing this here triggers a bug in the intel compiler (<=15.0)
     !       should presumably be done where mstruct is declared changed.
-    IF (.FALSE.) THEN
+    IF (.TRUE.) THEN
       CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error=error)
       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
     ENDIF
