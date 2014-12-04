@@ -94,15 +94,15 @@
     
     TYPE(arnoldi_data_c), POINTER           :: ar_data
     COMPLEX(kind=real_4), DIMENSION(:), POINTER          :: data_vec
-    INTEGER                                           :: nrow_local
+    INTEGER                                           :: nrow_local, ncol_local
     TYPE(arnoldi_control), POINTER           :: control
 
     control=>get_control(arnoldi_data)
 
-    CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local)
+    CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ar_data=>get_data_c(arnoldi_data)
     data_vec => dbcsr_get_data_p (vector%m%data_area, coersion=CMPLX(0.0, 0.0, real_4))
-    IF(control%local_comp)ar_data%f_vec(1:nrow_local)=data_vec(1:nrow_local)
+    IF(nrow_local*ncol_local>0)ar_data%f_vec(1:nrow_local)=data_vec(1:nrow_local)
 
   END SUBROUTINE set_initial_vector_c  
 
