@@ -358,7 +358,7 @@ CONTAINS
        ALLOCATE(matrix_p(2))
        matrix_p(1)%matrix=>matrix_a
        matrix_p(2)%matrix=>matrix_b
-       CALL setup_arnoldi_data(arnoldi_data,matrix_p,30,1.0E-14_dp,1,2)
+       CALL setup_arnoldi_data(arnoldi_data,matrix_p,30,1.0E-14_dp,1,2,0,.FALSE.,.FALSE.)
        CALL dbcsr_arnoldi_ev(matrix_p, arnoldi_data, dbcsr_error)
        max_eV=get_selected_ritz_val(arnoldi_data,2)
        min_eV=get_selected_ritz_val(arnoldi_data,1)

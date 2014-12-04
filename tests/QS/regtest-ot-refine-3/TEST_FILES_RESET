@@ -198,3 +198,9 @@ h2o_ot_refine_3.inp
 o2_ot_refine_3.inp
 h2o_ot_precond_3_mp.inp
 h2o_ot_precond_4_mp.inp
+#improvements to full_single inverse
+h2o_ot_refine_3.inp
+o2_ot_refine_3.inp
+#improvements to full_single inverse
+h2o_ot_precond_3_mp.inp
+h2o_ot_precond_4_mp.inp

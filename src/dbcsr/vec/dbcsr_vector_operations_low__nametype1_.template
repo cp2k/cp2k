@@ -17,8 +17,7 @@
     CASE(dbcsr_type_no_symmetry)
        CALL dbcsr_matrix_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
     CASE(dbcsr_type_symmetric)
-       CALL dbcsr_matrixT_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col, .TRUE., error)
-       CALL dbcsr_matrix_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, [nametype_one], work_row, work_col, error)
+       CALL dbcsr_sym_matrix_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
     CASE(dbcsr_type_antisymmetric)
         ! Not yet implemented, should mainly be some prefactor magic, but who knows how antisymmetric matrices are stored???
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error, &
@@ -44,7 +43,7 @@
 
     INTEGER                                  :: col, col_size, mypcol, &
                                                 myprow, nblk_col, nblk_row, &
-                                                ncols, pcol_group, &
+                                                ncols, pcol_group, nrows, &
                                                 prow_group, row, row_size, &
                                                 handle, handle1, ithread 
     LOGICAL                                  :: transposed
@@ -89,13 +88,8 @@
     CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed, row_size=row_size, col_size=col_size)
-       IF(ASSOCIATED(blk_map_row(col)%ptr).AND.ASSOCIATED(blk_map_col(row)%ptr))THEN
-          IF(blk_map_col(row)%assigned_thread .NE. ithread ) CYCLE
-          blk_map_col(row)%ptr=blk_map_col(row)%ptr+MATMUL(data_d,TRANSPOSE(blk_map_row(col)%ptr))
-       ELSE
-          IF(blk_map_col(col)%assigned_thread .NE. ithread ) CYCLE
-          blk_map_col(col)%ptr=blk_map_col(col)%ptr+MATMUL(TRANSPOSE(data_d),TRANSPOSE(blk_map_row(row)%ptr))
-       END IF
+       IF(blk_map_col(row)%assigned_thread .NE. ithread ) CYCLE
+       blk_map_col(row)%ptr=blk_map_col(row)%ptr+MATMUL(data_d,TRANSPOSE(blk_map_row(col)%ptr))
     END DO
     CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
@@ -104,7 +98,8 @@
 
 ! sum all the data onto the first processor col where the original vector is stored
     data_vec => dbcsr_get_data_p (work_col%m%data_area, coersion=[nametype_zero])
-    CALL mp_sum(data_vec, prow_group)
+    CALL dbcsr_get_info(matrix=work_col, nfullrows_local=nrows, nfullcols_local=ncols)
+    CALL mp_sum(data_vec(1:nrows*ncols), prow_group)
 
 ! Local copy on the first mpi col (as this is the localtion of the vec_res blocks) of the result vector
 ! from the replicated to the original vector. Let's play it safe and use the iterator
@@ -136,7 +131,7 @@
 
     INTEGER                                  :: col, col_size, mypcol, &
                                                 myprow, nblk_col, nblk_row, &
-                                                ncols, pcol_group, &
+                                                ncols, pcol_group, nrows, &
                                                 prow_group, row, row_size, &
                                                 handle, handle1, ithread
     LOGICAL                                  :: transposed
@@ -202,10 +197,12 @@
 
 ! sum all the data within a processor column to obtain the replicated result
     data_vec => dbcsr_get_data_p (work_row%m%data_area, coersion=[nametype_zero])
-    CALL mp_sum(data_vec, pcol_group)
+! we use the replicated vector but the final answer is only summed to proc_col 0 for effiniency
+    CALL dbcsr_get_info(matrix=work_row, nfullrows_local=nrows, nfullcols_local=ncols)
+    CALL mp_sum(data_vec(1:nrows*ncols), pcol_group)
 
 ! Convert the result to a column wise distribution
-    CALL dbcsr_rep_row_to_rep_col_vec_[nametype1](work_col, work_row, blk_map_row, error)
+    CALL dbcsr_rep_row_to_rep_col_vec_[nametype1](work_col, work_row, blk_map_row, error=error)
     
 ! Create_the final vector by summing it to the result vector which lives on proc_col 0
     CALL dbcsr_iterator_start(iter, vec_out)
@@ -289,8 +286,9 @@
 
   END SUBROUTINE dbcsr_col_vec_to_rep_row_[nametype1]    
        
-  SUBROUTINE dbcsr_rep_row_to_rep_col_vec_[nametype1](rep_col_vec, rep_row_vec, blk_map_row, error)
+  SUBROUTINE dbcsr_rep_row_to_rep_col_vec_[nametype1](rep_col_vec, rep_row_vec, blk_map_row, blk_map_col_add, error)
     TYPE(dbcsr_obj)                          :: rep_col_vec, rep_row_vec
+    TYPE(block_ptr_[nametype1]),DIMENSION(:), OPTIONAL     :: blk_map_col_add
     TYPE(block_ptr_[nametype1]), ALLOCATABLE, &
       DIMENSION(:)                           :: blk_map_row
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
@@ -327,6 +325,9 @@
        IF(col_dist(row)==mypcol)THEN
           vec_col=TRANSPOSE(blk_map_row(row)%ptr)
        END IF
+       ! this one is special and allows to add the elements of a not yet summed replicated 
+       ! column vector as it appears in M*V(row_rep) as result. Save an mp_sum in the symmetric case
+       IF(PRESENT(blk_map_col_add))vec_col=vec_col+blk_map_col_add(row)%ptr(:,:)
     END DO
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
@@ -408,4 +409,125 @@
     CALL dbcsr_error_stop(handle, error)
 
   END SUBROUTINE assign_col_vec_block_ptr_[nametype1]
+
+  SUBROUTINE dbcsr_sym_matrix_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
+    TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
+    [type_nametype]                          :: alpha, beta
+    TYPE(dbcsr_obj)                          :: work_row, work_col
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sym_m_v_mult', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, col_size, mypcol, &
+                                                myprow, nblk_col, nblk_row, &
+                                                pcol_group, nrows, ncols,&
+                                                prow_group, row, row_size, &
+                                                handle, handle1, ithread, vec_dim
+    LOGICAL                                  :: transposed
+    [type_nametype], DIMENSION(:), POINTER          :: data_vec
+    [type_nametype], DIMENSION(:, :), POINTER       :: data_d, vec_res
+    TYPE(block_ptr_[nametype1]), ALLOCATABLE, &
+      DIMENSION(:)                           :: blk_map_col, blk_map_row, res_blk_map_col, res_blk_map_row
+    TYPE(dbcsr_distribution_obj)             :: distri
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj)                          :: result_row, result_col
+
+    CALL dbcsr_error_set(routineN, handle, error)
+    ithread=0
+! We need some work matrices as we try to exploit operations on the replicated vectors which are duplicated otherwise
+    CALL dbcsr_get_info(matrix=vec_in,nfullcols_total=vec_dim)
+! This is a performance hack as the new creation of a replicated vector is a fair bit more expensive
+    CALL dbcsr_init(result_col)
+    CALL dbcsr_set(work_col, [nametype_zero], error=error)
+    CALL dbcsr_copy(result_col, work_col, error=error)
+    CALL dbcsr_init(result_row)
+    CALL dbcsr_set(work_row, [nametype_zero], error=error)
+    CALL dbcsr_copy(result_row, work_row, error=error)
+
+! Collect some data about the parallel environment. We will use them later to move the vector around
+    CALL dbcsr_get_info(matrix=matrix, distribution=distri)
+    prow_group=distri%d%mp_env%mp%prow_group; pcol_group=distri%d%mp_env%mp%pcol_group
+    mypcol=distri%d%mp_env%mp%mypcol; myprow=distri%d%mp_env%mp%myprow
+
+! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
+! It is important to note, that the input and result vector are sitributed differently (row wise, col wise respectively)
+    CALL dbcsr_get_info(matrix=work_row, nblkcols_total=nblk_col)
+    CALL dbcsr_get_info(matrix=work_col, nblkrows_total=nblk_row)
+    ALLOCATE(blk_map_row(nblk_col));  ALLOCATE(blk_map_col(nblk_row))
+    ALLOCATE(res_blk_map_row(nblk_col));  ALLOCATE(res_blk_map_col(nblk_row))
+    CALL assign_row_vec_block_ptr_[nametype1](work_row, blk_map_row, error)
+    CALL assign_col_vec_block_ptr_[nametype1](work_col, blk_map_col, error)
+    CALL assign_row_vec_block_ptr_[nametype1](result_row, res_blk_map_row, error)
+    CALL assign_col_vec_block_ptr_[nametype1](result_col, res_blk_map_col, error)
+
+! Transfer the correct parts of the input vector to the correct locations so we can do a local multiply
+    CALL dbcsr_col_vec_to_rep_row_[nametype1](vec_in, work_col, work_row, blk_map_col, error)
+
+! Probably I should rename the routine above as it delivers both the replicated row and column vector
+
+! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
+! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
+    CALL dbcsr_error_set(routineN//"_local_mm", handle1, error)
+
+!------ perform the multiplication, we have to take car to take the correct blocks ----------
+
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread) &
+!$OMP          SHARED(matrix,blk_map_row,res_blk_map_col,res_blk_map_row,blk_map_col)
+    !$ ithread = omp_get_thread_num ()
+    CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed, row_size=row_size, col_size=col_size)
+       IF(ASSOCIATED(blk_map_row(col)%ptr).AND.ASSOCIATED(res_blk_map_col(row)%ptr))THEN
+          IF(res_blk_map_col(row)%assigned_thread .EQ. ithread ) THEN
+             res_blk_map_col(row)%ptr=res_blk_map_col(row)%ptr+MATMUL(data_d,TRANSPOSE(blk_map_row(col)%ptr))
+          END IF
+          IF(res_blk_map_row(col)%assigned_thread .EQ. ithread .AND. row .NE. col) THEN
+             res_blk_map_row(col)%ptr=res_blk_map_row(col)%ptr+MATMUL(TRANSPOSE(blk_map_col(row)%ptr),data_d)
+          END IF
+       ELSE
+          IF(res_blk_map_col(col)%assigned_thread .EQ. ithread ) THEN
+             res_blk_map_col(col)%ptr=res_blk_map_col(col)%ptr+TRANSPOSE(MATMUL(blk_map_row(row)%ptr,data_d))
+          END IF
+          IF(res_blk_map_row(row)%assigned_thread .EQ. ithread  .AND. row .NE. col ) THEN
+             res_blk_map_row(row)%ptr=res_blk_map_row(row)%ptr+TRANSPOSE(MATMUL(data_d,blk_map_col(col)%ptr))
+          END IF
+       END IF 
+    END DO
+    CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
+
+    CALL dbcsr_error_stop(handle1, error)
+
+    ! sum all the data within a processor column to obtain the replicated result from lower
+    data_vec => dbcsr_get_data_p (result_row%m%data_area, coersion=[nametype_zero])
+    CALL dbcsr_get_info(matrix=result_row, nfullrows_local=nrows, nfullcols_local=ncols)
+
+    CALL mp_sum(data_vec(1:nrows*ncols), pcol_group)
+!
+!! Convert the results to a column wise distribution, this is a bit involved as the result_row is fully replicated
+!! While the result_col still has the partial results in parallel. The routine below takes care of that and saves an
+!! mp_sum. Of the res_row vectors are created only taking the approriate element (0 otherwise) while the res_col
+!! parallel bits are locally added. The mp_sum magically creates the correct vector
+    CALL dbcsr_rep_row_to_rep_col_vec_[nametype1](work_col, result_row, res_blk_map_row, res_blk_map_col, error)
+
+!    ! Create_the final vector by summing it to the result vector which lives on proc_col 0 lower
+    CALL dbcsr_iterator_start(iter, vec_out)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_res, transposed, row_size=row_size)
+       IF(ASSOCIATED(blk_map_col(row)%ptr))THEN
+          vec_res(:, :)= beta*vec_res(:, :)+alpha*(blk_map_col(row)%ptr(:, :)) 
+       ELSE
+          vec_res(:, :)= beta*vec_res(:, :)
+       END IF
+    END DO
+    CALL dbcsr_iterator_stop(iter)
+
+    DEALLOCATE(blk_map_col, blk_map_row, res_blk_map_row, res_blk_map_col)
+
+    CALL dbcsr_release(result_row); CALL dbcsr_release(result_col)
+
+    CALL dbcsr_error_stop(handle, error)
+
+  END SUBROUTINE dbcsr_sym_matrix_vector_mult_[nametype1]
 

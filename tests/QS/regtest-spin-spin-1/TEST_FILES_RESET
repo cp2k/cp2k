@@ -117,3 +117,5 @@ no-gapw-issc-1.inp
 no-gapw-issc-1.inp
 #do not accumulate shift in outer scf preconditioner
 ch4-gapw-issc-2.inp
+#improvements to full_single inverse
+ch4-gapw-issc-2.inp

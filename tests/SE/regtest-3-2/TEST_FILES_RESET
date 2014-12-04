@@ -14,3 +14,13 @@ LM-KSDO.inp
 LM-KSDO-D.inp
 # more FSI resets
 N3-rp_colvar.inp
+# change convergence setting as with new full single inverse energy converged before gradient
+O2.inp
+#improvements to full_single inverse
+H2O-3.inp
+#improvements to full_single inverse
+N3-rp_colvar.inp
+Periclase.inp
+H2O-MNDO-KDSOd.inp
+LM-KSDO.inp
+LM-KSDO-D.inp

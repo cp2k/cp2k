@@ -738,3 +738,5 @@ H2O-OT-1.inp
 H2O-broyden-1.inp
 H2O-broyden-2.inp
 H2O-broyden-2.inp
+#improvements to full_single inverse
+H2O-inverse_up.inp

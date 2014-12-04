@@ -1725,20 +1725,26 @@ CONTAINS
 !> \param template template dbcsr matrix giving its mp_env
 !> \param m global row size of output matrix
 !> \param n global col size of output matrix
+!> \param sym ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_m_by_n_from_template(matrix,template,m,n,error)
+  SUBROUTINE cp_dbcsr_m_by_n_from_template(matrix,template,m,n,sym,error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix, template
     INTEGER                                  :: m, n
+    CHARACTER, OPTIONAL                      :: sym
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'cp_dbcsr_m_by_n_from_template', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: mysym
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist
     TYPE(dbcsr_distribution_obj)             :: dist_m_n
+
+    mysym=cp_dbcsr_get_matrix_type(template)
+    IF(PRESENT(sym))mysym=sym
 
     CALL cp_create_bl_distribution (row_dist, row_blk_size, m, &
          dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(template))))
@@ -1747,7 +1753,7 @@ CONTAINS
     CALL dbcsr_distribution_new (dist_m_n, dbcsr_distribution_mp (cp_dbcsr_distribution(template)),&
          row_dist, col_dist)
 
-    CALL cp_dbcsr_create(matrix, "m_n_template", dist_m_n, dbcsr_type_no_symmetry,&
+    CALL cp_dbcsr_create(matrix, "m_n_template", dist_m_n, mysym,&
             row_blk_size, col_blk_size, 0, 0, cp_dbcsr_get_data_type(template), error=error)
 
     CALL array_release (row_dist); CALL array_release (col_dist)

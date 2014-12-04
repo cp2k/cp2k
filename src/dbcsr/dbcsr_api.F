@@ -23,6 +23,8 @@ MODULE dbcsr_api
   USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
                                              deallocate_arnoldi_data,&
                                              get_selected_ritz_val,&
+                                             get_selected_ritz_vector,&
+                                             set_arnoldi_initial_vector,&
                                              setup_arnoldi_data
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block,&
@@ -185,9 +187,11 @@ MODULE dbcsr_api
             dbcsr_add_on_diag,&
             dbcsr_arnoldi_data,&
             setup_arnoldi_data,&
+            set_arnoldi_initial_vector,&
             deallocate_arnoldi_data,&
             dbcsr_arnoldi_ev,&
             get_selected_ritz_val,&
+            get_selected_ritz_vector,&
             dbcsr_binary_read,&
             dbcsr_binary_write,&
             dbcsr_triu,&

@@ -3,3 +3,5 @@
 H2O-IP-meta.inp
 #do not accumulate shift in outer scf preconditioner
 H2O-IP-meta.inp
+#improvements to full_single inverse
+H2O-IP-meta.inp

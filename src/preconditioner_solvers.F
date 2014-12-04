@@ -14,8 +14,9 @@ MODULE preconditioner_solvers
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_arnoldi_ev, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_get_info, cp_dbcsr_init_p, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_get_info, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init_p, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
        cp_dbcsr_setup_arnoldi_data, cp_dbcsr_type, dbcsr_arnoldi_data, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_default, &
        deallocate_arnoldi_data, get_selected_ritz_val
@@ -75,6 +76,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'solve_preconditioner', &
       routineP = moduleN//':'//routineN
 
+    REAL(dp)                                 :: occ_matrix
+
 ! here comes the solver
 
     SELECT CASE(my_solver_type)
@@ -92,7 +95,16 @@ CONTAINS
        !
        ! uses an update of the full inverse (needs to be computed the first time)
        ! make sure preconditioner_env is not destroyed in between
-       IF(preconditioner_env%solver.NE.ot_precond_solver_update)THEN
+       occ_matrix=1.0_dp
+       IF(ASSOCIATED(preconditioner_env%sparse_matrix))THEN
+          IF(preconditioner_env%condition_num<0.0_dp)&
+             CALL estimate_cond_num(preconditioner_env%sparse_matrix, preconditioner_env%condition_num, error)
+          CALL cp_dbcsr_filter(preconditioner_env%sparse_matrix,&
+                               1.0_dp/ preconditioner_env%condition_num*0.1_dp, error=error)
+          occ_matrix=cp_dbcsr_get_occupation(preconditioner_env%sparse_matrix)
+       END IF
+       ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
+       IF(preconditioner_env%solver.NE.ot_precond_solver_update.AND.occ_matrix>0.05_dp)THEN
           preconditioner_env%solver=ot_precond_solver_update
           CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision, error=error)
        ELSE
@@ -252,34 +264,41 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: cond_num, filter_eps
+    LOGICAL                                  :: use_guess
+    REAL(KIND=dp)                            :: filter_eps
 
     CALL timeset(routineN, handle)
+    use_guess=.TRUE.
     !
     ! uses an update of the full inverse (needs to be computed the first time)
     ! make sure preconditioner_env is not destroyed in between
 
-    CPPrecondition(ASSOCIATED(preconditioner_env%dbcsr_matrix), cp_failure_level, routineP, error, failure)
+
     ! Maybe I gonna add a fm Hotelling, ... for now the same as above make sure we are dbcsr
     CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%sparse_matrix, &
                               matrix_h, mixed_precision, error)
+    IF(.NOT.ASSOCIATED(preconditioner_env%dbcsr_matrix))THEN
+      use_guess=.FALSE.
+      CALL cp_dbcsr_init_p(preconditioner_env%dbcsr_matrix, error)
+      CALL cp_dbcsr_create(preconditioner_env%dbcsr_matrix, "prec_dbcsr", &
+           template=matrix_h, matrix_type=dbcsr_type_no_symmetry, error=error)
+    END IF 
 
     ! Try to get a reasonbale guess for the filtering threshold
-    IF(PRESENT(matrix_s))CALL estimate_cond_num(matrix_s, cond_num, error)
-    filter_eps=1.0_dp/cond_num*0.01_dp
+    filter_eps=1.0_dp/preconditioner_env%condition_num*0.1_dp
+
+    CALL cp_dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps, error=error)
     ! We don't need a high accuracy for the inverse so 0.4 is reasonable for convergence 
     CALL invert_Hotelling(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, filter_eps, &
-                          use_inv_as_guess=.TRUE., norm_convergence=0.4_dp, filter_eps=filter_eps, error=error)
+                          use_inv_as_guess=use_guess, norm_convergence=0.4_dp, filter_eps=filter_eps, error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE make_inverse_update
 
-
 ! *****************************************************************************
-!> \brief gives an estimate for the condition number of a matrix, should be moved
-!>        to a more general place
+!> \brief computes an approximation to the condition number of a matrix using
+!>        arnoldi iterations 
 !> \param matrix ...
 !> \param cond_num ...
 !> \param error ...
@@ -289,22 +308,40 @@ CONTAINS
     REAL(KIND=dp)                            :: cond_num
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'estimate_cond_num', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
     REAL(KIND=dp)                            :: max_ev, min_ev
-    TYPE(cp_dbcsr_p_type), DIMENSION(1)      :: mymat
-    TYPE(dbcsr_arnoldi_data)                 :: arnoldi
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrices
+    TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
-    mymat(1)%matrix=>matrix
-    CALL cp_dbcsr_setup_arnoldi_data(arnoldi, mymat, max_iter=50, threshold=1.0E-4_dp, &
-                                     selection_crit=1, nval_request=2)
-    CALL cp_dbcsr_arnoldi_ev(mymat, arnoldi, error)
-    max_eV=REAL(get_selected_ritz_val(arnoldi, 2), dp)
-    min_eV=REAL(get_selected_ritz_val(arnoldi, 1), dp)
-    cond_num=max_eV/min_eV
-    CALL deallocate_arnoldi_data(arnoldi)
+     CALL timeset(routineN, handle)
 
-   END SUBROUTINE estimate_cond_num
+     ! its better to do 2 calculations as the maximum should quickly converge and the minimum won't need iram
+     ALLOCATE(matrices(1))  
+     matrices(1)%matrix=>matrix 
+     ! compute the minimum ev
+     CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=2, &
+                                      nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
+     CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi, error)                                      
+     max_ev=REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
+     CALL deallocate_arnoldi_data(my_arnoldi)
 
-! *****************************************************************************
+     CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=3, &
+                                      nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
+     CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi, error)                                 
+     min_ev=REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
+     CALL deallocate_arnoldi_data(my_arnoldi)
+     
+     cond_num=max_ev/min_ev
+     DEALLOCATE(matrices)
+
+     CALL timestop(handle)
+  END SUBROUTINE estimate_cond_num
+
+!   ***************************************************************************
 !> \brief transfers a full matrix to a dbcsr
 !> \param fm_matrix a full matrix gets deallocated in the end
 !> \param dbcsr_matrix a dbcsr matrix, gets create from a template

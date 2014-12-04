@@ -38,7 +38,7 @@
         N_DIIS 7
         ! SAFE_DIIS FALSE
         PRECONDITIONER FULL_SINGLE_INVERSE
-        ENERGY_GAP 0.001
+        ENERGY_GAP 0.040
       &END OT
     &END
     &XC

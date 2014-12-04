@@ -22,6 +22,9 @@ MODULE dbcsr_arnoldi_data_methods
        set_data_s, set_data_z
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
+                                             dbcsr_is_initialized,&
+                                             dbcsr_release
   USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
@@ -30,7 +33,8 @@ MODULE dbcsr_arnoldi_data_methods
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
-                                             dbcsr_type_real_8
+                                             dbcsr_type_real_8,&
+                                             dbcsr_type_symmetric
   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix
   USE kinds,                           ONLY: real_4,&
                                              real_8
@@ -42,8 +46,8 @@ MODULE dbcsr_arnoldi_data_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_data_methods'
 
   PUBLIC :: select_evals, get_selected_ritz_val,&
-            dbcsr_arnoldi_data,&
-            setup_arnoldi_data, deallocate_arnoldi_data
+            dbcsr_arnoldi_data, get_nrestart, set_arnoldi_initial_vector, &
+            setup_arnoldi_data, deallocate_arnoldi_data, get_selected_ritz_vector
 
 CONTAINS 
 
@@ -62,18 +66,25 @@ CONTAINS
 !> \param selection_crit integer defining according to which criterion the 
 !>        eigenvalues are selected for the subspace
 !> \param nval_request for some sel_crit useful, how many eV to select
+!> \param nrestarts ...
+!> \param generalized_ev ...
+!> \param iram ...
 ! *****************************************************************************
-  SUBROUTINE setup_arnoldi_data(arnoldi_data, matrix, max_iter, threshold, selection_crit, nval_request)
+  SUBROUTINE setup_arnoldi_data(arnoldi_data, matrix, max_iter, threshold, selection_crit,&
+                                nval_request, nrestarts, generalized_ev,iram)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     INTEGER                                  :: max_iter
     REAL(real_8)                             :: threshold
-    INTEGER                                  :: selection_crit, nval_request
+    INTEGER                                  :: selection_crit, nval_request, &
+                                                nrestarts
+    LOGICAL                                  :: generalized_ev, iram
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_data', &
       routineP = moduleN//':'//routineN
 
-    CALL setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, nval_request)
+    CALL setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit,&
+                               nval_request, nrestarts, generalized_ev, iram)
 
     SELECT CASE (matrix(1)%matrix%m%data_type)
     CASE (dbcsr_type_real_8)
@@ -96,13 +107,19 @@ CONTAINS
 !> \param threshold ...
 !> \param selection_crit ...
 !> \param nval_request ...
+!> \param nrestarts ...
+!> \param generalized_ev ...
+!> \param iram ...
 ! *****************************************************************************
-  SUBROUTINE setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, nval_request)
+  SUBROUTINE setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, nval_request,&
+                                   nrestarts, generalized_ev, iram)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     INTEGER                                  :: max_iter
     REAL(real_8)                             :: threshold
-    INTEGER                                  :: selection_crit, nval_request
+    INTEGER                                  :: selection_crit, nval_request, &
+                                                nrestarts
+    LOGICAL                                  :: generalized_ev, iram
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_control', &
       routineP = moduleN//':'//routineN
@@ -110,25 +127,70 @@ CONTAINS
     TYPE(arnoldi_control), POINTER           :: control
     TYPE(dbcsr_distribution_obj)             :: distri
 
-! Fill the information we will later on control the behavior of the arnoldi method and allow synchronization
-
     ALLOCATE(control)
+! Fill the information which will later on control the behavior of the arnoldi method and allow synchronization
     CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
-!    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
     control%mp_group=distri%d%mp_env%mp%mp_group
     control%myproc=distri%d%mp_env%mp%mynode
     control%pcol_group=distri%d%mp_env%mp%pcol_group
     control%prow_group=distri%d%mp_env%mp%prow_group
+
+!    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
+    control%symmetric=.FALSE.
+! Will need a fix for complex because there it has to be hermitian
+    IF(SIZE(matrix)==1)control%symmetric=&
+                       dbcsr_get_matrix_type(matrix(1)%matrix)==dbcsr_type_symmetric
+
+! Set the control parameters
     control%max_iter=max_iter                
     control%current_step=0                   
     control%selection_crit=selection_crit
     control%nval_req=nval_request
     control%threshold=threshold
     control%converged=.FALSE.
+    control%has_initial_vector=.FALSE.
+    control%iram=iram
+    IF(control%nval_req>1.AND.control%nrestart>0.AND..NOT.control%iram)&
+     STOP 'with more than one eigenvalue requested internal restarting with a previous EVEC is a bad idea, set IRAM or nrestsart=0'
+
+    control%nrestart=nrestarts
+    control%generalized_ev=generalized_ev
+    control%max_ev_request=.FALSE.
+    IF(selection_crit==2)control%max_ev_request=.TRUE.
+! some checks for the generalized EV mode
+    IF(control%generalized_ev.AND.selection_crit==1)STOP 'generalized ev can only highest OR lowest EV'
+    IF(control%generalized_ev.AND.nval_request.NE.1)STOP 'generalized ev can only compute one EV at the time'
+    IF(control%generalized_ev.AND.control%nrestart==0)STOP 'outer loops are mandatory for generalized EV, set nrestart appropriatly'
+    IF(SIZE(matrix).NE.2.AND.control%generalized_ev)STOP 'generalized ev needs exactly two matrices as input (2nd is the metric)'
+    
     ALLOCATE(control%selected_ind(max_iter))
     CALL set_control(arnoldi_data,control)
 
   END SUBROUTINE setup_arnoldi_control
+
+! *****************************************************************************
+!> \brief Deallocate the data in dbcsr_arnoldi_data
+!> \param arnoldi_data ...
+!> \param ind ...
+!> \param matrix ...
+!> \param vector ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE get_selected_ritz_vector(arnoldi_data,ind,matrix,vector,error)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    INTEGER                                  :: ind
+    TYPE(dbcsr_obj)                          :: matrix, vector
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector', &
+      routineP = moduleN//':'//routineN
+
+    IF(has_d_real(arnoldi_data))  CALL get_selected_ritz_vector_d(arnoldi_data,ind,matrix,vector,error)
+    IF(has_s_real(arnoldi_data))  CALL get_selected_ritz_vector_s(arnoldi_data,ind,matrix,vector,error)
+    IF(has_d_cmplx(arnoldi_data)) CALL get_selected_ritz_vector_z(arnoldi_data,ind,matrix,vector,error)
+    IF(has_s_cmplx(arnoldi_data)) CALL get_selected_ritz_vector_c(arnoldi_data,ind,matrix,vector,error)
+
+  END SUBROUTINE get_selected_ritz_vector
 
 ! *****************************************************************************
 !> \brief Deallocate the data in dbcsr_arnoldi_data
@@ -184,6 +246,22 @@ CONTAINS
     control=>get_control(ar_data)
     control%selection_crit=itype
   END SUBROUTINE set_eval_selection
+
+! *****************************************************************************
+!> \brief returns the number of restarts allowed for arnoldi
+!> \param arnoldi_data ...
+!> \retval nrestart ...
+! *****************************************************************************
+  FUNCTION get_nrestart(arnoldi_data)         RESULT(nrestart)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    INTEGER                                  :: nrestart
+
+    TYPE(arnoldi_control), POINTER           :: control
+
+    control=>get_control(arnoldi_data)
+    nrestart=control%nrestart
+
+  END FUNCTION get_nrestart
 
 ! *****************************************************************************
 !> \brief get the number of eigenvalues matching the search criterion
@@ -257,11 +335,11 @@ CONTAINS
     IF(has_d_real(ar_data)) THEN
        evals_d=>get_evals_d(ar_data);   eval_out=evals_d(ev_ind)     
     ELSE IF(has_s_real(ar_data)) THEN
-       evals_s=>get_evals_s(ar_data);   eval_out=evals_s(ev_ind)     
+       evals_s=>get_evals_s(ar_data);   eval_out=CMPLX(evals_s(ev_ind),KIND=real_8)     
     ELSE IF(has_d_cmplx(ar_data)) THEN
        evals_d=>get_evals_z(ar_data);   eval_out=evals_d(ev_ind)     
     ELSE IF(has_s_cmplx(ar_data)) THEN
-       evals_s=>get_evals_c(ar_data);   eval_out=evals_s(ev_ind)     
+       evals_s=>get_evals_c(ar_data);   eval_out=CMPLX(evals_s(ev_ind),KIND=real_8)     
     END IF
 
   END FUNCTION get_selected_ritz_val
@@ -293,10 +371,32 @@ CONTAINS
     DO ind=1, get_nval_out(ar_data)
        ev_ind=selected_ind(ind)
        IF(ASSOCIATED(evals_d))eval_out(ind)=evals_d(ev_ind)
-       IF(ASSOCIATED(evals_s))eval_out(ind)=evals_s(ev_ind)
+       IF(ASSOCIATED(evals_s))eval_out(ind)=CMPLX(evals_s(ev_ind),KIND=real_8)
     END DO
 
   END SUBROUTINE get_all_selected_ritz_val
+
+! *****************************************************************************
+!> \brief ...
+!> \param ar_data ...
+!> \param vector ...
+! *****************************************************************************
+  SUBROUTINE set_arnoldi_initial_vector(ar_data,vector)
+    TYPE(dbcsr_arnoldi_data)                 :: ar_data
+    TYPE(dbcsr_obj)                          :: vector
+
+    TYPE(arnoldi_control), POINTER           :: control
+
+    control=>get_control(ar_data)
+    control%has_initial_vector=.TRUE.
+
+    IF(has_d_real(ar_data))  CALL set_initial_vector_d(ar_data,vector) 
+    IF(has_s_real(ar_data))  CALL set_initial_vector_s(ar_data,vector) 
+    IF(has_d_cmplx(ar_data)) CALL set_initial_vector_z(ar_data,vector) 
+    IF(has_s_cmplx(ar_data)) CALL set_initial_vector_c(ar_data,vector) 
+
+  END SUBROUTINE set_arnoldi_initial_vector
+
 
 #include "dbcsr_arnoldi_data_selection_d.f90"
 #include "dbcsr_arnoldi_data_selection_s.f90"

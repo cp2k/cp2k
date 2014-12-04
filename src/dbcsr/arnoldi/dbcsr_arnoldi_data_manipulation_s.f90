@@ -12,6 +12,7 @@
     ALLOCATE(ar_data)
     CALL dbcsr_get_info(matrix=matrix(1)%matrix, nfullrows_local=nrow_local)
     ALLOCATE(ar_data%f_vec(nrow_local))
+    ALLOCATE(ar_data%x_vec(nrow_local))
     ALLOCATE(ar_data%Hessenberg(max_iter+1, max_iter))
     ALLOCATE(ar_data%local_history(nrow_local, max_iter))
 
@@ -32,6 +33,7 @@
 
     ar_data=>get_data_s(arnoldi_data)
     IF(ASSOCIATED(ar_data%f_vec))DEALLOCATE(ar_data%f_vec)
+    IF(ASSOCIATED(ar_data%x_vec))DEALLOCATE(ar_data%x_vec)
     IF(ASSOCIATED(ar_data%Hessenberg))DEALLOCATE(ar_data%Hessenberg)
     IF(ASSOCIATED(ar_data%local_history))DEALLOCATE(ar_data%local_history)
     IF(ASSOCIATED(ar_data%evals))DEALLOCATE(ar_data%evals)
@@ -55,7 +57,9 @@
     INTEGER, DIMENSION(:), POINTER           :: selected_ind
     COMPLEX(real_4),DIMENSION(:),ALLOCATABLE       :: ritz_v
     REAL(kind=real_4), DIMENSION(:), POINTER          :: data_vec
+    TYPE(arnoldi_control), POINTER           :: control
 
+    control=>get_control(arnoldi_data)
     selected_ind=>get_sel_ind(arnoldi_data)
     ar_data=>get_data_s(arnoldi_data)
     sspace_size=get_subsp_size(arnoldi_data)
@@ -63,8 +67,10 @@
     myind=selected_ind(ind)
     ALLOCATE(ritz_v(vsize))
     ritz_v=CMPLX(0.0,0.0,real_4)
+
+    IF(dbcsr_is_initialized (vector))CALL dbcsr_release(vector)
     CALL create_col_vec_from_matrix(vector,matrix,1,error)
-    IF(vsize.gt.0)THEN
+    IF(control%local_comp)THEN
        DO i=1,sspace_size
           ritz_v(:)=ritz_v(:)+ar_data%local_history(:,i)*ar_data%revec(i,myind)
        END DO
@@ -76,8 +82,28 @@
 
     DEALLOCATE(ritz_v)
 
-   END SUBROUTINE get_selected_ritz_vector_s
+  END SUBROUTINE get_selected_ritz_vector_s
      
+   
+  SUBROUTINE set_initial_vector_s(arnoldi_data,vector)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(dbcsr_obj)                          :: vector
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_initial_vector_s', &
+      routineP = moduleN//':'//routineN
     
+    TYPE(arnoldi_data_s), POINTER           :: ar_data
+    REAL(kind=real_4), DIMENSION(:), POINTER          :: data_vec
+    INTEGER                                           :: nrow_local
+    TYPE(arnoldi_control), POINTER           :: control
+
+    control=>get_control(arnoldi_data)
+
+    CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local)
+    ar_data=>get_data_s(arnoldi_data)
+    data_vec => dbcsr_get_data_p (vector%m%data_area, coersion=0.0_real_4)
+    IF(control%local_comp)ar_data%f_vec(1:nrow_local)=data_vec(1:nrow_local)
+
+  END SUBROUTINE set_initial_vector_s  
 
     

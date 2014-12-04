@@ -20,12 +20,15 @@ MODULE dbcsr_arnoldi_methods
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
-  USE dbcsr_geev,                      ONLY: dbcsr_general_local_diag
+  USE dbcsr_geev,                      ONLY: dbcsr_general_local_diag,&
+                                             dbcsr_symm_local_diag,&
+                                             dbcsr_tridiag_local_diag
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
                                              dbcsr_get_info,&
                                              dbcsr_scale
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
@@ -43,9 +46,42 @@ MODULE dbcsr_arnoldi_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_methods'
 
-  PUBLIC :: arnoldi_init, build_subspace, compute_evals 
+  PUBLIC :: arnoldi_init, build_subspace, compute_evals, arnoldi_iram,&
+            gev_arnoldi_init, gev_build_subspace, gev_update_data
+
+  INTERFACE convert_matrix
+     MODULE PROCEDURE convert_matrix_z_to_d, convert_matrix_s_to_c
+     MODULE PROCEDURE convert_matrix_d_to_z, convert_matrix_c_to_s
+     MODULE PROCEDURE convert_matrix_z_to_z, convert_matrix_c_to_c
+  END INTERFACE
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Interface for the routine calcualting the implicit restarts
+!>        Currently all based on lapack
+!> \param arnoldi_data ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE arnoldi_iram(arnoldi_data, error)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_iram', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    IF(has_d_real(arnoldi_data))  CALL arnoldi_iram_d(arnoldi_data, error)
+    IF(has_s_real(arnoldi_data))  CALL arnoldi_iram_s(arnoldi_data, error)
+    IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_iram_z(arnoldi_data, error)
+    IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_iram_c(arnoldi_data, error)
+
+    CALL dbcsr_error_stop(handle,error)
+
+  END SUBROUTINE arnoldi_iram
 
 ! *****************************************************************************
 !> \brief Interface to compute the eigenvalues of a nonsymmetric matrix
@@ -105,6 +141,37 @@ CONTAINS
   END SUBROUTINE arnoldi_init
 
 ! *****************************************************************************
+!> \brief Interface for the initialization of the arnoldi subspace creation
+!>        for the generalized eigenvalue problem
+!> \param matrix pointer to the matrices as described in main interface
+!> \param matrix_arnoldi ...
+!> \param vectors work vectors for the matrix vector multiplications
+!> \param arnoldi_data all data concerning the subspace
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE gev_arnoldi_init(matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix, matrix_arnoldi
+    TYPE(m_x_v_vectors)                      :: vectors
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_arnoldi_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    IF(has_d_real(arnoldi_data))  CALL gev_arnoldi_init_d (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_s_real(arnoldi_data))  CALL gev_arnoldi_init_s (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_d_cmplx(arnoldi_data)) CALL gev_arnoldi_init_z (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_s_cmplx(arnoldi_data)) CALL gev_arnoldi_init_c (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+
+    CALL dbcsr_error_stop(handle,error)
+
+  END SUBROUTINE gev_arnoldi_init
+
+! *****************************************************************************
 !> \brief here the iterations are performed and the krylov space is constructed
 !> \param matrix see above
 !> \param vectors see above
@@ -132,6 +199,139 @@ CONTAINS
     CALL dbcsr_error_stop(handle,error)
 
   END SUBROUTINE build_subspace
+
+! *****************************************************************************
+!> \brief here the iterations are performed and the krylov space for the generalized
+!>        eigenvalue probelm is created
+!> \param matrix see above
+!> \param vectors see above
+!> \param arnoldi_data see above
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE gev_build_subspace(matrix, vectors, arnoldi_data, error)
+    TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
+    TYPE(m_x_v_vectors)                      :: vectors
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_build_subspace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    IF(has_d_real(arnoldi_data))  CALL gev_build_subspace_d (matrix, vectors, arnoldi_data, error)
+    IF(has_s_real(arnoldi_data))  CALL gev_build_subspace_s (matrix, vectors, arnoldi_data, error)
+    IF(has_d_cmplx(arnoldi_data)) CALL gev_build_subspace_z (matrix, vectors, arnoldi_data, error)
+    IF(has_s_cmplx(arnoldi_data)) CALL gev_build_subspace_c (matrix, vectors, arnoldi_data, error)
+
+    CALL dbcsr_error_stop(handle,error)
+
+  END SUBROUTINE gev_build_subspace
+
+! *****************************************************************************
+!> \brief in the generalized eigenvalue the matrix depende on the projection
+!>        therefore the outer loop has to build a new set of matrices for the 
+!>        inner loop
+!> \param matrix see above
+!> \param matrix_arnoldi ...
+!> \param vectors ...
+!> \param arnoldi_data see above
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix, matrix_arnoldi
+    TYPE(m_x_v_vectors)                      :: vectors
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_update_data', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    IF(has_d_real(arnoldi_data))  CALL gev_update_data_d (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_s_real(arnoldi_data))  CALL gev_update_data_s (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_d_cmplx(arnoldi_data)) CALL gev_update_data_z (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_s_cmplx(arnoldi_data)) CALL gev_update_data_c (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+
+    CALL dbcsr_error_stop(handle,error)
+
+  END SUBROUTINE gev_update_data
+
+! *****************************************************************************
+!> \brief ...
+!> \param m_out ...
+!> \param m_in ...
+! *****************************************************************************
+  SUBROUTINE convert_matrix_z_to_d(m_out,m_in)
+    REAL(real_8), DIMENSION(:, :)            :: m_out
+    COMPLEX(real_8), DIMENSION(:, :)         :: m_in
+
+     m_out(:,:)=REAL(m_in(:,:),KIND=real_8)
+  END SUBROUTINE convert_matrix_z_to_d
+
+! *****************************************************************************
+!> \brief ...
+!> \param m_out ...
+!> \param m_in ...
+! *****************************************************************************
+  SUBROUTINE convert_matrix_c_to_s(m_out,m_in)
+    REAL(real_4), DIMENSION(:, :)            :: m_out
+    COMPLEX(real_4), DIMENSION(:, :)         :: m_in
+
+     m_out(:,:)=REAL(m_in,KIND=real_4)
+  END SUBROUTINE convert_matrix_c_to_s
+
+! *****************************************************************************
+!> \brief ...
+!> \param m_out ...
+!> \param m_in ...
+! *****************************************************************************
+  SUBROUTINE convert_matrix_d_to_z(m_out,m_in)
+    COMPLEX(real_8), DIMENSION(:, :)         :: m_out
+    REAL(real_8), DIMENSION(:, :)            :: m_in
+
+     m_out(:,:)=CMPLX(m_in,0.0,KIND=real_8)
+  END SUBROUTINE convert_matrix_d_to_z
+
+! *****************************************************************************
+!> \brief ...
+!> \param m_out ...
+!> \param m_in ...
+! *****************************************************************************
+  SUBROUTINE convert_matrix_s_to_c(m_out,m_in)
+    COMPLEX(real_4), DIMENSION(:, :)         :: m_out
+    REAL(real_4), DIMENSION(:, :)            :: m_in
+
+     m_out(:,:)=CMPLX(m_in,0.0,KIND=real_4)
+  END SUBROUTINE convert_matrix_s_to_c
+
+! I kno that one is stupid but like this it simplifies the template
+! *****************************************************************************
+!> \brief ...
+!> \param m_out ...
+!> \param m_in ...
+! *****************************************************************************
+  SUBROUTINE convert_matrix_z_to_z(m_out,m_in)
+    COMPLEX(real_8), DIMENSION(:, :)         :: m_out, m_in
+
+     m_out(:,:)=m_in
+  END SUBROUTINE convert_matrix_z_to_z
+
+! *****************************************************************************
+!> \brief ...
+!> \param m_out ...
+!> \param m_in ...
+! *****************************************************************************
+  SUBROUTINE convert_matrix_c_to_c(m_out,m_in)
+    COMPLEX(real_4), DIMENSION(:, :)         :: m_out, m_in
+
+     m_out(:,:)=m_in
+  END SUBROUTINE convert_matrix_c_to_c
 
 #include "dbcsr_arnoldi_methods_low_d.f90"
 #include "dbcsr_arnoldi_methods_low_s.f90"

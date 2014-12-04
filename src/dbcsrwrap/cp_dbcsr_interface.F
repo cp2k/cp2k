@@ -84,10 +84,11 @@ MODULE cp_dbcsr_interface
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
        dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
        dbcsr_work_create, deallocate_arnoldi_data, get_selected_ritz_val, &
-       has_acc, has_mpi, heap_fill, heap_get_first, heap_new, heap_release, &
-       heap_reset_first, heap_t, mm_driver_acc, mm_driver_blas, &
-       mm_driver_matmul, mm_driver_smm, mm_name_acc, mm_name_blas, &
-       mm_name_matmul, mm_name_smm, multrec_limit, setup_arnoldi_data, swap
+       get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, &
+       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, &
+       set_arnoldi_initial_vector, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -225,7 +226,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_add_block_node
   PUBLIC :: cp_dbcsr_maxabs
   PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data,&
-            get_selected_ritz_val
+            get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector
   PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
             cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
             cp_csr_create_nze_row
@@ -1883,14 +1884,19 @@ CONTAINS
 !> \param threshold ...
 !> \param selection_crit ...
 !> \param nval_request ...
+!> \param nrestarts ...
+!> \param generalized_ev ...
+!> \param iram ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_setup_arnoldi_data(arnoldi_data,matrix,max_iter, threshold,&
-                                            selection_crit, nval_request)
+  SUBROUTINE cp_dbcsr_setup_arnoldi_data(arnoldi_data,matrix,max_iter, threshold, selection_crit, &
+                                         nval_request, nrestarts, generalized_ev, iram)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(cp_dbcsr_p_type), DIMENSION(:)      :: matrix
     INTEGER                                  :: max_iter
     REAL(real_8)                             :: threshold
-    INTEGER                                  :: selection_crit, nval_request
+    INTEGER                                  :: selection_crit, nval_request, &
+                                                nrestarts
+    LOGICAL                                  :: generalized_ev, iram
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_setup_arnoldi_data', &
       routineP = moduleN//':'//routineN
@@ -1906,11 +1912,52 @@ CONTAINS
        m_ptrs(i)%matrix=>matrix(i)%matrix%matrix
     END DO
 
-    CALL setup_arnoldi_data(arnoldi_data,m_ptrs ,max_iter, threshold,& 
-                                            selection_crit, nval_request)
+    CALL setup_arnoldi_data(arnoldi_data,m_ptrs ,max_iter, threshold,selection_crit, & 
+                            nval_request, nrestarts, generalized_ev, iram)
+      
 
     DEALLOCATE(m_ptrs)
   END SUBROUTINE cp_dbcsr_setup_arnoldi_data
+
+! *****************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param vector ...
+! *****************************************************************************
+  SUBROUTINE cp_set_arnoldi_initial_vector(arnoldi_data,vector)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(cp_dbcsr_type)                      :: vector
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_set_arnoldi_initial_vector', &
+      routineP = moduleN//':'//routineN
+
+    CALL set_arnoldi_initial_vector(arnoldi_data,vector%matrix)
+
+  END SUBROUTINE cp_set_arnoldi_initial_vector
+
+! *****************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param ind ...
+!> \param matrix ...
+!> \param vector ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE get_selected_ritz_vec(arnoldi_data,ind,matrix,vector,error)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    INTEGER                                  :: ind
+    TYPE(cp_dbcsr_type)                      :: matrix, vector
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_selected_ritz_vec', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL get_selected_ritz_vector(arnoldi_data,ind,matrix%matrix,vector%matrix,dbcsr_error)
+
+  END SUBROUTINE get_selected_ritz_vec
 
 ! *****************************************************************************
 !> \brief ...

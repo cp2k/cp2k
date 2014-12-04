@@ -28,7 +28,13 @@ MODULE dbcsr_arnoldi_types
      INTEGER                                 :: nval_req
      INTEGER                                 :: selection_crit
      INTEGER                                 :: nval_out
+     INTEGER                                 :: nrestart
      REAL(real_8)                            :: threshold
+     LOGICAL                                 :: symmetric
+     LOGICAL                                 :: generalized_ev
+     LOGICAL                                 :: iram
+     LOGICAL                                 :: max_ev_request
+     LOGICAL                                 :: has_initial_vector
      INTEGER, DIMENSION(:), POINTER          :: selected_ind    ! list of indicies matching the selection criterium
   END TYPE arnoldi_control
 
@@ -38,6 +44,8 @@ MODULE dbcsr_arnoldi_types
      REAL(kind=real_8), POINTER, DIMENSION(:, :)      :: local_history   ! the complete set of orthonormal vectors (local part)
      COMPLEX(real_8), POINTER, DIMENSION(:)           :: evals           ! the real part of the eigenvalues (if complex both)
      COMPLEX(real_8), POINTER, DIMENSION(:, :)        :: revec           ! the right eigenvectors
+     REAL(kind=real_8)                                :: rho_scale       ! scling factor for general eig arnoldi
+     REAL(kind=real_8), POINTER, DIMENSION(:)         :: x_vec           ! eigenvector for genreal eig arnoldi
   END TYPE arnoldi_data_d
 
   TYPE arnoldi_data_s
@@ -46,6 +54,8 @@ MODULE dbcsr_arnoldi_types
      REAL(kind=real_4), POINTER, DIMENSION(:, :)      :: local_history   ! the complete set of orthonormal vectors (local part)
      COMPLEX(real_4), POINTER, DIMENSION(:)           :: evals           ! the real part of the eigenvalues (if complex both)
      COMPLEX(real_4), POINTER, DIMENSION(:, :)        :: revec           ! the right eigenvectors
+     REAL(kind=real_4)                                :: rho_scale       ! scling factor for general eig arnoldi
+     REAL(kind=real_4), POINTER, DIMENSION(:)         :: x_vec           ! eigenvector for genreal eig arnoldi
   END TYPE arnoldi_data_s
 
   TYPE arnoldi_data_z
@@ -54,6 +64,8 @@ MODULE dbcsr_arnoldi_types
      COMPLEX(kind=real_8), POINTER, DIMENSION(:, :)   :: local_history   ! the complete set of orthonormal vectors (local part)
      COMPLEX(real_8), POINTER, DIMENSION(:)           :: evals           ! the real part of the eigenvalues (if complex both)
      COMPLEX(real_8), POINTER, DIMENSION(:, :)        :: revec           ! the right eigenvectors
+     COMPLEX(kind=real_8)                             :: rho_scale       ! scling factor for general eig arnoldi
+     COMPLEX(kind=real_8), POINTER, DIMENSION(:)      :: x_vec           ! eigenvector for genreal eig arnoldi
   END TYPE arnoldi_data_z
 
   TYPE arnoldi_data_c
@@ -62,6 +74,8 @@ MODULE dbcsr_arnoldi_types
      COMPLEX(kind=real_4), POINTER, DIMENSION(:, :)   :: local_history   ! the complete set of orthonormal vectors (local part)
      COMPLEX(real_4), POINTER, DIMENSION(:)           :: evals           ! the real part of the eigenvalues (if complex both)
      COMPLEX(real_4), POINTER, DIMENSION(:, :)        :: revec           ! the right eigenvectors
+     COMPLEX(kind=real_4)                             :: rho_scale       ! scling factor for general eig arnoldi
+     COMPLEX(kind=real_4), POINTER, DIMENSION(:)      :: x_vec           ! eigenvector for genreal eig arnoldi
   END TYPE arnoldi_data_c
 
   TYPE dbcsr_arnoldi_data

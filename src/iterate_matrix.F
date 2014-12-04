@@ -121,18 +121,19 @@ CONTAINS
     IF(use_inv_guess)THEN
        mymat(1)%matrix=>matrix
        mymat(2)%matrix=>matrix_inverse
-       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-4_dp,&
-                                        selection_crit=1,nval_request=2)
+       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1, &
+                                        nval_request=2, nrestarts=2, generalized_ev=.FALSE.,iram=.TRUE.)
        CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
        max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
        min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
        max_abs_eig=MAX(max_eV,ABS(min_eV))
+       IF(ABS(min_ev).GT.max_ev)max_abs_eig=min_ev
        CALL deallocate_arnoldi_data(my_arnoldi)
        CALL cp_dbcsr_scale(matrix_inverse,1.0_dp/max_abs_eig,error=error)
     END IF
 
     DO i=1,100
-
+      
        t1 = m_walltime()
        ! tmp1 = S^-1 S
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix,&
@@ -158,6 +159,20 @@ CONTAINS
        CALL cp_dbcsr_filter(matrix_inverse, threshold, error=error)
        t2 = m_walltime()
 
+       !use the eigenvalues of the matrix to check conevrgence
+       IF(PRESENT(norm_convergence))THEN
+          mymat(1)%matrix=>matrix
+          mymat(2)%matrix=>matrix_inverse
+          CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1,&
+                                           nval_request=2,nrestarts=2,generalized_ev=.FALSE.,iram=.TRUE.)
+          CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
+          max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+          min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+          max_abs_eig=MAX(max_eV-1.0_dp,ABS(min_eV-1.0_dp))
+          maxnorm_matrix=max_abs_eig
+          CALL deallocate_arnoldi_data(my_arnoldi)
+       END IF
+
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)')  "Hotelling iter",i,occ_matrix, &
                                                                      maxnorm_matrix,t2-t1,&
@@ -165,17 +180,7 @@ CONTAINS
           CALL m_flush(unit_nr)
        ENDIF
 
-       !use the eigenvalues of the matrix to check conevrgence
        IF(PRESENT(norm_convergence))THEN
-          mymat(1)%matrix=>matrix
-          mymat(2)%matrix=>matrix_inverse
-          CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-4_dp,&
-                                           selection_crit=1,nval_request=2)
-          CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
-          max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
-          min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
-          max_abs_eig=MAX(max_eV-1.0_dp,ABS(min_eV-1.0_dp))
-          CALL deallocate_arnoldi_data(my_arnoldi)
           IF( ABS(max_abs_eig) .LT. norm_convergence)EXIT
        ELSE
 !       ! use max_norm 

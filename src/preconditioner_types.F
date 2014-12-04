@@ -14,6 +14,7 @@ MODULE preconditioner_types
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_release_p,&
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_release,&
@@ -44,11 +45,15 @@ MODULE preconditioner_types
        TYPE(cp_dbcsr_type),    POINTER :: sparse_matrix
        TYPE(cp_fm_type), POINTER :: fm
        TYPE(cp_dbcsr_type), POINTER           :: dbcsr_matrix
+       TYPE(cp_dbcsr_type), POINTER           :: max_ev_vector
+       TYPE(cp_dbcsr_type), POINTER           :: min_ev_vector
+       TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
-       INTEGER :: in_use, solver
+       INTEGER :: in_use, solver, ihistory
        REAL(KIND = dp), DIMENSION(:), POINTER :: occ_evals,full_evals
        REAL(KIND = dp) :: energy_gap
+       REAL(KIND = dp) :: condition_num
   END TYPE preconditioner_type
 
 ! *****************************************************************************
@@ -90,9 +95,16 @@ CONTAINS
     NULLIFY(preconditioner_env%dbcsr_matrix)
     NULLIFY(preconditioner_env%occ_evals)
     NULLIFY(preconditioner_env%full_evals)
+    NULLIFY(preconditioner_env%inverse_history)
+    NULLIFY(preconditioner_env%max_ev_vector)
+    NULLIFY(preconditioner_env%min_ev_vector)
     preconditioner_env%solver=ot_precond_solver_default
     preconditioner_env%para_env => para_env
     preconditioner_env%ctxt     => blacs_env
+    !inverse is used for filtering in update set it to something huge to
+    ! avoid filtering if the information is not available
+    preconditioner_env%condition_num=-1.0_dp
+    preconditioner_env%ihistory=0
 
     CALL cp_para_env_retain(preconditioner_env%para_env,error=error)
     CALL cp_blacs_env_retain(preconditioner_env%ctxt,error=error)
@@ -112,7 +124,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_preconditioner', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, i
 
     CALL timeset(routineN,handle)
 
@@ -127,11 +139,23 @@ CONTAINS
     IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
        CALL cp_dbcsr_release_p (preconditioner_env%dbcsr_matrix, error=error)
     ENDIF
+    IF (ASSOCIATED(preconditioner_env%max_ev_vector)) THEN
+       CALL cp_dbcsr_release_p (preconditioner_env%max_ev_vector, error=error)
+    ENDIF
+    IF (ASSOCIATED(preconditioner_env%min_ev_vector)) THEN
+       CALL cp_dbcsr_release_p (preconditioner_env%min_ev_vector, error=error)
+    ENDIF
     IF (ASSOCIATED(preconditioner_env%occ_evals)) THEN
        DEALLOCATE(preconditioner_env%occ_evals)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%full_evals)) THEN
        DEALLOCATE(preconditioner_env%full_evals)
+    ENDIF
+    IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN
+       DO i=1,SIZE(preconditioner_env%inverse_history)
+          CALL cp_dbcsr_release_p (preconditioner_env%inverse_history(i)%matrix, error=error)
+       END DO
+       DEALLOCATE(preconditioner_env%inverse_history)
     ENDIF
     CALL cp_para_env_release(preconditioner_env%para_env,error=error)
     CALL cp_blacs_env_release(preconditioner_env%ctxt,error=error)

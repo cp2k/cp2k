@@ -376,3 +376,8 @@ h2o_ot_precond_7.inp
 h2o_ot_precond_8.inp
 no_ot_precond_7.inp
 no_ot_precond_8.inp
+#improvements to full_single inverse
+h2o_ot_precond_7.inp
+h2o_ot_precond_8.inp
+no_ot_precond_7.inp
+no_ot_precond_8.inp

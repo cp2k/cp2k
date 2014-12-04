@@ -1147,11 +1147,11 @@ error=error)
        CASE ("FULL_SINGLE")
           WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE         : diagonalization based"
        CASE ("FULL_SINGLE_INVERSE")
-          WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE_INVERSE : cholesky inversion of H + eS"
+          WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE_INVERSE : inversion of H + eS - 2*(Sc)(c^T*H*c+const)(Sc)^T"
        CASE ("FULL_ALL")
           WRITE(output_unit,'(A)') "  Preconditioner : FULL_ALL            : diagonalization, state selective"
        CASE ("FULL_KINETIC")
-          WRITE(output_unit,'(A)') "  Preconditioner : FULL_KINETIC        : cholesky inversion of T + eS"
+          WRITE(output_unit,'(A)') "  Preconditioner : FULL_KINETIC        : inversion of T + eS"
        CASE ("FULL_S_INVERSE")
           WRITE(output_unit,'(A)')            "  Preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
        CASE ("SPARSE_DIAG")

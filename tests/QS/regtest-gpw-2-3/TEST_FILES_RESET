@@ -28,3 +28,15 @@ Au13ico_mtd.inp
 #do not accumulate shift in outer scf preconditioner
 Au12_rmsd_AB_mtd.inp
 Au12_rmsd_A_mtd.inp
+# change energy gap to something reasonable as meaning for sull single inverse changed
+Au12_rmsd_AB_mtd.inp     
+Au12_rmsd_A_mtd.inp     
+Au13ico_mtd.inp
+#improvements to full_single inverse
+hcn_ts.inp
+hcn_ts_r.inp
+hcn_md.inp
+#improvements to full_single inverse
+hcn_meta_coord.inp
+hcn_meta_chaincoord.inp
+hcn_meta_chaincoord_kind.inp

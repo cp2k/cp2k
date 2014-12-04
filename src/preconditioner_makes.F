@@ -15,8 +15,10 @@ MODULE preconditioner_makes
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, &
        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_get_info, cp_dbcsr_init, &
        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_setup_arnoldi_data, cp_dbcsr_type, dbcsr_arnoldi_data, &
-       deallocate_arnoldi_data, get_selected_ritz_val
+       cp_dbcsr_setup_arnoldi_data, cp_dbcsr_type, &
+       cp_set_arnoldi_initial_vector, dbcsr_arnoldi_data, &
+       dbcsr_type_symmetric, deallocate_arnoldi_data, get_selected_ritz_val, &
+       get_selected_ritz_vec
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_m_by_n_from_template,&
                                              cp_dbcsr_sm_fm_multiply,&
@@ -226,6 +228,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE make_full_kinetic
+
 ! *****************************************************************************
 !> \brief full_single_preconditioner
 !> \param preconditioner_env ...
@@ -642,11 +645,11 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
 END SUBROUTINE make_full_all_ortho
 
 ! *****************************************************************************
-!> \brief generates a preconditioner matrix H-lambda S+(SC)shifts(SC)^T
+!> \brief generates a preconditioner matrix H-lambda S+(SC)(2.0*CT*H*C+delta)(SC)^T
 !>        for later inversion.
 !>        H is the Kohn Sham matrix
 !>        lambda*S shifts the spectrum of the generalized form up by lambda
-!>        (SC)shifts(SC)^T only shifts the occupied space (ensuring positive definteness)
+!>        the last term only shifts the occupied space (reversing them in energy order)
 !>        This form is implicitely multiplied from both sides by S^0.5
 !>        This ensures we precondition the correct quantity
 !>        Before this reads S^-0.5 H S^-0.5 + lambda + (S^0.5 C)shifts(S^0.5 C)T
@@ -677,7 +680,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrices
     TYPE(cp_dbcsr_type), TARGET              :: dbcsr_cThc, dbcsr_hc, &
-                                                dbcsr_sc, dbcsr_w, mo_dbcsr
+                                                dbcsr_sc, mo_dbcsr
     TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
     CALL timeset(routineN,handle)
@@ -692,10 +695,8 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
     CALL cp_dbcsr_create(dbcsr_sc,template=mo_dbcsr,error=error)
     CALL cp_dbcsr_init(dbcsr_hc,error)
     CALL cp_dbcsr_create(dbcsr_hc,template=mo_dbcsr,error=error)
-    CALL cp_dbcsr_init(dbcsr_w,error)
-    CALL cp_dbcsr_create(dbcsr_w,template=matrix_h,error=error)
     CALL cp_dbcsr_init(dbcsr_cThc,error)
-    CALL cp_dbcsr_m_by_n_from_template(dbcsr_cThc,matrix_h,k,k,error)
+    CALL cp_dbcsr_m_by_n_from_template(dbcsr_cThc,matrix_h,k,k,sym=dbcsr_type_symmetric,error=error)
 
     ! Check whether the output matrix was already created, if not do it now
     IF(.NOT.ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
@@ -714,54 +715,80 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
        CALL cp_dbcsr_copy(dbcsr_sc,mo_dbcsr,error=error)
     END IF
 
+!----------------------------compute the occupied subspace and shift it ------------------------------------
     ! cT*H*C which will be used to shift the occupied states to 0
     CALL cp_dbcsr_multiply("N", "N",1.0_dp,matrix_h,mo_dbcsr,0.0_dp,dbcsr_hc,error=error)
     CALL cp_dbcsr_multiply("T", "N",1.0_dp,mo_dbcsr,dbcsr_hc,0.0_dp,dbcsr_cThc,error=error)
-    ! Lets shift the occupied states a bit further up, -1.0 because we gonna subtract it from H  
-    CALL cp_dbcsr_add_on_diag(dbcsr_cThc,-1.0_dp,error=error)
-    ! Get the AO representation of the shift (see above why S is needed), W-matrix like object
-    CALL cp_dbcsr_multiply("N", "N",1.0_dp,dbcsr_sc,dbcsr_cThc,0.0_dp,dbcsr_hc,error=error)
-    CALL cp_dbcsr_multiply("N", "T",1.0_dp,dbcsr_hc,dbcsr_sc,0.0_dp,dbcsr_w,error=error)
-    
-    CALL cp_dbcsr_add(preconditioner_env%sparse_matrix, dbcsr_w,1.0_dp,-1.00_dp,error=error)
 
     ! Compute the Energy of the HOMO. We will use this as a reference energy 
     ALLOCATE(matrices(1))
     matrices(1)%matrix=>dbcsr_cThc
-    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=100,threshold=1.0E-6_dp, selection_crit=1,nval_request=2)
+    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=20,threshold=1.0E-3_dp,selection_crit=2,&
+                                     nval_request=1, nrestarts=8, generalized_ev=.FALSE.,iram=.FALSE.)
+    IF(ASSOCIATED(preconditioner_env%max_ev_vector))&
+         CALL cp_set_arnoldi_initial_vector(my_arnoldi,preconditioner_env%max_ev_vector)
     CALL cp_dbcsr_arnoldi_ev(matrices,my_arnoldi,error)
-    max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+    max_ev=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+
+    ! save the ev as guess for the next time
+    IF(.NOT.ASSOCIATED(preconditioner_env%max_ev_vector))ALLOCATE(preconditioner_env%max_ev_vector)
+    CALL get_selected_ritz_vec(my_arnoldi,1,matrices(1)%matrix,preconditioner_env%max_ev_vector,error)
     CALL deallocate_arnoldi_data(my_arnoldi)
     DEALLOCATE(matrices)
 
-    ! calculate the shift that all orbitals energies are given with respect to the original HOMO
-    ! this should ensure that H in the generalized EVP is positive definite
-    pre_shift=-max_ev+energy_gap
-    min_ev=-1.0_dp
-    ! Our preconditioner matrix is given in AO, even the matrix of interest (S-0.5*H*S-0.5) is
-    ! Is ensured to be positive definite, H in AO is not, to avoid cholesky failure we add as much S 
-    ! as needed to make it positive definite 
-    DO WHILE(min_ev.LT.0.0001_dp)
-       IF(PRESENT(matrix_s))THEN
-          CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_s,1.0_dp,pre_shift,error=error)
-       ELSE
-          CALL cp_dbcsr_add_on_diag(preconditioner_env%sparse_matrix,pre_shift,error=error)
-       END IF
+    ! Lets shift the occupied states a bit further up, -1.0 because we gonna subtract it from H  
+    CALL cp_dbcsr_add_on_diag(dbcsr_cThc,-2.0_dp,error=error)
+    ! Get the AO representation of the shift (see above why S is needed), W-matrix like object
+    CALL cp_dbcsr_multiply("N", "N",2.0_dp,dbcsr_sc,dbcsr_cThc,0.0_dp,dbcsr_hc,error=error)
+    CALL cp_dbcsr_multiply("N", "T",-1.0_dp,dbcsr_hc,dbcsr_sc,1.0_dp,preconditioner_env%sparse_matrix,&
+                           error=error)
 
+!-------------------------------------compute eigenvalues of H ----------------------------------------------
+    ! Setup the arnoldi procedure to compute the lowest ev. if S is present this has to be the generalized ev
+    IF(PRESENT(matrix_s))THEN
+       ALLOCATE(matrices(2))
+       matrices(1)%matrix=>preconditioner_env%sparse_matrix
+       matrices(2)%matrix=>matrix_s
+       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=20,threshold=2.0E-2_dp,selection_crit=3,&
+                                        nval_request=1, nrestarts=21,generalized_ev=.TRUE.,iram=.FALSE.)
+    ELSE
        ALLOCATE(matrices(1))
        matrices(1)%matrix=>preconditioner_env%sparse_matrix
-       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=100,threshold=1.0E-4_dp,selection_crit=1,nval_request=2)
-       CALL cp_dbcsr_arnoldi_ev(matrices,my_arnoldi,error)
-       min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
-       CALL deallocate_arnoldi_data(my_arnoldi)
-       DEALLOCATE(matrices)
-       pre_shift=0.25_dp
-    END DO
+       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=20,threshold=2.0E-2_dp,selection_crit=3,&
+                                        nval_request=1, nrestarts=8, generalized_ev=.FALSE.,iram=.FALSE.)
+    END IF
+    IF(ASSOCIATED(preconditioner_env%min_ev_vector))&
+       CALL cp_set_arnoldi_initial_vector(my_arnoldi,preconditioner_env%min_ev_vector)
+
+    ! compute the LUMO energy
+    CALL cp_dbcsr_arnoldi_ev(matrices,my_arnoldi,error)
+    min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+
+    ! save the lumo vector for restarting in the next step
+    IF(.NOT.ASSOCIATED(preconditioner_env%min_ev_vector))ALLOCATE(preconditioner_env%min_ev_vector)
+    CALL get_selected_ritz_vec(my_arnoldi,1,matrices(1)%matrix,preconditioner_env%min_ev_vector,error)
+    CALL deallocate_arnoldi_data(my_arnoldi)
+    DEALLOCATE(matrices)
+
+!-------------------------------------compute eigenvalues of H ----------------------------------------------
+    ! apply a shift to the rest. The factor 1.5 is determined by trying. If LUMO is below 0 then add its value 
+    ! to the shift as well
+    pre_shift=MAX(1.5_dp*(min_ev-max_ev),energy_gap)
+    IF(min_ev.LT.0.0)THEN
+       pre_shift=pre_shift-min_ev
+    ELSE
+       IF(pre_shift.GT.min_ev)pre_shift=pre_shift-min_ev
+    END IF
+
+    IF(PRESENT(matrix_s))THEN
+       CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_s,1.0_dp,pre_shift,error=error)
+    ELSE
+       CALL cp_dbcsr_add_on_diag(preconditioner_env%sparse_matrix,pre_shift,error=error)
+    END IF
 
     CALL cp_dbcsr_release(mo_dbcsr,error=error)
     CALL cp_dbcsr_release(dbcsr_hc,error=error)
     CALL cp_dbcsr_release(dbcsr_sc,error=error)
-    CALL cp_dbcsr_release(dbcsr_w,error=error)
     CALL cp_dbcsr_release(dbcsr_cThc,error=error)
 
     CALL timestop(handle)

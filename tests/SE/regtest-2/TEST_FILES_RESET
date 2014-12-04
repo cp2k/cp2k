@@ -610,3 +610,6 @@ stp2.inp
 #do not accumulate shift in outer scf preconditioner
 stp3.inp
 scan_zn_1w_cp2k.inp
+#improvements to full_single inverse
+stp3.inp
+scan_zn_1w_cp2k.inp
