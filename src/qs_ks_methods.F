@@ -613,7 +613,7 @@ CONTAINS
           END IF
 
           IF (.NOT.do_hfx) THEN
-             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
+             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix (sets ks sparsity equal to matrix_h sparsity)
              DO ispin=1,nspins
                 CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
                                    name=cp_dbcsr_name(ks_matrix(ispin)%matrix),error=error)
