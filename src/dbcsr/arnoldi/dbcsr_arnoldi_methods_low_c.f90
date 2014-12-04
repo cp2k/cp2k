@@ -126,6 +126,14 @@
 
   END SUBROUTINE arnoldi_init_c
 
+! *****************************************************************************
+!> \brief Alogorithm for the implicit restarts in the arnoldi method
+!>        this is an early implementaion which scales subspace size^4
+!>        by replacing the lapack calls with direct math the 
+!>        QR and  gemms can be made linear and a N^2 sacling will be acchieved
+!>        however this already sets the framework but should be used with care
+! *****************************************************************************
+
   SUBROUTINE arnoldi_iram_c(arnoldi_data,error)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
@@ -494,6 +502,13 @@
 
   END SUBROUTINE gev_arnoldi_init_c
 
+! *****************************************************************************
+!> \brief builds the basis rothogonal wrt. teh metric.
+!>        The structure looks similar to normal arnoldi but norms, vectors and 
+!>        matrix_vector products are very differently defined. Therefore it is 
+!>        cleaner to put it in a seperate subroutine to avoid confusion
+! *****************************************************************************
+
   SUBROUTINE gev_build_subspace_c(matrix, vectors, arnoldi_data, error) 
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors)                      :: vectors
@@ -588,6 +603,15 @@
 
   END SUBROUTINE gev_build_subspace_c
 
+! *****************************************************************************
+!> \brief Updates all data after an inner loop of the generalized ev arnoldi. 
+!>        Updates rho and C=A-rho*B accordingly.
+!>        As an update scheme is used for he ev, the output ev has to be replaced
+!>        with the updated one.
+!>        Furthermore a convergence check is performed. The mv product could
+!>        be skiiped by making clever use of the precomputed data, However,
+!>        it is most likely not worth the effort.
+! *****************************************************************************
 
   SUBROUTINE gev_update_data_c(matrix, matrix_arnoldi, vectors, arnoldi_data, error)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
@@ -601,20 +625,27 @@
 
     TYPE(arnoldi_control), POINTER           :: control
     TYPE(arnoldi_data_c), POINTER            :: ar_data
-    INTEGER                                  :: nrow_local, ind
+    INTEGER                                  :: nrow_local, ind, i
     COMPLEX(kind=real_4), ALLOCATABLE, DIMENSION(:)      :: v_vec
     REAL(real_4)                        :: rnorm
     COMPLEX(kind=real_4)                         :: norm
+    COMPLEX(real_4)                     :: val 
 
     control=>get_control(arnoldi_data)
 
     ar_data=>get_data_c(arnoldi_data)
 
-! compute the new shift
-    ar_data%rho_scale=ar_data%rho_scale+ar_data%evals(control%selected_ind(1))
+! compute the new shift, hack around the problem templating the conversion
+    val=ar_data%evals(control%selected_ind(1))
+    ar_data%rho_scale=ar_data%rho_scale+val
 ! compute the new eigenvector / initial guess for the next arnoldi loop    
-    ar_data%x_vec(:)=MATMUL(ar_data%local_history(:,1:control%current_step),&
-                         ar_data%revec(1:control%current_step,control%selected_ind(1)))
+    ar_data%x_vec=CMPLX(0.0, 0.0, real_4)
+    DO i=1,control%current_step
+       val=ar_data%revec(i,control%selected_ind(1))
+       ar_data%x_vec(:)=ar_data%x_vec(:)+ar_data%local_history(:,i)*val
+    END DO
+!      ar_data%x_vec(:)=MATMUL(ar_data%local_history(:,1:control%current_step),&
+!                        ar_data%revec(1:control%current_step,control%selected_ind(1)))
 
 ! update the C-matrix (A-rho*B), if teh maximum value is requested we have to use -A-rho*B
     CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix,error=error)
@@ -651,3 +682,4 @@
     DEALLOCATE(v_vec)
 
   END SUBROUTINE gev_update_data_c
+

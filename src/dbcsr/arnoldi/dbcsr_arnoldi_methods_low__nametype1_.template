@@ -625,20 +625,27 @@
 
     TYPE(arnoldi_control), POINTER           :: control
     TYPE(arnoldi_data_[nametype1]), POINTER            :: ar_data
-    INTEGER                                  :: nrow_local, ind
+    INTEGER                                  :: nrow_local, ind, i
     [type_nametype1], ALLOCATABLE, DIMENSION(:)      :: v_vec
     REAL([type_prec])                        :: rnorm
     [type_nametype1]                         :: norm
+    COMPLEX([type_prec])                     :: val 
 
     control=>get_control(arnoldi_data)
 
     ar_data=>get_data_[nametype1](arnoldi_data)
 
-! compute the new shift
-    ar_data%rho_scale=ar_data%rho_scale+ar_data%evals(control%selected_ind(1))
+! compute the new shift, hack around the problem templating the conversion
+    val=ar_data%evals(control%selected_ind(1))
+    ar_data%rho_scale=ar_data%rho_scale+[val_to_type]
 ! compute the new eigenvector / initial guess for the next arnoldi loop    
-    ar_data%x_vec(:)=MATMUL(ar_data%local_history(:,1:control%current_step),&
-                         ar_data%revec(1:control%current_step,control%selected_ind(1)))
+    ar_data%x_vec=[nametype_zero]
+    DO i=1,control%current_step
+       val=ar_data%revec(i,control%selected_ind(1))
+       ar_data%x_vec(:)=ar_data%x_vec(:)+ar_data%local_history(:,i)*[val_to_type]
+    END DO
+!      ar_data%x_vec(:)=MATMUL(ar_data%local_history(:,1:control%current_step),&
+!                        ar_data%revec(1:control%current_step,control%selected_ind(1)))
 
 ! update the C-matrix (A-rho*B), if teh maximum value is requested we have to use -A-rho*B
     CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix,error=error)
@@ -675,3 +682,4 @@
     DEALLOCATE(v_vec)
 
   END SUBROUTINE gev_update_data_[nametype1]
+
