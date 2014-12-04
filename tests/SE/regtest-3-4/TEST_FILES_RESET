@@ -30,3 +30,7 @@ Co_complex.inp
 N3_rp_md.inp
 N3_dp_md.inp
 N3_rp_dp_md.inp
+reset tests for vector transfer
+N3_rp_md.inp
+N3_dp_md.inp
+N3_rp_dp_md.inp

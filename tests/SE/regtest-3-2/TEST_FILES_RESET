@@ -24,3 +24,11 @@ Periclase.inp
 H2O-MNDO-KDSOd.inp
 LM-KSDO.inp
 LM-KSDO-D.inp
+reset tests for vector transfer
+O2.inp
+H2O-3.inp
+N3-rp_colvar.inp
+Periclase.inp
+H2O-MNDO-KDSOd.inp
+LM-KSDO.inp
+LM-KSDO-D.inp

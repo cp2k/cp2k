@@ -613,3 +613,6 @@ scan_zn_1w_cp2k.inp
 #improvements to full_single inverse
 stp3.inp
 scan_zn_1w_cp2k.inp
+reset tests for vector transfer
+stp3.inp
+scan_zn_1w_cp2k.inp

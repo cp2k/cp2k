@@ -11,3 +11,9 @@ wfn_ex3.inp
 wfn_ex4.inp
 #  
 H2O-4.inp
+reset tests for vector transfer
+wfn_ex1.inp
+wfn_ex2.inp
+wfn_ex3.inp
+wfn_ex4.inp
+H2O-4.inp
