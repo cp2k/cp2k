@@ -215,7 +215,7 @@ CONTAINS
 
 !for the time being avois unused warning
 
-    levec(1,1)=CMPLX(0.0,0.0,real_8)
+    levec(1,1)=CMPLX(0.0,0.0,real_4)
     info =0
     diag(ndim)=matrix(ndim,ndim)
     DO i=1,ndim-1
