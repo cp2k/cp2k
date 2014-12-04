@@ -6,7 +6,7 @@ argon09.inp                       1     4e-13
 argon10.inp                       1     3e-13
 argon11.inp                       1     3e-13
 argon12.inp                       1     1e-12
-argon13.inp                       1     1e-7
+argon13.inp                       1     4e-07
 # beef functional
 argon-beef.inp                    1     4e-13
 # BJ
