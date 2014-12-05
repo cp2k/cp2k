@@ -42,7 +42,9 @@ UNDEF_EXCEPTIONS += ('SGEEV', 'SLARNV', 'SPOTRF', 'SPOTRI',
                      'DGETRS', 'DLACPY', 'DLARNV', 'DPOTRF', 'DPOTRI', 'DSYEV', 'DSYEVD',
                      'DSYEVX', 'DSYGST', 'DTRTRI',
                      'CPOTRF', 'CPOTRI', 'CGEEV', 'CLARNV',
-                     'ZGEEV', 'ZGETRF', 'ZGETRS', 'ZHEEVD', 'ZLARNV', 'ZPOTRF', 'ZPOTRI', 'ZTRTRI')
+                     'ZGEEV', 'ZGETRF', 'ZGETRS', 'ZHEEVD', 'ZLARNV', 'ZPOTRF', 'ZPOTRI', 'ZTRTRI',
+                     'CGEQRF', 'CGEQRF', 'CUNGQR', 'CUNGQR', 'ZGEQRF', 'ZGEQRF', 'ZUNGQR','ZUNGQR',
+                     'DHSEQR', 'DSTEV', 'DTREVC', 'SHSEQR', 'SSTEV', 'SSYEVD', 'STREVC')
 
 # precompile regex
 re_symbol    = re.compile(r"^\s*symtree.* symbol: '([^']+)'.*$")

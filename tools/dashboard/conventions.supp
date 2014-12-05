@@ -1,287 +1,263 @@
-almo_scf_optimizer.F.ast: Found CLOSE statement in procedure "almo_scf_xalmo_pcg"
-almo_scf_optimizer.F.ast: Found OPEN statement in procedure "almo_scf_xalmo_pcg"
-atom_xc.F.ast: Found CLOSE statement in procedure "calculate_atom_vxc_lda"
-atom_xc.F.ast: Found OPEN statement in procedure "calculate_atom_vxc_lda"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "apser"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "basym"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "betaln"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "bfrac"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "bgrat"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "bpser"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "bratio"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "brcmp1"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "brcomp"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "bup"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "erfc1"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "esum"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "fpser"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln1"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "grat1"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "gsumln"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "psi"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "rexp"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "rlog1"
-bfgs_optimizer.F.ast: Found GOTO statement in procedure "rat_fun_opt"
-cp2k_shell.F.ast: Found GOTO statement in procedure "cp2k_shell"
-cp2k_shell.F.ast: Found OPEN statement in procedure "get_eof_stat"
-cp_dbcsr_interface.F.ast: Found FORALL statement in procedure "match_1_dist"
-cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_cfm_to_dbcsr"
-cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_dbcsr_to_cfm"
-cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_dbcsr_to_fm"
-cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_dbcsr_to_fm_bc"
-cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_fm_to_dbcsr"
-cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_fm_to_dbcsr_bc"
-cp_files.F.ast: Found CLOSE statement in procedure "close_file"
-cp_files.F.ast: Found OPEN statement in procedure "open_file"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "cauchy"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "dcsrch"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "dpofa"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "dtrsl"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "hpsolb"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "lnsrlb"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "mainlb"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "prn3lb"
-cp_lbfgs.F.ast: Found GOTO statement in procedure "subsm"
-cp_lbfgs.F.ast: Found OPEN statement in procedure "mainlb"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_z"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_z"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_z"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_z"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_z"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_z"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_z"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_c"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_d"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_s"
-dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_z"
-dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "dbcsr_create_dist_block_cyclic"
-dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "dbcsr_create_dist_elemental"
-dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "make_image_distribution_dense"
-dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "make_vdistribution"
-dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "v_to_p_i_dist"
-dbcsr_error_handling.F.ast: Symbol "external_timeset" in "dbcsr_error_set" not defined
-dbcsr_error_handling.F.ast: Symbol "external_timestop" in "dbcsr_error_stop" not defined
-dbcsr_example_1.F.ast: Found FORALL statement in procedure "random_dist"
-dbcsr_example_2.F.ast: Found FORALL statement in procedure "random_dist"
-dbcsr_example_3.F.ast: Found FORALL statement in procedure "random_dist"
-dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_count_row_index_copy"
-dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_make_index_list"
-dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_make_index_local_row"
-dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_sort_indices"
-dbcsr_index_operations.F.ast: Found FORALL statement in procedure "make_undense_index"
-dbcsr_mm_cannon.F.ast: Found FORALL statement in procedure "cannon_multiply_low"
-dbcsr_mm_cannon.F.ast: Found FORALL statement in procedure "make_images"
-dbcsr_mm_hostdrv.F.ast: Symbol "smm_cnn" in "smm_process_mm_stack_c" not defined
-dbcsr_mm_hostdrv.F.ast: Symbol "smm_dnn" in "smm_process_mm_stack_d" not defined
-dbcsr_mm_hostdrv.F.ast: Symbol "smm_snn" in "smm_process_mm_stack_s" not defined
-dbcsr_mm_hostdrv.F.ast: Symbol "smm_znn" in "smm_process_mm_stack_z" not defined
-dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "dbcsr_mm_multrec_init"
-dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "local_filter"
-dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "local_filter_sp"
-dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "remap_local2global"
-dbcsr_mp_operations.F.ast: Found FORALL statement in procedure "most_alltoall"
-dbcsr_mp_operations.F.ast: Found FORALL statement in procedure "remainder_alltoall"
-dbcsr_test_methods.F.ast: Found FORALL statement in procedure "dbcsr_random_dist"
-dgs.F.ast: Symbol "copy_cr" in "dg_get_patch_1" not defined
-dgs.F.ast: Symbol "copy_cri" in "dg_get_patch_2" not defined
-dgs.F.ast: Symbol "rankup" in "dg_get_patch_1" not defined
-dgs.F.ast: Symbol "rankup" in "dg_get_patch_2" not defined
-dgs.F.ast: Symbol "vc_x_vc" in "dg_get_patch_1" not defined
-dgs.F.ast: Symbol "vc_x_vc" in "dg_get_patch_2" not defined
-dgs.F.ast: Symbol "vr_x_vc" in "dg_get_patch_1" not defined
-dgs.F.ast: Symbol "vr_x_vc" in "dg_get_patch_2" not defined
-eip_silicon.F.ast: Found GOTO statement in procedure "eip_bazant_silicon"
-eip_silicon.F.ast: Found GOTO statement in procedure "eip_lenosky_silicon"
-eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_b"
-eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_l"
-eip_silicon.F.ast: Found OPEN statement in procedure "eip_bazant_silicon"
-eip_silicon.F.ast: Found OPEN statement in procedure "eip_lenosky_silicon"
-environment.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "read_global_section"
-ep_f77.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f" not defined
-ep_f77.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create" not defined
-ep_f77.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy" not defined
-ep_f77.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env" not defined
-ep_f77.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release" not defined
-ep_f77.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain_low" not defined
-erf_fn.F.ast: Found GOTO statement in procedure "calerf"
-f77_blas_extra.F.ast: Found GOTO statement in procedure "czcopy"
-f77_blas_extra.F.ast: Found GOTO statement in procedure "dscopy"
-f77_blas_extra.F.ast: Found GOTO statement in procedure "sdcopy"
-f77_blas_extra.F.ast: Found GOTO statement in procedure "zccopy"
-farming_methods.F.ast: Found CLOSE statement in procedure "farming_parse_input"
-farming_methods.F.ast: Found OPEN statement in procedure "farming_parse_input"
-fft_tools.F.ast: Symbol "zero_c" in "fft3d_ps" not defined
-fftw3_lib.F.ast: Found GOTO statement in procedure "sortint"
-gauss_colloc.F.ast: Found GOTO statement in procedure "collocgauss"
-gauss_colloc.F.ast: Found GOTO statement in procedure "collocgaussflat"
-gauss_colloc.F.ast: Found GOTO statement in procedure "integrategauss"
-gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfull"
-gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfullflat"
-graph.F.ast: Found CLOSE statement in procedure "graph"
-graph.F.ast: Found OPEN statement in procedure "graph"
-graph_methods.F.ast: Found CLOSE statement in procedure "fes_path"
-graph_methods.F.ast: Found OPEN statement in procedure "fes_cube_write"
-graph_methods.F.ast: Found OPEN statement in procedure "fes_path"
-graphcon.F.ast: Found GOTO statement in procedure "all_permutations"
-hfx_derivatives.F.ast: Found CLOSE statement in procedure "derivatives_four_center"
-hfx_derivatives.F.ast: Found OPEN statement in procedure "derivatives_four_center"
-hfx_energy_potential.F.ast: Found CLOSE statement in procedure "integrate_four_center"
-hfx_energy_potential.F.ast: Found OPEN statement in procedure "integrate_four_center"
-hfx_load_balance_methods.F.ast: Found CLOSE statement in procedure "hfx_recursive_load_balance"
-hfx_load_balance_methods.F.ast: Found OPEN statement in procedure "hfx_recursive_load_balance"
-input_section_types.F.ast: Found CLOSE statement in procedure "section_describe_html"
-input_section_types.F.ast: Found OPEN statement in procedure "section_describe_html"
-k290.F.ast: Found GOTO statement in procedure "atftm1"
-k290.F.ast: Found GOTO statement in procedure "bzdefi"
-k290.F.ast: Found GOTO statement in procedure "bzrduc"
-k290.F.ast: Found GOTO statement in procedure "checkrlv3"
-k290.F.ast: Found GOTO statement in procedure "garbag"
-k290.F.ast: Found GOTO statement in procedure "mesh"
-k290.F.ast: Found GOTO statement in procedure "pgl1"
-k290.F.ast: Found GOTO statement in procedure "primlatt"
-k290.F.ast: Found GOTO statement in procedure "remove"
-k290.F.ast: Found GOTO statement in procedure "sppt2"
-k290.F.ast: Found WHERE statement in procedure "kp_sym_gen"
-kg_environment.F.ast: Found CLOSE statement in procedure "write_to_file"
-kg_environment.F.ast: Found OPEN statement in procedure "write_to_file"
-machine.F.ast: Found OPEN statement in procedure "read_energy"
-machine.F.ast: Symbol "date_and_time" in "m_datum" not defined
-machine.F.ast: Symbol "system_clock" in "m_walltime" not defined
-machine_internal.F.ast: Found CLOSE statement in procedure "m_memory_details"
-machine_internal.F.ast: Found OPEN statement in procedure "m_memory"
-machine_internal.F.ast: Found OPEN statement in procedure "m_memory_details"
-machine_internal.F.ast: Symbol "cpu_time" in "m_cputime" not defined
-message_passing.F.ast: Found CLOSE statement in procedure "mp_file_close"
-message_passing.F.ast: Found OPEN statement in procedure "mp_file_open"
-message_passing.F.ast: Symbol "mp_external_timeset" in "mp_timeset" not defined
-message_passing.F.ast: Symbol "mp_external_timestop" in "mp_timestop" not defined
-min_heap.F.ast: Found FORALL statement in procedure "test_heap"
-mm_collocate_potential.F.ast: Symbol "collocate_gf_npbc" in "collocate_gf_rspace_nopbc" not defined
-mm_collocate_potential.F.ast: Symbol "integrate_gf_npbc" in "integrate_gf_rspace_nopbc" not defined
-mp2_direct_method.F.ast: Found CLOSE statement in procedure "mp2_canonical_direct_single_batch"
-mp2_direct_method.F.ast: Found OPEN statement in procedure "mp2_canonical_direct_single_batch"
-mp2_ri_libint.F.ast: Found CLOSE statement in procedure "calc_lai_libint"
-mp2_ri_libint.F.ast: Found OPEN statement in procedure "calc_lai_libint"
-pilaenv_hack.F.ast: Symbol "nag_dummy" in "nag_dummy" not defined
-powell.F.ast: Found GOTO statement in procedure "newuoa"
-powell.F.ast: Found GOTO statement in procedure "newuob"
-ps_wavelet_fft3d.F.ast: Found GOTO statement in procedure "ctrig"
-ps_wavelet_util.F.ast: Found GOTO statement in procedure "f_fft_dimensions"
-ps_wavelet_util.F.ast: Found GOTO statement in procedure "p_fft_dimensions"
-ps_wavelet_util.F.ast: Found GOTO statement in procedure "s_fft_dimensions"
-pw_methods.F.ast: Symbol "copy_cr" in "fft_wrap_pw1pw2" not defined
-pw_methods.F.ast: Symbol "copy_rc" in "fft_wrap_pw1pw2" not defined
-pw_methods.F.ast: Symbol "zero_c" in "fft_wrap_pw1pw2" not defined
-pw_methods.F.ast: Symbol "zero_c" in "pw_scatter_p" not defined
-pw_spline_utils.F.ast: Found GOTO statement in procedure "pw_nn_compose_r_no_pbc"
-pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_nn_smear_g"
-pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_spline2_evaluate_values_g"
-pw_spline_utils.F.ast: OMP PARALLEL without DEFAULT(NONE) found in "pw_spline3_evaluate_values_g"
-qmmm_init.F.ast: Found WHERE statement in procedure "setup_qmmm_links"
-qs_collocate_density.F.ast: Symbol "collocate_core_0" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_1" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_2" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_3" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_4" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_5" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_6" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_7" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_8" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_9" in "collocate_ortho" not defined
-qs_collocate_density.F.ast: Symbol "collocate_core_default" in "collocate_ortho" not defined
-qs_dispersion_pairpot.F.ast: Found GOTO statement in procedure "limit"
-qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_opt" not defined
-qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_subpatch" not defined
-qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_wings" not defined
-qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_ortho" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_0" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_1" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_2" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_3" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_4" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_5" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_6" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_7" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_8" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_9" in "call_integrate" not defined
-qs_integrate_potential_low.F.ast: Symbol "integrate_core_default" in "call_integrate" not defined
-qs_localization_methods.F.ast: Found GOTO statement in procedure "jacobi_rot_para"
-qs_outer_scf.F.ast: Found GOTO statement in procedure "outer_loop_optimize"
-realspace_grid_types.F.ast: Symbol "copy_cr" in "rs_pw_transfer" not defined
-realspace_grid_types.F.ast: Symbol "copy_rc" in "rs_pw_transfer" not defined
-realspace_grid_types.F.ast: Symbol "copy_rc" in "rs_pw_transfer_replicated" not defined
-scp_diis_utils.F.ast: Found GOTO statement in procedure "store_hist"
-se_ga_tools.F.ast: Found GOTO statement in procedure "grid_factor"
-statistical_methods.F.ast: Found GOTO statement in procedure "alnorm"
-statistical_methods.F.ast: Found GOTO statement in procedure "poly"
-swarm_mpi.F.ast: Found CLOSE statement in procedure "logger_init_master"
-swarm_mpi.F.ast: Found OPEN statement in procedure "logger_finalize"
-tmc_move_handle.F.ast: Found WHERE statement in procedure "add_mv_prob"
-tmc_move_handle.F.ast: Found WHERE statement in procedure "prob_update"
-topology_constraint_util.F.ast: Found WHERE statement in procedure "topology_constraint_pack"
-topology_generate_util.F.ast: Found WHERE statement in procedure "generate_molname_low"
-topology_generate_util.F.ast: Found WHERE statement in procedure "topology_generate_molecule"
-util.F.ast: Found FORALL statement in procedure "sort_cm"
-util.F.ast: Found FORALL statement in procedure "sort_im"
-xas_methods.F.ast: Found GOTO statement in procedure "xas"
-xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
-xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
-xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
-xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
-xc_derivatives.F.ast: Found GOTO statement in procedure "xc_functional_eval"
-xml_parser.F.ast: Found CLOSE statement in procedure "xml_close"
-xml_parser.F.ast: Found OPEN statement in procedure "xml_open"
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_0" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_1" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_2" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_3" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_4" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_0" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_1" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_2" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_3" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_4" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_0" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_1" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_2" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_3" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_4" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_0" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_1" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_2" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_3" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_4" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_0" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_1" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_2" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_3" in "call_to_xyz_to_vab" not defined
-xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_4" in "call_to_xyz_to_vab" not defined
+almo_scf_optimizer.F.ast: Found CLOSE statement in procedure "almo_scf_xalmo_pcg" (suppressed)
+almo_scf_optimizer.F.ast: Found OPEN statement in procedure "almo_scf_xalmo_pcg" (suppressed)
+atom_xc.F.ast: Found CLOSE statement in procedure "calculate_atom_vxc_lda" (suppressed)
+atom_xc.F.ast: Found OPEN statement in procedure "calculate_atom_vxc_lda" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "apser" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "basym" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "betaln" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bfrac" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bgrat" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bpser" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bratio" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "brcmp1" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "brcomp" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "bup" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "erfc1" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "esum" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "fpser" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln1" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "grat1" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "gsumln" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "psi" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "rexp" (suppressed)
+beta_gamma_psi.F.ast: Found GOTO statement in procedure "rlog1" (suppressed)
+bfgs_optimizer.F.ast: Found GOTO statement in procedure "rat_fun_opt" (suppressed)
+cp2k_shell.F.ast: Found GOTO statement in procedure "cp2k_shell" (suppressed)
+cp2k_shell.F.ast: Found OPEN statement in procedure "get_eof_stat" (suppressed)
+cp_dbcsr_interface.F.ast: Found FORALL statement in procedure "match_1_dist" (suppressed)
+cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_cfm_to_dbcsr" (suppressed)
+cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_dbcsr_to_cfm" (suppressed)
+cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_dbcsr_to_fm" (suppressed)
+cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_dbcsr_to_fm_bc" (suppressed)
+cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_fm_to_dbcsr" (suppressed)
+cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_fm_to_dbcsr_bc" (suppressed)
+cp_files.F.ast: Found CLOSE statement in procedure "close_file" (suppressed)
+cp_files.F.ast: Found OPEN statement in procedure "open_file" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "cauchy" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "dcsrch" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "dpofa" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "dtrsl" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "hpsolb" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "lnsrlb" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "mainlb" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "prn3lb" (suppressed)
+cp_lbfgs.F.ast: Found GOTO statement in procedure "subsm" (suppressed)
+cp_lbfgs.F.ast: Found OPEN statement in procedure "mainlb" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_z" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_1d2d_z" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d1d_z" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_2d2d_z" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_partial_copy_z" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_transpose_inplace_z" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "get_block2d_diagonal_z" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_c" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_d" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_s" (suppressed)
+dbcsr_block_operations.F.ast: Found FORALL statement in procedure "set_block2d_diagonal_z" (suppressed)
+dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "dbcsr_create_dist_block_cyclic" (suppressed)
+dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "dbcsr_create_dist_elemental" (suppressed)
+dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "make_image_distribution_dense" (suppressed)
+dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "make_vdistribution" (suppressed)
+dbcsr_dist_operations.F.ast: Found FORALL statement in procedure "v_to_p_i_dist" (suppressed)
+dbcsr_error_handling.F.ast: Symbol "external_timeset" in "dbcsr_error_set" not defined (suppressed)
+dbcsr_error_handling.F.ast: Symbol "external_timestop" in "dbcsr_error_stop" not defined (suppressed)
+dbcsr_example_1.F.ast: Found FORALL statement in procedure "random_dist" (suppressed)
+dbcsr_example_2.F.ast: Found FORALL statement in procedure "random_dist" (suppressed)
+dbcsr_example_3.F.ast: Found FORALL statement in procedure "random_dist" (suppressed)
+dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_count_row_index_copy" (suppressed)
+dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_make_index_list" (suppressed)
+dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_make_index_local_row" (suppressed)
+dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_sort_indices" (suppressed)
+dbcsr_index_operations.F.ast: Found FORALL statement in procedure "make_undense_index" (suppressed)
+dbcsr_mm_cannon.F.ast: Found FORALL statement in procedure "cannon_multiply_low" (suppressed)
+dbcsr_mm_cannon.F.ast: Found FORALL statement in procedure "make_images" (suppressed)
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_cnn" in "smm_process_mm_stack_c" not defined (suppressed)
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_dnn" in "smm_process_mm_stack_d" not defined (suppressed)
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_snn" in "smm_process_mm_stack_s" not defined (suppressed)
+dbcsr_mm_hostdrv.F.ast: Symbol "smm_znn" in "smm_process_mm_stack_z" not defined (suppressed)
+dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "dbcsr_mm_multrec_init" (suppressed)
+dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "local_filter" (suppressed)
+dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "local_filter_sp" (suppressed)
+dbcsr_mm_multrec.F.ast: Found FORALL statement in procedure "remap_local2global" (suppressed)
+dbcsr_mp_operations.F.ast: Found FORALL statement in procedure "most_alltoall" (suppressed)
+dbcsr_mp_operations.F.ast: Found FORALL statement in procedure "remainder_alltoall" (suppressed)
+dbcsr_test_methods.F.ast: Found FORALL statement in procedure "dbcsr_random_dist" (suppressed)
+eip_silicon.F.ast: Found GOTO statement in procedure "eip_bazant_silicon" (suppressed)
+eip_silicon.F.ast: Found GOTO statement in procedure "eip_lenosky_silicon" (suppressed)
+eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_b" (suppressed)
+eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_l" (suppressed)
+eip_silicon.F.ast: Found OPEN statement in procedure "eip_bazant_silicon" (suppressed)
+eip_silicon.F.ast: Found OPEN statement in procedure "eip_lenosky_silicon" (suppressed)
+ep_f77.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f" not defined (suppressed)
+ep_f77.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create" not defined (suppressed)
+ep_f77.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy" not defined (suppressed)
+ep_f77.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env" not defined (suppressed)
+ep_f77.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release" not defined (suppressed)
+ep_f77.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain" not defined (suppressed)
+ep_f77_low.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f_low" not defined (suppressed)
+ep_f77_low.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create_low" not defined (suppressed)
+ep_f77_low.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy_low" not defined (suppressed)
+ep_f77_low.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env_low" not defined (suppressed)
+ep_f77_low.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release_low" not defined (suppressed)
+ep_f77_low.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain_low" not defined (suppressed)
+erf_fn.F.ast: Found GOTO statement in procedure "calerf" (suppressed)
+farming_methods.F.ast: Found CLOSE statement in procedure "farming_parse_input" (suppressed)
+farming_methods.F.ast: Found OPEN statement in procedure "farming_parse_input" (suppressed)
+fftw3_lib.F.ast: Found GOTO statement in procedure "sortint" (suppressed)
+gauss_colloc.F.ast: Found GOTO statement in procedure "collocgauss" (suppressed)
+gauss_colloc.F.ast: Found GOTO statement in procedure "collocgaussflat" (suppressed)
+gauss_colloc.F.ast: Found GOTO statement in procedure "integrategauss" (suppressed)
+gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfull" (suppressed)
+gauss_colloc.F.ast: Found GOTO statement in procedure "integrategaussfullflat" (suppressed)
+graph.F.ast: Found CLOSE statement in procedure "graph" (suppressed)
+graph.F.ast: Found OPEN statement in procedure "graph" (suppressed)
+graph_methods.F.ast: Found CLOSE statement in procedure "fes_path" (suppressed)
+graph_methods.F.ast: Found OPEN statement in procedure "fes_cube_write" (suppressed)
+graph_methods.F.ast: Found OPEN statement in procedure "fes_path" (suppressed)
+graphcon.F.ast: Found GOTO statement in procedure "all_permutations" (suppressed)
+hfx_derivatives.F.ast: Found CLOSE statement in procedure "derivatives_four_center" (suppressed)
+hfx_derivatives.F.ast: Found OPEN statement in procedure "derivatives_four_center" (suppressed)
+hfx_energy_potential.F.ast: Found CLOSE statement in procedure "integrate_four_center" (suppressed)
+hfx_energy_potential.F.ast: Found OPEN statement in procedure "integrate_four_center" (suppressed)
+hfx_load_balance_methods.F.ast: Found CLOSE statement in procedure "hfx_recursive_load_balance" (suppressed)
+hfx_load_balance_methods.F.ast: Found OPEN statement in procedure "hfx_recursive_load_balance" (suppressed)
+input_section_types.F.ast: Found CLOSE statement in procedure "section_describe_html" (suppressed)
+input_section_types.F.ast: Found OPEN statement in procedure "section_describe_html" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "atftm1" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "bzdefi" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "bzrduc" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "checkrlv3" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "garbag" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "mesh" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "pgl1" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "primlatt" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "remove" (suppressed)
+k290.F.ast: Found GOTO statement in procedure "sppt2" (suppressed)
+k290.F.ast: Found WHERE statement in procedure "kp_sym_gen" (suppressed)
+kg_environment.F.ast: Found CLOSE statement in procedure "write_to_file" (suppressed)
+kg_environment.F.ast: Found OPEN statement in procedure "write_to_file" (suppressed)
+machine.F.ast: Found OPEN statement in procedure "read_energy" (suppressed)
+machine.F.ast: Symbol "date_and_time" in "m_datum" not defined (suppressed)
+machine.F.ast: Symbol "system_clock" in "m_walltime" not defined (suppressed)
+machine_internal.F.ast: Found CLOSE statement in procedure "m_memory_details" (suppressed)
+machine_internal.F.ast: Found OPEN statement in procedure "m_memory" (suppressed)
+machine_internal.F.ast: Found OPEN statement in procedure "m_memory_details" (suppressed)
+machine_internal.F.ast: Symbol "cpu_time" in "m_cputime" not defined (suppressed)
+message_passing.F.ast: Found CLOSE statement in procedure "mp_file_close" (suppressed)
+message_passing.F.ast: Found OPEN statement in procedure "mp_file_open" (suppressed)
+message_passing.F.ast: Symbol "mp_external_timeset" in "mp_timeset" not defined (suppressed)
+message_passing.F.ast: Symbol "mp_external_timestop" in "mp_timestop" not defined (suppressed)
+min_heap.F.ast: Found FORALL statement in procedure "test_heap" (suppressed)
+mm_collocate_potential.F.ast: Symbol "collocate_gf_npbc" in "collocate_gf_rspace_nopbc" not defined (suppressed)
+mm_collocate_potential.F.ast: Symbol "integrate_gf_npbc" in "integrate_gf_rspace_nopbc" not defined (suppressed)
+mp2_direct_method.F.ast: Found CLOSE statement in procedure "mp2_canonical_direct_single_batch" (suppressed)
+mp2_direct_method.F.ast: Found OPEN statement in procedure "mp2_canonical_direct_single_batch" (suppressed)
+mp2_ri_libint.F.ast: Found CLOSE statement in procedure "calc_lai_libint" (suppressed)
+mp2_ri_libint.F.ast: Found OPEN statement in procedure "calc_lai_libint" (suppressed)
+pilaenv_hack.F.ast: Symbol "nag_dummy" in "nag_dummy" not defined (suppressed)
+powell.F.ast: Found GOTO statement in procedure "newuoa" (suppressed)
+powell.F.ast: Found GOTO statement in procedure "newuob" (suppressed)
+ps_wavelet_fft3d.F.ast: Found GOTO statement in procedure "ctrig" (suppressed)
+ps_wavelet_util.F.ast: Found GOTO statement in procedure "f_fft_dimensions" (suppressed)
+ps_wavelet_util.F.ast: Found GOTO statement in procedure "p_fft_dimensions" (suppressed)
+ps_wavelet_util.F.ast: Found GOTO statement in procedure "s_fft_dimensions" (suppressed)
+pw_spline_utils.F.ast: Found GOTO statement in procedure "pw_nn_compose_r_no_pbc" (suppressed)
+qmmm_init.F.ast: Found WHERE statement in procedure "setup_qmmm_links" (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_0" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_1" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_2" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_3" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_4" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_5" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_6" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_7" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_8" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_9" in "collocate_ortho" not defined (suppressed)
+qs_collocate_density.F.ast: Symbol "collocate_core_default" in "collocate_ortho" not defined (suppressed)
+qs_dispersion_pairpot.F.ast: Found GOTO statement in procedure "limit" (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_opt" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_subpatch" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_wings" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_ortho" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_0" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_1" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_2" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_3" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_4" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_5" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_6" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_7" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_8" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_9" in "call_integrate" not defined (suppressed)
+qs_integrate_potential_low.F.ast: Symbol "integrate_core_default" in "call_integrate" not defined (suppressed)
+qs_localization_methods.F.ast: Found GOTO statement in procedure "jacobi_rot_para" (suppressed)
+qs_outer_scf.F.ast: Found GOTO statement in procedure "outer_loop_optimize" (suppressed)
+scp_diis_utils.F.ast: Found GOTO statement in procedure "store_hist" (suppressed)
+se_ga_tools.F.ast: Found GOTO statement in procedure "grid_factor" (suppressed)
+statistical_methods.F.ast: Found GOTO statement in procedure "alnorm" (suppressed)
+statistical_methods.F.ast: Found GOTO statement in procedure "poly" (suppressed)
+swarm_mpi.F.ast: Found CLOSE statement in procedure "logger_init_master" (suppressed)
+swarm_mpi.F.ast: Found OPEN statement in procedure "logger_finalize" (suppressed)
+tmc_move_handle.F.ast: Found WHERE statement in procedure "add_mv_prob" (suppressed)
+tmc_move_handle.F.ast: Found WHERE statement in procedure "prob_update" (suppressed)
+topology_constraint_util.F.ast: Found WHERE statement in procedure "topology_constraint_pack" (suppressed)
+topology_generate_util.F.ast: Found WHERE statement in procedure "generate_molname_low" (suppressed)
+topology_generate_util.F.ast: Found WHERE statement in procedure "topology_generate_molecule" (suppressed)
+util.F.ast: Found FORALL statement in procedure "sort_cm" (suppressed)
+util.F.ast: Found FORALL statement in procedure "sort_im" (suppressed)
+xas_methods.F.ast: Found GOTO statement in procedure "xas" (suppressed)
+xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_debug" (suppressed)
+xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd" (suppressed)
+xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_debug" (suppressed)
+xc.F.ast: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd" (suppressed)
+xc_derivatives.F.ast: Found GOTO statement in procedure "xc_functional_eval" (suppressed)
+xml_parser.F.ast: Found CLOSE statement in procedure "xml_close" (suppressed)
+xml_parser.F.ast: Found OPEN statement in procedure "xml_open" (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_0" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_1" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_2" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_3" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_0_4" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_0" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_1" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_2" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_3" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_1_4" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_0" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_1" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_2" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_3" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_2_4" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_0" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_1" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_2" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_3" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_3_4" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_0" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_1" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_2" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_3" in "call_to_xyz_to_vab" not defined (suppressed)
+xyz_to_vab_optimised.F.ast: Symbol "xyz_to_vab_4_4" in "call_to_xyz_to_vab" not defined (suppressed)
