@@ -112,7 +112,7 @@ TYPE qs_scf_env_type
    REAL(KIND = dp) :: iter_param, iter_delta, p_mix_alpha
    CHARACTER (len=15) :: iter_method
    COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
-   LOGICAL :: do_diag_sub, print_iter_line, skip_mixing, skip_diis, needs_ortho
+   LOGICAL :: print_iter_line, skip_mixing, skip_diis, needs_ortho
    TYPE(mixing_storage_type), POINTER :: mixing_store
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
@@ -167,7 +167,6 @@ CONTAINS
        scf_env%print_iter_line = .TRUE.
        scf_env%skip_mixing = .FALSE.
        scf_env%skip_diis = .FALSE.
-       scf_env%do_diag_sub = .FALSE.
        scf_env%needs_ortho = .FALSE.
        scf_env%method = -1
        scf_env%mixing_method = -1

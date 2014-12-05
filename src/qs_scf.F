@@ -892,15 +892,6 @@ CPSourceFileRef)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        ENDIF
 
-       IF (scf_env%do_diag_sub) THEN
-          IF(ASSOCIATED(scf_env%subspace_env%p_matrix_store)) THEN
-            CALL cp_dbcsr_deallocate_matrix_set(scf_env%subspace_env%p_matrix_store,error=error)
-          END IF
-          IF(ASSOCIATED(scf_env%subspace_env%p_matrix_mix)) THEN
-            CALL cp_dbcsr_deallocate_matrix_set(scf_env%subspace_env%p_matrix_mix,error=error)
-          END IF
-       END IF
-
     END IF
     CALL timestop(handle)
 

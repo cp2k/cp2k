@@ -207,7 +207,7 @@ CONTAINS
           CALL do_general_diag(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
                                diis_step,error=error)
-          IF(scf_env%do_diag_sub) THEN
+          IF(scf_control%do_diag_sub) THEN
             skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
                    (scf_env%iter_count==1  .OR. scf_env%iter_delta>scf_env%subspace_env%eps_diag_sub )
             IF( .NOT. skip_diag_sub) THEN
@@ -245,7 +245,7 @@ CONTAINS
          CALL do_block_krylov_diag(scf_env,mos,matrix_ks, &
                                    scf_control, scf_section, error=error)
        END IF
-       IF(scf_env%do_diag_sub) THEN
+       IF(scf_control%do_diag_sub) THEN
           skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
                    (scf_env%iter_count==1  .OR. scf_env%iter_delta>scf_env%subspace_env%eps_diag_sub )
           IF( .NOT. skip_diag_sub) THEN
