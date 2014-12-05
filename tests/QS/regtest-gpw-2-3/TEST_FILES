@@ -12,7 +12,7 @@ H2O_meta_langevin.inp             1     2e-14
 #gyration radius
 Au13ico_mtd.inp                   1     2e-13
 # rmsd AB
-Au12_rmsd_AB_mtd.inp              1     2e-12
-Au12_rmsd_A_mtd.inp               1     3e-12
+Au12_rmsd_AB_mtd.inp              1     5e-12
+Au12_rmsd_A_mtd.inp               1     6e-12
 # tpss new input   
 H2O-tpss_lsd.inp                  1     3e-13
