@@ -7383,18 +7383,6 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="KERKER_MIN",&
-                          description="Minimal Kerker damping factor: MAX(g^2/(g^2 + beta^2),KERKER_MIN)",&
-                          required=.FALSE.,&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.1_dp,&
-                          usage="KERKER_MIN 0.05",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
       CALL keyword_create(keyword, name="MAX_GVEC_EXP",&
                           description="Restricts the G-space mixing to lower part of G-vector spectrum,"//&
                           " up to a G0, by assigning the exponent of the Gaussian that can be "//&
