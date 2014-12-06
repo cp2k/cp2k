@@ -158,6 +158,8 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
+    CALL timeset(routineN,handle)
+
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
@@ -215,10 +217,10 @@ CONTAINS
         CALL pw_scale(rho_g(2)%pw,-1.0_dp, error=error)
         CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tmp%pw,error=error)
       END IF
+      CALL timestop(handle)
       RETURN
     END IF
 
-    CALL timeset(routineN,handle)
     IF((scf_env%iter_count+1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) THEN
        CALL gmix_potential_only(qs_env,mixing_store, rho, error)
        mixing_store%iter_method= "Kerker"
