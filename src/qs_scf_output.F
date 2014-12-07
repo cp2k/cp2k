@@ -13,6 +13,7 @@ MODULE qs_scf_output
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
@@ -411,6 +412,14 @@ CONTAINS
        IF (dft_control%dft_plus_u) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
           "DFT+U energy:",energy%dft_plus_u
+       END IF
+       IF (dft_control%do_sccs) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,T56,F25.14)")&
+          "SCCS| Hartree energy of solute and solvent [Hartree]",energy%sccs_hartree
+         WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14,/,T3,A,T61,F20.3)")&
+          "SCCS| Polarisation energy                  [Hartree]",energy%sccs_pol,&
+          "SCCS|                                      [kcal/mol]",&
+          cp_unit_from_cp2k(energy%sccs_pol,"kcalmol",error=error)
        END IF
        IF  (qmmm) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&

@@ -27,7 +27,6 @@ MODULE qs_energy_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy_types'
 
-! *****************************************************************************
   TYPE qs_energy_type
     REAL(KIND = dp) :: core,&
                        core_overlap,&
@@ -54,6 +53,12 @@ MODULE qs_energy_types
                        efield_core,&
                        s2_restraint,&
                        dft_plus_u,& ! DFT+U energy contribution
+                       sccs_hartree,& ! SCCS Hartree energy of solute + solvent
+                       sccs_pol,& ! SCCS polarisation energy
+                       sccs_mpc,& ! Makov-Payne energy correction for charged supercells
+                       sccs_cav,& ! SCCS cavitation energy
+                       sccs_dis,& ! SCCS dispersion free energy
+                       sccs_rep,& ! SCCS repulsion free energy
                        ktS,& ! electronic entropic contribution
                        efermi,& ! Fermi energy
                        dftb3,& ! DFTB 3rd order correction
@@ -179,6 +184,12 @@ CONTAINS
       qs_energy%ee_core = 0.0_dp
       qs_energy%s2_restraint = 0.0_dp
       qs_energy%dft_plus_u = 0.0_dp
+      qs_energy%sccs_hartree = 0.0_dp
+      qs_energy%sccs_pol = 0.0_dp
+      qs_energy%sccs_mpc = 0.0_dp
+      qs_energy%sccs_cav = 0.0_dp
+      qs_energy%sccs_dis = 0.0_dp
+      qs_energy%sccs_rep = 0.0_dp
       qs_energy%dftb3 = 0.0_dp
       qs_energy%kTS = 0.0_dp
       qs_energy%mp2 = 0.0_dp

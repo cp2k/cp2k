@@ -70,7 +70,8 @@ MODULE bibliography
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
-       Grimme2011, Khaliullin2007, Khaliullin2008,                     &
+       Grimme2011, Fattebert2002, Andreussi2012,                       &
+       Khaliullin2007, Khaliullin2008,                                 &
        QUIP_ref
 
 CONTAINS
@@ -2475,7 +2476,6 @@ CONTAINS
          "ER"),&
          DOI="10.1021/jp002807j")
 
-
     CALL add_reference(key=Weber2009, ISI_record=s2a(&
          "PT J",&
          "AU Weber, V",&
@@ -2528,6 +2528,44 @@ CONTAINS
          "DI 10.1021/ct400698y",&
          "ER"),&
          DOI="10.1021/ct400698y")
+
+    CALL add_reference(key=Fattebert2002, ISI_record=s2a(&
+         "PT J",&
+         "AU Fattebert, JL",&
+         "   Gygi, F",&
+         "AF Fattebert, Jean-Luc",&
+         "   Gygi, Francois",&
+         "TI Density functional theory for efficient ab initio molecular dynamics",&
+         "   simulations in solution",&
+         "SO J. Comput. Chem.",&
+         "VL 23",&
+         "IS 6",&
+         "SP 662",&
+         "EP 666",&
+         "PD MAR 18",&
+         "PY 2002",&
+         "UR http://dx.doi.org/10.1002/jcc.10069",&
+         "ER"),&
+         DOI="10.1002/jcc.10069")
+
+    CALL add_reference(key=Andreussi2012, ISI_record=s2a(&
+         "PT J",&
+         "AU Andreussi, O",&
+         "   Dabo, I",&
+         "   Marzari, N",&
+         "AF Andreussi, Oliviero",&
+         "   Dabo, Ismaila",&
+         "   Marzari, Nicola",&
+         "TI Revised self-consistent continuum solvation in electronic-structure calculations",&
+         "SO J. Chem. Phys.",&
+         "VL 136",&
+         "IS 6",&
+         "AR 064102",&
+         "PD FEB 8",&
+         "PY 2012",&
+         "UR http://dx.doi.org/10.1063/1.3676407",&
+         "ER"),&
+         DOI="10.1063/1.3676407")
 
     CALL add_reference(key=Tuckerman1992, ISI_record=s2a(&
          "PT J",&

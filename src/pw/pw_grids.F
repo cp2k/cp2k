@@ -913,6 +913,13 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        CALL mp_cart_rank ( pw_grid % para % rs_group, &
             pw_grid % para % rs_pos, &
             pw_grid % para % rs_mpo )
+       pw_grid%para%group_size = 1
+       ALLOCATE (pw_grid%para%bo(2,3,0:0,3),STAT=ierr)
+       CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+       DO i=1,3
+          pw_grid%para%bo(1,1:3,0,i) = 1
+          pw_grid%para%bo(2,1:3,0,i) = pw_grid%npts(1:3)
+       END DO
 
     ELSE
 
@@ -1205,7 +1212,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        ! this should not be needed
        ALLOCATE(pw_grid % para % pos_of_x( pw_grid % bounds(1,1): pw_grid % bounds(2,1) ))
        pw_grid % para % pos_of_x = 0
-    ENDIF
+    END IF
 
     CALL timestop(handle)
 
@@ -2448,6 +2455,10 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
              DEALLOCATE ( pw_grid % mapn % neg, STAT = stat )
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
+             DEALLOCATE ( pw_grid % para % bo, STAT = stat )
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
           IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
              IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
                 DEALLOCATE ( pw_grid % para % yzp, STAT = stat )
@@ -2459,10 +2470,6 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
              END IF
              IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
                 DEALLOCATE ( pw_grid % para % nyzray, STAT = stat )
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             END IF
-             IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
-                DEALLOCATE ( pw_grid % para % bo, STAT = stat )
                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              END IF
           END IF

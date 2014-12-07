@@ -312,7 +312,7 @@ CONTAINS
           CALL init_input_type(input_settings,nsmax=MAXVAL ( pw_small_grid % npts(1:3) ),&
                                rs_grid_section=rs_grid_section,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
-          CALL rs_grid_create_descriptor(rs_desc,pw_big_grid, input_settings, error)
+          CALL rs_grid_create_descriptor(rs_desc,pw_big_grid, input_settings, error=error)
 
           CALL rs_grid_create(rs, rs_desc, error)
           CALL rs_grid_print(rs,output_unit,error=error)
@@ -351,7 +351,7 @@ CONTAINS
           CALL init_input_type(input_settings,nsmax=o_spline,&
                                rs_grid_section=rs_grid_section,ilevel=1, &
                                higher_grid_layout=(/-1,-1,-1/),error=error)
-          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings, error)
+          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings, error=error)
 
           CALL rs_grid_create(rs, rs_desc, error)
           CALL rs_grid_print(rs,output_unit,error=error)

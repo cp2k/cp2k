@@ -31,6 +31,7 @@ MODULE qs_rho_methods
                                              lri_environment_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -116,10 +117,12 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: drho_g, drho_r, rho_g, rho_r, &
                                                 tau_g, tau_r
+    TYPE(pw_p_type), POINTER                 :: rho_r_sccs
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     NULLIFY (pw_env,auxbas_pw_pool,matrix_s,matrix_s_kp,dft_control)
     NULLIFY (tot_rho_r,rho_ao_kp,rho_r,rho_g,drho_r,drho_g,tau_r,tau_g)
+    NULLIFY (rho_r_sccs)
     NULLIFY (sab_orb)
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -167,13 +170,14 @@ CONTAINS
                     drho_g=drho_g,&
                     tau_r=tau_r,&
                     tau_g=tau_g,&
+                    rho_r_sccs=rho_r_sccs,&
                     error=error)
 
     IF (.NOT.ASSOCIATED(tot_rho_r)) THEN
        ALLOCATE(tot_rho_r(nspins))
        tot_rho_r=0.0_dp
        CALL qs_rho_set(rho, tot_rho_r=tot_rho_r, error=error)
-    ENDIF
+    END IF
 
     ! rho_ao
     IF (my_rebuild_ao.OR.(.NOT.ASSOCIATED(rho_ao_kp))) THEN
@@ -244,6 +248,25 @@ CONTAINS
              CALL pw_pool_create_pw(auxbas_pw_pool,rho_g(i)%pw,&
                   use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
           END DO
+       END IF
+    END IF
+
+    ! SCCS
+    IF (dft_control%do_sccs) THEN
+       IF (my_rebuild_grids.OR.(.NOT.ASSOCIATED(rho_r_sccs))) THEN
+          IF (.NOT.failure) THEN
+             IF (ASSOCIATED(rho_r_sccs)) THEN
+                CALL pw_release(rho_r_sccs%pw,error=error)
+                DEALLOCATE (rho_r_sccs)
+             END IF
+             ALLOCATE (rho_r_sccs)
+             CALL qs_rho_set(rho,rho_r_sccs=rho_r_sccs,error=error)
+             CALL pw_pool_create_pw(auxbas_pw_pool,rho_r_sccs%pw,&
+                                    use_data=REALDATA3D,&
+                                    in_space=REALSPACE,&
+                                    error=error)
+             CALL pw_zero(rho_r_sccs%pw,error=error)
+          END IF
        END IF
     END IF
 
@@ -333,6 +356,7 @@ CONTAINS
     END IF  ! use_kinetic_energy_density
 
     CALL timestop(handle)
+
 END SUBROUTINE qs_rho_rebuild
 
 ! *****************************************************************************
@@ -375,6 +399,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                                                 rho_g, rho_r, rho_xc_g, &
                                                 rho_xc_r, tau_g, tau_r, &
                                                 tau_xc_g, tau_xc_r
+    TYPE(pw_p_type), POINTER                 :: rho_r_sccs
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho_xc
     TYPE(task_list_type), POINTER            :: task_list
@@ -408,6 +433,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                       drho_g=drho_g,&
                       tau_r=tau_r,&
                       tau_g=tau_g,&
+                      rho_r_sccs=rho_r_sccs,&
                       error=error)
 
       IF (PRESENT(task_list_external)) task_list => task_list_external 
@@ -546,7 +572,7 @@ END SUBROUTINE qs_rho_update_rho
 !> \brief Duplicates a pointer physically
 !> \param rho_input The rho structure to be duplicated
 !> \param rho_output The duplicate rho structure
-!> \param qs_env The QS environment from which the auxilliary PW basis-set
+!> \param qs_env The QS environment from which the auxiliary PW basis-set
 !>                pool is taken
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
@@ -578,9 +604,8 @@ END SUBROUTINE qs_rho_update_rho
     TYPE(pw_p_type), DIMENSION(:), POINTER :: drho_g_in, drho_g_out, &
       drho_r_in, drho_r_out, rho_g_in, rho_g_out, rho_r_in, rho_r_out, &
       tau_g_in, tau_g_out, tau_r_in, tau_r_out
+    TYPE(pw_p_type), POINTER                 :: rho_r_sccs_in, rho_r_sccs_out
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-
-!   ------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
@@ -590,6 +615,7 @@ END SUBROUTINE qs_rho_update_rho
     NULLIFY(rho_r_in, rho_r_out, rho_g_in, rho_g_out, drho_r_in, drho_r_out)
     NULLIFY(drho_g_in, drho_g_out, tau_r_in,  tau_r_out, tau_g_in, tau_g_out)
     NULLIFY(tot_rho_r_in, tot_rho_r_out, tot_rho_g_in, tot_rho_g_out)
+    NULLIFY(rho_r_sccs_in, rho_r_sccs_out)
 
     CPPrecondition(ASSOCIATED(rho_input), cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(rho_output), cp_failure_level, routineP, error, failure)
@@ -619,6 +645,7 @@ END SUBROUTINE qs_rho_update_rho
                     drho_r_valid = drho_r_valid_in,&
                     tau_r_valid  = tau_r_valid_in,&
                     tau_g_valid  = tau_g_valid_in,&
+                    rho_r_sccs   = rho_r_sccs_in,&
                     soft_valid   = soft_valid_in,&
                     rebuild_each = rebuild_each_in,&
                     error=error)
@@ -659,6 +686,16 @@ END SUBROUTINE qs_rho_update_rho
                                 in_space=RECIPROCALSPACE, error=error)
         rho_g_out(i)%pw%cc(:)      = rho_g_in(i)%pw%cc(:)
       END DO
+    END IF
+
+    ! SCCS
+    IF (ASSOCIATED(rho_r_sccs_in)) THEN
+      CALL qs_rho_set(rho_output,rho_r_sccs=rho_r_sccs_out,error=error)
+      CALL pw_pool_create_pw(auxbas_pw_pool,rho_r_sccs_out%pw,&
+                             in_space=REALSPACE,&
+                             use_data=REALDATA3D,&
+                             error=error)
+      rho_r_sccs_out%pw%cr3d(:,:,:) = rho_r_sccs_in%pw%cr3d(:,:,:)
     END IF
 
     ! drho_r and drho_g are only needed if calculated by collocation
@@ -744,6 +781,7 @@ END SUBROUTINE qs_rho_update_rho
       DO i = 1, nspins
          tot_rho_g_out(i) = tot_rho_g_in(i)
       END DO
+
     END IF
 
     CALL timestop(handle)
@@ -751,4 +789,3 @@ END SUBROUTINE qs_rho_update_rho
   END SUBROUTINE duplicate_rho_type
 
 END MODULE qs_rho_methods
-

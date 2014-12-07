@@ -46,7 +46,8 @@ MODULE qs_wf_history_methods
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             low_print_level
   USE input_constants,                 ONLY: &
        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
@@ -630,7 +631,8 @@ END FUNCTION wfi_get_method_label
 
     INTEGER                                  :: actual_extrapolation_method_nr&
                                                 , handle, i, ispin, k, n, &
-                                                nmo, nvec, output_unit
+                                                nmo, nvec, output_unit, &
+                                                print_level
     LOGICAL                                  :: failure, my_orthogonal_wf, &
                                                 use_overlap
     REAL(KIND=dp)                            :: alpha, t0, t1, t2
@@ -655,6 +657,7 @@ END FUNCTION wfi_get_method_label
 
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
+    print_level = logger%iter_info%print_level
     output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%SCF%PRINT%PROGRAM_RUN_INFO",&
                   extension=".scfLog",error=error)
 
@@ -1001,8 +1004,8 @@ END FUNCTION wfi_get_method_label
                                        error=error)
           CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
           alpha = REAL(4*nvec - 2,KIND=dp)/REAL(nvec + 1,KIND=dp)
-          IF (output_unit>0) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)")&
+          IF ((output_unit > 0).AND.(print_level > low_print_level)) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)")&
               "Parameters for the always stable predictor-corrector (ASPC) method:",&
               "ASPC order: ",MAX(nvec - 2,0),&
               "B(",1,") = ",alpha
@@ -1021,7 +1024,7 @@ END FUNCTION wfi_get_method_label
             CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
             alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
                     binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)
-            IF (output_unit>0) THEN
+            IF ((output_unit > 0).AND.(print_level > low_print_level)) THEN
               WRITE (UNIT=output_unit,FMT="(T3,A2,I0,A4,F10.6)")&
                 "B(",i,") = ",alpha
             END IF

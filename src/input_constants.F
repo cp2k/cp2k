@@ -829,11 +829,21 @@ MODULE input_constants
   ! swarm parameters
   INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt=1
 
-! global opt parameters
-  INTEGER, PARAMETER, PUBLIC               :: glbopt_do_minhop  =1,&
+  ! global opt parameters
+  INTEGER, PARAMETER, PUBLIC               :: glbopt_do_minhop=1,&
                                               glbopt_do_mincrawl=2
 
-! fm matrix multiplication
+  ! Self-consistent continuum solvation (SCCS) models
+  INTEGER, PARAMETER, PUBLIC               :: sccs_andreussi = 0,&
+                                              sccs_fattebert_gygi = 1
+
+  ! Derivative method used by the SCCS
+  INTEGER, PARAMETER, PUBLIC               :: sccs_derivative_fft = 0,&
+                                              sccs_derivative_cd3 = 1,&
+                                              sccs_derivative_cd5 = 2,&
+                                              sccs_derivative_cd7 = 3
+
+  ! fm matrix multiplication
   INTEGER, PARAMETER, PUBLIC               :: do_pdgemm  =1,&
                                               do_dbcsr   =2
 

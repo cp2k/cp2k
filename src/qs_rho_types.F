@@ -65,26 +65,28 @@ MODULE qs_rho_types
 ! *****************************************************************************
   TYPE qs_rho_type
      PRIVATE
-     TYPE(kpoint_transitional_type)         :: rho_ao
+     TYPE(kpoint_transitional_type)                 :: rho_ao
      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao_im => Null()
-     TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g  => Null(),&
-                                               rho_r  => Null(),&
-                                               drho_g => Null(),&
-                                               drho_r => Null(),&
-                                               tau_g  => Null(),&
-                                               tau_r  => Null()
-     LOGICAL                                :: rho_g_valid  = .FALSE., &
-                                               rho_r_valid  = .FALSE., &
-                                               drho_r_valid = .FALSE., &
-                                               drho_g_valid = .FALSE., &
-                                               tau_r_valid  = .FALSE., &
-                                               tau_g_valid  = .FALSE., &
-                                               soft_valid   = .FALSE.
-     INTEGER                                :: ref_count = -1, &
-                                               id_nr = -1, &
-                                               rebuild_each = -1
-     REAL(KIND = dp), DIMENSION(:), POINTER :: tot_rho_r => Null(),&
-                                               tot_rho_g => Null()
+     TYPE(pw_p_type), DIMENSION(:), POINTER         :: rho_g     => Null(),&
+                                                       rho_r     => Null(),&
+                                                       drho_g    => Null(),&
+                                                       drho_r    => Null(),&
+                                                       tau_g     => Null(),&
+                                                       tau_r     => Null()
+     ! Final rho_iter of last SCCS cycle (r-space)
+     TYPE(pw_p_type), POINTER                       :: rho_r_sccs => Null()
+     LOGICAL                                        :: rho_g_valid  = .FALSE., &
+                                                       rho_r_valid  = .FALSE., &
+                                                       drho_r_valid = .FALSE., &
+                                                       drho_g_valid = .FALSE., &
+                                                       tau_r_valid  = .FALSE., &
+                                                       tau_g_valid  = .FALSE., &
+                                                       soft_valid   = .FALSE.
+     INTEGER                                        :: ref_count = -1, &
+                                                       id_nr = -1, &
+                                                       rebuild_each = -1
+     REAL(KIND = dp), DIMENSION(:), POINTER ::         tot_rho_r => Null(),&
+                                                       tot_rho_g => Null()
   END TYPE qs_rho_type
 
 ! *****************************************************************************
@@ -177,7 +179,9 @@ CONTAINS
           DEALLOCATE(rho_struct)
        END IF
     END IF
-    NULLIFY(rho_struct)
+
+    NULLIFY (rho_struct)
+
  END SUBROUTINE qs_rho_release
 
 
@@ -232,6 +236,10 @@ CONTAINS
        END DO
        DEALLOCATE(rho_struct%tau_g)
     END IF
+    IF (ASSOCIATED(rho_struct%rho_r_sccs)) THEN
+       CALL pw_release(rho_struct%rho_r_sccs%pw,error=error)
+       DEALLOCATE(rho_struct%rho_r_sccs)
+    END IF
 
     CALL kpoint_transitional_release(rho_struct%rho_ao, error)
 
@@ -266,6 +274,7 @@ CONTAINS
 !> \param rebuild_each ...
 !> \param tot_rho_r ...
 !> \param tot_rho_g ...
+!> \param rho_r_sccs ...
 !> \param soft_valid ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -277,7 +286,7 @@ CONTAINS
   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_r, drho_r, &
        rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
        drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g,&
-       soft_valid, error)
+       rho_r_sccs, soft_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao, rho_ao_im
@@ -292,6 +301,7 @@ CONTAINS
     INTEGER, INTENT(out), OPTIONAL           :: rebuild_each
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: tot_rho_r, tot_rho_g
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_r_sccs
     LOGICAL, INTENT(out), OPTIONAL           :: soft_valid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -308,23 +318,24 @@ CONTAINS
     IF (PRESENT(rho_ao))    rho_ao    => get_1d_pointer(rho_struct%rho_ao)
     IF (PRESENT(rho_ao_kp)) rho_ao_kp => get_2d_pointer(rho_struct%rho_ao)
 
-    IF (PRESENT(rho_ao_im)) rho_ao_im => rho_struct%rho_ao_im
-    IF (PRESENT(rho_r)) rho_r => rho_struct%rho_r
-    IF (PRESENT(drho_r)) drho_r => rho_struct%drho_r
-    IF (PRESENT(rho_g)) rho_g => rho_struct%rho_g
-    IF (PRESENT(drho_g)) drho_g => rho_struct%drho_g
-    IF (PRESENT(tau_r))  tau_r => rho_struct%tau_r
-    IF (PRESENT(tau_g)) tau_g => rho_struct%tau_g
-    IF (PRESENT(rho_r_valid)) rho_r_valid=rho_struct%rho_r_valid
-    IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
-    IF (PRESENT(drho_r_valid)) drho_r_valid=rho_struct%drho_r_valid
-    IF (PRESENT(drho_g_valid)) drho_g_valid=rho_struct%drho_g_valid
-    IF (PRESENT(tau_r_valid)) tau_r_valid=rho_struct%tau_r_valid
-    IF (PRESENT(tau_g_valid)) tau_g_valid=rho_struct%tau_g_valid
-    IF (PRESENT(soft_valid))  soft_valid=rho_struct%soft_valid
-    IF (PRESENT(rebuild_each)) rebuild_each=rho_struct%rebuild_each
-    IF (PRESENT(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r
-    IF (PRESENT(tot_rho_g)) tot_rho_g => rho_struct%tot_rho_g
+    IF (PRESENT(rho_ao_im))    rho_ao_im    => rho_struct%rho_ao_im
+    IF (PRESENT(rho_r))        rho_r        => rho_struct%rho_r
+    IF (PRESENT(drho_r))       drho_r       => rho_struct%drho_r
+    IF (PRESENT(rho_g))        rho_g        => rho_struct%rho_g
+    IF (PRESENT(drho_g))       drho_g       => rho_struct%drho_g
+    IF (PRESENT(tau_r))        tau_r        => rho_struct%tau_r
+    IF (PRESENT(tau_g))        tau_g        => rho_struct%tau_g
+    IF (PRESENT(rho_r_valid))  rho_r_valid  =  rho_struct%rho_r_valid
+    IF (PRESENT(rho_g_valid))  rho_g_valid  =  rho_struct%rho_g_valid
+    IF (PRESENT(drho_r_valid)) drho_r_valid =  rho_struct%drho_r_valid
+    IF (PRESENT(drho_g_valid)) drho_g_valid =  rho_struct%drho_g_valid
+    IF (PRESENT(tau_r_valid))  tau_r_valid  =  rho_struct%tau_r_valid
+    IF (PRESENT(tau_g_valid))  tau_g_valid  =  rho_struct%tau_g_valid
+    IF (PRESENT(soft_valid))   soft_valid   =  rho_struct%soft_valid
+    IF (PRESENT(rebuild_each)) rebuild_each =  rho_struct%rebuild_each
+    IF (PRESENT(tot_rho_r))    tot_rho_r    => rho_struct%tot_rho_r
+    IF (PRESENT(tot_rho_g))    tot_rho_g    => rho_struct%tot_rho_g
+    IF (PRESENT(rho_r_sccs))   rho_r_sccs   => rho_struct%rho_r_sccs
 
   END SUBROUTINE qs_rho_get
 
@@ -349,6 +360,7 @@ CONTAINS
 !> \param rebuild_each ...
 !> \param tot_rho_r ...
 !> \param tot_rho_g ...
+!> \param rho_r_sccs ...
 !> \param soft_valid ...
 !> \param error ...
 !> \author Ole Schuett
@@ -356,7 +368,7 @@ CONTAINS
   SUBROUTINE qs_rho_set(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_r, drho_r, &
        rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
        drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g,&
-       soft_valid, error)
+       rho_r_sccs, soft_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao, rho_ao_im
@@ -371,6 +383,7 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: rebuild_each
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: tot_rho_r, tot_rho_g
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_r_sccs
     LOGICAL, INTENT(in), OPTIONAL            :: soft_valid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -387,25 +400,25 @@ CONTAINS
     IF (PRESENT(rho_ao))    CALL set_1d_pointer(rho_struct%rho_ao, rho_ao)
     IF (PRESENT(rho_ao_kp)) CALL set_2d_pointer(rho_struct%rho_ao, rho_ao_kp)
 
-    IF (PRESENT(rho_ao_im)) rho_struct%rho_ao_im => rho_ao_im
-    IF (PRESENT(rho_r))  rho_struct%rho_r  => rho_r
-    IF (PRESENT(rho_g))  rho_struct%rho_g  => rho_g
-    IF (PRESENT(drho_r)) rho_struct%drho_r => drho_r
-    IF (PRESENT(drho_g)) rho_struct%drho_g => drho_g
-    IF (PRESENT(tau_r))  rho_struct%tau_r  => tau_r
-    IF (PRESENT(tau_g))  rho_struct%tau_g  => tau_g
-    IF (PRESENT(rho_r_valid))  rho_struct%rho_r_valid = rho_r_valid
-    IF (PRESENT(rho_g_valid))  rho_struct%rho_g_valid = rho_g_valid
-    IF (PRESENT(drho_r_valid)) rho_struct%drho_r_valid = drho_r_valid
-    IF (PRESENT(drho_g_valid)) rho_struct%drho_g_valid = drho_g_valid
-    IF (PRESENT(tau_r_valid))  rho_struct%tau_r_valid = tau_r_valid
-    IF (PRESENT(tau_g_valid))  rho_struct%tau_g_valid = tau_g_valid
-    IF (PRESENT(soft_valid))   rho_struct%soft_valid = soft_valid
-    IF (PRESENT(rebuild_each)) rho_struct%rebuild_each = rebuild_each
-    IF (PRESENT(tot_rho_r)) rho_struct%tot_rho_r => tot_rho_r
-    IF (PRESENT(tot_rho_g)) rho_struct%tot_rho_g => tot_rho_g
+    IF (PRESENT(rho_ao_im))    rho_struct%rho_ao_im    => rho_ao_im
+    IF (PRESENT(rho_r))        rho_struct%rho_r        => rho_r
+    IF (PRESENT(rho_g))        rho_struct%rho_g        => rho_g
+    IF (PRESENT(drho_r))       rho_struct%drho_r       => drho_r
+    IF (PRESENT(drho_g))       rho_struct%drho_g       => drho_g
+    IF (PRESENT(tau_r))        rho_struct%tau_r        => tau_r
+    IF (PRESENT(tau_g))        rho_struct%tau_g        => tau_g
+    IF (PRESENT(rho_r_valid))  rho_struct%rho_r_valid  =  rho_r_valid
+    IF (PRESENT(rho_g_valid))  rho_struct%rho_g_valid  =  rho_g_valid
+    IF (PRESENT(drho_r_valid)) rho_struct%drho_r_valid =  drho_r_valid
+    IF (PRESENT(drho_g_valid)) rho_struct%drho_g_valid =  drho_g_valid
+    IF (PRESENT(tau_r_valid))  rho_struct%tau_r_valid  =  tau_r_valid
+    IF (PRESENT(tau_g_valid))  rho_struct%tau_g_valid  =  tau_g_valid
+    IF (PRESENT(soft_valid))   rho_struct%soft_valid   =  soft_valid
+    IF (PRESENT(rebuild_each)) rho_struct%rebuild_each =  rebuild_each
+    IF (PRESENT(tot_rho_r))    rho_struct%tot_rho_r    => tot_rho_r
+    IF (PRESENT(tot_rho_g))    rho_struct%tot_rho_g    => tot_rho_g
+    IF (PRESENT(rho_r_sccs))   rho_struct%rho_r_sccs   => rho_r_sccs
 
   END SUBROUTINE qs_rho_set
 
 END MODULE qs_rho_types
-

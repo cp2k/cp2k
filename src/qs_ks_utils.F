@@ -16,6 +16,7 @@
 !>              introduced energy derivative wrt MOs [Joost VandeVondele]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
+
 MODULE qs_ks_utils
 
   USE cell_types,                      ONLY: cell_type
@@ -1180,16 +1181,21 @@ CONTAINS
 !> \param v_efield_rspace ...
 !> \param v_sic_rspace ...
 !> \param v_spin_ddapc_rest_r ...
+!> \param v_sccs_rspace ...
 !> \param becke ...
 !> \param calculate_forces ...
 !> \param error ...
 !> \par History
-!>    refactoring 04.03.2011 [MI]
+!>      - refactoring 04.03.2011 [MI]
+!>      - SCCS implementation (16.10.2013,MK)
 !> \author
 ! *****************************************************************************
-  SUBROUTINE sum_up_and_integrate(ks_env,qs_env,ks_matrix,rho,my_rho,vppl_rspace,&
-             v_rspace_new,v_rspace_new_aux_fit,v_tau_rspace,v_tau_rspace_aux_fit,&
-             v_efield_rspace,v_sic_rspace,v_spin_ddapc_rest_r,becke,calculate_forces,error)
+  SUBROUTINE sum_up_and_integrate(ks_env,qs_env,ks_matrix,rho,my_rho,&
+                                  vppl_rspace,v_rspace_new,&
+                                  v_rspace_new_aux_fit,v_tau_rspace,&
+                                  v_tau_rspace_aux_fit,v_efield_rspace,&
+                                  v_sic_rspace,v_spin_ddapc_rest_r,&
+                                  v_sccs_rspace,becke,calculate_forces,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1205,7 +1211,8 @@ CONTAINS
                                                 v_tau_rspace_aux_fit
     TYPE(pw_p_type)                          :: v_efield_rspace, &
                                                 v_sic_rspace, &
-                                                v_spin_ddapc_rest_r
+                                                v_spin_ddapc_rest_r, &
+                                                v_sccs_rspace
     TYPE(becke_restraint_type), POINTER      :: becke
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1252,7 +1259,7 @@ CONTAINS
     ! sum up potentials and integrate
     IF (ASSOCIATED(v_rspace_new)) THEN
        DO ispin=1,nspins
-          IF(gapw_xc) THEN
+          IF (gapw_xc) THEN
              ! SIC not implemented (or at least not tested)
              CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
              !Only the xc potential, because it has to be integrated with the soft basis
@@ -1270,12 +1277,12 @@ CONTAINS
              ! Now the Hartree potential to be integrated with the full basis
              v_rspace_new(ispin)%pw%cr3d  = v_rspace%pw%cr3d
           ELSE
-         ! Add v_hartree + v_xc = v_rspace_new
+            ! Add v_hartree + v_xc = v_rspace_new
             v_rspace_new(ispin)%pw%cr3d  =&
                  v_rspace_new(ispin)%pw%pw_grid%dvol * &
                  v_rspace_new(ispin)%pw%cr3d + v_rspace%pw%cr3d
           END IF ! gapw_xc
-          IF(dft_control%qs_control%ddapc_explicit_potential)THEN
+          IF (dft_control%qs_control%ddapc_explicit_potential) THEN
              IF (dft_control%qs_control%ddapc_restraint_is_spin) THEN
                 IF (ispin==1) THEN
                    v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
@@ -1293,21 +1300,26 @@ CONTAINS
              v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
                   +becke%becke_pot%pw%cr3d*dft_control%qs_control%becke_control%strength
           END IF
-          ! the efield contribution
-          IF(dft_control%apply_efield_field)THEN
-              v_rspace_new(ispin)%pw%cr3d= v_rspace_new(ispin)%pw%cr3d+&
+          ! The efield contribution
+          IF (dft_control%apply_efield_field) THEN
+             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d +&
                                            v_efield_rspace%pw%cr3d
           END IF
-          ! External electrostatic potential
-          IF(dft_control%apply_external_potential)THEN
-             CALL qmmm_modify_hartree_pot(v_hartree=v_rspace_new(ispin),&
-                  v_qmmm=vee,scale=-1.0_dp,error=error)
+          ! Add SCCS contribution
+          IF (dft_control%do_sccs) THEN
+             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d +&
+                                           v_sccs_rspace%pw%cr3d
           END IF
-          !
-          IF(do_ppl)THEN
-            CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
-            v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
-              vppl_rspace%pw%cr3d*vppl_rspace%pw%pw_grid%dvol
+          ! External electrostatic potential
+          IF (dft_control%apply_external_potential) THEN
+             CALL qmmm_modify_hartree_pot(v_hartree=v_rspace_new(ispin),&
+                                          v_qmmm=vee,scale=-1.0_dp,&
+                                          error=error)
+          END IF
+          IF (do_ppl) THEN
+             CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
+             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
+                                           vppl_rspace%pw%cr3d*vppl_rspace%pw%pw_grid%dvol
           END IF
           ! the electrostatic sic contribution
           SELECT CASE (dft_control%sic_method_id)
@@ -1315,25 +1327,23 @@ CONTAINS
              !
           CASE (sic_mauri_us,sic_mauri_spz )
              IF (ispin==1) THEN
-                v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                                         -v_sic_rspace%pw%cr3d
+                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d -&
+                                              v_sic_rspace%pw%cr3d
              ELSE
-                v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d &
-                                         +v_sic_rspace%pw%cr3d
+                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d +&
+                                              v_sic_rspace%pw%cr3d
              ENDIF
           CASE ( sic_ad )
-            v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
+            v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d - v_sic_rspace%pw%cr3d
           CASE ( sic_eo )
              ! NOTHING TO BE DONE
           END SELECT
-
           CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                p=my_rho(ispin),h=ks_matrix(ispin),&
                qs_env=qs_env, &
                calculate_forces=calculate_forces,&
                gapw=gapw, error=error)
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
-                error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,error=error)
        END DO ! ispin
 
        SELECT CASE (dft_control%sic_method_id)
@@ -1350,14 +1360,20 @@ CONTAINS
        CPPrecondition(.NOT.dft_control%qs_control%ddapc_restraint_is_spin,cp_failure_level,routineP,error,failure)
        DO ispin=1,nspins
           ! the efield contribution
-          IF(dft_control%apply_efield_field)THEN
+          IF (dft_control%apply_efield_field) THEN
              v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_efield_rspace%pw%cr3d
           END IF
+          ! Add SCCS contribution
+          IF (dft_control%do_sccs) THEN
+             v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_sccs_rspace%pw%cr3d
+          END IF
           CALL integrate_v_rspace(v_rspace=v_rspace,&
-               p=my_rho(ispin),h=ks_matrix(ispin),&
-               qs_env=qs_env, &
-               calculate_forces=calculate_forces,&
-               gapw=gapw, error=error)
+                                  p=my_rho(ispin),&
+                                  h=ks_matrix(ispin),&
+                                  qs_env=qs_env,&
+                                  calculate_forces=calculate_forces,&
+                                  gapw=gapw,&
+                                  error=error)
        END DO
     END IF ! ASSOCIATED(v_rspace_new)
 

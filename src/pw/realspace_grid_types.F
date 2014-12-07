@@ -189,27 +189,31 @@ CONTAINS
 !> \param desc ...
 !> \param pw_grid ...
 !> \param input_settings ...
+!> \param border_points ...
 !> \param error ...
 !> \par History
 !>      JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
 !>      Iain Bethune (05-Sep-2008) : modified cut heuristic
 !>      (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
+!>      - Create a descriptor for realspace grids with a number of border
+!>        points as exactly given by the optional argument border_points.
+!>        These grids are always distributed.
+!>        (27.11.2013, Matthias Krack)
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
-  SUBROUTINE rs_grid_create_descriptor ( desc, pw_grid, input_settings, error)
+  SUBROUTINE rs_grid_create_descriptor ( desc, pw_grid, input_settings, border_points, error)
     TYPE(realspace_grid_desc_type), POINTER  :: desc
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(realspace_grid_input_type), &
       INTENT(IN)                             :: input_settings
+    INTEGER, INTENT(IN), OPTIONAL            :: border_points
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create_descriptor', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, handle, i, j, k, l, &
-                                                lb( 2 ), n_slices(3), &
-                                                n_slices_tmp(3), &
-                                                neighbours(3), nmin, stat
+    INTEGER :: border_size, dir, handle, i, j, k, l, lb( 2 ), n_slices(3), &
+      n_slices_tmp(3), neighbours(3), nmin, stat
     LOGICAL                                  :: failure, overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
@@ -218,6 +222,12 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+
+    IF (PRESENT(border_points)) THEN
+       border_size = border_points
+    ELSE
+       border_size = 0
+    END IF
 
     ALLOCATE(desc,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -235,15 +245,19 @@ CONTAINS
     desc % grid_id = pw_grid % id_nr
     desc % ref_count = 1
 
-    IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
+    IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
        ! The corresponding group has dimension 1
        ! All operations will be done localy
        desc % npts = pw_grid % npts
        desc % ngpts = PRODUCT ( INT(desc % npts,KIND=int_8) )
        desc % lb = pw_grid % bounds ( 1, : )
        desc % ub = pw_grid % bounds ( 2, : )
-       desc % perd = 1
-       desc % border = 0
+       desc % border = border_size
+       IF (border_size == 0) THEN
+          desc % perd = 1
+       ELSE
+          desc % perd = 0
+       END IF
        desc % parallel = .FALSE.
        desc % distributed = .FALSE.
        desc % group = -1
@@ -262,18 +276,30 @@ CONTAINS
        desc % ub = pw_grid % bounds ( 2, : )
 
        ! this is the eventual border size
-       nmin = ( input_settings % nsmax + 1 ) / 2
-       nmin = MAX(0,NINT(nmin* input_settings % halo_reduction_factor))
+       IF (border_size == 0) THEN
+          nmin = (input_settings%nsmax + 1 )/2
+          nmin = MAX(0,NINT(nmin*input_settings%halo_reduction_factor))
+       ELSE
+          ! Set explicitly the requested border size
+          nmin = border_size
+       END IF
 
-       IF ( input_settings % distribution_type == rsgrid_replicated ) THEN
+       IF (input_settings%distribution_type == rsgrid_replicated) THEN
 
           n_slices = 1
+          IF (border_size > 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "An explicit border size > 0 is not yet working for "//&
+                               "replicated realspace grids. Request DISTRIBUTION_TYPE "//&
+                               "distributed for RS_GRID explicitly.")
+          END IF
 
        ELSE
-          n_slices = 1
-          ratio_best=-HUGE(ratio_best)
 
-          ! don't allow distributions with more processodesc than real grid points
+          n_slices = 1
+          ratio_best = -HUGE(ratio_best)
+
+          ! don't allow distributions with more processors than real grid points
           DO k=1, MIN(desc % npts (3), desc % group_size)
           DO j=1, MIN(desc % npts (2), desc % group_size)
              i= MIN (desc % npts (1), desc % group_size/(j*k) )
@@ -288,7 +314,7 @@ CONTAINS
                                 (/-1,-1,-1/)/=input_settings % distribution_layout )&
                           )) CYCLE
 
-             ! we currently can not work with a grid that has bordedesc that overlaps with the local data of the grid itself
+             ! we currently can not work with a grid that has borders that overlaps with the local data of the grid itself
              overlap=.FALSE.
              DO dir=1,3
                 IF (n_slices_tmp(dir)>1) THEN
@@ -325,13 +351,13 @@ CONTAINS
           ! if automatic we can still decide this is a replicated grid
           ! if the memory gain (or the gain is messages) is too small.
           IF (input_settings % distribution_type == rsgrid_automatic) THEN
-             volume=PRODUCT(REAL(desc % npts,KIND=dp))
-             volume_dist=PRODUCT(REAL(desc % npts,KIND=dp) / n_slices  +   &
-                          MERGE((/0,0,0/),2*(/nmin,nmin,nmin/),n_slices==(/1,1,1/)))
-             IF (volume<volume_dist*input_settings%memory_factor) THEN
-                 n_slices=1
-             ENDIF
-          ENDIF
+             volume = PRODUCT(REAL(desc % npts,KIND=dp))
+             volume_dist = PRODUCT(REAL(desc % npts,KIND=dp)/n_slices  +&
+                                   MERGE((/0,0,0/),2*(/nmin,nmin,nmin/),n_slices==(/1,1,1/)))
+             IF (volume < volume_dist*input_settings%memory_factor) THEN
+                 n_slices = 1
+             END IF
+          END IF
 
        END IF
 
@@ -339,13 +365,17 @@ CONTAINS
        CALL mp_comm_dup( pw_grid % para % group , desc % group )
        CALL mp_environ(desc % group_size, desc % my_pos, desc % group )
 
-       IF ( ALL (n_slices == 1 ) ) THEN
+       IF (ALL(n_slices == 1)) THEN
           ! CASE 1 : only one slice: we do not need overlapping regions and special
           !          recombination of the total density
-          desc % perd = 1
-          desc % border = 0
-          desc % parallel = .TRUE.
+          desc % border = border_size
+          IF (border_size == 0) THEN
+             desc % perd = 1
+          ELSE
+             desc % perd = 0
+          END IF
           desc % distributed = .FALSE.
+          desc % parallel = .TRUE.
           desc % group_head = pw_grid % para % group_head
           desc % group_coor ( : ) = 0
           desc % my_virtual_pos = 0
@@ -357,16 +387,17 @@ CONTAINS
             desc % virtual2real(i) = i
             desc % real2virtual(i) = i
           END DO
-
        ELSE
           ! CASE 2 : general case
-          ! periodicity is no longer enforced arbritary  directions
-          desc % perd = 1
-          DO dir = 1,3
-             IF (n_slices(dir).GT.1) THEN
-                desc % perd ( dir ) = 0
-             ENDIF
-          ENDDO
+          ! periodicity is no longer enforced arbritary directions
+          IF (border_size == 0) THEN
+             desc % perd = 1
+             DO dir=1,3
+                IF (n_slices(dir) > 1) desc % perd(dir) = 0
+             END DO
+          ELSE
+             desc % perd(:) = 0
+          END IF
           ! we keep a border of nmin points
           desc % border = nmin
           ! we are going parallel on the real space grid
@@ -438,15 +469,15 @@ CONTAINS
           ! an upper bound for the number of neighbours the border is overlapping with
           DO dir=1,3
              desc % neighbours(dir) = 0
-             IF (n_slices(dir).GT.1) THEN
+             IF ((n_slices(dir) > 1).OR.(border_size > 0)) THEN
                 neighbours(dir) = HUGE(0)
                 DO l=0,n_slices(dir)-1
                    lb = get_limit ( desc % npts ( dir ),  n_slices( dir ), l )
                    neighbours(dir) = MIN(lb (2) -lb (1) + 1, neighbours(dir) )
-                ENDDO
+                END DO
                 desc % neighbours(dir) =  (desc % border + neighbours(dir) - 1)/neighbours(dir)
-             ENDIF
-          ENDDO
+             END IF
+          END DO
 
           ALLOCATE ( desc % virtual2real ( 0 : desc % group_size - 1) )
           ALLOCATE ( desc % real2virtual ( 0 : desc % group_size - 1) )
@@ -494,26 +525,26 @@ CONTAINS
     rs % desc => desc
     CALL rs_grid_retain_descriptor(rs % desc, error)
 
-    IF ( desc % pw % para % mode == PW_MODE_LOCAL ) THEN
+    IF (desc%pw%para%mode == PW_MODE_LOCAL) THEN
        ! The corresponding group has dimension 1
-       ! All operations will be done localy
-       rs % npts_local = desc % npts
-       rs % ngpts_local = PRODUCT ( desc % npts )
-       rs % lb_local = desc % pw % bounds ( 1, : )
-       rs % ub_local = desc % pw % bounds ( 2, : )
-       rs % lb_real = desc % pw % bounds ( 1, : )
-       rs % ub_real = desc % pw % bounds ( 2, : )
+       ! All operations will be done locally
+       rs % lb_real = desc % lb
+       rs % ub_real = desc % ub
+       rs % lb_local = rs % lb_real - desc % border * ( 1 - desc % perd )
+       rs % ub_local = rs % ub_real + desc % border * ( 1 - desc % perd )
+       rs % npts_local = rs % ub_local - rs % lb_local + 1
+       rs % ngpts_local = PRODUCT ( rs % npts_local )
     END IF
 
-    IF ( ALL (rs % desc % group_dim == 1 ) ) THEN
+    IF (ALL(rs%desc%group_dim == 1)) THEN
           ! CASE 1 : only one slice: we do not need overlapping regions and special
           !          recombination of the total density
-          rs % npts_local = desc % pw % npts
-          rs % ngpts_local = PRODUCT ( desc % npts )
-          rs % lb_local = desc % lb
-          rs % ub_local = desc % ub
           rs % lb_real = desc % lb
           rs % ub_real = desc % ub
+          rs % lb_local = rs % lb_real - desc % border * ( 1 - desc % perd )
+          rs % ub_local = rs % ub_real + desc % border * ( 1 - desc % perd )
+          rs % npts_local = rs % ub_local - rs % lb_local + 1
+          rs % ngpts_local = PRODUCT ( rs % npts_local )
     ELSE
           ! CASE 2 : general case
           ! extract some more derived quantities about the local grid
@@ -521,7 +552,7 @@ CONTAINS
           rs % ub_real = desc % ub_global ( :, desc % my_virtual_pos )
           rs % lb_local = rs % lb_real - desc % border * ( 1 - desc % perd )
           rs % ub_local = rs % ub_real + desc % border * ( 1 - desc % perd )
-          rs % npts_local = rs % ub_local - rs % lb_local +1
+          rs % npts_local = rs % ub_local - rs % lb_local + 1
           rs % ngpts_local = PRODUCT ( rs % npts_local )
     END IF
 
@@ -694,7 +725,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: dirname
-    INTEGER                                  :: handle, handle2, nn
+    INTEGER                                  :: handle, handle2, i, im, j, &
+                                                jm, k, km
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -711,32 +743,117 @@ CONTAINS
     IF ( (dir.NE.rs2pw) .AND. (dir.NE.pw2rs) ) &
        CALL stop_program(routineN,moduleN,__LINE__,"Direction must be rs2pw or pw2rs")
 
-    IF (  rs % desc % parallel ) THEN
-       IF ( .NOT. rs % desc % distributed ) THEN
-          CALL rs_pw_transfer_replicated(rs,pw,dir,error)
-       ELSE
-          CALL rs_pw_transfer_distributed(rs,pw,dir,error)
-       END IF
+    IF (rs%desc%distributed) THEN
+       CALL rs_pw_transfer_distributed(rs,pw,dir,error)
+    ELSE IF (rs%desc%parallel) THEN
+       CALL rs_pw_transfer_replicated(rs,pw,dir,error)
     ELSE ! treat simple serial case locally
-       nn = SIZE ( rs % r )
-       IF ( dir == rs2pw ) THEN
-          IF ( pw % in_use == REALDATA3D ) THEN
-             CALL dcopy ( nn, rs % r, 1, pw % cr3d, 1 )
-          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-             CALL copy_rc ( rs % r, pw % cc3d )
+       IF (dir == rs2pw) THEN
+          IF (pw%in_use == REALDATA3D) THEN
+             IF (rs%desc%border == 0) THEN
+                CALL dcopy(SIZE(rs%r),rs%r,1,pw%cr3d,1)
+             ELSE
+                !$omp parallel workshare default(none) shared(pw,rs)
+                pw%cr3d(:,:,:) = rs%r(rs%lb_real(1):rs%ub_real(1),&
+                                      rs%lb_real(2):rs%ub_real(2),&
+                                      rs%lb_real(3):rs%ub_real(3))
+                !$omp end parallel workshare
+             END IF
+          ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
+             IF (rs%desc%border == 0) THEN
+                CALL copy_rc(rs%r,pw%cc3d)
+             ELSE
+                !$omp parallel workshare default(none) shared(pw,rs)
+                pw%cc3d(:,:,:) = CMPLX(rs%r(rs%lb_real(1):rs%ub_real(1),&
+                                            rs%lb_real(2):rs%ub_real(2),&
+                                            rs%lb_real(3):rs%ub_real(3)),&
+                                       0.0_dp,KIND=dp)
+                !$omp end parallel workshare
+             END IF
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
           END IF
        ELSE
-          IF ( pw % in_use == REALDATA3D ) THEN
-             CALL dcopy ( nn, pw % cr3d, 1, rs % r, 1 )
-          ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-             CALL copy_cr ( pw % cc3d, rs % r )
+          IF (pw%in_use == REALDATA3D) THEN
+             IF (rs%desc%border == 0) THEN
+                CALL dcopy(SIZE(rs%r),pw%cr3d,1,rs%r,1)
+             ELSE
+                !$omp parallel do default(none) &
+                !$omp             private(i,im,j,jm,k,km) &
+                !$omp             shared(pw,rs)
+                DO k=rs%lb_local(3),rs%ub_local(3)
+                   IF (k < rs%lb_real(3)) THEN
+                      km = k + rs%desc%npts(3)
+                   ELSE IF (k > rs%ub_real(3)) THEN
+                      km = k - rs%desc%npts(3)
+                   ELSE
+                      km = k
+                   END IF
+                   DO j=rs%lb_local(2),rs%ub_local(2)
+                      IF (j < rs%lb_real(2)) THEN
+                         jm = j + rs%desc%npts(2)
+                      ELSE IF (j > rs%ub_real(2)) THEN
+                         jm = j - rs%desc%npts(2)
+                      ELSE
+                         jm = j
+                      END IF
+                      DO i=rs%lb_local(1),rs%ub_local(1)
+                         IF (i < rs%lb_real(1)) THEN
+                            im = i + rs%desc%npts(1)
+                         ELSE IF (i > rs%ub_real(1)) THEN
+                            im = i - rs%desc%npts(1)
+                         ELSE
+                            im = i
+                         END IF
+                         rs%r(i,j,k) = pw%cr3d(im,jm,km)
+                      END DO
+                   END DO
+                END DO
+                !$omp end parallel do
+             END IF
+          ELSEIF (pw % in_use == COMPLEXDATA3D) THEN
+             IF (rs%desc%border == 0) THEN
+                CALL copy_cr(pw%cc3d,rs%r)
+             ELSE
+                !$omp parallel do default(none) &
+                !$omp             private(i,im,j,jm,k,km) &
+                !$omp             shared(pw,rs)
+                DO k=rs%lb_local(3),rs%ub_local(3)
+                   IF (k < rs%lb_real(3)) THEN
+                      km = k + rs%desc%npts(3)
+                   ELSE IF (k > rs%ub_real(3)) THEN
+                      km = k - rs%desc%npts(3)
+                   ELSE
+                      km = k
+                   END IF
+                   DO j=rs%lb_local(2),rs%ub_local(2)
+                      IF (j < rs%lb_real(2)) THEN
+                         jm = j + rs%desc%npts(2)
+                      ELSE IF (j > rs%ub_real(2)) THEN
+                         jm = j - rs%desc%npts(2)
+                      ELSE
+                         jm = j
+                      END IF
+                      DO i=rs%lb_local(1),rs%ub_local(1)
+                         IF (i < rs%lb_real(1)) THEN
+                            im = i + rs%desc%npts(1)
+                         ELSE IF (i > rs%ub_real(1)) THEN
+                            im = i - rs%desc%npts(1)
+                         ELSE
+                            im = i
+                         END IF
+                         rs%r(i,j,k) = REAL(pw%cc3d(im,jm,km),KIND=dp)
+                      END DO
+                   END DO
+                END DO
+                !$omp end parallel do
+             END IF
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
           END IF
        END IF
     END IF
+
     CALL timestop(handle)
     CALL timestop(handle2)
 
@@ -761,9 +878,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_replicated', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dest, group, ii, ip, ix, iy, &
-                                                iz, mepos, nma, nn, np, &
-                                                req(2), s(3), source, stat
+    INTEGER                                  :: dest, group, i, ii, im, ip, &
+                                                ix, iy, iz, j, jm, k, km, &
+                                                mepos, nma, nn, np, req(2), &
+                                                s(3), source, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount
     INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
@@ -818,9 +936,9 @@ CONTAINS
           CALL mp_isendrecv(sendbuf,dest,recvbuf,source, &
                group,req(1),req(2),13)
           CALL mp_waitall(req)
-          swapptr=>sendbuf
-          sendbuf=>recvbuf
-          recvbuf=>swapptr
+          swapptr => sendbuf
+          sendbuf => recvbuf
+          recvbuf => swapptr
        ENDDO
        nn = rcount(mepos)
        IF ( pw % in_use == REALDATA3D ) THEN
@@ -870,11 +988,44 @@ CONTAINS
           IF (ip .NE. np-1) THEN
              CALL mp_waitall(req)
           ENDIF
-          swapptr=>sendbuf
-          sendbuf=>recvbuf
-          recvbuf=>swapptr
-       ENDDO
-
+          swapptr => sendbuf
+          sendbuf => recvbuf
+          recvbuf => swapptr
+       END DO
+       IF (rs%desc%border > 0) THEN
+          !$omp parallel do default(none) &
+          !$omp             private(i,im,j,jm,k,km) &
+          !$omp             shared(rs)
+          DO k=rs%lb_local(3),rs%ub_local(3)
+             IF (k < rs%lb_real(3)) THEN
+                km = k + rs%desc%npts(3)
+             ELSE IF (k > rs%ub_real(3)) THEN
+                km = k - rs%desc%npts(3)
+             ELSE
+                km = k
+             END IF
+             DO j=rs%lb_local(2),rs%ub_local(2)
+                IF (j < rs%lb_real(2)) THEN
+                   jm = j + rs%desc%npts(2)
+                ELSE IF (j > rs%ub_real(2)) THEN
+                   jm = j - rs%desc%npts(2)
+                ELSE
+                   jm = j
+                END IF
+                DO i=rs%lb_local(1),rs%ub_local(1)
+                   IF (i < rs%lb_real(1)) THEN
+                      im = i + rs%desc%npts(1)
+                   ELSE IF (i > rs%ub_real(1)) THEN
+                      im = i - rs%desc%npts(1)
+                   ELSE
+                      im = i
+                   END IF
+                   rs%r(i,j,k) = rs%r(im,jm,km)
+                END DO
+             END DO
+          END DO
+          !$omp end parallel do
+       END IF
     END IF
 
     DEALLOCATE ( rcount, STAT=stat )
@@ -883,6 +1034,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE ( recvbuf, STAT=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE rs_pw_transfer_replicated
 
 ! *****************************************************************************
@@ -1395,7 +1547,6 @@ CONTAINS
        DEALLOCATE ( send_reqs, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-
        DO i = 0, rs % desc % group_size - 1
          IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
            DEALLOCATE(send_bufs(i)%array)
@@ -1647,7 +1798,6 @@ CONTAINS
        DEALLOCATE ( send_reqs, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-
        DO i = 0, rs % desc % group_size - 1
          IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
            DEALLOCATE(send_bufs(i)%array)
@@ -1656,7 +1806,6 @@ CONTAINS
            DEALLOCATE(recv_bufs(i)%array)
          END IF
        END DO
-
 
        DEALLOCATE ( send_bufs, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2237,6 +2386,5 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     END IF
 
   END FUNCTION rs_grid_max_ngpts
-
 
 END MODULE realspace_grid_types
