@@ -160,10 +160,8 @@ MODULE qs_ks_methods
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
-  PUBLIC :: qs_ks_did_change,  calc_rho_tot_gspace, &
-       qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix, calculate_w_matrix_ot,&
-       qs_ks_allocate_basics
-!***
+  PUBLIC :: calc_rho_tot_gspace, qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix,&
+            calculate_w_matrix, calculate_w_matrix_ot, qs_ks_allocate_basics
 
   TYPE qs_potential_type
     TYPE(pw_p_type), POINTER :: v_efield_rspace, v_hartree_gspace, &
@@ -1374,67 +1372,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE rebuild_ks_matrix
-
-
-! *****************************************************************************
-!> \brief tells that some of the things relevant to the ks calculation
-!>      did change. has to be called when changes happen otherwise
-!>      the calculation will give wrong results.
-!> \param ks_env the environement that is informed about the changes
-!> \param s_mstruct_changed if true it means that the structure of the
-!>        overlap matrix has changed
-!>        (atoms have moved)
-!> \param rho_changed if true it means that the density has changed
-!> \param potential_changed ...
-!> \param full_reset if true everything has changed
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      4.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_changed,full_reset,error)
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
-                                                rho_changed, &
-                                                potential_changed, full_reset
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    CALL timeset(routineN,handle)
-
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(rho_changed)) THEN
-          IF (rho_changed) CALL set_ks_env(ks_env, rho_changed=.TRUE., error=error)
-       END IF
-       IF (PRESENT(potential_changed)) THEN
-          IF (potential_changed) CALL set_ks_env(ks_env, potential_changed=.TRUE., error=error)
-       END IF
-       IF (PRESENT(s_mstruct_changed)) THEN
-          IF (s_mstruct_changed) THEN
-             CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE., error=error)
-          END IF
-       END IF
-       IF (PRESENT(full_reset)) THEN
-          IF (full_reset) &
-             CALL set_ks_env(ks_env,potential_changed=.TRUE.,&
-                                    s_mstruct_changed=.TRUE.,&
-                                    error=error)
-       END IF
-    END IF
-
-    CALL  timestop(handle)
-
-  END SUBROUTINE qs_ks_did_change
 
 ! *****************************************************************************
 !> \brief Calculate the W matrix from the MO eigenvectors, MO eigenvalues,

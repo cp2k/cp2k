@@ -61,9 +61,9 @@ MODULE qs_force
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type,&
                                              zero_qs_force
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type,&
                                              set_ks_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
@@ -333,7 +333,7 @@ CONTAINS
            CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-         CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&
+         CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,dealloc=.FALSE.,&
                                s_mstruct_changed=qs_env%mp2_env%ri_mp2%free_hfx_buffer,&
                                error=error)
          CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE., error=error)

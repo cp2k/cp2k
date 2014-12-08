@@ -46,8 +46,8 @@ MODULE rt_propagation
                                              qs_environment_type
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&

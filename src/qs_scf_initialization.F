@@ -71,7 +71,7 @@ MODULE qs_scf_initialization
                                              get_qs_kind_set,&
                                              qs_kind_type,&
                                              set_qs_kind
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&

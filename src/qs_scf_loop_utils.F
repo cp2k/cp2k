@@ -35,8 +35,8 @@ MODULE qs_scf_loop_utils
                                              qs_environment_type
   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
                                              self_consistency_check
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              set_mo_occupation

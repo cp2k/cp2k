@@ -15,8 +15,7 @@ MODULE qs_environment_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              dbcsr_distribution_obj
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
@@ -65,8 +64,8 @@ MODULE qs_environment_methods
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_did_change,&
                                              qs_ks_env_type,&
                                              set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
@@ -299,21 +298,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
                     pw_env=pw_env,&
                     error=error)
 
-    ! *** deallocate matrices that will have the wrong structure ***
-    ! TODO: figure out where these actually get deallocated as well.
-    !       doing this here triggers a bug in the intel compiler (<=15.0)
-    !       should presumably be done where mstruct is declared changed.
-    IF (.TRUE.) THEN
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error=error)
-      CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
-    ENDIF
-
-    IF( dft_control%do_admm) THEN
-      ! *** deallocate matrices that will have the wrong structure ***
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_ks_aux_fit,error=error)
-      CALL set_ks_env(ks_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
-    END IF
-
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
       IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -377,10 +361,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CALL cp_ddapc_init(qs_env, error)
 
     ! *** tell ks_env ***
-    IF (ASSOCIATED(qs_env%ks_env)) THEN
-       CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
-            error=error)
-    END IF
+    CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,error=error)
+
     !   *** Updates rho structure ***
     CALL qs_env_rebuild_rho(qs_env=qs_env,error=error)
 

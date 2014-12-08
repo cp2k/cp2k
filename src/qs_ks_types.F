@@ -67,6 +67,8 @@ MODULE qs_ks_types
                                              qs_subsys_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
                                              task_list_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
@@ -76,7 +78,7 @@ MODULE qs_ks_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_types'
 
-  PUBLIC :: qs_ks_env_type, qs_ks_env_create
+  PUBLIC :: qs_ks_env_type, qs_ks_env_create, qs_ks_did_change
   PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env
 
 ! *****************************************************************************
@@ -918,5 +920,86 @@ SUBROUTINE qs_ks_retain(ks_env, error)
      ks_env%ref_count=ks_env%ref_count+1
   END IF
 END SUBROUTINE qs_ks_retain
+
+! *****************************************************************************
+!> \brief tells that some of the things relevant to the ks calculation
+!>      did change. has to be called when changes happen otherwise
+!>      the calculation will give wrong results.
+!> \param ks_env the environement that is informed about the changes
+!> \param s_mstruct_changed if true it means that the structure of the
+!>        overlap matrix has changed
+!>        (atoms have moved)
+!> \param rho_changed if true it means that the density has changed
+!> \param potential_changed ...
+!> \param full_reset if true everything has changed
+!> \param dealloc defaults to true, if set to false the matrices are not
+!>                deallocted when mstruct_changed is set.
+!>                Only meant as a workaround for MP2's call in qs_force.F
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      4.2002 created [fawzi]
+!>     12.2014 moved from qs_ks_methods, added deallocation of KS-matrices [Ole Schuett]
+!> \author Fawzi Mohamed
+! *****************************************************************************
+  SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,&
+                              potential_changed,full_reset,dealloc,error)
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
+                                                rho_changed, &
+                                                potential_changed, &
+                                                full_reset, dealloc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure, my_dealloc, &
+                                                my_mstruct_chg
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    my_mstruct_chg = .FALSE.
+
+    my_dealloc = .TRUE.
+    IF (PRESENT(dealloc)) my_dealloc = dealloc
+
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+
+    IF (PRESENT(rho_changed)) THEN
+       IF (rho_changed) ks_env%rho_changed = .TRUE.
+    END IF
+
+    IF (PRESENT(potential_changed)) THEN
+       IF (potential_changed) ks_env%potential_changed = .TRUE.
+    END IF
+
+    IF (PRESENT(s_mstruct_changed)) THEN
+       IF (s_mstruct_changed) my_mstruct_chg = .TRUE.
+    END IF
+
+    IF (PRESENT(full_reset)) THEN
+       IF (full_reset) THEN
+          ks_env%potential_changed = .TRUE.
+          my_mstruct_chg = .TRUE.
+       ENDIF
+    END IF
+
+    IF(my_mstruct_chg) THEN
+       ks_env%s_mstruct_changed = .TRUE.
+       IF(my_dealloc) THEN
+          ! *** deallocate matrices that will have the wrong structure ***
+          CALL kpoint_transitional_release(ks_env%matrix_ks, error)
+          CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit,error)
+          !TODO: deallocate imaginary parts as well
+          !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im,error)
+          !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im,error)
+       ENDIF
+    ENDIF
+
+    CALL  timestop(handle)
+
+  END SUBROUTINE qs_ks_did_change
 
 END MODULE qs_ks_types

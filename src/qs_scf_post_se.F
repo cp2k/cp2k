@@ -48,8 +48,8 @@ MODULE qs_scf_post_se
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&

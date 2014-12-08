@@ -46,9 +46,9 @@ MODULE optbas_fenv_manipulation
                                              qs_environment_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_did_change,&
                                              qs_ks_env_type,&
                                              set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_get

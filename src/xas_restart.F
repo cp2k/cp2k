@@ -42,7 +42,7 @@ MODULE xas_restart
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gspace_mixing,                ONLY: mixing_init
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_mo_io,                        ONLY: wfn_restart_file_name
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&

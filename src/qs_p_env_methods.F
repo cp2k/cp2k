@@ -68,9 +68,9 @@ MODULE qs_p_env_methods
                                              kpp1_create,&
                                              kpp1_did_change
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type
   USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_local_rho_types,              ONLY: local_rho_set_create
   USE qs_matrix_pools,                 ONLY: mpools_get
