@@ -52,7 +52,7 @@ MODULE dbcsr_api
        multrec_limit
   USE dbcsr_csr_conversions,           ONLY: &
        convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_conversion_test, &
-       csr_create, csr_create_from_dbcsr, csr_create_new, csr_create_nze_row, &
+       csr_create, csr_create_from_dbcsr, csr_create_new, &
        csr_create_template, csr_destroy, csr_type, csr_write
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
@@ -371,7 +371,6 @@ MODULE dbcsr_api
             csr_create_new,&
             csr_create_template,&
             csr_write,&
-            csr_conversion_test,&
-            csr_create_nze_row
+            csr_conversion_test
 
 END MODULE dbcsr_api

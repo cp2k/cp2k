@@ -190,6 +190,7 @@ MODULE qs_environment
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE transport,                       ONLY: transport_env_create
 !  USE xas_control,                     ONLY: write_xas_control
 #include "./common/cp_common_uses.f90"
 
@@ -265,7 +266,8 @@ CONTAINS
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
-      harris_section, hfx_ri_section, hfx_section, kpoint_section, mp2_section
+      harris_section, hfx_ri_section, hfx_section, kpoint_section, &
+      mp2_section, transport_section
 
     failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
@@ -438,6 +440,12 @@ CONTAINS
     IF (dft_control%qs_control%do_ls_scf) THEN
        CALL ls_scf_create(qs_env,error)
     ENDIF
+
+    transport_section => section_vals_get_subs_vals(qs_env%input,"DFT%TRANSPORT",error=error)
+    CALL section_vals_get(transport_section,explicit=qs_env%do_transport,error=error)
+    IF (qs_env%do_transport) THEN
+       CALL transport_env_create(qs_env,error)
+    END IF
 
     ! see if we have atomic relativistic corrections
     CALL get_qs_env(qs_env,rel_control=rel_control,error=error)

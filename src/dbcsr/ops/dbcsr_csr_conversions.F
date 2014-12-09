@@ -163,7 +163,8 @@ MODULE dbcsr_csr_conversions
                                                 nze_local, nrows_local, mp_group
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, DIMENSION(:), POINTER           :: rowptr_local => NULL(),&
-                                                colind_local => NULL()
+                                                colind_local => NULL(),&
+                                                nzerow_local => NULL()
     TYPE(csr_data_area_type)                 :: nzval_local
     TYPE(csr_mapping_data)                   :: dbcsr_mapping
     LOGICAL                                  :: has_mapping = .FALSE.
@@ -176,7 +177,7 @@ MODULE dbcsr_csr_conversions
             csr_destroy, csr_conversion_test,&
             convert_dbcsr_to_csr, csr_write,&
             csr_create, csr_create_new, csr_create_template,&
-            csr_copy, csr_create_nze_row
+            csr_copy
 
   INTERFACE csr_create
      MODULE PROCEDURE csr_create_new, csr_create_template
@@ -241,6 +242,7 @@ CONTAINS
     ALLOCATE( csr_mat%colind_local(nze_local) )
     csr_mat%nrows_local = nrows_local
     ALLOCATE( csr_mat%rowptr_local(nrows_local + 1) )
+    ALLOCATE( csr_mat%nzerow_local(nrows_local) )
 
     IF (PRESENT (data_type)) THEN
      SELECT CASE (data_type)
@@ -304,6 +306,7 @@ CONTAINS
 
     IF(matrix_a%has_indices) THEN
       matrix_b%rowptr_local = matrix_a%rowptr_local
+      matrix_b%nzerow_local = matrix_a%nzerow_local
       matrix_b%colind_local = matrix_a%colind_local
     ENDIF
 
@@ -379,6 +382,7 @@ CONTAINS
 
     IF (.NOT. matrix_b%has_indices) THEN
       matrix_b%rowptr_local = matrix_a%rowptr_local
+      matrix_b%nzerow_local = matrix_a%nzerow_local
       matrix_b%colind_local = matrix_a%colind_local
     ENDIF
 
@@ -401,19 +405,19 @@ CONTAINS
 !> \brief create a vector containing the number of non-zero elements in each
 !> row of a CSR matrix
 !> \param[in] csr_mat   CSR matrix
-!> \param[out] nze_row  number of non-zero elements in each row
+!> \param[out] nzerow  number of non-zero elements in each row
 !> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_create_nze_row(csr_mat, nze_row, error)
+  SUBROUTINE csr_create_nzerow(csr_mat, nzerow, error)
     TYPE(csr_type), INTENT(IN)               :: csr_mat
-    INTEGER, ALLOCATABLE, DIMENSION(:), &
-      INTENT(OUT)                            :: nze_row
+    INTEGER, DIMENSION(:), INTENT(INOUT), &
+      POINTER                                :: nzerow
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_nze_row', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_nzerow', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, k
@@ -423,13 +427,12 @@ CONTAINS
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "CSR matrix must be created.",__LINE__, error)
 
-    ALLOCATE(nze_row(csr_mat%nrows_local))
     DO k=1,csr_mat%nrows_local
-      nze_row(k) = csr_mat%rowptr_local(k+1) - csr_mat%rowptr_local(k) 
+      nzerow(k) = csr_mat%rowptr_local(k+1) - csr_mat%rowptr_local(k) 
     ENDDO
 
     CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE csr_create_nze_row
+  END SUBROUTINE csr_create_nzerow
    
 ! *****************************************************************************
 !> \brief destroy a CSR matrix
@@ -454,6 +457,7 @@ CONTAINS
       "CSR matrix must be created before destroying it.",__LINE__, error)
 
     IF (ASSOCIATED(csr_mat%rowptr_local)) DEALLOCATE(csr_mat%rowptr_local)
+    IF (ASSOCIATED(csr_mat%nzerow_local)) DEALLOCATE(csr_mat%nzerow_local)
     IF (ASSOCIATED(csr_mat%colind_local)) DEALLOCATE(csr_mat%colind_local)
     IF (ASSOCIATED(csr_mat%dbcsr_mapping%csr_to_brd_ind))&
       DEALLOCATE(csr_mat%dbcsr_mapping%csr_to_brd_ind)
@@ -750,7 +754,7 @@ CONTAINS
       prev_row_blk_size, row_blk_offset, row_blk_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nfullcol_blkrow
     INTEGER, DIMENSION(:), POINTER           :: colind, csr_index, &
-                                                dbcsr_index, rowptr
+                                                dbcsr_index, nzerow, rowptr
     LOGICAL                                  :: new_ind, tr
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
@@ -797,6 +801,7 @@ CONTAINS
     el_sum = 0 ! number of elements above current block row
     colind => csr_mat%colind_local
     rowptr => csr_mat%rowptr_local
+    nzerow => csr_mat%nzerow_local
     CALL dbcsr_data_init(block)
     CALL dbcsr_data_new(block, data_type)
 
@@ -863,6 +868,8 @@ CONTAINS
       rowptr(csr_mat%nrows_local+1) = csr_mat%nze_local + 1
     ENDIF
 
+    CALL csr_create_nzerow(csr_mat, nzerow, error)
+
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer (block)
     CALL dbcsr_data_release (block)
@@ -877,25 +884,21 @@ CONTAINS
 !>        in order to prepare conversion.
 !> \param[in] dbcsr_mat ...
 !> \param[out] csr_mat ...
-!> \param[in] equal_dist    if true, each process holds ceiling(N/P) rows of the 
-!>                          CSR matrix. If false, the number of rows per process 
-!>                          are adapted to the row block sizes in the DBCSR format
-!>                          such that blocks are not splitted over different 
-!>                          processes.
-!> \param floor_dist        optional (false by default): if true, then the 
-!>                          processes hold floor(N/P) rows (except of the last 
-!>                          process holding the remaining rows), if equal_dist 
-!>                          is set to true.
+!> \param[in] dist_format  how to distribute CSR rows over processes:
+!>                          1: the number of rows per process is adapted to the
+!>                             row block sizes in the DBCSR format such that blocks
+!>                             are not splitted over different processes.
+!>                          2: each process holds ceiling(N/P) CSR rows.
+!>                          3: each process holds floor(N/P) CSR rows.
 !> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_create_from_dbcsr(dbcsr_mat, csr_mat, equal_dist, floor_dist, error)
+  SUBROUTINE csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
-    LOGICAL, INTENT(IN)                      :: equal_dist
-    LOGICAL, INTENT(IN), OPTIONAL            :: floor_dist
+    INTEGER, INTENT(IN)                      :: dist_format
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_dbcsr', &
@@ -904,7 +907,7 @@ CONTAINS
     INTEGER                                  :: error_handler, &
                                                 nblkcols_total, &
                                                 nblkrows_total, nblks_local
-    LOGICAL                                  :: fd
+    LOGICAL                                  :: equal_dist, floor_dist
     TYPE(dbcsr_obj)                          :: brd_mat, dbcsr_mat_nosym
 
     CALL dbcsr_error_set(routineN, error_handler, error)
@@ -912,10 +915,17 @@ CONTAINS
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__, error=error)
 
-    CALL dbcsr_assert(.NOT. PRESENT(floor_dist),"OR",equal_dist, dbcsr_warning_level,&
-    dbcsr_caller_error, routineN,&
-    "optional argument floor_dist ignored as equal_dist is false",&
-     __LINE__, error=error)
+    SELECT CASE (dist_format)
+    CASE (1)
+      equal_dist = .FALSE.
+      floor_dist = .FALSE.
+    CASE (2)
+      equal_dist = .TRUE.
+      floor_dist = .FALSE.
+    CASE (3)
+      equal_dist = .TRUE.
+      floor_dist = .TRUE.
+    END SELECT
 
     ! Conversion does not support matrices in symmetric format, therefore desymmetrize
     IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
@@ -925,14 +935,8 @@ CONTAINS
       dbcsr_mat_nosym = dbcsr_mat
     ENDIF
 
-    IF (PRESENT(floor_dist)) THEN
-      fd = floor_dist
-    ELSE 
-      fd = .FALSE.
-    ENDIF 
-
     ! Create BRD matrix from DBCSR matrix
-    CALL dbcsr_create_brd (dbcsr_mat_nosym, brd_mat, equal_dist, fd, error=error)
+    CALL dbcsr_create_brd (dbcsr_mat_nosym, brd_mat, equal_dist, floor_dist, error=error)
 
     ! Create CSR matrix from BRD matrix
     CALL csr_create_from_brd(brd_mat, csr_mat, error)
@@ -1191,8 +1195,7 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, equal_dist=.TRUE.,&
-      floor_dist = .TRUE.,error=error)
+    CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, 2, error=error)
 
     CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error=error)
 
@@ -1236,9 +1239,8 @@ CONTAINS
     INTEGER                                  :: error_handler, k, l, m, &
                                                 mynode, numnodes, offset_nrl, &
                                                 offset_nzl
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: colind_total, nze_row, &
-      nze_row_total, offsets_numrowlocal, offsets_nzelocal, &
-      sizes_numrowlocal, sizes_nzelocal
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: colind_total, nzerow_total, &
+      offsets_numrowlocal, offsets_nzelocal, sizes_numrowlocal, sizes_nzelocal
     LOGICAL                                  :: ut
     REAL(KIND=real_4), ALLOCATABLE, &
       DIMENSION(:)                           :: nzval_total_r_sp
@@ -1260,10 +1262,8 @@ CONTAINS
 
     CALL mp_environ(numnodes, mynode, csr_mat%mp_group)
 
-    CALL csr_create_nze_row(csr_mat, nze_row, error)
-
     ALLOCATE(colind_total(csr_mat%nze_total))
-    ALLOCATE(nze_row_total(csr_mat%nrows_total))
+    ALLOCATE(nzerow_total(csr_mat%nrows_total))
     ALLOCATE(offsets_numrowlocal(numnodes))
     ALLOCATE(offsets_nzelocal(numnodes))
     ALLOCATE(sizes_nzelocal(numnodes))
@@ -1286,7 +1286,7 @@ CONTAINS
     CALL mp_gatherv(csr_mat%colind_local,colind_total, sizes_nzelocal,&
       offsets_nzelocal,0, csr_mat%mp_group)
 
-    CALL mp_gatherv(nze_row,nze_row_total, sizes_numrowlocal,&
+    CALL mp_gatherv(csr_mat%nzerow_local,nzerow_total, sizes_numrowlocal,&
       offsets_numrowlocal, 0, csr_mat%mp_group)
 
     SELECT CASE (csr_mat%nzval_local%data_type)
@@ -1316,7 +1316,7 @@ CONTAINS
       !WRITE(unit_nr,"(A27)") "#nze in row, col ind, value"
       m = 0
       DO k=1, csr_mat%nrows_total
-        DO l=1, nze_row_total(k)
+        DO l=1, nzerow_total(k)
           m=m+1
           IF ((.NOT. ut) .OR. (k .LE. colind_total(m))) THEN
             SELECT CASE (csr_mat%nzval_local%data_type)

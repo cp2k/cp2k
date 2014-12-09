@@ -78,6 +78,9 @@ MODULE dm_ls_scf
                                              write_mo_free_results
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE transport,                       ONLY: external_scf_method,&
+                                             transport_initialize
+  USE transport_env_types,             ONLY: transport_env_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -283,6 +286,10 @@ CONTAINS
 
     ! get the initial guess for the SCF
     CALL ls_scf_initial_guess(qs_env,ls_scf_env,error)
+
+    IF (qs_env%do_transport) THEN
+       CALL transport_initialize(qs_env%transport_env, ls_scf_env%matrix_s, error)
+    END IF
 
     CALL timestop(handle)
 
@@ -835,6 +842,7 @@ CONTAINS
                                                 nelectron_spin_real, nmixing, &
                                                 nspin, unit_nr
     LOGICAL                                  :: check_convergence, diis_step, &
+                                                do_transport, failure, &
                                                 should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, eps_diis, t1, t2
@@ -846,6 +854,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_diis_buffer_type_sparse), &
       POINTER                                :: diis_buffer
+    TYPE(transport_env_type), POINTER        :: transport_env
 
     CALL timeset(routineN,handle)
 
@@ -889,6 +898,9 @@ CONTAINS
      CALL qs_diis_b_clear_sparse(diis_buffer,error=error)
      CALL get_qs_env(qs_env,matrix_s=matrix_s,error=error)
     END IF
+
+    CALL get_qs_env(qs_env, transport_env=transport_env, do_transport=do_transport, error=error)
+
     ! the real SCF loop
     DO
 
@@ -985,26 +997,39 @@ CONTAINS
             nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
 
-            SELECT CASE(ls_scf_env%purification_method)
-            CASE(ls_scf_ns)
-              CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
-                                       matrix_mixing_old(ispin),ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
-                                       nelectron_spin_real,ls_scf_env%eps_filter,error)
-            CASE(ls_scf_tc2)
-              CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
-                                       nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
-                                       ls_scf_env%lumo_spin(ispin), non_monotonic=ls_scf_env%non_monotonic, &
-                                       eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
-                                       error=error)
-            CASE(ls_scf_trs4)
-              CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
-                                       nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
-                                       ls_scf_env%lumo_spin(ispin), ls_scf_env%mu_spin(ispin), &
-                                       dynamic_threshold=ls_scf_env%dynamic_threshold,&
-                                       matrix_ks_deviation=matrix_ks_deviation(ispin), &
-                                       eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
-                                       error=error)
-            END SELECT
+            IF (do_transport) THEN
+               CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
+                              routineP,"NOT YET IMPLEMENTED with S preconditioner. ", error, failure)
+
+               nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
+               IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
+
+               ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
+               CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
+                                        ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, error)
+
+            ELSE 
+               SELECT CASE(ls_scf_env%purification_method)
+               CASE(ls_scf_ns)
+                 CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
+                                          matrix_mixing_old(ispin),ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
+                                          nelectron_spin_real,ls_scf_env%eps_filter,error)
+               CASE(ls_scf_tc2)
+                 CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
+                                          nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
+                                          ls_scf_env%lumo_spin(ispin), non_monotonic=ls_scf_env%non_monotonic, &
+                                          eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
+                                          error=error)
+               CASE(ls_scf_trs4)
+                 CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
+                                          nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
+                                          ls_scf_env%lumo_spin(ispin), ls_scf_env%mu_spin(ispin), &
+                                          dynamic_threshold=ls_scf_env%dynamic_threshold,&
+                                          matrix_ks_deviation=matrix_ks_deviation(ispin), &
+                                          eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
+                                          error=error)
+               END SELECT
+            END IF
                                      
             IF (ls_scf_env%has_s_preconditioner) THEN
                 CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &

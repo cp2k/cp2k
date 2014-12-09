@@ -851,4 +851,10 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: dispersion_uff=100,&
                                               dispersion_d3 =200
 
+  ! Transport section
+  INTEGER, PARAMETER, PUBLIC               :: misc_method=0,&
+                                              scalapack_diagonalization=1,&
+                                              exper_code=2,&
+                                              do_transport=3
+
 END MODULE input_constants

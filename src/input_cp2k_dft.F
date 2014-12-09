@@ -99,6 +99,7 @@ MODULE input_cp2k_dft
   USE input_cp2k_motion_print,         ONLY: add_format_keyword
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
+  USE input_cp2k_transport,            ONLY: create_transport_section
   USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -551,6 +552,11 @@ CONTAINS
     CALL create_ext_pot_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
+
+    CALL create_transport_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     ! ZMP sections to include the external density or v_xc potential
     CALL create_ext_den_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -2792,6 +2798,13 @@ CONTAINS
        CALL keyword_create(keyword, name="ALMO_SCF",&
             description="Perform ALMO SCF",&
             usage="ALMO_SCF",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TRANSPORT",&
+            description="Perform transport calculations (coupling CP2K and OMEN)",&
+            usage="TRANSPORT",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

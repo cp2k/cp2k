@@ -156,6 +156,8 @@ MODULE qs_environment_types
   USE semi_empirical_types,            ONLY: se_taper_release,&
                                              se_taper_type
   USE task_list_types,                 ONLY: task_list_type
+  USE transport_env_types,             ONLY: transport_env_release,&
+                                             transport_env_type
   USE virial_types,                    ONLY: virial_type
   USE wannier_states_types,            ONLY: wannier_centres_type
   USE xas_env_types,                   ONLY: xas_env_release,&
@@ -232,6 +234,7 @@ MODULE qs_environment_types
     LOGICAL :: run_rtp
     LOGICAL :: linres_run
     LOGICAL :: calc_image_preconditioner
+    LOGICAL :: do_transport
     REAL(KIND=dp)                                         :: sim_time
     REAL(KIND=dp) :: start_time, target_time
     REAL(KIND=dp),DIMENSION(:,:),POINTER                  :: image_matrix
@@ -240,6 +243,7 @@ MODULE qs_environment_types
     INTEGER                                               :: sim_step
     TYPE(ga_environment_type), POINTER                    :: ga_env
     TYPE(ls_scf_env_type), POINTER                        :: ls_scf_env
+    TYPE(transport_env_type), POINTER                     :: transport_env
     TYPE(cell_type), POINTER                              :: super_cell
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
@@ -459,6 +463,8 @@ CONTAINS
 !> \param ga_env ...
 !> \param atprop ...
 !> \param ls_scf_env ...
+!> \param do_transport ...
+!> \param transport_env ...
 !> \param v_hartree_rspace ...
 !> \param s_mstruct_changed ...
 !> \param rho_changed ...
@@ -488,7 +494,7 @@ CONTAINS
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, admm_dm, &
        lri_env,lri_density,hfx_ri_env,dispersion_env, vee,rho_external,external_vxc,mask,&
-       mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,v_hartree_rspace,&
+       mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,do_transport, transport_env,v_hartree_rspace,&
        s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,mscfg_env,&
        error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -648,6 +654,9 @@ CONTAINS
       POINTER                                :: ga_env
     TYPE(atprop_type), OPTIONAL, POINTER     :: atprop
     TYPE(ls_scf_env_type), OPTIONAL, POINTER :: ls_scf_env
+    LOGICAL, OPTIONAL                        :: do_transport
+    TYPE(transport_env_type), OPTIONAL, &
+      POINTER                                :: transport_env
     TYPE(pw_type), OPTIONAL, POINTER         :: v_hartree_rspace
     LOGICAL, OPTIONAL                        :: s_mstruct_changed, &
                                                 rho_changed, &
@@ -716,6 +725,8 @@ CONTAINS
     IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
     IF (PRESENT(rtp)) rtp=>qs_env%rtp
     IF (PRESENT(ls_scf_env)) ls_scf_env=>qs_env%ls_scf_env
+    IF (PRESENT(do_transport)) do_transport = qs_env%do_transport
+    IF (PRESENT(transport_env)) transport_env => qs_env%transport_env
     IF (PRESENT(mscfg_env)) mscfg_env=>qs_env%molecular_scf_guess_env
 
     IF (PRESENT(rho_atom_set)) &
@@ -857,6 +868,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (qs_env%ls_scf_env)
+    NULLIFY (qs_env%transport_env)
     NULLIFY (qs_env%image_matrix)
     NULLIFY (qs_env%ipiv)
     NULLIFY (qs_env%image_coeff)
@@ -928,6 +940,7 @@ CONTAINS
     qs_env%has_unit_metric=.FALSE.
     qs_env%use_harris=.FALSE.
     qs_env%calc_image_preconditioner=.TRUE.
+    qs_env%do_transport=.FALSE.
     qs_env%target_time = globenv%cp2k_target_time
     qs_env%start_time = globenv%cp2k_start_time
 
@@ -998,6 +1011,8 @@ CONTAINS
 !> \param se_nonbond_env ...
 !> \param admm_env ...
 !> \param ls_scf_env ...
+!> \param do_transport ...
+!> \param transport_env ...
 !> \param lri_env ...
 !> \param lri_density ...
 !> \param hfx_ri_env ...
@@ -1023,8 +1038,8 @@ CONTAINS
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
-       lri_env,lri_density,hfx_ri_env,dispersion_env,mp2_env,kg_env,WannierCentres,ga_env,&
-       error)
+       do_transport, transport_env,lri_env,lri_density,hfx_ri_env,dispersion_env,mp2_env,kg_env,&
+       WannierCentres,ga_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: super_cell
@@ -1104,6 +1119,9 @@ CONTAINS
       POINTER                                :: se_nonbond_env
     TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
     TYPE(ls_scf_env_type), OPTIONAL, POINTER :: ls_scf_env
+    LOGICAL, OPTIONAL                        :: do_transport
+    TYPE(transport_env_type), OPTIONAL, &
+      POINTER                                :: transport_env
     TYPE(lri_environment_type), OPTIONAL, &
       POINTER                                :: lri_env
     TYPE(lri_density_type), OPTIONAL, &
@@ -1147,6 +1165,8 @@ CONTAINS
     IF (PRESENT(mos)) qs_env%mos => mos
     IF (PRESENT(mos_aux_fit)) qs_env%mos_aux_fit => mos_aux_fit
     IF (PRESENT(ls_scf_env)) qs_env%ls_scf_env => ls_scf_env
+    IF (PRESENT(do_transport)) qs_env%do_transport = do_transport
+    IF (PRESENT(transport_env)) qs_env%transport_env => transport_env
     ! if intels checking (-C) complains here, you have rediscovered a bug in the intel
     ! compiler (present in at least 10.0.025). A testcase has been submitted to intel.
     IF (PRESENT(use_harris)) qs_env%use_harris = use_harris
@@ -1456,6 +1476,10 @@ CONTAINS
           ENDIF
           CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env,&
                   error=error)
+
+          IF (ASSOCIATED(qs_env%transport_env)) THEN
+             CALL transport_env_release(qs_env%transport_env,error)
+          ENDIF
 
           !Only if do_xas_calculation
           IF(ASSOCIATED(qs_env%xas_env)) THEN
