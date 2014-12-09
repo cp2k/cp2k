@@ -12,11 +12,11 @@
 MODULE dm_ls_scf_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, &
-       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
-       cp_dbcsr_type, dbcsr_data_clear_pointer, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_finalize, &
+       cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_trace, cp_dbcsr_type, dbcsr_data_clear_pointer, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
        dbcsr_get_data_type, dbcsr_iterator, dbcsr_iterator_blocks_left, &
        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
        dbcsr_put_block, dbcsr_type_no_symmetry
@@ -443,8 +443,8 @@ CONTAINS
       trace_gx, xi
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
     TYPE(cp_dbcsr_type)                      :: matrix_k0, matrix_x, &
-                                                matrix_xidsq, matrix_xsq, &
-                                                tmp_gx
+                                                matrix_x_nosym, matrix_xidsq, &
+                                                matrix_xsq, tmp_gx
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF(nelectron==0) THEN
@@ -467,19 +467,24 @@ CONTAINS
 
     ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
     CALL cp_dbcsr_init(matrix_x,error=error)
-    CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry, error=error)
+    CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type="S", error=error)
+
+    ! at some points the non-symmetric version of x is rewuired
+    CALL cp_dbcsr_init(matrix_x_nosym,error=error)
+    CALL cp_dbcsr_create(matrix_x_nosym, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry, error=error)
 
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks,&
+                           0.0_dp, matrix_x_nosym, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x_nosym, matrix_s_sqrt_inv, &
                            0.0_dp, matrix_x, filter_eps=threshold,error=error)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
-                           0.0_dp, matrix_x, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_desymmetrize(matrix_x,matrix_x_nosym,error=error)
 
     CALL cp_dbcsr_init(matrix_k0,error=error)
     CALL cp_dbcsr_create(matrix_k0,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_copy(matrix_k0, matrix_x, error=error)
+    CALL cp_dbcsr_copy(matrix_k0, matrix_x_nosym, error=error)
 
     ! compute the deviation in the mixed matrix, as seen in the ortho basis
-    CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x , -1.0_dp, 1.0_dp, error=error)
+    CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x_nosym , -1.0_dp, 1.0_dp, error=error)
     CALL lanczos_alg_serial(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
                             converged=converged, error=error)
     maxdev = MAX(ABS(maxev), ABS(minev))
@@ -491,10 +496,10 @@ CONTAINS
        WRITE(unit_nr, '(T6,A,1X,L12)')   "Predicts a gap ?        ", ((e_lumo-maxdev)-(e_homo+maxdev))>0
     ENDIF
     ! save the old mixed matrix
-    CALL cp_dbcsr_copy(matrix_ks_deviation, matrix_x , error=error)
+    CALL cp_dbcsr_copy(matrix_ks_deviation, matrix_x_nosym , error=error)
 
     ! get largest/smallest eigenvalues for scaling
-    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
+    CALL lanczos_alg_serial(matrix_x_nosym, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
                             converged=converged, error=error)
     IF (unit_nr>0) WRITE(unit_nr,'(T6,A,1X,2F12.5,1X,A,1X,L1)') "Est. extremal eigenvalues", &
                                                          min_eig, max_eig," converged: ",converged
@@ -502,9 +507,8 @@ CONTAINS
     eps_min = min_eig
     
     ! scale KS matrix
-    CALL cp_dbcsr_scale(matrix_x, -1.0_dp, error=error)
-    CALL cp_dbcsr_add_on_diag(matrix_x, eps_max, error=error)
-    CALL cp_dbcsr_scale(matrix_x, 1/(eps_max-eps_min), error=error)
+    CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max, error=error)
+    CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min), error=error)
 
     ! scale bounds for HOMO/LUMO
     scaled_homo_bound = (eps_max-(e_homo+maxdev))/(eps_max-eps_min)
@@ -512,13 +516,13 @@ CONTAINS
     current_threshold = threshold
 
     CALL cp_dbcsr_init(matrix_xsq,error=error)
-    CALL cp_dbcsr_create(matrix_xsq,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_create(matrix_xsq,template=matrix_ks,matrix_type="S",error=error)
 
     CALL cp_dbcsr_init(matrix_xidsq,error=error)
-    CALL cp_dbcsr_create(matrix_xidsq,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_create(matrix_xidsq,template=matrix_ks,matrix_type="S",error=error)
 
     CALL cp_dbcsr_init(tmp_gx,error=error)
-    CALL cp_dbcsr_create(tmp_gx,template=matrix_ks,matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_create(tmp_gx,template=matrix_ks,matrix_type="S",error=error)
 
     ALLOCATE(gamma_values(max_iter))
 
@@ -617,8 +621,8 @@ CONTAINS
 
     ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv,&
-                           0.0_dp, matrix_p, filter_eps=threshold,error=error)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p,&
+                           0.0_dp, matrix_x_nosym, filter_eps=threshold,error=error)
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_x_nosym,&
                            0.0_dp, matrix_p, filter_eps=threshold,error=error)
     
     ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
@@ -644,12 +648,14 @@ CONTAINS
     ENDIF
     e_mu = mu
 
-    CALL compute_homo_lumo(matrix_k0,matrix_x,eps_min,eps_max,threshold,max_iter_lanczos,eps_lanczos,homo,lumo,unit_nr,error)
+    CALL cp_dbcsr_desymmetrize(matrix_x,matrix_x_nosym,error=error)
+    CALL compute_homo_lumo(matrix_k0,matrix_x_nosym,eps_min,eps_max,threshold,max_iter_lanczos,eps_lanczos,homo,lumo,unit_nr,error)
 
     e_homo = homo
     e_lumo = lumo
 
     CALL cp_dbcsr_release(matrix_x, error=error)
+    CALL cp_dbcsr_release(matrix_x_nosym, error=error)
     CALL cp_dbcsr_release(matrix_k0, error=error)
     CALL timestop(handle)
 
