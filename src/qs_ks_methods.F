@@ -665,8 +665,7 @@ CONTAINS
        IF (dft_control%qs_control%ddapc_explicit_potential) THEN
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_spin_ddapc_rest_r%pw,error=error)
        END IF
-       IF (calculate_forces.AND.dft_control%qs_control%becke_restraint)&
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,error=error)
+
        IF (dft_control%apply_efield_field) THEN
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_efield_rspace%pw,error=error)
        END IF
