@@ -173,7 +173,7 @@ CONTAINS
     ! set variables that control diag/pcg switching
     nstrikes=0
     ntolerate=3
-    prev_error_norm=1.0E+10_dp ! arbitrary big step
+    error_norm=1.0E+10_dp ! arbitrary big step
 
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'(T2,A,A,A)') REPEAT("-",20), &
