@@ -1,0 +1,32 @@
+# The following settings are intended for IBM/BlueGene Q with
+# - ESSL library             essl/5.1 or later
+# - ESSL SMP library         esslsmp/5.1 or later
+# - LAPACK library           lapack/3.4.2 or later
+# - SCALAPACK library        scalapack/1.8.0 or later
+# - MASS library             mass/7.3 or later
+# Optional (if FFTW3 is requested)
+# - FFTW3 library            fftw/3.3.3 or later
+# WARNING: Check your own libraries and paths !
+#
+CC       = mpixlc
+CPP      = cpp -E  
+FC       = mpixlf95_r
+LD       = mpixlf95_r 
+AR       = ar -r
+
+DFLAGS   = -D__AIX -D__FFTW3 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK 
+CPPFLAGS = -C $(DFLAGS) -P -traditional -I/bglocal/cn/pub/FFTW/3.3.2/include 
+FCFLAGS  = -O3 -qhot -g -qsmp=omp -qstrict -qarch=qp -qtune=qp -qmaxmem=-1 \
+           -I/bgsys/ibm_essl/prod/opt/ibmmath/essl/5.1/include \
+           -I/bglocal/cn/pub/LAPACK/3.4.2/include -I/bglocal/cn/pub/FFTW/3.3.3/include 
+
+LDFLAGS  = $(FCFLAGS) -Wl,--allow-multiple-definition  
+
+LIBS    = -L/bglocal/cn/pub/FFTW/3.3.3/lib -lfftw3_mpi -lfftw3_omp -lfftw3 -lfftw3f_mpi -lfftw3f_omp -lfftw3f \
+          /bglocal/cn/pub/ScaLAPACK/1.8.0/lib/libscalapack.a /bglocal/cn/pub/BLACS/1.1/lib/libblacsF77init.a \
+          /bglocal/cn/pub/BLACS/1.1/lib/libblacsCinit.a /bglocal/cn/pub/BLACS/1.1/lib/libblacs.a \
+          /bglocal/cn/pub/LAPACK/3.4.2/lib/liblapack.a \
+          /bgsys/ibm_essl/prod/opt/ibmmath/essl/5.1/lib64/libesslbg.a \
+          /opt/ibmcmp/xlmass/bg/7.3/bglib64/libmass.a 
+
+OBJECTS_ARCHITECTURE = machine_aix.o 

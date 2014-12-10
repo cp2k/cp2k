@@ -1,0 +1,30 @@
+# The following settings are intended for IBM/BlueGene Q with
+# - ESSL library             essl/5.1 or later
+# - ESSL SMP library         esslsmp/5.1 or later
+# - LAPACK library           lapack/3.4.2 or later
+# - SCALAPACK library        scalapack/1.8.0 or later
+# - MASS library             mass/7.3 or later
+# Optional (if FFTW3 is requested)
+# - FFTW3 library            fftw/3.3.3 or later
+# WARNING: Check your own libraries and paths !
+#
+CC       = mpixlc
+#CPP      = /opt/ibmcmp/xlf/bg/14.1/exe/cpp -traditional -E
+CPP      = cpp -traditional -E
+#FC       = mpixlf95_r -qsuffix=f=f90
+FC       = mpixlf95_r
+LD       = mpixlf95_r
+AR       = ar -r
+#DFLAGS   = -D__AIX -D__ESSL -D__FFTESSL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+DFLAGS   = -D__AIX -D__FFTW3 -D__ESSL -D__FFTESSL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+#CPPFLAGS = -C $(DFLAGS) -P -traditional
+CPPFLAGS = -C $(DFLAGS) -P -traditional -I/bglocal/cn/pub/FFTW/3.3.2/include
+FCFLAGS  = -O3 -qhot -qstrict -q64 -qarch=qp -qtune=qp -qcache=auto -qmaxmem=-1 \
+           -I/bgsys/ibm_essl/prod/opt/ibmmath/essl/5.1/include \
+           -I/bglocal/cn/pub/LAPACK/3.4.2/include -I/bglocal/cn/pub/FFTW/3.3.3/include
+FCFLAGS2 = -O0 -qstrict -q64 -qarch=qp -qtune=qp -qcache=auto -qmaxmem=-1
+LDFLAGS  = $(FCFLAGS) -Wl,--allow-multiple-definition
+#LIBS     = -llapack -lesslbg -lmass -lmassv -lscalapack -lblacsCinit -lblacs -lblacsF77init -Wl,--allow-multiple-definition
+LIBS     = -lfftw3_mpi -lfftw3 -lfftw3f_mpi -lfftw3f -llapack -lesslbg -lfftw3 -lmass -lmassv -lscalapack -lblacsCinit -lblacsF77init -lblacs -Wl,--allow-multiple-definition
+
+OBJECTS_ARCHITECTURE = machine_aix.o
