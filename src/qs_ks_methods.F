@@ -717,7 +717,9 @@ CONTAINS
        ENDDO
 
        ! prepare to add electronic entropic contribution if needed
-       IF (dft_control%smear) THEN
+       ! this, however, is a term that is specific to the SCF method, so should be moved out of qs_ks_methods
+       ! doing so influences xas at this point.
+       IF (dft_control%smear .AND. .NOT. dft_control%qs_control%do_ls_scf) THEN
           energy%kTS = 0.0_dp
           energy%efermi = 0.0_dp
           CALL get_qs_env(qs_env,mos=mo_array,error=error)
