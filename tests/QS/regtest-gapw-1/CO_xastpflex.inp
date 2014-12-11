@@ -1,0 +1,115 @@
+#CPQA DEPENDS CO.inp
+
+&GLOBAL
+ PROJECT      co_tphh
+ IOLEVEL      MEDIUM
+ RUN_TYPE     ENERGY
+&END 
+
+&FORCE_EVAL
+  METHOD Quickstep
+
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME ../../../data/ALL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    RESTART_FILE_NAME   CO-RESTART
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END
+    &END
+    &QS
+      METHOD       GAPW
+      EPS_GVG      1.0E-8
+      EPS_PGF_ORB  1.0E-8
+      QUADRATURE   GC_LOG
+      EPSFIT       1.E-4
+      EPSISO       1.0E-12
+      EPSRHO0      1.E-8
+      LMAXN0       2
+      LMAXN1       6
+      ALPHA0_H     10
+     &END
+    &MGRID
+      CUTOFF       50
+      NGRIDS        1
+    &END
+    &SCF
+      SCF_GUESS RESTART
+      EPS_SCF 5.E-7
+      EPS_DIIS 0.4
+      MAX_SCF 1
+       
+      ADDED_MOS  1 1
+      &OT OFF
+        PRECONDITIONER FULL_ALL
+      &END OT
+      &PRINT
+        &TOTAL_DENSITIES MEDIUM
+        &END
+        &RESTART
+           FILENAME =CO_xastphh-RESTART
+        &END
+      &END
+
+    &END SCF
+   &POISSON
+     POISSON_SOLVER MT
+     &MT
+      ALPHA 7.0
+     &END
+     PERIODIC NONE
+    &END POISSON
+
+    &XAS 
+      METHOD        TP_FLEX
+      ATOMS_LIST    1 1 
+      &LOCALIZE
+        &PRINT
+        &END
+      &END
+      &PRINT
+         &PROGRAM_RUN_INFO
+         &END 
+         &RESTART
+             FILENAME ./co_tphh
+             &EACH
+               XAS_SCF 1
+             &END
+         &END 
+         &XAS_SPECTRUM
+           FILENAME ./pippo
+         &END
+         &XES_SPECTRUM
+           FILENAME ./co_tphh
+         &END
+
+      &END
+    &END
+  &END SECTION DFT
+  &SUBSYS
+    &CELL
+       ABC    3.0    3.0     3.0 
+       PERIODIC NONE
+    &END CELL
+
+    &KIND O
+      BASIS_SET  6-31G*
+      POTENTIAL ALL
+      LEBEDEV_GRID 50
+      RADIAL_GRID 100
+    &END
+
+    &KIND  C
+      BASIS_SET  6-31G*
+      POTENTIAL  ALL
+      LEBEDEV_GRID 50
+      RADIAL_GRID 100
+    &END
+
+    &COORD
+      C         0.000000    0.000000   -0.004108
+      O        0.000000    0.000000    1.132332
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
