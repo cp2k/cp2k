@@ -38,8 +38,8 @@ MODULE qs_scf_loop_utils
   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                              qs_ks_env_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
-  USE qs_mo_types,                     ONLY: mo_set_p_type,&
-                                             set_mo_occupation
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
+  USE qs_mo_types,                     ONLY: mo_set_p_type
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                              ot_scf_mini
   USE qs_outer_scf,                    ONLY: outer_loop_gradient

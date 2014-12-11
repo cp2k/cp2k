@@ -103,9 +103,9 @@ MODULE qs_scf
   USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: make_basis_simple,&
                                              make_basis_sm
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             set_mo_occupation
+                                             mo_set_p_type
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner
   USE qs_ot_scf,                       ONLY: ot_scf_init,&
                                              ot_scf_read_input

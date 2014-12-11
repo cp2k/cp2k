@@ -69,10 +69,10 @@ MODULE qs_initial_guess
                                              make_basis_lowdin,&
                                              make_basis_simple,&
                                              make_basis_sm
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_restrict,&
-                                             set_mo_occupation
+                                             mo_set_restrict
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type

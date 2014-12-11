@@ -73,10 +73,10 @@ MODULE qs_scf_initialization
                                              set_qs_kind
   USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
-                                             mo_set_p_type,&
-                                             set_mo_occupation
+                                             mo_set_p_type
   USE qs_outer_scf,                    ONLY: outer_loop_extrapolate,&
                                              outer_loop_variables_count
   USE qs_rho_atom_types,               ONLY: rho_atom_type

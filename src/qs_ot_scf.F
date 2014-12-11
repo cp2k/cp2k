@@ -30,10 +30,10 @@ MODULE qs_ot_scf
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_restrict,&
-                                             set_mo_occupation
+                                             mo_set_restrict
   USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
                                              qs_ot_get_orbitals_ref,&
                                              qs_ot_get_p,&

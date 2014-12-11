@@ -49,10 +49,10 @@ MODULE qs_mo_methods
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
   USE physcon,                         ONLY: evolt
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_type,&
-                                             set_mo_occupation
+                                             mo_set_type
   USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&

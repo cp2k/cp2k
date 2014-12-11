@@ -143,9 +143,9 @@ MODULE qs_scf_post_gpw
   USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                              make_mo_eig
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             set_mo_occupation
+                                             mo_set_p_type
   USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                              qs_moment_locop
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver

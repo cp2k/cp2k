@@ -311,7 +311,6 @@ CONTAINS
 
     CALL set_xas_env(xas_env=xas_env,nexc_search=nexc_search,error=error)
 
-
    !Define the qs_loc_env : to find centers, spread and possibly localize them
     CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
     IF (qs_loc_env%do_localize) THEN
@@ -332,7 +331,6 @@ CONTAINS
       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
     END IF
 
-
     CPPrecondition(ASSOCIATED(groundstate_coeff),cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, nmo=nmo)
@@ -341,8 +339,6 @@ CONTAINS
 
       END IF
     END DO
-
-
 
 !   SCF for only XES using occupied core and empty homo (only one SCF)
 !   Probably better not to do the localization in this case, but only single out the
@@ -367,7 +363,6 @@ CONTAINS
       CALL xes_scf_once(qs_env,xas_env,converged,should_stop,error=error)
 
       IF(converged .AND. .NOT. should_stop .AND. xas_control%xes_homo_occupation == 0) THEN
-
         IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo converged "
       ELSE IF(.NOT. converged .OR. should_stop) THEN
@@ -375,7 +370,6 @@ CONTAINS
               "SCF with empty homo NOT converged"
           GOTO 1000
       END IF
-
     END IF
 
     ! Assign the character of the selected core states
@@ -508,7 +502,6 @@ CONTAINS
       END IF
 
       IF(converged) THEN
-
         CALL cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
              iatom,error=error)
       ELSE
@@ -535,7 +528,6 @@ CONTAINS
 
 1000  CONTINUE  ! END of Calculation
 
-
   ! Release what has to be released
     IF(ASSOCIATED(vecbuffer)) THEN
         DEALLOCATE(vecbuffer,STAT=istat)
@@ -544,14 +536,12 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-
     DO ispin = 1,dft_control%nspins
        CALL set_mo_set(mos(ispin)%mo_set, homo=my_homo(ispin),&
             uniform_occupation=my_uocc(ispin), nelectron= my_nelectron(ispin), error=error)
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
        CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mos(ispin)%mo_set%mo_coeff,nmo,1,1)
     END DO
-
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
