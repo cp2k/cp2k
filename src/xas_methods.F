@@ -164,7 +164,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, homo, i, iat, iatom, ispin, istat, my_homo(2), &
-      my_nelectron(2), nao, nelectron, nexc_atoms, nexc_search, nmo, nspins, &
+      my_nelectron(2), nao, nexc_atoms, nexc_search, nmo, nspins, &
       output_unit, state_to_be_excited
     INTEGER, DIMENSION(2)                    :: added_mos
     INTEGER, DIMENSION(:), POINTER           :: state_of_atom
@@ -239,7 +239,7 @@ CONTAINS
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
     IF (.NOT.ASSOCIATED(xas_env)) THEN
        IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+          WRITE (UNIT=output_unit,FMT="(/,T5,A)")&
            "Create and initialize the xas environment"
        END IF
       CALL xas_env_create(xas_env, error=error)
@@ -286,7 +286,6 @@ CONTAINS
       CALL get_mo_set(mos(ispin)%mo_set,nelectron=my_nelectron(ispin),maxocc=maxocc,&
                       homo=my_homo(ispin),uniform_occupation=my_uocc(ispin))
     END DO
-    WRITE(*,*) 'my_electrons ', my_nelectron(1), my_nelectron(2)
 
     nspins = dft_control%nspins
 ! at the moment the only implemented method for XAS and XES calculations
@@ -311,6 +310,39 @@ CONTAINS
          nexc_atoms=nexc_atoms,occ_estate=occ_estate,xas_nelectron=xas_nelectron,error=error)
 
     CALL set_xas_env(xas_env=xas_env,nexc_search=nexc_search,error=error)
+
+
+   !Define the qs_loc_env : to find centers, spread and possibly localize them
+    CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
+    IF (qs_loc_env%do_localize) THEN
+      IF(output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+              "Localize a sub-set of MOs with spin alpha,"//&
+              " to better identify the core states"
+          IF(&
+              qs_loc_env%localized_wfn_control%set_of_states == state_loc_range ) THEN
+              WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-set contains states from ",&
+                  qs_loc_env%localized_wfn_control%lu_bound_states(1,1), " to ",&
+                  qs_loc_env%localized_wfn_control%lu_bound_states(2,1)
+         ELSEIF (qs_loc_env%localized_wfn_control%set_of_states==state_loc_list) THEN
+              WRITE (UNIT=output_unit,FMT="( A )") " The sub-set contains states given in the input list"
+         END IF
+
+      END IF
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
+    END IF
+
+
+    CPPrecondition(ASSOCIATED(groundstate_coeff),cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, nmo=nmo)
+      CALL cp_fm_to_fm(mo_coeff,groundstate_coeff(ispin)%matrix,nmo,1,1)
+      IF(ASSOCIATED(mo_coeff_b)) THEN
+
+      END IF
+    END DO
+
+
 
 !   SCF for only XES using occupied core and empty homo (only one SCF)
 !   Probably better not to do the localization in this case, but only single out the
@@ -339,31 +371,11 @@ CONTAINS
         IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo converged "
       ELSE IF(.NOT. converged .OR. should_stop) THEN
-        IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
+          IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo NOT converged"
-        GOTO 1000
+          GOTO 1000
       END IF
 
-    END IF
-
-   !Define the qs_loc_env : to find centers, spread and possibly localize them
-    CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-    IF (qs_loc_env%do_localize) THEN
-      IF(output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-              "Localize a sub-set of MOs with spin alpha,"//&
-              " to better identify the core states"
-          IF(&
-              qs_loc_env%localized_wfn_control%set_of_states == state_loc_range ) THEN
-              WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-set contains states from ",&
-                  qs_loc_env%localized_wfn_control%lu_bound_states(1,1), " to ",&
-                  qs_loc_env%localized_wfn_control%lu_bound_states(2,1)
-         ELSEIF (qs_loc_env%localized_wfn_control%set_of_states==state_loc_list) THEN
-              WRITE (UNIT=output_unit,FMT="( A )") " The sub-set contains states given in the input list"
-         END IF
-
-      END IF
-      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
     END IF
 
     ! Assign the character of the selected core states
@@ -384,14 +396,6 @@ CONTAINS
 
   ! copy the coefficients of the mos in a temporary fm with the right structure
     IF(transition_potential) THEN
-      CPPrecondition(ASSOCIATED(groundstate_coeff),cp_failure_level,routineP,error,failure)
-      DO ispin = 1,nspins
-       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, nao=nao, nmo=nmo)
-       CALL cp_fm_to_fm(mo_coeff,groundstate_coeff(ispin)%matrix,nmo,1,1)
-       IF(ASSOCIATED(mo_coeff_b)) THEN
-
-       END IF
-      END DO
 
       ! Calculate the operator
       CALL get_xas_env(xas_env=xas_env,ostrength_sm=ostrength_sm,error=error)
@@ -411,14 +415,11 @@ CONTAINS
       state_to_be_excited = state_of_atom(iat)
 
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
-      CALL get_mo_set(mos(1)%mo_set, nmo=nmo,nelectron=nelectron)
-!      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
-!        .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+      CALL get_mo_set(mos(1)%mo_set, nmo=nmo)
        CALL get_xas_env(xas_env, occ_estate=occ_estate,xas_nelectron=xas_nelectron,error=error)
        tmp = xas_nelectron + 1.0_dp - occ_estate
          CALL cp_assert(nmo>=tmp,cp_failure_level,cp_assertion_failed,&
               routineP,"CLS: the required method needs added_mos to the ground state",error,failure)
-!      END IF
       ! If the restart file for this atom exists, the mos and the
       ! occupation numbers are overwritten
       ! It is necessary that the restart is for the same xas method
@@ -438,21 +439,20 @@ CONTAINS
            nao,1,transpose=.TRUE.,error=error)
 
       IF (transition_potential) THEN
+
         IF(.NOT. skip_scf) THEN
           IF (output_unit>0) THEN
+            WRITE(UNIT=output_unit,FMT='(/,T5,A)') REPEAT("-",75)
             IF(xas_control%xas_method==xas_dscf) THEN
               WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
               "START DeltaSCF for the first excited state from the core state of ATOM ", iatom
             ELSE
-              WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
+              WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
                "Start Core Level Spectroscopy Calculation with TP approach for ATOM ", iatom
-              WRITE(UNIT=output_unit,FMT='(T10,A,f10.4)') "Occupation of the core orbital",&
+              WRITE(UNIT=output_unit,FMT='(T10,A,T50,f10.4)') "Occupation of the core orbital",&
                 occ_estate
-              IF(xas_nelectron==nelectron) THEN
-                WRITE(UNIT=output_unit,FMT='(T10,A,f10.4)') &
-                 "Occupation of lowest virtual orbitals to keep the same number of electrons"//&
-                 " as in the groundstate"
-              END IF
+              WRITE(UNIT=output_unit,FMT='(T10,A,T50,f10.4)') "Number of electrons in Spin 1",&
+                xas_nelectron
             END IF
           END IF
 
@@ -465,7 +465,6 @@ CONTAINS
             CALL get_xas_env(xas_env=xas_env,scf_env=scf_env,error=error)
          ELSE
             CALL qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section,error=error)
-!            CALL xas_initialize_rho(qs_env,scf_env,scf_control,error=error)
          ENDIF
 
          DO ispin=1,SIZE(mos)
@@ -510,9 +509,6 @@ CONTAINS
 
       IF(converged) THEN
 
-!        CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,&
-!             xas_section,output_unit,error=error)
-
         CALL cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
              iatom,error=error)
       ELSE
@@ -526,10 +522,8 @@ CONTAINS
         ! it should be a better initial guess
          CALL get_qs_env(qs_env,mos=mos,error=error)
          DO ispin = 1,nspins
-            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
-                 nao=nao, nmo=nmo)
+            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
             CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mos(ispin)%mo_set%mo_coeff,nmo,1,1)
-            mos(ispin)%mo_set%nelectron = my_nelectron(ispin)
          END DO
          IF(iat == nexc_atoms) THEN
              CALL scf_env_cleanup(scf_env,error=error)
@@ -553,10 +547,11 @@ CONTAINS
 
     DO ispin = 1,dft_control%nspins
        CALL set_mo_set(mos(ispin)%mo_set, homo=my_homo(ispin),&
-            uniform_occupation=my_uocc(ispin), error=error)
+            uniform_occupation=my_uocc(ispin), nelectron= my_nelectron(ispin), error=error)
+       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+       CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mos(ispin)%mo_set%mo_coeff,nmo,1,1)
     END DO
 
-    xas_env % xas_estate    = -1
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
@@ -762,6 +757,7 @@ CONTAINS
       ELSEIF(xas_control%xas_method==xas_tp_flex) THEN
        nele = REAL(xas_control%nel_tot,dp)
        occ_estate = REAL(xas_control%xas_core_occupation,dp)
+       IF(nele<0.0_dp) nele = REAL(nelectron,dp) - (1.0_dp - occ_estate)
       ENDIF
       CALL set_xas_env(xas_env=xas_env,occ_estate=occ_estate,xas_nelectron=nele,&
           nvirtual2=nvirtual2,nvirtual=nvirtual,homo_occ=occ_homo,error=error)

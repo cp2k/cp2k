@@ -17,7 +17,7 @@ MODULE xas_control
                                              xas_tp_hh,&
                                              xas_tp_xfh,&
                                              xas_tp_xhh,&
-                                             xes_tp_val
+                                             xes_tp_val, xas_tp_flex
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -111,6 +111,9 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"XAS_CORE", &
          r_val=xas_control%xas_core_occupation,error=error)
+
+    CALL section_vals_val_get(xas_section,"XAS_TOT_EL", &
+         r_val=xas_control%nel_tot,error=error)
 
     CALL section_vals_val_get(xas_section,"XES_CORE", &
          r_val=xas_control%xes_core_occupation,error=error)
@@ -216,6 +219,10 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
                    " Only XES with full core and hole in lumo"
+        CASE(xas_tp_flex)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T25,A)")&
+                "XAS| Method:",&
+                   "      Transition potential with occupation of core state given from input"
         CASE(xas_dscf)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&

@@ -646,7 +646,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, istate, &
-                                                nelectron, nmo, nvirtual, &
+                                                nmo, nvirtual, &
                                                 nvirtual2, output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues
@@ -742,10 +742,6 @@ CONTAINS
           CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
        END IF
 
-       IF(xas_env%homo_occ == 0) THEN
-          nelectron = nelectron + 1
-          CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
-       END IF
     END IF  ! failure
     CALL timestop(handle)
 

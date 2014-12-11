@@ -6924,16 +6924,16 @@ CONTAINS
        CALL keyword_create(keyword, name="XAS_CORE",&
             description="Occupation of the core state in XAS calculation by TP_FLEX.",&
             usage="XAS_CORE 0.5",&
-            default_r_val=1._dp,error=error)
+            default_r_val=0.5_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="XAS_TOT_EL",&
-            description="Total number of electrons in XAS calculation by TP_FLEX."//&
+            description="Total number of electrons for spin channel alpha, in XAS calculation by TP_FLEX."//&
             "If negative value, the number of electrons is set to GS number of electron "//&
             " minus the amount subtracted from the core state",&
-            usage="XAS_CORE 0.5",&
-            default_r_val=1._dp,error=error)
+            usage="XAS_TOT_EL 10",&
+            default_r_val=-1._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
