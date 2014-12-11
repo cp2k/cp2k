@@ -14,10 +14,11 @@ MODULE xas_control
   USE input_constants,                 ONLY: xas_1s_type,&
                                              xas_dscf,&
                                              xas_tp_fh,&
+                                             xas_tp_flex,&
                                              xas_tp_hh,&
                                              xas_tp_xfh,&
                                              xas_tp_xhh,&
-                                             xes_tp_val, xas_tp_flex
+                                             xes_tp_val
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
