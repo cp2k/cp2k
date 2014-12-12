@@ -748,6 +748,7 @@ CONTAINS
        nele = REAL(xas_control%nel_tot,dp)
        occ_estate = REAL(xas_control%xas_core_occupation,dp)
        IF(nele<0.0_dp) nele = REAL(nelectron,dp) - (1.0_dp - occ_estate)
+       occ_homo = 1.0_dp
       ENDIF
       CALL set_xas_env(xas_env=xas_env,occ_estate=occ_estate,xas_nelectron=nele,&
           nvirtual2=nvirtual2,nvirtual=nvirtual,homo_occ=occ_homo,error=error)
