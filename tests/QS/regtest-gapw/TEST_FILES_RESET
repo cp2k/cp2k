@@ -359,3 +359,9 @@ H2S-gapw-gop-ot.inp
 H2S-gapw-gop.inp
 #  
 Be_GAPW.inp
+new defaults for preconditioner
+He2-all.inp
+He2-all-md.inp
+new defaults for preconditioner
+H2S-gapw-ot.inp
+H2S-gapw-gop-ot.inp

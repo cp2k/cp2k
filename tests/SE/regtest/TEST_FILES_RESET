@@ -854,3 +854,8 @@ geom.inp
 h2o_gks_e.inp
 #  
 ice-scp-ewald.inp
+new defaults for preconditioner
+h2o_gks_p.inp
+h2o_gks_e.inp
+ice-scp-ewald.inp
+dimer_atprop.inp

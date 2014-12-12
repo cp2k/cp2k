@@ -131,3 +131,8 @@ o2_ot_refine_diis_1.inp
 o2_ot_refine_diis_2.inp
 #  
 ethylene_l1_loc.inp
+new defaults for preconditioner
+h2o_ot_refine_1.inp
+h2o_ot_refine_diis_1.inp
+o2_ot_refine_1.inp
+o2_ot_refine_diis_1.inp

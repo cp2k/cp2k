@@ -9,7 +9,6 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE iterate_matrix
-!  USE cp_dbcsr_arnoldi,                ONLY: cp_dbcsr_eig_arnoldi
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, &
        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
@@ -18,12 +17,15 @@ MODULE iterate_matrix
        cp_dbcsr_norm, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
        cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, cp_dbcsr_transposed, &
        cp_dbcsr_type, dbcsr_arnoldi_data, dbcsr_norm_maxabsnorm, &
-       dbcsr_type_no_symmetry, deallocate_arnoldi_data, get_selected_ritz_val
+       dbcsr_type_no_symmetry, deallocate_arnoldi_data, get_selected_ritz_val, cp_dbcsr_get_matrix_type,&
+       cp_dbcsr_put_block, cp_dbcsr_iterator, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_blocks_left,&
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_get_block_p       
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE mathlib,                         ONLY: invert_matrix
   USE mathconstants,                   ONLY: ifac
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -75,7 +77,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, nrow, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2
-    LOGICAL                                  :: prepare_to_exit, use_inv_guess
+    LOGICAL                                  :: use_inv_guess
     REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, max_abs_eig, &
       max_ev, maxnorm_matrix, min_ev, occ_matrix, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(2)      :: mymat
@@ -99,37 +101,44 @@ CONTAINS
 
     use_inv_guess=.FALSE.
     IF (PRESENT(use_inv_as_guess)) use_inv_guess=use_inv_as_guess
-
     IF (.NOT.use_inv_guess) THEN
+       ! initialize matrix to unity and use arnoldi to scale it into the convergence range
        gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
        frob_matrix=cp_dbcsr_frobenius_norm(matrix)
        CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
-       CALL cp_dbcsr_add_on_diag(matrix_inverse,1/MIN(gershgorin_norm,frob_matrix),error=error)
+       CALL cp_dbcsr_add_on_diag(matrix_inverse,1.0_dp,error=error) 
+      ! everything commutes, therefor our all products will be symmetric 
+       CALL cp_dbcsr_init(tmp1,error=error)
+       CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
+    ELSE
+       ! It is unlikely that our guess will commute with the matrix, therefore the first product will
+       ! be non symmetric
+       CALL cp_dbcsr_init(tmp1,error=error)
+       CALL cp_dbcsr_create(tmp1,template=matrix_inverse,matrix_type=dbcsr_type_no_symmetry,error=error)
     ENDIF
-    CALL cp_dbcsr_get_info(matrix, nfullrows_total=nrow )
 
-    CALL cp_dbcsr_init(tmp1,error=error)
-    CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
+    CALL cp_dbcsr_get_info(matrix, nfullrows_total=nrow )
     CALL cp_dbcsr_init(tmp2,error=error)
     CALL cp_dbcsr_create(tmp2,template=matrix_inverse,error=error)
 
+
     IF (unit_nr>0) WRITE(unit_nr,*)
 
-    prepare_to_exit=.FALSE.
-
     ! scale the approximate inverse to be within the convergence radius
-    IF(use_inv_guess)THEN
-       mymat(1)%matrix=>matrix
-       mymat(2)%matrix=>matrix_inverse
-       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1, &
-                                        nval_request=2, nrestarts=2, generalized_ev=.FALSE.,iram=.TRUE.)
-       CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
-       max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
-       min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
-       max_abs_eig=MAX(max_eV,ABS(min_eV))
-       IF(ABS(min_ev).GT.max_ev)max_abs_eig=min_ev
-       CALL deallocate_arnoldi_data(my_arnoldi)
-       CALL cp_dbcsr_scale(matrix_inverse,1.0_dp/max_abs_eig,error=error)
+    mymat(1)%matrix=>matrix
+    mymat(2)%matrix=>matrix_inverse
+    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1, &
+                                     nval_request=2, nrestarts=2, generalized_ev=.FALSE.,iram=.TRUE.)
+    CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
+    max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+    min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+    max_abs_eig=MAX(max_eV,ABS(min_eV))
+    IF(ABS(min_ev).GT.max_ev)max_abs_eig=min_ev
+    CALL deallocate_arnoldi_data(my_arnoldi)
+    IF(max_abs_eig.gt.1.9_dp)THEN
+       occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+       IF (unit_nr>0)WRITE(unit_nr,*)'scaling with',max_abs_eig, occ_matrix
+       CALL cp_dbcsr_scale(matrix_inverse,1.9_dp/max_abs_eig,error=error)
     END IF
 
     DO i=1,100
@@ -148,7 +157,6 @@ CONTAINS
                dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
 
        CALL cp_dbcsr_add_on_diag(tmp1,+1.0_dp,error=error)
-       occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
 
        ! tmp2 = S^-1 S S^-1
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp1, matrix_inverse, 0.0_dp, tmp2,&
@@ -158,6 +166,7 @@ CONTAINS
 
        CALL cp_dbcsr_filter(matrix_inverse, threshold, error=error)
        t2 = m_walltime()
+       occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
 
        !use the eigenvalues of the matrix to check conevrgence
        IF(PRESENT(norm_convergence))THEN
@@ -188,13 +197,13 @@ CONTAINS
        END IF
 
     ENDDO
-!    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
-    !!frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
-    !CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-    !frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
-    !CALL cp_dbcsr_norm(tmp1,&
-    !        dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
-    !occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+
+    ! try to symmetrize the output matrix
+    IF(cp_dbcsr_get_matrix_type(matrix_inverse)==dbcsr_type_no_symmetry)THEN
+       CALL cp_dbcsr_transposed(tmp2,matrix_inverse,error=error)
+       CALL cp_dbcsr_add(matrix_inverse,tmp2,0.5_dp,0.5_dp,error=error)
+    END IF
+
     IF (unit_nr>0) THEN
     !   WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,&
     !      !frob_matrix/frob_matrix_base

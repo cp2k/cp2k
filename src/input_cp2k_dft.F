@@ -6352,9 +6352,11 @@ CONTAINS
 
        CALL keyword_create(keyword, name="STEPSIZE",&
             description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stablize DIIS"//&
-            " or to improve the CG behavior in the first few steps",&
+            " or to improve the CG behavior in the first few steps."//&
+            " The optimal value depends on the quality of the preconditioner."//&
+            " A negative values leaves the choice to CP2K depending on the preconditioner.",&
             usage="STEPSIZE 0.4",&
-            default_r_val=0.15_dp,error=error)
+            default_r_val=-1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -6414,10 +6416,12 @@ CONTAINS
        CALL keyword_create(keyword, name="ENERGY_GAP",&
             description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "//&
             "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "//&
-            "of the gap (0.001 doing normally fine). For the other preconditioners, making this value larger (0.2)"//&
-            " will tame the preconditioner in case of poor initial guesses.",&
+            "of the gap (can be a small number, e.g. 0.002)."//&
+            " FULL_SINGLE_INVERSE takes it as lower bound (values below 0.05 can cause stability issues)."//&
+            " In general, heigher values will tame the preconditioner in case of poor initial guesses."//&
+            " A negative value will leave the choice to CP2K depending on type of preconditioner.",&
             usage="ENERGY_GAP 0.001",&
-            default_r_val=0.2_dp,error=error)
+            default_r_val=-1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -32,3 +32,12 @@ Periclase.inp
 H2O-MNDO-KDSOd.inp
 LM-KSDO.inp
 LM-KSDO-D.inp
+new defaults for preconditioner
+O2.inp
+H2O-3.inp
+Periclase.inp
+LM-KSDO.inp
+new defaults for preconditioner
+LM-KSDO-D.inp
+new defaults for preconditioner
+SiO2.inp

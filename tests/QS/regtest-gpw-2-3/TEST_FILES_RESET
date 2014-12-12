@@ -51,3 +51,15 @@ reset tests for vector transfer
 Au13ico_mtd.inp
 Au12_rmsd_AB_mtd.inp
 Au12_rmsd_A_mtd.inp
+new defaults for preconditioner
+hcn_ts.inp
+hcn_ts_r.inp
+hcn_md.inp
+hcn_meta_coord.inp
+hcn_meta_chaincoord.inp
+hcn_meta_chaincoord_kind.inp
+H2O_meta_pop.inp
+H2O_meta_langevin.inp
+Au13ico_mtd.inp
+Au12_rmsd_AB_mtd.inp
+Au12_rmsd_A_mtd.inp

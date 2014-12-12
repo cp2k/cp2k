@@ -15,3 +15,5 @@ w3-filter-2.inp
 w3-filter.inp
 # numerics due to block size change
 w3-filter-2.inp
+new defaults for preconditioner
+w3-filter.inp

@@ -119,3 +119,5 @@ no-gapw-issc-1.inp
 ch4-gapw-issc-2.inp
 #improvements to full_single inverse
 ch4-gapw-issc-2.inp
+new defaults for preconditioner
+ch4-gapw-issc-2.inp

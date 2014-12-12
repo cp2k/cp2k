@@ -538,3 +538,6 @@ H2O-fixed.inp
 # Merge of POTENTIAL files
 K2.inp
 Ne_debug.inp
+new defaults for preconditioner
+h2o_dip_berry.inp
+h2o_dip_iso.inp

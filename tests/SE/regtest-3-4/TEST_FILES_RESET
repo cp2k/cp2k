@@ -34,3 +34,11 @@ reset tests for vector transfer
 N3_rp_md.inp
 N3_dp_md.inp
 N3_rp_dp_md.inp
+new defaults for preconditioner
+SiO2_lr_quad.inp
+Al2O3.inp
+Co_complex.inp
+N3_rp_md.inp
+N3_dp_md.inp
+new defaults for preconditioner
+N3_rp_dp_md.inp

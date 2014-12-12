@@ -740,3 +740,7 @@ H2O-broyden-2.inp
 H2O-broyden-2.inp
 #improvements to full_single inverse
 H2O-inverse_up.inp
+new defaults for preconditioner
+H2O-OT-5.inp
+new defaults for preconditioner
+H2O-inverse_up.inp

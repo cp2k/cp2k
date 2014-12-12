@@ -737,7 +737,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
     DEALLOCATE(matrices)
 
     ! Lets shift the occupied states a bit further up, -1.0 because we gonna subtract it from H  
-    CALL cp_dbcsr_add_on_diag(dbcsr_cThc,-2.0_dp,error=error)
+    CALL cp_dbcsr_add_on_diag(dbcsr_cThc,-0.5_dp,error=error)
     ! Get the AO representation of the shift (see above why S is needed), W-matrix like object
     CALL cp_dbcsr_multiply("N", "N",2.0_dp,dbcsr_sc,dbcsr_cThc,0.0_dp,dbcsr_hc,error=error)
     CALL cp_dbcsr_multiply("N", "T",-1.0_dp,dbcsr_hc,dbcsr_sc,1.0_dp,preconditioner_env%sparse_matrix,&
@@ -749,7 +749,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
        ALLOCATE(matrices(2))
        matrices(1)%matrix=>preconditioner_env%sparse_matrix
        matrices(2)%matrix=>matrix_s
-       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=20,threshold=2.0E-2_dp,selection_crit=3,&
+       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=20,threshold=2.0E-2_dp,selection_crit=2,&
                                         nval_request=1, nrestarts=21,generalized_ev=.TRUE.,iram=.FALSE.)
     ELSE
        ALLOCATE(matrices(1))
@@ -771,15 +771,14 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
     DEALLOCATE(matrices)
 
 !-------------------------------------compute eigenvalues of H ----------------------------------------------
-    ! apply a shift to the rest. The factor 1.5 is determined by trying. If LUMO is below 0 then add its value 
-    ! to the shift as well
+    ! Shift the Lumo to the 1.5*the computed energy_gap or the external energy gap value
+    ! The factor 1.5 is determined by trying. If the LUMO is positive, enough, just leave it alone
     pre_shift=MAX(1.5_dp*(min_ev-max_ev),energy_gap)
-    IF(min_ev.LT.0.0)THEN
+    IF(min_ev.LT.pre_shift)THEN
        pre_shift=pre_shift-min_ev
     ELSE
-       IF(pre_shift.GT.min_ev)pre_shift=pre_shift-min_ev
+       pre_shift=0.0_dp
     END IF
-
     IF(PRESENT(matrix_s))THEN
        CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_s,1.0_dp,pre_shift,error=error)
     ELSE

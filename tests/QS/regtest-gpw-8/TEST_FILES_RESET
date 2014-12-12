@@ -25,3 +25,5 @@ si8_broy_dav_t300_lsd.inp
 bug_ai_moments.inp
 #improvements to full_single inverse
 bug_ai_moments.inp
+new defaults for preconditioner
+bug_ai_moments.inp

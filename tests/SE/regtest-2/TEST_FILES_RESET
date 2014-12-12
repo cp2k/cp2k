@@ -616,3 +616,8 @@ scan_zn_1w_cp2k.inp
 reset tests for vector transfer
 stp3.inp
 scan_zn_1w_cp2k.inp
+new defaults for preconditioner
+stp2.inp
+stp3.inp
+scan_zn_1w_cp2k.inp
+zn_1w_debug.inp

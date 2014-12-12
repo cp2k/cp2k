@@ -104,7 +104,7 @@ CONTAINS
           occ_matrix=cp_dbcsr_get_occupation(preconditioner_env%sparse_matrix)
        END IF
        ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
-       IF(preconditioner_env%solver.NE.ot_precond_solver_update.AND.occ_matrix>0.05_dp)THEN
+       IF(preconditioner_env%solver.NE.ot_precond_solver_update.AND.occ_matrix>0.01_dp)THEN
           preconditioner_env%solver=ot_precond_solver_update
           CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision, error=error)
        ELSE
@@ -285,11 +285,12 @@ CONTAINS
     END IF 
 
     ! Try to get a reasonbale guess for the filtering threshold
-    filter_eps=1.0_dp/preconditioner_env%condition_num*0.1_dp
+    filter_eps=1.0_dp/preconditioner_env%condition_num
 
-    CALL cp_dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps, error=error)
+    ! Agressive filtering on the initial guess is needed to avoid fill ins and retain sparsity
+    CALL cp_dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps*100.0_dp, error=error)
     ! We don't need a high accuracy for the inverse so 0.4 is reasonable for convergence 
-    CALL invert_Hotelling(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, filter_eps, &
+    CALL invert_Hotelling(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, filter_eps*10.0_dp, &
                           use_inv_as_guess=use_guess, norm_convergence=0.4_dp, filter_eps=filter_eps, error=error)
 
     CALL timestop(handle)
