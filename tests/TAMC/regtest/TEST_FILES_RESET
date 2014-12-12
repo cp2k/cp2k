@@ -19,3 +19,5 @@ reset tests for vector transfer
 dimer.inp
 new defaults for preconditioner
 dimer.inp
+#defaults for prec
+dimer.inp

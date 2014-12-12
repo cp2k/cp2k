@@ -63,3 +63,6 @@ H2O_meta_langevin.inp
 Au13ico_mtd.inp
 Au12_rmsd_AB_mtd.inp
 Au12_rmsd_A_mtd.inp
+#reset for new defaults
+H2O_meta_pop.inp
+H2O_meta_langevin.inp
