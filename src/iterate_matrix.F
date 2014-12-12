@@ -13,19 +13,17 @@ MODULE iterate_matrix
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, &
        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, cp_dbcsr_get_info, &
-       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_norm, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, cp_dbcsr_transposed, &
-       cp_dbcsr_type, dbcsr_arnoldi_data, dbcsr_norm_maxabsnorm, &
-       dbcsr_type_no_symmetry, deallocate_arnoldi_data, get_selected_ritz_val, cp_dbcsr_get_matrix_type,&
-       cp_dbcsr_put_block, cp_dbcsr_iterator, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_blocks_left,&
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_get_block_p       
+       cp_dbcsr_get_matrix_type, cp_dbcsr_get_occupation, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, &
+       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_arnoldi_data, &
+       dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, &
+       deallocate_arnoldi_data, get_selected_ritz_val
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE mathlib,                         ONLY: invert_matrix
   USE mathconstants,                   ONLY: ifac
   USE timings,                         ONLY: timeset,&
                                              timestop
