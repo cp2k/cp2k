@@ -2,4 +2,4 @@ C-HF-q4.inp 56      1.e-12
 H-B3LYP-q1.inp 56      1.e-12
 O-B97-q6.inp 56      1.e-12
 O-PBE0-q6.inp                    56     1e-06
-O_KG.inp                         61     1e-04
+O_KG.inp                         61     5e-04
