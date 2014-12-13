@@ -8,7 +8,7 @@ hcn_meta_chaincoord_kind.inp 1 1E-13
 # Population colvar
 H2O_meta_pop.inp                  1     4e-09
 # Metadynamics with langevin on COLVAR
-H2O_meta_langevin.inp             1     4e-09
+H2O_meta_langevin.inp             1     1e-08
 #gyration radius
 Au13ico_mtd.inp                   1     2e-13
 # rmsd AB

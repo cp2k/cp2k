@@ -8,7 +8,7 @@ H2O-uks-diag-mulliken.inp        24     5e-13
 H2O-uks-otcg-mulliken.inp        24     1e-08
 H2O-rks-diag-lowdin.inp 24 1E-12
 H2O-rks-otcg-lowdin.inp 24
-H2O-uks-diag-lowdin.inp 24
+H2O-uks-diag-lowdin.inp          24     0e+00
 H2O-uks-otcg-lowdin.inp          24     4e-09
 # U ramping
 H2O-rks-u_ramping.inp            24     1e-06
