@@ -5,4 +5,4 @@
 #      6 looks for the final energy of the MC simulation
 #      for details see cp2k/tools/do_regtest
 #
-dimer.inp                        11     5e-05
+dimer.inp                        11     1e-04
