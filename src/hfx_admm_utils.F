@@ -634,7 +634,6 @@ CONTAINS
 !> \param admm_env the ADMM environment
 !> \param error ...
 !>
-!> \param udate_only update gsi scaling  UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      12.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

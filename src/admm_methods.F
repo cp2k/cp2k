@@ -1663,8 +1663,6 @@ MODULE admm_methods
 !> \param rho_ao_orb ...
 !> \param scale_back ...
 !> \param error ...
-!> \param ener_k_ispin exact ispin (Fock) exchange in auxiliary basis UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param ener_x_ispin ispin DFT exchange in auxiliary basis UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Jan Wilhelm, 12/2014
 ! *****************************************************************************
   SUBROUTINE scale_dm(qs_env, rho_ao_orb, scale_back, error)
@@ -1906,7 +1904,6 @@ MODULE admm_methods
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_aux_fit, &
                                                 sab_aux_fit_asymm, &
@@ -2253,7 +2250,8 @@ MODULE admm_methods
 !> \param ispin ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_dm_mo_no_diag(admm_env,mo_set,density_matrix,overlap_matrix,density_matrix_large,overlap_matrix_large,ispin,error)
+  SUBROUTINE calculate_dm_mo_no_diag(admm_env,mo_set,density_matrix,overlap_matrix,&
+             density_matrix_large,overlap_matrix_large,ispin,error)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix, &
