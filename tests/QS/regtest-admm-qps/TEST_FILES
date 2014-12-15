@@ -7,4 +7,4 @@ H2O-ADMMP-OPTX.inp                                1     1e-13
 H2O-ADMMS.inp                                     1     1e-13
 H2O-ADMMQ_debug_forces.inp                        1     1e-13
 O2-triplett-ADMMP-debug_forces.inp                1     1e-13
-O2-triplett-ADMMS.inp                             1     1e-13
+O2-triplett-ADMMS.inp                             1     1e-10
