@@ -223,9 +223,9 @@ CONTAINS
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ks_matrix, ks_matrix_im, &
-      matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_s, &
-      matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, &
-      my_rho, rho_ao
+      matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_dft, &
+      matrix_ks_aux_fit_im, matrix_s, matrix_s_aux_fit, &
+      matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, my_rho, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -261,6 +261,7 @@ CONTAINS
          auxbas_pw_pool, poisson_env, pw_pools, v_rspace_new, &
          v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
+         matrix_ks_aux_fit_dft,&
          matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc, ks_env, &
          ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao)
 
@@ -280,6 +281,7 @@ CONTAINS
                     matrix_ks_im=ks_matrix_im,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
+                    matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft,&
                     matrix_s_aux_fit=matrix_s_aux_fit,&
                     matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                     pw_env=pw_env,&
@@ -594,7 +596,7 @@ CONTAINS
               just_energy,v_rspace_new,v_tau_rspace,error=error)
 !!       Adiabatic rescaling  only if do_hfx; right?????
        END IF !do_hfx
-
+ 
        IF(do_ppl .AND. calculate_forces)THEN
           CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins
@@ -1247,6 +1249,7 @@ CONTAINS
                               error=error)
 
        IF(.NOT.energy_only) THEN
+
           CALL set_ks_env(ks_env,&
                           rho_changed=.FALSE.,&
                           s_mstruct_changed=.FALSE.,&
@@ -1618,6 +1621,8 @@ CONTAINS
     INTEGER                                  :: ic, ispin, nimg
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit, &
+                                                matrix_ks_aux_fit_dft, &
+                                                matrix_ks_aux_fit_hfx, &
                                                 matrix_s_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s_kp, matrixkp_ks
@@ -1670,10 +1675,13 @@ CONTAINS
 
 
     ! Allocate matrix_ks_aux_fit if requested and put it in the QS environment
+    ! Also matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx for ADMMS
     IF(dft_control%do_admm) THEN
-       NULLIFY(matrix_ks_aux_fit)
+       NULLIFY(matrix_ks_aux_fit, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx)
        CALL get_qs_env(qs_env,&
                        matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                       matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft,&
+                       matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx,&
                        matrix_s_aux_fit=matrix_s_aux_fit,&
                        error=error)
        IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
@@ -1694,6 +1702,46 @@ CONTAINS
           ENDDO
           CALL set_ks_env(ks_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
        END IF
+       ! same allocation procedure for matrix_ks_aux_fit_dft
+       IF (.NOT.ASSOCIATED(matrix_ks_aux_fit_dft)) THEN
+          refmatrix => matrix_s_aux_fit(1)%matrix
+          CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit_dft, dft_control%nspins, error)
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_ks_aux_fit_dft(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_ks_aux_fit_dft(ispin)%matrix,error=error)
+             CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit_dft(ispin)%matrix, &
+                  name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY DFT EXCHANGE", &
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_dft(ispin)%matrix,sab_aux_fit,&
+                  error=error)
+             CALL cp_dbcsr_set(matrix_ks_aux_fit_dft(ispin)%matrix,0.0_dp,error=error)
+          ENDDO
+          CALL set_ks_env(ks_env,matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft,error=error)
+       END IF
+       ! same allocation procedure for matrix_ks_aux_fit_hfx
+       IF (.NOT.ASSOCIATED(matrix_ks_aux_fit_hfx)) THEN
+          refmatrix => matrix_s_aux_fit(1)%matrix
+          CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit_hfx, dft_control%nspins, error)
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_ks_aux_fit_hfx(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_ks_aux_fit_hfx(ispin)%matrix,error=error)
+             CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit_hfx(ispin)%matrix, &
+                  name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY HF EXCHANGE", &
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_hfx(ispin)%matrix,sab_aux_fit,&
+                  error=error)
+             CALL cp_dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix,0.0_dp,error=error)
+          ENDDO
+          CALL set_ks_env(ks_env,matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx,error=error)
+       END IF
+ 
+
     END IF
 
   END SUBROUTINE qs_ks_allocate_basics

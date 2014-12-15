@@ -652,7 +652,20 @@ MODULE input_constants
   ! This parameter defines when to use blocking
   INTEGER, PARAMETER, PUBLIC               :: do_admm_basis_projection=0,&
                                               do_admm_blocking_purify_full=1,&
-                                              do_admm_blocked_projection=2
+                                              do_admm_blocked_projection=2,&
+                                              do_admm_charge_constrained_projection=3
+
+  ! This parameter defines when to use blocking
+  INTEGER, PARAMETER, PUBLIC               :: do_admm_aux_exch_func_default=0,&
+                                              do_admm_aux_exch_func_pbex=1,&
+                                              do_admm_aux_exch_func_none=2,&
+                                              do_admm_aux_exch_func_opt=3,&
+                                              do_admm_aux_exch_func_bee=4
+ 
+
+  ! Define scaling of the exchange correction
+  INTEGER, PARAMETER, PUBLIC               :: do_admm_exch_scaling_none=0,&
+                                              do_admm_exch_scaling_merlot=1
 
   ! Define DFT+U method identifier codes
   INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin=1,&

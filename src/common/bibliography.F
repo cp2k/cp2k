@@ -71,7 +71,7 @@ MODULE bibliography
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Grimme2011, Fattebert2002, Andreussi2012,                       &
-       Khaliullin2007, Khaliullin2008,                                 &
+       Khaliullin2007, Khaliullin2008, Merlot2014,                     &
        QUIP_ref
 
 CONTAINS
@@ -2771,6 +2771,33 @@ CONTAINS
          "UT WOS:000338614300001",&
          "ER"),&
          DOI="10.1016/j.parco.2014.03.012")
+
+    CALL add_reference(key=Merlot2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Merlot, P",&
+         "   Izsak, R",&
+         "   Borgo, A",&
+         "   Kjaergaard, T",&
+         "   Helgaker, T",&
+         "   Reine, S",&
+         "AF Merlot, Patrick",&
+         "   Izsak, Robert",&
+         "   Borgo, Alex",&
+         "   Kjaergaard, Thomas",&
+         "   Helgaker, Trygve",&
+         "   Reine, Simen",&
+         "TI Charge-constrained auxiliary-density-matrix methods for the",&
+         "   Hartree-Fock exchange contribution",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD SEP",&
+         "PY 2014",&
+         "VL 141",&
+         "IS 9" ,&
+         "AR 094104",&
+         "DI /10.1063/1.4894267",&
+         "ER"),&
+         DOI="10.1063/1.4894267")
 
   END SUBROUTINE add_all_references
 

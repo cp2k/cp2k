@@ -248,6 +248,9 @@ MODULE cp_control_types
     REAL(KIND = dp)                 :: eps_filter
     INTEGER                         :: purification_method
     INTEGER                         :: method
+    LOGICAL                         :: charge_constrain 
+    INTEGER                         :: scaling_model
+    INTEGER                         :: aux_exch_func 
     TYPE(admm_block_type), DIMENSION(:), &
                         ALLOCATABLE :: blocks
   END TYPE admm_control_type

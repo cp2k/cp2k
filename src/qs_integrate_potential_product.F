@@ -26,6 +26,7 @@
 !> \author Matthias Krack (03.04.2001)
 ! *****************************************************************************
 MODULE qs_integrate_potential_product
+  USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -44,7 +45,8 @@ MODULE qs_integrate_potential_product
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+  USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
+                                             use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -100,6 +102,8 @@ CONTAINS
 !> \param h ...
 !> \param qs_env ...
 !> \param calculate_forces ...
+!> \param force_adm ... whether force of in aux. dens. matrix is calculated
+!> \param ispin ...
 !> \param compute_tau ...
 !> \param gapw ...
 !> \param basis_set_id ...
@@ -121,7 +125,7 @@ CONTAINS
 !>     derivatives of these matrix elements with respect to the ionic
 !>     coordinates can be computed as well
 ! *****************************************************************************
-  SUBROUTINE integrate_v_rspace(v_rspace, p, h, qs_env, calculate_forces, &
+  SUBROUTINE integrate_v_rspace(v_rspace, p, h, qs_env, calculate_forces, force_adm, ispin, &
        compute_tau, gapw, basis_set_id, pw_env_external, task_list_external, error)
 
     TYPE(pw_p_type)                          :: v_rspace
@@ -130,6 +134,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), INTENT(INOUT)     :: h
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: force_adm
+    INTEGER, INTENT(IN), OPTIONAL            :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
@@ -159,11 +165,11 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
-      found, h_duplicated, map_consistent, my_compute_tau, my_gapw, &
-      new_set_pair_coming, p_duplicated, pab_required, scatter, use_subpatch, &
-      use_virial
-    REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
-                                                zetp
+      found, h_duplicated, map_consistent, my_compute_tau, my_force_adm, &
+      my_gapw, new_set_pair_coming, p_duplicated, pab_required, scatter, &
+      use_subpatch, use_virial
+    REAL(KIND=dp)                            :: admm_scal_fac, dab, &
+                                                eps_gvg_rspace, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
                                                 rab_inv, rb
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
@@ -176,6 +182,7 @@ CONTAINS
       POINTER                                :: habt, hadb, hdab, pabt, workt
     REAL(kind=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: hadbt, hdabt
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -209,7 +216,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(pw_env, rs_descs, tasks, dist_ab)
+    NULLIFY(pw_env, rs_descs, tasks, dist_ab, admm_env)
 
     debug_count=debug_count+1
 
@@ -220,6 +227,10 @@ CONTAINS
     ! tau mode    : < nabla a| V | nabla b>
     my_compute_tau = .FALSE.
     IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
+
+    my_force_adm = .FALSE. 
+    IF (PRESENT(force_adm)) my_force_adm = force_adm
+
 
     ! this sets the basis set to be used. GAPW(==soft basis) overwrites basis_set_id
     ! default is "use_orb_basis_set"
@@ -728,21 +739,40 @@ CONTAINS
           END IF
        END IF
 
+       
+       admm_scal_fac = 1.0_dp
+       IF(my_force_adm) THEN
+          CALL get_qs_env(qs_env=qs_env,&
+                          admm_env=admm_env,&
+                          error=error)
+
+          ! Calculate bare scaling of force according to Merlot, 1. IF: ADMMP, 2. IF: ADMMS,
+          IF( ( .NOT. admm_env%charge_constrain) .AND. &
+               (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
+               admm_scal_fac = admm_env%gsi(ispin)**2
+
+          ELSE IF( admm_env%charge_constrain .AND. &
+              (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
+               admm_scal_fac = (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)
+
+          END IF
+       END IF
+
        IF (atom_pair_done) THEN
 !$omp critical(force_critical)
           IF (calculate_forces) THEN
              force(ikind)%rho_elec(:,atom_a) =&
-                  force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
+                  force(ikind)%rho_elec(:,atom_a) + 2.0_dp*admm_scal_fac*force_a(:)
              IF (iatom /= jatom ) THEN
                 force(jkind)%rho_elec(:,atom_b) =&
-                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*force_b(:)
+                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*admm_scal_fac*force_b(:)
              END IF
           ENDIF
           IF (use_virial) THEN
              IF (use_virial .AND. calculate_forces) THEN
-                virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_a
+                virial%pv_virial = virial%pv_virial + 2.0_dp*admm_scal_fac*my_virial_a
                 IF (iatom /= jatom) THEN
-                   virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_b
+                   virial%pv_virial = virial%pv_virial + 2.0_dp*admm_scal_fac*my_virial_b
                 END IF
              END IF
           END IF

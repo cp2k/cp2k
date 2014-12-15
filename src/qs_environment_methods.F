@@ -760,6 +760,7 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     LOGICAL                                  :: do_admm, gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit, &
+                                                rho_aux_fit_buffer, &
                                                 rho_external, rho_xc
 
     NULLIFY(rho)
@@ -770,6 +771,7 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
                     rho=rho,&
                     rho_xc=rho_xc,&
                     rho_aux_fit=rho_aux_fit,&
+                    rho_aux_fit_buffer=rho_aux_fit_buffer,&
                     rho_external=rho_external,&
                     error=error)
 
@@ -784,6 +786,9 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     END IF
     IF(do_admm) THEN
       CALL qs_rho_rebuild(rho_aux_fit,qs_env=qs_env,&
+                          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
+                          basis_set_id=use_aux_fit_basis_set, error=error)
+      CALL qs_rho_rebuild(rho_aux_fit_buffer,qs_env=qs_env,&
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
                           basis_set_id=use_aux_fit_basis_set, error=error)
     END IF

@@ -262,7 +262,8 @@ CONTAINS
       CALL admm_env_create(admm_env, admm_control, mos, mos_aux_fit, &
                            para_env, natoms, error)
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
+      CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, &
+                                  admm_env=admm_env, error=error)
 
       IF(admm_control%method /= do_admm_basis_projection) THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -350,7 +351,8 @@ CONTAINS
       natoms = SIZE(particle_set,1)
       CALL admm_env_create(admm_env, dft_control%admm_control, mos, mos_aux_fit, para_env, natoms, error)
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
+      CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, & 
+                                  admm_env=admm_env,error=error)
     END IF
 
     nao_aux_fit = admm_env%nao_aux_fit

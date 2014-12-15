@@ -14,6 +14,7 @@
 MODULE hfx_admm_utils
   USE admm_dm_types,                   ONLY: admm_dm_create,&
                                              admm_dm_type
+  USE admm_methods,                    ONLY: scale_dm
   USE admm_types,                      ONLY: admm_env_create,&
                                              admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -32,10 +33,12 @@ MODULE hfx_admm_utils
   USE hfx_derivatives,                 ONLY: derivatives_four_center
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_ri_methods,                  ONLY: hfx_ri_energy_potential
-  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
-                                             do_hfx_potential_short,&
-                                             do_hfx_potential_truncated,&
-                                             xc_funct_no_shortcut
+  USE input_constants,                 ONLY: &
+       do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
+       do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, &
+       do_admm_aux_exch_func_pbex, do_hfx_potential_coulomb, &
+       do_hfx_potential_short, do_hfx_potential_truncated, &
+       xc_funct_no_shortcut
   USE input_section_types,             ONLY: section_vals_duplicate,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -184,7 +187,8 @@ CONTAINS
                            para_env, natoms, error)
       CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
+      CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, &
+                                  admm_env=admm_env, error=error)
     ENDIF
 
     IF(dft_control%do_admm_dm .AND. .NOT. ASSOCIATED(admm_dm)) THEN
@@ -235,8 +239,8 @@ CONTAINS
       failure, hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, &
-      matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_im, matrix_ks_orb, &
-      rho_ao_orb
+      matrix_ks_aux_fit, matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_im, &
+      matrix_ks_im, matrix_ks_orb, rho_ao_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -257,7 +261,7 @@ CONTAINS
     NULLIFY(auxbas_pw_pool, dft_control, force, hfx_sections, hfx_ri_section, input, &
             para_env, poisson_env, pw_env, virial,&
             matrix_ks_im, matrix_ks_orb, rho_ao_orb,&
-            matrix_h, matrix_ks_aux_fit,matrix_ks_aux_fit_im)
+            matrix_h, matrix_ks_aux_fit,matrix_ks_aux_fit_im, matrix_ks_aux_fit_hfx)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -269,6 +273,7 @@ CONTAINS
          matrix_ks_im=matrix_ks_im,&
          matrix_ks_aux_fit=matrix_ks_aux_fit,&
          matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
+         matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx,&
          s_mstruct_changed=s_mstruct_changed,&
          error=error)
 
@@ -291,6 +296,7 @@ CONTAINS
     IF( dft_control%do_admm ) THEN
       DO ispin = 1,nspins
          CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
+         CALL cp_dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix,0.0_dp,error=error)
       END DO
     END IF
     DO ispin = 1,nspins
@@ -331,7 +337,7 @@ CONTAINS
 
           mspin=1
           IF ( hfx_treat_lsd_in_core ) mspin=nspins
-
+          
           ! fetch the correct matrices for normal HFX or ADMM
           IF( dft_control%do_admm ) THEN
              CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_orb,&
@@ -348,8 +354,17 @@ CONTAINS
           END DO
        
           IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
+             !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
+             IF( dft_control%do_admm ) THEN
+               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE., error=error) 
+             END IF
              CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
                                           para_env, irep, use_virial, error=error)
+             !Scale auxiliary density matrix for ADMMP back with 1/gsi(ispin) 
+             IF( dft_control%do_admm ) THEN
+               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE., error=error)
+             END IF
+
           END IF
 
           !! If required, the calculation of the forces will be done later with adiabatic rescaling
@@ -619,11 +634,12 @@ CONTAINS
 !> \param admm_env the ADMM environment
 !> \param error ...
 !>
+!> \param udate_only update gsi scaling  UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      12.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE create_admm_xc_section(qs_env, xc_section, admm_env,error)
+  SUBROUTINE create_admm_xc_section(qs_env, xc_section, admm_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(admm_type), POINTER                 :: admm_env
@@ -632,6 +648,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_admm_xc_section', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=20)                        :: name_x_func
     INTEGER                                  :: hfx_potential_type, ifun, nfun
     LOGICAL                                  :: failure, funct_found
     REAL(dp)                                 :: cutoff_radius, hfx_fraction, &
@@ -639,19 +656,22 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
 
     NULLIFY(admm_env%xc_section_aux, admm_env%xc_section_primary)
+
     failure=.FALSE.
 
+
+    CALL get_qs_env(qs_env, error=error)
+
     !! ** Duplicate existing xc-section
+        CALL section_vals_duplicate(xc_section,admm_env%xc_section_aux,error=error)
+        CALL section_vals_duplicate(xc_section,admm_env%xc_section_primary,error=error)
+        !** Now modify the auxiliary basis
+        !** First remove all functionals
+        xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
 
-    CALL section_vals_duplicate(xc_section,admm_env%xc_section_aux,error=error)
-    CALL section_vals_duplicate(xc_section,admm_env%xc_section_primary,error=error)
-    !** Now modify the auxiliary basis
-    !** First remove all functionals
-    xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
-
-    !* Overwrite possible shortcut
-    CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
-                              i_val=xc_funct_no_shortcut,error=error)
+        !* Overwrite possible shortcut
+        CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
+                                  i_val=xc_funct_no_shortcut,error=error)
 
     !** Get number of Functionals in the list
     ifun = 0
@@ -673,161 +693,232 @@ CONTAINS
     hfx_potential_type = qs_env%x_data(1,1)%potential_parameter%potential_type
     hfx_fraction = qs_env%x_data(1,1)%general_parameter%fraction
 
-    !! ** Add functionals evaluated with auxiliary basis
-    SELECT CASE (hfx_potential_type)
-    CASE (do_hfx_potential_coulomb)
-      CALL section_vals_val_set(xc_fun_section,"PBE%_SECTION_PARAMETERS_",&
-                                l_val=.TRUE.,error=error)
-      CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
-                                r_val=-hfx_fraction,error=error)
-      CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_C",&
-                                r_val=0.0_dp,error=error)
-    CASE (do_hfx_potential_short)
-      omega =  qs_env%x_data(1,1)%potential_parameter%omega
-      CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
-                                l_val=.TRUE.,error=error)
-      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
-                                r_val=-hfx_fraction,error=error)
-      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
-                                r_val=0.0_dp,error=error)
-      CALL section_vals_val_set(xc_fun_section,"XWPBE%OMEGA",&
-                                r_val=omega,error=error)
-    CASE (do_hfx_potential_truncated)
-      cutoff_radius = qs_env%x_data(1,1)%potential_parameter%cutoff_radius
-      CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_",&
-                                l_val=.TRUE.,error=error)
-      CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
-                                r_val=hfx_fraction,error=error)
-      CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
-                                r_val=cutoff_radius,error=error)
-      CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
-                                l_val=.TRUE.,error=error)
-      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
-                                r_val=0.0_dp,error=error)
-      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
-                                r_val=-hfx_fraction,error=error)
-    CASE DEFAULT
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT
+    !in case of no admm exchange corr., no auxiliary exchange functional needed
+    IF(admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
+      hfx_fraction = 0.0_dp
+    END IF
 
+    ! default PBE Functional
+    IF(admm_env%aux_exch_func== do_admm_aux_exch_func_default .OR. &
+       admm_env%aux_exch_func== do_admm_aux_exch_func_none ) THEN 
+  
+      !! ** Add functionals evaluated with auxiliary basis
+      SELECT CASE (hfx_potential_type)
+        CASE (do_hfx_potential_coulomb)
+          CALL section_vals_val_set(xc_fun_section,"PBE%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
+                                    r_val=-hfx_fraction,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_C",&
+                                    r_val=0.0_dp,error=error)
+        CASE (do_hfx_potential_short)
+          omega =  qs_env%x_data(1,1)%potential_parameter%omega
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                    r_val=-hfx_fraction,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                    r_val=0.0_dp,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%OMEGA",&
+                                    r_val=omega,error=error)
+        CASE (do_hfx_potential_truncated)
+          cutoff_radius = qs_env%x_data(1,1)%potential_parameter%cutoff_radius
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                    r_val=hfx_fraction,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
+                                    r_val=cutoff_radius,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                    r_val=0.0_dp,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                    r_val=-hfx_fraction,error=error)
+        CASE DEFAULT
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      END SELECT
 
-    !** Now modify the functionals for the primary basis
-    xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
-    !* Overwrite possible shortcut
-    CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
+      !** Now modify the functionals for the primary basis
+      xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
+      !* Overwrite possible shortcut
+      CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
                               i_val=xc_funct_no_shortcut,error=error)
 
-
-    SELECT CASE (hfx_potential_type)
-    CASE (do_hfx_potential_coulomb)
-      ifun = 0
-      funct_found = .FALSE.
-      DO
-        ifun = ifun+1
-        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
-        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        IF( xc_fun%section%name == "PBE" ) THEN
-          funct_found = .TRUE.
+      SELECT CASE (hfx_potential_type)
+      CASE (do_hfx_potential_coulomb)
+        ifun = 0
+        funct_found = .FALSE.
+        DO
+          ifun = ifun+1
+          xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+          IF (.NOT.ASSOCIATED(xc_fun)) EXIT 
+          IF( xc_fun%section%name == "PBE" ) THEN
+            funct_found = .TRUE.
+          END IF
+        END DO
+        IF( .NOT. funct_found ) THEN
+          CALL section_vals_val_set(xc_fun_section,"PBE%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
+                                    r_val=hfx_fraction,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_C",&
+                                    r_val=0.0_dp,error=error)
+        ELSE
+          CALL section_vals_val_get(xc_fun_section,"PBE%SCALE_X",&
+                                    r_val=scale_x,error=error)
+          scale_x = scale_x + hfx_fraction
+          CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
+                                    r_val=scale_x,error=error)
         END IF
-      END DO
-      IF( .NOT. funct_found ) THEN
-        CALL section_vals_val_set(xc_fun_section,"PBE%_SECTION_PARAMETERS_",&
-                                  l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
-                                  r_val=hfx_fraction,error=error)
-        CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_C",&
-                                  r_val=0.0_dp,error=error)
-      ELSE
-        CALL section_vals_val_get(xc_fun_section,"PBE%SCALE_X",&
-                                  r_val=scale_x,error=error)
-        scale_x = scale_x + hfx_fraction
-        CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
-                                  r_val=scale_x,error=error)
-      END IF
-    CASE (do_hfx_potential_short)
-      omega =  qs_env%x_data(1,1)%potential_parameter%omega
-      ifun = 0
-      funct_found = .FALSE.
-      DO
-        ifun = ifun+1
-        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
-        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        IF( xc_fun%section%name == "XWPBE" ) THEN
-          funct_found = .TRUE.
+      CASE (do_hfx_potential_short)
+        omega =  qs_env%x_data(1,1)%potential_parameter%omega
+        ifun = 0
+        funct_found = .FALSE.
+        DO
+          ifun = ifun+1
+          xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+          IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+          IF( xc_fun%section%name == "XWPBE" ) THEN
+            funct_found = .TRUE.
+          END IF
+        END DO
+        IF( .NOT. funct_found ) THEN
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                    r_val=hfx_fraction,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                    r_val=0.0_dp,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%OMEGA",&
+                                    r_val=omega,error=error)
+        ELSE
+          CALL section_vals_val_get(xc_fun_section,"XWPBE%SCALE_X",&
+                                    r_val=scale_x,error=error)
+          scale_x = scale_x + hfx_fraction
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                    r_val=scale_x,error=error)
         END IF
-      END DO
-      IF( .NOT. funct_found ) THEN
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
-                                  l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
-                                  r_val=hfx_fraction,error=error)
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
-                                  r_val=0.0_dp,error=error)
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%OMEGA",&
-                                  r_val=omega,error=error)
-      ELSE
-        CALL section_vals_val_get(xc_fun_section,"XWPBE%SCALE_X",&
-                                  r_val=scale_x,error=error)
-        scale_x = scale_x + hfx_fraction
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
-                                  r_val=scale_x,error=error)
-      END IF
-    CASE (do_hfx_potential_truncated)
-      cutoff_radius =  qs_env%x_data(1,1)%potential_parameter%cutoff_radius
-      ifun = 0
-      funct_found = .FALSE.
-      DO
-        ifun = ifun+1
-        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
-        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        IF( xc_fun%section%name == "PBE_HOLE_T_C_LR" ) THEN
-          funct_found = .TRUE.
+      CASE (do_hfx_potential_truncated)
+        cutoff_radius =  qs_env%x_data(1,1)%potential_parameter%cutoff_radius
+        ifun = 0
+        funct_found = .FALSE.
+        DO
+          ifun = ifun+1
+          xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+          IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+          IF( xc_fun%section%name == "PBE_HOLE_T_C_LR" ) THEN
+            funct_found = .TRUE.
+          END IF
+        END DO
+        IF( .NOT. funct_found ) THEN
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                    r_val=-hfx_fraction,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
+                                    r_val=cutoff_radius,error=error)
+  
+        ELSE
+          CALL section_vals_val_get(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                    r_val=scale_x,error=error)
+          scale_x = scale_x - hfx_fraction
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                    r_val=scale_x,error=error)
+          CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
+                                    r_val=cutoff_radius,error=error)
         END IF
-      END DO
-      IF( .NOT. funct_found ) THEN
-        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_",&
-                                  l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
-                                  r_val=-hfx_fraction,error=error)
-        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
-                                  r_val=cutoff_radius,error=error)
+        ifun = 0
+        funct_found = .FALSE.
+        DO
+          ifun = ifun+1
+          xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+          IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+          IF( xc_fun%section%name == "XWPBE" ) THEN
+            funct_found = .TRUE.
+          END IF
+        END DO
+        IF( .NOT. funct_found ) THEN
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                    r_val=hfx_fraction,error=error)
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                    r_val=0.0_dp,error=error)
 
-      ELSE
-        CALL section_vals_val_get(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
-                                  r_val=scale_x,error=error)
-        scale_x = scale_x - hfx_fraction
-        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
-                                  r_val=scale_x,error=error)
-        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
-                                  r_val=cutoff_radius,error=error)
-      END IF
-      ifun = 0
-      funct_found = .FALSE.
-      DO
-        ifun = ifun+1
-        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
-        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        IF( xc_fun%section%name == "XWPBE" ) THEN
-          funct_found = .TRUE.
+        ELSE
+          CALL section_vals_val_get(xc_fun_section,"XWPBE%SCALE_X0",&
+                                    r_val=scale_x,error=error)
+          scale_x = scale_x + hfx_fraction
+          CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                    r_val=scale_x,error=error)
         END IF
-      END DO
-      IF( .NOT. funct_found ) THEN
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
-                                  l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
-                                  r_val=hfx_fraction,error=error)
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
-                                  r_val=0.0_dp,error=error)
 
-      ELSE
-        CALL section_vals_val_get(xc_fun_section,"XWPBE%SCALE_X0",&
-                                  r_val=scale_x,error=error)
-        scale_x = scale_x + hfx_fraction
-        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
-                                  r_val=scale_x,error=error)
-      END IF
+       END SELECT
 
-    END SELECT
+    ! PBEX (always bare form), OPTX and Becke88 functional
+    ELSE IF(admm_env%aux_exch_func== do_admm_aux_exch_func_pbex .OR. &
+            admm_env%aux_exch_func== do_admm_aux_exch_func_opt .OR. &
+            admm_env%aux_exch_func== do_admm_aux_exch_func_bee) THEN 
+        IF(admm_env%aux_exch_func== do_admm_aux_exch_func_pbex) THEN
+          name_x_func = 'PBE'
+        ELSE IF(admm_env%aux_exch_func== do_admm_aux_exch_func_opt) THEN
+          name_x_func = 'OPTX'      
+        ELSE IF(admm_env%aux_exch_func== do_admm_aux_exch_func_bee) THEN
+          name_x_func = 'BECKE88'
+        END IF
+        !primary basis
+          CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func) // "%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,TRIM(name_x_func) //"%SCALE_X",&
+                                    r_val=-hfx_fraction,error=error)
+
+          IF(admm_env%aux_exch_func== do_admm_aux_exch_func_pbex) THEN
+            CALL section_vals_val_set(xc_fun_section,TRIM(name_x_func) //"%SCALE_C",&
+                                    r_val=0.0_dp,error=error)
+          END IF
+          
+      !** Now modify the functionals for the primary basis
+      xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
+      !* Overwrite possible L",error=error)
+      !* Overwrite possible shortcut
+      CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
+                              i_val=xc_funct_no_shortcut,error=error)
+
+        ifun = 0
+        funct_found = .FALSE.
+        DO
+          ifun = ifun+1
+          xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+          IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+          IF( xc_fun%section%name == TRIM(name_x_func) ) THEN
+            funct_found = .TRUE.
+          END IF
+        END DO
+        IF( .NOT. funct_found ) THEN
+          CALL section_vals_val_set(xc_fun_section,TRIM(name_x_func)//"%_SECTION_PARAMETERS_",&
+                                    l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(xc_fun_section,TRIM(name_x_func)//"%SCALE_X",&
+                                    r_val=hfx_fraction,error=error)
+          IF(admm_env%aux_exch_func== do_admm_aux_exch_func_pbex) THEN
+            CALL section_vals_val_set(xc_fun_section,TRIM(name_x_func) //"%SCALE_C",&
+                                    r_val=0.0_dp,error=error)
+          END IF
+
+
+        ELSE
+          CALL section_vals_val_get(xc_fun_section,TRIM(name_x_func)//"%SCALE_X",&
+                                    r_val=scale_x,error=error)
+          scale_x = scale_x + hfx_fraction
+          CALL section_vals_val_set(xc_fun_section,TRIM(name_x_func)//"%SCALE_X",&
+                                    r_val=scale_x,error=error)
+
+
+        END IF
+
+    END IF 
+
+
 
 
     IF( 1==0 ) THEN

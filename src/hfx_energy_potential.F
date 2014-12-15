@@ -18,7 +18,8 @@ MODULE hfx_energy_potential
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_get_matrix_type,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_trace,&
                                              dbcsr_type_antisymmetric
@@ -181,6 +182,8 @@ MODULE hfx_energy_potential
                                                 zeta, zetb, zetc, zetd
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit_hfx
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
@@ -323,7 +326,8 @@ MODULE hfx_energy_potential
                                        "HF_INFO", error=error)
     END IF
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
+                    matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, error=error)
 
     my_do_exx=.FALSE.
     IF(PRESENT(do_exx)) my_do_exx=do_exx
@@ -1961,9 +1965,21 @@ MODULE hfx_energy_potential
       !! ** Calculate the exchange energy
       CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix, rho_ao(ispin)%matrix, &
                           ene_x_aa, error=error)
+      !for ADMMS, we need the exchange matrix k(d) for both spins 
+      IF( dft_control%do_admm ) THEN
+        CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin)%matrix, &
+                           name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error) 
+      END IF
+
       IF( nspins == 2 .AND. .NOT. treat_lsd_in_core ) THEN
         CALL cp_dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
                             ene_x_bb, error=error)
+      !for ADMMS, we need the exchange matrix k(d) for both spins
+      IF( dft_control%do_admm ) THEN
+        CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2)%matrix, &
+                           name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error)          
+      END IF
+
       END IF
 
       !! Update energy type

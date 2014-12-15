@@ -1,0 +1,76 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/GTH_BASIS_SETS
+    BASIS_SET_FILE_NAME ../../../data/BASIS_ADMM
+    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    &MGRID 
+      CUTOFF     100
+      REL_CUTOFF  30
+    &END MGRID
+    &QS
+      METHOD        GPW
+      EPS_DEFAULT   1.0E-20
+      EPS_PGF_ORB   1.0E-12
+      EPS_FILTER_MATRIX 0.0e0
+    &END QS
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      METHOD CHARGE_CONSTRAINED_PROJECTION 
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_SCALING_MODEL MERLOT  
+    &END
+    &SCF
+      SCF_GUESS  RESTART
+      EPS_SCF    1.0E-5
+      MAX_SCF    8
+      &OT
+        MINIMIZER       DIIS
+        PRECONDITIONER  FULL_SINGLE_INVERSE
+      &END
+      &OUTER_SCF
+        EPS_SCF  1.0E-5
+        MAX_SCF  20
+      &END
+    &END SCF
+    &XC
+      ! PURE HF
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION   1.0000000
+        &SCREENING
+          EPS_SCHWARZ          1.0E-8
+          SCREEN_ON_INITIAL_P  FALSE 
+        &END SCREENING
+      &END HF
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]   6.000  6.000  6.000
+      PERIODIC  NONE
+    &END CELL
+    &COORD
+O       0.000000    0.000000    -0.111000
+H       0.000000   -0.744000     0.495000
+H       0.000000    0.744000     0.495000
+    &END COORD
+    &KIND H
+      BASIS_SET          DZVP-GTH
+      AUX_FIT_BASIS_SET  FIT3
+      POTENTIAL          GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET          DZVP-GTH 
+      AUX_FIT_BASIS_SET  FIT3
+      POTENTIAL          GTH-PBE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT     H2O-admms
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE    ENERGY
+  ! TRACE
+&END GLOBAL
+

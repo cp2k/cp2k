@@ -10,6 +10,7 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_derivatives
+  USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
@@ -51,7 +52,8 @@ MODULE hfx_derivatives
        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
        hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
        log_zero, pair_list_type, pair_set_list_type
-  USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
+  USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
+                                             do_hfx_potential_mix_cl_trunc,&
                                              do_hfx_potential_truncated,&
                                              hfx_do_eval_forces
   USE input_section_types,             ONLY: section_vals_type
@@ -265,8 +267,9 @@ MODULE hfx_derivatives
     LOGICAL                                  :: with_mp2_density, is_anti_symmetric
     TYPE(dft_control_type), &
       POINTER                                :: dft_control
+    TYPE(admm_type), POINTER                 :: admm_env 
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, admm_env) 
 
     with_mp2_density=.FALSE.
     IF(ASSOCIATED(qs_env%mp2_env)) with_mp2_density=.TRUE.
@@ -275,6 +278,7 @@ MODULE hfx_derivatives
     is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1)%matrix).EQ.dbcsr_type_antisymmetric
 
     CALL get_qs_env(qs_env,&
+                    admm_env=admm_env,&
                     particle_set=particle_set,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
@@ -1127,6 +1131,17 @@ MODULE hfx_derivatives
 
             symm_fac = 1.0_dp/symm_fac
             fac = fac * symm_fac
+
+            !scale force by gsi**2
+            IF(dft_control%do_admm) THEN
+               ! IF: ADMMP
+                   IF( ( .NOT. admm_env%charge_constrain) .AND. &
+                            (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
+
+                      !  fac = fac * admm_env%gsi(3)**2
+ 
+               END IF
+             END IF
 
             lc_max => basis_parameter(kkind)%lmax
             lc_min => basis_parameter(kkind)%lmin

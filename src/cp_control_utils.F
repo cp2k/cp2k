@@ -23,13 +23,15 @@ MODULE cp_control_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE input_constants,                 ONLY: &
-       constant_env, do_admm_basis_projection, do_admm_purify_mcweeny, &
+       constant_env, do_admm_basis_projection, do_admm_blocked_projection, &
+       do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
+       do_admm_exch_scaling_merlot, do_admm_purify_mcweeny, &
        do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
-       do_admm_purify_none_dm, do_ddapc_constraint, do_ddapc_restraint, &
-       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
-       do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-       do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_pnnl, do_method_rm1, do_method_scptb, &
+       do_admm_purify_none, do_admm_purify_none_dm, do_ddapc_constraint, &
+       do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
+       do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
+       do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
+       do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
        do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
@@ -216,7 +218,36 @@ CPSourceFileRef,&
       CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%METHOD",i_val=method_id,error=error)
       dft_control%admm_control%method = method_id
 
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_SCALING_MODEL",i_val=method_id,error=error)
+      dft_control%admm_control%scaling_model = method_id
+
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_CORRECTION_FUNC",i_val=method_id,error=error)
+      dft_control%admm_control%aux_exch_func = method_id
+
       CALL read_admm_block_list(dft_control%admm_control, dft_section, error)
+
+      
+      !    In the case of charge-constrained projection (e.g. according to Merlot),
+      !    there is no purification needed and hence, do_admm_purify_none has to be set. 
+
+      IF( (dft_control%admm_control%method == do_admm_blocking_purify_full .OR. &
+           dft_control%admm_control%method == do_admm_blocked_projection) &
+           .AND. dft_control%admm_control%scaling_model == do_admm_exch_scaling_merlot ) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="ADMM: Blocking and Merlot scaling are mutually exclusive.", &
+                                        error=error, error_level=cp_failure_level)
+      END IF
+
+
+      IF( dft_control%admm_control%method == do_admm_charge_constrained_projection .AND. &
+         dft_control%admm_control%purification_method /= do_admm_purify_none ) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="ADMM: In the case of METHOD=CHARGE_CONSTRAINED_PROJECTION, "//&
+                      "ADMM_PURIFICATION_METHOD=NONE has to be set.", &
+                                        error=error, error_level=cp_failure_level)
+      END IF
+
+
 
       IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag    .OR. &
          dft_control%admm_control%purification_method == do_admm_purify_mo_no_diag) THEN

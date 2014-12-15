@@ -33,8 +33,12 @@ MODULE input_cp2k_dft
        cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
        constant_env, core_guess, densities_guess, diag_block_davidson, &
        diag_block_krylov, diag_ot, diag_standard, direct_p_mix, &
-       dispersion_d3, dispersion_uff, do_admm_basis_projection, &
-       do_admm_blocked_projection, do_admm_blocking_purify_full, &
+       dispersion_d3, dispersion_uff, do_admm_aux_exch_func_bee, &
+       do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
+       do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
+       do_admm_basis_projection, do_admm_blocked_projection, &
+       do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
+       do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, &
        do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
        do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
        do_admm_purify_mo_no_diag, do_admm_purify_none, &
@@ -3271,15 +3275,49 @@ CONTAINS
             keyword=keyword,&
             name="METHOD",&
             description="Method that shall be used for wavefunction fitting. Use BASIS_PROJECTION for MD.",&
-            enum_c_vals=s2a("BASIS_PROJECTION","BLOCKED_PROJECTION_PURIFY_FULL","BLOCKED_PROJECTION"),&
-            enum_i_vals=(/do_admm_basis_projection, do_admm_blocking_purify_full, do_admm_blocked_projection/),&
+            enum_c_vals=s2a("BASIS_PROJECTION","BLOCKED_PROJECTION_PURIFY_FULL","BLOCKED_PROJECTION",&
+            "CHARGE_CONSTRAINED_PROJECTION"),&
+            enum_i_vals=(/do_admm_basis_projection, do_admm_blocking_purify_full, do_admm_blocked_projection,&
+            do_admm_charge_constrained_projection/),&
             enum_desc=s2a("Construct auxiliary density matrix from auxiliary basis.",&
             "Construct auxiliary density from a blocked Fock matrix,"//&
             " but use the original matrix for purification.",&
-            "Construct auxiliary density from a blocked Fock matrix."),&
+            "Construct auxiliary density from a blocked Fock matrix.",&
+            "Construct auxiliary density from auxiliary basis enforcing charge constrain."),&
             default_i_val=do_admm_basis_projection, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EXCH_SCALING_MODEL",&
+            description="Scaling of the exchange correction calculated by the auxiliary density matrix.",&
+            enum_c_vals=s2a("NONE","MERLOT"),&
+            enum_i_vals=(/do_admm_exch_scaling_none, do_admm_exch_scaling_merlot/),&
+            enum_desc=s2a("No scaling is enabled, refers to methods ADMM1, ADMM2 or ADMMQ.",&
+            "Exchange scaling according to Merlot (2014)"),&
+            default_i_val=do_admm_exch_scaling_none, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EXCH_CORRECTION_FUNC",&
+            description="Exchange functional which is used for the ADMM correction.",&
+            enum_c_vals=s2a("DEFAULT","PBEX","NONE","OPTX","BECKE88X"),&
+            enum_i_vals=(/do_admm_aux_exch_func_default, do_admm_aux_exch_func_pbex, &
+            do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_bee/),&
+            enum_desc=s2a("Use PBEX functional for exchange correction, also for truncated and"//&
+            " short Coulomb interaction.",&
+            "Use PBEX functional for exchange correction but always normal form.",&
+            "No correction: X(D)-x(d)-> 0.",&
+            "Use OPTX functional for exchange correction.",&
+            "Use Becke88X functional for exchange correction."),&
+            default_i_val=do_admm_aux_exch_func_default, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        CALL keyword_create(keyword, name="BLOCK_LIST",&
             description="Specifies a list of atoms.",&

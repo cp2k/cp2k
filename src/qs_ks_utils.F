@@ -18,7 +18,6 @@
 ! *****************************************************************************
 
 MODULE qs_ks_utils
-
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
@@ -1223,8 +1222,9 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_aux_fit, rho_ao, &
-                                                rho_ao_aux
+      POINTER                                :: matrix_ks_aux_fit, &
+                                                matrix_ks_aux_fit_dft, &
+                                                rho_ao, rho_ao_aux
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: v_rspace
@@ -1235,13 +1235,15 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (auxbas_pw_pool,dft_control,pw_env,matrix_ks_aux_fit,v_rspace%pw,&
-             rho_aux_fit, vee, rho_ao, rho_ao_aux)
+    NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
+         v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_aux, &
+         matrix_ks_aux_fit_dft)
 
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
                     pw_env=pw_env,&
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft,&
                     v_hartree_rspace=v_rspace%pw,&
                     rho_aux_fit=rho_aux_fit,&
                     vee=vee,&
@@ -1404,16 +1406,30 @@ CONTAINS
           v_rspace_new_aux_fit(ispin)%pw%cr3d  =&
              v_rspace_new_aux_fit(ispin)%pw%pw_grid%dvol * &
              v_rspace_new_aux_fit(ispin)%pw%cr3d
+
+          ! set matrix_ks_aux_fit_dft = matrix_ks_aux_fit(k_HF) 
+          CALL cp_dbcsr_copy(matrix_ks_aux_fit_dft(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, &
+                     name="DFT exch. part of matrix_ks_aux_fit", error=error)
+
+
           ! Add potential to ks_matrix aux_fit
+
           CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin),&
                                   p=rho_ao_aux(ispin),&
                                   h=matrix_ks_aux_fit(ispin),&
                                   qs_env=qs_env, &
                                   calculate_forces=calculate_forces,&
+                                  force_adm=.TRUE.,& 
+                                  ispin=ispin, &
                                   gapw=gapw_xc,&
                                   basis_set_id=use_aux_fit_basis_set,&
                                   error=error)
-           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new_aux_fit(ispin)%pw,&
+
+          ! matrix_ks_aux_fit_dft(x_DFT)=matrix_ks_aux_fit_dft(old,k_HF)-matrix_ks_aux_fit(k_HF-x_DFT)
+          CALL cp_dbcsr_add(matrix_ks_aux_fit_dft(ispin)%matrix, &
+                            matrix_ks_aux_fit(ispin)%matrix, 1.0_dp,-1.0_dp, error)
+
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new_aux_fit(ispin)%pw,&
                error=error)
         END DO
         DEALLOCATE(v_rspace_new_aux_fit,stat=stat)
