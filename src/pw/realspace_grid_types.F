@@ -753,22 +753,26 @@ CONTAINS
              IF (rs%desc%border == 0) THEN
                 CALL dcopy(SIZE(rs%r),rs%r,1,pw%cr3d,1)
              ELSE
-                !$omp parallel workshare default(none) shared(pw,rs)
-                pw%cr3d(:,:,:) = rs%r(rs%lb_real(1):rs%ub_real(1),&
-                                      rs%lb_real(2):rs%ub_real(2),&
-                                      rs%lb_real(3):rs%ub_real(3))
-                !$omp end parallel workshare
+                CPPrecondition(LBOUND(pw%cr3d,3) .EQ. rs%lb_real(3),cp_failure_level,routineP,error,failure)
+                !$omp parallel do default(none) shared(pw,rs)
+                DO i = rs%lb_real(3),rs%ub_real(3)
+                   pw%cr3d(:,:,i) = rs%r(rs%lb_real(1):rs%ub_real(1),&
+                                    rs%lb_real(2):rs%ub_real(2),i)
+                END DO
+                !$omp end parallel do
              END IF
           ELSEIF (pw%in_use == COMPLEXDATA3D) THEN
              IF (rs%desc%border == 0) THEN
                 CALL copy_rc(rs%r,pw%cc3d)
              ELSE
-                !$omp parallel workshare default(none) shared(pw,rs)
-                pw%cc3d(:,:,:) = CMPLX(rs%r(rs%lb_real(1):rs%ub_real(1),&
-                                            rs%lb_real(2):rs%ub_real(2),&
-                                            rs%lb_real(3):rs%ub_real(3)),&
-                                       0.0_dp,KIND=dp)
-                !$omp end parallel workshare
+                CPPrecondition(LBOUND(pw%cr3d,3) .EQ. rs%lb_real(3),cp_failure_level,routineP,error,failure)
+                !$omp parallel do default(none) shared(pw,rs)
+                DO i = rs%lb_real(3),rs%ub_real(3)
+                   pw%cc3d(:,:,i) = CMPLX(rs%r(rs%lb_real(1):rs%ub_real(1),&
+                                          rs%lb_real(2):rs%ub_real(2),i),&
+                                          0.0_dp,KIND=dp)
+                END DO
+                !$omp end parallel do
              END IF
           ELSE
              CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
