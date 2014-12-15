@@ -961,7 +961,7 @@ error)
 !> \param rnd random number
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param mv_type (result) move type
+!> \retval mv_type (result) move type
 !> \author Mandes 12.2012
 !> \note function returns a possible move type without the PT swap moves 
 !> \note (are selected in global tree, this routine is for sub tree elements)

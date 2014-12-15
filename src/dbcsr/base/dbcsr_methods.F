@@ -603,7 +603,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns whether this work matrix uses the mutable type
 !> \param[in] wm              work matrix
-!> \param[out] use_mutable    use the mutable and not append-only working
+!> \retval use_mutable        use the mutable and not append-only working
 !>                            structures
 ! *****************************************************************************
   PURE FUNCTION dbcsr_wm_use_mutable (wm) RESULT (use_mutable)
@@ -618,7 +618,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns whether work matrices should use the mutable data type
 !> \param[in] matrix          matrix
-!> \param[out] use_mutable    use the mutable and not append-only working
+!> \retval use_mutable        use the mutable and not append-only working
 !>                            structures
 ! *****************************************************************************
   PURE FUNCTION dbcsr_use_mutable (matrix) RESULT (use_mutable)
@@ -780,7 +780,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the matrix type
 !> \param matrix              query this matrix
-!> \param matrix_type         matrix_type (see dbcsr_types.F for possible
+!> \retval matrix_type        matrix_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_matrix_type (matrix) RESULT (matrix_type)
@@ -832,7 +832,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Returns the data type stored in the matrix
 !> \param matrix              query this matrix
-!> \param data_type           data_type (see dbcsr_types.F for possible
+!> \retval data_type          data_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
   PURE FUNCTION dbcsr_get_data_type (matrix) RESULT (data_type)
@@ -1264,7 +1264,7 @@ CONTAINS
 !>
 !> The object is destroy when there is no reference to it left.
 !> \param[in] mutable         mutable data
-!> \param[out] instantiated   whether the object is instantiated
+!> \retval instantiated       whether the object is instantiated
 ! *****************************************************************************
   PURE FUNCTION dbcsr_mutable_instantiated (mutable) RESULT (instantiated)
     TYPE(dbcsr_mutable_obj), INTENT(IN)      :: mutable

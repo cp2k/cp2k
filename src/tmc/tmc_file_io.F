@@ -69,7 +69,7 @@ CONTAINS
 !> \param extra string to be added before the file extention
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param result_file_name the new filename
+!> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_ending(file_name, extra, error) RESULT(result_file_name)
@@ -104,7 +104,7 @@ CONTAINS
 !> \param extra string to be added before the file extention
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param result_file_name the new filename
+!> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_char(file_name, extra, error) RESULT(result_file_name)
@@ -139,7 +139,7 @@ CONTAINS
 !> \param rvalue temperature to be added
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param result_file_name the new filename
+!> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_temp(file_name,rvalue, error) RESULT(result_file_name)
@@ -184,7 +184,7 @@ CONTAINS
 !> \param ivalue number to be added
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param result_file_name the new filename
+!> \retval result_file_name the new filename
 !> \author Mandes 11.2012
 ! *****************************************************************************
   FUNCTION expand_file_name_int(file_name,ivalue, error) RESULT(result_file_name)

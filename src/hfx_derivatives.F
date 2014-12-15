@@ -52,8 +52,7 @@ MODULE hfx_derivatives
        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
        hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
        log_zero, pair_list_type, pair_set_list_type
-  USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
-                                             do_hfx_potential_mix_cl_trunc,&
+  USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
                                              do_hfx_potential_truncated,&
                                              hfx_do_eval_forces
   USE input_section_types,             ONLY: section_vals_type
@@ -2066,6 +2065,7 @@ MODULE hfx_derivatives
 !> \param i 2d index
 !> \param j 2d index
 !> \param N matrix size
+!> \retval get_1D_idx ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

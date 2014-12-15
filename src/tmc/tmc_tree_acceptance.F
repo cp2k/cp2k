@@ -935,7 +935,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
 !> \param elem sub tree element to update
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param ready return value
+!> \retval ready return value
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION ready_for_update_acc_prob(elem, error) RESULT(ready)

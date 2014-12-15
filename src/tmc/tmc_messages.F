@@ -84,7 +84,7 @@ CONTAINS
 !> \param para_env defines the mpi communicator
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param master return value, logical
+!> \retval master return value, logical
 !> \author Mandes 01.2013
 ! *****************************************************************************
   FUNCTION check_if_group_master(para_env, error) RESULT(master)

@@ -2659,6 +2659,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Determines whether most blocks are stored transposed in normally.
 !> \param[in] blk_p           Pointers to blocks
+!> \retval mostly_non_transposed ...
 !> \note Tries to be quick and not necessarily accurate.
 ! *****************************************************************************
   PURE FUNCTION mostly_non_transposed (blk_p)

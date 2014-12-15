@@ -429,6 +429,7 @@ MODULE hfx_communication
 !> \param i 2d index
 !> \param j 2d index
 !> \param N matrix size
+!> \retval get_1D_idx ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

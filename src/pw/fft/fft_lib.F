@@ -32,6 +32,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Interface to FFT libraries
 !> \param fftlib ...
+!> \retval flib ...
 !> \par History
 !>      IAB 09-Jan-2009 : Modified to use fft_plan_type
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project

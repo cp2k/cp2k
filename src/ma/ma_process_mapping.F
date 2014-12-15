@@ -102,7 +102,7 @@ END SUBROUTINE
 !> \brief Find the closest square grid for the current number of processes
 !> \brief the grid will be 2**N x 2**N
 !> \param numtask [input] : total number of MPI tasks
-!> \param n [output] : the grid size in one dimension
+!> \retval n [output] : the grid size in one dimension
 !> \par History
 !>      2.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -140,7 +140,7 @@ END FUNCTION ma_find_min_square_grid
 !> \brief Find the max square grid that holds the current number of processes
 !> \brief the grid will be 2**N x 2**N
 !> \param numtask [input] : total number of MPI tasks
-!> \param n [output] : the grid size in one dimension
+!> \retval n [output] : the grid size in one dimension
 !> \par History
 !>      6.2012 created [ Christiane Pousa ]
 ! *****************************************************************************
@@ -177,7 +177,7 @@ END FUNCTION ma_find_max_square_grid
 !> \brief Find the closest 3^level grid for the current number of processes
 !> \brief the grid will be 3**N x 3**N
 !> \param numtask [input] : the total number of MPI tasks
-!> \param n [output] : the grid level in one dimension
+!> \retval n [output] : the grid level in one dimension
 !> \par History
 !>      4.2012 created [ Christiane Pousa ]
 ! *****************************************************************************

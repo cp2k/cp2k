@@ -2374,6 +2374,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the functional identifier
 !> \param func_name the name of the functional
+!> \retval get_func_id ...
 !> \author F. Tran
 !> \note
 !>      The correspondence between the functional name and identifier must be

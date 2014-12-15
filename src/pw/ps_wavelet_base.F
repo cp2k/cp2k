@@ -1691,8 +1691,6 @@ CONTAINS
 !> \param hgrid grid spacing, used for integrating quantities 
 !> \param mpi_group ...
 !> \param error ...
-!> \param ! ...
-!> \param ehartree hartree energy of the potential
 !> \date February 2006
 !> \author S. Goedecker, L. Genovese
 !> \note As transform lengths
@@ -1708,7 +1706,7 @@ CONTAINS
 !>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt . 
 ! *****************************************************************************
   SUBROUTINE F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf,&
-       scal,hgrid,mpi_group,error)!,ehartree)
+       scal,hgrid,mpi_group,error)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
                                                 md1, md2, md3, nproc, iproc
     REAL(KIND=dp), &

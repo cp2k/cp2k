@@ -560,7 +560,7 @@ CONTAINS
 !> \param N ... the numbers of steps of the integration
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param prob ... return probability of acceptance
+!> \retval prob return probability of acceptance
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_prob(E_n_mu,E_n_sigma,E_o_mu,E_o_sigma,E_classical_diff,&
@@ -597,7 +597,7 @@ CONTAINS
 !> \param tmc_params TMC environment parameters
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param prob estimated acceptance probability
+!> \retval prob estimated acceptance probability
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_estimated_prob(elem_old, elem_new, E_classical_diff, &
