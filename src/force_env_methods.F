@@ -383,7 +383,7 @@ CONTAINS
                                          "PRINT%STRESS_TENSOR",error=error)
     END IF
 
-    ! Atomic properties
+    ! Atomic energy      
     output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".Log",error=error)
     IF (atprop_env%energy) THEN
@@ -403,7 +403,14 @@ CONTAINS
            "Difference               :",checksum
           CPPostcondition((checksum < ateps*ABS(e_pot)),cp_fatal_level,routineP,error,failure)
        END IF
+       CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
+                                         "PRINT%PROGRAM_RUN_INFO",error=error)
     END IF
+
+    ! Atomic stress    
+    output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
+                                       extension=".Log",error=error)
+
     IF (atprop_env%stress) THEN
        CALL mp_sum(atprop_env%atstress,force_env%para_env%group)
        ! symmetrize (same as pv_virial)
@@ -460,6 +467,8 @@ CONTAINS
              CPPostcondition((checksum < ateps),cp_fatal_level,routineP,error,failure)
           END IF
        END IF
+       CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
+                                         "PRINT%PROGRAM_RUN_INFO",error=error)
     END IF
 
   END SUBROUTINE force_env_calc_energy_force
