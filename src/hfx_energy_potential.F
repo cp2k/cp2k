@@ -380,6 +380,7 @@ MODULE hfx_energy_potential
 !$OMP                                  ks_matrix,&
 !$OMP                                  energy,&
 !$OMP                                  rho_ao,&
+!$OMP                                  matrix_ks_aux_fit_hfx,&
 !$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  geometry_did_change,&
@@ -1974,12 +1975,11 @@ MODULE hfx_energy_potential
       IF( nspins == 2 .AND. .NOT. treat_lsd_in_core ) THEN
         CALL cp_dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
                             ene_x_bb, error=error)
-      !for ADMMS, we need the exchange matrix k(d) for both spins
-      IF( dft_control%do_admm ) THEN
-        CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2)%matrix, &
-                           name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error)          
-      END IF
-
+        !for ADMMS, we need the exchange matrix k(d) for both spins
+        IF( dft_control%do_admm ) THEN
+          CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2)%matrix, &
+                             name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error)          
+        END IF
       END IF
 
       !! Update energy type

@@ -279,6 +279,19 @@ CONTAINS
          force=force,&
          virial=virial,error=error)
 
+    admm_scal_fac = 1.0_dp
+    IF(my_force_adm) THEN
+       CALL get_qs_env(qs_env=qs_env,admm_env=admm_env,error=error)
+       ! Calculate bare scaling of force according to Merlot, 1. IF: ADMMP, 2. IF: ADMMS,
+       IF( ( .NOT. admm_env%charge_constrain) .AND. &
+            (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
+            admm_scal_fac = admm_env%gsi(ispin)**2
+       ELSE IF( admm_env%charge_constrain .AND. &
+           (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
+            admm_scal_fac = (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)
+       END IF
+    END IF
+
     ! short cuts to task list variables
     tasks  =>task_list%tasks
     dist_ab=>task_list%dist_ab
@@ -410,7 +423,7 @@ CONTAINS
 
 !$omp parallel default(none), &
 !$omp shared(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
-!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,ddv,deltap,use_virial), &
+!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,ddv,deltap,use_virial,admm_scal_fac), &
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
 !$omp shared(gridlevel_info,task_list,failure,block_touched,nthread,qs_kind_set), &
@@ -736,25 +749,6 @@ CONTAINS
                   1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                   work(1,1),SIZE(work,1),&
                   1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
-          END IF
-       END IF
-
-       
-       admm_scal_fac = 1.0_dp
-       IF(my_force_adm) THEN
-          CALL get_qs_env(qs_env=qs_env,&
-                          admm_env=admm_env,&
-                          error=error)
-
-          ! Calculate bare scaling of force according to Merlot, 1. IF: ADMMP, 2. IF: ADMMS,
-          IF( ( .NOT. admm_env%charge_constrain) .AND. &
-               (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
-               admm_scal_fac = admm_env%gsi(ispin)**2
-
-          ELSE IF( admm_env%charge_constrain .AND. &
-              (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
-               admm_scal_fac = (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)
-
           END IF
        END IF
 

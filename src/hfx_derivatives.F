@@ -1132,17 +1132,6 @@ MODULE hfx_derivatives
             symm_fac = 1.0_dp/symm_fac
             fac = fac * symm_fac
 
-            !scale force by gsi**2
-            IF(dft_control%do_admm) THEN
-               ! IF: ADMMP
-                   IF( ( .NOT. admm_env%charge_constrain) .AND. &
-                            (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
-
-                      !  fac = fac * admm_env%gsi(3)**2
- 
-               END IF
-             END IF
-
             lc_max => basis_parameter(kkind)%lmax
             lc_min => basis_parameter(kkind)%lmin
             npgfc => basis_parameter(kkind)%npgf
