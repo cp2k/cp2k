@@ -351,6 +351,16 @@ MODULE mp2_cphf
       CALL timestop(handle2)
     END IF
 
+    ! not a good idea having screening on initial P
+    IF(qs_env%x_data(1,1)%screening_parameter%do_initial_p_screening) THEN
+      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                     "CPHF-like update of the Hartree Fock exchange part requested with the use "//&
+                     "of SCREEN_ON_INITIAL_P. This may lead to unphysical results. "//&
+                     "Set SCREEN_ON_INITIAL_P to false to avoid possible problems. "//&
+                     CPSourceFileRef,&
+                     only_ionode=.TRUE.)
+    END IF
+
     ! update lagrangian with the CPHF like update, occ-occ block, first call (recompute hfx integrals if needed)
     transf_type_in=1
     transf_type_out=1

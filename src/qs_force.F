@@ -333,9 +333,7 @@ CONTAINS
            CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-         CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,dealloc=.FALSE.,&
-                               s_mstruct_changed=qs_env%mp2_env%ri_mp2%free_hfx_buffer,&
-                               error=error)
+         CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
          CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE., error=error)
          energy%total = energy%total + energy%mp2
          ! deallocate mp2_W 
