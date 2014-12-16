@@ -954,9 +954,6 @@ END SUBROUTINE qs_ks_retain
 !> \param rho_changed if true it means that the density has changed
 !> \param potential_changed ...
 !> \param full_reset if true everything has changed
-!> \param dealloc defaults to true, if set to false the matrices are not
-!>                deallocted when mstruct_changed is set.
-!>                Only meant as a workaround for MP2's call in qs_force.F
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -965,27 +962,22 @@ END SUBROUTINE qs_ks_retain
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,&
-                              potential_changed,full_reset,dealloc,error)
+                              potential_changed,full_reset,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
                                                 rho_changed, &
-                                                potential_changed, &
-                                                full_reset, dealloc
+                                                potential_changed, full_reset
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_did_change', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, my_dealloc, &
-                                                my_mstruct_chg
+    LOGICAL                                  :: failure, my_mstruct_chg
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     my_mstruct_chg = .FALSE.
-
-    my_dealloc = .TRUE.
-    IF (PRESENT(dealloc)) my_dealloc = dealloc
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
 
@@ -1010,14 +1002,12 @@ END SUBROUTINE qs_ks_retain
 
     IF(my_mstruct_chg) THEN
        ks_env%s_mstruct_changed = .TRUE.
-       IF(my_dealloc) THEN
-          ! *** deallocate matrices that will have the wrong structure ***
-          CALL kpoint_transitional_release(ks_env%matrix_ks, error)
-          CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit,error)
-          !TODO: deallocate imaginary parts as well
-          !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im,error)
-          !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im,error)
-       ENDIF
+       ! *** deallocate matrices that will have the wrong structure ***
+       CALL kpoint_transitional_release(ks_env%matrix_ks, error)
+       CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit,error)
+       !TODO: deallocate imaginary parts as well
+       !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im,error)
+       !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im,error)
     ENDIF
 
     CALL  timestop(handle)
