@@ -248,7 +248,7 @@ CONTAINS
              efield_ener=efield_ener-zeff*DOT_PRODUCT(r,field)
               IF(my_force)THEN
                 CALL get_qs_env(qs_env=qs_env,force=force,error=error)
-                force(ikind)%efield(:,iatom)=force(ikind)%efield(:,iatom)+field*zeff
+                force(ikind)%efield(:,iatom)=force(ikind)%efield(:,iatom)-field*zeff
              END IF
           END DO
 

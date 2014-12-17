@@ -676,10 +676,6 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,becke%becke_pot%pw,error=error)
        END IF
 
-       IF (dft_control%apply_efield_field) THEN
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_efield_rspace%pw,error=error)
-       END IF
-
        IF (dft_control%do_sccs) THEN
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_sccs_rspace%pw,error=error)
        END IF
