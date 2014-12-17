@@ -23,3 +23,10 @@ hbn3_1h2o_dipcor_ff.inp
 hbn3_1h2o_dipcor_ff_pyz.inp
 new defaults for preconditioner
 hbn3_1h2o_ff_pyz_2dps.inp
+#fix for generalized arnoldi ev
+hbn3_1h2o_ff.inp
+hbn3_1h2o_ff_pyz.inp
+#fix for generalized arnoldi ev
+hbn3_1h2o_dipcor_ff.inp
+hbn3_1h2o_dipcor_ff_pyz.inp
+hbn3_1h2o_ff_pyz_2dps.inp

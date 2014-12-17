@@ -749,7 +749,7 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
        ALLOCATE(matrices(2))
        matrices(1)%matrix=>preconditioner_env%sparse_matrix
        matrices(2)%matrix=>matrix_s
-       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=20,threshold=2.0E-2_dp,selection_crit=2,&
+       CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,matrices,max_iter=20,threshold=2.0E-2_dp,selection_crit=3,&
                                         nval_request=1, nrestarts=21,generalized_ev=.TRUE.,iram=.FALSE.)
     ELSE
        ALLOCATE(matrices(1))

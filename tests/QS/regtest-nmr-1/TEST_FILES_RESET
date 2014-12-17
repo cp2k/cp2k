@@ -531,3 +531,6 @@ H2O-NMR-9.inp
 H2O-NMR-3.inp
 #improvements to full_single inverse
 H2O-NMR-9.inp
+#fix for generalized arnoldi ev
+H2O-NMR-3.inp
+H2O-NMR-9.inp

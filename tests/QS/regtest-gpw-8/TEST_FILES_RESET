@@ -27,3 +27,5 @@ bug_ai_moments.inp
 bug_ai_moments.inp
 new defaults for preconditioner
 bug_ai_moments.inp
+#fix for generalized arnoldi ev
+bug_ai_moments.inp

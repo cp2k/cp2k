@@ -33,7 +33,6 @@ MODULE dbcsr_arnoldi_types
      LOGICAL                                 :: symmetric
      LOGICAL                                 :: generalized_ev
      LOGICAL                                 :: iram
-     LOGICAL                                 :: max_ev_request
      LOGICAL                                 :: has_initial_vector
      INTEGER, DIMENSION(:), POINTER          :: selected_ind    ! list of indicies matching the selection criterium
   END TYPE arnoldi_control

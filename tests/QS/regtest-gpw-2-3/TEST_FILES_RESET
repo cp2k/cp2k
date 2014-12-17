@@ -66,3 +66,13 @@ Au12_rmsd_A_mtd.inp
 #reset for new defaults
 H2O_meta_pop.inp
 H2O_meta_langevin.inp
+#fix for generalized arnoldi ev
+hcn_ts.inp
+hcn_ts_r.inp
+hcn_md.inp
+hcn_meta_coord.inp
+hcn_meta_chaincoord.inp
+hcn_meta_chaincoord_kind.inp
+Au13ico_mtd.inp
+Au12_rmsd_AB_mtd.inp
+Au12_rmsd_A_mtd.inp

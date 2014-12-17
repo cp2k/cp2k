@@ -541,11 +541,7 @@
 
     ! if the maximum ev is requested we need to optimize with -A-rho*B
     CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix,error=error)
-    IF(control%max_ev_request)THEN
-       CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, -[nametype_one], -ar_data%rho_scale, error)
-    ELSE
-       CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, [nametype_one], -ar_data%rho_scale, error)
-    END IF
+    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, [nametype_one], -ar_data%rho_scale, error)
    
     ar_data%x_vec=v_vec
 
@@ -707,11 +703,7 @@
 
 ! update the C-matrix (A-rho*B), if teh maximum value is requested we have to use -A-rho*B
     CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix,error=error)
-    IF(control%max_ev_request)THEN
-       CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, -[nametype_one], -ar_data%rho_scale, error)
-    ELSE
-       CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, [nametype_one], -ar_data%rho_scale, error)
-    END IF
+    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, [nametype_one], -ar_data%rho_scale, error)
 
 ! compute convergence and set the correct eigenvalue and eigenvector
     CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local)
@@ -731,11 +723,7 @@
     CALL mp_bcast(ar_data%rho_scale,0,control%mp_group)
 
 ! Again the maximum value request is done on -A therefore the eigenvalue needs the opposite sign
-    IF(control%max_ev_request)THEN
-       ar_data%evals(ind)=-ar_data%rho_scale
-    ELSE
-       ar_data%evals(ind)=ar_data%rho_scale
-    END IF
+    ar_data%evals(ind)=ar_data%rho_scale
 
     DEALLOCATE(v_vec)
 

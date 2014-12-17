@@ -4,3 +4,5 @@ ch4-ch4-gpw-vdw.inp
 ch4-ch4-gpw-vdw.inp
 new defaults for preconditioner
 ch4-ch4-gpw-vdw.inp
+#fix for generalized arnoldi ev
+ch4-ch4-gpw-vdw.inp

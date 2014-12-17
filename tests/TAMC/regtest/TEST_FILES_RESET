@@ -21,3 +21,5 @@ new defaults for preconditioner
 dimer.inp
 #defaults for prec
 dimer.inp
+#fix for generalized arnoldi ev
+dimer.inp

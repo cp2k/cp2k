@@ -384,3 +384,5 @@ h2o-no2-selected-states-1.inp
 h2o-no2-selected-states-1.inp
 new defaults for preconditioner
 h2o-no2-selected-states-1.inp
+#fix for generalized arnoldi ev
+h2o-no2-selected-states-1.inp

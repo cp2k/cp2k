@@ -9,3 +9,5 @@ reset tests for vector transfer
 H2O-IP-meta.inp
 new defaults for preconditioner
 H2O-IP-meta.inp
+#fix for generalized arnoldi ev
+H2O-IP-meta.inp

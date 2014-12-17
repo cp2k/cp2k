@@ -6,3 +6,5 @@ multipole_charge.dbg_st.inp
 multipole_dip_qu.dbg_st.inp
 multipole_dipole.dbg_st.inp
 multipole_quadrupole.dbg_st.inp
+#fix for generalized arnoldi ev
+water_charge_no_array.inp

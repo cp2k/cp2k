@@ -155,8 +155,6 @@ CONTAINS
 
     control%nrestart=nrestarts
     control%generalized_ev=generalized_ev
-    control%max_ev_request=.FALSE.
-    IF(selection_crit==2)control%max_ev_request=.TRUE.
 ! some checks for the generalized EV mode
     IF(control%generalized_ev.AND.selection_crit==1)STOP 'generalized ev can only highest OR lowest EV'
     IF(control%generalized_ev.AND.nval_request.NE.1)STOP 'generalized ev can only compute one EV at the time'
