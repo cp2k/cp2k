@@ -14,19 +14,23 @@ How to compile CP2K code
 
     For released branch versions:
 
-    svn checkout svn://svn.code.sf.net/p/cp2k/code/branches/cp2k-2_3-branch cp2k
+    svn checkout svn://svn.code.sf.net/p/cp2k/code/branches/cp2k-2_5-branch cp2k
 
     If SVN is not installed on your system get it at
        http://subversion.apache.org/
+
+ 2) Sub-points here discuss prerequisites needed to build CP2K. Some of these can be conveniently installed by a script
+    see: cp2k/tools/toolchain
 
  2a) GNU make should be on your system (gmake or make on linux) and used for
      the build, go to
          http://www.gnu.org/software/make/make.html 
      download from
          http://ftp.gnu.org/pub/gnu/make/
+     also python (2.X) is required for building.
 
- 2b) A Fortran 95 compiler should be installed on your system. We have good
-     experience with gfortran 4.4.X and above.  Be aware that some compilers
+ 2b) A Fortran 95 compiler and matching C compiler should be installed on your system. We have good
+     experience with gcc/gfortran 4.6.X and above.  Be aware that some compilers
      have bugs that might cause them to fail (internal compiler errors,
      segfaults) or, worse, yield a miscompiled CP2K. Report bugs to compiler
      vendors; they (and we) have an interest in fixing them.
