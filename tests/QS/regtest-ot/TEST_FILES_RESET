@@ -1012,3 +1012,5 @@ He2_none_full_all.inp
 He2_none_full_inverse.inp
 new defaults for preconditioner
 H2-diffBECKE-ET_coupling.inp
+# fix for generalized arnoldi ev
+He2_none_full_inverse.inp
