@@ -75,7 +75,6 @@ MODULE xas_env_types
     INTEGER :: nao,exc_state, xas_estate
     INTEGER :: nexc_search, nexc_atoms
     INTEGER :: nvirtual,nvirtual2
-!    INTEGER :: scf_method, mixing_method
     INTEGER :: unoccupied_max_iter
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
     INTEGER, DIMENSION(:), POINTER :: atom_of_state
@@ -99,11 +98,9 @@ MODULE xas_env_types
     TYPE( cp_fm_type ), POINTER :: unoccupied_orbs
     TYPE( cp_fm_type ), POINTER :: all_vectors
     TYPE( cp_fm_type ), POINTER :: fm_work
-!    TYPE(mixing_storage_type), POINTER :: mixing_store
     TYPE( cp_dbcsr_p_type ), DIMENSION(:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
-!    TYPE(smear_type), POINTER   :: smear
     TYPE(scf_control_type), POINTER          :: scf_control
 
 
@@ -348,7 +345,6 @@ CONTAINS
       xas_env%iter_count=0
       xas_env%nvirtual=0
       xas_env%nvirtual2=0
-!      xas_env%mixing_method=1
 
       NULLIFY(xas_env%ao_mo_fm_pools)
       NULLIFY(xas_env%my_gto_basis)
@@ -364,10 +360,6 @@ CONTAINS
       NULLIFY(xas_env%stogto_overlap)
       NULLIFY(xas_env%scf_env)
       NULLIFY(xas_env%scf_control)
-!
-!      NULLIFY(xas_env%mixing_store)
-!      NULLIFY(xas_env%smear)
-!
 
     END IF
 

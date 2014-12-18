@@ -112,8 +112,6 @@ MODULE qs_scf_diagonalization
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xas_env_types,                   ONLY: xas_environment_type
-  USE xas_restart,                     ONLY: find_excited_core_orbital
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -124,7 +122,7 @@ MODULE qs_scf_diagonalization
 
   PUBLIC :: do_general_diag, do_general_diag_kp, do_roks_diag, &
             do_special_diag, do_ot_diag, do_block_davidson_diag, &
-            do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate
+            do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate, general_eigenproblem
 
 
 CONTAINS
@@ -139,15 +137,14 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
-!> \param xas_env ...
 !> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
 
-  SUBROUTINE do_general_diag(scf_env,mos,matrix_ks,&
+  SUBROUTINE general_eigenproblem(scf_env,mos,matrix_ks,&
                              matrix_s,scf_control,scf_section,&
-                             diis_step,xas_env,error)
+                             diis_step,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -157,11 +154,9 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(xas_environment_type), OPTIONAL, &
-      POINTER                                :: xas_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'general_eigenproblem', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspin
@@ -269,22 +264,46 @@ CONTAINS
       END DO
     END IF
 
-    IF (PRESENT(xas_env)) THEN
-      CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
-      CALL set_mo_occupation(mo_set=mos(1)%mo_set,&
+  END SUBROUTINE general_eigenproblem
+
+! *****************************************************************************
+!> \brief ...
+!> \param scf_env ...
+!> \param mos ...
+!> \param matrix_ks ...
+!> \param matrix_s ...
+!> \param scf_control ...
+!> \param scf_section ...
+!> \param diis_step ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE do_general_diag( scf_env,mos,matrix_ks,&
+                             matrix_s,scf_control,scf_section,&
+                             diis_step,error)
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(INOUT)                   :: diis_step
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, nspin
+
+    nspin = SIZE(matrix_ks)
+
+    CALL general_eigenproblem(scf_env,mos,matrix_ks,&
+               matrix_s,scf_control,scf_section, diis_step,error=error)
+
+    CALL set_mo_occupation(mo_array=mos,&
                              smear=scf_control%smear,&
-                             xas_env=xas_env,&
                              error=error)
-      DO ispin=2,nspin
-         CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                                smear=scf_control%smear,&
-                                error=error)
-      END DO
-    ELSE
-      CALL set_mo_occupation(mo_array=mos,&
-                             smear=scf_control%smear,&
-                             error=error)
-    END IF
 
     DO ispin=1,nspin
       ! does not yet handle k-points

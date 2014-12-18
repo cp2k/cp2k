@@ -191,21 +191,18 @@ CONTAINS
 !> \param dft_control ...
 !> \param qs_env ...
 !> \param matrix_s ...
-!> \param mo_array ...
 !> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
-       mo_array,energy,calculate_forces, just_energy,error)
+       energy,calculate_forces, just_energy,error)
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -220,6 +217,10 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fm_mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+
+    NULLIFY (fm_mo_derivs,mo_array,mo_coeff,mo_derivs)
 
     IF (dft_control%qs_control%s2_restraint) THEN
     ! adds s2_restraint energy and orbital derivatives

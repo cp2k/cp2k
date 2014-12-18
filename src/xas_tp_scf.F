@@ -70,7 +70,9 @@ MODULE xas_tp_scf
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              localized_wfn_control_type,&
                                              qs_loc_env_new_type
-  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             calculate_subspace_eigenvalues
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -79,7 +81,7 @@ MODULE xas_tp_scf
                                              qs_rho_type
   USE qs_scf,                          ONLY: scf_env_cleanup,&
                                              scf_env_do_scf
-  USE qs_scf_diagonalization,          ONLY: do_general_diag
+  USE qs_scf_diagonalization,          ONLY: general_eigenproblem
   USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
   USE qs_scf_methods,                  ONLY: scf_env_density_mixing
   USE qs_scf_output,                   ONLY: qs_scf_print_summary
@@ -93,7 +95,8 @@ MODULE xas_tp_scf
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              set_xas_env,&
                                              xas_environment_type
-  USE xas_restart,                     ONLY: xas_write_restart
+  USE xas_restart,                     ONLY: find_excited_core_orbital,&
+                                             xas_write_restart
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -142,7 +145,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, ispin, &
-                                                iter_count, output_unit
+                                                iter_count, nspin, output_unit
     LOGICAL                                  :: diis_step, energy_only, &
                                                 exit_loop, failure, gapw
     REAL(KIND=dp)                            :: t1, t2
@@ -209,6 +212,7 @@ CONTAINS
 
     iter_count = 0
     diis_step = .FALSE.
+    nspin = dft_control%nspins
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -241,9 +245,31 @@ CONTAINS
 
        CASE(general_diag_method_nr) ! diagonalisation (default)
           scf_env%iter_count=iter_count
-          CALL do_general_diag(scf_env,mos,matrix_ks,&
+          CALL general_eigenproblem(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
-                               diis_step,xas_env,error)
+                               diis_step,error)
+          CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
+          CALL set_mo_occupation(mo_set=mos(1)%mo_set,&
+                             smear=scf_control%smear,&
+                             xas_env=xas_env,&
+                             error=error)
+          CALL set_mo_occupation(mo_set=mos(2)%mo_set,&
+                                smear=scf_control%smear,&
+                                error=error)
+          DO ispin=1,nspin
+            ! does not yet handle k-points
+            CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                                    scf_env%p_mix_new(ispin,1)%matrix,&
+                                    error=error)
+          END DO
+          energy%kTS = 0.0_dp
+          energy%efermi = 0.0_dp
+          DO ispin=1,nspin
+             energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
+             energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
+          ENDDO
+          energy%efermi = energy%efermi /REAL(nspin,KIND=dp)
+
        END SELECT
 
        SELECT CASE(scf_env%mixing_method)
@@ -313,7 +339,7 @@ CONTAINS
 
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method > 0) THEN
-          DO ispin=1,dft_control%nspins
+          DO ispin=1,nspin
              ! does not yet handle k-points
              CALL cp_dbcsr_copy(rho_ao_kp(ispin,1)%matrix,scf_env%p_mix_new(ispin,1)%matrix,&
                   error=error)

@@ -166,6 +166,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ispin
     LOGICAL                                  :: failure, has_unit_metric, &
                                                 scp_nddo, skip_diag_sub
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -276,6 +277,16 @@ CONTAINS
        ENDIF
        ! ***SCP
     END SELECT
+
+    energy%kTS = 0.0_dp
+    energy%efermi = 0.0_dp
+    CALL get_qs_env(qs_env,mos=mos,error=error)
+    DO ispin=1,SIZE(mos)
+       energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
+       energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
+    ENDDO
+    energy%efermi = energy%efermi /REAL(SIZE(mos),KIND=dp)
+
  
   END SUBROUTINE qs_scf_new_mos 
 

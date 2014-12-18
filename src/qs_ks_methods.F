@@ -230,8 +230,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
       v_hartree_rspace, v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r
@@ -255,7 +253,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, becke, cell, dft_control, ep_qs_env, logger, &
-         mo_array, mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
+         mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
          vppl_rspace, v_hartree_rspace%pw, adiabatic_rescaling_section, &
          hfx_sections, input, scf_section, xc_section, matrix_h, matrix_s, &
          auxbas_pw_pool, poisson_env, pw_pools, v_rspace_new, &
@@ -714,20 +712,6 @@ CONTAINS
           IF(.FALSE.)WRITE(*,*) 'after',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
        ENDDO
 
-       ! prepare to add electronic entropic contribution if needed
-       ! this, however, is a term that is specific to the SCF method, so should be moved out of qs_ks_methods
-       ! doing so influences xas at this point.
-       IF (dft_control%smear .AND. .NOT. dft_control%qs_control%do_ls_scf) THEN
-          energy%kTS = 0.0_dp
-          energy%efermi = 0.0_dp
-          CALL get_qs_env(qs_env,mos=mo_array,error=error)
-          DO ispin=1,SIZE(mo_array)
-             energy%kTS = energy%kTS + mo_array(ispin)%mo_set%kTS
-             energy%efermi = energy%efermi + mo_array(ispin)%mo_set%mu
-          ENDDO
-          energy%efermi = energy%efermi /REAL(SIZE(mo_array),KIND=dp)
-       ENDIF
-
        !** merge the auxiliary KS matrix and the primary one
        IF(dft_control%do_admm_mo) THEN
          IF(qs_env%run_rtp) THEN
@@ -758,7 +742,7 @@ CONTAINS
        CALL qs_efield_berry_phase(ks_env,qs_env,calculate_forces,error)
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
-            mo_array,energy,calculate_forces, just_energy,error)
+            energy,calculate_forces, just_energy,error)
 
        IF ( do_ppl ) THEN
          ! update core energy for grid based local pseudopotential

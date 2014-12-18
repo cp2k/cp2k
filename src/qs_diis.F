@@ -386,15 +386,8 @@ CONTAINS
 
       ELSE
 
-!       Using the not integer occ. numbers makes the algorithm instable
-!       IF(.NOT. mo_uocc) THEN
-!         CALL cp_fm_to_fm(c,sc)
-!         CALL cp_fm_column_scale(sc,occa(1:homo))
-!         CALL cp_fm_symm("L","U",nao,homo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
-!       ELSE
-          ! KC <- K*C
-          CALL cp_fm_symm("L","U",nao,homo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix,error=error)
-!       END IF
+        ! KC <- K*C
+        CALL cp_fm_symm("L","U",nao,homo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix,error=error)
 
         IF (PRESENT(s_matrix)) THEN
           ! I guess that this copy can be avoided for LSD
