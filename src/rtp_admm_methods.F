@@ -469,24 +469,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param x ...
-!> \retval Heaviside ...
-! *****************************************************************************
-  FUNCTION Heaviside(x)
-    REAL(KIND=dp), INTENT(IN)                :: x
-    REAL(KIND=dp)                            :: Heaviside
-
-    IF( x < 0.0_dp ) THEN
-      Heaviside = 0.0_dp
-    ELSE
-      Heaviside = 1.0_dp
-    END IF
-  END FUNCTION Heaviside
-
-
-
-! *****************************************************************************
-!> \brief ...
 !> \param qs_env ...
 !> \param error ...
 ! *****************************************************************************
@@ -615,25 +597,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE rt_merge_ks_matrix_none
-
-! *****************************************************************************
-!> \brief ...
-!> \param x ...
-!> \retval delta ...
-! *****************************************************************************
-  FUNCTION delta(x)
-    REAL(KIND=dp), INTENT(IN)                :: x
-    REAL(KIND=dp)                            :: delta
-
-    IF( x == 0.0_dp) THEN
-      delta = 1.0_dp
-    ELSE
-      delta = 0.0_dp
-    END IF
-
-  END FUNCTION delta
- 
-
-
 
 END MODULE rtp_admm_methods
