@@ -1001,9 +1001,6 @@ CONTAINS
                CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
                               routineP,"NOT YET IMPLEMENTED with S preconditioner. ", error, failure)
 
-               nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
-               IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
-
                ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
                                         ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, error)
