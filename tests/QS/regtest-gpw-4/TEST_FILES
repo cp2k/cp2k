@@ -26,7 +26,7 @@ test-pdb.inp                      1     4e-14
 # Spin density DDAP charges
 H2O+SC.inp         0
 # spin restraint
-spin_restraint.inp                1     4e-12
+spin_restraint.inp                1     8e-12
 #New grouping colvar
 H2O-meta_g.inp     1
 #Colvar for hydronium
