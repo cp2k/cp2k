@@ -100,7 +100,7 @@ CONTAINS
           IF(preconditioner_env%condition_num<0.0_dp)&
              CALL estimate_cond_num(preconditioner_env%sparse_matrix, preconditioner_env%condition_num, error)
           CALL cp_dbcsr_filter(preconditioner_env%sparse_matrix,&
-                               1.0_dp/ preconditioner_env%condition_num*0.1_dp, error=error)
+                               1.0_dp/ preconditioner_env%condition_num*0.01_dp, error=error)
           occ_matrix=cp_dbcsr_get_occupation(preconditioner_env%sparse_matrix)
        END IF
        ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
@@ -285,7 +285,7 @@ CONTAINS
     END IF 
 
     ! Try to get a reasonbale guess for the filtering threshold
-    filter_eps=1.0_dp/preconditioner_env%condition_num
+    filter_eps=1.0_dp/preconditioner_env%condition_num*0.1_dp
 
     ! Agressive filtering on the initial guess is needed to avoid fill ins and retain sparsity
     CALL cp_dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps*100.0_dp, error=error)

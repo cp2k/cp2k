@@ -744,3 +744,5 @@ new defaults for preconditioner
 H2O-OT-5.inp
 new defaults for preconditioner
 H2O-inverse_up.inp
+# new filtering thrsholds
+H2O-inverse_up.inp
