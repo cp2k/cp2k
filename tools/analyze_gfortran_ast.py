@@ -40,7 +40,7 @@ UNDEF_EXCEPTIONS += ('SROTG', 'DROTG', 'CROTG', 'ZROTG', 'SROTMG', 'DROTMG', 'SR
 UNDEF_EXCEPTIONS += ('SGEEV', 'SLARNV', 'SPOTRF', 'SPOTRI',
                      'DGEEV', 'DGEQRF', 'DGESDD', 'DGESV', 'DGETRF', 'DGETRI',
                      'DGETRS', 'DLACPY', 'DLARNV', 'DPOTRF', 'DPOTRI', 'DSYEV', 'DSYEVD',
-                     'DSYEVX', 'DSYGST', 'DTRTRI',
+                     'DSYEVX', 'DSYGST', 'DTRTRI', 'DSYTRD', 'DSTERF',
                      'CPOTRF', 'CPOTRI', 'CGEEV', 'CLARNV',
                      'ZGEEV', 'ZGETRF', 'ZGETRS', 'ZHEEVD', 'ZLARNV', 'ZPOTRF', 'ZPOTRI', 'ZTRTRI',
                      'CGEQRF', 'CGEQRF', 'CUNGQR', 'CUNGQR', 'ZGEQRF', 'ZGEQRF', 'ZUNGQR','ZUNGQR',
