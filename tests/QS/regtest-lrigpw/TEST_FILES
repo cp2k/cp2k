@@ -7,7 +7,7 @@
 # LRIGPW
 H2He_tz2p_lri.inp                 1     6e-12
 H2_tz2p_lri_diag.inp              1     8e-12
-H2_tz2p_lri_ot.inp                1     4e-12
+H2_tz2p_lri_ot.inp                1     9e-12
 O2_opt_lribas.inp                 46
 O2_opt_lribas_contract.inp        46
 O2_debug_ints.inp                 0
