@@ -128,7 +128,8 @@ MODULE input_cp2k_dft
                                              precond_spl3_3,&
                                              precond_spl3_aint,&
                                              precond_spl3_aint2
-  USE string_utilities,                ONLY: s2a
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1753,7 +1754,8 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="NLUMO",&
-            description="Number of virtual orbitals to be added to the MO set (-1=all)",&
+            description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline//&
+            "CAUTION: Setting this value to be higher than the number of states present may cause a Cholesky error.",&
             usage="NLUMO integer",default_i_val=0, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
