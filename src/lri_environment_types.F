@@ -84,6 +84,8 @@ MODULE lri_environment_types
      INTEGER                                                 :: nfa
      ! number of spherical fit basis functions (bi)
      INTEGER                                                 :: nfb
+     ! condition number of overlap matrix
+     REAL(KIND=dp)                                           :: cond_num
      ! integrals (a,b,ai)
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: abaint
      ! integrals (a,b,bi)
@@ -161,10 +163,6 @@ MODULE lri_environment_types
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: orb_ovlp
   END TYPE lri_bas_overlap_type
 
-  TYPE lri_gcc_p_type
-     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: gcc_orig
-  END TYPE lri_gcc_p_type
-
 ! *****************************************************************************
 
   TYPE lri_environment_type
@@ -175,8 +173,6 @@ MODULE lri_environment_types
      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis
      ! lri (fit) basis set 
      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: ri_basis
-     ! holds the original contraction coeff of the lri basis
-     TYPE(lri_gcc_p_type), DIMENSION(:), POINTER             :: ri_gcc_orig
      ! orb_basis neighborlist, LRI integrals
      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list
      ! local RI integrals
@@ -283,7 +279,6 @@ CONTAINS
 
     NULLIFY(lri_env%orb_basis)
     NULLIFY(lri_env%ri_basis)
-    NULLIFY(lri_env%ri_gcc_orig)
 
     NULLIFY(lri_env%soo_list)
     NULLIFY(lri_env%lri_ints)
@@ -330,15 +325,6 @@ CONTAINS
              CALL deallocate_gto_basis_set(lri_env%ri_basis(ikind)%gto_basis_set,error)
           END DO
           DEALLOCATE(lri_env%ri_basis,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF(ASSOCIATED(lri_env%ri_gcc_orig)) THEN
-          nkind = SIZE(lri_env%ri_gcc_orig)
-          DO ikind=1,nkind
-             DEALLOCATE(lri_env%ri_gcc_orig(ikind)%gcc_orig,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END DO
-          DEALLOCATE(lri_env%ri_gcc_orig,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
        IF (ASSOCIATED(lri_env%soo_list)) THEN

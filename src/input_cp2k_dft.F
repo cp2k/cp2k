@@ -47,30 +47,30 @@ MODULE input_cp2k_dft
        do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
        do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
        do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
-       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
-       do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-       do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, &
-       do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
-       do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
-       do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
-       do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
-       do_spin_density, do_taylor, ehrenfest, gaussian, gaussian_env, &
-       general_roks, high_spin_roks, history_guess, kerker_mix, &
-       kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, &
-       ls_2pnt, ls_3pnt, ls_gold, ls_none, mopac_guess, multisec_mix, &
-       no_excitations, no_guess, no_mix, numerical, oe_gllb, oe_lb, oe_none, &
-       oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, &
-       orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, &
-       orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-       ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
-       ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
-       ot_precond_full_single, ot_precond_full_single_inverse, &
-       ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
-       ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-       ot_precond_solver_update, outer_scf_becke_constraint, &
-       outer_scf_ddapc_constraint, outer_scf_none, &
-       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps, do_method_am1, &
+       do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+       do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
+       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
+       do_method_rm1, do_method_scptb, do_pade, do_ppl_analytic, do_ppl_grid, &
+       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+       do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
+       do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
+       do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
+       ehrenfest, gaussian, gaussian_env, general_roks, high_spin_roks, &
+       history_guess, kerker_mix, kg_color_dsatur, kg_color_greedy, &
+       kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
+       mopac_guess, multisec_mix, no_excitations, no_guess, no_mix, &
+       numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, &
+       op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
+       orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
+       ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, &
+       ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
+       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+       ot_precond_solver_default, ot_precond_solver_direct, &
+       ot_precond_solver_inv_chol, ot_precond_solver_update, &
+       outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
+       outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
        outer_scf_s2_constraint, outer_scf_scp, plus_u_lowdin, &
        plus_u_mulliken, plus_u_mulliken_charges, pulay_mix, pw_interp, &
@@ -5415,6 +5415,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -5426,7 +5427,7 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="ACCURACY", &
             description="Target accuracy for the objective function (RHOEND)",&
@@ -5449,8 +5450,97 @@ CONTAINS
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
+       CALL keyword_create(keyword, name="CONDITION_WEIGHT", &
+            description="This keyword allows to give different weight "//&
+            "factors to the condition number (LOG(cond) is used).",&
+            usage="CONDITION_WEIGHT 1.0E-4", default_r_val=1.0E-6_dp,&
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="USE_CONDITION_NUMBER",&
+            description="Determines whether condition number should be part "//&
+            "of optimization or not",&
+            usage="USE_CONDITION_NUMBER",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GEOMETRIC_SEQUENCE",&
+            description="Exponents are assumed to be a geometric squence. "//&
+            "Only the minimal and maximal exponents of one set are optimized and "//&
+            "the other exponents are obtained by geometric progression.",&
+            usage="GEOMETRIC_SEQUENCE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DEGREES_OF_FREEDOM",&
+            description="Specifies the degrees of freedom in the basis "//&
+                        "optimization.",&
+            usage="DEGREES_OF_FREEDOM ALL", &
+            enum_c_vals=s2a( "ALL", "COEFFICIENTS","EXPONENTS"),&
+            enum_desc=s2a("Set all parameters in the basis to be variable.",&
+                          "Set all coefficients in the basis set to be variable.",&
+                          "Set all exponents in the basis to be variable."),&
+            enum_i_vals=(/do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps/),&
+            default_i_val=do_lri_opt_exps,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_constrain_exponents_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_optimize_lri_basis_section
+
+! *****************************************************************************
+!> \brief input section for constraints for auxiliary basis set optimization 
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze [11.2014]
+! *****************************************************************************
+  SUBROUTINE create_constrain_exponents_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_constrain_exponents_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="CONSTRAIN_EXPONENTS",&
+            description="specifies constraints for the exponents of the "//&
+            "lri auxiliary basis sets in the optimization.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+    CALL keyword_create(keyword, name="SCALE",&
+         description="Defines the upper and lower boundaries as "//&
+         "(1+scale)*exp and (1-scale)*exp. Fermi-like constraint "//&
+         "function",&
+         usage="SCALE 0.3", default_r_val=0.3_dp, required=.FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="FERMI_EXP",&
+         description="Exponent in the fermi-like constraint function. ",&
+         usage="FERMI_EXP 2.63", default_r_val=2.63391_dp, required=.FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+   ENDIF
+
+  END SUBROUTINE create_constrain_exponents_section
 
 ! *****************************************************************************
 !> \brief creates the multigrid

@@ -339,7 +339,7 @@ CONTAINS
          ra(:) = pbc(particle_set(iatom)%r, cell) 
          rb(:) = pbc(particle_set(jatom)%r, cell) 
  
-         ! calculate integrals (a,b,fa) and (a,b,fb)
+         ! calculate integrals (aa,bb) 
          CALL lri_int_aabb(lriir%soaabb,obasa,obasb,rab,ra,rb,lri_env%debug,&
                            lriir%dmax_aabb,error)
 
@@ -1722,5 +1722,77 @@ CONTAINS
     CALL timestop(handle)
   
   END SUBROUTINE output_debug_info
+
+! *****************************************************************************
+!> \brief SVD of auxiliary overlap matrix
+!> \param lri_env ...
+!> \param qs_env ...
+!> \param error ...
+!> \note not called, routine for TESTING, to be deleted soon
+! *****************************************************************************
+  SUBROUTINE svd_of_s(lri_env,qs_env,error) 
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'svd_of_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iac, iatom, ikind, ilist, &
+                                                info, jatom, jkind, &
+                                                jneighbor, lwork, m, n, &
+                                                nkind, nlist, nneighbor, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: sig, work
+    REAL(KIND=dp), DIMENSION(3)              :: rab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s_temp, u, vt
+    TYPE(lri_int_type), POINTER              :: lrii
+    TYPE(lri_list_type), POINTER             :: lri_ints
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: soo_list
+
+    NULLIFY(soo_list, lrii, lri_ints, nl_iterator, s_temp, u , vt)
+    soo_list => lri_env%soo_list
+    lri_ints => lri_env%lri_ints
+    CALL neighbor_list_iterator_create(nl_iterator,soo_list)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
+            nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
+            iatom=iatom,jatom=jatom,r=rab)
+      
+       iac = ikind + nkind*(jkind - 1)
+       lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
+      
+       ! re-inverse sinv to get S 
+       CALL invmat(lrii%sinv,stat,error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       m=SIZE(lrii%sinv,1)
+       n=m
+       lwork = m*(6+4*m)+m 
+       !mxm matrix
+      
+       ALLOCATE(s_temp(m,m),u(m,m),vt(m,m),sig(m),iwork(8*m),work(lwork))
+       s_temp(:,:) = lrii%sinv 
+      
+       ! and change this back 
+       CALL invmat(lrii%sinv,stat,error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ! do SVD
+       CALL DGESDD('A',m,m,s_temp,m,sig,u,m,vt,m,work,lwork,iwork,info)
+       WRITE(*,*) "iatom, jatom", iatom, jatom
+       DO i=1,m
+        WRITE(*,*) i, sig(i)
+       ENDDO
+       DEALLOCATE(s_temp, u, vt, sig, iwork, work)
+    END DO
+
+    CALL neighbor_list_iterator_release(nl_iterator)
+
+  END SUBROUTINE
 
 END MODULE lri_environment_methods

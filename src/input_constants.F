@@ -827,6 +827,11 @@ MODULE input_constants
                                               do_opt_coeff=2,&
                                               do_opt_exps=3
 
+  ! LRI basis optimization parameters
+  INTEGER, PARAMETER, PUBLIC               :: do_lri_opt_all=0,&
+                                              do_lri_opt_coeff=1,&
+                                              do_lri_opt_exps=2
+
   ! callgraph parameters
   INTEGER, PARAMETER, PUBLIC               :: callgraph_none=0,&
                                               callgraph_master=1,&
