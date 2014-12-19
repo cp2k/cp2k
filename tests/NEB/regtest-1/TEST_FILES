@@ -5,5 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 2gly_B-NEB.inp                   10     3e-11
 2gly_CI-NEB.inp                  10     5e-12
-2gly_EB-NEB.inp                  10     1e-13
+2gly_EB-NEB.inp                  10     2e-13
 2gly_IT-NEB.inp                  10     7e-12
