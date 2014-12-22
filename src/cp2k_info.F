@@ -34,8 +34,8 @@ MODULE cp2k_info
 #if defined(__RELEASE_VERSION)
   INTEGER, PARAMETER          :: id_cp2k_version = id_release_version     ! (Uncomment for release     version)
 #else
-  INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
-! INTEGER, PARAMETER          :: id_cp2k_version = 2                      ! (Uncomment for branch      version)
+! INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
+  INTEGER, PARAMETER          :: id_cp2k_version = 2                      ! (Uncomment for branch      version)
 #endif
 
 #if defined(__COMPILE_REVISION)
