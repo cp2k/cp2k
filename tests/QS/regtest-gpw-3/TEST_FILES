@@ -8,7 +8,7 @@ H+.inp                            1     3e-11
 H+.TI.inp                         1     3e-11
 He2H-.inp                         1     9e-12
 # Bloechl decoupling technique
-H+-bloechl.inp                    1     3e-11
+H+-bloechl.inp                    1     6e-11
 He2H-bloechl-md.inp               1     2e-11
 He2H-bloechl.inp                  1     4e-12
 H2O-bloechl.inp                   1     1e-13
