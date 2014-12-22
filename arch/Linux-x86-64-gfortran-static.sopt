@@ -1,0 +1,26 @@
+# Tested with: GFortran 4.9.1, LAPACK 3.5.0
+CC         = gcc
+CPP        =
+FC         = gfortran
+LD         = gfortran
+AR         = ar -r
+FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu-regtest/include
+FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu-regtest/lib64
+LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
+LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
+LIBXC_INC  = $(GCC_DIR)/libxc/2.2.0-gnu-regtest/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/2.2.0-gnu-regtest/lib64
+DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC2
+CPPFLAGS   =
+FCFLAGS    = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none\
+             -ftree-vectorize -funroll-loops\
+             -g -mtune=generic\
+             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
+LDFLAGS    = $(FCFLAGS) -static
+LIBS       = $(LIBPATH)/liblapack-gnu-regtest.a\
+             $(LIBPATH)/libblas-gnu-regtest.a\
+             $(FFTW_LIB)/libfftw3.a\
+             $(LIBXC_LIB)/libxcf90.a\
+             $(LIBXC_LIB)/libxc.a\
+             $(LIBINT_LIB)/libderiv.a\
+             $(LIBINT_LIB)/libint.a

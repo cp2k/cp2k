@@ -1,4 +1,5 @@
-CC         = cc
+# Tested with: GFortran 4.9.1
+CC         = gcc
 CPP        =
 FC         = gfortran
 LD         = gfortran
@@ -9,8 +10,8 @@ FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu/include
 FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu/lib64
 LIBINT_INC = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/include
 LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-LARGE_L-gnu/lib64
-LIBXC_INC  = $(GCC_DIR)/libxc/2.0.1-gnu/include
-LIBXC_LIB  = $(GCC_DIR)/libxc/2.0.1-gnu/lib64
+LIBXC_INC  = $(GCC_DIR)/libxc/2.2.0-gnu/include
+LIBXC_LIB  = $(GCC_DIR)/libxc/2.2.0-gnu/lib64
 DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC2\
              -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4
 CPPFLAGS   = 
@@ -22,7 +23,7 @@ LDFLAGS    = $(FCFLAGS) -static-libgfortran
 LIBS       = $(ACML_LIB)/libacml.a\
              $(FFTW_LIB)/libfftw3.a\
              $(FFTW_LIB)/libfftw3_threads.a\
+             $(LIBXC_LIB)/libxcf90.a\
              $(LIBXC_LIB)/libxc.a\
              $(LIBINT_LIB)/libderiv.a\
              $(LIBINT_LIB)/libint.a
-

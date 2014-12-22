@@ -14,7 +14,7 @@ LIBXC_INC  = $(GCC_DIR)/libxc/2.2.0-gnu/include
 LIBXC_LIB  = $(GCC_DIR)/libxc/2.2.0-gnu/lib64
 DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC2\
              -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4\
-             -D__parallel -D__BLACS -D__SCALAPACK -D__NO_MPI_THREAD_SUPPORT_CHECK
+             -D__parallel -D__SCALAPACK
 CPPFLAGS   =
 FCFLAGS    = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none\
              -fopenmp -ftree-vectorize -funroll-loops\
