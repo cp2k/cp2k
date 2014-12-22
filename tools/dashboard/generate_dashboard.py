@@ -199,7 +199,7 @@ def svn_log(limit=500):
     sys.stdout.write("Fetching svn log... ")
     sys.stdout.flush()
     # xml version contains nice UTC timestamp
-    cmd = "svn log --limit %d svn://svn.code.sf.net/p/cp2k/code/trunk --xml"%limit
+    cmd = "svn log --limit %d svn://svn.code.sf.net/p/cp2k/code --xml"%limit
     log_xml = check_output(cmd.split())
     dom = minidom.parseString(log_xml)
     revisions = []
