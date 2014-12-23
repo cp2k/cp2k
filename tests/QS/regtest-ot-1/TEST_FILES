@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 H2O.inp            1
 #restart
-H2O-OT-1.inp                      1     1e-13
+H2O-OT-1.inp                      1     4e-13
 #restart
 H2O-OT-2.inp                      1     7e-14
 #restart
