@@ -56,7 +56,7 @@ c2h5cl.inp             3
 sio2.inp               3
 #S=1 preconditioners
 stp1.inp               3
-stp2.inp               3
+stp2.inp                          3     4e-14
 stp3.inp               3
 stp4.inp               3
 stp6.inp               3
