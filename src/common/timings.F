@@ -424,6 +424,8 @@ MODULE timings
        r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
        WRITE (unit_nr, '(T10,I4,1X,A)') i, TRIM(r_stat%routineN)
     END DO
+    CALL m_flush(unit_nr)
+
   END SUBROUTINE print_stack
 
 ! *****************************************************************************
