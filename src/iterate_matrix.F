@@ -684,9 +684,15 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, unit_nr
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_type)                      :: matrix_pp, matrix_tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    unit_nr = cp_logger_get_default_unit_nr()
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     CALL cp_dbcsr_init(matrix_pp,error=error)
     CALL cp_dbcsr_create(matrix_pp,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
@@ -744,9 +750,16 @@ CONTAINS
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_type)                      :: matrix_ps, matrix_psp, &
                                                 matrix_test
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    unit_nr = cp_logger_get_default_unit_nr()
+
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     CALL cp_dbcsr_init(matrix_ps,error=error)
     CALL cp_dbcsr_create(matrix_ps,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
