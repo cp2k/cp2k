@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group group!
+!   Copyright (C) 2000 - 2015  CP2K developers group group!
 !-----------------------------------------------------------------------------!
 !> \brief   Machine Hardware support for cp2k
 !           Interface to the HWLOC/LIBNUMA library

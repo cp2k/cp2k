@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 #define XFFTW_PLAN_WITH_NTHREADS dfftw_plan_with_nthreads
 #define XFFTW_PLAN_DFT_3D dfftw_plan_dft_3d

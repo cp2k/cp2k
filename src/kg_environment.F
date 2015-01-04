@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -624,6 +624,8 @@ CONTAINS
     DEALLOCATE(pairs_buffer)
 
     ! second: gather all data on the master node
+    ! better would be a scheme where duplicates are removed in a tree-like reduction scheme.
+    ! this step can be needlessly memory intensive in the current implementation.
 
     IF (para_env%source.EQ.para_env%mepos) THEN
        ALLOCATE(msg_gather(2,npairs*para_env%num_pe))
