@@ -18,5 +18,5 @@ c8_broy_gapw_all_xashh.inp        1     2e-11
 CO_xastpfh_gsot.inp               1     8e-14
 # XAS TP choice of core occ from input
 CO_xastpflex.inp                  1     8e-14
-CO_xastpflex_c0.3l0.7.inp         1     5e-06
+CO_xastpflex_c0.3l0.7.inp         1     1e-05
 CO_xastpflex_c0.3.inp             1     8e-14
