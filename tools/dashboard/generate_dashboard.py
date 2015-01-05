@@ -10,6 +10,8 @@ import ConfigParser
 import sys
 import os
 import urllib2
+import smtplib
+from email.mime.text import MIMEText
 import re
 import gzip
 from datetime import datetime, timedelta
@@ -21,22 +23,26 @@ from pprint import pformat
 from xml.dom import minidom
 from glob import glob
 
+
 #===============================================================================
 def main():
-    if(len(sys.argv) != 4):
-        print("Usage update_dashboard.py <config-file> <status-file> <output-dir>")
+    if(len(sys.argv) != 5):
+        print("Usage update_dashboard.py <config-file> <addressbook> <status-file> <output-dir>")
         sys.exit(1)
 
-    config_fn, status_fn, outdir = sys.argv[1:]
+    config_fn, abook_fn, status_fn, outdir = sys.argv[1:]
     assert(outdir.endswith("/"))
 
+    assert(path.exists(config_fn))
     config = ConfigParser.ConfigParser()
     config.read(config_fn)
 
+    addressbook = dict([line.split() for line in open(abook_fn).readlines()])
+
     if(path.exists(status_fn)):
-        last_ok = eval(open(status_fn).read())
+        status = eval(open(status_fn).read())
     else:
-        last_ok = dict()
+        status = dict()
 
     log = svn_log()
     trunk_revision = log[0]['num']
@@ -64,12 +70,23 @@ def main():
         report_type = config.get(s,"report_type")
         report_url  = config.get(s,"report_url")
         info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
+        do_notify   = config.getboolean(s,"notify")
 
         report_txt = retrieve_report(report_url)
         report = parse_report(report_txt, report_type)
-        uptodate = False
-        if(report.has_key('revision')):
-            uptodate = report['revision'] == trunk_revision
+
+        if(s not in status.keys()):
+            status[s] = {'last_ok': None, 'notified': False}
+
+        if(report['status'] == "OK"):
+            status[s]['last_ok'] = report['revision']
+            status[s]['notified'] = False
+        elif(do_notify and not status[s]['notified']):
+            send_notification(report, addressbook, status[s]['last_ok'], log_index, name, s)
+            status[s]['notified'] = True
+
+        uptodate = report['revision']==trunk_revision # report from latest commit?
+        if(report['revision'] != None):
             if(report['revision']<threshold_rev):
                 report['status'] = "OUTDATED"
             else:
@@ -83,22 +100,14 @@ def main():
         output += status_cell(report['status'], report_url, uptodate)
 
         #Revision
-        if(report.has_key('revision')):
-            output += revision_cell(report['revision'], trunk_revision)
-            if(report['status'] == "OK"):
-                last_ok[s] = report['revision']
-        else:
-            output += '<td>N/A</td>'
+        output += revision_cell(report['revision'], trunk_revision)
 
         #Summary
         output += '<td align="left">%s</td>'%report['summary']
 
         #Last OK
         if(report['status'] != "OK"):
-            if(last_ok.has_key(s)):
-                output += revision_cell(last_ok[s], trunk_revision)
-            else:
-                output += '<td>N/A</td>'
+            output += revision_cell(status[s]['last_ok'], trunk_revision)
         else:
             output += '<td></td>'
 
@@ -140,7 +149,7 @@ def main():
         write_file(outdir+"archive/%s/index.html"%s, archive_output)
 
     output += '</table></center>\n' + html_footer(now)
-    write_file(status_fn, pformat(last_ok))
+    write_file(status_fn, pformat(status))
     write_file(outdir+"index.html", output)
 
 #===============================================================================
@@ -165,6 +174,33 @@ def parse_report(report_txt, report_type):
     except:
         print traceback.print_exc()
         return( {'status':'UNKOWN', 'summary':'Error while parsing report.'} )
+
+#===============================================================================
+def send_notification(report, addressbook, last_ok, svn_log, name, s):
+    rev_end = report['revision'] if(report['revision']) else max(svn_log.keys())
+    authors = set([svn_log[r]['author'] for r in range(last_ok+1, rev_end+1)])
+    emails = [addressbook[a] for a in authors]
+    print("Sending email to: "+" ,".join(emails))
+
+    msg_txt  = "Dear CP2K developer,\n\n"
+    msg_txt += "the dashboard has a detected a problem that one of your recent commits might have introduced.\n\n"
+    msg_txt += "   test name:      %s\n"%name
+    msg_txt += "   report state:   %s\n"%report['status']
+    msg_txt += "   report summary: %s\n"%report['summary']
+    msg_txt += "   last OK rev:    %d\n\n"%last_ok
+    msg_txt += "For more information vist: \n"
+    msg_txt += "   http://www.cp2k.org/static/dashboard/archive/%s/index.html \n\n"%s
+    msg_txt += "Sincerely,\n"
+    msg_txt += "  your CP2K dahsboard ;-)\n"
+
+    msg = MIMEText(msg_txt)
+    msg['Subject'] = "Problem with "+name
+    msg['From']    = "CP2K Dashboard <dashboard@cp2k.org>"
+    msg['To']      = ", ".join(emails)
+
+    smtp_conn = smtplib.SMTP('localhost')
+    smtp_conn.sendmail(msg['From'], emails, msg.as_string())
+    smtp_conn.quit()
 
 #===============================================================================
 def html_header(title):
@@ -226,6 +262,8 @@ def status_cell(status, report_url, uptodate=True):
 
 #===============================================================================
 def revision_cell(rev, trunk_rev):
+    if(rev == None):
+        return('<td>N/A</td>')
     rev_url = "http://sourceforge.net/p/cp2k/code/%d/"%rev
     rev_delta = "(%d)"%(rev - trunk_rev)
     output = '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, rev, rev_delta)
@@ -234,10 +272,11 @@ def revision_cell(rev, trunk_rev):
 #===============================================================================
 def parse_regtest_report(report_txt):
     report = dict()
-    report['revision']  = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
+    report['revision'] = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
 
     m = re.search("make: .* Error .*", report_txt)
     if(m):
+        report['revision'] = None
         report['status'] = "FAILED"
         report['summary'] = "Compilation failed."
         return(report)
