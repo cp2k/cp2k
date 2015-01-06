@@ -173,7 +173,7 @@ def parse_report(report_txt, report_type):
             raise(Exception("Unkown report_type"))
     except:
         print traceback.print_exc()
-        return( {'status':'UNKOWN', 'summary':'Error while parsing report.'} )
+        return( {'status':'UNKOWN', 'summary':'Error while parsing report.', 'revision':None} )
 
 #===============================================================================
 def send_notification(report, addressbook, last_ok, svn_log, name, s):
@@ -188,10 +188,10 @@ def send_notification(report, addressbook, last_ok, svn_log, name, s):
     msg_txt += "   report state:   %s\n"%report['status']
     msg_txt += "   report summary: %s\n"%report['summary']
     msg_txt += "   last OK rev:    %d\n\n"%last_ok
-    msg_txt += "For more information vist: \n"
+    msg_txt += "For more information visit:\n"
     msg_txt += "   http://www.cp2k.org/static/dashboard/archive/%s/index.html \n\n"%s
     msg_txt += "Sincerely,\n"
-    msg_txt += "  your CP2K dahsboard ;-)\n"
+    msg_txt += "  your CP2K Dashboard ;-)\n"
 
     msg = MIMEText(msg_txt)
     msg['Subject'] = "Problem with "+name
