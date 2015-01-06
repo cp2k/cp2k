@@ -1,0 +1,250 @@
+@SET DPATH /users/mmi
+@SET WRKDIR /scratch/daint/mmi/BENCH_ELPACHO_Oct2014/NM221_PBED3
+@SET INPDIR /scratch/daint/mmi/BENCH_ELPACHO_Oct2014
+##@SET DPATH /home/pci/marcella/data
+@SET PROJECT  nm221_pbed3_el_chd
+@SET RESFILE  nm221_pbed3_p
+@SET XYZ ${INPDIR}/nm221_pbed3_opt.xyz
+
+@SET RUN  ENERGY_FORCE
+@SET TIME  40000
+
+@SET RESTART 0
+@SET HESSIAN 0
+@SET PROPERTIES 0
+@SET GUESS ATOMIC
+
+@SET LSD  0
+@SET VV10  0
+@SET D3  1
+
+@SET MAXSCF  10
+@SET EPSSCF 1.E-7
+@SET FORCE  1.E-4
+@SET RELCUTOFF 50
+@SET CUTOFF 500
+@SET NG 5
+@SET ADDED  2000
+
+@SET WANNIER 0
+@SET STM  0
+@SET CUBE  0
+@SET PDOS  0
+
+
+&GLOBAL
+  PROJECT ${PROJECT}
+  PRINT_LEVEL  LOW
+  RUN_TYPE ${RUN}
+  FLUSH_SHOULD_FLUSH T
+  PREFERRED_DIAG_LIBRARY  ELPA
+  WALLTIME  ${TIME}
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &PRINT
+    &FORCES OFF
+      &EACH
+        QS_SCF 0
+      &END
+      FILENAME =${PROJECT}.forces
+      ADD_LAST NUMERIC
+    &END
+
+    &DISTRIBUTION
+    &END
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME   ${DPATH}/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME   ${DPATH}/GTH_POTENTIALS
+    RESTART_FILE_NAME  ${WRKDIR}/${RESFILE}-RESTART.wfn
+    &MGRID
+      NGRIDS ${NG}
+      CUTOFF ${CUTOFF}
+      REL_CUTOFF ${RELCUTOFF}
+    &END MGRID
+    &QS
+      METHOD GPW
+      EXTRAPOLATION  PS
+      EXTRAPOLATION_ORDER  4
+      MAP_CONSISTENT
+    &END QS
+    &SCF
+      SCF_GUESS  ${GUESS}
+      EPS_SCF ${EPSSCF}
+      MAX_SCF ${MAXSCF}
+      ADDED_MOS  ${ADDED}
+      CHOLESKY INVERSE_DBCSR
+      &SMEAR  ON
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE [K] 300
+      &END SMEAR
+      &DIAGONALIZATION
+         ALGORITHM STANDARD
+         EPS_ADAPT 0.01
+      &END DIAGONALIZATION
+      &MIXING
+          METHOD BROYDEN_MIXING
+          ALPHA   0.2
+          BETA    1.5
+          NBROYDEN  8
+      &END
+      &PRINT
+        &RESTART
+          &EACH
+              QS_SCF 50
+          &END
+          ADD_LAST NUMERIC
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+        &END
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_SMOOTH_RHO NN50
+        XC_DERIV NN50_SMOOTH
+      &END
+      &VDW_POTENTIAL
+@if ${VV10} == 1
+       POTENTIAL_TYPE NON_LOCAL
+        &NON_LOCAL
+          TYPE RVV10
+          VERBOSE_OUTPUT
+          KERNEL_FILE_NAME ${DPATH}/rVV10_kernel_table.dat
+        &END NON_LOCAL
+@endif
+@if ${D3} == 1
+       POTENTIAL_TYPE PAIR_POTENTIAL
+       &PAIR_POTENTIAL
+          TYPE DFTD3
+          CALCULATE_C9_TERM .TRUE.
+          REFERENCE_C9_TERM .TRUE.
+          PARAMETER_FILE_NAME ${DPATH}/dftd3.dat
+!          VERBOSE_OUTPUT .TRUE.
+          REFERENCE_FUNCTIONAL PBE
+          R_CUTOFF [angstrom] 16.
+          EPS_CN 1.0E-6
+       &END
+@endif
+      &END VDW_POTENTIAL
+    &END XC
+
+@if ${WANNIER} == 1
+    &LOCALIZE
+     METHOD JACOBI
+     EPS_LOCALIZATION 1.0E-4
+     OUT_ITER_EACH 10
+     MAX_ITER 6000
+     EPS_OCCUPATION  1.E-4
+     &PRINT
+       &WANNIER_CENTERS
+          IONS+CENTERS
+       &END
+       &WANNIER_SPREADS
+       &END
+       &LOC_RESTART
+       &END
+     &END
+    &END
+@endif
+
+    &PRINT
+@if  ${CUBE} == 1
+       &MULLIKEN
+          FILENAME =${PROJECT}.mulliken
+       &END
+       &tot_density_cube
+         &EACH
+          QS_SCF 0
+         &END
+         ADD_LAST NUMERIC
+       &END
+       &V_HARTREE_CUBE
+         FILENAME =${PROJECT}_espot.cube
+       &END
+     &ELF_CUBE
+        &EACH
+         QS_SCF 0
+        &END
+        ADD_LAST NUMERIC
+      &END
+@endif
+@if ${STM} == 1
+      &STM
+        TH_TORB S
+        BIAS [eV] -2.0 -1.0 1.0 2.0
+      &END
+@endif
+
+@if ${PDOS} ==1
+      &PDOS
+        NLUMO 2500
+        COMPONENTS
+# Rh pore, under N pore, 74 atoms
+        &LDOS
+           LIST 252 107 268 100 41 266 34 179 163 249 146 154 242 281 185 194 273 233 202 
+   LIST  106 225 98 43 35 178 265 250 161 260 4 27 177 162 137 114 59 58 60 20 83 11 
+   LIST   210 217 66 91 50 75 82 81 19 121 130 12 171 257 122 258 129 2 52 67 169 170 
+    LIST  26 74 18 10 89 218 115 139 209 123 131
+           COMPONENTS
+        &END
+
+# Rh wire, under B wire, 40 atoms
+        &LDOS
+    LIST 1 9 17 25 36 44 49 57 65 76 84 92 97 105 116 124 132 140 145 147 148 156 164
+    LIST    172 180 188 193 195 196 203 204 227 228 234 235 236 243 251 259 267
+     LIST  275 282 283 284
+           COMPONENTS
+        &END
+      &END PDOS
+@endif
+
+   &END PRINT
+
+
+  &END DFT
+  &SUBSYS
+    &CELL
+ A    64.50562      0.00000      0.00000
+ B    32.25286     55.86364      0.00000
+ C     0.00000      0.00000      30.0
+    &END CELL
+
+    &TOPOLOGY
+      COORD_FILE_NAME ${XYZ}
+      COORDINATE XYZ
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+    &KIND Rh
+      BASIS_SET SZVP-MOLOPT-SR-GTH-q9
+      POTENTIAL GTH-PBE-q9
+    &END KIND
+
+    &KIND B
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q3
+    &END
+    &KIND N
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q5
+    &END
+
+    &KIND Ar
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q8
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
+@if ${RESTART} == 1
+&EXT_RESTART
+   RESTART_FILE_NAME ${WRKDIR}/${RESFILE}-1.restart
+   RESTART_COUNTERS T
+   RESTART_POS T
+   RESTART_BAND T
+&END
+@endif
