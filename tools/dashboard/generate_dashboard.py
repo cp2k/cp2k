@@ -17,6 +17,7 @@ import gzip
 from datetime import datetime, timedelta
 import subprocess
 import traceback
+from urllib import urlencode
 from urllib2 import urlopen
 from os import path
 from pprint import pformat
@@ -58,7 +59,7 @@ def main():
     output  = html_header(title="CP2K Dashboard")
     output += '<center><table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
-    output += '<th>Revision</th><th>Summary</th><th>Last OK</th></tr>\n\n'
+    output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
 
     def get_sortkey(s):
         return config.getint(s, "sortkey")
@@ -110,6 +111,8 @@ def main():
             output += revision_cell(status[s]['last_ok'], trunk_revision)
         else:
             output += '<td></td>'
+
+        output += ticket_cell(label=s)
 
         output += '</tr>\n\n'
 
@@ -163,7 +166,7 @@ def retrieve_report(report_url):
 #===============================================================================
 def parse_report(report_txt, report_type):
     if(report_txt==None):
-        return( {'status':'UNKOWN', 'summary':'Error while retrieving report.'} )
+        return( {'status':'UNKOWN', 'summary':'Error while retrieving report.', 'revision':None} )
     try:
         if(report_type == "regtest"):
             return parse_regtest_report(report_txt)
@@ -270,13 +273,28 @@ def revision_cell(rev, trunk_rev):
     return(output)
 
 #===============================================================================
+def ticket_cell(label):
+    base_url = "https://sourceforge.net/p/cp2k/bugs"
+    new_url = base_url+"/new/?" + urlencode({'labels':label})
+    query = urlencode({'q':'!status:wont-fix && !status:closed && labels:"%s"'%label})
+    feed_url = base_url+"/search_feed/?limit=25&" + query
+    search_url = base_url+"/search/?" + query
+    feed = urlopen(feed_url, timeout=5).read()
+    nopen = feed.count("<item>")
+
+    output = "<td>"
+    if(nopen > 0):
+        output += '<a href="%s">%d open</a>, '%(search_url, nopen)
+    output += '<a href="%s">[new]</a></td>'%new_url
+    return(output)
+
+#===============================================================================
 def parse_regtest_report(report_txt):
     report = dict()
     report['revision'] = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
 
     m = re.search("make: .* Error .*", report_txt)
     if(m):
-        report['revision'] = None
         report['status'] = "FAILED"
         report['summary'] = "Compilation failed."
         return(report)
