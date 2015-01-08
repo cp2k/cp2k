@@ -716,7 +716,8 @@ CONTAINS
       SAVE, TARGET                           :: empty_row_p
     INTEGER, DIMENSION(:), POINTER, SAVE     :: old_blk_p, old_col_i, &
                                                 old_row_p
-    LOGICAL                                  :: fake_row_p, sort_data, spawn
+    LOGICAL                                  :: can_quick, fake_row_p, &
+                                                sort_data, spawn
 
 !   ---------------------------------------------------------------------------
 
@@ -814,10 +815,12 @@ CONTAINS
     ENDIF
     !$OMP END MASTER
     !
+    !$OMP BARRIER
+    can_quick=can_quickly_finalize (matrix)
+    !$OMP BARRIER
     ! If the matrix, work matricies, and environment fit several
     ! criteria, then a quick O(1) finalization is performed.
-    IF (can_quickly_finalize (matrix) .AND. .NOT. sort_data) THEN
-       !$OMP BARRIER
+    IF (can_quick .AND. .NOT. sort_data) THEN
        CALL quick_finalize (matrix, error=error)
     ELSE
        !
@@ -930,7 +933,7 @@ CONTAINS
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: error_handler
-    LOGICAL                                  :: sort_data
+    LOGICAL                                  :: can_quick, sort_data
 
 !   ---------------------------------------------------------------------------
 
@@ -959,12 +962,13 @@ CONTAINS
     ELSE
        sort_data = .FALSE.
     ENDIF
-
+    !$OMP BARRIER
+    can_quick=can_quickly_finalize (matrix)
     !$OMP BARRIER
 
     ! If the matrix, work matricies, and environment fit several
     ! criteria, then a quick O(1) finalization is performed.
-    IF (can_quickly_finalize (matrix) .AND. .NOT. sort_data) THEN
+    IF (can_quick .AND. .NOT. sort_data) THEN
        CALL quick_finalize (matrix, error=error)
     ELSE
        CALL dbcsr_assert (sort_data,&
