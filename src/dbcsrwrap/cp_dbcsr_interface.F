@@ -604,7 +604,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_add_work_coordinate(matrix, index_matrix, row, col, blk, index, error)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: index_matrix, row, col
     INTEGER, INTENT(IN), OPTIONAL            :: blk
     INTEGER, INTENT(OUT), OPTIONAL           :: index
