@@ -19,11 +19,12 @@ MODULE dm_ls_scf_qs
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_complete_redistribute, &
        cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-       cp_dbcsr_init, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_distribution_col_dist, dbcsr_distribution_init, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_name, &
+       cp_dbcsr_init, cp_dbcsr_name, cp_dbcsr_nblkrows_total, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_init, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -182,7 +183,7 @@ CONTAINS
 
        ! the matrix
        CALL cp_dbcsr_init (matrix_ls, error=error)
-       CALL cp_dbcsr_create (matrix_ls, dbcsr_name (matrix_qs%matrix),&
+       CALL cp_dbcsr_create (matrix_ls, cp_dbcsr_name (matrix_qs),&
             clustered_distribution,&
             dbcsr_type_symmetric,&
             clustered_blk_sizes, clustered_blk_sizes,&

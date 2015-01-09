@@ -11,8 +11,12 @@
 ! *****************************************************************************
 
 MODULE cp_dbcsr_util
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_distribution,&
+                                             cp_dbcsr_get_data_type,&
+                                             cp_dbcsr_get_info,&
                                              cp_dbcsr_type,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_mp_group,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
@@ -84,12 +88,12 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    mp_group = matrix_a%matrix%m%dist%d%mp_env%mp%mp_group
+    mp_group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_a)))
 
     do_svd = .FALSE.
     IF(PRESENT(svd)) do_svd = svd
 
-    SELECT CASE(matrix_a%matrix%m%data_type)
+    SELECT CASE(cp_dbcsr_get_data_type(matrix_a))
       CASE (dbcsr_type_real_8)
         CALL lanczos_alg_serial_d(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
       CASE (dbcsr_type_real_4)

@@ -22,7 +22,8 @@ MODULE population_analyses
        cp_dbcsr_copy, cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_p, &
        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, &
+       cp_dbcsr_setname, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
@@ -409,9 +410,9 @@ CONTAINS
         ! Write the full Mulliken net AO and overlap population matrix
         IF (nspin > 1) THEN
           IF (ispin == 1) THEN
-            sm_ps%matrix%m%name = TRIM(headline)//" FOR ALPHA SPIN"
+             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" FOR ALPHA SPIN")
           ELSE
-            sm_ps%matrix%m%name = TRIM(headline)//" FOR BETA SPIN"
+             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" FOR BETA SPIN")
           END IF
         END IF
         CALL cp_dbcsr_write_sparse_matrix(sm_ps,4,6,qs_env,para_env,&

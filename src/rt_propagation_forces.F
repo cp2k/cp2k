@@ -164,7 +164,8 @@ MODULE  rt_propagation_forces
 
        CALL get_mo_set(mos(ispin)%mo_set, nao=nao,nmo=nmo)
        
-       CALL dbcsr_create_dist_r_unrot (dist, SinvB(ispin)%matrix%matrix%m%dist, nmo, col_blk_size)
+       CALL dbcsr_create_dist_r_unrot (dist, cp_dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
+
        CALL cp_dbcsr_init(db_mos_re, error)
        CALL cp_dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(SinvB(ispin)%matrix), col_blk_size,&

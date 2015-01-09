@@ -92,7 +92,8 @@ MODULE dbcsr_api
        dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_row_block_sizes, dbcsr_setname, dbcsr_valid_index, &
+       dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                              dbcsr_mp_hold,&
                                              dbcsr_mp_mynode,&
@@ -129,7 +130,8 @@ MODULE dbcsr_api
        dbcsr_obj_type_p, dbcsr_repl_full, dbcsr_scalar_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
+       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
+       dbcsr_work_type
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                              convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
@@ -281,6 +283,7 @@ MODULE dbcsr_api
             dbcsr_mp_release,&
             dbcsr_multiply,&
             dbcsr_name,&
+            dbcsr_setname,&
             dbcsr_nblkcols_local,&
             dbcsr_nblkcols_total,&
             dbcsr_nblkrows_local,&
@@ -312,6 +315,7 @@ MODULE dbcsr_api
             dbcsr_scalar_get_value,&
             dbcsr_scalar_set_type,&
             dbcsr_scalar_type,&
+            dbcsr_work_type,&
             dbcsr_scalar_zero,&
             dbcsr_scale,&
             dbcsr_scale_by_vector,&

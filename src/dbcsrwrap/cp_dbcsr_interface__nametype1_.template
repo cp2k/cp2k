@@ -465,3 +465,24 @@
 
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)
   END SUBROUTINE cp_dbcsr_add_[nametype1]
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param index_matrix ...
+!> \param lb ...
+!> \param ub ...
+!> \retval DATA ...
+! *****************************************************************************
+  FUNCTION cp_dbcsr_get_data_c_[nametype1] (matrix, index_matrix, coersion, lb, ub) RESULT (DATA)
+    TYPE(cp_dbcsr_type), INTENT(IN)  :: matrix
+    INTEGER, INTENT(IN)              :: index_matrix
+    [type1], INTENT(IN)              :: coersion
+    [type1], DIMENSION(:), POINTER   :: DATA
+    INTEGER, INTENT(IN), OPTIONAL    :: lb, ub
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_data_p_[nametype1]', &
+      routineP = moduleN//':'//routineN
+
+    DATA => dbcsr_get_data_p(matrix%matrix%m%wms(index_matrix)%data_area,coersion,lb,ub)
+  END FUNCTION cp_dbcsr_get_data_c_[nametype1]

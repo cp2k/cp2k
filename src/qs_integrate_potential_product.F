@@ -40,8 +40,7 @@ MODULE qs_integrate_potential_product
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
        cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
-       cp_dbcsr_work_create, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_obj
+       cp_dbcsr_work_create, dbcsr_distribution_has_threads
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
@@ -209,7 +208,6 @@ CONTAINS
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
     TYPE(virial_type), POINTER               :: virial
 
-!$  TYPE(dbcsr_distribution_obj), POINTER    :: dist
 !$  INTEGER                                  :: omp_get_max_threads, &
 !$                                              omp_get_thread_num
 
@@ -435,7 +433,7 @@ CONTAINS
 !$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
 !$omp private(p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
-!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,dist), &
+!$omp private(iset_new,jset_new,ipgf_new,jpgf_new), &
 !$omp private(itask)
 
     ithread = 0
@@ -457,8 +455,7 @@ CONTAINS
     loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
     CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,n=nthread,error=error)
-!$  dist => dh%matrix%m%dist
-!$  CALL cp_assert (dbcsr_distribution_has_threads(dist), cp_fatal_level,&
+!$  CALL cp_assert (dbcsr_distribution_has_threads(cp_dbcsr_distribution(dh)), cp_fatal_level,&
 !$       cp_internal_error, routineN, "No thread distribution defined.",&
 !$       error=error)
 !$omp barrier

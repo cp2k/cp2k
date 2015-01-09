@@ -17,18 +17,20 @@ MODULE cp_dbcsr_operations
                                              get_blacs_info
   USE cp_cfm_types,                    ONLY: cp_cfm_type
   USE cp_dbcsr_interface,              ONLY: &
-       add_work_coordinate, array_data, array_i1d_obj, array_new, &
-       array_nullify, array_release, convert_sizes_to_offsets, &
+       array_data, array_i1d_obj, array_new, array_nullify, array_release, &
+       convert_sizes_to_offsets, cp_add_work_coordinate, &
        cp_create_bl_distribution, cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_data_size, &
+       cp_dbcsr_col_block_sizes_data, cp_dbcsr_complete_redistribute, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_finalize, cp_dbcsr_get_data_p, cp_dbcsr_get_data_size, &
        cp_dbcsr_get_data_type, cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, &
        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_mp_new, cp_dbcsr_mp_release, &
-       cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_type, &
-       cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, cp_dbcsr_work_create, &
+       cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_norm, cp_dbcsr_release, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_row_block_sizes_data, &
+       cp_dbcsr_scale, cp_dbcsr_type, cp_dbcsr_valid_index, &
+       cp_dbcsr_verify_matrix, cp_dbcsr_work_create, cp_set_work_size, &
        create_bl_distribution, dbcsr_create_dist_block_cyclic, &
        dbcsr_create_dist_r_unrot, dbcsr_distribution_col_dist, &
        dbcsr_distribution_init, dbcsr_distribution_local_cols, &
@@ -37,9 +39,9 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_get_data_p, &
-       dbcsr_mp_hold, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj, &
-       dbcsr_norm_frobenius, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_mp_hold, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj, dbcsr_norm_frobenius, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -422,9 +424,9 @@ CONTAINS
     !   'alpha',my_alpha,'beta',my_beta
 
     IF (ncol.GT.0.AND.k_out.GT.0.AND.k_in.GT.0) THEN
-
-       CALL dbcsr_create_dist_r_unrot (dist_right_in, matrix%matrix%m%dist, k_in, &
+       CALL dbcsr_create_dist_r_unrot (dist_right_in, cp_dbcsr_distribution(matrix), k_in, &
             col_blk_size_right_in)
+
        CALL cp_dbcsr_init(in, error)
        CALL cp_dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(matrix), col_blk_size_right_in,&
@@ -797,7 +799,7 @@ CONTAINS
 
     ! Create the block-cyclic DBCSR matrix
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//matrix%matrix%m%name, bc_dist,&
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//cp_dbcsr_name(matrix), bc_dist,&
          cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
          data_type=cp_dbcsr_get_data_type(matrix),error=error)
 
@@ -859,14 +861,14 @@ CONTAINS
           col_size = cbs(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL add_work_coordinate(bc_mat%matrix%m%wms(1), row, col, blk_p, error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p, error=dbcsr_error)
           IF (fm%use_sp) THEN
              !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
-             blk_1d_sp => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
+             blk_1d_sp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   coersion=REAL(0.0, KIND=sp), lb=blk_p, ub=blk_p+nze-1)
           ELSE
              !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
-             blk_1d_dp => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
+             blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   coersion=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           ENDIF
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
@@ -886,7 +888,7 @@ CONTAINS
           blk_p = blk_p + nze
        ENDDO bc_cols
     ENDDO bc_rows
-    bc_mat%matrix%m%wms(1)%datasize = blk_p - 1
+    CALL cp_set_work_size(bc_mat, 1, blk_p - 1)
     CALL cp_dbcsr_finalize (bc_mat, reshuffle=.FALSE., error=error)
 
     ! Now convert to the desired matrix distribution
@@ -1051,7 +1053,7 @@ CONTAINS
           col_size = cbs(col)
           my_blk=(row_l-1)*nblkcols_local+col_l-1
           nze = row_size*col_size
-          CALL add_work_coordinate(bc_mat%matrix%m%wms(1), row, col, blk_map(my_blk), error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_map(my_blk), error=dbcsr_error)
           blk_map(my_blk+1)=blk_map(my_blk)+nze
        ENDDO bc_cols
     ENDDO bc_rows
@@ -1067,11 +1069,11 @@ CONTAINS
           nze=blk_map(my_blk+1)-blk_map(my_blk)
           IF (fm%use_sp) THEN
              !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
-             blk_1d_sp => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
+             blk_1d_sp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   coersion=REAL(0.0, KIND=sp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
           ELSE
              !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
-             blk_1d_dp => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
+             blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   coersion=REAL(0.0, KIND=dp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
           ENDIF
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
@@ -1091,7 +1093,7 @@ CONTAINS
        ENDDO bc_cols1
     ENDDO bc_rows1
 !$OMP END PARALLEL DO
-    bc_mat%matrix%m%wms(1)%datasize = blk_map(nblkrows_local*nblkcols_local) - 1
+    CALL cp_set_work_size(bc_mat, 1, blk_map(nblkrows_local*nblkcols_local) - 1)
     CALL cp_dbcsr_finalize (bc_mat, reshuffle=.FALSE., error=error)
     DEALLOCATE(blk_map)
 
@@ -1176,7 +1178,7 @@ CONTAINS
 
     ! Create the block-cyclic DBCSR matrix
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//matrix%matrix%m%name, bc_dist,&
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//cp_dbcsr_name(matrix), bc_dist,&
          cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
          dbcsr_type_complex_8,error=error) ! type hard coded !
     !call dbcsr_finalize (bc_mat)
@@ -1235,9 +1237,9 @@ CONTAINS
           col_size = cbs(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL add_work_coordinate(bc_mat%matrix%m%wms(1), row, col, blk_p, error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p, error=dbcsr_error)
           !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
-          blk_1d => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
+          blk_1d => cp_dbcsr_get_data_p (bc_mat, 1,&
                coersion=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
@@ -1249,7 +1251,7 @@ CONTAINS
           blk_p = blk_p + nze
        ENDDO bc_cols
     ENDDO bc_rows
-    bc_mat%matrix%m%wms(1)%datasize = blk_p - 1
+    CALL cp_set_work_size(bc_mat, 1, blk_p - 1)
     CALL cp_dbcsr_finalize (bc_mat, reshuffle=.FALSE., error=error)
 
     ! Now convert to the desired matrix distribution
@@ -1326,7 +1328,7 @@ CONTAINS
          rbs, cbs)
 
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%matrix%m%name, bc_dist,&
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//cp_dbcsr_name(matrix), bc_dist,&
          dbcsr_type_no_symmetry, rbs, cbs, 0, 0, error=error)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)
@@ -1376,8 +1378,8 @@ CONTAINS
        WRITE(*,*)routineN//" dbcsr data size is", cp_dbcsr_get_data_size(bc_mat)
        WRITE(*,*)routineN//" FM block sizes are",nrow_block,'/',nfullrows_total
        WRITE(*,*)routineN//" FM block sizes are",ncol_block,'/',nfullcols_total
-       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%matrix%m%row_blk_size%low%data
-       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%matrix%m%col_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr row sizes are",cp_dbcsr_row_block_sizes_data(bc_mat)
+       WRITE(*,*)routineN//" dbcsr col sizes are",cp_dbcsr_col_block_sizes_data(bc_mat)
     ENDIF
     !
     CALL cp_dbcsr_iterator_start(iter, bc_mat)
@@ -1471,7 +1473,7 @@ CONTAINS
          rbs, cbs)
 
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%matrix%m%name, bc_dist,&
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//cp_dbcsr_name(matrix), bc_dist,&
          dbcsr_type_no_symmetry, rbs, cbs, 0, 0, cp_dbcsr_get_data_type(matrix),&
          error=error)
     CALL dbcsr_distribution_release (bc_dist)
@@ -1517,8 +1519,8 @@ CONTAINS
        WRITE(*,*)routineN//" dbcsr data size is", cp_dbcsr_get_data_size(bc_mat)
        WRITE(*,*)routineN//" FM block sizes are",nrow_block,'/',nfullrows_total
        WRITE(*,*)routineN//" FM block sizes are",ncol_block,'/',nfullcols_total
-       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%matrix%m%row_blk_size%low%data
-       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%matrix%m%col_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr row sizes are",cp_dbcsr_row_block_sizes_data(bc_mat)
+       WRITE(*,*)routineN//" dbcsr col sizes are",cp_dbcsr_col_block_sizes_data(bc_mat)
     ENDIF
     !
     CALL cp_dbcsr_iterator_start(iter, bc_mat)
@@ -1640,8 +1642,8 @@ CONTAINS
        WRITE(*,*)routineN//" dbcsr data size is", cp_dbcsr_get_data_size(bc_mat)
        WRITE(*,*)routineN//" FM block sizes are",nrow_block,'/',nfullrows_total
        WRITE(*,*)routineN//" FM block sizes are",ncol_block,'/',nfullcols_total
-       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%matrix%m%row_blk_size%low%data
-       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%matrix%m%col_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr row sizes are",cp_dbcsr_row_block_sizes_data(bc_mat)
+       WRITE(*,*)routineN//" dbcsr col sizes are",cp_dbcsr_col_block_sizes_data(bc_mat)
     ENDIF
     !
     CALL cp_dbcsr_iterator_start(iter, bc_mat)
@@ -1702,7 +1704,7 @@ CONTAINS
 
     CALL cp_fm_get_info(fm_in, ncol_global=k_in, error=error)
 
-    CALL dbcsr_create_dist_r_unrot (dist_right_in, template%matrix%m%dist, k_in, &
+    CALL dbcsr_create_dist_r_unrot (dist_right_in, cp_dbcsr_distribution(template), k_in, &
          col_blk_size_right_in)
     CALL cp_dbcsr_init(matrix, error)
     CALL cp_dbcsr_create(matrix, "D", dist_right_in, dbcsr_type_no_symmetry, &

@@ -65,7 +65,7 @@ MODULE dbcsr_methods
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
             dbcsr_get_index_memory_type, dbcsr_get_data_memory_type,&
-            dbcsr_name, dbcsr_get_data_size,&
+            dbcsr_name, dbcsr_setname, dbcsr_get_data_size,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
             dbcsr_get_nze, dbcsr_nfullrows_local, dbcsr_nfullcols_local
   PUBLIC :: dbcsr_get_data_size_used
@@ -599,6 +599,20 @@ CONTAINS
 
     name = matrix%m%name
   END FUNCTION dbcsr_name
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param newname ...
+!> \retval name ...
+! *****************************************************************************
+
+  SUBROUTINE dbcsr_setname (matrix,newname)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    CHARACTER(len=*), INTENT(IN)             :: newname
+
+    matrix%m%name = newname
+  END SUBROUTINE dbcsr_setname
 
 ! *****************************************************************************
 !> \brief Returns whether this work matrix uses the mutable type
