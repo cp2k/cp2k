@@ -70,6 +70,8 @@ MODULE qs_environment_methods
                                              set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
+  USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
+                                             rho0_mpole_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: scf_env_did_change
@@ -503,11 +505,15 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(pw_p_type), POINTER                 :: rho0_gs, rho0_rs
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     ! rebuild pw_env
-    NULLIFY(dft_control, cell, ks_env, v_hartree_rspace)
+    NULLIFY(dft_control, cell, ks_env, v_hartree_rspace, auxbas_pw_pool)
+    NULLIFY(rho0_mpole,rho0_gs,rho0_rs)
+    NULLIFY(ewald_env,ewald_pw,new_pw_env,external_vxc,rho_core,rho_nlcc,rho_nlcc_g,vee,vppl)
 
     CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=new_pw_env, error=error)
     IF (.NOT.ASSOCIATED(new_pw_env)) THEN
@@ -543,6 +549,38 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
               rho_core%pw%in_space=RECIPROCALSPACE
               CALL set_ks_env(ks_env, rho_core=rho_core,error=error)
            END IF
+         END IF
+         CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
+         IF(ASSOCIATED(rho0_mpole)) THEN
+           rho0_rs => rho0_mpole%rho0_s_rs
+           rho0_gs => rho0_mpole%rho0_s_gs
+           IF(ASSOCIATED(rho0_rs)) THEN
+              CALL pw_release(rho0_rs%pw,error=error)
+              DEALLOCATE(rho0_rs,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           ALLOCATE(rho0_rs,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           IF (.NOT.failure) THEN
+                CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+                CALL pw_pool_create_pw(auxbas_pw_pool, rho0_rs%pw,&
+                use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                rho0_mpole%rho0_s_rs => rho0_rs
+           END IF 
+   
+           IF(ASSOCIATED(rho0_gs)) THEN
+              CALL pw_release(rho0_gs%pw,error=error)
+              DEALLOCATE(rho0_gs,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           ALLOCATE(rho0_gs,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           IF (.NOT.failure) THEN
+                CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+                CALL pw_pool_create_pw(auxbas_pw_pool, rho0_gs%pw,&
+                use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+                rho0_mpole%rho0_s_gs => rho0_gs
+           END IF 
          END IF
        ELSE IF (dft_control%qs_control%semi_empirical) THEN
           IF (dft_control%qs_control%se_control%do_ewald .OR. &

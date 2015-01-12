@@ -103,8 +103,8 @@ MODULE qs_rho0_ggrid
     CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_on_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, dir, handle, iat, iatom, igrid, ikind, istat, &
-      ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, npme, tp(3)
+    INTEGER :: auxbas_grid, handle, iat, iatom, igrid, ikind, istat, &
+      ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, paw_atom
     REAL(KIND=dp)                            :: eps_rho_rspace, rpgf0, zet0
@@ -123,6 +123,7 @@ MODULE qs_rho0_ggrid
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), POINTER                 :: coeff_gspace, coeff_rspace, &
                                                 rho0_s_gs, rho0_s_rs
+    TYPE(pw_p_type)                          :: rho0_r_tmp
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -211,11 +212,6 @@ MODULE qs_rho0_ggrid
       DO iat=1,nat
          iatom = atom_list(iat)
          ra(:) = pbc(particle_set(iatom)%r,cell)
-         DO dir = 1,3
-            tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_grid%desc%npts(dir))
-            tp(dir) = MODULO ( tp(dir), rs_grid%desc%npts(dir) )
-            tp(dir) = tp(dir) + rs_grid%desc%lb(dir)
-         END DO
          IF(rs_grid%desc%parallel .AND. .NOT. rs_grid%desc%distributed) THEN
              ! replicated realspace grid, split the atoms up between procs
              IF (MODULO(nat,rs_grid%desc%group_size) == rs_grid % desc % my_pos ) THEN
@@ -276,10 +272,17 @@ MODULE qs_rho0_ggrid
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ELSE
-      CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,rs2pw,error=error)
+
+      CALL pw_pool_create_pw(pw_pool, rho0_r_tmp%pw, &
+         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+      
+      CALL rs_pw_transfer(rs_grid,rho0_r_tmp%pw,rs2pw,error=error)
       CALL rs_grid_release(rs_grid, error=error)
 
-      tot_rs_int = pw_integrate_function(rho0_s_rs%pw,isign=-1,error=error)
+      tot_rs_int = pw_integrate_function(rho0_r_tmp%pw,isign=-1,error=error)
+
+      CALL pw_transfer(rho0_r_tmp%pw,rho0_s_rs%pw,error=error)
+      CALL pw_pool_give_back_pw(pw_pool, rho0_r_tmp%pw, error=error)
 
       CALL pw_zero(rho0_s_gs%pw,error=error)
       CALL pw_transfer(rho0_s_rs%pw,rho0_s_gs%pw,error=error)
@@ -334,10 +337,9 @@ MODULE qs_rho0_ggrid
      CALL pw_release(rho_rs%pw,error=error)
      DEALLOCATE(rho_rs,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  ELSE
-     ALLOCATE(rho_rs,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
+  ALLOCATE(rho_rs,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      CALL pw_pool_create_pw(auxbas_pw_pool, rho_rs%pw,&
               use_data=REALDATA3D,in_space=REALSPACE,error=error)
@@ -349,10 +351,9 @@ MODULE qs_rho0_ggrid
      CALL pw_release(rho_gs%pw,error=error)
      DEALLOCATE(rho_gs,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  ELSE
-     ALLOCATE(rho_gs,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
+  ALLOCATE(rho_gs,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      CALL pw_pool_create_pw(auxbas_pw_pool, rho_gs%pw, &
           use_data=COMPLEXDATA1D, error=error)

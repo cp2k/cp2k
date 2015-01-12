@@ -265,9 +265,9 @@ CONTAINS
       ! If they are different warn the user that only the ALPHA copy is currently
       !  assigned to the molecule
       ARBITRARY_SPIN=1
-      IF( n_occ_alpha_and_beta(1).ne.n_occ_alpha_and_beta(2) ) THEN
-         CPErrorMessage(cp_failure_level,routineP,"SECOND SPIN CONFIG IS IGNORED WHEN MOLECULAR STATES ARE ASSIGNED!",error)
-      END IF
+!      IF( n_occ_alpha_and_beta(1).ne.n_occ_alpha_and_beta(2) ) THEN
+!         CPErrorMessage(cp_failure_level,routineP,"SECOND SPIN CONFIG IS IGNORED WHEN MOLECULAR STATES ARE ASSIGNED!",error)
+!      END IF
       charge_molecule=REAL(z_molecule-n_occ_alpha_and_beta(ARBITRARY_SPIN),dp)
       CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            nelectron=n_occ_alpha_and_beta(ARBITRARY_SPIN),&
