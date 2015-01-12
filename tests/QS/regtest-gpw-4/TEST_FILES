@@ -67,3 +67,5 @@ H2O-read_cube.inp                11
 # welltempered metadynamics
 2H2O_meta_welltemp.inp            1     2e-14
 ND3_meta_welltemp.inp   1
+# gapw + npt                      
+H2O-gapw.inp                     1
