@@ -74,6 +74,7 @@ CONTAINS
 !>            _cell_angle_gamma
 !>            _symmetry_space_group_name_h-m
 !>            _symmetry_equiv_pos_as_xyz
+!>            _space_group_symop_operation_xyz
 !>            _atom_site_label
 !>            _atom_site_type_symbol
 !>            _atom_site_fract_x
@@ -133,7 +134,7 @@ CONTAINS
 
     IF (iw>0)  WRITE(iw,*) "    Reading in CIF file ",TRIM(topology%coord_file_name)
     CALL parser_create(parser,topology%coord_file_name,&
-         para_env=para_env,error=error)
+         para_env=para_env,apply_preprocessing=.FALSE.,error=error)
 
     ! Check for   _chemical_name
     CALL parser_search_string(parser,"_chemical_name",ignore_case=.FALSE.,found=found,&
@@ -307,14 +308,20 @@ CPSourceFileRef)
     END IF
 
     ! Check for   _symmetry_equiv_pos_as_xyz
+    ! Check for   _space_group_symop_operation_xyz
     CALL parser_search_string(parser,"_symmetry_equiv_pos_as_xyz",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+    IF (.NOT. found) THEN
+       CALL parser_search_string(parser,"_space_group_symop_operation_xyz",ignore_case=.FALSE.,found=found,&
+            begin_line=.FALSE.,search_from_begin_of_file=.TRUE.,error=error)
+    END IF
     CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
-         "The field (_symmetry_equiv_pos_as_xyz) was not found in CIF file! "//&
+         "The fields (_symmetry_equiv_pos_as_xyz) or (_space_group_symop_operation_xyz) were not found in CIF file! "//&
 CPSourceFileRef,&
          only_ionode=.TRUE.)
     IF (iw>0) WRITE(iw,'(A,I0)')" CIF_INFO| Number of atoms before applying symmetry operations :: ",natom
     IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)
+    isym = 0
     IF (found) THEN
        ! Apply symmetry elements and generate the whole set of atoms in the unit cell
        CALL parser_get_next_line(parser,1,error=error)

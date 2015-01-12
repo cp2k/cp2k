@@ -494,7 +494,7 @@ CONTAINS
        pos2=pos1+pos2-1
        varname=input_line(pos1:pos2)
        idx=inpp_find_variable(inpp,varname)
-       CPPostcondition(idx>0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(idx>=0,cp_failure_level,routineP,error,failure)
        IF(idx==0) THEN
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable $",TRIM(varname)," not defined in file: ",&

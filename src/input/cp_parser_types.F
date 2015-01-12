@@ -85,7 +85,9 @@ MODULE cp_parser_types
      CHARACTER(LEN=max_line_length)                 :: input_line
      INTEGER                                        :: icol,icol1,icol2
      INTEGER                                        :: input_unit, input_line_number
-     LOGICAL                                        :: first_separator, parse_white_lines
+     LOGICAL                                        :: first_separator,&
+                                                       apply_preprocessing,&
+                                                       parse_white_lines
      CHARACTER (len=default_path_length), DIMENSION(:,:), POINTER :: initial_variables
      TYPE(buffer_type), POINTER                     :: buffer
      TYPE(status_type), POINTER                     :: status
@@ -172,6 +174,7 @@ CONTAINS
 !> \param section_char ...
 !> \param parse_white_lines ...
 !> \param initial_variables ...
+!> \param apply_preprocessing ...
 !> \param error ...
 !> \date    14.02.2001
 !> \author  MK
@@ -179,7 +182,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE parser_create(parser, file_name, unit_nr, para_env, end_section_label,&
        separator_chars, comment_char, continuation_char, section_char, parse_white_lines,&
-       initial_variables, error)
+       initial_variables, apply_preprocessing, error)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
     INTEGER, INTENT(in), OPTIONAL            :: unit_nr
@@ -193,6 +196,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: parse_white_lines
     CHARACTER(len=*), DIMENSION(:, :), &
       OPTIONAL                               :: initial_variables
+    LOGICAL, INTENT(IN), OPTIONAL            :: apply_preprocessing
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
@@ -230,6 +234,10 @@ CONTAINS
        parser%parse_white_lines = .FALSE.
        IF (PRESENT(parse_white_lines)) THEN
           parser%parse_white_lines = parse_white_lines
+       END IF
+       parser%apply_preprocessing = .TRUE.
+       IF (PRESENT(apply_preprocessing)) THEN
+          parser%apply_preprocessing = apply_preprocessing
        END IF
 
        CALL compress(parser%end_section) ! needed?

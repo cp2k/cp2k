@@ -319,7 +319,7 @@ CONTAINS
              ! On read failure try to go back from included file to previous i/o-stream.
              IF (istat==0) THEN
                 this_line_is_white_or_comment = is_comment_line(parser, parser%buffer%input_lines(iline))
-                IF (.NOT.this_line_is_white_or_comment) THEN
+                IF (.NOT.this_line_is_white_or_comment .AND. parser%apply_preprocessing) THEN
                    imark = INDEX(parser%buffer%input_lines(iline)(1:islen),"$")
                    IF (imark/=0) THEN
                       CALL inpp_expand_variables(parser%inpp, parser%buffer%input_lines(iline),&
