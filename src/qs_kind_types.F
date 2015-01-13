@@ -20,12 +20,10 @@ MODULE qs_kind_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: &
-       allocate_geminal_basis_set, allocate_gto_basis_set, &
-       deallocate_geminal_basis_set, deallocate_gto_basis_set, &
-       geminal_basis_set_type, get_geminal_basis_set, get_gto_basis_set, &
+       allocate_gto_basis_set, deallocate_gto_basis_set, get_gto_basis_set, &
        gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, &
-       read_geminal_basis_set, read_gto_basis_set, set_gto_basis_set, &
-       write_gto_basis_set, write_orb_basis_set
+       read_gto_basis_set, set_gto_basis_set, write_gto_basis_set, &
+       write_orb_basis_set
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -132,7 +130,6 @@ MODULE qs_kind_types
      TYPE(gto_basis_set_type), POINTER      :: hard_basis_set    => Null()
      TYPE(gto_basis_set_type), POINTER      :: aux_fit_basis_set => Null()
      TYPE(gto_basis_set_type), POINTER      :: lri_basis_set     => Null()
-     TYPE(geminal_basis_set_type), POINTER  :: geminal_basis_set => Null()
      TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set      => Null()
      REAL(dp)                               :: hard_radius  = 0.8_dp*bohr    ! for hard and soft exp
      REAL(dp)                               :: hard0_radius = 0.8_dp*bohr    ! for hard exp of rho0
@@ -258,9 +255,6 @@ CONTAINS
           IF (ASSOCIATED(qs_kind_set(ikind)%scp_basis_set)) THEN
              CALL deallocate_gto_basis_set(qs_kind_set(ikind)%scp_basis_set,error)
           END IF
-          IF (ASSOCIATED(qs_kind_set(ikind)%geminal_basis_set)) THEN
-             CALL deallocate_geminal_basis_set(qs_kind_set(ikind)%geminal_basis_set,error)
-          END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%paw_proj_set)) THEN
              CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set,error)
           END IF
@@ -331,7 +325,6 @@ CONTAINS
 !> \param aux_fit_basis_set ...
 !> \param orb_basis_set ...
 !> \param scp_basis_set ...
-!> \param geminal_basis_set ...
 !> \param lri_basis_set ...
 !> \param alpha_scp ...
 !> \param I_scp ...
@@ -386,7 +379,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_qs_kind(qs_kind, all_potential, tnadd_potential, gth_potential, &
        se_parameter, scp_se_parameter, dftb_parameter, scptb_parameter, &
-       aux_basis_set, ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, scp_basis_set, geminal_basis_set, &
+       aux_basis_set, ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, scp_basis_set, &
        lri_basis_set, &
        alpha_scp, I_scp, dftb3_param, zeff,&
        ncgf, nsgf, elec_conf,&
@@ -413,15 +406,9 @@ CONTAINS
       POINTER                                :: dftb_parameter
     TYPE(scptb_parameter_type), OPTIONAL, &
       POINTER                                :: scptb_parameter
-    TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: aux_basis_set, &
-                                                ri_aux_basis_set, &
-                                                aux_fit_basis_set, &
-                                                orb_basis_set, scp_basis_set
-    TYPE(geminal_basis_set_type), OPTIONAL, &
-      POINTER                                :: geminal_basis_set
-    TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: lri_basis_set
+    TYPE(gto_basis_set_type), OPTIONAL, POINTER :: aux_basis_set, &
+      ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, scp_basis_set, &
+      lri_basis_set
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_scp, I_scp, &
                                                 dftb3_param, zeff
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
@@ -503,7 +490,6 @@ CONTAINS
           orb_basis_set => qs_kind%orb_basis_set
        END IF
     END IF
-    IF (PRESENT(geminal_basis_set)) geminal_basis_set => qs_kind%geminal_basis_set
     IF (PRESENT(scp_basis_set)) scp_basis_set => qs_kind%scp_basis_set
     IF (PRESENT(element_symbol)) element_symbol = qs_kind%element_symbol
     IF (PRESENT(name)) name = qs_kind%name
@@ -801,7 +787,6 @@ CONTAINS
 !> \param paw_atom_present ...
 !> \param dft_plus_u_atom_present ...
 !> \param maxder ...
-!> \param maxlgem ...
 !> \param max_ngrid_rad ...
 !> \param max_sph_harm ...
 !> \param maxg_iso_not0 ...
@@ -819,8 +804,7 @@ CONTAINS
        maxnset,maxpgf,maxsgf,maxsgf_set,maxshell,&
        ncgf,ncgf_aux, ncgf_ri_aux, npgf,nset,nsgf,nshell,nelectron,&
        paw_atom_present, dft_plus_u_atom_present,&
-       maxder, maxlgem,max_ngrid_rad,&
-       max_sph_harm,maxg_iso_not0,lmax_rho0,&
+       maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0,&
        zetsoft_max,basis_set_id, maxpol, maxlppl,maxlppnl,maxppnl)
 
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -835,9 +819,8 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: paw_atom_present, &
                                                 dft_plus_u_atom_present
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    INTEGER, INTENT(OUT), OPTIONAL           :: maxlgem(2), max_ngrid_rad, &
-                                                max_sph_harm, maxg_iso_not0, &
-                                                lmax_rho0
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_ngrid_rad, max_sph_harm, &
+                                                maxg_iso_not0, lmax_rho0
     REAL(kind=dp), INTENT(out), OPTIONAL     :: zetsoft_max
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     INTEGER, INTENT(OUT), OPTIONAL           :: maxpol, maxlppl, maxlppnl, &
@@ -846,14 +829,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ikind, imax, ipgf, iset, lmax_rho0_kind, lmg, ls, &
-      max_iso_not0, max_s_harm, my_basis_set_id, n, ngrid_rad, nkind
-    INTEGER, DIMENSION(:), POINTER           :: lmgem, lsgem, npgf_kind
+    INTEGER :: ikind, imax, ipgf, iset, lmax_rho0_kind, max_iso_not0, &
+      max_s_harm, my_basis_set_id, n, ngrid_rad, nkind
+    INTEGER, DIMENSION(:), POINTER           :: npgf_kind
     LOGICAL                                  :: dft_plus_u_atom, paw_atom
     REAL(KIND=dp)                            :: zeff, zeff_correction
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, &
       lri_basis_set, orb_basis_set, ri_aux_basis_set, scp_basis_set, &
@@ -905,7 +887,6 @@ CONTAINS
        IF (PRESENT(max_ngrid_rad))  max_ngrid_rad = 0
        IF (PRESENT(max_sph_harm))   max_sph_harm = 0
        IF (PRESENT(lmax_rho0))      lmax_rho0 = 0
-       IF (PRESENT(maxlgem))        maxlgem = 0
 
        nkind = SIZE(qs_kind_set)
        DO ikind=1,nkind
@@ -922,7 +903,6 @@ CONTAINS
                scp_basis_set=scp_basis_set,&
                soft_basis_set=soft_basis_set,&
                paw_proj_set=paw_proj_set,&
-               geminal_basis_set=geminal_basis_set,&
                dftb_parameter=dftb_parameter,&
                ngrid_rad=ngrid_rad,&
                max_s_harm=max_s_harm, &
@@ -1523,13 +1503,6 @@ CONTAINS
                 END DO
              END DO
           END IF
-          IF (PRESENT(maxlgem)) THEN
-            CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,lmax=lmgem,ls=lsgem)
-            lmg=MAXVAL(lmgem)
-            ls=MAXVAL(lsgem)
-            maxlgem(1) = MAX(maxlgem(1),lmg)
-            maxlgem(2) = MAX(maxlgem(2),ls)
-          END IF
        END DO
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1743,21 +1716,20 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
-      aux_fit_basis_set_name, geminal_basis_set_name, keyword, kgpot_name, &
-      kgpot_type, lri_basis_set_name, orb_basis_set_name, potential_name, &
-      potential_type, ri_aux_basis_set_name
+      aux_fit_basis_set_name, keyword, kgpot_name, kgpot_type, &
+      lri_basis_set_name, orb_basis_set_name, potential_name, potential_type, &
+      ri_aux_basis_set_name
     INTEGER                                  :: handle, i, i_rep, ipos, j, &
                                                 k_rep, l, m, n_rep, naux, &
                                                 ngauss, norb, norbitals, &
                                                 stat, z
     INTEGER, DIMENSION(:), POINTER           :: add_el, elec_conf, orbitals
-    LOGICAL :: check, explicit, explicit_basis, explicit_geminal, &
-      explicit_kgpot, explicit_potential, failure, section_enabled, &
-      subsection_enabled
+    LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, &
+      explicit_potential, failure, section_enabled, subsection_enabled
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(section_vals_type), POINTER :: basis_section, bs_section, &
       dft_plus_u_section, dft_section, enforce_occupation_section, &
-      geminal_section, kgpot_section, potential_section, spin_section
+      kgpot_section, potential_section, spin_section
 
     CALL timeset(routineN,handle)
 
@@ -1861,8 +1833,6 @@ CONTAINS
             keyword_name="AUX_BASIS_NORMALIZATION", i_val=naux,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="BASIS_SET",c_val=orb_basis_set_name,error=error)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="GEMINAL_BASIS_SET",c_val=geminal_basis_set_name,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="BASIS_NORMALIZATION", i_val=norb,error=error)
        ! seems like qs_kind is not initialised here
@@ -2148,13 +2118,6 @@ CONTAINS
        CALL section_vals_get(kgpot_section, explicit=explicit_kgpot,error=error)
     END IF
 
-    explicit_geminal = .FALSE.
-    IF (k_rep>0) THEN
-       geminal_section  => section_vals_get_subs_vals(kind_section,"GEMINAL",i_rep_section=k_rep,&
-            can_return_null=.TRUE.,error=error)
-       CALL section_vals_get(geminal_section, explicit=explicit_geminal,error=error)
-    END IF
-
     SELECT CASE(method_id)
     CASE(do_method_dftb, do_method_scptb, do_method_rm1, do_method_am1, do_method_mndo, &
          do_method_pdg, do_method_pm3, do_method_pm6, do_method_mndod,&
@@ -2274,13 +2237,6 @@ CONTAINS
                qs_kind%lri_basis_set,para_env,dft_section,error=error)
           CALL set_gto_basis_set(gto_basis_set=qs_kind%lri_basis_set,&
                norm_type=naux)
-       END IF
-
-       ! Allocate and initialise the geminal basis set data set structure
-       IF ((geminal_basis_set_name /= '').OR.explicit_geminal) THEN
-          CALL allocate_geminal_basis_set(qs_kind%geminal_basis_set,error)
-          CALL read_geminal_basis_set(qs_kind%element_symbol,geminal_basis_set_name,&
-               qs_kind%geminal_basis_set,para_env,dft_section,geminal_section,error=error)
        END IF
 
        ! If Ghost atom we don't need to allocate/initialize anything connected to POTENTIAL

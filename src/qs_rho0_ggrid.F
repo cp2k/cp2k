@@ -103,8 +103,8 @@ MODULE qs_rho0_ggrid
     CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_on_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, handle, iat, iatom, igrid, ikind, istat, &
-      ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, npme
+    INTEGER :: auxbas_grid, handle, iat, iatom, igrid, ikind, istat, ithread, &
+      j, l0_ikind, lmax0, nat, nch_ik, nch_max, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: failure, paw_atom
     REAL(KIND=dp)                            :: eps_rho_rspace, rpgf0, zet0
@@ -121,9 +121,9 @@ MODULE qs_rho0_ggrid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho0_r_tmp
     TYPE(pw_p_type), POINTER                 :: coeff_gspace, coeff_rspace, &
                                                 rho0_s_gs, rho0_s_rs
-    TYPE(pw_p_type)                          :: rho0_r_tmp
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool

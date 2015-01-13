@@ -17,11 +17,8 @@ MODULE qs_interactions
   USE ao_util,                         ONLY: exp_radius
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE basis_set_types,                 ONLY: geminal_basis_set_type,&
-                                             get_geminal_basis_set,&
-                                             get_gto_basis_set,&
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
-                                             set_geminal_basis_set,&
                                              set_gto_basis_set
   USE cp_control_types,                ONLY: qs_control_type,&
                                              semi_empirical_control_type
@@ -61,7 +58,7 @@ MODULE qs_interactions
   PUBLIC :: init_interaction_radii, init_se_nlradius
 
   PUBLIC :: write_paw_radii, write_ppnl_radii, write_ppl_radii, write_core_charge_radii,&
-            write_pgf_orb_radii, write_geminal_radii
+            write_pgf_orb_radii
 
 CONTAINS
 
@@ -87,31 +84,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, &
-      j, l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_lpot, nexp_lsd, &
-      nexp_ppl, nkind, nset
-    INTEGER, DIMENSION(:), POINTER           :: ls, nct_lpot, nct_lsd, npgf, &
-                                                nprj, nprj_ppnl, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: lshell
+    INTEGER :: handle, i, iexp_ppl, ikind, ip, iprj_ppnl, j, l, lppl, lppnl, &
+      lprj, lprj_ppnl, maxl, maxnset, nexp_lpot, nexp_lsd, nexp_ppl, nkind
+    INTEGER, DIMENSION(:), POINTER           :: nct_lpot, nct_lsd, nprj, &
+                                                nprj_ppnl
     LOGICAL                                  :: llsd, lpot, p_aux, p_ccr, &
                                                 p_gem, p_lri, p_orb, p_paw, &
                                                 p_ppl, p_ppnl, p_soft, &
                                                 paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
-      core_charge_radius, gcca, kind_radius, ppl_radius, ppnl_radius, rcprj, &
-      zab, zd, zeta
+      core_charge_radius, ppl_radius, ppnl_radius, rcprj, zeta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
-                                                alpha_ppnl, cexp_ppl, &
-                                                set_radius
+                                                alpha_ppnl, cexp_ppl
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, cval_lpot, &
-                                                cval_lsd, pgf_radius, &
-                                                rzetprj, zet
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: gcc
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: zetg
+                                                cval_lsd, rzetprj, zet
     TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
                                                 aux_fit_basis_set, lri_basis, &
@@ -120,11 +107,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (all_potential, gth_potential, &
-              orb_basis_set, aux_basis_set, soft_basis, lri_basis, &
-              geminal_basis_set, paw_proj_set)
-    NULLIFY (npgf, nprj_ppnl, nshell, lshell, nprj)
-    NULLIFY (alpha_ppnl, cexp_ppl, set_radius, cprj_ppnl, pgf_radius, zet, gcc)
+    NULLIFY (all_potential, gth_potential, orb_basis_set, aux_basis_set, soft_basis, &
+             lri_basis, paw_proj_set)
+    NULLIFY (nprj_ppnl, nprj)
+    NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
 
     p_orb  = .FALSE.
     p_aux  = .FALSE.
@@ -150,7 +136,6 @@ CONTAINS
                        lri_basis_set=lri_basis,&
                        soft_basis_set=soft_basis,&
                        paw_proj_set=paw_proj_set,&
-                       geminal_basis_set=geminal_basis_set,&
                        paw_atom=paw_atom,&
                        all_potential=all_potential,&
                        gth_potential=gth_potential)
@@ -287,49 +272,6 @@ CONTAINS
       IF (ASSOCIATED(aux_basis_set)) THEN
 
         CALL init_interaction_radii_orb_basis(aux_basis_set,qs_control%eps_pgf_orb,error=error)
-
-      END IF
-
-     ! Calculate the geminal basis function radii
-
-      IF (ASSOCIATED(geminal_basis_set)) THEN
-
-        p_gem = .TRUE.
-        CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,&
-                                   nset=nset,&
-                                   nshell=nshell,&
-                                   npgf=npgf,&
-                                   l=lshell,&
-                                   ls=ls,&
-                                   zet=zetg,&
-                                   gcc=gcc,&
-                                   pgf_radius=pgf_radius,&
-                                   set_radius=set_radius)
-
-        kind_radius = 0.0_dp
-
-        DO iset=1,nset
-          set_radius(iset) = 0.0_dp
-          DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_dp
-            DO ishell=1,nshell(iset)
-              l = MAX(lshell(ishell,iset),ls(iset))
-              gcca = gcc(ipgf,ishell,iset)
-              zab = zetg(1,1,ipgf,iset) + zetg(2,2,ipgf,iset)
-              zd  = (zetg(1,1,ipgf,iset) - zetg(2,2,ipgf,iset))**2 + 4._dp*zetg(1,2,ipgf,iset)
-              zeta = 0.5_dp*MIN(zab+SQRT(zd),zab-SQRT(zd))
-              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
-                                          exp_radius(l,zeta,qs_control%eps_pgf_orb,gcca))
-            END DO
-            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
-          END DO
-          kind_radius = MAX(kind_radius,set_radius(iset))
-        END DO
-
-        CALL set_geminal_basis_set(geminal_basis_set=geminal_basis_set,&
-                                   pgf_radius=pgf_radius,&
-                                   set_radius=set_radius,&
-                                   kind_radius=kind_radius)
 
       END IF
 
@@ -836,122 +778,6 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%RADII/PGF_RADII",error=error)
   END SUBROUTINE write_pgf_orb_radii
-
-! *****************************************************************************
-!> \brief   Write the geminal basis function radii to the output unit.
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-!> \param subsys_section ...
-!> \param error ...
-!> \date    18.08.2009
-!> \author  JGH
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE write_geminal_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=10)                        :: bas
-    CHARACTER(LEN=default_string_length)     :: name, unit_str
-    INTEGER                                  :: ikind, ipgf, iset, nkind, &
-                                                nset, output_unit
-    INTEGER, DIMENSION(:), POINTER           :: npgf
-    REAL(KIND=dp)                            :: conv, kind_radius
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    NULLIFY(geminal_basis_set)
-
-    nkind = SIZE(qs_kind_set)
-
-    ! Print the kind radii
-    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
-         "PRINT%RADII/KIND_RADII",extension=".Log",error=error)
-    CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
-    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-    IF (output_unit>0) THEN
-      bas="GEMINAL"
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T55,A,T62,A,T74,A)")&
-        "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_str),"Kind","Label","Radius"
-      DO ikind=1,nkind
-        CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
-        CALL get_qs_kind(qs_kind_set(ikind), geminal_basis_set=geminal_basis_set)
-        IF(ASSOCIATED(geminal_basis_set)) THEN
-          CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,&
-                                 kind_radius=kind_radius)
-          WRITE (UNIT=output_unit,FMT="(T54,I5,T62,A5,T69,F12.6)")&
-            ikind,name,kind_radius*conv
-        ELSE
-           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
-              ikind,name,"no basis"
-        END IF
-      END DO
-    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-         "PRINT%RADII/KIND_RADII",error=error)
-
-    ! Print the shell set radii
-    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
-         "PRINT%RADII/SET_RADII",extension=".Log",error=error)
-    IF (output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
-        "RADII: SHELL SETS OF "//TRIM(bas)//" BASIS in "//&
-        TRIM(unit_str),"Kind","Label","Set","Radius"
-      DO ikind=1,nkind
-        CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
-        CALL get_qs_kind(qs_kind_set(ikind), geminal_basis_set=geminal_basis_set)
-        IF(ASSOCIATED(geminal_basis_set)) THEN
-          CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,&
-                                     nset=nset,&
-                                     set_radius=set_radius)
-          WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,(T63,I5,T69,F12.6))")&
-            ikind,name,(iset,set_radius(iset)*conv,iset=1,nset)
-        ELSE
-           WRITE (UNIT=output_unit,FMT="(T50,I5,T58,A5,T73,A8)")&
-              ikind,name,"no basis"
-        END IF
-      END DO
-    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-         "PRINT%RADII/SET_RADII",error=error)
-    ! Print the primitive Gaussian function radii
-    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
-         "PRINT%RADII/PGF_RADII",extension=".Log",error=error)
-    IF (output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
-        "RADII: PRIMITIVE GEMINALS OF "//TRIM(bas)//" BASIS in "//&
-        TRIM(unit_str),"Kind","Label","Set","Radius"
-      DO ikind=1,nkind
-        CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
-        CALL get_qs_kind(qs_kind_set(ikind), geminal_basis_set=geminal_basis_set)
-        IF(ASSOCIATED(geminal_basis_set)) THEN
-          CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,&
-                                     nset=nset,&
-                                     npgf=npgf,&
-                                     pgf_radius=pgf_radius)
-          DO iset=1,nset
-            WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,T63,I5,(T69,F12.6))")&
-              ikind,name,iset,&
-              (pgf_radius(ipgf,iset)*conv,ipgf=1,npgf(iset))
-          END DO
-        ELSE
-           WRITE (UNIT=output_unit,FMT="(T50,I5,T58,A5,T73,A8)")&
-              ikind,name,"no basis"
-        END IF
-      END DO
-   END IF
-    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-         "PRINT%RADII/PGF_RADII",error=error)
-  END SUBROUTINE write_geminal_radii
 
 ! *****************************************************************************
 !> \brief   Write the radii of the exponential functions of the Goedecker

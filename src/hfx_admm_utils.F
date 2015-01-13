@@ -32,7 +32,6 @@ MODULE hfx_admm_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hfx_derivatives,                 ONLY: derivatives_four_center
   USE hfx_energy_potential,            ONLY: integrate_four_center
-  USE hfx_ri_methods,                  ONLY: hfx_ri_energy_potential
   USE input_constants,                 ONLY: &
        do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
        do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, &
@@ -235,7 +234,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ikind, irep, ispin, &
                                                 mspin, n_rep_hf, nspins, stat
-    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, do_hfx_ri, &
+    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, &
       failure, hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, &
@@ -251,14 +250,13 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho_orb
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
-                                                hfx_ri_section, hfx_sections, &
-                                                input
+                                                hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
-    NULLIFY(auxbas_pw_pool, dft_control, force, hfx_sections, hfx_ri_section, input, &
+    NULLIFY(auxbas_pw_pool, dft_control, force, hfx_sections, input, &
             para_env, poisson_env, pw_env, virial,&
             matrix_ks_im, matrix_ks_orb, rho_ao_orb,&
             matrix_h, matrix_ks_aux_fit,matrix_ks_aux_fit_im, matrix_ks_aux_fit_hfx)
@@ -283,8 +281,6 @@ CONTAINS
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
-    hfx_ri_section => section_vals_get_subs_vals(hfx_sections,"HFX_RI",error=error)
-    CALL section_vals_get(hfx_ri_section,explicit=do_hfx_ri,error=error)
     CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core,&
                                 i_rep_section=1,error=error)
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
@@ -307,108 +303,97 @@ CONTAINS
     !! set hf exchange energy to zero
     energy%ex = 0.0_dp
 
-    IF ( do_hfx_ri ) THEN
-       IF( calculate_forces ) THEN
-          !! initalize force array to zero
-          CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-          DO ikind = 1,SIZE(force)
-             force(ikind)%hfx_ri(:,:) = 0.0_dp
-          END DO
-       END IF
-       CALL hfx_ri_energy_potential (qs_env,calculate_forces,error)
-    ELSE
-       IF( calculate_forces ) THEN
-          !! initalize force array to zero
-          CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-          DO ikind = 1,SIZE(force)
-             force(ikind)%fock_4c(:,:) = 0.0_dp
-          END DO
-       END IF
-       ALLOCATE(hf_energy(n_rep_hf), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO irep = 1,n_rep_hf
+    IF( calculate_forces ) THEN
+       !! initalize force array to zero
+       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+       DO ikind = 1,SIZE(force)
+          force(ikind)%fock_4c(:,:) = 0.0_dp
+       END DO
+    END IF
+    ALLOCATE(hf_energy(n_rep_hf), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO irep = 1,n_rep_hf
 
-          IF( do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core)&
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids",&
-                     error=error, error_level=cp_failure_level)
-          ! everything is calulated with adiabatic rescaling but the potential is not added in a first step
-          distribute_fock_matrix=.NOT.do_adiabatic_rescaling
+       IF( do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core)&
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids",&
+                  error=error, error_level=cp_failure_level)
+       ! everything is calulated with adiabatic rescaling but the potential is not added in a first step
+       distribute_fock_matrix=.NOT.do_adiabatic_rescaling
 
-          mspin=1
-          IF ( hfx_treat_lsd_in_core ) mspin=nspins
-          
-          ! fetch the correct matrices for normal HFX or ADMM
+       mspin=1
+       IF ( hfx_treat_lsd_in_core ) mspin=nspins
+       
+       ! fetch the correct matrices for normal HFX or ADMM
+       IF( dft_control%do_admm ) THEN
+          CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_orb,&
+                          rho_aux_fit=rho_orb,error=error)
+       ELSE
+          CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks_orb,rho=rho_orb,error=error)
+       END IF
+       CALL qs_rho_get(rho_struct=rho_orb,rho_ao=rho_ao_orb,error=error)
+       ! Finally the real hfx calulation
+       DO ispin = 1,mspin
+          CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
+                                     para_env, s_mstruct_changed, irep, distribute_fock_matrix,&
+                                     ispin=ispin, error=error)
+       END DO
+    
+       IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
+          !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
           IF( dft_control%do_admm ) THEN
-             CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_orb,&
-                             rho_aux_fit=rho_orb,error=error)
-          ELSE
-             CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks_orb,rho=rho_orb,error=error)
+            CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE., error=error) 
           END IF
-          CALL qs_rho_get(rho_struct=rho_orb,rho_ao=rho_ao_orb,error=error)
-          ! Finally the real hfx calulation
+          CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+                                       para_env, irep, use_virial, error=error)
+          !Scale auxiliary density matrix for ADMMP back with 1/gsi(ispin) 
+          IF( dft_control%do_admm ) THEN
+            CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE., error=error)
+          END IF
+
+       END IF
+
+       !! If required, the calculation of the forces will be done later with adiabatic rescaling
+       IF( do_adiabatic_rescaling ) hf_energy(irep) = energy%ex
+
+       ! special case RTP/EMD we have a full complex density and HFX has a contrinution from the imaginary part
+       IF( qs_env%run_rtp)THEN
+
+          CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
+          DO ispin = 1,nspins
+             CALL cp_dbcsr_set(matrix_ks_im(ispin)%matrix,0.0_dp,error=error)
+          END DO
+          IF( dft_control%do_admm ) THEN
+             matrix_ks_orb => matrix_ks_aux_fit_im
+             DO ispin = 1,nspins
+                CALL cp_dbcsr_set(matrix_ks_aux_fit_im(ispin)%matrix,0.0_dp,error=error)
+             END DO
+          ELSE
+             matrix_ks_orb => matrix_ks_im
+          END IF
+
+          CALL qs_rho_get(rho_orb, rho_ao_im=rho_ao_orb, error=error)
+
           DO ispin = 1,mspin
              CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
-                                        para_env, s_mstruct_changed, irep, distribute_fock_matrix,&
+                                        para_env, .FALSE., irep, distribute_fock_matrix,&
                                         ispin=ispin, error=error)
           END DO
-       
+
           IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
-             !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
-             IF( dft_control%do_admm ) THEN
-               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE., error=error) 
-             END IF
              CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
                                           para_env, irep, use_virial, error=error)
-             !Scale auxiliary density matrix for ADMMP back with 1/gsi(ispin) 
-             IF( dft_control%do_admm ) THEN
-               CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE., error=error)
-             END IF
-
           END IF
 
           !! If required, the calculation of the forces will be done later with adiabatic rescaling
           IF( do_adiabatic_rescaling ) hf_energy(irep) = energy%ex
+       END IF
 
-          ! special case RTP/EMD we have a full complex density and HFX has a contrinution from the imaginary part
-          IF( qs_env%run_rtp)THEN
-
-             CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
-             DO ispin = 1,nspins
-                CALL cp_dbcsr_set(matrix_ks_im(ispin)%matrix,0.0_dp,error=error)
-             END DO
-             IF( dft_control%do_admm ) THEN
-                matrix_ks_orb => matrix_ks_aux_fit_im
-                DO ispin = 1,nspins
-                   CALL cp_dbcsr_set(matrix_ks_aux_fit_im(ispin)%matrix,0.0_dp,error=error)
-                END DO
-             ELSE
-                matrix_ks_orb => matrix_ks_im
-             END IF
-
-             CALL qs_rho_get(rho_orb, rho_ao_im=rho_ao_orb, error=error)
-
-             DO ispin = 1,mspin
-                CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
-                                           para_env, .FALSE., irep, distribute_fock_matrix,&
-                                           ispin=ispin, error=error)
-             END DO
-   
-             IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
-                CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
-                                             para_env, irep, use_virial, error=error)
-             END IF
-   
-             !! If required, the calculation of the forces will be done later with adiabatic rescaling
-             IF( do_adiabatic_rescaling ) hf_energy(irep) = energy%ex
-          END IF
-
-          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                        poisson_env=poisson_env,error=error)
-          CALL pw_hfx(qs_env,energy,hfx_sections,poisson_env,auxbas_pw_pool,irep,error)
+       CALL pw_hfx(qs_env,energy,hfx_sections,poisson_env,auxbas_pw_pool,irep,error)
          
-       END DO
-    END IF
+    END DO
 
     ! *** Add Core-Hamiltonian-Matrix ***
     DO ispin=1,nspins

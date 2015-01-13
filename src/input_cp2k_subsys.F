@@ -991,39 +991,6 @@ CONTAINS
   END SUBROUTINE create_basis_section
 
 ! *****************************************************************************
-!> \brief Creates the &GEMINAL section
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author teo
-! *****************************************************************************
-  SUBROUTINE create_geminal_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_geminal_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="geminal",&
-            description="Section used to specify a geminal basis set for QM calculations.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       NULLIFY(keyword)
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Basis Set Standard Format",repeats=.TRUE.,&
-            type_of_var=lchar_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-    END IF
-  END SUBROUTINE create_geminal_section
-
-! *****************************************************************************
 !> \brief Creates the &COORD section
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
@@ -1288,13 +1255,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="GEMINAL_BASIS_SET",&
-            description="The Geminal Gaussian basis set to be used in HF exchange fitting",&
-            usage="GEMINAL_BASIS_SET NAME", default_c_val=" ", &
-            n_var=1, required=.FALSE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="ELEC_CONF",&
             description="Specifies the electronic configration used in construction the "// &
                         "atomic initial guess (see the pseudo potential file for the default values.",&
@@ -1478,10 +1438,6 @@ CONTAINS
 
        NULLIFY(subsection)
        CALL create_basis_section(subsection, error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_geminal_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

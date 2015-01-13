@@ -133,10 +133,6 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_hf_ri_section(subsection,error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
     END IF
 
   END SUBROUTINE create_hfx_section
@@ -560,98 +556,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_hf_memory_section
-
-! *****************************************************************************
-!> \brief creates the input section for the hfx RI method
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author JGH
-! *****************************************************************************
-  SUBROUTINE create_hf_ri_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_ri_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,"HFX_RI",&
-            description="All parameters needed in a HFX RI calculation",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY(keyword)
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="EPS_SCREENING",&
-            description="Accuracy of geminal integral evaluation",&
-            usage="EPS_SCREENING 1.0e-8",&
-            default_r_val=1.0e-10_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="EPS_OPTIMIZATION",&
-            description="Accuracy of iterative RI fit",&
-            usage="EPS_OPTIMIZATION 1.0e-5",&
-            default_r_val=1.0e-6_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(&
-            keyword=keyword,&
-            name="MAX_ITER",&
-            description="Maximum number of iteration in RI fit",&
-            usage="MAX_ITER 100",&
-            default_i_val=20,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       !print section
-       NULLIFY(subsection)
-       CALL section_create(subsection,name="PRINT",&
-            description="Print results of a HFX RI calculation",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of information on the HFX RI approximation",&
-            print_level=medium_print_level,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"GEMINAL_BASIS",&
-            description="Controls the printing of the Geminal basis functions",&
-            print_level=high_print_level,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"CHARGE",&
-            description="Controls the printing of the approximated charge in the RI calculation",&
-            print_level=medium_print_level,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-    END IF
-
-  END SUBROUTINE create_hf_ri_section
 
 END MODULE input_cp2k_hfx

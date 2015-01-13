@@ -106,7 +106,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
-                                                geminal_file_name, &
                                                 potential_file_name
     INTEGER                                  :: excitations, i, method_id, &
                                                 nrep, stat, xc_deriv_method_id
@@ -309,8 +308,6 @@ CPSourceFileRef,&
 
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
-    CALL section_vals_val_get(dft_section,"GEMINAL_FILE_NAME",&
-         c_val=geminal_file_name , error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name , error=error)
 

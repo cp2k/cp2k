@@ -387,7 +387,6 @@ CONTAINS
           CALL mp_sum(force(ikind)%fock_4c,para_env%group)
           CALL mp_sum(force(ikind)%mp2_non_sep,para_env%group)
           CALL mp_sum(force(ikind)%mp2_sep,para_env%group)
-          CALL mp_sum(force(ikind)%hfx_ri,para_env%group)
           CALL mp_sum(force(ikind)%repulsive,para_env%group)
           CALL mp_sum(force(ikind)%dispersion,para_env%group)
           CALL mp_sum(force(ikind)%ehrenfest,para_env%group)
@@ -409,7 +408,6 @@ CONTAINS
                force(ikind)%fock_4c(:,:) +&
                force(ikind)%mp2_non_sep(:,:) +&
                force(ikind)%mp2_sep(:,:) +&
-               force(ikind)%hfx_ri(:,:) +&
                force(ikind)%repulsive(:,:)  +&
                force(ikind)%dispersion(:,:) +&
                force(ikind)%ehrenfest(:,:) +&
@@ -609,7 +607,6 @@ CONTAINS
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
-                  iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
                   iatom,ikind,"        efield",qs_force(ikind)%efield(1:3,i),&
                   iatom,ikind,"           eev",qs_force(ikind)%eev(1:3,i),&
@@ -639,7 +636,6 @@ CONTAINS
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
-                  iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"        efield",qs_force(ikind)%efield(1:3,i),&
                   iatom,ikind,"           eev",qs_force(ikind)%eev(1:3,i),&
                   iatom,ikind,"   mp2_non_sep",qs_force(ikind)%mp2_non_sep(1:3,i),&
@@ -675,7 +671,6 @@ CONTAINS
                   iatom,ikind,"       rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"        fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
-                  iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"   mp2_non_sep",qs_force(ikind)%mp2_non_sep(1:3,i),&
                   iatom,ikind,"       mp2_sep",qs_force(ikind)%mp2_sep(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)

@@ -139,8 +139,6 @@ MODULE qs_environment_types
   USE rel_control_types,               ONLY: rel_c_release,&
                                              rel_c_retain,&
                                              rel_control_type
-  USE ri_environment_types,            ONLY: ri_env_release,&
-                                             ri_environment_type
   USE rt_propagation_types,            ONLY: rt_prop_release,&
                                              rt_prop_type
   USE scf_control_types,               ONLY: scf_c_release,&
@@ -283,8 +281,6 @@ MODULE qs_environment_types
     ! LRI
     TYPE(lri_environment_type), POINTER                   :: lri_env
     TYPE(lri_density_type), POINTER                       :: lri_density
-    ! HFX RI
-    TYPE(ri_environment_type), POINTER                    :: hfx_ri_env
     ! Empirical dispersion
     TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
     ! Semi-empirical and DFTB types
@@ -454,7 +450,6 @@ CONTAINS
 !> \param admm_dm ...
 !> \param lri_env ...
 !> \param lri_density ...
-!> \param hfx_ri_env ...
 !> \param dispersion_env ...
 !> \param vee ...
 !> \param rho_external ...
@@ -498,7 +493,7 @@ CONTAINS
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, admm_dm, &
-       lri_env,lri_density,hfx_ri_env,dispersion_env, vee,rho_external,external_vxc,mask,&
+       lri_env,lri_density,dispersion_env, vee,rho_external,external_vxc,mask,&
        mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,do_transport, transport_env,v_hartree_rspace,&
        s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,mscfg_env,&
        error)
@@ -645,8 +640,6 @@ CONTAINS
       POINTER                                :: lri_env
     TYPE(lri_density_type), OPTIONAL, &
       POINTER                                :: lri_density
-    TYPE(ri_environment_type), OPTIONAL, &
-      POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
     TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
@@ -727,7 +720,6 @@ CONTAINS
     IF (PRESENT(admm_env)) admm_env => qs_env%admm_env
     IF (PRESENT(lri_env)) lri_env => qs_env%lri_env
     IF (PRESENT(lri_density)) lri_density => qs_env%lri_density
-    IF (PRESENT(hfx_ri_env)) hfx_ri_env => qs_env%hfx_ri_env
     IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
     IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
     IF (PRESENT(rtp)) rtp=>qs_env%rtp
@@ -926,7 +918,6 @@ CONTAINS
     NULLIFY (qs_env%efield)
     NULLIFY (qs_env%lri_env)
     NULLIFY (qs_env%lri_density)
-    NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
     NULLIFY (qs_env%mp2_env)
@@ -1025,7 +1016,6 @@ CONTAINS
 !> \param transport_env ...
 !> \param lri_env ...
 !> \param lri_density ...
-!> \param hfx_ri_env ...
 !> \param dispersion_env ...
 !> \param mp2_env ...
 !> \param kg_env ...
@@ -1048,7 +1038,7 @@ CONTAINS
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
-       do_transport, transport_env,lri_env,lri_density,hfx_ri_env,dispersion_env,mp2_env,kg_env,&
+       do_transport, transport_env,lri_env,lri_density,dispersion_env,mp2_env,kg_env,&
        WannierCentres,ga_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1136,8 +1126,6 @@ CONTAINS
       POINTER                                :: lri_env
     TYPE(lri_density_type), OPTIONAL, &
       POINTER                                :: lri_density
-    TYPE(ri_environment_type), OPTIONAL, &
-      POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
     TYPE(mp2_type), OPTIONAL, POINTER        :: mp2_env
@@ -1328,7 +1316,6 @@ CONTAINS
     IF( PRESENT(admm_env) ) qs_env%admm_env => admm_env
     IF( PRESENT(lri_env) ) qs_env%lri_env => lri_env
     IF( PRESENT(lri_density) ) qs_env%lri_density => lri_density
-    IF( PRESENT(hfx_ri_env) ) qs_env%hfx_ri_env => hfx_ri_env
     IF( PRESENT(dispersion_env) ) qs_env%dispersion_env => dispersion_env
     IF( PRESENT(WannierCentres) ) qs_env%WannierCentres => WannierCentres
   END SUBROUTINE set_qs_env
@@ -1563,9 +1550,6 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%lri_density)) THEN
              CALL lri_density_release(qs_env%lri_density, error)
-          END IF
-          IF (ASSOCIATED(qs_env%hfx_ri_env)) THEN
-            CALL ri_env_release(qs_env%hfx_ri_env, error)
           END IF
           IF (ASSOCIATED(qs_env%mp2_env)) THEN
             CALL mp2_env_release(qs_env%mp2_env, error)

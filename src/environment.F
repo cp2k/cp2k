@@ -518,9 +518,10 @@ CONTAINS
 
     CHARACTER(len=13)                        :: tracing_string
     CHARACTER(len=6)                         :: print_level_string
-    CHARACTER(len=default_path_length) :: basis_set_file_name, &
-      coord_file_name, geminal_file_name, mm_potential_file_name, &
-      potential_file_name
+    CHARACTER(len=default_path_length)       :: basis_set_file_name, &
+                                                coord_file_name, &
+                                                mm_potential_file_name, &
+                                                potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
@@ -733,8 +734,6 @@ CONTAINS
                i_rep_section=i_force_eval(iforce_eval),error=error)
           CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
                c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
-          CALL section_vals_val_get(dft_section,"GEMINAL_FILE_NAME",&
-               c_val=geminal_file_name , ignore_required=.TRUE., error=error)
           CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
                c_val=potential_file_name , ignore_required=.TRUE., error=error)
 
@@ -759,10 +758,6 @@ CONTAINS
                start_section_label//"| Force Environment number",&
                ADJUSTR(env_num(:40)),&
                start_section_label//"| Basis set file name",&
-               ADJUSTR(basis_set_file_name(:40)),&
-               start_section_label//"| Geminal file name",&
-               ADJUSTR(geminal_file_name(:40)),&
-               start_section_label//"| Potential file name",&
                ADJUSTR(potential_file_name(:40)),&
                start_section_label//"| MM Potential file name",&
                ADJUSTR(mm_potential_file_name(:40)),&

@@ -83,7 +83,6 @@ MODULE qs_environment
                                              qs_header,&
                                              scptb_header,&
                                              se_header
-  USE hfx_ri_methods,                  ONLY: hfx_ri_env_create
   USE hfx_types,                       ONLY: hfx_create
   USE input_constants,                 ONLY: &
        dispersion_d3, do_et_becke, do_et_ddapc, do_method_am1, &
@@ -140,7 +139,6 @@ MODULE qs_environment
   USE qs_interactions,                 ONLY: init_interaction_radii,&
                                              init_se_nlradius,&
                                              write_core_charge_radii,&
-                                             write_geminal_radii,&
                                              write_paw_radii,&
                                              write_pgf_orb_radii,&
                                              write_ppl_radii,&
@@ -246,8 +244,8 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, method_id, &
                                                 natom, nkind
-    LOGICAL :: do_et, do_exx, do_hfx, do_hfx_ri, do_kpoints, failure, &
-      harris_flag, mp2_present, my_qmmm, qmmm_decoupl, use_ref_cell
+    LOGICAL :: do_et, do_exx, do_hfx, do_kpoints, failure, harris_flag, &
+      mp2_present, my_qmmm, qmmm_decoupl, use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -266,8 +264,8 @@ CONTAINS
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
-      harris_section, hfx_ri_section, hfx_section, kpoint_section, &
-      mp2_section, transport_section
+      harris_section, hfx_section, kpoint_section, mp2_section, &
+      transport_section
 
     failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
@@ -368,11 +366,6 @@ CONTAINS
       natom=SIZE(particle_set)
       CALL hfx_create(qs_env%x_data, para_env, hfx_section, natom, atomic_kind_set,&
                       qs_kind_set, dft_control, my_cell, error=error)
-      hfx_ri_section => section_vals_get_subs_vals(hfx_section,"HFX_RI",error=error)
-      CALL section_vals_get(hfx_ri_section,explicit=do_hfx_ri,error=error)
-      IF (do_hfx_ri) THEN
-        CALL hfx_ri_env_create(qs_env,error)
-      END IF
     END IF
 
     mp2_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%WF_CORRELATION",error=error)
@@ -743,7 +736,6 @@ CONTAINS
     CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,qs_kind_set,error)
 
     CALL write_pgf_orb_radii("orb",atomic_kind_set,qs_kind_set,subsys_section,error)
-    CALL write_geminal_radii(atomic_kind_set,qs_kind_set,subsys_section,error)
     CALL write_pgf_orb_radii("aux",atomic_kind_set,qs_kind_set,subsys_section,error)
     CALL write_pgf_orb_radii("lri",atomic_kind_set,qs_kind_set,subsys_section,error)
     CALL write_core_charge_radii(atomic_kind_set,qs_kind_set,subsys_section,error)

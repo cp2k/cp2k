@@ -94,7 +94,6 @@ MODULE input_cp2k_dft
        xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
   USE input_cp2k_almo,                 ONLY: create_almo_scf_section
-  USE input_cp2k_atom,                 ONLY: create_powell_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_kpoints,              ONLY: create_kpoints_section
   USE input_cp2k_ls,                   ONLY: create_ls_scf_section
@@ -353,13 +352,6 @@ CONTAINS
          description="Name of the pseudo potential file, may include a path",&
          usage="POTENTIAL_FILE_NAME <FILENAME>",&
          default_lc_val="POTENTIAL",error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="GEMINAL_FILE_NAME",&
-         description="Name of the geminal basis set file, may include a path",&
-         usage="GEMINAL_FILE_NAME <FILENAME>",&
-         default_lc_val="BASIS_GEMINAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -2072,19 +2064,6 @@ CONTAINS
             type_of_var=real_t, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key_section=print_key,&
-            name="OPTIMIZE_GEMINALS",&
-            description="Optimize the parameters of the geminal basis set",&
-            print_level=debug_print_level,&
-            filename="__STD_OUT__",error=error)
-
-       CALL create_powell_section(subsection,error)
-       CALL section_add_subsection(print_key, subsection, error=error)
-       CALL section_release(subsection,error=error)
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
