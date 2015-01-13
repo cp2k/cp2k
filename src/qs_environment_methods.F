@@ -70,8 +70,7 @@ MODULE qs_environment_methods
                                              set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
-  USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
-                                             rho0_mpole_type
+  USE qs_rho0_types,                   ONLY: rho0_mpole_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: scf_env_did_change
@@ -499,14 +498,13 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(pw_env_type), POINTER               :: new_pw_env
-    TYPE(pw_p_type), POINTER                 :: external_vxc, rho_core, &
-                                                rho_nlcc, rho_nlcc_g, vee, &
-                                                vppl
+    TYPE(pw_p_type), POINTER                 :: external_vxc, rho0_gs, &
+                                                rho0_rs, rho_core, rho_nlcc, &
+                                                rho_nlcc_g, vee, vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(pw_p_type), POINTER                 :: rho0_gs, rho0_rs
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

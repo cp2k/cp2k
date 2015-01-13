@@ -12,16 +12,12 @@
 MODULE ai_coulomb_test
 
   USE ai_coulomb,                      ONLY: coulomb2
-  USE ai_eri_debug,                    ONLY: init_os,&
-                                             os
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
-  USE orbital_pointers,                ONLY: coset,&
-                                             deallocate_orbital_pointers,&
+  USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
                                              init_orbital_pointers,&
                                              nco,&
                                              ncoset
-  USE physcon,                         ONLY: bohr
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE

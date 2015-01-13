@@ -234,8 +234,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ikind, irep, ispin, &
                                                 mspin, n_rep_hf, nspins, stat
-    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, &
-      failure, hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
+    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, failure, &
+      hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, &
       matrix_ks_aux_fit, matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_im, &

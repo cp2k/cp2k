@@ -14,7 +14,6 @@ MODULE input_cp2k_hfx
                                              Guidon2009
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
-                                             high_print_level,&
                                              medium_print_level
   USE input_constants,                 ONLY: &
        do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
