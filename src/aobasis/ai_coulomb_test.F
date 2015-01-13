@@ -57,21 +57,15 @@ CONTAINS
     CHARACTER(LEN=9), DIMENSION(0:lmax)      :: i2f
     INTEGER                                  :: i, ii, istat, l, la_max, &
                                                 la_min, lc_max, lc_min, ll, &
-                                                n, na, nb, npgfa, npgfb, &
-                                                npgfc, npgfd
+                                                n, npgfa, npgfb, npgfc, npgfd
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: perf, rac2, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vac
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: v, za, zb
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :, :)               :: iab
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :, :, :)            :: iabc
+      DIMENSION(:, :, :)                     :: v
     REAL(KIND=dp), DIMENSION(3)              :: ra, rb, rc, rd
-    REAL(KIND=dp), DIMENSION(6)              :: a, b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgf, zeta, zetb, zetc, zetd
 
     failure = .FALSE.
