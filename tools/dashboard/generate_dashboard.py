@@ -183,10 +183,10 @@ def send_notification(report, addressbook, last_ok, svn_log, name, s):
     rev_end = report['revision'] if(report['revision']) else max(svn_log.keys())
     authors = set([svn_log[r]['author'] for r in range(last_ok+1, rev_end+1)])
     emails = [addressbook[a] for a in authors]
-    print("Sending email to: "+" ,".join(emails))
+    print("Sending email to: "+", ".join(emails))
 
     msg_txt  = "Dear CP2K developer,\n\n"
-    msg_txt += "the dashboard has a detected a problem that one of your recent commits might have introduced.\n\n"
+    msg_txt += "the dashboard has detected a problem that one of your recent commits might have introduced.\n\n"
     msg_txt += "   test name:      %s\n"%name
     msg_txt += "   report state:   %s\n"%report['status']
     msg_txt += "   report summary: %s\n"%report['summary']
