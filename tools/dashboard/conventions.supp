@@ -34,7 +34,6 @@ cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_fm_to_dbcsr
 cp_dbcsr_operations.F.ast: Found FORALL statement in procedure "copy_fm_to_dbcsr_bc"
 cp_files.F.ast: Found CLOSE statement in procedure "close_file"
 cp_files.F.ast: Found OPEN statement in procedure "open_file"
-cp_lbfgs.F.ast: Found OPEN statement in procedure "mainlb"
 dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_c"
 dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_d"
 dbcsr_block_operations.F.ast: Found FORALL statement in procedure "block_2d_add_on_diag_s"
