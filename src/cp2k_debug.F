@@ -17,6 +17,7 @@
 !>              consistent to each other [TdK].
 !>      08.2005 In case the Harris functional is used, consistent_energies is
 !>              et to .FALSE., otherwise the QS energies are spuriously used [TdK].
+!>      01.2015 Remove Harris functional option
 !>      - Revised (20.11.2013,MK)
 !> \author Teodoro Laino
 ! *****************************************************************************
@@ -82,7 +83,7 @@ CONTAINS
     INTEGER                                  :: i, ip, iw, j, k, np, stat, &
                                                 stress_tensor
     LOGICAL :: check_failed, debug_forces, debug_stress_tensor, failure, &
-      harris_flag, skip, stop_on_mismatch
+      skip, stop_on_mismatch
     REAL(KIND=dp)                            :: dx, eps_no_error_check, &
                                                 std_value
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
@@ -96,8 +97,7 @@ CONTAINS
       POINTER                                :: particles
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(section_vals_type), POINTER         :: harris_section, root_section, &
-                                                subsys_section
+    TYPE(section_vals_type), POINTER         :: root_section, subsys_section
     TYPE(virial_type), POINTER               :: virial, virial_analytical, &
                                                 virial_numerical
 
@@ -110,12 +110,8 @@ CONTAINS
     IF (.NOT.failure) THEN
 
        CALL force_env_get(force_env,para_env=para_env,subsys=subsys,cell=cell,error=error)
-       harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
-                                                    "DFT%QS%HARRIS",error=error)
        subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "SUBSYS",error=error)
-       CALL section_vals_val_get(harris_section,"ACTIVATE", &
-                                 l_val=harris_flag, error=error)
 
        CALL section_vals_val_get(root_section,"DEBUG%DEBUG_STRESS_TENSOR",&
                                  l_val=debug_stress_tensor,error=error)
@@ -270,7 +266,7 @@ CONTAINS
                    CALL force_env_calc_energy_force(force_env,&
                                                     calc_force=.FALSE.,&
                                                     calc_stress_tensor=.FALSE.,&
-                                                    consistent_energies=(.NOT.harris_flag),&
+                                                    consistent_energies=.TRUE.,&
                                                     error=error)
                    CALL force_env_get(force_env,potential_energy=numer_energy(j),error=error)
                 END DO

@@ -54,8 +54,6 @@ MODULE qs_environment_types
                                              ga_env_retain,&
                                              ga_environment_type
   USE global_types,                    ONLY: global_environment_type
-  USE harris_env_types,                ONLY: harris_env_release,&
-                                             harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                              get_hartree_local,&
                                              hartree_local_create,&
@@ -203,11 +201,6 @@ MODULE qs_environment_types
 !> \param local_molecules which molecules are local to this processor
 !> \param molecule_kind_set description of the molecule kinds
 !> \param molecule_set all the molecule description
-!> \param use_harris LOGICAL which indicates, if the Harris energy functional
-!>                    should be used.
-!> \param harris_env The harris environment, which consist of the harris energy
-!>                    and force type and the rho structure to pass the density of
-!>                    the harris energy functional to the force calculation
 !> \param ep_qs_env environment to perform an ep calculation
 !> \param rtp all data needed for real time propagation
 !> \param x contains data used in Hartree-Fock-Exchange calculations
@@ -228,7 +221,6 @@ MODULE qs_environment_types
     LOGICAL :: requires_mo_derivs
     LOGICAL :: requires_matrix_vxc
     LOGICAL :: has_unit_metric
-    LOGICAL :: use_harris
     LOGICAL :: run_rtp
     LOGICAL :: linres_run
     LOGICAL :: calc_image_preconditioner
@@ -247,7 +239,6 @@ MODULE qs_environment_types
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_loc_history
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
-    TYPE(harris_env_type), POINTER                        :: harris_env
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(rel_control_type), POINTER                       :: rel_control
     TYPE(scp_environment_type), POINTER                   :: scp_env
@@ -348,7 +339,6 @@ CONTAINS
 !> \param particle_set ...
 !> \param energy ...
 !> \param force ...
-!> \param harris_env ...
 !> \param matrix_h ...
 !> \param matrix_ks ...
 !> \param matrix_ks_im ...
@@ -396,7 +386,6 @@ CONTAINS
 !> \param ks_qmmm_env ...
 !> \param wf_history ...
 !> \param scf_env ...
-!> \param use_harris ...
 !> \param id_nr ...
 !> \param local_particles ...
 !> \param local_molecules ...
@@ -477,7 +466,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,qs_kind_set,cell,super_cell,cell_ref,use_ref_cell,kpoints,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_scp,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,sab_almo,particle_set,energy,force,harris_env,&
+       sab_se,sab_tbe,sab_core,sab_almo,particle_set,energy,force,&
        matrix_h,matrix_ks,matrix_ks_im,matrix_vxc,run_rtp,rtp,&
        matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp,&
        matrix_ks_aux_fit,matrix_ks_aux_fit_im,matrix_ks_aux_fit_dft,matrix_ks_aux_fit_hfx,&
@@ -485,7 +474,7 @@ CONTAINS
        gamma_matrix, rho, rho_aux_fit,rho_aux_fit_buffer, &
        rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
-       vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr, local_particles,&
+       vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, id_nr, local_particles,&
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,cp_subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,do_kpoints,has_unit_metric,requires_mo_derivs,mo_derivs,&
@@ -522,7 +511,6 @@ CONTAINS
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
-    TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
                                                 matrix_ks_im, matrix_vxc
@@ -567,7 +555,6 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
-    LOGICAL, OPTIONAL                        :: use_harris
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
@@ -688,8 +675,6 @@ CONTAINS
     IF (PRESENT(qmmm_periodic)) qmmm_periodic = qs_env%qmmm_periodic
     IF (PRESENT(mos)) mos => qs_env%mos
     IF (PRESENT(mos_aux_fit)) mos_aux_fit => qs_env%mos_aux_fit
-    IF (PRESENT(use_harris)) use_harris = qs_env%use_harris
-    IF (PRESENT(harris_env)) harris_env => qs_env%harris_env
     IF (PRESENT(ewald_env)) ewald_env => qs_env%ewald_env
     IF (PRESENT(ewald_pw)) ewald_pw => qs_env%ewald_pw
     IF (PRESENT(mpools)) mpools => qs_env%mpools
@@ -878,7 +863,6 @@ CONTAINS
     NULLIFY (qs_env%super_cell)
     NULLIFY (qs_env%mos)
     NULLIFY (qs_env%mos_aux_fit)
-    NULLIFY (qs_env%harris_env)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%mpools_aux_fit)
     NULLIFY (qs_env%ewald_env)
@@ -939,7 +923,6 @@ CONTAINS
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%requires_matrix_vxc=.FALSE.
     qs_env%has_unit_metric=.FALSE.
-    qs_env%use_harris=.FALSE.
     qs_env%calc_image_preconditioner=.TRUE.
     qs_env%do_transport=.FALSE.
     qs_env%target_time = globenv%cp2k_target_time
@@ -962,7 +945,6 @@ CONTAINS
 !> \param mos_aux_fit ...
 !> \param qmmm ...
 !> \param qmmm_periodic ...
-!> \param harris_env ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
 !> \param mpools ...
@@ -978,7 +960,6 @@ CONTAINS
 !> \param ks_qmmm_env ...
 !> \param wf_history ...
 !> \param scf_env ...
-!> \param use_harris ...
 !> \param input ...
 !> \param oce ...
 !> \param rho_atom_set ...
@@ -1027,11 +1008,11 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_qs_env(qs_env,super_cell,&
-       mos,mos_aux_fit,qmmm,qmmm_periodic,harris_env,&
+       mos,mos_aux_fit,qmmm,qmmm_periodic,&
        ewald_env,ewald_pw,mpools,mpools_aux_fit,&
        rho_external,external_vxc,mask,&
        kinetic,scf_control,rel_control,qs_charges,ks_env,&
-       ks_qmmm_env,wf_history,scf_env,use_harris,&
+       ks_qmmm_env,wf_history,scf_env,&
        input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, efield,&
@@ -1046,7 +1027,6 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos, mos_aux_fit
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
-    TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
     TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
@@ -1067,7 +1047,6 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
-    LOGICAL, OPTIONAL                        :: use_harris
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
@@ -1167,8 +1146,6 @@ CONTAINS
     IF (PRESENT(transport_env)) qs_env%transport_env => transport_env
     ! if intels checking (-C) complains here, you have rediscovered a bug in the intel
     ! compiler (present in at least 10.0.025). A testcase has been submitted to intel.
-    IF (PRESENT(use_harris)) qs_env%use_harris = use_harris
-    IF (PRESENT(harris_env)) qs_env%harris_env => harris_env
     IF (PRESENT(oce)) qs_env%oce => oce
     IF (PRESENT(outer_scf_history)) qs_env%outer_scf_history=>outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory=outer_scf_ihistory
@@ -1451,9 +1428,6 @@ CONTAINS
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              qs_env%outer_scf_ihistory=0
           ENDIF
-          IF (ASSOCIATED(qs_env%harris_env)) THEN
-             CALL harris_env_release(qs_env%harris_env, error=error)
-          END IF
           IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce,error)
           IF (ASSOCIATED(qs_env%local_rho_set)) THEN
              CALL local_rho_set_release(qs_env%local_rho_set,error=error)

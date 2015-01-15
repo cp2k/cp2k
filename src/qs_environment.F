@@ -72,12 +72,6 @@ MODULE qs_environment
                                              init_ga_env
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
-  USE harris_energy_types,             ONLY: harris_energy_create,&
-                                             harris_energy_type
-  USE harris_env_types,                ONLY: harris_env_create,&
-                                             harris_env_set,&
-                                             harris_env_type
-  USE harris_force_types,              ONLY: harris_force_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE header,                          ONLY: dftb_header,&
                                              qs_header,&
@@ -244,7 +238,7 @@ CONTAINS
 
     INTEGER                                  :: ikind, istat, method_id, &
                                                 natom, nkind
-    LOGICAL :: do_et, do_exx, do_hfx, do_kpoints, failure, harris_flag, &
+    LOGICAL :: do_et, do_exx, do_hfx, do_kpoints, failure, &
       mp2_present, my_qmmm, qmmm_decoupl, use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -264,19 +258,17 @@ CONTAINS
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(rel_control_type), POINTER          :: rel_control
     TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
-      harris_section, hfx_section, kpoint_section, mp2_section, &
-      transport_section
+      hfx_section, kpoint_section, mp2_section, transport_section
 
     failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
-         qs_kind_set, harris_section, kpoint_section, dft_section, ga_env, &
+         qs_kind_set, kpoint_section, dft_section, ga_env, &
          subsys, ks_env, dft_control, blacs_env)
 
+    CALL set_qs_env(qs_env,input=force_env_section,error=error)
     IF (.NOT.ASSOCIATED(subsys_section)) THEN
        subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     END IF
-
-    harris_section => section_vals_get_subs_vals(force_env_section, "DFT%QS%HARRIS", error=error)
 
     ! QMMM 
     my_qmmm = .FALSE.
@@ -291,10 +283,6 @@ CONTAINS
        qs_env%qmmm_env_qm => qmmm_env_qm
     END IF
     CALL set_qs_env(qs_env=qs_env,qmmm=my_qmmm,error=error)
-
-    harris_flag = .FALSE.
-    CALL section_vals_val_get(harris_section, "ACTIVATE", l_val=harris_flag, error=error)
-    CALL set_qs_env(qs_env,input=force_env_section,use_harris=harris_flag,error=error)
 
     ! Possibly initialize arrays for SE
     CALL section_vals_val_get(force_env_section,"DFT%QS%METHOD",i_val=method_id,error=error)
@@ -337,7 +325,7 @@ CONTAINS
          force_env_section, subsys_section, para_env, error)
 
     CALL qs_init_subsys(qs_env,para_env,subsys,my_cell,my_cell_ref,use_ref_cell,&
-         root_section,subsys_section,harris=harris_flag,error=error)
+         root_section,subsys_section,error=error)
 
     ! kpoints
     CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
@@ -467,12 +455,11 @@ CONTAINS
 !> \param use_ref_cell ...
 !> \param root_section ...
 !> \param subsys_section ...
-!> \param harris ...
 !> \param error ...
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init_subsys(qs_env,para_env,subsys,cell,cell_ref,use_ref_cell,&
-       root_section,subsys_section,harris,error)
+       root_section,subsys_section,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -480,7 +467,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
-    LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys', &
@@ -491,7 +477,7 @@ CONTAINS
       n_ao_aux_fit, n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
-                                                failure, harris_flag, &
+                                                failure, &
                                                 has_unit_metric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
@@ -506,9 +492,6 @@ CONTAINS
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: se_nonbond_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(harris_energy_type), POINTER        :: harris_energy
-    TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -549,20 +532,11 @@ CONTAINS
     output_unit = cp_logger_get_default_io_unit(logger)
     was_present = .FALSE.
 
-    IF (PRESENT(harris)) THEN
-       harris_flag = harris
-    ELSE
-       harris_flag = .FALSE.
-    END IF
-
     ! Initialise the Quickstep environment
     NULLIFY (mos, se_taper, mos_aux_fit)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
-    NULLIFY (harris_energy)
-    NULLIFY (harris_env)
-    NULLIFY (harris_force)
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
     NULLIFY (scf_control)
@@ -761,11 +735,6 @@ CONTAINS
     !   *** Allocate the data structure for Quickstep energies ***
     CALL allocate_qs_energy(energy)
 
-    !   *** Allocate the data structure for the Harris energies ***
-    IF (harris_flag) THEN
-       CALL harris_energy_create(harris_energy=harris_energy,error=error)
-    END IF
-
     ! check for orthogoanl basis
     has_unit_metric = .FALSE.
     IF (dft_control%qs_control%semi_empirical) THEN
@@ -784,15 +753,6 @@ CONTAINS
                     has_unit_metric = has_unit_metric, &
                     error=error)
 
-    !   *** Set the actual Harris environment ***
-    IF (harris_flag) THEN
-       natom = SIZE(particle_set)
-       CALL harris_env_create(harris_env=harris_env, natom=natom, &
-            nspins=dft_control%nspins, error=error)
-       CALL harris_env_set(harris_env=harris_env, harris_energy=harris_energy, &
-            harris_force=harris_force, error=error)
-    END IF
-
     !   *** Set the current Quickstep environment ***
     CALL set_qs_env(qs_env=qs_env,&
                     scf_control=scf_control,&
@@ -808,10 +768,6 @@ CONTAINS
 
     CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
     CALL set_ks_env(ks_env, dft_control=dft_control, error=error)
-
-    IF (harris_flag) THEN
-       CALL set_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
-    END IF
 
     CALL qs_subsys_set(subsys,local_molecules_new=local_molecules,&
          local_particles=local_particles,cell=cell,error=error)

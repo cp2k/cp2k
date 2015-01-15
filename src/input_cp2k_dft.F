@@ -3015,10 +3015,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_harris_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
        CALL create_optimize_lri_basis_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -5331,53 +5327,6 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_gspace_interp_section
-
-! *****************************************************************************
-!> \brief This section specifies the flags for the harris functional
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
-  SUBROUTINE create_harris_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_harris_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="HARRIS",&
-            description="This section specifies the flags for the calculation of the harris functional",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY(keyword)
-
-       CALL keyword_create(keyword, name="ACTIVATE", &
-            description="Activates the harris functional.", &
-            usage="ACTIVATE TRUE", required=.FALSE., &
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-            error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-       CALL keyword_create(keyword, name="HARRIS_ENERGY",&
-            description="Overrides the QS Energy.", &
-            usage="HARRIS_ENERGY TRUE", required=.FALSE., &
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-            error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-    END IF
-  END SUBROUTINE create_harris_section
 
 ! *****************************************************************************
 !> \brief input section for optimization of the auxililary basis for LRIGPW

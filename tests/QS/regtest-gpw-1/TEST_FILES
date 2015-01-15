@@ -5,12 +5,6 @@
 #      for details see cp2k/tools/do_regtest
 Ar.inp                            1     3e-13
 NO2_lsd.inp                       1     5e-14
-#Harris funcional 
-H2O-harris.inp                    1     4e-14
-H2O-MD-harris.inp                 1     5e-14
-#Force consistency via FDs
-H2O-Harris-Debug-SCF.inp 1
-H2O-Harris-Debug-NoSCF.inp 1
 #QS
 Ar-2.inp                          1     3e-13
 Ar-3.inp                          1     7e-13

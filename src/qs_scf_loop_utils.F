@@ -13,10 +13,6 @@ MODULE qs_scf_loop_utils
                                              cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE harris_env_types,                ONLY: harris_env_type
-  USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
-                                             harris_eigenvalue_trace_KS_Pmix,&
-                                             harris_energy_correction
   USE input_constants,                 ONLY: outer_scf_none,&
                                              outer_scf_scp
   USE input_section_types,             ONLY: section_vals_type,&
@@ -81,8 +77,7 @@ MODULE qs_scf_loop_utils
 
   PUBLIC :: qs_scf_set_loop_flags,&
             qs_scf_new_mos, qs_scf_new_mos_kp,&
-            qs_scf_harris_e_correct, qs_scf_density_mixing,&
-            qs_scf_check_inner_exit, &
+            qs_scf_density_mixing, qs_scf_check_inner_exit, &
             qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
 CONTAINS
@@ -456,48 +451,6 @@ CONTAINS
   END SUBROUTINE qs_scf_loop_do_ot
 
 ! *****************************************************************************
-!> \brief calculation of the harris energy correction
-!> \param qs_env ...
-!> \param harris_env ...
-!> \param para_env ...
-!> \param scf_env ...
-!> \param energy ...
-!> \param harris_section ...
-!> \param harris_flag ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE qs_scf_harris_e_correct(qs_env,harris_env,para_env,scf_env,energy,&
-                                     harris_section,harris_flag,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(section_vals_type), POINTER         :: harris_section
-    LOGICAL                                  :: harris_flag
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_harris_e_correct', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: harris_energy
-
-    IF (harris_flag) THEN
-       CALL harris_energy_correction(qs_env, harris_env, para_env=para_env, fast=.TRUE., error=error)
-       IF (scf_env%method .NE. ot_method_nr) THEN
-          CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env,error=error)
-       ELSE
-          CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env,error=error)
-       END IF
-
-       CALL section_vals_val_get(harris_section, "HARRIS_ENERGY",l_val=harris_energy,error=error)
-       IF ((harris_energy)) THEN
-          energy%total = harris_env%harris_energy%Eharris
-       END IF
-    END IF 
-
- END SUBROUTINE qs_scf_harris_e_correct
-! *****************************************************************************
 !> \brief Performs the requested density mixing if any needed
 !> \param scf_env   Holds SCF environment information
 !> \param rho       All data for the electron density 
@@ -731,16 +684,15 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 !> \param qs_env ...
-!> \param harris_flag ...
 !> \param diis_step ...
 !> \param output_unit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_inner_finalize(scf_env,scf_control,qs_env,harris_flag,diis_step,output_unit,error)
+  SUBROUTINE qs_scf_inner_finalize(scf_env,scf_control,qs_env,diis_step,output_unit,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL                                  :: harris_flag, diis_step
+    LOGICAL                                  :: diis_step
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -750,17 +702,15 @@ CONTAINS
     LOGICAL                                  :: do_kpoints, failure, scp_nddo
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure=.FALSE.
-    NULLIFY(energy, rho, dft_control, harris_env, ks_env)
+    NULLIFY(energy, rho, dft_control, ks_env)
 
     CALL get_qs_env(qs_env=qs_env, energy=energy,ks_env=ks_env,&
-                    rho=rho, dft_control=dft_control,harris_env=harris_env,&
-                    para_env=para_env,&
+                    rho=rho, dft_control=dft_control,para_env=para_env,&
                     do_kpoints=do_kpoints, error=error)
 
     scp_nddo = dft_control%qs_control%se_control%scp
@@ -774,8 +724,6 @@ CONTAINS
     ! now, print out energies and charges corresponding to the obtained wfn
     ! (this actually is not 100% consistent at this point)!
     CALL qs_scf_print_summary(output_unit,qs_env,error)
-
-    IF (harris_flag) energy%total = harris_env%harris_energy%Eharris
 
     CALL qs_scf_undo_mixing (scf_env,rho,dft_control,para_env,diis_step,error)
 

@@ -63,8 +63,6 @@ MODULE qs_scf
   USE cp_result_methods,               ONLY: get_results,&
                                              test_for_result
   USE cp_result_types,                 ONLY: cp_result_type
-  USE harris_env_types,                ONLY: harris_env_type
-  USE harris_functional,               ONLY: harris_postprocessing
   USE input_constants,                 ONLY: do_method_mndo,&
                                              history_guess,&
                                              ot_precond_full_all,&
@@ -117,7 +115,7 @@ MODULE qs_scf
                                              qs_scf_env_initialize
   USE qs_scf_loop_utils,               ONLY: &
        qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
-       qs_scf_density_mixing, qs_scf_harris_e_correct, qs_scf_inner_finalize, &
+       qs_scf_density_mixing, qs_scf_inner_finalize, &
        qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, &
        qs_scf_set_loop_flags
   USE qs_scf_output,                   ONLY: qs_scf_loop_info,&
@@ -266,7 +264,7 @@ CONTAINS
     INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, &
       ispin, iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, &
-      exit_outer_loop, failure, gapw, gapw_xc, harris_flag, has_unit_metric, &
+      exit_outer_loop, failure, gapw, gapw_xc, has_unit_metric, &
       inner_loop_converged, just_energy, outer_loop_converged, scp_nddo
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
@@ -278,7 +276,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -293,7 +290,7 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
+    TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 input, scf_section
 
     CALL timeset(routineN,handle)
@@ -302,7 +299,7 @@ CONTAINS
 
     NULLIFY(dft_control,rho,rho_xc,energy, &
             logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
-            particle_set,harris_env,dft_section,input,&
+            particle_set,dft_section,input,&
             scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -318,7 +315,6 @@ CONTAINS
                     particle_set=particle_set,&
                     qs_charges=qs_charges,&
                     ks_env=ks_env, &
-                    harris_env=harris_env,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
                     rho=rho,&
@@ -339,7 +335,6 @@ CONTAINS
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
-    harris_section => section_vals_get_subs_vals(dft_section,"QS%HARRIS", error=error)
 
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".scfLog",error=error)
@@ -358,9 +353,6 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,"Not Yet Implemented (buggy since rev12141)")
        ENDIF
     END IF
-
-    harris_flag = qs_env%use_harris
-    CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
 
     IF ((output_unit > 0).AND.(.NOT.scf_control%use_ot)) THEN
        WRITE (UNIT=output_unit,&
@@ -432,9 +424,6 @@ CONTAINS
           ! another heavy weight print object, print controlled by dft_section
           CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,.FALSE.,error=error)
           
-          CALL qs_scf_harris_e_correct(qs_env,harris_env,para_env,scf_env,energy,harris_section,&
-                                       harris_flag,error)
-
           CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error=error)
 
           t2 = m_walltime()
@@ -442,8 +431,6 @@ CONTAINS
           CALL qs_scf_loop_info(scf_env,output_unit,just_energy,t1,t2,energy)
 
           IF (.NOT.just_energy) energy%tot_old = energy%total
-
-          IF (harris_flag) CALL harris_postprocessing(harris_env, error=error)
 
           ! check for external communicator and if the intermediate energy should be sent
           IF(scf_energy_message_tag.GT.0)THEN
@@ -457,7 +444,7 @@ CONTAINS
           ! is really the last SCF step
           IF (exit_inner_loop) THEN
 
-             CALL qs_scf_inner_finalize(scf_env,scf_control,qs_env,harris_flag,diis_step,output_unit,error)
+             CALL qs_scf_inner_finalize(scf_env,scf_control,qs_env,diis_step,output_unit,error)
 
              CALL qs_scf_check_outer_exit(qs_env,scf_env,scf_control,should_stop,&
                                          outer_loop_converged,exit_outer_loop,error)
