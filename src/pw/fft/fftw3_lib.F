@@ -83,6 +83,8 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 ! a C interface to a global variable in MKL that sets
 ! the number of threads which can concurrently execute
 ! an FFT
+! We need __INTEL_COMPILER so we can be sure that the compiler
+! understands the !DEC$ version definitions
 #if defined (__INTEL_COMPILER) && defined (__MKL) && defined (__FFTW3)
 !$    include "mkl.fi"
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
@@ -118,7 +120,9 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 ! If we are not using the Intel compiler, there is no way to tell which
 ! MKL version is in use, so fail safe...
 !$     mkl_is_safe = .FALSE.
-#if defined (__INTEL_COMPILER) &&defined (__MKL) && defined (__FFTW3)
+! If we have an Intel compiler (__INTEL_COMPILER is defined) then check the
+! MKL version and make the appropriate action
+#if defined (__INTEL_COMPILER) && defined (__MKL) && defined (__FFTW3)
 !DEC$ IF DEFINED (INTEL_MKL_VERSION)
 !DEC$ IF INTEL_MKL_VERSION .EQ. 110100
 !$     mkl_dft_number_of_user_threads=omp_get_max_threads() 

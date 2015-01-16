@@ -52,6 +52,9 @@ How to compile CP2K code
      If compiling with OpenMP support then it is recommended to use a
      non-threaded version of BLAS.  In particular if compiling with MKL
      and using OpenMP you must define __MKL to ensure the code is thread-safe.
+     MKL with multiple OpenMP threads in CP2K requires that CP2K was compiled
+     with the Intel compiler (and __INTEL_COMPILER is defined if explicit
+     pre-processing is performed using cpp instead of the compiler).
 
  2d) MPI (version 2) and SCALAPACK are needed for parallel code.
      (Use the latest versions available and download all patches!)
