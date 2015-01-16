@@ -82,8 +82,9 @@ CONTAINS
     CHARACTER(LEN=3*default_string_length)   :: message
     INTEGER                                  :: i, ip, iw, j, k, np, stat, &
                                                 stress_tensor
-    LOGICAL :: check_failed, debug_forces, debug_stress_tensor, failure, &
-      skip, stop_on_mismatch
+    LOGICAL                                  :: check_failed, debug_forces, &
+                                                debug_stress_tensor, failure, &
+                                                skip, stop_on_mismatch
     REAL(KIND=dp)                            :: dx, eps_no_error_check, &
                                                 std_value
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy

@@ -15,8 +15,7 @@ MODULE qs_scf_loop_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: outer_scf_none,&
                                              outer_scf_scp
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: kpoint_type
   USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
