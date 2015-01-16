@@ -113,11 +113,14 @@ MODULE qs_scf
                                              qs_rho_type
   USE qs_scf_initialization,           ONLY: qs_scf_compute_properties,&
                                              qs_scf_env_initialize
-  USE qs_scf_loop_utils,               ONLY: &
-       qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
-       qs_scf_density_mixing, qs_scf_inner_finalize, &
-       qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, &
-       qs_scf_set_loop_flags
+  USE qs_scf_loop_utils,               ONLY: qs_scf_check_inner_exit,&
+                                             qs_scf_check_outer_exit,&
+                                             qs_scf_density_mixing,&
+                                             qs_scf_inner_finalize,&
+                                             qs_scf_new_mos,&
+                                             qs_scf_new_mos_kp,&
+                                             qs_scf_rho_update,&
+                                             qs_scf_set_loop_flags
   USE qs_scf_output,                   ONLY: qs_scf_loop_info,&
                                              qs_scf_loop_print,&
                                              qs_scf_outer_loop_info,&
@@ -264,8 +267,8 @@ CONTAINS
     INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, &
       ispin, iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, &
-      exit_outer_loop, failure, gapw, gapw_xc, has_unit_metric, &
-      inner_loop_converged, just_energy, outer_loop_converged, scp_nddo
+      exit_outer_loop, failure, gapw, gapw_xc, inner_loop_converged, &
+      just_energy, outer_loop_converged, scp_nddo
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -290,8 +293,8 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(section_vals_type), POINTER         :: dft_section, &
-                                                input, scf_section
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                scf_section
 
     CALL timeset(routineN,handle)
 

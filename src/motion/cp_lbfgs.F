@@ -1036,7 +1036,7 @@ CONTAINS
     INTEGER                                  :: m
     REAL(KIND=dp)                            :: sy(m, m), wt(m, m)
     INTEGER                                  :: col
-    REAL(KIND=dp)                            :: v(2*col)
+    REAL(KIND=dp), INTENT(in)                :: v(2*col)
     REAL(KIND=dp), INTENT(out)               :: p(2*col)
     INTEGER, INTENT(out)                     :: info
 
@@ -1576,14 +1576,15 @@ CONTAINS
       SUBROUTINE cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index,    &
                        theta, col, head, nfree, cnstnd, info)
 
-    INTEGER                                  :: n, m
-    REAL(KIND=dp)                            :: x(n), g(n), ws(n, m), &
+    INTEGER, INTENT(in)                      :: n, m
+    REAL(KIND=dp), INTENT(in)                :: x(n), g(n), ws(n, m), &
                                                 wy(n, m), sy(m, m), wt(m, m), &
-                                                z(n), r(n), wa(4*m)
-    INTEGER                                  :: INDEX(n)
-    REAL(KIND=dp)                            :: theta
-    INTEGER                                  :: col, head, nfree
-    LOGICAL                                  :: cnstnd
+                                                z(n)
+    REAL(KIND=dp), INTENT(out)               :: r(n), wa(4*m)
+    INTEGER, INTENT(in)                      :: INDEX(n)
+    REAL(KIND=dp), INTENT(in)                :: theta
+    INTEGER, INTENT(in)                      :: col, head, nfree
+    LOGICAL, INTENT(in)                      :: cnstnd
     INTEGER                                  :: info
 
     INTEGER                                  :: i, j, k, pointr
