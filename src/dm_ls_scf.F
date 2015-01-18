@@ -1001,6 +1001,10 @@ CONTAINS
                CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
                               routineP,"NOT YET IMPLEMENTED with S preconditioner. ", error, failure)
 
+               CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level,&
+                              cp_assertion_failed, routineP,"NOT YET IMPLEMENTED with molecular clustering. ",& 
+                              error, failure)
+
                ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
                                         ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, error)

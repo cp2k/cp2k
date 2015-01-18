@@ -51,9 +51,10 @@ MODULE dbcsr_api
        mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
        multrec_limit
   USE dbcsr_csr_conversions,           ONLY: &
-       convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_conversion_test, &
-       csr_create, csr_create_from_dbcsr, csr_create_new, &
-       csr_create_template, csr_destroy, csr_type, csr_write
+       convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, &
+       csr_create_from_dbcsr, csr_create_new, csr_create_template, &
+       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
+       csr_eqrow_floor_dist, csr_type, csr_write
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_get_data_p, dbcsr_scalar, &
@@ -88,7 +89,7 @@ MODULE dbcsr_api
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_has_symmetry, dbcsr_init, dbcsr_max_col_size, &
+       dbcsr_get_nze, dbcsr_has_symmetry, dbcsr_init, dbcsr_max_col_size, &
        dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
@@ -375,6 +376,8 @@ MODULE dbcsr_api
             csr_create_new,&
             csr_create_template,&
             csr_write,&
-            csr_conversion_test
-
+            csr_dbcsr_blkrow_dist,& 
+            csr_eqrow_ceil_dist,&
+            csr_eqrow_floor_dist,&
+            dbcsr_get_nze
 END MODULE dbcsr_api

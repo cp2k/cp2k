@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief DBCSR to CSR conversion
+!> \brief DBCSR to CSR matrix format conversion
 !> \par History
 !>       2014.10 created [Patrick Seewald]
 !> \author Patrick Seewald
@@ -60,7 +60,7 @@ MODULE dbcsr_csr_conversions
                                              dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_mp_obj,&
-                                             dbcsr_norm_frobenius,&
+                                             dbcsr_norm_maxabsnorm,&
                                              dbcsr_obj
   USE dbcsr_work_operations,           ONLY: dbcsr_create
   USE kinds,                           ONLY: default_string_length,&
@@ -71,7 +71,8 @@ MODULE dbcsr_csr_conversions
                                              sp
   USE message_passing,                 ONLY: mp_environ,&
                                              mp_gather,&
-                                             mp_gatherv,&
+                                             mp_recv,&
+                                             mp_send,&
                                              mp_sum
 
   IMPLICIT NONE
@@ -81,6 +82,7 @@ MODULE dbcsr_csr_conversions
 
   LOGICAL, PARAMETER, PRIVATE          :: careful_mod = .FALSE.
 
+  INTEGER, PARAMETER, PUBLIC           :: csr_dbcsr_blkrow_dist=1, csr_eqrow_ceil_dist=2, csr_eqrow_floor_dist=3
 
 ! *****************************************************************************
 !> \brief Mapping data relating local CSR indices to local indices of a block-row 
@@ -125,6 +127,7 @@ MODULE dbcsr_csr_conversions
 !> \param r_dp            real, double precision data array
 !> \param c_sp            complex, single precision data array
 !> \param c_sp            complex, double precision data array
+!> \param data_type       data type of CSR matrix
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
@@ -134,7 +137,7 @@ MODULE dbcsr_csr_conversions
      REAL(KIND=real_8), DIMENSION(:), POINTER      :: r_dp  => Null()
      COMPLEX(KIND=real_4), DIMENSION(:), POINTER   :: c_sp  => Null()
      COMPLEX(KIND=real_8), DIMENSION(:), POINTER   :: c_dp  => Null()
-     INTEGER                                  :: data_type  = -1
+     INTEGER                                       :: data_type  = -1
   ENDTYPE
 
 ! *****************************************************************************
@@ -225,7 +228,7 @@ CONTAINS
       "local number of non-zero elements must not exceed total number of non-zero elements",&
       __LINE__, error=error)
 
-    CALL dbcsr_assert(nrows_total*ncols_total .GE. nze_total,&
+    CALL dbcsr_assert(INT(nrows_total,kind=int_8)*INT(ncols_total,kind=int_8) .GE. nze_total,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN, &
       "Total number of non-zero elements must not exceed total matrix size",&
       __LINE__, error=error)
@@ -244,38 +247,36 @@ CONTAINS
     ALLOCATE( csr_mat%rowptr_local(nrows_local + 1) )
     ALLOCATE( csr_mat%nzerow_local(nrows_local) )
 
-    IF (PRESENT (data_type)) THEN
-     SELECT CASE (data_type)
-       CASE (dbcsr_type_real_4)
-          csr_mat%nzval_local%data_type = dbcsr_type_real_4
-          ALLOCATE(csr_mat%nzval_local%r_sp(nze_local))
-       CASE (dbcsr_type_real_8)
-          csr_mat%nzval_local%data_type = dbcsr_type_real_8
-          ALLOCATE(csr_mat%nzval_local%r_dp(nze_local))
-       CASE (dbcsr_type_complex_4)
-          csr_mat%nzval_local%data_type = dbcsr_type_complex_4
-          ALLOCATE(csr_mat%nzval_local%c_sp(nze_local))
-       CASE (dbcsr_type_complex_8)
-          csr_mat%nzval_local%data_type = dbcsr_type_complex_8
-          ALLOCATE(csr_mat%nzval_local%c_dp(nze_local))
-       CASE DEFAULT
-         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-              routineN, "Invalid matrix type",__LINE__,error)
-      END SELECT
+    IF (PRESENT(data_type)) THEN
+      csr_mat%nzval_local%data_type = data_type
     ELSE
-       csr_mat%nzval_local%data_type = dbcsr_type_real_default
-  ENDIF
+      csr_mat%nzval_local%data_type = dbcsr_type_real_default
+    ENDIF
 
-  csr_mat%valid = .TRUE.
-  CALL dbcsr_error_stop(error_handler, error)
+    SELECT CASE (csr_mat%nzval_local%data_type)
+      CASE (dbcsr_type_real_4)
+        ALLOCATE(csr_mat%nzval_local%r_sp(nze_local))
+      CASE (dbcsr_type_real_8)
+        ALLOCATE(csr_mat%nzval_local%r_dp(nze_local))
+      CASE (dbcsr_type_complex_4)
+        ALLOCATE(csr_mat%nzval_local%c_sp(nze_local))
+      CASE (dbcsr_type_complex_8)
+        ALLOCATE(csr_mat%nzval_local%c_dp(nze_local))
+      CASE DEFAULT
+        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                          routineN, "Invalid matrix type",__LINE__,error)
+    END SELECT
+
+    csr_mat%valid = .TRUE.
+    CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE csr_create_new
 
 ! *****************************************************************************
 !> \brief Create a new CSR matrix and allocate all internal data using 
 !>        an existing CSR matrix. Copies the indices but no actual matrix data.
-!> \param matrix_b ...
-!> \param matrix_a ...
+!> \param[out] matrix_b Target CSR matrix
+!> \param[int] matrix_a Source CSR matrix
 !> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
@@ -290,6 +291,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
+    TYPE(csr_mapping_data)                   :: map
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
@@ -309,29 +311,30 @@ CONTAINS
       matrix_b%nzerow_local = matrix_a%nzerow_local
       matrix_b%colind_local = matrix_a%colind_local
     ENDIF
-
+    
     IF (matrix_a%has_mapping) THEN
-      ALLOCATE(matrix_b%dbcsr_mapping%csr_to_brd_ind(SIZE(matrix_a%dbcsr_mapping%csr_to_brd_ind)))
-      ALLOCATE(matrix_b%dbcsr_mapping%brd_to_csr_ind(SIZE(matrix_a%dbcsr_mapping%brd_to_csr_ind)))     
-      matrix_b%dbcsr_mapping%csr_to_brd_ind = matrix_a%dbcsr_mapping%csr_to_brd_ind
-      matrix_b%dbcsr_mapping%brd_to_csr_ind = matrix_a%dbcsr_mapping%brd_to_csr_ind
-      matrix_b%dbcsr_mapping%has_dbcsr_block_data = matrix_a%dbcsr_mapping%has_dbcsr_block_data
+      map = matrix_a%dbcsr_mapping
+      ALLOCATE(matrix_b%dbcsr_mapping%csr_to_brd_ind(SIZE(map%csr_to_brd_ind)))
+      ALLOCATE(matrix_b%dbcsr_mapping%brd_to_csr_ind(SIZE(map%brd_to_csr_ind)))     
+      matrix_b%dbcsr_mapping%csr_to_brd_ind = map%csr_to_brd_ind
+      matrix_b%dbcsr_mapping%brd_to_csr_ind = map%brd_to_csr_ind
+      matrix_b%dbcsr_mapping%has_dbcsr_block_data = map%has_dbcsr_block_data
       IF (matrix_b%dbcsr_mapping%has_dbcsr_block_data) THEN
-        matrix_b%dbcsr_mapping%dbcsr_nblkcols_total = matrix_a%dbcsr_mapping%dbcsr_nblkcols_total
-        matrix_b%dbcsr_mapping%dbcsr_nblkrows_total = matrix_a%dbcsr_mapping%dbcsr_nblkrows_total
-        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_row_blk_size(matrix_a%dbcsr_mapping%dbcsr_nblkrows_total))
-        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_col_blk_size(matrix_a%dbcsr_mapping%dbcsr_nblkcols_total))
-        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_row_p(matrix_a%dbcsr_mapping%dbcsr_nblkrows_total+1))
-        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_col_i(matrix_a%dbcsr_mapping%dbcsr_nblks_local))
-        matrix_b%dbcsr_mapping%dbcsr_nblks_local = matrix_a%dbcsr_mapping%dbcsr_nblks_local
-        matrix_b%dbcsr_mapping%dbcsr_row_p = matrix_a%dbcsr_mapping%dbcsr_row_p
-        matrix_b%dbcsr_mapping%dbcsr_col_i = matrix_a%dbcsr_mapping%dbcsr_col_i
-        matrix_b%dbcsr_mapping%dbcsr_row_blk_size = matrix_a%dbcsr_mapping%dbcsr_row_blk_size
-        matrix_b%dbcsr_mapping%dbcsr_col_blk_size = matrix_a%dbcsr_mapping%dbcsr_col_blk_size
+        matrix_b%dbcsr_mapping%dbcsr_nblkcols_total = map%dbcsr_nblkcols_total
+        matrix_b%dbcsr_mapping%dbcsr_nblkrows_total = map%dbcsr_nblkrows_total
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_row_blk_size(map%dbcsr_nblkrows_total))
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_col_blk_size(map%dbcsr_nblkcols_total))
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_row_p(map%dbcsr_nblkrows_total+1))
+        ALLOCATE(matrix_b%dbcsr_mapping%dbcsr_col_i(map%dbcsr_nblks_local))
+        matrix_b%dbcsr_mapping%dbcsr_nblks_local = map%dbcsr_nblks_local
+        matrix_b%dbcsr_mapping%dbcsr_row_p = map%dbcsr_row_p
+        matrix_b%dbcsr_mapping%dbcsr_col_i = map%dbcsr_col_i
+        matrix_b%dbcsr_mapping%dbcsr_row_blk_size = map%dbcsr_row_blk_size
+        matrix_b%dbcsr_mapping%dbcsr_col_blk_size = map%dbcsr_col_blk_size
       ENDIF
 
       CALL dbcsr_init(matrix_b%dbcsr_mapping%brd_mat)
-      CALL dbcsr_copy(matrix_b%dbcsr_mapping%brd_mat, matrix_a%dbcsr_mapping%brd_mat, error=error)
+      CALL dbcsr_copy(matrix_b%dbcsr_mapping%brd_mat, map%brd_mat, error=error)
 
     matrix_b%valid = .TRUE.
       
@@ -342,8 +345,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copy a CSR matrix.
-!> \param matrix_b Target CSR matrix
-!> \param matrix_a Source CSR matrix
+!> \param[out] matrix_b Target CSR matrix
+!> \param[in] matrix_a Source CSR matrix
 !> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
@@ -358,6 +361,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "Source CSR matrix must be created.",__LINE__, error)
@@ -450,6 +455,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
+    TYPE(csr_mapping_data)                   :: map
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
@@ -459,21 +465,25 @@ CONTAINS
     IF (ASSOCIATED(csr_mat%rowptr_local)) DEALLOCATE(csr_mat%rowptr_local)
     IF (ASSOCIATED(csr_mat%nzerow_local)) DEALLOCATE(csr_mat%nzerow_local)
     IF (ASSOCIATED(csr_mat%colind_local)) DEALLOCATE(csr_mat%colind_local)
-    IF (ASSOCIATED(csr_mat%dbcsr_mapping%csr_to_brd_ind))&
-      DEALLOCATE(csr_mat%dbcsr_mapping%csr_to_brd_ind)
-    IF (ASSOCIATED(csr_mat%dbcsr_mapping%brd_to_csr_ind))&
-      DEALLOCATE(csr_mat%dbcsr_mapping%brd_to_csr_ind)
-    IF (ASSOCIATED(csr_mat%dbcsr_mapping%dbcsr_row_blk_size))& 
-      DEALLOCATE(csr_mat%dbcsr_mapping%dbcsr_row_blk_size)
-    IF (ASSOCIATED(csr_mat%dbcsr_mapping%dbcsr_col_blk_size))& 
-      DEALLOCATE(csr_mat%dbcsr_mapping%dbcsr_col_blk_size)
-    IF (ASSOCIATED(csr_mat%dbcsr_mapping%dbcsr_row_p))&
-      DEALLOCATE(csr_mat%dbcsr_mapping%dbcsr_row_p)
-    IF (ASSOCIATED(csr_mat%dbcsr_mapping%dbcsr_col_i))&
-      DEALLOCATE(csr_mat%dbcsr_mapping%dbcsr_col_i)
 
-    IF (dbcsr_is_initialized(csr_mat%dbcsr_mapping%brd_mat))&
-      CALL dbcsr_release(csr_mat%dbcsr_mapping%brd_mat)
+    IF (csr_mat%has_mapping) THEN
+      map = csr_mat%dbcsr_mapping
+      IF (ASSOCIATED(map%csr_to_brd_ind))&
+        DEALLOCATE(map%csr_to_brd_ind)
+      IF (ASSOCIATED(map%brd_to_csr_ind))&
+        DEALLOCATE(map%brd_to_csr_ind)
+      IF (ASSOCIATED(map%dbcsr_row_blk_size))& 
+        DEALLOCATE(map%dbcsr_row_blk_size)
+      IF (ASSOCIATED(map%dbcsr_col_blk_size))& 
+        DEALLOCATE(map%dbcsr_col_blk_size)
+      IF (ASSOCIATED(map%dbcsr_row_p))&
+        DEALLOCATE(map%dbcsr_row_p)
+      IF (ASSOCIATED(map%dbcsr_col_i))&
+        DEALLOCATE(map%dbcsr_col_i)
+  
+      IF (dbcsr_is_initialized(map%brd_mat))&
+        CALL dbcsr_release(map%brd_mat)
+    ENDIF
 
     IF (ASSOCIATED(csr_mat%nzval_local%r_dp)) &
       DEALLOCATE(csr_mat%nzval_local%r_dp)
@@ -496,16 +506,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Allocate the internals of a CSR matrix using data from a block-row 
 !>        distributed DBCSR matrix
-!> \param[in] brd_mat ...
-!> \param[out] csr_mat ...
+!> \param[in] brd_mat block-row-distributed DBCSR matrix
+!> \param[out] csr_mat CSR matrix
+!> \param[in] dbcsr_zero_ind  indices of elements in the data_area of the DBCSR matrix 
+!>                            that shall be treated as zeroes in the CSR matrix (optional).
 !> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_create_from_brd( brd_mat, csr_mat, error) 
+  SUBROUTINE csr_create_from_brd( brd_mat, csr_mat, dbcsr_zero_ind, error) 
     TYPE(dbcsr_obj), INTENT(IN)              :: brd_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: dbcsr_zero_ind
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_brd', &
@@ -513,8 +527,9 @@ CONTAINS
 
     INTEGER                                  :: data_type, error_handler, &
                                                 nfullcols_total, nfullrows, &
-                                                nfullrows_total, nze
+                                                nfullrows_total, nze_local
     INTEGER(KIND=int_8)                      :: nze_total
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: zero_ind
     INTEGER, DIMENSION(:), POINTER           :: cdist, csr_index, dbcsr_index
     TYPE(array_i1d_obj)                      :: col_dist
     TYPE(dbcsr_distribution_obj)             :: dist_current
@@ -522,20 +537,32 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     NULLIFY(dbcsr_index, csr_index, cdist)
 
+    IF (PRESENT(dbcsr_zero_ind)) THEN
+      ALLOCATE(zero_ind(SIZE(dbcsr_zero_ind)))
+      zero_ind(:) = dbcsr_zero_ind(:)
+    ELSE
+      ALLOCATE(zero_ind(0))
+    ENDIF
+      
     dist_current = dbcsr_distribution(brd_mat)
+
     csr_mat%mp_group = dbcsr_mp_group(dbcsr_distribution_mp(dist_current))
+ 
     col_dist = dbcsr_distribution_col_dist(dist_current)
     cdist => array_data(col_dist)
 
     CALL dbcsr_assert(ALL(cdist .EQ. 0), dbcsr_fatal_level,dbcsr_wrong_args_error,&
       routineN, "DBCSR matrix not block-row distributed.",__LINE__, error)
  
+    ! Calculate mapping between BRD and CSR indices
+    CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, nze_local, &
+                                zero_ind, error=error)
+
     CALL dbcsr_get_info(brd_mat, nfullrows_total = nfullrows_total,&
-      nfullcols_total = nfullcols_total)
-      nze = dbcsr_get_nze(brd_mat)
+                        nfullcols_total = nfullcols_total)
 
     ! Sum up local number of non-zero elements to get total number
-    nze_total = nze
+    nze_total = nze_local
     CALL mp_sum(nze_total,csr_mat%mp_group) 
 
     nfullrows = dbcsr_nfullrows_local(brd_mat)
@@ -543,11 +570,9 @@ CONTAINS
 
     ! Allocate CSR matrix
     CALL csr_create_new(csr_mat, nrows_total = nfullrows_total,&
-      ncols_total = nfullcols_total, nze_local = nze, nze_total = nze_total,&
-      nrows_local = nfullrows, data_type = data_type,error=error)
+      ncols_total = nfullcols_total, nze_local = nze_local, nze_total = nze_total,&
+      nrows_local = nfullrows, data_type = data_type, error=error)
 
-    ! Calculate mapping between BRD and CSR indices
-    CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, error=error)
     csr_mat%dbcsr_mapping%brd_to_csr_ind => csr_index
     csr_mat%dbcsr_mapping%csr_to_brd_ind => dbcsr_index
 
@@ -563,18 +588,20 @@ CONTAINS
 !> \param[in] brd_mat          the block-row distributed DBCSR matrix
 !> \param[out] dbcsr_index     csr to dbcsr index mapping
 !> \param[out] csr_index       dbcsr to csr index mapping
-!> \param[in] dbcsr_zeroes     indices of zeroes in dbcsr blocks (optional)
+!> \param[out] csr_nze_local   number of local non-zero elements
+!> \param[in] dbcsr_zero_ind   see documentation of csr_create_from_brd
 !> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, dbcsr_zeroes, error)
+  SUBROUTINE csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, csr_nze_local, &
+                                    dbcsr_zero_ind, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: brd_mat
     INTEGER, DIMENSION(:), INTENT(OUT), &
       POINTER                                :: dbcsr_index, csr_index
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: dbcsr_zeroes
+    INTEGER, INTENT(OUT)                     :: csr_nze_local
+    INTEGER, DIMENSION(:), INTENT(IN)        :: dbcsr_zero_ind
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_get_dbcsr_mapping', &
@@ -589,15 +616,16 @@ CONTAINS
     TYPE(dbcsr_iterator)                     :: iter
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+
     NULLIFY(dbcsr_index, csr_index) 
 
     CALL dbcsr_get_info(brd_mat, nblkrows_total = nblkrows_total)
     nze = dbcsr_get_nze(brd_mat)
 
-    ALLOCATE( nfullcol_blkrow(nblkrows_total))
-    ALLOCATE( dbcsr_index(nze)) 
-    ALLOCATE( csr_index(nze)) 
-
+    ALLOCATE(nfullcol_blkrow(nblkrows_total))
+    ALLOCATE(dbcsr_index(nze)) 
+    ALLOCATE(csr_index(nze))
+ 
     CALL dbcsr_iterator_start(iter, brd_mat, read_only = .TRUE.)
     nfullcol_blkrow = 0 ! number of non-zero full columns in each block row
     prev_blk = 0
@@ -627,7 +655,7 @@ CONTAINS
     CALL dbcsr_iterator_start(iter, brd_mat, read_only = .TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter)) 
 
-      CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk, transposed = tr,&
+      CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk, transposed = tr, &
         row_size = row_blk_size, col_size = col_blk_size, row_offset = row_blk_offset)
 
       IF(blkrow .GT. prev_blkrow) THEN ! new block row
@@ -653,24 +681,30 @@ CONTAINS
       prev_row_blk_size = row_blk_size
     ENDDO
     CALL dbcsr_iterator_stop(iter)
-
-    IF (PRESENT(dbcsr_zeroes)) THEN
-      ALLOCATE(dbcsr_index_nozeroes(nze-SIZE(dbcsr_zeroes)))
-      m=1 ! csr index if zeroes are excluded from CSR data
+ 
+    IF (SIZE(dbcsr_zero_ind) .GT. 0) THEN
+      ALLOCATE(dbcsr_index_nozeroes(nze-SIZE(dbcsr_zero_ind)))
+      m=0 ! csr index if zeroes are excluded from CSR data
       DO l=1,nze ! csr index if zeroes are included in CSR data
-        IF (ANY(dbcsr_zeroes .EQ. dbcsr_index(l))) THEN
+        IF (ANY(dbcsr_zero_ind .EQ. dbcsr_index(l))) THEN
           csr_index(dbcsr_index(l)) = -1
         ELSE
+          m = m+1
           dbcsr_index_nozeroes(m) = dbcsr_index(l)
           csr_index(dbcsr_index(l)) = m
-          m = m+1
         ENDIF
       ENDDO
       DEALLOCATE(dbcsr_index)
       dbcsr_index => dbcsr_index_nozeroes
     ENDIF
 
-  CALL dbcsr_error_stop(error_handler, error)
+    IF (SIZE(dbcsr_zero_ind) .GT. 0) THEN
+      csr_nze_local = m
+    ELSE
+      csr_nze_local = nze
+    ENDIF
+
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE csr_get_dbcsr_mapping
 
 
@@ -769,10 +803,13 @@ CONTAINS
     ! CSR indices are not recalculated if indices are already defined
     new_ind = .NOT. (csr_mat%has_indices)
 
+    CALL  dbcsr_assert(csr_mat%has_mapping,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
+        "DBCSR mapping of CSR matrix must be defined",__LINE__, error=error)
+
     ! Calculate mapping between CSR matrix and DBCSR matrix if not yet defined
-    IF (.NOT. csr_mat%has_mapping ) THEN 
-      CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, error=error)
-    ENDIF
+    !IF (.NOT. csr_mat%has_mapping ) THEN 
+    !  CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, nze, error=error)
+    !ENDIF
    
     CALL dbcsr_get_info(brd_mat, nblkrows_total = nblkrows_total)
     ALLOCATE( nfullcol_blkrow(nblkrows_total))
@@ -884,29 +921,35 @@ CONTAINS
 !>        in order to prepare conversion.
 !> \param[in] dbcsr_mat ...
 !> \param[out] csr_mat ...
-!> \param[in] dist_format  how to distribute CSR rows over processes:
-!>                          1: the number of rows per process is adapted to the
-!>                             row block sizes in the DBCSR format such that blocks
-!>                             are not splitted over different processes.
-!>                          2: each process holds ceiling(N/P) CSR rows.
-!>                          3: each process holds floor(N/P) CSR rows.
+!> \param[in] dist_format     how to distribute CSR rows over processes:
+!>                            csr_dbcsr_blkrow_dist: the number of rows per process 
+!>                            is adapted to the row block sizes in the DBCSR format 
+!>                            such that blocks are not splitted over different processes.
+!>                            csr_eqrow_ceil_dist: each process holds ceiling(N/P) CSR rows.
+!>                            csr_eqrow_floor_dist: each process holds floor(N/P) CSR rows.
+!> \param[in] numnodes        number of nodes to use for distributing CSR matrix
+!>                            (optional, default is number of nodes used for 
+!>                            DBCSR matrix)
 !> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, error)
+  SUBROUTINE csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, numnodes, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER, INTENT(IN)                      :: dist_format
+    INTEGER, INTENT(IN), OPTIONAL            :: numnodes
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, &
+    INTEGER                                  :: dbcsr_numnodes, &
+                                                error_handler, &
                                                 nblkcols_total, &
-                                                nblkrows_total, nblks_local
+                                                nblkrows_total, nblks_local, &
+                                                num_p
     LOGICAL                                  :: equal_dist, floor_dist
     TYPE(dbcsr_obj)                          :: brd_mat, dbcsr_mat_nosym
 
@@ -916,13 +959,13 @@ CONTAINS
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__, error=error)
 
     SELECT CASE (dist_format)
-    CASE (1)
+    CASE (csr_dbcsr_blkrow_dist)
       equal_dist = .FALSE.
       floor_dist = .FALSE.
-    CASE (2)
+    CASE (csr_eqrow_ceil_dist)
       equal_dist = .TRUE.
       floor_dist = .FALSE.
-    CASE (3)
+    CASE (csr_eqrow_floor_dist)
       equal_dist = .TRUE.
       floor_dist = .TRUE.
     END SELECT
@@ -935,11 +978,23 @@ CONTAINS
       dbcsr_mat_nosym = dbcsr_mat
     ENDIF
 
-    ! Create BRD matrix from DBCSR matrix
-    CALL dbcsr_create_brd (dbcsr_mat_nosym, brd_mat, equal_dist, floor_dist, error=error)
+    dbcsr_numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(dbcsr_distribution(dbcsr_mat)))
+    IF (PRESENT(numnodes)) THEN
+      CALL dbcsr_assert(numnodes .LE. dbcsr_numnodes, dbcsr_fatal_level, &
+        dbcsr_wrong_args_error, routineN, &
+        "Number of nodes used for CSR matrix must not exceed total number of nodes", &
+        __LINE__, error=error)
+
+      num_p = numnodes
+    ELSE
+      num_p = dbcsr_numnodes
+    ENDIF
+
+    CALL dbcsr_create_brd (dbcsr_mat_nosym, brd_mat, equal_dist, floor_dist,&
+                           num_p, error=error)
 
     ! Create CSR matrix from BRD matrix
-    CALL csr_create_from_brd(brd_mat, csr_mat, error)
+    CALL csr_create_from_brd(brd_mat, csr_mat, error=error)
 
     ! Store DBCSR block data inside CSR matrix 
     ! (otherwise, this data is lost when converting from DBCSR to CSR)
@@ -971,8 +1026,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Check if two DBCSR matrices have the same block structure (including
 !>        sparsity pattern)
-!> \param matrix_a  ...
-!> \param matrix_b ...
+!> \param[in] matrix_a  ...
+!> \param[in] matrix_b ...
 !> \retval is_equal whether matrix_a and matrix_b have the same block structure
 !> \par History
 !>      11.2014 created [Patrick Seewald]
@@ -996,12 +1051,11 @@ CONTAINS
 
   END FUNCTION dbcsr_has_same_block_structure
 
-
 ! *****************************************************************************
 !> \brief Helper function to assert that a given CSR matrix and a given DBCSR 
 !>        matrix are consistent before doing the conversion
-!> \param csr_mat ...
-!> \param dbcsr_mat ...
+!> \param[in] csr_mat ...
+!> \param[in] dbcsr_mat ...
 !> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
@@ -1017,37 +1071,39 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
+    TYPE(csr_mapping_data)                   :: map
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    IF (csr_mat%dbcsr_mapping%has_dbcsr_block_data) THEN
-      CALL dbcsr_assert(csr_mat%dbcsr_mapping%dbcsr_nblkcols_total .EQ.&
+    map = csr_mat%dbcsr_mapping
+    IF (map%has_dbcsr_block_data) THEN
+      CALL dbcsr_assert(map%dbcsr_nblkcols_total .EQ.&
         dbcsr_nblkcols_total(dbcsr_mat), dbcsr_fatal_level,&
         dbcsr_wrong_args_error,routineN,&
         "field nblkcols_total of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
-      CALL dbcsr_assert(csr_mat%dbcsr_mapping%dbcsr_nblkrows_total .EQ.&
+      CALL dbcsr_assert(map%dbcsr_nblkrows_total .EQ.&
         dbcsr_nblkrows_total(dbcsr_mat),dbcsr_fatal_level,&
         dbcsr_wrong_args_error,routineN,&
         "field nblkrows_total of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
-      CALL dbcsr_assert(csr_mat%dbcsr_mapping%dbcsr_nblks_local .EQ. dbcsr_mat%m%nblks,&
+      CALL dbcsr_assert(map%dbcsr_nblks_local .EQ. dbcsr_mat%m%nblks,&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field nblks of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
-      CALL dbcsr_assert(ALL(csr_mat%dbcsr_mapping%dbcsr_row_p .EQ. dbcsr_mat%m%row_p),&
+      CALL dbcsr_assert(ALL(map%dbcsr_row_p .EQ. dbcsr_mat%m%row_p),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field row_p of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
-      CALL dbcsr_assert(ALL(csr_mat%dbcsr_mapping%dbcsr_col_i .EQ. dbcsr_mat%m%col_i),&
+      CALL dbcsr_assert(ALL(map%dbcsr_col_i .EQ. dbcsr_mat%m%col_i),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field dbcsr_col_i of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
-      CALL dbcsr_assert((ALL(csr_mat%dbcsr_mapping%dbcsr_row_blk_size .EQ.&
+      CALL dbcsr_assert((ALL(map%dbcsr_row_blk_size .EQ.&
         array_data(dbcsr_row_block_sizes(dbcsr_mat)))),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field row_blk_size of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
-      CALL dbcsr_assert((ALL(csr_mat%dbcsr_mapping%dbcsr_col_blk_size .EQ. &
+      CALL dbcsr_assert((ALL(map%dbcsr_col_blk_size .EQ. &
         array_data(dbcsr_col_block_sizes(dbcsr_mat)))),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field col_blk_size of DBCSR matrix not consistent with CSR matrix",&
@@ -1148,6 +1204,7 @@ CONTAINS
         "CSR_mat must contain mapping to DBCSR format",&
         __LINE__, error=error)
 
+    ! Desymmetrize to assert that DBCSR matrix has sparsity pattern consistent with CSR matrix
     IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
       CALL dbcsr_init(dbcsr_mat_nosym)
       CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE., error=error)
@@ -1169,11 +1226,11 @@ CONTAINS
   END SUBROUTINE convert_csr_to_dbcsr
 
 ! *****************************************************************************
-!> \brief Test the conversion by converting to CSR format and converting back and 
-!>        calculating the Frobenius norm of the differences between the original 
-!>        and the back-converted matrix.
+!> \brief Test the conversion by converting to CSR format and converting back. 
+!>        The maximum norm of the differences between the original and the 
+!>        back-converted matrix is calculated.
 !> \param[in] dbcsr_mat ...
-!> \param csr_mat ...
+!> \param[out] csr_mat ...
 !> \param[out] norm ...
 !> \param error ...
 !> \par History
@@ -1181,7 +1238,6 @@ CONTAINS
 !> \author Patrick Seewald
 ! *****************************************************************************
   SUBROUTINE csr_conversion_test( dbcsr_mat, csr_mat, norm, error)
-  
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     REAL(KIND=real_8), INTENT(OUT)           :: norm
@@ -1195,7 +1251,7 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, 2, error=error)
+    CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, csr_eqrow_ceil_dist, error=error)
 
     CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error=error)
 
@@ -1205,12 +1261,12 @@ CONTAINS
     CALL convert_csr_to_dbcsr(dbcsr_mat_conv, csr_mat, error)
 
     CALL dbcsr_add(dbcsr_mat_conv, dbcsr_mat, 1.0_dp, -1.0_dp, error)
-    CALL dbcsr_norm(dbcsr_mat_conv, dbcsr_norm_frobenius, norm_scalar=norm, error=error)
 
+    CALL dbcsr_norm(dbcsr_mat_conv, dbcsr_norm_maxabsnorm, norm_scalar=norm, error=error)
     CALL dbcsr_release(dbcsr_mat_conv)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE csr_conversion_test
-  
+ 
 ! *****************************************************************************
 !> \brief Write a CSR matrix to file
 !> \param[in] csr_mat ...
@@ -1233,19 +1289,21 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: data_format
     COMPLEX(KIND=real_4), ALLOCATABLE, &
-      DIMENSION(:)                           :: nzval_total_c_sp
+      DIMENSION(:)                           :: nzval_to_master_c_sp
     COMPLEX(KIND=real_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: nzval_total_c_dp
-    INTEGER                                  :: error_handler, k, l, m, &
-                                                mynode, numnodes, offset_nrl, &
-                                                offset_nzl
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: colind_total, nzerow_total, &
-      offsets_numrowlocal, offsets_nzelocal, sizes_numrowlocal, sizes_nzelocal
+      DIMENSION(:)                           :: nzval_to_master_c_dp
+    INTEGER                                  :: error_handler, i, k, l, m, &
+                                                mynode, numnodes, rowind, &
+                                                tag1, tag2, tag3
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind_to_master, &
+                                                nzerow_to_master, &
+                                                sizes_numrowlocal, &
+                                                sizes_nzelocal
     LOGICAL                                  :: ut
     REAL(KIND=real_4), ALLOCATABLE, &
-      DIMENSION(:)                           :: nzval_total_r_sp
+      DIMENSION(:)                           :: nzval_to_master_r_sp
     REAL(KIND=real_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: nzval_total_r_dp
+      DIMENSION(:)                           :: nzval_to_master_r_dp
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
@@ -1260,89 +1318,141 @@ CONTAINS
         "can not write invalid CSR matrix",&
         __LINE__, error=error)
 
+    tag1 = 0
+    tag2 = 1
+    tag3 = 2
+
     CALL mp_environ(numnodes, mynode, csr_mat%mp_group)
 
-    ALLOCATE(colind_total(csr_mat%nze_total))
-    ALLOCATE(nzerow_total(csr_mat%nrows_total))
-    ALLOCATE(offsets_numrowlocal(numnodes))
-    ALLOCATE(offsets_nzelocal(numnodes))
-    ALLOCATE(sizes_nzelocal(numnodes))
-    ALLOCATE(sizes_numrowlocal(numnodes))
+    ! gather sizes (number of local non-zero elements and number of local rows)
+    IF (mynode .EQ. 0) THEN
+      ALLOCATE(sizes_nzelocal(numnodes))
+      ALLOCATE(sizes_numrowlocal(numnodes))
+    ENDIF
 
     CALL mp_gather(csr_mat%nze_local,sizes_nzelocal,0,csr_mat%mp_group)
     CALL mp_gather(csr_mat%nrows_local, sizes_numrowlocal,0,csr_mat%mp_group)
 
-    offset_nrl = 0
-    offset_nzl = 0
+    ! for each node, send matrix data to node 0 (master) and write data
+    DO i=0, numnodes-1
+      IF (mynode .EQ.0) THEN ! allocations for receiving data from node i
+        ALLOCATE(colind_to_master(sizes_nzelocal(i+1)))
+        ALLOCATE(nzerow_to_master(sizes_numrowlocal(i+1)))
 
-    DO k=1,numnodes
-      offsets_numrowlocal(k) = offset_nrl
-      offset_nrl = offset_nrl + sizes_numrowlocal(k)
-      offsets_nzelocal(k) = offset_nzl
-      offset_nzl = offset_nzl + sizes_nzelocal(k)
+        SELECT CASE (csr_mat%nzval_local%data_type)
+          CASE (dbcsr_type_real_4)
+            data_format = "(2(I8),E23.6E2)"
+            ALLOCATE(nzval_to_master_r_sp(sizes_nzelocal(i+1)))
+          CASE (dbcsr_type_real_8)
+            data_format = "(2(I8),E23.14E3)"
+            ALLOCATE(nzval_to_master_r_dp(sizes_nzelocal(i+1)))
+          CASE (dbcsr_type_complex_4)
+            data_format = "(2(I8),2(E23.6E2))"
+            ALLOCATE(nzval_to_master_c_sp(sizes_nzelocal(i+1)))
+          CASE (dbcsr_type_complex_8)
+            data_format = "(2(I8),2(E23.14E3))"
+            ALLOCATE(nzval_to_master_c_dp(sizes_nzelocal(i+1)))
+        END SELECT
+      ENDIF
+
+      IF (mynode .EQ. 0) THEN ! receive at node 0
+        IF (i .EQ. 0) THEN  ! data from node 0, no need for mpi routines
+          colind_to_master(:) = csr_mat%colind_local(:)
+          nzerow_to_master(:) = csr_mat%nzerow_local(:)
+          SELECT CASE (csr_mat%nzval_local%data_type)
+            CASE (dbcsr_type_real_4)
+              nzval_to_master_r_sp(:) = csr_mat%nzval_local%r_sp(:)
+            CASE (dbcsr_type_real_8)
+              nzval_to_master_r_dp(:) = csr_mat%nzval_local%r_dp(:)
+            CASE (dbcsr_type_complex_4)
+              nzval_to_master_c_sp(:) = csr_mat%nzval_local%c_sp(:)
+            CASE (dbcsr_type_complex_8)
+              nzval_to_master_c_dp(:) = csr_mat%nzval_local%c_dp(:)
+          END SELECT
+        ELSE ! receive data from nodes with rank > 0
+          CALL mp_recv(colind_to_master,i,tag1,csr_mat%mp_group)
+          CALL mp_recv(nzerow_to_master,i,tag2,csr_mat%mp_group)
+          SELECT CASE (csr_mat%nzval_local%data_type)
+            CASE (dbcsr_type_real_4)
+              CALL mp_recv(nzval_to_master_r_sp, i, tag3, csr_mat%mp_group)
+            CASE (dbcsr_type_real_8)
+              CALL mp_recv(nzval_to_master_r_dp, i, tag3, csr_mat%mp_group)
+            CASE (dbcsr_type_complex_4)
+              CALL mp_recv(nzval_to_master_c_sp, i, tag3, csr_mat%mp_group)
+            CASE (dbcsr_type_complex_8)
+              CALL mp_recv(nzval_to_master_c_dp, i, tag3, csr_mat%mp_group)
+          END SELECT
+        ENDIF
+      ENDIF
+
+      IF ((mynode .EQ. i) .AND. (i .NE. 0)) THEN ! send from nodes with rank > 0
+        CALL mp_send(csr_mat%colind_local,0,tag1,csr_mat%mp_group)
+        CALL mp_send(csr_mat%nzerow_local,0,tag2,csr_mat%mp_group)
+        SELECT CASE (csr_mat%nzval_local%data_type)
+          CASE (dbcsr_type_real_4)
+            CALL mp_send(csr_mat%nzval_local%r_sp, 0, tag3, csr_mat%mp_group)
+          CASE (dbcsr_type_real_8)
+            CALL mp_send(csr_mat%nzval_local%r_dp, 0, tag3, csr_mat%mp_group)
+          CASE (dbcsr_type_complex_4)
+            CALL mp_send(csr_mat%nzval_local%c_sp, 0, tag3, csr_mat%mp_group)
+          CASE (dbcsr_type_complex_8)
+            CALL mp_send(csr_mat%nzval_local%c_dp, 0, tag3, csr_mat%mp_group)
+        END SELECT
+      ENDIF
+
+      IF (mynode .EQ. 0) THEN ! write data received at node 0
+      !WRITE(unit_nr,"(A27)") "#row ind, col ind, value"
+        m = 0
+        DO k=1, sizes_numrowlocal(i+1)
+          rowind = k + SUM(sizes_numrowlocal(1:i)) ! row index: local to global
+          DO l=1, nzerow_to_master(k)
+            m=m+1
+            IF ((.NOT. ut) .OR. (k .LE. colind_to_master(m))) THEN
+              SELECT CASE (csr_mat%nzval_local%data_type)
+                CASE (dbcsr_type_real_4)
+                  WRITE(unit_nr,data_format) rowind, colind_to_master(m), &
+                                             nzval_to_master_r_sp(m)
+                CASE (dbcsr_type_real_8)
+                  WRITE(unit_nr,data_format) rowind, colind_to_master(m), &
+                                             nzval_to_master_r_dp(m)
+                CASE (dbcsr_type_complex_4)
+                  WRITE(unit_nr,data_format) rowind, colind_to_master(m), &
+                                             nzval_to_master_c_sp(m)
+                CASE (dbcsr_type_complex_8)
+                  WRITE(unit_nr,data_format) rowind, colind_to_master(m), &
+                                             nzval_to_master_c_dp(m)
+              END SELECT
+            ENDIF
+          ENDDO
+        ENDDO
+
+        DEALLOCATE(colind_to_master)
+        DEALLOCATE(nzerow_to_master)
+  
+        SELECT CASE (csr_mat%nzval_local%data_type)
+          CASE (dbcsr_type_real_4)
+            DEALLOCATE(nzval_to_master_r_sp)
+          CASE (dbcsr_type_real_8)
+            DEALLOCATE(nzval_to_master_r_dp)
+          CASE (dbcsr_type_complex_4)
+            DEALLOCATE(nzval_to_master_c_sp)
+          CASE (dbcsr_type_complex_8)
+            DEALLOCATE(nzval_to_master_c_dp)
+        END SELECT
+      ENDIF
     ENDDO
 
-    ! TODO: use sequential sends to the master.
-    CALL mp_gatherv(csr_mat%colind_local,colind_total, sizes_nzelocal,&
-      offsets_nzelocal,0, csr_mat%mp_group)
-
-    CALL mp_gatherv(csr_mat%nzerow_local,nzerow_total, sizes_numrowlocal,&
-      offsets_numrowlocal, 0, csr_mat%mp_group)
-
-    SELECT CASE (csr_mat%nzval_local%data_type)
-      CASE (dbcsr_type_real_4)
-        data_format = "(2(I8),E23.6E2)"
-        ALLOCATE(nzval_total_r_sp(csr_mat%nze_total))
-        CALL mp_gatherv(csr_mat%nzval_local%r_sp, nzval_total_r_sp,&
-                        sizes_nzelocal, offsets_nzelocal, 0, csr_mat%mp_group)
-      CASE (dbcsr_type_real_8)
-        data_format = "(2(I8),E23.14E3)"
-        ALLOCATE(nzval_total_r_dp(csr_mat%nze_total))
-        CALL mp_gatherv(csr_mat%nzval_local%r_dp, nzval_total_r_dp,&
-                        sizes_nzelocal, offsets_nzelocal, 0, csr_mat%mp_group)
-      CASE (dbcsr_type_complex_4)
-        data_format = "(2(I8),2(E23.6E2))"
-        ALLOCATE(nzval_total_c_sp(csr_mat%nze_total))
-        CALL mp_gatherv(csr_mat%nzval_local%c_sp, nzval_total_c_sp,&
-                        sizes_nzelocal, offsets_nzelocal, 0, csr_mat%mp_group)
-      CASE (dbcsr_type_complex_8)
-        data_format = "(2(I8),2(E23.14E3))"
-        ALLOCATE(nzval_total_c_dp(csr_mat%nze_total))
-        CALL mp_gatherv(csr_mat%nzval_local%c_dp, nzval_total_c_dp,&
-                        sizes_nzelocal, offsets_nzelocal, 0, csr_mat%mp_group)
-    END SELECT
-
-    IF (mynode .EQ. 0) THEN
-      !WRITE(unit_nr,"(A27)") "#nze in row, col ind, value"
-      m = 0
-      DO k=1, csr_mat%nrows_total
-        DO l=1, nzerow_total(k)
-          m=m+1
-          IF ((.NOT. ut) .OR. (k .LE. colind_total(m))) THEN
-            SELECT CASE (csr_mat%nzval_local%data_type)
-              CASE (dbcsr_type_real_4)
-                WRITE(unit_nr,data_format) k, colind_total(m), nzval_total_r_sp(m)
-              CASE (dbcsr_type_real_8)
-                WRITE(unit_nr,data_format) k, colind_total(m), nzval_total_r_dp(m)
-              CASE (dbcsr_type_complex_4)
-                WRITE(unit_nr,data_format) k, colind_total(m), nzval_total_c_sp(m)
-              CASE (dbcsr_type_complex_8)
-                WRITE(unit_nr,data_format) k, colind_total(m), nzval_total_c_dp(m)
-            END SELECT
-          ENDIF
-        ENDDO
-      ENDDO
-    END IF
     CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE csr_write
-
+ 
 ! *****************************************************************************
 !> \brief Converts a DBCSR matrix to a block row distributed matrix.
 !> \param[in] dbcsr_mat        DBCSR matrix to be converted
 !> \param[out] brd_mat         converted matrix
 !> \param[in] equal_dist       see documentation of csr_create_from_dbcsr
 !> \param[in] floor_dist       see documentation of csr_create_from_dbcsr
+!> \param[in] numnodes         number of nodes to use for block row distribution
 !> \param[in,out] error        error
 !>
 !> \par History
@@ -1350,11 +1460,12 @@ CONTAINS
 !>      11.2014 modified [Patrick Seewald]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dbcsr_create_brd (dbcsr_mat, brd_mat, equal_dist, floor_dist, error)
+  SUBROUTINE dbcsr_create_brd (dbcsr_mat, brd_mat, equal_dist, floor_dist, numnodes, error)
 
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(dbcsr_obj), INTENT(OUT)             :: brd_mat
     LOGICAL, INTENT(IN)                      :: equal_dist, floor_dist
+    INTEGER, INTENT(IN)                      :: numnodes
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_create_brd', &
@@ -1364,7 +1475,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: matrix_name
     INTEGER :: chunk_size, data_type, error_handler, i, k, l, m, mp_group, &
       mynode, nblkcols_total, nblkrows_total, nfullrows_local, &
-      nfullrows_total, node_size, num_p, remainder, row_index, split_row
+      nfullrows_total, node_size, numnodes_total, remainder, row_index, &
+      split_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rdist_tmp, &
                                                 row_blk_size_new_tmp
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
@@ -1379,7 +1491,6 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
  
-
     NULLIFY(row_blk_size_data, rdist, row_blk_size_new_data)
     CALL dbcsr_get_info(dbcsr_mat,&
                         nblkrows_total=nblkrows_total,&
@@ -1401,11 +1512,10 @@ CONTAINS
     dist_current = dbcsr_distribution(dbcsr_mat)
     mp_obj_current = dbcsr_distribution_mp(dist_current)
     mp_group = dbcsr_mp_group(mp_obj_current)
-    num_p = dbcsr_mp_numnodes(mp_obj_current)
     mynode = dbcsr_mp_mynode(mp_obj_current)
+    numnodes_total = dbcsr_mp_numnodes(mp_obj_current)
 
-
-    ALLOCATE (pgrid(num_p,1))
+    ALLOCATE (pgrid(numnodes_total,1))
 
     IF (equal_dist) THEN ! Equally distribute rows over processors -> cut blocks
 
@@ -1413,15 +1523,14 @@ CONTAINS
 
       ! Calculate the number of rows a processor can hold
       IF (floor_dist) THEN
-        nfullrows_local = FLOOR(REAL(nfullrows_total)/num_p)
+        nfullrows_local = FLOOR(REAL(nfullrows_total)/numnodes)
       ELSE 
-        nfullrows_local = CEILING(REAL(nfullrows_total)/num_p)
+        nfullrows_local = CEILING(REAL(nfullrows_total)/numnodes)
       ENDIF
-      
 
       ! allocate maximum amount of memory possibly needed
-      ALLOCATE(rdist_tmp(nblkrows_total + num_p - 1)) ! row distribution
-      ALLOCATE(row_blk_size_new_tmp(nblkrows_total + num_p - 1)) ! new sizes of block rows
+      ALLOCATE(rdist_tmp(nblkrows_total + numnodes - 1)) ! row distribution
+      ALLOCATE(row_blk_size_new_tmp(nblkrows_total + numnodes - 1)) ! new sizes of block rows
 
       k=0 ! counter for block rows
       m=0 ! node counter
@@ -1436,8 +1545,8 @@ CONTAINS
             rdist_tmp(k) = m-1 ! send first part to node m
             split_row = split_row - node_size ! size of remaining part of block rows
             node_size = nfullrows_local ! space available on next node
-            IF(floor_dist .AND. (m .EQ. num_p - 1)) THEN ! send all remaining rows to last node
-              node_size = nfullrows_total-(num_p - 1) * node_size
+            IF(floor_dist .AND. (m .EQ. numnodes - 1)) THEN ! send all remaining rows to last node
+              node_size = nfullrows_total-(numnodes - 1) * node_size
             ENDIF
           ENDDO
           IF (split_row .GT. 0) THEN ! enough space left on next node for remaining rows
@@ -1448,7 +1557,7 @@ CONTAINS
           ENDIF
         ENDDO
       ELSE ! send everything to last node if node_size = 0 
-        rdist_tmp(1:nblkrows_total) = num_p-1
+        rdist_tmp(1:nblkrows_total) = numnodes-1
         row_blk_size_new_tmp(1:nblkrows_total) = row_blk_size_data ! row blocks unchanged
         k = nblkrows_total
       ENDIF
@@ -1463,17 +1572,17 @@ CONTAINS
     ELSE ! Leave block rows intact (do not cut)
       ALLOCATE (rdist(nblkrows_total)) 
       rdist = 0
-      IF (num_p .GT. nblkrows_total) THEN
+      IF (numnodes .GT. nblkrows_total) THEN
         rdist = (/(i, i = 0, nblkrows_total-1)/)
-        ELSE
-          chunk_size = FLOOR(REAL(nblkrows_total)/num_p)
-          remainder = MOD(nblkrows_total,num_p)
-          row_index = 0
-        DO i = 1, chunk_size*num_p, chunk_size
+      ELSE
+        chunk_size = FLOOR(REAL(nblkrows_total)/numnodes)
+        remainder = MOD(nblkrows_total,numnodes)
+        row_index = 0
+        DO i = 1, chunk_size*numnodes, chunk_size
           rdist(i:i+chunk_size-1) = row_index
           row_index = row_index + 1
         END DO
-        IF (remainder .GT. 0) rdist(chunk_size*num_p+1:nblkrows_total) = row_index-1
+        IF (remainder .GT. 0) rdist(chunk_size*numnodes+1:nblkrows_total) = row_index-1
       END IF
       row_blk_size_new = row_blk_size
     ENDIF
@@ -1481,8 +1590,8 @@ CONTAINS
     CALL array_new (brd_row_dist, rdist, gift = .TRUE.)
     CALL array_new (brd_col_dist, cdist, gift = .TRUE.)
 
-    pgrid(:,:) = RESHAPE((/(i, i = 0, num_p-1)/),(/num_p,1/)) 
-    CALL dbcsr_mp_new(mp_obj_new, pgrid, mp_group, mynode, numnodes=num_p)
+    pgrid(:,:) = RESHAPE((/(i, i = 0, numnodes_total-1)/),(/numnodes_total,1/)) 
+    CALL dbcsr_mp_new(mp_obj_new, pgrid, mp_group, mynode, numnodes=numnodes_total)
     CALL dbcsr_distribution_init(dist_new)
     CALL dbcsr_distribution_new(dist_new,mp_obj_new,brd_row_dist,brd_col_dist)
 

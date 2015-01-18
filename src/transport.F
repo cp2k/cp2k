@@ -19,7 +19,7 @@ MODULE transport
        cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, &
        cp_csr_create_from_dbcsr, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
        cp_dbcsr_desymmetrize, cp_dbcsr_has_symmetry, cp_dbcsr_init, &
-       cp_dbcsr_type, csr_type
+       cp_dbcsr_type, csr_dbcsr_blkrow_dist, csr_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -184,7 +184,7 @@ CONTAINS
        CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix, error=error)
     END IF
 
-    CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, transport_env%s_matrix, 1, error=error)
+    CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, transport_env%s_matrix, csr_dbcsr_blkrow_dist, error=error)
     CALL cp_convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix, error=error)
 
     CALL cp_csr_create(transport_env%ks_matrix, transport_env%s_matrix, error)

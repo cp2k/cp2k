@@ -27,7 +27,8 @@ MODULE cp_dbcsr_interface
        create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
        csr_create_from_dbcsr, csr_create_new, csr_create_template, &
-       csr_destroy, csr_type, dbcsr_add, dbcsr_add_on_diag, &
+       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
+       csr_eqrow_floor_dist, csr_type, dbcsr_add, dbcsr_add_on_diag, &
        dbcsr_arnoldi_data, dbcsr_arnoldi_ev, dbcsr_binary_read, &
        dbcsr_binary_write, dbcsr_checksum, dbcsr_clear_mempools, &
        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
@@ -229,7 +230,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data,&
             get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector
   PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
-            cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create
+            cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
+            csr_dbcsr_blkrow_dist, csr_eqrow_ceil_dist, csr_eqrow_floor_dist
   PUBLIC :: dbcsr_work_type
   PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_data_p, & 
             cp_dbcsr_row_block_sizes_data, cp_dbcsr_col_block_sizes_data, &
@@ -2554,19 +2556,20 @@ CONTAINS
     has_symmetry = dbcsr_has_symmetry(matrix%matrix)
   END FUNCTION cp_dbcsr_has_symmetry
 
-
 ! *****************************************************************************
 !> \brief ...
 !> \param dbcsr_mat ...
 !> \param csr_mat ...
 !> \param dist_format ...
+!> \param numnodes ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, error)
+  SUBROUTINE cp_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, numnodes, error)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER                                  :: dist_format
+    INTEGER, INTENT(IN), OPTIONAL            :: numnodes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_from_dbcsr', &
@@ -2574,8 +2577,9 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, dbcsr_error)
-
+    CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
+                               numnodes=numnodes, error=dbcsr_error)
+  
   END SUBROUTINE cp_csr_create_from_dbcsr
 
 ! *****************************************************************************
