@@ -580,6 +580,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief ...
 !> \param thermostat ...
+!> \param force_env ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param particle_set ...
@@ -598,11 +599,12 @@ CPSourceFileRef,&
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE apply_thermostat_particles(thermostat, molecule_kind_set, molecule_set,&
+  SUBROUTINE apply_thermostat_particles(thermostat, force_env, molecule_kind_set, molecule_set,&
        particle_set, local_molecules, local_particles, group, shell_adiabatic, shell_particle_set,&
        core_particle_set, vel, shell_vel, core_vel, error)
 
     TYPE(thermostat_type), POINTER           :: thermostat
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -638,7 +640,7 @@ CPSourceFileRef,&
        ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN  
           ! Apply AD_LANGEVIN Thermostat
           CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,error,failure)
-          CALL al_particles(thermostat%al,molecule_kind_set,molecule_set,&
+          CALL al_particles(thermostat%al,force_env,molecule_kind_set,molecule_set,&
                particle_set,local_molecules, local_particles, group, vel, error)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
          ! Apply GLE Thermostat

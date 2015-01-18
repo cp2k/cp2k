@@ -733,7 +733,11 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="ad_langevin",&
-            description="Parameters of the adaptive-Langevin thermostat.",&
+            description="Parameters of the adaptive-Langevin thermostat."//&
+            " Known to work with NVT ensemble, but not tested with"//&
+            " other ensembles.  Also tested with FIXED_ATOMS constraints, but"//&
+            " may not work with other constraints (restraints should be OK, but"//&
+            " haven't been well tested)",&
             citations=(/Jones2011/),required=.TRUE.,error=error)
 
        NULLIFY(keyword, subsection)

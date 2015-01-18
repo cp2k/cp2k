@@ -11,8 +11,10 @@ MODULE al_system_dynamics
   USE al_system_types,                 ONLY: al_system_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE constraint_fxd,                  ONLY: fix_atom_control
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: map_info_type
+  USE force_env_types,                 ONLY: force_env_type
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -39,6 +41,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param al ...
+!> \param force_env ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param particle_set ...
@@ -49,10 +52,11 @@ CONTAINS
 !> \param error ...
 !> \author Noam Bernstein [noamb] 02.2012
 ! *****************************************************************************
-  SUBROUTINE al_particles( al, molecule_kind_set, molecule_set,  &
+  SUBROUTINE al_particles( al, force_env, molecule_kind_set, molecule_set,  &
        particle_set, local_molecules, local_particles, group, vel, error)
 
     TYPE(al_system_type), POINTER            :: al
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -77,13 +81,13 @@ CONTAINS
       CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "INIT")
 
     IF (al%tau_nh <= 0.0_dp) THEN
-       CALL al_OU_step(0.5_dp, al, map_info, molecule_kind_set, molecule_set, &
+       CALL al_OU_step(0.5_dp, al, force_env, map_info, molecule_kind_set, molecule_set, &
          particle_set, local_molecules, local_particles, vel, error)
       IF (debug_this_module) &
          CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post OU")
     ELSE
        ! quarter step of Langevin using Ornstein-Uhlenbeck
-       CALL al_OU_step(0.25_dp, al, map_info, molecule_kind_set, molecule_set, &
+       CALL al_OU_step(0.25_dp, al, force_env, map_info, molecule_kind_set, molecule_set, &
          particle_set, local_molecules, local_particles, vel, error)
       IF (debug_this_module) &
          CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post 1st OU")
@@ -107,7 +111,7 @@ CONTAINS
        CALL al_NH_quarter_step(al, map_info, set_half_step_vel_factors=.FALSE., error=error)
 
        ! quarter step of Langevin using Ornstein-Uhlenbeck
-       CALL al_OU_step(0.25_dp, al, map_info, molecule_kind_set, molecule_set, &
+       CALL al_OU_step(0.25_dp, al, force_env, map_info, molecule_kind_set, molecule_set, &
          particle_set, local_molecules, local_particles, vel, error)
       IF (debug_this_module) &
          CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post 2nd OU")
@@ -163,6 +167,7 @@ CONTAINS
 !> \brief ...
 !> \param step ...
 !> \param al ...
+!> \param force_env ...
 !> \param map_info ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
@@ -172,10 +177,11 @@ CONTAINS
 !> \param vel ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE al_OU_step(step, al, map_info, molecule_kind_set, molecule_set, &
+  SUBROUTINE al_OU_step(step, al, force_env, map_info, molecule_kind_set, molecule_set, &
     particle_set, local_molecules, local_particles, vel, error)
     REAL(dp), INTENT(in)                     :: step
     TYPE(al_system_type), POINTER            :: al
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -236,6 +242,8 @@ CONTAINS
           w(3,ipart) = next_random_number(rng_stream,variance=1.0_dp,error=error)
        END DO
     END DO
+
+    CALL fix_atom_control(force_env,error,w)
 
     ii = 0
     DO ikind=1, SIZE(molecule_kind_set)
