@@ -21,10 +21,10 @@ def main():
     text = open(in_fn).read()
 
     # format compiler flags as monospaced
-    text = re.sub('(-D_.+?)(?=\n| )', r"''%%\1%%''", text)
+    text = re.sub('(-D_[-_=<>A-Za-z0-9]+)', r"''%%\1%%''", text)
 
     # Create shiny note-boxes
-    text = re.sub(r'(\nNote .*?\n\n)', note_box, text, flags=re.DOTALL)
+    text = re.sub(r'(\nNote .*?\n)(?=\n)', note_box, text, flags=re.DOTALL)
 
 
     # fix multi-line list items (dokuwiki requires each item to be a single line)
@@ -64,18 +64,11 @@ def main():
 #-------------------------------------------------------------------------------
 def note_box(m):
     txt = m.group(1).strip()
-    return("\n\n<note important>\n"+txt+"\n</note>\n\n")
+    return("\n<note important>\n"+txt+"\n</note>\n")
 
 #-------------------------------------------------------------------------------
 def linkify(line):
-    return re.sub(r'(?<= )(cp2k/[a-zA-Z0-9_/.]+)(?=$| )', link_src_file, line)
-
-#-------------------------------------------------------------------------------
-def link_src_file(m):
-    fn = m.group(1)
-    assert(fn.startswith("cp2k/"))
-    url = "http://sourceforge.net/p/cp2k/code/HEAD/tree/trunk/"+fn
-    return("[[ %s | %s ]]"%(url, fn))
+    return re.sub(r'(?<= )(cp2k/[a-zA-Z0-9_/.]+)(?=$| )', r"[[ src>\1 ]]", line)
 
 #-------------------------------------------------------------------------------
 #def src_file_exists(fn):

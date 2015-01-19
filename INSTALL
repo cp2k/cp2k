@@ -1,5 +1,8 @@
 ====== How to compile the CP2K code ======
 
+This document is maintained in the svn-repository as cp2k/INSTALL .
+A nicely rendered version of it can be found at http://cp2k.org/howto:compile .
+
 =====  1. Acquire the code: =====
 
 see  http://www.cp2k.org/
@@ -170,7 +173,7 @@ python 2.x is needed to run the dependency generator.
 On most system python is already installed.
 For more information visit: http://www.python.org/
 
-===== Compile =====
+===== 3. Compile =====
 
 ==== 3a. ARCH files ====
 The location of compiler and libraries needs to be specified. Examples
