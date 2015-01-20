@@ -22,6 +22,8 @@ MODULE pw_poisson_types
                                              bessj1,&
                                              bessk0,&
                                              bessk1
+  USE dielectric_types,                ONLY: dielectric_parameters
+  USE dirichlet_bc_types,              ONLY: dirichlet_bc_parameters
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
@@ -29,13 +31,19 @@ MODULE pw_poisson_types
                                              MT1D,&
                                              MT2D,&
                                              MTin_create_screen_fn
+  USE ps_implicit_types,               ONLY: MIXED_BC,&
+                                             ps_implicit_parameters,&
+                                             ps_implicit_release,&
+                                             ps_implicit_type
   USE ps_wavelet_types,                ONLY: ps_wavelet_release,&
                                              ps_wavelet_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
+                                             pw_pool_release,&
                                              pw_pool_type,&
                                              pw_pools_dealloc
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -43,6 +51,8 @@ MODULE pw_poisson_types
                                              RECIPROCALSPACE,&
                                              pw_release,&
                                              pw_type
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_grid_release
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -67,7 +77,8 @@ MODULE pw_poisson_types
                                               pw_poisson_mt=3,&
                                               pw_poisson_hockney=5,&
                                               pw_poisson_multipole=4,&
-                                              pw_poisson_wavelet=6
+                                              pw_poisson_wavelet=6,&
+                                              pw_poisson_implicit=7
   ! EWALD methods
   INTEGER, PARAMETER, PUBLIC               :: do_ewald_none=1,&
                                               do_ewald_ewald=2,&
@@ -83,26 +94,34 @@ MODULE pw_poisson_types
                                               HOCKNEY0D = 1203,&
                                               MULTIPOLE2D = 1301,&
                                               MULTIPOLE1D = 1302,&
-                                              MULTIPOLE0D = 1303
+                                              MULTIPOLE0D = 1303,&
+                                              PS_IMPLICIT = 1400
 
 ! *****************************************************************************
 !> \brief parameters for the poisson solver independet of input_section
 !> \author Ole Schuett
 ! *****************************************************************************
   TYPE pw_poisson_parameter_type
-    INTEGER                                  :: solver
-    INTEGER, DIMENSION(3)                    :: periodic
-    INTEGER                                  :: ewald_type = do_ewald_none
-    INTEGER                                  :: ewald_o_spline
-    REAL (KIND=dp)                           :: ewald_alpha
-    REAL (KIND=dp)                           :: mt_rel_cutoff
-    REAL (KIND=dp)                           :: mt_alpha
-    INTEGER                                  :: wavelet_scf_type
-    INTEGER                                  :: wavelet_method
-    INTEGER                                  :: wavelet_special_dimension
-    CHARACTER(LEN=1)                         :: wavelet_geocode
-  END TYPE pw_poisson_parameter_type
+    INTEGER                        :: solver
 
+    INTEGER, DIMENSION(3)          :: periodic
+    INTEGER                        :: ewald_type = do_ewald_none
+    INTEGER                        :: ewald_o_spline
+    REAL (KIND=dp)                 :: ewald_alpha
+
+    REAL (KIND=dp)                 :: mt_rel_cutoff
+    REAL (KIND=dp)                 :: mt_alpha
+
+    INTEGER                        :: wavelet_scf_type
+    INTEGER                        :: wavelet_method
+    INTEGER                        :: wavelet_special_dimension
+    CHARACTER(LEN=1)               :: wavelet_geocode
+
+    LOGICAL                        :: has_dielectric
+    TYPE(dielectric_parameters)    :: dielectric_params
+    TYPE(ps_implicit_parameters)   :: ps_implicit_params
+    TYPE(dirichlet_bc_parameters)  :: dbc_params
+  END TYPE pw_poisson_parameter_type
 
 ! *****************************************************************************
 !> \brief environment for the poisson solver
@@ -114,12 +133,16 @@ MODULE pw_poisson_types
      INTEGER :: method
      INTEGER :: used_grid
      LOGICAL :: rebuild
-     TYPE ( greens_fn_type ), POINTER :: green_fft
-     TYPE (ps_wavelet_type ),POINTER  :: wavelet
-     TYPE (pw_poisson_parameter_type) :: parameters
-     REAL(KIND = dp), DIMENSION(3,3)   :: cell_hmat = 0.0_dp
-     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-     TYPE ( pw_grid_type), POINTER :: mt_super_ref_pw_grid
+     TYPE (greens_fn_type), POINTER               :: green_fft
+     TYPE (ps_wavelet_type),POINTER               :: wavelet
+     TYPE (pw_poisson_parameter_type)             :: parameters
+     REAL (KIND = dp), DIMENSION(3,3)             :: cell_hmat = 0.0_dp
+     TYPE (pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
+     TYPE (pw_grid_type), POINTER                 :: mt_super_ref_pw_grid
+     TYPE (ps_implicit_type), POINTER             :: implicit_env
+     TYPE (pw_grid_type), POINTER                 :: dct_pw_grid
+     TYPE (pw_grid_type), POINTER                 :: dct_aux_pw_grid
+     TYPE (realspace_grid_type), POINTER          :: diel_rs_grid
   END TYPE pw_poisson_type
 
 ! *****************************************************************************
@@ -145,6 +168,7 @@ MODULE pw_poisson_types
      REAL (KIND=dp) :: sr_alpha
      REAL (KIND=dp) :: sr_rc
      TYPE ( pw_type ), POINTER :: influence_fn
+     TYPE ( pw_type ), POINTER :: dct_influence_fn
      TYPE ( pw_type ), POINTER :: screen_fn
      TYPE ( pw_type ), POINTER :: p3m_charge
   END TYPE greens_fn_type
@@ -161,18 +185,20 @@ CONTAINS
 !> \param cell_hmat ...
 !> \param pw_pool ...
 !> \param mt_super_ref_pw_grid ...
+!> \param dct_pw_grid ...
 !> \param error ...
 !> \author Fawzi, based on previous functions by JGH and Teo
 ! *****************************************************************************
   SUBROUTINE pw_green_create ( green, poisson_params, cell_hmat, pw_pool, &
-       mt_super_ref_pw_grid, error )
+       mt_super_ref_pw_grid, dct_pw_grid, error )
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_poisson_parameter_type), &
       INTENT(IN)                             :: poisson_params
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: cell_hmat
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_grid_type), POINTER              :: mt_super_ref_pw_grid
+    TYPE(pw_grid_type), POINTER              :: mt_super_ref_pw_grid, &
+                                                dct_pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
@@ -185,8 +211,9 @@ CONTAINS
                                                 j1g, k0g, k1g, rlength, &
                                                 zlength
     REAL(KIND=dp), DIMENSION(3)              :: abc
-    TYPE(pw_grid_type), POINTER              :: grid
-    TYPE(pw_type), POINTER                   :: gf
+    TYPE(pw_grid_type), POINTER              :: dct_grid, grid
+    TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
+    TYPE(pw_type), POINTER                   :: dct_gf, gf
 
     failure = .FALSE.
     CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,error,failure)
@@ -215,6 +242,7 @@ CONTAINS
 
        NULLIFY (green%influence_fn,green%p3m_charge)
        NULLIFY (green%p3m_coeff,green%p3m_bm2)
+       NULLIFY (green%dct_influence_fn)
        NULLIFY (green%screen_fn)
 
        !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
@@ -289,15 +317,19 @@ CONTAINS
           CASE DEFAULT
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
+       CASE (pw_poisson_implicit)
+          green%method = PS_IMPLICIT
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "An unknown Poisson solver was specified",error,failure)
        END SELECT
+
        ! allocate influence function,...
        SELECT CASE ( green % method )
-       CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
+       CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT )
           CALL pw_pool_create_pw ( pw_pool, green % influence_fn,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
+
           IF (poisson_params%ewald_type==do_ewald_spme) THEN
              green%p3m = .TRUE.
              green%p3m_order = poisson_params%ewald_o_spline
@@ -320,7 +352,15 @@ CONTAINS
                   alpha=green%MT_alpha, &
                   special_dimension=green%special_dimension, slab_size=green%slab_size, &
                   super_ref_pw_grid=mt_super_ref_pw_grid, error=error)
+          CASE(PS_IMPLICIT)
+             IF (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) THEN
+                CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid, error=error)
+                CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
+                     use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
+                CALL pw_pool_release(pw_pool_xpndd, error=error)
+             END IF
           END SELECT
+
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -330,6 +370,7 @@ CONTAINS
        grid => green % influence_fn % pw_grid
        SELECT CASE ( green%method )
        CASE ( PERIODIC3D, MULTIPOLE0D )
+
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig )
              gf % cc ( ig ) = fourpi / g2
@@ -387,6 +428,7 @@ CONTAINS
                gf % cc ( 1 ) = 0.5_dp * fourpi * rlength * rlength
 
        CASE ( MT2D, MT1D, MT0D )
+
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig )
              g3d = fourpi / g2
@@ -394,6 +436,26 @@ CONTAINS
           END DO
           IF ( grid % have_g0 ) &
                gf%cc(1) = green%screen_fn%cc(1)
+
+       CASE ( PS_IMPLICIT )
+
+          DO ig = grid % first_gne0, grid % ngpts_cut_local
+             g2 = grid % gsq ( ig )
+             gf % cc ( ig ) = fourpi / g2
+          END DO
+          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
+
+          IF (ASSOCIATED(green % dct_influence_fn)) THEN
+             dct_gf   => green % dct_influence_fn
+             dct_grid => green % dct_influence_fn % pw_grid
+
+             DO ig = dct_grid % first_gne0, dct_grid % ngpts_cut_local
+                g2 = dct_grid % gsq ( ig )
+                dct_gf % cc ( ig ) = fourpi / g2
+             END DO
+             IF ( dct_grid % have_g0 ) dct_gf % cc ( 1 ) = 0.0_dp
+          END IF
+
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -457,12 +519,15 @@ CONTAINS
              IF (can_give_back) THEN
                 CALL pw_pool_give_back_pw(pw_pool,gftype%influence_fn,&
                      accept_non_compatible=.TRUE.,error=error)
+                CALL pw_pool_give_back_pw(pw_pool,gftype%dct_influence_fn,&
+                     accept_non_compatible=.TRUE.,error=error)
                 CALL pw_pool_give_back_pw(pw_pool,gftype%screen_fn,&
                      accept_non_compatible=.TRUE.,error=error)
                 CALL pw_pool_give_back_pw(pw_pool,gftype%p3m_charge,&
                      accept_non_compatible=.TRUE.,error=error)
              ELSE
                 CALL pw_release(gftype%influence_fn,error=error)
+                CALL pw_release(gftype%dct_influence_fn,error=error)
                 CALL pw_release(gftype%screen_fn,error=error)
                 CALL pw_release(gftype % p3m_charge, error=error)
              END IF
@@ -623,8 +688,13 @@ END SUBROUTINE calc_p3m_charge
        poisson_env%method=pw_poisson_none
        poisson_env%rebuild=.TRUE.
        NULLIFY(poisson_env%green_fft,&
-            poisson_env%pw_pools,poisson_env%green_fft,&
-            poisson_env%mt_super_ref_pw_grid,poisson_env%wavelet)
+            poisson_env%pw_pools,&
+            poisson_env%mt_super_ref_pw_grid,&
+            poisson_env%wavelet,&
+            poisson_env%implicit_env,&
+            poisson_env%dct_pw_grid,&
+            poisson_env%dct_aux_pw_grid,&
+            poisson_env%diel_rs_grid)
        poisson_env%pw_level=-1
        poisson_env%ref_count=1
     END IF
@@ -683,11 +753,17 @@ END SUBROUTINE calc_p3m_charge
           IF (ASSOCIATED(poisson_env%pw_pools)) THEN
              CALL pw_pools_dealloc(poisson_env%pw_pools,error=error)
           END IF
+
           CALL pw_green_release(poisson_env%green_fft,error=error)
           CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid,error=error)
           CALL ps_wavelet_release(poisson_env%wavelet,error=error)
+          CALL ps_implicit_release(poisson_env%implicit_env,error=error)
+          CALL pw_grid_release(poisson_env%dct_pw_grid,error=error)
+          CALL pw_grid_release(poisson_env%dct_aux_pw_grid,error=error)
+          CALL rs_grid_release(poisson_env%diel_rs_grid,error=error)
           DEALLOCATE(poisson_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
        END IF
     END IF
     NULLIFY(poisson_env)

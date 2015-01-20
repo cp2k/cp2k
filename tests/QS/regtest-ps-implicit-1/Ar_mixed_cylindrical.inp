@@ -1,0 +1,129 @@
+@SET PS   IMPLICIT
+@SET BC   MIXED
+@SET Diag 0
+@SET OT   1
+@SET LS   off
+@SET RST  off
+
+&GLOBAL
+  PROJECT     Ar_mixed_cylindrical
+  RUN_TYPE    ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    &POISSON
+      POISSON_SOLVER ${PS}
+      &IMPLICIT
+        BOUNDARY_CONDITIONS ${BC}
+        MAX_ITER     300
+        TOL          1.0E-6
+        OR_PARAMETER 1.0
+        &DIELECTRIC
+          DIELECTRIC_CONSTANT 1.50
+          RHO_MIN    1.0E-4
+          RHO_MAX    1.0E-3
+          DERIVATIVE_METHOD cd3
+        &END DIELECTRIC
+        &DIRICHLET_BC
+          &XAA_CYLINDRICAL
+            v_D         0.01
+            X_xtnt      0.5 7.5
+            base_center 4.0 4.0
+            base_radius 2.5
+            apx_type    INSCRIBED
+            n_sides     6
+            n_prtn      1 1 1
+            smooth     .FALSE.
+            smoothing_width 0.2
+          &END XAA_CYLINDRICAL
+        &END DIRICHLET_BC
+      &END IMPLICIT
+    &END POISSON
+    &PRINT
+      &DIELECTRIC_CUBE off
+        STRIDE 1 1 1
+      &END DIELECTRIC_CUBE
+      &V_HARTREE_CUBE off
+        STRIDE 1 1 1
+      &END V_HARTREE_CUBE
+    &END PRINT
+    &MGRID
+      CUTOFF 180
+      NGRIDS 4
+      &RS_GRID
+        DISTRIBUTION_TYPE DISTRIBUTED
+      &END RS_GRID
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-10
+      LS_SCF ${LS}
+      &DISTRIBUTION
+        BASIC_OPTIMIZATION .FALSE.
+        BASIC_SPATIAL_OPTIMIZATION .TRUE.
+      &END DISTRIBUTION
+    &END QS
+    &LS_SCF
+      MAX_SCF    30
+      EPS_FILTER 1.0E-7
+      EPS_SCF    1.0E-7
+      MU        -0.20
+      MIXING_FRACTION 0.45
+      S_PRECONDITIONER      NONE
+      REPORT_ALL_SPARSITIES off
+      PERFORM_MU_SCAN       off
+      PURIFICATION_METHOD   TRS4 
+    &END LS_SCF
+    &SCF
+      @IF ${Diag}
+        SCF_GUESS ATOMIC
+        MAX_SCF   300
+        EPS_SCF   1.0E-5
+        &MIXING
+          ALPHA 0.2
+        &END MIXING
+      @ENDIF
+      @IF ${OT}
+        SCF_GUESS ATOMIC
+        MAX_SCF   31
+        EPS_SCF   1.0E-5
+        &OT
+          MINIMIZER DIIS
+          PRECONDITIONER FULL_SINGLE_INVERSE
+        &END OT
+        &OUTER_SCF
+          MAX_SCF 50
+          EPS_SCF 1.0E-5
+        &END OUTER_SCF
+      @ENDIF
+      &PRINT
+        &RESTART ${RST}
+          BACKUP_COPIES 0
+          &EACH
+            QS_SCF 10
+          &END EACH
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+    &END CELL
+    &COORD
+     Ar        4.0000000000        4.0000000000        4.0000000000
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q8
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

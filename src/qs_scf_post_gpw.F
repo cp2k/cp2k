@@ -104,6 +104,7 @@ MODULE qs_scf_post_gpw
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
+  USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -2237,8 +2238,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: handle, i, iat, id, ikind, iso, ispin, istat, iw, l, nd(3), &
       ngto, niso, nkind, np, nr, output_unit, print_level, unit_nr
-    LOGICAL :: append_cube, failure, print_it, print_total_density, &
-      rho_r_valid, write_ks, write_xc, xrd_interface
+    LOGICAL :: append_cube, do_dielectric_cube, failure, has_dielectric, &
+      print_it, print_total_density, rho_r_valid, write_ks, write_xc, &
+      xrd_interface
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
                                                 rho_total, rho_total_rspace, &
                                                 udvol, volume
@@ -2267,6 +2269,7 @@ CONTAINS
                                                 rho_elec_rspace, wf_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core, vee
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -2279,7 +2282,8 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+    TYPE(section_vals_type), POINTER         :: dft_section, &
+                                                dielectric_section, input, &
                                                 print_key, xc_section
 
     CALL timeset(routineN,handle)
@@ -2774,6 +2778,33 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_g%pw, error=error)
        END IF
+
+       ! Write the dielectric constant into a cube file
+       do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                                  "DFT%PRINT%DIELECTRIC_CUBE",error=error),cp_p_file)
+       dielectric_section => section_vals_get_subs_vals(input,"DFT%POISSON%IMPLICIT%DIELECTRIC",error=error)
+       CALL section_vals_get(dielectric_section,explicit=has_dielectric,error=error)
+
+       IF (has_dielectric .AND. do_dielectric_cube) THEN
+          append_cube = section_get_lval(input,"DFT%PRINT%DIELECTRIC_CUBE%APPEND",error=error)
+          my_pos_cube="REWIND"
+          IF(append_cube) THEN
+             my_pos_cube="APPEND"
+          END IF
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIELECTRIC_CUBE",&
+               extension=".cube", middle_name="DIELCTRIC_CONSTANT", file_position=my_pos_cube, error=error)
+          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
+          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+
+          CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r%pw, error=error)
+
+          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIELECTRIC CONSTANT", particles=particles,&
+               stride=section_get_ivals(dft_section, "PRINT%DIELECTRIC_CUBE%STRIDE", error=error), error=error)
+          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIELECTRIC_CUBE", error=error)
+
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw, error=error)
+       ENDIF
 
        ! Write the density matrices
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&

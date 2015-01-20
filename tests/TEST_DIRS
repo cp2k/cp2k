@@ -2,6 +2,8 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
+QS/regtest-ps-implicit-1
+QS/regtest-ps-implicit-2
 QS/regtest-gpw-1
 QS/regtest-sccs
 Fist/regtest-7-1

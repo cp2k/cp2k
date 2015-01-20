@@ -40,9 +40,9 @@ MODULE pw_grids
   USE mathlib,                         ONLY: det_3x3,&
                                              inv_3x3
   USE message_passing,                 ONLY: &
-       MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
-       mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, &
-       mp_environ, mp_max, mp_min, mp_sum
+       MPI_COMM_SELF, mp_allgather, mp_cart_coords, mp_cart_create, &
+       mp_cart_rank, mp_comm_compare, mp_comm_dup, mp_comm_free, &
+       mp_dims_create, mp_environ, mp_max, mp_min, mp_sum
   USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                              pw_grid_bounds_from_n,&
                                              pw_grid_init_setup
@@ -334,6 +334,7 @@ CONTAINS
 !> \param grid_span ...
 !> \param cutoff ...
 !> \param bounds ...
+!> \param bounds_local ...
 !> \param npts ...
 !> \param spherical ...
 !> \param odd ...
@@ -350,7 +351,7 @@ CONTAINS
 !> \note
 !>      this is the function that should be used in the future
 ! *****************************************************************************
-  SUBROUTINE pw_grid_setup (cell_hmat, pw_grid, grid_span, cutoff, bounds, npts, &
+  SUBROUTINE pw_grid_setup (cell_hmat, pw_grid, grid_span, cutoff, bounds, bounds_local, npts, &
        spherical, odd, fft_usage, ncommensurate, icommensurate, blocked, ref_grid,&
        rs_dims, iounit, error )
 
@@ -360,7 +361,7 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: grid_span
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
     INTEGER, DIMENSION(2, 3), INTENT(IN), &
-      OPTIONAL                               :: bounds
+      OPTIONAL                               :: bounds, bounds_local
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: npts
     LOGICAL, INTENT(in), OPTIONAL            :: spherical, odd, fft_usage
@@ -467,7 +468,8 @@ CONTAINS
                          "BOUNDS, NPTS or CUTOFF have to be specified")
     END IF
 
-    CALL pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
+    CALL pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local=bounds_local, &
+                                 blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit, error=error )
 
 #if defined ( __PW_CUDA )
     CALL pw_grid_create_ghatmap ( pw_grid, error )
@@ -576,6 +578,7 @@ CONTAINS
 !> \param cell_h_inv ...
 !> \param cell_deth ...
 !> \param pw_grid ...
+!> \param bounds_local ...
 !> \param blocked ...
 !> \param ref_grid ...
 !> \param rs_dims ...
@@ -596,11 +599,14 @@ CONTAINS
 !> \note
 !>      this is the function that should be used in the future
 ! *****************************************************************************
-  SUBROUTINE pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
+  SUBROUTINE pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local, &
+                                     blocked, ref_grid, rs_dims, iounit, error )
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: cell_hmat, cell_h_inv
     REAL(KIND=dp), INTENT(IN)                :: cell_deth
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, DIMENSION(2, 3), INTENT(IN), &
+      OPTIONAL                               :: bounds_local
     INTEGER, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(in), OPTIONAL :: ref_grid
     INTEGER, DIMENSION(2), INTENT(in), &
@@ -611,12 +617,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocstat, ires, n(3)
+    INTEGER                                  :: allocstat, handle, ires, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ecut
 
 !------------------------------------------------------------------------------
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
@@ -656,7 +664,7 @@ CONTAINS
     END IF
 
     ! Distribute grid
-    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocked, &
+    CALL pw_grid_distribute ( pw_grid, yz_mask, bounds_local=bounds_local, ref_grid=ref_grid, blocked=blocked, &
          rs_dims=rs_dims ,error=error)
 
     ! Allocate the grid fields
@@ -682,6 +690,8 @@ CONTAINS
     IF(PRESENT(iounit)) THEN
        CALL pw_grid_print ( pw_grid, iounit, error )
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE pw_grid_setup_internal
 
@@ -845,6 +855,7 @@ CONTAINS
 !> \brief Distribute grids in real and Fourier Space to the processors in group
 !> \param pw_grid ...
 !> \param yz_mask ...
+!> \param bounds_local ...
 !> \param ref_grid ...
 !> \param blocked ...
 !> \param rs_dims ...
@@ -855,10 +866,12 @@ CONTAINS
 !>      JGH (09-Sep-2003) reduce scaling for distribution
 !> \author JGH (22-12-2000)
 ! *****************************************************************************
-  SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocked, rs_dims, error)
+  SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, bounds_local, ref_grid, blocked, rs_dims, error)
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
+    INTEGER, DIMENSION(2, 3), INTENT(IN), &
+      OPTIONAL                               :: bounds_local
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, INTENT(IN), OPTIONAL            :: blocked
     INTEGER, DIMENSION(2), INTENT(in), &
@@ -873,6 +886,8 @@ CONTAINS
       rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pemap
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: axis_dist_all
+    INTEGER, DIMENSION(2, 3)                 :: axis_dist
     LOGICAL                                  :: blocking, failure
 
 !------------------------------------------------------------------------------
@@ -1003,13 +1018,19 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        CALL mp_cart_rank ( pw_grid % para % rs_group, &
             pw_grid % para % rs_pos, &
             pw_grid % para % rs_mpo )
-       lo = get_limit ( nx, pw_grid % para % rs_dims ( 1 ), &
-            pw_grid % para % rs_pos ( 1 ) )
-       pw_grid % bounds_local ( :, 1 ) = lo + pw_grid % bounds ( 1, 1 ) - 1
-       lo = get_limit ( ny, pw_grid % para % rs_dims ( 2 ), &
-            pw_grid % para % rs_pos ( 2 ) )
-       pw_grid % bounds_local ( :, 2 ) = lo + pw_grid % bounds ( 1, 2 ) - 1
-       pw_grid % bounds_local ( :, 3 ) = pw_grid % bounds ( :, 3 )
+
+       IF (PRESENT(bounds_local)) THEN
+          pw_grid % bounds_local = bounds_local
+       ELSE
+          lo = get_limit ( nx, pw_grid % para % rs_dims ( 1 ), &
+               pw_grid % para % rs_pos ( 1 ) )
+          pw_grid % bounds_local ( :, 1 ) = lo + pw_grid % bounds ( 1, 1 ) - 1
+          lo = get_limit ( ny, pw_grid % para % rs_dims ( 2 ), &
+               pw_grid % para % rs_pos ( 2 ) )
+          pw_grid % bounds_local ( :, 2 ) = lo + pw_grid % bounds ( 1, 2 ) - 1
+          pw_grid % bounds_local ( :, 3 ) = pw_grid % bounds ( :, 3 )
+       END IF
+
        pw_grid % npts_local ( : ) = pw_grid % bounds_local ( 2, : ) &
             - pw_grid % bounds_local ( 1, : ) + 1
 
@@ -1017,25 +1038,53 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ), STAT = ierr )
        CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
        rsd = pw_grid % para % rs_dims
-       DO ip = 0, np - 1
-          CALL mp_cart_coords ( pw_grid % para % rs_group, ip, coor )
-          ! distribution xyZ
-          pw_grid % para % bo ( 1:2, 1, ip, 1 ) = get_limit (nx,rsd(1),coor(1))
-          pw_grid % para % bo ( 1:2, 2, ip, 1 ) = get_limit (ny,rsd(2),coor(2))
-          pw_grid % para % bo ( 1, 3, ip, 1 ) = 1
-          pw_grid % para % bo ( 2, 3, ip, 1 ) = nz
-          ! distribution xYz
-          pw_grid % para % bo ( 1:2, 1, ip, 2 ) = get_limit (nx,rsd(1),coor(1))
-          pw_grid % para % bo ( 1, 2, ip, 2 ) = 1
-          pw_grid % para % bo ( 2, 2, ip, 2 ) = ny
-          pw_grid % para % bo ( 1:2, 3, ip, 2 ) = get_limit (nz,rsd(2),coor(2))
-          ! distribution Xyz
-          pw_grid % para % bo ( 1, 1, ip, 3 ) = 1
-          pw_grid % para % bo ( 2, 1, ip, 3 ) = nx
-          pw_grid % para % bo ( 1:2, 2, ip, 3 ) = get_limit (ny,rsd(1),coor(1))
-          pw_grid % para % bo ( 1:2, 3, ip, 3 ) = get_limit (nz,rsd(2),coor(2))
-       END DO
 
+       IF (PRESENT(bounds_local)) THEN
+       !> axis_dist tells what portion of 1 .. nx , 1 .. ny , 1 .. nz are in the current process
+          DO i = 1, 3
+             axis_dist(:,i) = bounds_local(:,i) - pw_grid%bounds(1,i) + 1
+          END DO
+          ALLOCATE(axis_dist_all(2,3,np))
+          CALL mp_allgather(axis_dist, axis_dist_all, pw_grid%para%rs_group)
+          DO ip = 0, np - 1
+             CALL mp_cart_coords ( pw_grid % para % rs_group, ip, coor )
+             ! distribution xyZ
+             pw_grid % para % bo ( 1:2, 1, ip, 1 ) = axis_dist_all(1:2,1,ip+1)
+             pw_grid % para % bo ( 1:2, 2, ip, 1 ) = axis_dist_all(1:2,2,ip+1)
+             pw_grid % para % bo ( 1, 3, ip, 1 ) = 1
+             pw_grid % para % bo ( 2, 3, ip, 1 ) = nz
+             ! distribution xYz
+             pw_grid % para % bo ( 1:2, 1, ip, 2 ) = axis_dist_all(1:2,1,ip+1)
+             pw_grid % para % bo ( 1, 2, ip, 2 ) = 1
+             pw_grid % para % bo ( 2, 2, ip, 2 ) = ny
+             pw_grid % para % bo ( 1:2, 3, ip, 2 ) = axis_dist_all(1:2,3,ip+1)
+             ! distribution Xyz
+             pw_grid % para % bo ( 1, 1, ip, 3 ) = 1
+             pw_grid % para % bo ( 2, 1, ip, 3 ) = nx
+             pw_grid % para % bo ( 1:2, 2, ip, 3 ) = axis_dist_all(1:2,2,ip+1)
+             pw_grid % para % bo ( 1:2, 3, ip, 3 ) = axis_dist_all(1:2,3,ip+1)
+          END DO
+          DEALLOCATE(axis_dist_all)
+       ELSE
+          DO ip = 0, np - 1
+             CALL mp_cart_coords ( pw_grid % para % rs_group, ip, coor )
+             ! distribution xyZ
+             pw_grid % para % bo ( 1:2, 1, ip, 1 ) = get_limit (nx,rsd(1),coor(1))
+             pw_grid % para % bo ( 1:2, 2, ip, 1 ) = get_limit (ny,rsd(2),coor(2))
+             pw_grid % para % bo ( 1, 3, ip, 1 ) = 1
+             pw_grid % para % bo ( 2, 3, ip, 1 ) = nz
+             ! distribution xYz
+             pw_grid % para % bo ( 1:2, 1, ip, 2 ) = get_limit (nx,rsd(1),coor(1))
+             pw_grid % para % bo ( 1, 2, ip, 2 ) = 1
+             pw_grid % para % bo ( 2, 2, ip, 2 ) = ny
+             pw_grid % para % bo ( 1:2, 3, ip, 2 ) = get_limit (nz,rsd(2),coor(2))
+             ! distribution Xyz
+             pw_grid % para % bo ( 1, 1, ip, 3 ) = 1
+             pw_grid % para % bo ( 2, 1, ip, 3 ) = nx
+             pw_grid % para % bo ( 1:2, 2, ip, 3 ) = get_limit (ny,rsd(1),coor(1))
+             pw_grid % para % bo ( 1:2, 3, ip, 3 ) = get_limit (nz,rsd(2),coor(2))
+          END DO
+       END IF
        !..find the g space distribution
        pw_grid % ngpts_cut_local = 0
 
@@ -1085,6 +1134,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
                 yz_mask ( m, n ) = 0
              END IF
           END DO
+
           DEALLOCATE ( yz_index, STAT = ierr )
           CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 

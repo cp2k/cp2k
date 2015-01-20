@@ -9,12 +9,20 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE pw_poisson_methods
-  
+
+  USE dielectric_methods,              ONLY: dielectric_compute
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE mt_util,                         ONLY: MT0D,&
                                              MT1D,&
                                              MT2D
+  USE ps_implicit_methods,             ONLY: implicit_poisson_solver_mixed,&
+                                             implicit_poisson_solver_mixed_periodic,&
+                                             implicit_poisson_solver_periodic,&
+                                             ps_implicit_create
+  USE ps_implicit_types,               ONLY: MIXED_BC,&
+                                             MIXED_PERIODIC_BC,&
+                                             PERIODIC_BC
   USE ps_wavelet_methods,              ONLY: cp2k_distribution_to_z_slices,&
                                              ps_wavelet_create,&
                                              ps_wavelet_solve,&
@@ -28,16 +36,18 @@ MODULE pw_poisson_methods
   USE pw_grids,                        ONLY: pw_grid_compare,&
                                              pw_grid_release,&
                                              pw_grid_retain
-  USE pw_methods,                      ONLY: pw_copy,&
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
                                              pw_derive,&
                                              pw_integral_ab,&
                                              pw_transfer
   USE pw_poisson_types,                ONLY: &
        ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MULTIPOLE0D, PERIODIC3D, &
-       do_ewald_spme, greens_fn_type, pw_green_create, pw_green_release, &
-       pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
-       pw_poisson_none, pw_poisson_parameter_type, pw_poisson_periodic, &
-       pw_poisson_type, pw_poisson_wavelet
+       PS_IMPLICIT, do_ewald_spme, greens_fn_type, pw_green_create, &
+       pw_green_release, pw_poisson_analytic, pw_poisson_implicit, &
+       pw_poisson_mt, pw_poisson_multipole, pw_poisson_none, &
+       pw_poisson_parameter_type, pw_poisson_periodic, pw_poisson_type, &
+       pw_poisson_wavelet
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -192,33 +202,53 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(poisson_env%pw_pools),cp_failure_level,routineP,error,failure)
+
     IF (.NOT. failure) THEN
        IF (poisson_env%rebuild) THEN
-          CALL pw_poisson_cleanup(poisson_env,error=error)
+           CALL pw_poisson_cleanup(poisson_env,error=error)
            SELECT CASE (poisson_env%parameters%solver)
-           CASE(pw_poisson_periodic,pw_poisson_analytic,pw_poisson_mt,pw_poisson_multipole)
+           CASE (pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole)
               CALL pw_green_create(poisson_env%green_fft,cell_hmat=poisson_env%cell_hmat,&
-                   pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
-                   poisson_params=poisson_env%parameters,&
-                   mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
-                   error=error)
-           CASE(pw_poisson_wavelet)
+                      pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
+                      poisson_params=poisson_env%parameters,&
+                      mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
+                      dct_pw_grid=poisson_env%dct_aux_pw_grid,&
+                      error=error)
+           CASE (pw_poisson_wavelet)
               CPPrecondition(ASSOCIATED(density%pw_grid),cp_failure_level,routineP,error,failure)
               CALL ps_wavelet_create(poisson_env%parameters,poisson_env%wavelet,&
                                      density%pw_grid,error)
-           CASE(pw_poisson_none)
+           CASE (pw_poisson_implicit)
+              CALL pw_green_create(poisson_env%green_fft,cell_hmat=poisson_env%cell_hmat,&
+                      pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
+                      poisson_params=poisson_env%parameters,&
+                      mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
+                      dct_pw_grid=poisson_env%dct_aux_pw_grid,&
+                      error=error)
+              CALL ps_implicit_create(poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                      poisson_env%parameters, &
+                      poisson_env%dct_pw_grid, &
+                      poisson_env%dct_aux_pw_grid, &
+                      poisson_env%green_fft, poisson_env%implicit_env, error)
+           CASE (pw_poisson_none)
            CASE default
               CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
            END SELECT
           poisson_env%rebuild=.FALSE.
        END IF
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE pw_poisson_rebuild
 
 ! *****************************************************************************
@@ -231,13 +261,14 @@ CONTAINS
 !> \param vhartree ...
 !> \param dvhartree ...
 !> \param h_stress ...
+!> \param rho_core ...
 !> \param error ...
 !> \par History
 !>      JGH (13-Mar-2001) : completely revised
 !> \author apsi
 ! *****************************************************************************
   SUBROUTINE pw_poisson_solve ( poisson_env, density, ehartree, vhartree,&
-       dvhartree, h_stress, error )
+       dvhartree, h_stress, rho_core, error )
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), POINTER                   :: density
@@ -246,6 +277,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(3), OPTIONAL  :: dvhartree
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h_stress
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: rho_core
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
@@ -253,12 +285,14 @@ CONTAINS
 
     INTEGER                                  :: alpha, beta, handle, i, ig, ng
     INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, has_dielectric
     REAL(KIND=dp)                            :: ffa
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type)                          :: dvg( 3 )
+    TYPE(pw_poisson_parameter_type), POINTER :: poisson_params
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: rhog, rhor, tmpg
+    TYPE(pw_type), POINTER                   :: rhog, rhor, tmpg, v_eps, &
+                                                vhartree_rs
 
     CALL timeset(routineN,handle)
 
@@ -269,7 +303,12 @@ CONTAINS
        CALL pw_poisson_rebuild(poisson_env,density,error=error)
        CALL cp_error_check(error,failure)
     END IF
+    poisson_params => poisson_env%parameters
+
     IF (.NOT.failure) THEN
+
+       has_dielectric = poisson_params%has_dielectric
+
        NULLIFY (pw_grid,rhog)
        ! point pw
        pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
@@ -281,14 +320,17 @@ CONTAINS
                "vhartree has a different grid than the poisson solver",error,failure)
        END IF
        ! density in G space
-       CALL pw_pool_create_pw ( pw_pool,rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE,&
+       CALL pw_pool_create_pw ( pw_pool, rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE,&
             error=error)
        ! apply the greens function
        ng = SIZE ( pw_grid % gsq )
+
        SELECT CASE (poisson_env%used_grid)
        CASE (use_gs_grid)
+
           SELECT CASE (poisson_env%green_fft%method)
           CASE (PERIODIC3D,ANALYTIC2D,ANALYTIC1D,ANALYTIC0D,MT2D,MT1D,MT0D,MULTIPOLE0D)
+
              CALL pw_transfer(density,rhog,error=error)
              IF (PRESENT(ehartree).AND.(.NOT.PRESENT(vhartree))) THEN
                 CALL pw_pool_create_pw(pw_pool,tmpg,use_data=COMPLEXDATA1D,&
@@ -307,11 +349,54 @@ CONTAINS
                 ehartree = 0.5_dp*pw_integral_ab(rhog,tmpg,error=error)
                 CALL pw_pool_give_back_pw(pw_pool,tmpg,error=error)
              END IF
+
+          CASE (PS_IMPLICIT)
+
+             IF (has_dielectric .AND. PRESENT(rho_core)) THEN
+                CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                       poisson_env%diel_rs_grid,&
+                                       poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                       density, rho_core=rho_core%pw, error=error)
+             END IF
+
+             CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+             CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+             CALL pw_transfer(density, rhor, error=error)
+
+             SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
+                CASE (PERIODIC_BC)
+                   CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
+                                                      v_eps, ehartree=ehartree, error=error)
+                CASE (MIXED_PERIODIC_BC)
+                   CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
+                                                      v_eps, ehartree=ehartree, error=error)
+                CASE (MIXED_BC)
+                   CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
+                                                      v_eps, ehartree=ehartree, error=error)
+             END SELECT
+
+             IF (PRESENT(vhartree)) THEN
+                CALL pw_axpy(v_eps, vhartree_rs, - 1.0_dp, error=error)
+                CALL pw_transfer(vhartree_rs, vhartree, error=error)
+                CALL pw_pool_give_back_pw(pw_pool, v_eps, error=error)
+             END IF
+
+             IF (PRESENT(dvhartree)) CALL pw_transfer(rhor,rhog,error=error)
+             IF (PRESENT(h_stress)) THEN
+                CALL cp_unimplemented_error(routineP, &
+                     "No stress tensor is implemented for the implicit Poisson solver.",error)
+             END IF
+
+             CALL pw_pool_give_back_pw(pw_pool, rhor, error=error)
+             CALL pw_pool_give_back_pw(pw_pool, vhartree_rs, error=error)
+
           CASE DEFAULT
              CALL cp_unimplemented_error(routineP,"unknown poisson method "//&
                                          cp_to_string(poisson_env%green_fft%method),error)
           END SELECT
+
        CASE (use_rs_grid)
+
           IF (PRESENT(vhartree)) THEN
              CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,error,failure)
              CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
@@ -335,6 +420,7 @@ CONTAINS
              CALL pw_transfer(rhor,rhog,error=error)
           END IF
           CALL pw_pool_give_back_pw(pw_pool,rhor,error=error)
+
        END SELECT
 
        ! do we need to calculate the derivative of the potential?
@@ -367,12 +453,14 @@ CONTAINS
                    h_stress ( beta, alpha ) = h_stress ( alpha, beta )
                 END DO
              END DO
+
              ! Handle the periodicity cases for the Stress Tensor
              SELECT CASE(poisson_env%used_grid)
              CASE(use_gs_grid)
+
                 ! FFT based Poisson-Solver
                 SELECT CASE(poisson_env%green_fft%method)
-                CASE(PERIODIC3D)
+                CASE(PERIODIC3D, PS_IMPLICIT)
                    ! Do Nothing
                 CASE(ANALYTIC2D, MT2D)
                    ! Zero the 1 non-periodic component
@@ -399,7 +487,9 @@ CONTAINS
                    CALL cp_unimplemented_error(routineP,"unknown poisson method"//&
                         cp_to_string(poisson_env%green_fft%method),error)
                 END SELECT
+
              CASE(use_rs_grid)
+
                 ! Wavelet based Poisson-Solver
                 SELECT CASE(poisson_env%wavelet%method)
                 CASE(WAVELET3D)
@@ -417,13 +507,15 @@ CONTAINS
                    ! Zero the full stress tensor
                    h_stress = 0.0_dp
                 END SELECT
+
              END SELECT
           END IF
+
           DO i = 1, 3
              CALL pw_pool_give_back_pw ( pw_pool, dvg ( i )%pw, error=error )
           END DO
-       END IF
 
+       END IF
        CALL pw_pool_give_back_pw (pw_pool, rhog, error=error )
     ELSE
        ! stop on failure ?!
@@ -446,6 +538,8 @@ CONTAINS
 !> \param pw_pools ...
 !> \param use_level ...
 !> \param mt_super_ref_pw_grid ...
+!> \param dct_pw_grid ...
+!> \param dct_aux_pw_grid ...
 !> \param force_rebuild ...
 !> \param error ...
 !> \author fawzi
@@ -454,8 +548,8 @@ CONTAINS
 !>      this method the poisson env must be fully ready, so the first time
 !>      you have to set everything at once. Change this behaviour?
 ! *****************************************************************************
-  SUBROUTINE pw_poisson_set ( poisson_env, cell_hmat, parameters, pw_pools,&
-       use_level, mt_super_ref_pw_grid, force_rebuild, error )
+  SUBROUTINE pw_poisson_set ( poisson_env, cell_hmat, parameters, pw_pools, use_level, &
+              mt_super_ref_pw_grid, dct_pw_grid, dct_aux_pw_grid, force_rebuild, error )
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -465,17 +559,20 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
     INTEGER, INTENT(in), OPTIONAL            :: use_level
-    TYPE(pw_grid_type), OPTIONAL, POINTER    :: mt_super_ref_pw_grid
+    TYPE(pw_grid_type), OPTIONAL, POINTER    :: mt_super_ref_pw_grid, &
+                                                dct_pw_grid, dct_aux_pw_grid
     LOGICAL, INTENT(in), OPTIONAL            :: force_rebuild
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure, same
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: tmp_pools
+
+    CALL timeset(routineN,handle)
 
     IF (PRESENT(parameters)) &
        poisson_env%parameters = parameters
@@ -486,6 +583,7 @@ CONTAINS
        poisson_env%cell_hmat(:,:) = cell_hmat(:,:)
        poisson_env%rebuild=.TRUE.
     END IF
+
     IF (PRESENT(pw_pools)) THEN
        CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,error,failure)
        same=.FALSE.
@@ -505,7 +603,25 @@ CONTAINS
           poisson_env%pw_pools => tmp_pools
        END IF
     END IF
+
     IF (PRESENT(use_level)) poisson_env%pw_level=use_level
+
+    IF (PRESENT(dct_pw_grid)) THEN
+       IF (ASSOCIATED(dct_pw_grid)) THEN
+          CALL pw_grid_retain(dct_pw_grid,error=error)
+       END IF
+       CALL pw_grid_release(poisson_env%dct_pw_grid,error=error)
+       poisson_env%dct_pw_grid => dct_pw_grid
+    END IF
+
+    IF (PRESENT(dct_aux_pw_grid)) THEN
+       IF (ASSOCIATED(dct_aux_pw_grid)) THEN
+          CALL pw_grid_retain(dct_aux_pw_grid,error=error)
+       END IF
+       CALL pw_grid_release(poisson_env%dct_aux_pw_grid,error=error)
+       poisson_env%dct_aux_pw_grid => dct_aux_pw_grid
+    END IF
+
     IF (PRESENT(mt_super_ref_pw_grid)) THEN
        IF (ASSOCIATED(mt_super_ref_pw_grid)) THEN
           CALL pw_grid_retain(mt_super_ref_pw_grid,error=error)
@@ -513,10 +629,15 @@ CONTAINS
        CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid,error=error)
        poisson_env%mt_super_ref_pw_grid => mt_super_ref_pw_grid
     END IF
+
     IF (PRESENT(force_rebuild)) THEN
        IF (force_rebuild) poisson_env%rebuild=.TRUE.
     END IF
+
     CALL pw_poisson_check(poisson_env,error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE pw_poisson_set
 
 END MODULE pw_poisson_methods

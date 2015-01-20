@@ -1502,6 +1502,7 @@ CONTAINS
        IF ( test .AND. pw1%pw_grid%para%group_head ) THEN
           WRITE ( *,'(A)') " FFT Protocol "
           IF ( dir == FWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","FWFFT"
+          IF ( dir == BWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","BWFFT"
           IF ( pw1%in_space == REALSPACE ) &
                WRITE ( *,'(A,T72,A)') "  in space ","REALSPACE"
           IF ( pw1%in_space == RECIPROCALSPACE ) &

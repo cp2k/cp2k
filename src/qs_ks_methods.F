@@ -80,6 +80,7 @@ MODULE qs_ks_methods
   USE lri_forces,                      ONLY: calculate_lri_forces
   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
   USE message_passing,                 ONLY: mp_sum
+  USE pw_env_methods
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
@@ -89,7 +90,8 @@ MODULE qs_ks_methods
                                              pw_transfer,&
                                              pw_zero
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
-  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_poisson_types,                ONLY: PS_IMPLICIT,&
+                                             pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -237,7 +239,8 @@ CONTAINS
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
-    TYPE(pw_p_type), POINTER                 :: rho_nlcc, vee, vppl_rspace
+    TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, vee, &
+                                                vppl_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -261,7 +264,7 @@ CONTAINS
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
          matrix_ks_aux_fit_dft,&
          matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc, ks_env, &
-         ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao)
+         ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -292,6 +295,7 @@ CONTAINS
                     vee=vee,&
                     rho_nlcc=rho_nlcc,&
                     rho=rho,&
+                    rho_core=rho_core,&
                     rho_xc=rho_xc,&
                     energy=energy,&
                     error=error)
@@ -418,13 +422,22 @@ CONTAINS
           IF (use_virial.AND.calculate_forces) THEN
              h_stress(:,:) = 0.0_dp
              CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
-                                   v_hartree_gspace%pw,h_stress=h_stress,error=error)
+                                   v_hartree_gspace%pw,h_stress=h_stress, &
+                                   rho_core=rho_core, error=error)
              virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe,dp)
           ELSE
-             CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
-                                   v_hartree_gspace%pw,error=error)
+             CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw,energy%hartree, &
+                              v_hartree_gspace%pw, rho_core=rho_core, error=error)
           END IF
        END IF
+
+       IF (ASSOCIATED(poisson_env%green_fft)) THEN
+         IF (poisson_env%green_fft%method .EQ. PS_IMPLICIT .AND. calculate_forces) THEN
+            CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP,&
+               "The implicit Poisson solver might have inaccurate forces (dielectric deriv).", &
+               error, failure)
+         END IF
+       END IF 
 
        ! In case decouple periodic images and/or apply restraints to charges
        IF (do_ddapc) THEN

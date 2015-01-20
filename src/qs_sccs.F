@@ -83,11 +83,17 @@ MODULE qs_sccs
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE realspace_grid_types,            ONLY: &
-       pw2rs, realspace_grid_desc_type, realspace_grid_input_type, &
-       realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_create, &
-       rs_grid_create_descriptor, rs_grid_release, &
-       rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
+  USE realspace_grid_cube
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
+                                             realspace_grid_input_type,&
+                                             realspace_grid_type,&
+                                             rs_grid_create,&
+                                             rs_grid_create_descriptor,&
+                                             rs_grid_release,&
+                                             rs_grid_release_descriptor
+  USE rs_methods,                      ONLY: derive_fdm_cd3,&
+                                             derive_fdm_cd5,&
+                                             derive_fdm_cd7
   USE termination,                     ONLY: print_warning,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -996,18 +1002,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derive', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: border_points, handle, i, j, k
+    INTEGER                                  :: border_points, handle, i
     INTEGER, DIMENSION(3)                    :: lb, n, ub
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: h
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: drdx, drdy, drdz, r
     TYPE(pw_p_type), DIMENSION(2)            :: work_g1d
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_input_type)          :: input_settings
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(3)                           :: drs_grid
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(section_vals_type), POINTER         :: rs_grid_section
 
@@ -1038,18 +1039,7 @@ CONTAINS
       CALL rs_grid_create_descriptor(rs_desc,f%pw_grid,input_settings,&
                                      border_points=border_points,error=error)
       CALL rs_grid_create(rs_grid,rs_desc,error=error)
-!MK      CALL rs_grid_print(rs_grid,6,error=error)
-      CALL rs_pw_transfer(rs_grid,f,pw2rs,error=error)
-      DO i=1,3
-        CALL rs_grid_create(drs_grid(i)%rs_grid,rs_desc,error=error)
-        CALL rs_grid_zero(drs_grid(i)%rs_grid)
-      END DO
-      lb(1:3) = rs_grid%lb_real(1:3)
-      ub(1:3) = rs_grid%ub_real(1:3)
-      r => rs_grid%r
-      drdx => drs_grid(1)%rs_grid%r
-      drdy => drs_grid(2)%rs_grid%r
-      drdz => drs_grid(3)%rs_grid%r
+!MK    CALL rs_grid_print(rs_grid,6,error=error)
     CASE (sccs_derivative_fft)
       lb(1:3) = f%pw_grid%bounds_local(1,1:3)
       ub(1:3) = f%pw_grid%bounds_local(2,1:3)
@@ -1069,56 +1059,11 @@ CONTAINS
     ! Calculate the derivatives
     SELECT CASE (method)
     CASE (sccs_derivative_cd3)
-      ! 3-point stencil central differences
-      h(1:3) = 2.0_dp*f%pw_grid%dr(1:3)
-      !$omp parallel do default(none) &
-      !$omp             private(i,j,k) &
-      !$omp             shared(drdx,drdy,drdz,h,lb,r,ub)
-      DO k=lb(3),ub(3)
-        DO j=lb(2),ub(2)
-          DO i=lb(1),ub(1)
-            drdx(i,j,k) = (r(i+1,j,k) - r(i-1,j,k))/h(1)
-            drdy(i,j,k) = (r(i,j+1,k) - r(i,j-1,k))/h(2)
-            drdz(i,j,k) = (r(i,j,k+1) - r(i,j,k-1))/h(3)
-          END DO
-        END DO
-      END DO
-      !$omp end parallel do
+      CALL derive_fdm_cd3(f,df,rs_grid,error)
     CASE (sccs_derivative_cd5)
-      ! 5-point stencil central differences
-      h(1:3) = 12.0_dp*f%pw_grid%dr(1:3)
-      !$omp parallel do default(none) &
-      !$omp             private(i,j,k) &
-      !$omp             shared(drdx,drdy,drdz,h,lb,r,ub)
-      DO k=lb(3),ub(3)
-        DO j=lb(2),ub(2)
-          DO i=lb(1),ub(1)
-            drdx(i,j,k) = (r(i-2,j,k) - r(i+2,j,k) + 8.0_dp*(r(i+1,j,k) - r(i-1,j,k)))/h(1)
-            drdy(i,j,k) = (r(i,j-2,k) - r(i,j+2,k) + 8.0_dp*(r(i,j+1,k) - r(i,j-1,k)))/h(2)
-            drdz(i,j,k) = (r(i,j,k-2) - r(i,j,k+2) + 8.0_dp*(r(i,j,k+1) - r(i,j,k-1)))/h(3)
-          END DO
-        END DO
-      END DO
-      !$omp end parallel do
-    CASE (sccs_derivative_cd7)
-      ! 7-point stencil central differences
-      h(1:3) = 60.0_dp*f%pw_grid%dr(1:3)
-      !$omp parallel do default(none) &
-      !$omp             private(i,j,k) &
-      !$omp             shared(drdx,drdy,drdz,h,lb,r,ub)
-      DO k=lb(3),ub(3)
-        DO j=lb(2),ub(2)
-          DO i=lb(1),ub(1)
-            drdx(i,j,k) = (r(i+3,j,k) - r(i-3,j,k) + 9.0_dp*(r(i-2,j,k) - r(i+2,j,k)) +&
-                           45.0_dp*(r(i+1,j,k) - r(i-1,j,k)))/h(1)
-            drdy(i,j,k) = (r(i,j+3,k) - r(i,j-3,k) + 9.0_dp*(r(i,j-2,k) - r(i,j+2,k)) +&
-                           45.0_dp*(r(i,j+1,k) - r(i,j-1,k)))/h(2)
-            drdz(i,j,k) = (r(i,j,k+3) - r(i,j,k-3) + 9.0_dp*(r(i,j,k-2) - r(i,j,k+2)) +&
-                           45.0_dp*(r(i,j,k+1) - r(i,j,k-1)))/h(3)
-          END DO
-        END DO
-      END DO
-      !$omp end parallel do
+      CALL derive_fdm_cd5(f,df,rs_grid,error)
+    CASE (sccs_derivative_cd7)     
+      CALL derive_fdm_cd7(f,df,rs_grid,error)
     CASE (sccs_derivative_fft)
       ! FFT
       CALL pw_transfer(f,work_g1d(1)%pw,error=error)
@@ -1139,10 +1084,6 @@ CONTAINS
     SELECT CASE (method)
     CASE (sccs_derivative_cd3,sccs_derivative_cd5,sccs_derivative_cd7)
       CALL rs_grid_release(rs_grid,error=error)
-      DO i=1,3
-        CALL rs_pw_transfer(drs_grid(i)%rs_grid,df(i)%pw,rs2pw,error=error)
-        CALL rs_grid_release(drs_grid(i)%rs_grid,error=error)
-      END DO
       CALL rs_grid_release_descriptor(rs_desc,error=error)
     CASE (sccs_derivative_fft)
       DO i=1,SIZE(work_g1d)
