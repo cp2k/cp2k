@@ -37,9 +37,6 @@ MODULE qs_environment_types
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                              ls_scf_release
-  USE ep_qs_types,                     ONLY: ep_qs_release,&
-                                             ep_qs_retain,&
-                                             ep_qs_type
   USE et_coupling_types,               ONLY: et_coupling_release,&
                                              et_coupling_type
   USE ewald_environment_types,         ONLY: ewald_env_release,&
@@ -197,7 +194,6 @@ MODULE qs_environment_types
 !> \param local_molecules which molecules are local to this processor
 !> \param molecule_kind_set description of the molecule kinds
 !> \param molecule_set all the molecule description
-!> \param ep_qs_env environment to perform an ep calculation
 !> \param rtp all data needed for real time propagation
 !> \param x contains data used in Hartree-Fock-Exchange calculations
 !> \param task_list the list of tasks used in collocate and integrate
@@ -259,7 +255,6 @@ MODULE qs_environment_types
     TYPE(cp_ddapc_ewald_type), POINTER                    :: cp_ddapc_ewald
     REAL(KIND = dp), DIMENSION(:,:), POINTER              :: outer_scf_history
     INTEGER                                               :: outer_scf_ihistory
-    TYPE(ep_qs_type), POINTER                             :: ep_qs_env
     TYPE(hfx_type),DIMENSION(:,:), POINTER                :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
@@ -420,7 +415,6 @@ CONTAINS
 !> \param cp_ddapc_ewald ...
 !> \param outer_scf_history ...
 !> \param outer_scf_ihistory ...
-!> \param ep_qs_env ...
 !> \param x_data ...
 !> \param et_coupling ...
 !> \param dftb_potential ...
@@ -474,7 +468,7 @@ CONTAINS
        rho0_s_rs,rho0_s_gs,do_kpoints,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
-       outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
+       outer_scf_history,outer_scf_ihistory,x_data,et_coupling,dftb_potential,results,&
        se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, admm_dm, &
        lri_env,lri_density,dispersion_env, vee,rho_external,external_vxc,mask,&
        mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,do_transport, transport_env,v_hartree_rspace,&
@@ -599,7 +593,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
-    TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(hfx_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
@@ -732,7 +725,6 @@ CONTAINS
     IF (PRESENT(input)) input => qs_env%input
     IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
     IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
-    IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
     IF (PRESENT(x_data)) x_data => qs_env%x_data
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
@@ -879,7 +871,6 @@ CONTAINS
     NULLIFY (qs_env%cp_ddapc_env)
     NULLIFY (qs_env%cp_ddapc_ewald)
     NULLIFY (qs_env%outer_scf_history)
-    NULLIFY (qs_env%ep_qs_env)
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
     NULLIFY (qs_env%dftb_potential)
@@ -972,7 +963,6 @@ CONTAINS
 !> \param cp_ddapc_ewald ...
 !> \param outer_scf_history ...
 !> \param outer_scf_ihistory ...
-!> \param ep_qs_env ...
 !> \param x_data ...
 !> \param et_coupling ...
 !> \param dftb_potential ...
@@ -1006,7 +996,7 @@ CONTAINS
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, efield,&
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
-       outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
+       outer_scf_history,outer_scf_ihistory,x_data,et_coupling,dftb_potential,&
        se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
        do_transport, transport_env,lri_env,lri_density,dispersion_env,mp2_env,kg_env,&
        WannierCentres,ga_env,error)
@@ -1070,7 +1060,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
-    TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(hfx_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
@@ -1247,11 +1236,6 @@ CONTAINS
     END IF
     IF (PRESENT(cp_ddapc_ewald)) THEN
        qs_env%cp_ddapc_ewald => cp_ddapc_ewald
-    END IF
-    IF (PRESENT(ep_qs_env)) THEN
-       IF (ASSOCIATED(ep_qs_env)) CALL ep_qs_retain(ep_qs_env,error=error)
-       CALL ep_qs_release(qs_env%ep_qs_env,error=error)
-       qs_env%ep_qs_env => ep_qs_env
     END IF
     IF (PRESENT(x_data)) qs_env%x_data => x_data
     IF (PRESENT(et_coupling))qs_env%et_coupling => et_coupling
@@ -1472,7 +1456,6 @@ CONTAINS
           CALL section_vals_release(qs_env%input,error=error)
           CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
           CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
-          CALL ep_qs_release(qs_env%ep_qs_env,error=error)
           CALL efield_berry_release(qs_env%efield,error=error)
           IF(ASSOCIATED(qs_env%x_data)) THEN
              CALL hfx_release(qs_env%x_data, error=error)

@@ -19,12 +19,10 @@ MODULE input_restart_force_eval
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eip_environment_types,           ONLY: eip_env_get
-  USE ep_f77,                          ONLY: ep_f77_get_main_qs_env
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              multiple_fe_list,&
                                              use_eip_force,&
-                                             use_ep_force,&
                                              use_qmmm,&
                                              use_qs_force
   USE input_constants,                 ONLY: do_coord_cp2k,&
@@ -56,8 +54,7 @@ MODULE input_restart_force_eval
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env
   USE string_utilities,                ONLY: string_to_ascii
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -296,12 +293,11 @@ CONTAINS
     TYPE(multipole_type), POINTER            :: multipoles
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-    TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
     NULLIFY (work_section, core_particles, particles, shell_particles, &
-             subsys, cell, para_env, multipoles, ep_main_qs_env)
+             subsys, cell, para_env, multipoles)
     CALL timeset(routineN,handle)
     CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env, &
                        error=error)
@@ -397,9 +393,6 @@ CONTAINS
     ! Updating cell_ref info
     use_ref_cell=.FALSE.
     SELECT CASE(force_env%in_use)
-      CASE(use_ep_force)
-         CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
-         CALL get_qs_env(ep_main_qs_env,cell_ref=cell,use_ref_cell=use_ref_cell,error=error)
       CASE(use_qs_force)
          CALL get_qs_env(force_env%qs_env,cell_ref=cell,use_ref_cell=use_ref_cell,error=error)
       CASE(use_eip_force)

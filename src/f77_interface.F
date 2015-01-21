@@ -52,8 +52,7 @@ MODULE f77_interface
                                              cp2k_read,&
                                              cp2k_setup
   USE fist_main,                       ONLY: fist_create_force_env
-  USE force_env_methods,               ONLY: ep_create_force_env,&
-                                             force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_frc, force_env_get_natom, &
        force_env_get_nparticle, force_env_get_pos, force_env_get_vel, &
@@ -70,7 +69,6 @@ MODULE f77_interface
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: do_eip,&
-                                             do_ep,&
                                              do_fist,&
                                              do_mixed,&
                                              do_qmmm,&
@@ -863,11 +861,6 @@ CPSourceFileRef,&
           CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=my_error)
 
           SELECT CASE (method_name_id)
-          CASE (do_ep)
-             ! does not support multi force_env_sections
-             CPPostcondition(nforce_eval==1,cp_fatal_level,routineP,my_error,failure)
-             CALL ep_create_force_env ( my_force_env, root_section, input_declaration, my_para_env, globenv,&
-                  force_env_section=force_env_section, error = my_error )
           CASE (do_fist)
              CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&

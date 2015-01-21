@@ -17,13 +17,12 @@ MODULE input_cp2k_force_eval
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: &
-       do_eip, do_ep, do_fist, do_mixed, do_qmmm, do_qs, &
+       do_eip, do_fist, do_mixed, do_qmmm, do_qs, &
        do_stress_analytical, do_stress_diagonal_anal, &
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
        numerical
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
-                                             create_dft_section,&
-                                             create_ep_section
+                                             create_dft_section
   USE input_cp2k_eip,                  ONLY: create_eip_section
   USE input_cp2k_mixed,                ONLY: create_mix_section
   USE input_cp2k_mm,                   ONLY: create_mm_section
@@ -93,16 +92,14 @@ CONTAINS
                          "QMMM",&
                          "EIP",&
                          "QUICKSTEP",&
-                         "EP",&
                          "MIXED"),&
          enum_desc=s2a("Electronic structure methods (DFT, ...)",&
                        "Molecular Mechanics",&
                        "Hybrid quantum classical",&
                        "Empirical Interatomic Potential",&
                        "Electronic structure methods (DFT, ...)",&
-                       "Non-orthogonal perturbation",&
                        "Use a combination of two of the above"),&
-         enum_i_vals=(/do_qs, do_fist, do_qmmm, do_eip, do_qs, do_ep, do_mixed/),&
+         enum_i_vals=(/do_qs, do_fist, do_qmmm, do_eip, do_qs, do_mixed/),&
          default_i_val=do_qs, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -145,10 +142,6 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
     CALL create_qmmm_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_ep_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 

@@ -91,7 +91,6 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              kg_tnadd_atomic,&
                                              rel_none,&
@@ -162,8 +161,8 @@ CONTAINS
     INTEGER                                  :: handle, maxder, natom, nder, &
                                                 nders, neighbor_list_id, &
                                                 nkind, stat
-    LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
-      kgpot, lrigpw, ofdft, ppl_present, use_virial
+    LOGICAL :: all_potential_present, failure, gth_potential_present, kgpot, &
+      lrigpw, ofdft, ppl_present, use_virial
     REAL(KIND=dp)                            :: eps_filter, eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -173,7 +172,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(neighbor_list_set_p_type), &
@@ -269,23 +267,10 @@ CONTAINS
     IF (calculate_forces) THEN
        nder = 1
 
-       CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w,error=error)
-
-       do_ep=ASSOCIATED(ep_qs_env)
-       IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
+       CALL get_qs_env(qs_env=qs_env,force=force,matrix_w=matrix_w,error=error)
 
        CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
        CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
-
-       IF (do_ep) THEN
-          IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN
-             matrix_p => ep_qs_env%dH_coeffs
-          END IF
-          IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
-             matrix_w => ep_qs_env%dS_coeffs
-
-          END IF
-       END IF
 
        !     *** If LSD, then combine alpha density and beta density to
        !     *** total density: alpha <- alpha + beta   and

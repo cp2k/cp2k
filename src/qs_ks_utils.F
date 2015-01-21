@@ -46,7 +46,6 @@ MODULE qs_ks_utils
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: &
        do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
        sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
@@ -74,16 +73,14 @@ MODULE qs_ks_utils
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_type
+                                             pw_p_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
-                                             integrate_v_rspace
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                              qs_kind_type
   USE qs_ks_qmmm_methods,              ONLY: qmmm_modify_hartree_pot
@@ -108,7 +105,7 @@ MODULE qs_ks_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_utils'
 
   PUBLIC :: low_spin_roks, sic_explicit_orbitals, calc_v_sic_rspace, print_densities,&
-            print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, ep_v_core,&
+            print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, &
             calculate_zmp_potential
 
 CONTAINS
@@ -1449,81 +1446,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE sum_up_and_integrate
-
-! *****************************************************************************
-!> \brief Sum up all potentials defined  on the grid and integrate
-!>
-!> \param qs_env ...
-!> \param ep_qs_env ...
-!> \param nspins ...
-!> \param error ...
-!> \par History
-!>    refactoring 04.03.2011 [MI]
-!> \author
-! *****************************************************************************
-  SUBROUTINE ep_v_core(qs_env,ep_qs_env,nspins,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    INTEGER, INTENT(IN)                      :: nspins
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'ep_v_core', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: ep_pot_r_coeff, ep_rho_g, &
-                                                ep_rho_r
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-    NULLIFY(pw_env,auxbas_pw_pool,poisson_env,ks_env)
-    CALL get_qs_env(qs_env,&
-                    ks_env=ks_env,&
-                    pw_env=pw_env,&
-                    error=error)
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-         poisson_env=poisson_env,error=error)
-
-    ! Getting  nuclear force contribution from ep potential
-    CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_r%pw,&
-         use_data=REALDATA3D,in_space=REALSPACE,error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,ep_rho_g%pw,&
-         use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-    CPAssert(nspins==1,cp_failure_level,routineP,error,failure)
-    CALL calculate_rho_elec(matrix_p=ep_qs_env%dH_coeffs(1)%matrix,&
-         rho=ep_rho_r,rho_gspace=ep_rho_g, total_rho=ep_qs_env%tot_rho,&
-         ks_env=ks_env, error=error)
-
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_r%pw,error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_g,&
-         use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-
-    CALL pw_poisson_solve(poisson_env,ep_rho_g%pw,ep_qs_env%core_energy,&
-         ep_pot_g,error=error)
-
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_rho_g%pw,error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_r,&
-         use_data=REALDATA3D,in_space=REALSPACE,error=error)
-
-    CALL pw_transfer(ep_pot_g,ep_pot_r, error=error)
-
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_g,error=error)
-
-    ep_pot_r_coeff%pw => ep_pot_r
-    CALL integrate_v_core_rspace(ep_pot_r_coeff, qs_env,error=error)
-
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE ep_v_core
 
 !**************************************************************************
 !> \brief Calculate the ZMP potential and energy as in Zhao, Morrison Parr 

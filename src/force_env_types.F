@@ -23,9 +23,6 @@ MODULE force_env_types
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_release,&
                                              eip_environment_type
-  USE ep_f77,                          ONLY: ep_f77_get_energy,&
-                                             ep_f77_get_main_qs_env,&
-                                             ep_f77_release
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_env_release,&
@@ -72,8 +69,7 @@ MODULE force_env_types
                                 use_qs_force   = 502, &
                                 use_qmmm       = 503, &
                                 use_eip_force  = 504, &
-                                use_ep_force   = 505, &
-                                use_mixed_force= 506
+                                use_mixed_force= 505
 
   CHARACTER(LEN=10), DIMENSION(501:506), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
@@ -113,7 +109,6 @@ MODULE force_env_types
 !> \param fp_env the flexible partitioning environment
 !>      read-only attributes (get them *only* through force_env_get):
 !> \param subsys the fragments that build up the actual system.
-!> \param ep_env_id environment for an ep calculation
 !> \param cell the cell of the actual system
 !> \note
 !>      as always direct manipulation of these attributes can have very
@@ -136,7 +131,6 @@ MODULE force_env_types
      TYPE ( cp_para_env_type ), POINTER                  :: para_env
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
      TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
-     INTEGER, POINTER                                    :: ep_env_id
      TYPE ( mixed_environment_type ), POINTER            :: mixed_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
@@ -237,8 +231,6 @@ CONTAINS
              CALL qs_env_release(force_env%qs_env,error=error)
           CASE ( use_eip_force )
              CALL eip_env_release(force_env%eip_env, error=error)
-          CASE ( use_ep_force )
-             CALL ep_f77_release(force_env%ep_env_id, error=error)
           CASE (use_mixed_force)
              CALL mixed_env_release(force_env%mixed_env,error=error)
           END SELECT
@@ -248,7 +240,6 @@ CONTAINS
           CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,error,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%ep_env_id),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,error,failure)
           CALL meta_env_release(force_env%meta_env,error=error)
           CALL fp_env_release(force_env%fp_env,error=error)
@@ -284,7 +275,6 @@ CONTAINS
 !> \param eip_env ...
 !> \param globenv ...
 !> \param input ...
-!> \param ep_env_id ...
 !> \param force_env_section ...
 !> \param method_name_id ...
 !> \param root_section ...
@@ -299,7 +289,7 @@ CONTAINS
   RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
        meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
        kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env,&
-       qmmm_env, eip_env, globenv, input, ep_env_id, force_env_section, &
+       qmmm_env, eip_env, globenv, input, force_env_section, &
        method_name_id, root_section, mixed_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
@@ -324,10 +314,7 @@ CONTAINS
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: input
-    INTEGER, OPTIONAL, POINTER               :: ep_env_id
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: force_env_section
+      POINTER                                :: input, force_env_section
     INTEGER, INTENT(out), OPTIONAL           :: method_name_id
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: root_section
@@ -347,9 +334,8 @@ CONTAINS
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
-    TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
 
-    NULLIFY(ep_main_qs_env,subsys_tmp)
+    NULLIFY(subsys_tmp)
 
     failure=.FALSE.
 
@@ -358,16 +344,6 @@ CONTAINS
     IF (.NOT. failure) THEN
 
        SELECT CASE(force_env%in_use)
-       CASE(use_ep_force)
-          CPPrecondition(ASSOCIATED(force_env%ep_env_id),cp_failure_level,routineP,error,failure)
-          CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
-          CALL get_qs_env(ep_main_qs_env,&
-                          input=input,&
-                          cp_subsys=subsys,&
-                          error=error)
-          NULLIFY(ep_main_qs_env)
-          IF (PRESENT(potential_energy)) potential_energy = ep_f77_get_energy(force_env%ep_env_id)
-          CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
        CASE (use_qs_force)
           CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
           CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
@@ -503,7 +479,6 @@ CONTAINS
        IF (PRESENT(mixed_env))     mixed_env     => force_env%mixed_env
        IF (PRESENT(globenv))       globenv       => force_env%globenv
        IF (PRESENT(root_section))  root_section  => force_env%root_section
-       IF (PRESENT(ep_env_id))     ep_env_id        => force_env%ep_env_id
     END IF
 
   END SUBROUTINE force_env_get
