@@ -233,8 +233,7 @@ CONTAINS
        CALL pw_copy(ps_implicit_env%initial_guess, v0, error)
     END IF
 
-    CALL pw_scale(density, fourpi, error=error)
-    g%cr3d = density%cr3d / dielectric%eps%cr3d
+    g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
 
     CALL pw_copy(v0, v_old, error=error)
 
@@ -436,8 +435,7 @@ CONTAINS
        lambda0(:) = ps_implicit_env%initial_lambda
     END IF
 
-    CALL pw_scale(density, fourpi, error=error)
-    g%cr3d = density%cr3d / dielectric%eps%cr3d
+    g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
     g_avg = SUM(g%cr3d) / ngpts
 
     CALL pw_copy(v0, v_old, error=error)
@@ -692,8 +690,7 @@ CONTAINS
        lambda0(:) = ps_implicit_env%initial_lambda
     END IF
 
-    CALL pw_scale(density, fourpi, error=error)
-    g%cr3d = density%cr3d / dielectric%eps%cr3d
+    g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
     g_avg = SUM(g%cr3d) / ngpts
 
     CALL pw_copy(v0, v_old, error=error)
@@ -2163,7 +2160,13 @@ CONTAINS
     pw_out_gs%cc = G_gs%cc * pw_in_gs%cc
     CALL pw_transfer(pw_out_gs, pw_out, error=error)
 
-    WHERE (ABS(pw_out%cr3d) .LE. 1.0E-10_dp) pw_out%cr3d = 0.0_dp
+    DO k = lb3, ub3
+      DO j = lb2, ub2
+        DO i = lb1, ub1
+          IF (ABS(pw_out%cr3d(i,j,k)) .LE. 1.0E-10_dp) pw_out%cr3d(i,j,k) = 0.0_dp
+        END DO
+      END DO
+    END DO
 
     CALL pw_pool_give_back_pw(pw_pool, G, error=error)
     CALL pw_pool_give_back_pw(pw_pool, G_gs, error=error)
