@@ -155,6 +155,8 @@ CONTAINS
     hmat2(2,2) = 2*(cell_hmat(2,2) - pw_grid%dr(2))
     hmat2(3,3) = 2*(cell_hmat(3,3) - pw_grid%dr(3))
 
+    ! uses bounds_local_new that is 2*n-2 in size....this is only rarely fft-able by fftsg, and needs fftw3,
+    ! where it might use sizes that are not declared available in fft_get_radix.
     CALL pw_grid_setup(hmat2, dct_pw_grid, &
                        bounds=bounds_new, &
                        bounds_local=bounds_local_new, &
@@ -905,6 +907,7 @@ CONTAINS
     bounds = pw_grid%bounds
     bounds_local = pw_grid%bounds_local
 
+    ! Note that this is not easily FFT-able ... needed anyway, so link in FFTW.
     npts_new = 2 * pw_grid%npts - 2
     shift = - npts_new / 2
     shift = shift - bounds(1,:)

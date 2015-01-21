@@ -27,7 +27,7 @@
           DIELECTRIC_CONSTANT 1.50
           RHO_MIN    1.0E-4
           RHO_MAX    1.0E-3
-          DERIVATIVE_METHOD cd3
+          DERIVATIVE_METHOD cd7
         &END DIELECTRIC
         &DIRICHLET_BC
           &AA_CUBOIDAL
@@ -51,7 +51,7 @@
       &END V_HARTREE_CUBE
     &END PRINT
     &MGRID
-      CUTOFF 180
+      CUTOFF 280
       NGRIDS 4
       &RS_GRID
         DISTRIBUTION_TYPE DISTRIBUTED

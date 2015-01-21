@@ -661,7 +661,8 @@ END SUBROUTINE create_ewald_section
             enum_c_vals=s2a( 'PERIODIC', 'MIXED', 'MIXED_PERIODIC' ), &
             enum_desc=s2a( 'PERIODIC', 'MIXED (Dirichlet + Neumann)', 'MIXED_PERIODIC (Dirichlet + Periodic)' ), &
             enum_i_vals=(/ PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC /), &
-            description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv.", &
+            description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv. "//&
+                        "Mixed boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
             usage="BOUNDARY_CONDITIONS <bc_type>", default_i_val=PERIODIC_BC, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
