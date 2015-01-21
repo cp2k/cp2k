@@ -249,7 +249,7 @@ CONTAINS
     ! parsing DIELECTRIC subsection
     dielectric_section => section_vals_get_subs_vals(ps_implicit_section, "DIELECTRIC", error=error)
     CALL section_vals_get(dielectric_section, explicit=has_dielectric, error=error)
-    CALL section_vals_val_get(dielectric_section, "eps0", r_val=params%dielectric_params%eps0, error=error)
+    CALL section_vals_val_get(dielectric_section, "epsilon", r_val=params%dielectric_params%eps0, error=error)
     CALL section_vals_val_get(dielectric_section, "rho_min", r_val=params%dielectric_params%rho_min, error=error)
     CALL section_vals_val_get(dielectric_section, "rho_max", r_val=params%dielectric_params%rho_max, error=error)
     CALL section_vals_val_get(dielectric_section, "DERIVATIVE_METHOD", &
@@ -284,11 +284,11 @@ CONTAINS
                                        i_rep_section=i,r_val=zeta,error=error)
              CALL section_vals_val_get(aa_planar_section,"smooth"   ,&
                                        i_rep_section=i,l_val=smooth,error=error)
-             CALL section_vals_val_get(aa_planar_section,"X_extents",&
+             CALL section_vals_val_get(aa_planar_section,"X_xtnt",&
                                        i_rep_section=i,r_vals=aa_planar_xxtnt,error=error)
-             CALL section_vals_val_get(aa_planar_section,"Y_extents",&
+             CALL section_vals_val_get(aa_planar_section,"Y_xtnt",&
                                        i_rep_section=i,r_vals=aa_planar_yxtnt,error=error)
-             CALL section_vals_val_get(aa_planar_section,"Z_extents",&
+             CALL section_vals_val_get(aa_planar_section,"Z_xtnt",&
                                        i_rep_section=i,r_vals=aa_planar_zxtnt,error=error)
              CALL section_vals_val_get(aa_planar_section,"n_prtn"   ,&
                                        i_rep_section=i,i_vals=aa_planar_nprtn,error=error)
@@ -362,7 +362,7 @@ CONTAINS
                                        i_rep_section=i,r_val=zeta,error=error)
              CALL section_vals_val_get(xaa_cylindrical_section,"smooth"     ,&
                                        i_rep_section=i,l_val=smooth,error=error)
-             CALL section_vals_val_get(xaa_cylindrical_section,"X_extents"  ,&
+             CALL section_vals_val_get(xaa_cylindrical_section,"X_xtnt"  ,&
                                        i_rep_section=i,r_vals=xaa_cylindrical_xxtnt,error=error)
              CALL section_vals_val_get(xaa_cylindrical_section,"base_center",&
                                        i_rep_section=i,r_vals=xaa_cylindrical_bctr,error=error)
@@ -405,11 +405,11 @@ CONTAINS
                                        i_rep_section=i,r_val=zeta,error=error)
              CALL section_vals_val_get(aa_cuboidal_section,"smooth"   ,&
                                        i_rep_section=i,l_val=smooth,error=error)
-             CALL section_vals_val_get(aa_cuboidal_section,"X_extents",&
+             CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",&
                                        i_rep_section=i,r_vals=aa_cuboidal_xxtnt,error=error)
-             CALL section_vals_val_get(aa_cuboidal_section,"Y_extents",&
+             CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",&
                                        i_rep_section=i,r_vals=aa_cuboidal_yxtnt,error=error)
-             CALL section_vals_val_get(aa_cuboidal_section,"Z_extents",&
+             CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",&
                                        i_rep_section=i,r_vals=aa_cuboidal_zxtnt,error=error)
              CALL section_vals_val_get(aa_cuboidal_section,"n_prtn"   ,&
                                        i_rep_section=i,i_vals=aa_cuboidal_nprtn,error=error)

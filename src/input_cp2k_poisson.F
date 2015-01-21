@@ -685,10 +685,9 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="omega", &
-            variants=s2a('OR_PARAM', 'OVER_RELAXATION_PARAMETER', 'OR_PARAMETER'), &
+       CALL keyword_create(keyword, name="OR_PARAMETER", variants=s2a('omega'), &
             description="Over-relaxation parameter (large epsilon requires smaller omega ~0.1).", &
-            usage="omega <real>", default_r_val=1.0_dp, error=error)
+            usage="OR_PARAMETER <real>", default_r_val=1.0_dp, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -725,9 +724,9 @@ END SUBROUTINE create_ewald_section
 
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="eps0", variants=s2a('eps', 'epsilon', 'dielectric_constant'), &
+       CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
             description="Dielectric constant in the bulk of the solvent.", &
-            usage="eps0 <real>", default_r_val=80.0_dp, error=error)
+            usage="dielectric_constant <real>", default_r_val=80.0_dp, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -836,36 +835,36 @@ END SUBROUTINE create_ewald_section
 
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="v_D", variants = s2a('v', 'vg', 'v_g'), &
+       CALL keyword_create(keyword, name="v_D", &
             description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
-            usage="v_D 0.4", unit_str="volt", type_of_var=real_t, error=error)
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="X_extents", variants = s2a('X', 'X_xtnt'), &
+       CALL keyword_create(keyword, name="X_xtnt", &
             description="The X extents of the plane.", &
-            usage="X_extents <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="Y_extents", variants = s2a('Y', 'Y_xtnt'), &
+       CALL keyword_create(keyword, name="Y_xtnt", &
             description="The Y extents of the plane.", &
-            usage="Y_extents <ymin(real)> <ymax(real)>", unit_str="angstrom", &
+            usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="Z_extents", variants = s2a('Z', 'Z_xtnt'), &
+       CALL keyword_create(keyword, name="Z_xtnt", &
             description="The Z extents of the plane.", &
-            usage="Z_extents <zmin(real)> <zmax(real)>", unit_str="angstrom", &
+            usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="N_PARTITIONS", variants = s2a('N_PRTN'), &
+       CALL keyword_create(keyword, name="N_PRTN", &
             description="The number of partitions in the x, y and z directions for tiling the plane.", &
-            usage="N_PARTITIONS <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
+            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
             type_of_var=integer_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
@@ -914,43 +913,43 @@ END SUBROUTINE create_ewald_section
 
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="v_D", variants = s2a('v', 'vg', 'v_g'), &
+       CALL keyword_create(keyword, name="v_D", &
             description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
-            usage="v_D 0.4", unit_str="volt", type_of_var=real_t, error=error)
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="A", variants = s2a('Avtx', 'A_vertex'), &
+       CALL keyword_create(keyword, name="A", &
             description="Coordinates of the vertex A.", &
             usage="A <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
             n_var=3, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="B", variants = s2a('Bvtx', 'B_vertex'), &
+       CALL keyword_create(keyword, name="B", &
             description="Coordinates of the vertex B.", &
             usage="B <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
             n_var=3, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="C", variants = s2a('Cvtx', 'C_vertex'), &
+       CALL keyword_create(keyword, name="C", &
             description="Coordinates of the vertex C.", &
             usage="C <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
             n_var=3, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="D", variants = s2a('Dvtx', 'D_vertex'), &
+       CALL keyword_create(keyword, name="D", &
             description="Coordinates of the vertex D.", &
             usage="D <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
             n_var=3, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="N_PARTITIONS", variants = s2a('N_PRTN'), &
+       CALL keyword_create(keyword, name="N_PRTN", &
             description="The number of partitions in the x, y and z directions for tiling the plane.", &
-            usage="N_PARTITIONS <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
+            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
             type_of_var=integer_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
@@ -1000,27 +999,27 @@ END SUBROUTINE create_ewald_section
 
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="v_D", variants = s2a('v', 'vg', 'v_g'), &
+       CALL keyword_create(keyword, name="v_D", &
             description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
-            usage="v_D 0.4", unit_str="volt", type_of_var=real_t,  error=error)
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t,  error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="X_extents", variants = s2a('X', 'X_xtnt'), &
+       CALL keyword_create(keyword, name="X_xtnt", &
             description="The X extents of the cylinder.", &
-            usage="X_extents <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="base_center", variants = s2a('center', 'O'), &
+       CALL keyword_create(keyword, name="base_center", &
             description="The y and z coordinates of the cylinder's base center.", &
             usage="base_center <y(real)> <z(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="base_radius", variants = s2a('radius', 'r'), &
+       CALL keyword_create(keyword, name="base_radius", &
             description="The base radius of the cylinder.", &
             usage="base_radius <real>", default_r_val=1.0_dp, unit_str="angstrom", error=error)
        CALL section_add_keyword(section, keyword, error=error)
@@ -1033,7 +1032,6 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="apx_type", &
-            variants = s2a('approximation_type', 'approximation_type'), &
             enum_c_vals=s2a( 'CIRCUMSCRIBED', 'INSCRIBED' ), &
             enum_i_vals=(/ CIRCUMSCRIBED, INSCRIBED /), &
             description="Specifies the type of the n-gonal prism approximating the cylinder.", &
@@ -1041,9 +1039,9 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="N_PARTITIONS", variants = s2a('N_PRTN'), &
+       CALL keyword_create(keyword, name="N_PRTN", &
             description="The number of partitions in the x, y and z directions for tiling the plane.", &
-            usage="N_PARTITIONS <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
+            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
             type_of_var=integer_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
@@ -1092,36 +1090,36 @@ END SUBROUTINE create_ewald_section
 
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="v_D", variants = s2a('v', 'vg', 'v_g'), &
+       CALL keyword_create(keyword, name="v_D", &
             description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
-            usage="v_D 0.4", unit_str="volt", type_of_var=real_t, error=error)
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="X_extents", variants = s2a('X', 'X_xtnt'), &
+       CALL keyword_create(keyword, name="X_xtnt", &
             description="The X extents of the cuboid.", &
-            usage="X_extents <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="Y_extents", variants = s2a('Y', 'Y_xtnt'), &
+       CALL keyword_create(keyword, name="Y_xtnt", &
             description="The Y extents of the cuboid.", &
-            usage="Y_extents <ymin(real)> <ymax(real)>", unit_str="angstrom", &
+            usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="Z_extents", variants = s2a('Z', 'Z_xtnt'), &
+       CALL keyword_create(keyword, name="Z_xtnt", &
             description="The Z extents of the cuboid.", &
-            usage="Z_extents <zmin(real)> <zmax(real)>", unit_str="angstrom", &
+            usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
             n_var=2, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="N_PARTITIONS", variants = s2a('N_PRTN'), &
+       CALL keyword_create(keyword, name="N_PRTN", &
             description="The number of partitions in the x, y and z directions for partitioning the cuboid.", &
-            usage="N_PARTITIONS <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
+            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
             type_of_var=integer_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
