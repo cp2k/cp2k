@@ -75,10 +75,6 @@ MODULE qs_environment_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_environment,                 ONLY: scp_nddo_init
-  USE scp_environment_types,           ONLY: scp_env_create,&
-                                             scp_env_release,&
-                                             scp_environment_type
   USE task_list_methods,               ONLY: generate_qs_task_list
   USE task_list_types,                 ONLY: allocate_task_list,&
                                              deallocate_task_list,&
@@ -122,7 +118,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
     INTEGER                                  :: handle, n_ao_aux_fit, &
                                                 nhistory, nvariables, stat
-    LOGICAL                                  :: failure, scp_nddo
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -143,14 +139,13 @@ SUBROUTINE qs_env_setup(qs_env,error)
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(scp_environment_type), POINTER      :: scp_env
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
     NULLIFY(qs_kind_set, atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
-            distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env, cell, &
+            distribution_2d, molecule_kind_set, molecule_set, particle_set, cell, &
             ks_env, blacs_env)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -171,7 +166,6 @@ SUBROUTINE qs_env_setup(qs_env,error)
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
-    scp_nddo = dft_control%qs_control%se_control%scp
     IF (.NOT. failure) THEN
        ! allocate qs_charges
        CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
@@ -230,15 +224,6 @@ SUBROUTINE qs_env_setup(qs_env,error)
        CALL set_ks_env(ks_env, distribution_2d=distribution_2d, error=error)
        CALL distribution_2d_release(distribution_2d, error=error)
 
-       ! SCP
-       IF ( scp_nddo ) THEN
-       ! create the SCP env
-          CALL scp_env_create ( scp_env, error )
-          CALL scp_nddo_init ( scp_env, qs_env, error )
-          CALL set_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
-          ! keeping only one copy
-          CALL scp_env_release ( scp_env, error )
-       END IF
     END IF
     CALL timestop(handle)
 

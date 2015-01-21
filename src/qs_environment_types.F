@@ -142,9 +142,6 @@ MODULE qs_environment_types
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
-  USE scp_environment_types,           ONLY: scp_env_release,&
-                                             scp_env_retain,&
-                                             scp_environment_type
   USE semi_empirical_mpole_types,      ONLY: nddo_mpole_release,&
                                              nddo_mpole_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_release,&
@@ -189,7 +186,6 @@ MODULE qs_environment_types
 !> \param mo_derivs the actual derivatives of the total energy wrt to MO coeffs (divided by 2*f_i)
 !> \param xas_env temporary information for xas calculation
 !> \param dftb_potential pair potentials for use with DFTB
-!> \param scp_env SCP environment for use with QS
 !> \param dispersion_env environment for use with QS dispersion
 !>
 !>      compatibility get (things that you should get from the subsys):
@@ -241,7 +237,6 @@ MODULE qs_environment_types
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(rel_control_type), POINTER                       :: rel_control
-    TYPE(scp_environment_type), POINTER                   :: scp_env
     ! ZMP adding variables
     TYPE(qs_rho_type), POINTER                            :: rho_external
     TYPE(pw_p_type), POINTER                              :: external_vxc
@@ -430,7 +425,6 @@ CONTAINS
 !> \param et_coupling ...
 !> \param dftb_potential ...
 !> \param results ...
-!> \param scp_env ...
 !> \param se_taper ...
 !> \param se_store_int_env ...
 !> \param se_nddo_mpole ...
@@ -481,7 +475,7 @@ CONTAINS
        mo_derivs_aux_fit, mo_loc_history,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
-       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, admm_dm, &
+       se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, admm_dm, &
        lri_env,lri_density,dispersion_env, vee,rho_external,external_vxc,mask,&
        mp2_env,kg_env,WannierCentres,ga_env,atprop,ls_scf_env,do_transport, transport_env,v_hartree_rspace,&
        s_mstruct_changed,rho_changed,potential_changed,forces_up_to_date,mscfg_env,&
@@ -613,8 +607,6 @@ CONTAINS
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
-    TYPE(scp_environment_type), OPTIONAL, &
-      POINTER                                :: scp_env
     TYPE(se_taper_type), OPTIONAL, POINTER   :: se_taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: se_store_int_env
@@ -744,7 +736,6 @@ CONTAINS
     IF (PRESENT(x_data)) x_data => qs_env%x_data
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
-    IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
     IF (PRESENT(efield)) efield => qs_env%efield
     IF (PRESENT(WannierCentres)) WannierCentres => qs_env%WannierCentres
 
@@ -893,7 +884,6 @@ CONTAINS
     NULLIFY (qs_env%et_coupling)
     NULLIFY (qs_env%dftb_potential)
 
-    NULLIFY (qs_env%scp_env)
     NULLIFY (qs_env%se_taper)
     NULLIFY (qs_env%se_store_int_env)
     NULLIFY (qs_env%se_nddo_mpole)
@@ -986,7 +976,6 @@ CONTAINS
 !> \param x_data ...
 !> \param et_coupling ...
 !> \param dftb_potential ...
-!> \param scp_env ...
 !> \param se_taper ...
 !> \param se_store_int_env ...
 !> \param se_nddo_mpole ...
@@ -1018,7 +1007,7 @@ CONTAINS
        mo_derivs_aux_fit, mo_loc_history, efield,&
        linres_control,xas_env,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
-       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
+       se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,ls_scf_env,&
        do_transport, transport_env,lri_env,lri_density,dispersion_env,mp2_env,kg_env,&
        WannierCentres,ga_env,error)
 
@@ -1088,8 +1077,6 @@ CONTAINS
       POINTER                                :: et_coupling
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
-    TYPE(scp_environment_type), OPTIONAL, &
-      POINTER                                :: scp_env
     TYPE(se_taper_type), OPTIONAL, POINTER   :: se_taper
     TYPE(semi_empirical_si_type), OPTIONAL, &
       POINTER                                :: se_store_int_env
@@ -1269,11 +1256,6 @@ CONTAINS
     IF (PRESENT(x_data)) qs_env%x_data => x_data
     IF (PRESENT(et_coupling))qs_env%et_coupling => et_coupling
     IF (PRESENT(dftb_potential))qs_env%dftb_potential => dftb_potential
-    IF (PRESENT(scp_env)) THEN
-      CALL scp_env_retain(scp_env,error=error)
-      CALL scp_env_release(qs_env%scp_env,error=error)
-      qs_env%scp_env => scp_env
-    END IF
     IF (PRESENT(se_taper)) THEN
        CALL se_taper_release(qs_env%se_taper,error=error)
        qs_env%se_taper => se_taper
@@ -1500,9 +1482,6 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%dftb_potential)) THEN
              CALL qs_dftb_pairpot_release(qs_env%dftb_potential,error)
-          END IF
-          IF (ASSOCIATED(qs_env%scp_env)) THEN
-             CALL scp_env_release ( qs_env % scp_env, error )
           END IF
           IF (ASSOCIATED(qs_env%se_taper)) THEN
              CALL se_taper_release(qs_env%se_taper, error)

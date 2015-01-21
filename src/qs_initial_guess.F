@@ -84,7 +84,6 @@ MODULE qs_initial_guess
                                              qs_scf_env_type
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_environment_types,           ONLY: scp_environment_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -178,7 +177,6 @@ CONTAINS
     TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 subsys_section
 
@@ -191,7 +189,7 @@ CONTAINS
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(matrix_s_kp, matrix_h_kp, matrix_ks_kp, rho_ao_kp)
     NULLIFY(moa,mob)
-    NULLIFY (atom_list, elec_conf, scp_env, kpoints)
+    NULLIFY (atom_list, elec_conf, kpoints)
     edftb = 0.0_dp
 
     CALL timeset(routineN,handle)
@@ -205,7 +203,6 @@ CONTAINS
                     matrix_h_kp=matrix_h_kp,&
                     matrix_ks_kp=matrix_ks_kp,&
                     input=input,&
-                    scp_env=scp_env,&
                     scf_control=scf_control,&
                     id_nr=qs_env_id,&
                     dft_control=dft_control,&

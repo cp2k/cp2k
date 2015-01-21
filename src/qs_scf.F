@@ -63,8 +63,7 @@ MODULE qs_scf
   USE cp_result_methods,               ONLY: get_results,&
                                              test_for_result
   USE cp_result_types,                 ONLY: cp_result_type
-  USE input_constants,                 ONLY: do_method_mndo,&
-                                             history_guess,&
+  USE input_constants,                 ONLY: history_guess,&
                                              ot_precond_full_all,&
                                              ot_precond_full_single,&
                                              ot_precond_full_single_inverse,&
@@ -135,8 +134,6 @@ MODULE qs_scf
                                              special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -268,7 +265,7 @@ CONTAINS
       ispin, iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, &
       exit_outer_loop, failure, gapw, gapw_xc, inner_loop_converged, &
-      just_energy, outer_loop_converged, scp_nddo
+      just_energy, outer_loop_converged
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -292,7 +289,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
 
@@ -333,8 +329,6 @@ CONTAINS
                     error=error)
 
     CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
-    ! Defining SCP logicals
-    scp_nddo = dft_control%qs_control%se_control%scp
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -348,14 +342,6 @@ CONTAINS
     ! short cut flags setting the different methods
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
-    ! **** SCP
-    IF ( scp_nddo ) THEN
-       CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error=error )
-       IF (dft_control%qs_control%method_id.EQ.do_method_mndo) THEN
-          ! this combination is buggy since revision 12141
-          CALL stop_program(routineN,moduleN,__LINE__,"Not Yet Implemented (buggy since rev12141)")
-       ENDIF
-    END IF
 
     IF ((output_unit > 0).AND.(.NOT.scf_control%use_ot)) THEN
        WRITE (UNIT=output_unit,&
@@ -394,7 +380,7 @@ CONTAINS
        CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
             scf_section=scf_section, error=error)
 
-       CALL qs_scf_set_loop_flags(scp_nddo,scf_control,scf_env,diis_step,&
+       CALL qs_scf_set_loop_flags(scf_control,scf_env,diis_step,&
                       energy_only,just_energy,exit_inner_loop,error=error)
 
        scf_loop: DO
@@ -551,25 +537,19 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nmo, &
                                                 number_of_OT_envs, stat
     LOGICAL                                  :: do_rotation, failure, &
-                                                has_unit_metric, is_full_all, &
-                                                scp_nddo
+                                                has_unit_metric, is_full_all
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
-    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, orthogonality_metric, &
-                                                pscp
+    TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(scp_environment_type), POINTER      :: scp_env
 
     CALL timeset(routineN,handle)
 
     NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,mo_coeff)
-! **SCP
-    NULLIFY (scp_env, pscp, ks_scp)
-! **SCP
 
     failure=.FALSE.
 
@@ -582,9 +562,6 @@ CONTAINS
          scf_control=scf_control,&
          dft_control=dft_control,&
          mos=mos,error=error)
-
-    scp_nddo = dft_control%qs_control%se_control%scp.AND.&
-              (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)
 
     ! if using mo_coeff_b then copy to fm
     DO ispin=1,SIZE(mos)!fm->dbcsr
@@ -726,20 +703,10 @@ CPSourceFileRef)
                has_unit_metric=has_unit_metric,&
                mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision,error=error)
 
-          ! we have to treat the semi-empirical methods separately
-          IF ( scp_nddo ) THEN
-             CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
-             CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
-             CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
-                  broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
-                  qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
-                  error=error)
-          ELSE
-             CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, &
-                  broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
-                  qs_ot_env = scf_env%qs_ot_env,matrix_ks=matrix_ks(1)%matrix,&
-                  error=error)
-          END IF
+          CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, &
+               broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
+               qs_ot_env = scf_env%qs_ot_env,matrix_ks=matrix_ks(1)%matrix,&
+               error=error)
 
           SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
              CASE(ot_precond_none)

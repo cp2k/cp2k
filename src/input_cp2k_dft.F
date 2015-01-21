@@ -72,12 +72,12 @@ MODULE input_cp2k_dft
        outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-       outer_scf_s2_constraint, outer_scf_scp, plus_u_lowdin, &
-       plus_u_mulliken, plus_u_mulliken_charges, pulay_mix, pw_interp, &
-       ramp_env, random_guess, real_time_propagation, ref_charge_atomic, &
-       ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, &
-       rel_sczora_mp, rel_trans_atom, rel_trans_full, rel_trans_molecule, &
-       rel_zora, rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, &
+       outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, &
+       plus_u_mulliken_charges, pulay_mix, pw_interp, ramp_env, random_guess, &
+       real_time_propagation, ref_charge_atomic, ref_charge_mulliken, &
+       rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
+       rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, &
+       rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, &
        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
        sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
        shape_function_gaussian, sic_ad, sic_eo, sic_list_all, &
@@ -2784,14 +2784,6 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        ! Logicals
-       CALL keyword_create(keyword, name="SCP",&
-            description="Introduce additional self-consistent polarization through"//&
-            " additional response basis functions (read in through AUX_BASIS.",&
-            usage="SCP",lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="LS_SCF",&
             description="Perform a linear scaling SCF",&
             usage="LS_SCF",lone_keyword_l_val=.TRUE.,&
@@ -3523,12 +3515,6 @@ CONTAINS
             "is active only for K-DSO integral screening type.",&
             "Use Ewald directly in Coulomb integral evaluation, works only with Slater screening"),&
             default_i_val=do_se_lr_none, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SCP",&
-            description="Perform a SCP-NDDO calculation",&
-            usage="SCP",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5031,15 +5017,13 @@ CONTAINS
             description="Specifies which kind of outer SCF should be employed",&
             usage="TYPE DDAPC_CONSTRAINT ",&
             default_i_val=outer_scf_none,&
-            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT",&
-             "SCP", "NONE" ),&
+            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT", "NONE" ),&
             enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
             "Enforce a constraint on the S2, requires the corresponding section", &
             "Enforce a constraint on the Becke weight population,requires the corresponding section", &
-            "Enforce outer loop optimization for SCP, requires the corresponding metod (-DFT or -NDDO)", &
             "Do nothing in the outer loop, useful for resetting the inner loop,"),&
             enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,&
-            outer_scf_becke_constraint,outer_scf_scp,outer_scf_none/),&
+            outer_scf_becke_constraint,outer_scf_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6524,14 +6508,6 @@ CONTAINS
             " a rotation of the occupied subspace such as non-singlet restricted calculations "//&
             " or fractional occupations.",&
             usage="ROTATION",lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SCP_NDDO",&
-            description="Introduce additional self-consistent polarization through"//&
-            " response basis set = orbital basis set for NDDO.)",&
-            usage="SCP_NDDO",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -929,9 +929,6 @@ CPSourceFileRef,&
           CALL section_vals_val_get(se_section,"SCREENING%RC_RANGE",&
                r_val=qs_control%se_control%range_scr,error=error)
        END IF
-       ! SCP
-       CALL section_vals_val_get(se_section,"SCP",&
-            l_val=qs_control%se_control%scp,error=error)
        ! Periodic Type Calculation
        CALL section_vals_val_get(se_section,"PERIODIC",&
             i_val=qs_control%se_control%periodic_type,error=error)
@@ -1053,7 +1050,7 @@ CPSourceFileRef,&
        IF (qs_control%dftb_control%hb_sr_damp)      CALL cite_reference(Hu2007)
     END IF
 
-    ! SCP-TB code
+    ! SCPTB code
     IF (qs_control%scptb) THEN
        CALL section_vals_val_get(scptb_section,"DISPERSION",&
             l_val=qs_control%scptb_control%dispersion,error=error)

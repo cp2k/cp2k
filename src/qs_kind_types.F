@@ -39,7 +39,7 @@ MODULE qs_kind_types
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_method_scptb, do_qs, use_aux_basis_set, &
        use_aux_fit_basis_set, use_lri_basis_set, use_orb_basis_set, &
-       use_ri_aux_basis_set, use_scp_basis_set
+       use_ri_aux_basis_set
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -119,13 +119,11 @@ MODULE qs_kind_types
      TYPE(local_potential_type), POINTER    :: tnadd_potential   => Null()
      TYPE(gth_potential_type), POINTER      :: gth_potential     => Null()
      TYPE(semi_empirical_type), POINTER     :: se_parameter      => Null()
-     TYPE(semi_empirical_type), POINTER     :: scp_se_parameter  => Null()
      TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter    => Null()
      TYPE(scptb_parameter_type), POINTER    :: scptb_parameter   => Null()
      TYPE(gto_basis_set_type), POINTER      :: aux_basis_set     => Null()
      TYPE(gto_basis_set_type), POINTER      :: ri_aux_basis_set  => Null()
      TYPE(gto_basis_set_type), POINTER      :: orb_basis_set     => Null()
-     TYPE(gto_basis_set_type), POINTER      :: scp_basis_set     => Null()
      TYPE(gto_basis_set_type), POINTER      :: soft_basis_set    => Null()
      TYPE(gto_basis_set_type), POINTER      :: hard_basis_set    => Null()
      TYPE(gto_basis_set_type), POINTER      :: aux_fit_basis_set => Null()
@@ -137,8 +135,6 @@ MODULE qs_kind_types
      LOGICAL                                :: paw_atom = .FALSE.        ! needs atomic rho1
      LOGICAL                                :: gpw_type_forced = .FALSE. ! gpw atom even if with hard exponents
      LOGICAL                                :: ghost = .FALSE.
-     REAL(KIND = dp)                        :: alpha_scp = 0.0_dp
-     REAL(KIND = dp)                        :: I_scp = 0.0_dp
      REAL(KIND = dp)                        :: dudq_dftb3 = 0.0_dp
      INTEGER, DIMENSION(:,:), POINTER       :: addel  => Null()
      INTEGER, DIMENSION(:,:), POINTER       :: laddel => Null()
@@ -221,9 +217,6 @@ CONTAINS
           IF (ASSOCIATED(qs_kind_set(ikind)%se_parameter)) THEN
              CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter,error)
           END IF
-          IF (ASSOCIATED(qs_kind_set(ikind)%scp_se_parameter)) THEN
-             CALL semi_empirical_release(qs_kind_set(ikind)%scp_se_parameter,error)
-          END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%dftb_parameter)) THEN
              CALL deallocate_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter,error)
           END IF
@@ -251,9 +244,6 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%orb_basis_set)) THEN
              CALL deallocate_gto_basis_set(qs_kind_set(ikind)%orb_basis_set,error)
-          END IF
-          IF (ASSOCIATED(qs_kind_set(ikind)%scp_basis_set)) THEN
-             CALL deallocate_gto_basis_set(qs_kind_set(ikind)%scp_basis_set,error)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%paw_proj_set)) THEN
              CALL deallocate_paw_proj_set(qs_kind_set(ikind)%paw_proj_set,error)
@@ -317,17 +307,13 @@ CONTAINS
 !> \param tnadd_potential ...
 !> \param gth_potential ...
 !> \param se_parameter ...
-!> \param scp_se_parameter ...
 !> \param dftb_parameter ...
 !> \param scptb_parameter ...
 !> \param aux_basis_set ...
 !> \param ri_aux_basis_set ...
 !> \param aux_fit_basis_set ...
 !> \param orb_basis_set ...
-!> \param scp_basis_set ...
 !> \param lri_basis_set ...
-!> \param alpha_scp ...
-!> \param I_scp ...
 !> \param dftb3_param ...
 !> \param zeff ...
 !> \param ncgf ...
@@ -378,10 +364,10 @@ CONTAINS
 !> \param element_symbol ...
 ! *****************************************************************************
   SUBROUTINE get_qs_kind(qs_kind, all_potential, tnadd_potential, gth_potential, &
-       se_parameter, scp_se_parameter, dftb_parameter, scptb_parameter, &
-       aux_basis_set, ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, scp_basis_set, &
+       se_parameter, dftb_parameter, scptb_parameter, &
+       aux_basis_set, ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, &
        lri_basis_set, &
-       alpha_scp, I_scp, dftb3_param, zeff,&
+       dftb3_param, zeff,&
        ncgf, nsgf, elec_conf,&
        alpha_core_charge, ccore_charge, core_charge, core_charge_radius,&
        soft_basis_set, hard_basis_set, paw_proj_set, softb, &
@@ -401,16 +387,17 @@ CONTAINS
     TYPE(gth_potential_type), OPTIONAL, &
       POINTER                                :: gth_potential
     TYPE(semi_empirical_type), OPTIONAL, &
-      POINTER                                :: se_parameter, scp_se_parameter
+      POINTER                                :: se_parameter
     TYPE(qs_dftb_atom_type), OPTIONAL, &
       POINTER                                :: dftb_parameter
     TYPE(scptb_parameter_type), OPTIONAL, &
       POINTER                                :: scptb_parameter
-    TYPE(gto_basis_set_type), OPTIONAL, POINTER :: aux_basis_set, &
-      ri_aux_basis_set, aux_fit_basis_set, orb_basis_set, scp_basis_set, &
-      lri_basis_set
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_scp, I_scp, &
-                                                dftb3_param, zeff
+    TYPE(gto_basis_set_type), OPTIONAL, &
+      POINTER                                :: aux_basis_set, &
+                                                ri_aux_basis_set, &
+                                                aux_fit_basis_set, &
+                                                orb_basis_set, lri_basis_set
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: dftb3_param, zeff
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
@@ -476,7 +463,6 @@ CONTAINS
     IF (PRESENT(tnadd_potential)) tnadd_potential => qs_kind%tnadd_potential
     IF (PRESENT(gth_potential)) gth_potential => qs_kind%gth_potential
     IF (PRESENT(se_parameter))  se_parameter => qs_kind%se_parameter
-    IF (PRESENT(scp_se_parameter))  scp_se_parameter => qs_kind%scp_se_parameter
     IF (PRESENT(dftb_parameter))  dftb_parameter => qs_kind%dftb_parameter
     IF (PRESENT(scptb_parameter))  scptb_parameter => qs_kind%scptb_parameter
     IF (PRESENT(aux_basis_set)) aux_basis_set => qs_kind%aux_basis_set
@@ -490,11 +476,8 @@ CONTAINS
           orb_basis_set => qs_kind%orb_basis_set
        END IF
     END IF
-    IF (PRESENT(scp_basis_set)) scp_basis_set => qs_kind%scp_basis_set
     IF (PRESENT(element_symbol)) element_symbol = qs_kind%element_symbol
     IF (PRESENT(name)) name = qs_kind%name
-    IF (PRESENT(alpha_scp)) alpha_scp = qs_kind%alpha_scp
-    IF (PRESENT(I_scp)) I_scp = qs_kind%I_scp
     IF (PRESENT(dftb3_param)) dftb3_param = qs_kind%dudq_dftb3
     IF (PRESENT(elec_conf)) elec_conf => qs_kind%elec_conf
     IF (PRESENT(alpha_core_charge)) THEN
@@ -553,13 +536,6 @@ CONTAINS
          ELSE
            ncgf = 0
          END IF
-       CASE (use_scp_basis_set)
-         IF (ASSOCIATED(qs_kind%scp_basis_set)) THEN
-           CALL get_gto_basis_set(gto_basis_set=qs_kind%scp_basis_set,&
-                ncgf=ncgf)
-         ELSE
-           ncgf = 0
-         END IF
        CASE (use_lri_basis_set)
          IF (ASSOCIATED(qs_kind%lri_basis_set)) THEN
            CALL get_gto_basis_set(gto_basis_set=qs_kind%lri_basis_set,&
@@ -587,13 +563,6 @@ CONTAINS
                 nsgf=nsgf)
          ELSE IF(ASSOCIATED(qs_kind%dftb_parameter)) THEN
            nsgf = qs_kind%dftb_parameter%natorb
-         ELSE
-           nsgf = 0
-         END IF
-       CASE (use_scp_basis_set)
-         IF (ASSOCIATED(qs_kind%scp_basis_set)) THEN
-           CALL get_gto_basis_set(gto_basis_set=qs_kind%scp_basis_set,&
-                nsgf=nsgf)
          ELSE
            nsgf = 0
          END IF
@@ -838,8 +807,7 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, &
-      lri_basis_set, orb_basis_set, ri_aux_basis_set, scp_basis_set, &
-      soft_basis_set
+      lri_basis_set, orb_basis_set, ri_aux_basis_set, soft_basis_set
     TYPE(local_potential_type), POINTER      :: tnadd_potential
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
@@ -900,7 +868,6 @@ CONTAINS
                ri_aux_basis_set=ri_aux_basis_set,&
                aux_fit_basis_set=aux_fit_basis_set,&
                orb_basis_set=orb_basis_set,&
-               scp_basis_set=scp_basis_set,&
                soft_basis_set=soft_basis_set,&
                paw_proj_set=paw_proj_set,&
                dftb_parameter=dftb_parameter,&
@@ -932,11 +899,6 @@ CONTAINS
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
-                  maxcgf = MAX(maxcgf,imax)
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                  CALL get_gto_basis_set(gto_basis_set=scp_basis_set,ncgf=imax)
                   maxcgf = MAX(maxcgf,imax)
                END IF
              CASE (use_aux_fit_basis_set)
@@ -979,16 +941,6 @@ CONTAINS
                           maxco=imax,maxder=maxder)
                   ELSE
                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
-                  END IF
-                  maxco = MAX(maxco,imax)
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                  IF (PRESENT(maxder)) THEN
-                     CALL get_gto_basis_set(gto_basis_set=scp_basis_set,&
-                          maxco=imax,maxder=maxder)
-                  ELSE
-                     CALL get_gto_basis_set(gto_basis_set=scp_basis_set,maxco=imax)
                   END IF
                   maxco = MAX(maxco,imax)
                END IF
@@ -1048,12 +1000,6 @@ CONTAINS
                      nset=n)
                 maxgtop = MAX(maxgtop, n*imax)
               END IF
-            CASE (use_scp_basis_set)
-              IF (ASSOCIATED(scp_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=scp_basis_set,maxco=imax,&
-                     nset=n)
-                maxgtop = MAX(maxgtop, n*imax)
-              END IF
             CASE (use_lri_basis_set)
               IF (ASSOCIATED(lri_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=lri_basis_set,maxco=imax,&
@@ -1088,12 +1034,6 @@ CONTAINS
                      nset=n)
                 maxgtops = MAX(maxgtops, n*imax)
               END IF
-            CASE (use_scp_basis_set)
-              IF (ASSOCIATED(scp_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=scp_basis_set,maxso=imax,&
-                     nset=n)
-                maxgtops = MAX(maxgtops, n*imax)
-              END IF
             CASE (use_lri_basis_set)
               IF (ASSOCIATED(lri_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=lri_basis_set,maxso=imax,&
@@ -1117,11 +1057,6 @@ CONTAINS
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
-                  maxlgto = MAX(maxlgto,imax)
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                  CALL get_gto_basis_set(gto_basis_set=scp_basis_set,maxl=imax)
                   maxlgto = MAX(maxlgto,imax)
                END IF
              CASE (use_lri_basis_set)
@@ -1153,12 +1088,6 @@ CONTAINS
                      nset=n)
                 maxnset = MAX(maxnset, n)
               END IF
-            CASE (use_scp_basis_set)
-              IF (ASSOCIATED(scp_basis_set)) THEN
-                CALL get_gto_basis_set(gto_basis_set=scp_basis_set,&
-                     nset=n)
-                maxnset = MAX(maxnset, n)
-              END IF
             CASE (use_lri_basis_set)
               IF (ASSOCIATED(lri_basis_set)) THEN
                 CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
@@ -1182,11 +1111,6 @@ CONTAINS
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxpgf=imax)
-                 maxpgf = MAX(maxpgf,imax)
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,maxpgf=imax)
                  maxpgf = MAX(maxpgf,imax)
                END IF
              CASE (use_lri_basis_set)
@@ -1221,11 +1145,6 @@ CONTAINS
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=imax)
                  maxsgf = MAX(maxsgf,imax)
                END IF
-             CASE( use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,nsgf=imax)
-                 maxsgf = MAX(maxsgf,imax)
-               END IF
              CASE( use_lri_basis_set)
                IF (ASSOCIATED(lri_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=lri_basis_set,nsgf=imax)
@@ -1252,11 +1171,6 @@ CONTAINS
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxsgf_set=imax)
-                 maxsgf_set = MAX(maxsgf_set,imax)
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,maxsgf_set=imax)
                  maxsgf_set = MAX(maxsgf_set,imax)
                END IF
              CASE (use_lri_basis_set)
@@ -1304,11 +1218,6 @@ CONTAINS
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=n)
-                 ncgf = ncgf + n*qs_kind_set(ikind)%natom
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,ncgf=n)
                  ncgf = ncgf + n*qs_kind_set(ikind)%natom
                END IF
              CASE (use_lri_basis_set)
@@ -1360,11 +1269,6 @@ CONTAINS
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,npgf_sum=n)
                  npgf = npgf + n*qs_kind_set(ikind)%natom
                END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,npgf_sum=n)
-                 npgf = npgf + n*qs_kind_set(ikind)%natom
-               END IF
              CASE (use_lri_basis_set)
                IF (ASSOCIATED(lri_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=lri_basis_set,npgf_sum=n)
@@ -1384,11 +1288,6 @@ CONTAINS
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset=n)
                  nset = nset + n*qs_kind_set(ikind)%natom
                END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,nset=n)
-                 nset = nset + n*qs_kind_set(ikind)%natom
-               END IF
              CASE (use_lri_basis_set)
                IF (ASSOCIATED(lri_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=lri_basis_set,nset=n)
@@ -1406,11 +1305,6 @@ CONTAINS
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=n)
-                 nsgf = nsgf + n*qs_kind_set(ikind)%natom
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,nsgf=n)
                  nsgf = nsgf + n*qs_kind_set(ikind)%natom
                END IF
              CASE (use_lri_basis_set)
@@ -1434,11 +1328,6 @@ CONTAINS
              CASE (use_orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nshell_sum=n)
-                 nshell = nshell + n*qs_kind_set(ikind)%natom
-               END IF
-             CASE (use_scp_basis_set)
-               IF (ASSOCIATED(scp_basis_set)) THEN
-                 CALL get_gto_basis_set(gto_basis_set=scp_basis_set,nshell_sum=n)
                  nshell = nshell + n*qs_kind_set(ikind)%natom
                END IF
              CASE (use_lri_basis_set)
@@ -1539,12 +1428,6 @@ CONTAINS
           qs_kind%orb_basis_set%norm_type = 2
        END IF
        CALL init_orb_basis_set(qs_kind%orb_basis_set,error)
-    END IF
-    IF (ASSOCIATED(qs_kind%scp_basis_set)) THEN
-       IF (qs_kind%scp_basis_set%norm_type < 0) THEN
-          qs_kind%scp_basis_set%norm_type = 2
-       END IF
-       CALL init_orb_basis_set(qs_kind%scp_basis_set,error)
     END IF
     IF (ASSOCIATED(qs_kind%lri_basis_set)) THEN
        IF (qs_kind%lri_basis_set%norm_type < 0) THEN
@@ -1845,18 +1728,6 @@ CONTAINS
        ENDIF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="CORE_CORRECTION",r_val=zeff_correction,error=error)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="I_SCP",n_rep_val=i,error=error)
-       IF (i>0) THEN
-          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="I_SCP",r_val=qs_kind%I_scp,error=error)
-       END IF
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="ALPHA_SCP",n_rep_val=i,error=error)
-       IF (i>0) THEN
-          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="ALPHA_SCP",r_val=qs_kind%alpha_scp,error=error)
-       END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="POTENTIAL",c_val=potential_name,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
@@ -2588,8 +2459,6 @@ CONTAINS
 
           CALL write_orb_basis_set(qs_kind%orb_basis_set,output_unit,&
                "Orbital Basis Set",error=error)
-          CALL write_orb_basis_set(qs_kind%scp_basis_set,output_unit,&
-               "SCP Basis Set",error=error)
           CALL write_orb_basis_set(qs_kind%aux_fit_basis_set,output_unit,&
                "Auxiliary Fit Basis Set",error=error)
           CALL write_orb_basis_set(qs_kind%lri_basis_set,output_unit,&

@@ -121,8 +121,7 @@ MODULE qs_ks_types
 !> \param sab_all neighbor lists for the calculation of the  matrix element of
 !>        non-symmetric operators
 !> \param sab_vdw: neighbor lists for the calculation of dispersion interactions
-!> \param sab_scp: neighbor lists for the calculation of the dispersion interactions
-!>        when self-consistent polarization (SCP) is included
+!> \param sab_scp: neighbor lists for the calculation of self-consistent polarization
 !> \param sab_almo: neighbor lists to create ALMO delocalization template
 !>
 !> \param kpoints information on the kpoints used
@@ -191,10 +190,10 @@ MODULE qs_ks_types
                                                              sap_oce => Null(),&
                                                              sab_se => Null(),&
                                                              sab_vdw => Null(),&
+                                                             sab_scp => Null(),&
                                                              sab_tbe => Null(),&
                                                              sab_core => Null(),&
                                                              sab_all => Null(),&
-                                                             sab_scp => Null(),&
                                                              sab_aux_fit => Null(),&
                                                              sab_aux_fit_vs_orb => Null(),&
                                                              sab_aux_fit_asymm => Null(),&
@@ -306,8 +305,8 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_se ...
 !> \param sab_tbe ...
 !> \param sab_core ...
-!> \param sab_scp ...
 !> \param sab_vdw ...
+!> \param sab_scp ...
 !> \param sab_almo ...
 !> \param task_list ...
 !> \param task_list_aux_fit ...
@@ -358,7 +357,7 @@ END SUBROUTINE qs_ks_env_create
                         neighbor_list_id,&
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
-                        sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
+                        sab_se,sab_tbe,sab_core,sab_vdw,sab_scp,sab_almo,&
                         task_list, task_list_aux_fit, task_list_soft,&
                         kpoints, do_kpoints,&
                         atomic_kind_set,qs_kind_set,cell,cell_ref,use_ref_cell,&
@@ -392,7 +391,7 @@ END SUBROUTINE qs_ks_env_create
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
-      sab_scp, sab_vdw, sab_almo
+      sab_vdw, sab_scp, sab_almo
     TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_aux_fit, &
                                                 task_list_soft
     TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
@@ -487,8 +486,8 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_aux_fit_asymm)) sab_aux_fit_asymm => ks_env%sab_aux_fit_asymm
      IF (PRESENT(sab_aux_fit_vs_orb)) sab_aux_fit_vs_orb => ks_env%sab_aux_fit_vs_orb
      IF (PRESENT(sab_all)) sab_all => ks_env%sab_all
-     IF (PRESENT(sab_scp)) sab_scp => ks_env%sab_scp
      IF (PRESENT(sab_vdw)) sab_vdw => ks_env%sab_vdw
+     IF (PRESENT(sab_scp)) sab_scp => ks_env%sab_scp
      IF (PRESENT(sac_ae)) sac_ae => ks_env%sac_ae
      IF (PRESENT(sac_ppl)) sac_ppl => ks_env%sac_ppl
      IF (PRESENT(sap_ppnl)) sap_ppnl => ks_env%sap_ppnl
@@ -588,8 +587,8 @@ END SUBROUTINE qs_ks_env_create
 !> \param sab_se ...
 !> \param sab_tbe ...
 !> \param sab_core ...
-!> \param sab_scp ...
 !> \param sab_vdw ...
+!> \param sab_scp ...
 !> \param sab_almo ...
 !> \param task_list ...
 !> \param task_list_aux_fit ...
@@ -615,7 +614,7 @@ END SUBROUTINE qs_ks_env_create
                         neighbor_list_id,&
                         sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
                         sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
-                        sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_almo,&
+                        sab_se,sab_tbe,sab_core,sab_vdw,sab_scp,sab_almo,&
                         task_list,task_list_aux_fit,task_list_soft,&
                         subsys,dft_control,dbcsr_dist,distribution_2d,pw_env,&
                         para_env,blacs_env,admm_dm,&
@@ -642,7 +641,7 @@ END SUBROUTINE qs_ks_env_create
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
       sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
-      sab_scp, sab_vdw, sab_almo
+      sab_vdw, sab_scp, sab_almo
     TYPE(task_list_type), OPTIONAL, POINTER  :: task_list, task_list_aux_fit, &
                                                 task_list_soft
     TYPE(qs_subsys_type), OPTIONAL, POINTER  :: subsys
@@ -708,8 +707,8 @@ END SUBROUTINE qs_ks_env_create
      IF (PRESENT(sab_aux_fit)) ks_env%sab_aux_fit => sab_aux_fit
      IF (PRESENT(sab_aux_fit_asymm)) ks_env%sab_aux_fit_asymm => sab_aux_fit_asymm
      IF (PRESENT(sab_aux_fit_vs_orb)) ks_env%sab_aux_fit_vs_orb => sab_aux_fit_vs_orb
-     IF (PRESENT(sab_scp)) ks_env%sab_scp => sab_scp
      IF (PRESENT(sab_vdw)) ks_env%sab_vdw => sab_vdw
+     IF (PRESENT(sab_scp)) ks_env%sab_scp => sab_scp
      IF (PRESENT(sab_all)) ks_env%sab_all => sab_all
      IF (PRESENT(sac_ae)) ks_env%sac_ae => sac_ae
      IF (PRESENT(sac_ppl)) ks_env%sac_ppl => sac_ppl
@@ -872,10 +871,10 @@ END SUBROUTINE qs_ks_env_create
           CALL release_sab(ks_env%sap_oce)
           CALL release_sab(ks_env%sab_se)
           CALL release_sab(ks_env%sab_vdw)
+          CALL release_sab(ks_env%sab_scp)
           CALL release_sab(ks_env%sab_tbe)
           CALL release_sab(ks_env%sab_core)
           CALL release_sab(ks_env%sab_all)
-          CALL release_sab(ks_env%sab_scp)
           CALL release_sab(ks_env%sab_aux_fit)
           CALL release_sab(ks_env%sab_aux_fit_vs_orb)
           CALL release_sab(ks_env%sab_aux_fit_asymm)

@@ -431,8 +431,8 @@ CONTAINS
     NULLIFY (sab_cn)
     NULLIFY (sab_aux_fit)
     NULLIFY (sab_aux_fit_vs_orb)
-    NULLIFY (sab_scp)
     NULLIFY (soo_list)
+    NULLIFY (sab_scp)
     NULLIFY (sab_almo)
 
     CALL get_qs_env(qs_env,&
@@ -473,8 +473,8 @@ CONTAINS
                     sab_lrc=sab_lrc,&
                     sab_tbe=sab_tbe,&
                     sab_core=sab_core,&
-                    sab_all=sab_all, &
                     sab_scp=sab_scp, &
+                    sab_all=sab_all, &
                     sab_almo=sab_almo, &
                     error=error)
 

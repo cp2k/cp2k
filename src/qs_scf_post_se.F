@@ -20,8 +20,7 @@ MODULE qs_scf_post_se
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+                                             cp_dbcsr_p_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -38,7 +37,6 @@ MODULE qs_scf_post_se
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
   USE moments_utils,                   ONLY: get_reference_point
-  USE mulliken,                        ONLY: multipoles
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
   USE particle_list_types,             ONLY: particle_list_type
@@ -56,8 +54,6 @@ MODULE qs_scf_post_se
                                              qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE timings,                         ONLY: timeset,&
@@ -256,8 +252,7 @@ CONTAINS
                                                 ix, j, nat, natom, natorb, &
                                                 nkind, nspin, reference, &
                                                 unit_nr
-    LOGICAL                                  :: do_berry, failure, found, &
-                                                scp_nddo
+    LOGICAL                                  :: do_berry, failure, found
     REAL(KIND=dp) :: charge_tot, ci(3), dci(3), dipole(3), dipole_deriv(3), &
       drcc(3), dria(3), dtheta, gvec(3), q, rcc(3), ria(3), tcharge(2), &
       theta, tmp(3), via(3), zeff
@@ -308,130 +303,123 @@ CONTAINS
                        error=error)
 
 
-       scp_nddo = dft_control%qs_control%se_control%scp
-       IF(scp_nddo) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="No Dipoles for SCP-NDDO implemented!!", &
-            error=error, error_level=cp_warning_level)
-       ELSE
-          CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
-          nspin = SIZE(matrix_p)
-          nkind = SIZE(atomic_kind_set)
-          ! net charges
-          ALLOCATE (ncharge(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          ncharge = 0.0_dp
-          DO ikind=1,nkind
-             CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-             CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
-             CALL get_se_param(se_kind,zeff=zeff,natorb=natorb)
-             DO iatom=1,nat
-                iat = atomic_kind_set(ikind)%atom_list(iatom)
-                tcharge = 0.0_dp
-                DO i=1,nspin
-                   CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
-                     block=pblock,found=found)
-                   IF(found) THEN
-                      DO j=1,natorb
-                         tcharge(i) = tcharge(i) + pblock(j,j)
-                      END DO
-                   END IF
-                END DO
-                ncharge(iat) = zeff - SUM(tcharge)
-             END DO
-          END DO
-          ! Contributions from net atomic charges
-          ! Dipole deriv will be the derivative of the Dipole(dM/dt=\sum e_j v_j)
-          dipole_deriv = 0.0_dp
-          dipole       = 0.0_dp
-          IF(do_berry)THEN
-             dipole_type="[BERRY PHASE]"
-             rcc = pbc(rcc,cell)
-             charge_tot = 0._dp
-             charge_tot=SUM(ncharge)
-             ria  = twopi * MATMUL(cell%h_inv, rcc)
-             zphase  = CMPLX(COS(ria), SIN(ria), dp)**charge_tot
-
-             dria = twopi * MATMUL(cell%h_inv, drcc)
-             dzphase = charge_tot * CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot-1.0_dp)* dria
-
-             ggamma  = CMPLX(1.0_dp,0.0_dp,KIND=dp)
-             dggamma = CMPLX(0.0_dp,0.0_dp,KIND=dp)
-             DO ikind = 1, SIZE(atomic_kind_set)
-                CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                DO i = 1, nat
-                   iat = atomic_kind_set(ikind)%atom_list(i)
-                   ria = particle_set(iat)%r(:)
-                   ria = pbc(ria,cell)
-                   via = particle_set(iat)%v(:)
-                   q=ncharge(iat)
-                   DO j = 1, 3
-                      gvec  = twopi*cell%h_inv(j,:)
-                      theta = SUM(ria(:)*gvec(:))
-                      dtheta= SUM(via(:)*gvec(:))
-                      zeta  = CMPLX(COS(theta),SIN(theta),KIND=dp)**(-q)
-                      dzeta = -q * CMPLX(-SIN(theta),COS(theta),KIND=dp)**(-q-1.0_dp)* dtheta
-                      dggamma(j)= dggamma(j)* zeta + ggamma(j)* dzeta
-                      ggamma(j) = ggamma(j)* zeta
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+       nspin = SIZE(matrix_p)
+       nkind = SIZE(atomic_kind_set)
+       ! net charges
+       ALLOCATE (ncharge(natom),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ncharge = 0.0_dp
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+          CALL get_se_param(se_kind,zeff=zeff,natorb=natorb)
+          DO iatom=1,nat
+             iat = atomic_kind_set(ikind)%atom_list(iatom)
+             tcharge = 0.0_dp
+             DO i=1,nspin
+                CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
+                  block=pblock,found=found)
+                IF(found) THEN
+                   DO j=1,natorb
+                      tcharge(i) = tcharge(i) + pblock(j,j)
                    END DO
-                ENDDO
+                END IF
              END DO
-             dggamma = dggamma * zphase + ggamma * dzphase
-             ggamma = ggamma * zphase
-             IF(ALL(REAL(ggamma,KIND=dp)/= 0.0_dp))THEN
-                tmp = AIMAG(ggamma)/REAL(ggamma,KIND=dp)
-                ci  = ATAN(tmp)
-                dci =(1.0_dp /(1.0_dp + tmp**2))* &
-                    (AIMAG(dggamma)*REAL(ggamma,KIND=dp)-AIMAG(ggamma)*&
-                     REAL(dggamma,KIND=dp))/(REAL(ggamma,KIND=dp))**2
-                dipole       = MATMUL(cell%hmat, ci)/twopi
-                dipole_deriv = MATMUL(cell%hmat, dci)/twopi
-             END IF
-          ELSE
-             dipole_type="[Non Periodic]"
-             DO i = 1, natom
-                ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
-                ria = particle_set(i)%r(:)
-                q=ncharge(i)
-                dipole = dipole - q *(ria-rcc)
-                dipole_deriv(:)= dipole_deriv(:)- q *(particle_set(i)%v(:)- drcc)
-             END DO
-          END IF
-          ! Contributions from atomic polarization
-          ! No contribution to dipole derivatives
-          DO ikind=1,nkind
-             CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-             CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set)
-             CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
-             CALL get_se_param(se_kind,natorb=natorb)
-             ALLOCATE (mom(natorb,natorb,3),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             mom = 0.0_dp
-             CALL atomic_moments(mom,basis_set,error)
-             DO iatom=1,nat
-                iat = atomic_kind_set(ikind)%atom_list(iatom)
-                DO i=1,nspin
-                   CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
-                     block=pblock,found=found)
-                   IF(found) THEN
-                     CPPostcondition(natorb==SIZE(pblock,1),cp_failure_level,routineP,error,failure)
-                     ix=coset(1,0,0) - 1
-                     dipole(1)=dipole(1) + SUM(pblock*mom(:,:,ix))
-                     ix=coset(0,1,0) - 1
-                     dipole(2)=dipole(2) + SUM(pblock*mom(:,:,ix))
-                     ix=coset(0,0,1) - 1
-                     dipole(3)=dipole(3) + SUM(pblock*mom(:,:,ix))
-                   END IF
-                END DO
-             END DO
-             DEALLOCATE (mom,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             ncharge(iat) = zeff - SUM(tcharge)
           END DO
-          IF(unit_nr>0)THEN
-             WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole
-             WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(Debye)|",dipole*debye
-             WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|",dipole_deriv
+       END DO
+       ! Contributions from net atomic charges
+       ! Dipole deriv will be the derivative of the Dipole(dM/dt=\sum e_j v_j)
+       dipole_deriv = 0.0_dp
+       dipole       = 0.0_dp
+       IF(do_berry)THEN
+          dipole_type="[BERRY PHASE]"
+          rcc = pbc(rcc,cell)
+          charge_tot = 0._dp
+          charge_tot=SUM(ncharge)
+          ria  = twopi * MATMUL(cell%h_inv, rcc)
+          zphase  = CMPLX(COS(ria), SIN(ria), dp)**charge_tot
+
+          dria = twopi * MATMUL(cell%h_inv, drcc)
+          dzphase = charge_tot * CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot-1.0_dp)* dria
+
+          ggamma  = CMPLX(1.0_dp,0.0_dp,KIND=dp)
+          dggamma = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+          DO ikind = 1, SIZE(atomic_kind_set)
+             CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+             DO i = 1, nat
+                iat = atomic_kind_set(ikind)%atom_list(i)
+                ria = particle_set(iat)%r(:)
+                ria = pbc(ria,cell)
+                via = particle_set(iat)%v(:)
+                q=ncharge(iat)
+                DO j = 1, 3
+                   gvec  = twopi*cell%h_inv(j,:)
+                   theta = SUM(ria(:)*gvec(:))
+                   dtheta= SUM(via(:)*gvec(:))
+                   zeta  = CMPLX(COS(theta),SIN(theta),KIND=dp)**(-q)
+                   dzeta = -q * CMPLX(-SIN(theta),COS(theta),KIND=dp)**(-q-1.0_dp)* dtheta
+                   dggamma(j)= dggamma(j)* zeta + ggamma(j)* dzeta
+                   ggamma(j) = ggamma(j)* zeta
+                END DO
+             ENDDO
+          END DO
+          dggamma = dggamma * zphase + ggamma * dzphase
+          ggamma = ggamma * zphase
+          IF(ALL(REAL(ggamma,KIND=dp)/= 0.0_dp))THEN
+             tmp = AIMAG(ggamma)/REAL(ggamma,KIND=dp)
+             ci  = ATAN(tmp)
+             dci =(1.0_dp /(1.0_dp + tmp**2))* &
+                 (AIMAG(dggamma)*REAL(ggamma,KIND=dp)-AIMAG(ggamma)*&
+                  REAL(dggamma,KIND=dp))/(REAL(ggamma,KIND=dp))**2
+             dipole       = MATMUL(cell%hmat, ci)/twopi
+             dipole_deriv = MATMUL(cell%hmat, dci)/twopi
           END IF
+       ELSE
+          dipole_type="[Non Periodic]"
+          DO i = 1, natom
+             ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
+             ria = particle_set(i)%r(:)
+             q=ncharge(i)
+             dipole = dipole - q *(ria-rcc)
+             dipole_deriv(:)= dipole_deriv(:)- q *(particle_set(i)%v(:)- drcc)
+          END DO
+       END IF
+       ! Contributions from atomic polarization
+       ! No contribution to dipole derivatives
+       DO ikind=1,nkind
+          CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+          CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+          CALL get_se_param(se_kind,natorb=natorb)
+          ALLOCATE (mom(natorb,natorb,3),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          mom = 0.0_dp
+          CALL atomic_moments(mom,basis_set,error)
+          DO iatom=1,nat
+             iat = atomic_kind_set(ikind)%atom_list(iatom)
+             DO i=1,nspin
+                CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
+                  block=pblock,found=found)
+                IF(found) THEN
+                  CPPostcondition(natorb==SIZE(pblock,1),cp_failure_level,routineP,error,failure)
+                  ix=coset(1,0,0) - 1
+                  dipole(1)=dipole(1) + SUM(pblock*mom(:,:,ix))
+                  ix=coset(0,1,0) - 1
+                  dipole(2)=dipole(2) + SUM(pblock*mom(:,:,ix))
+                  ix=coset(0,0,1) - 1
+                  dipole(3)=dipole(3) + SUM(pblock*mom(:,:,ix))
+                END IF
+             END DO
+          END DO
+          DEALLOCATE (mom,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       IF(unit_nr>0)THEN
+          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole
+          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(Debye)|",dipole*debye
+          WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|",dipole_deriv
        END IF
        CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
     END IF
@@ -538,7 +526,7 @@ CONTAINS
     INTEGER                                  :: i, iat, iatom, ikind, istat, &
                                                 j, nat, natom, natorb, nkind, &
                                                 nspin, unit_nr
-    LOGICAL                                  :: failure, found, scp_nddo
+    LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), ALLOCATABLE, &
@@ -548,13 +536,11 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
-    TYPE(cp_dbcsr_type), POINTER             :: pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: print_key
     TYPE(semi_empirical_type), POINTER       :: se_kind
 
@@ -564,12 +550,8 @@ CONTAINS
                     natom=natom,&
                     qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
-                    scp_env=scp_env,&
                     dft_control=dft_control,&
                     error=error)
-
-    scp_nddo = dft_control%qs_control%se_control%scp
-    IF (scp_nddo ) CALL get_scp_env(scp_env=scp_env, pscp=pscp, error=error)
 
     ! Compute the mulliken charges
     print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
@@ -645,10 +627,6 @@ CONTAINS
                     FMT="(T2,A,T29,4(1X,F12.6),/)")&
                         "# Total charge and spin",SUM(charges(:,1)),SUM(charges(:,2)),SUM(mcharge(:))
           END IF
-       END IF
-       IF ( scp_nddo ) THEN
-          CALL multipoles(atomic_kind_set,qs_kind_set,particle_set,&
-            matrix_p,pscp,matrix_s(1)%matrix,para_env,unit_nr,"DFT%PRINT%MULLIKEN",error=error)
        END IF
 
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)

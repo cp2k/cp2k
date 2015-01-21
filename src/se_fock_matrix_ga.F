@@ -45,10 +45,6 @@ MODULE se_fock_matrix_ga
                                              mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE scp_delta_fock_matrix,           ONLY: build_delta_fock_matrix
-  USE scp_energy_types,                ONLY: scp_energy_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
   USE se_fock_matrix_coulomb_ga,       ONLY: build_fock_matrix_coul_lr_r3,&
                                              build_fock_matrix_coulomb,&
                                              build_fock_matrix_coulomb_lr
@@ -93,8 +89,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, natom, &
                                                 ncol_global, nspins, &
                                                 output_unit
-    LOGICAL                                  :: failure, s_mstruct_changed, &
-                                                scp_nddo
+    LOGICAL                                  :: failure, s_mstruct_changed
     REAL(KIND=dp)                            :: ecoul, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -114,18 +109,15 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(scp_energy_type), POINTER           :: energy_scp
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
-    TYPE(semi_empirical_si_type), POINTER    :: scp_store_int_env, &
-                                                store_int_env
+    TYPE(semi_empirical_si_type), POINTER    :: store_int_env
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
-    NULLIFY(atomic_kind_set, scp_env, energy_scp, scp_store_int_env, atprop)
+    NULLIFY(atomic_kind_set, atprop)
     NULLIFY(ks_env, ks_matrix, rho, energy)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -162,15 +154,8 @@ CONTAINS
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
        se_control  => dft_control%qs_control%se_control
-       scp_nddo    =  se_control%scp
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
        CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
-
-       IF ( scp_nddo ) THEN
-         CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-         CALL get_scp_env(scp_env=scp_env, se_store_int_env=scp_store_int_env, &
-                          energy=energy_scp, error=error )
-       END IF
 
        energy%qmmm_el = 0.0_dp
        energy%total = 0.0_dp
@@ -193,15 +178,6 @@ CONTAINS
             store_int_env,error)
        CALL build_fock_matrix_coulomb(qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
             store_int_env,error)
-
-! Add the SCP energies and additional contribution to fock matrix if requested
-       IF ( scp_nddo ) THEN
-!         WRITE ( *, * ) ' SCP KS_ENV%s_mstruct_changed', ks_env%s_mstruct_changed
-          CALL semi_empirical_si_initialize(scp_store_int_env, s_mstruct_changed, error)
-          CALL build_delta_fock_matrix (qs_env, ks_matrix,matrix_p,energy,&
-               calculate_forces,just_energy,scp_store_int_env,error)
-          CALL semi_empirical_si_finalize(scp_store_int_env, s_mstruct_changed, error)
-       END IF
 
        ! Long Range Electrostatic
        IF (se_control%do_ewald) THEN
@@ -264,15 +240,6 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Two-electron integral energy:                  ",energy%hartree
-          IF (scp_nddo) THEN
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                 "SCP electrostatic energy:             ",energy_scp%e_scp_hartree
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                 "SCP kernel energy:                    ",energy_scp%e_scp_kernel
-             IF ( ABS(energy_scp%e_scp_disp) > 0._dp ) &
-                 WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                 "SCP dispersion energy:                ",energy_scp%e_scp_disp
-          END IF
           IF (qs_env%qmmm) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                   "QM/MM Electrostatic energy:                    ",energy%qmmm_el

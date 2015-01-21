@@ -72,7 +72,6 @@ MODULE qs_energy_utils
                                              qs_rho_type
   USE qs_scf,                          ONLY: scf
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_dispersion,                  ONLY: scp_nddo_dispersion
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
@@ -299,9 +298,6 @@ CONTAINS
                                     calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.FALSE., error=error)
-       IF ( dft_control%qs_control%se_control%scp ) THEN
-          CALL scp_nddo_dispersion (qs_env,calc_forces,error)
-       END IF
        CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
        CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
        ! GA option

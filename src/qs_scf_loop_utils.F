@@ -13,8 +13,6 @@ MODULE qs_scf_loop_utils
                                              cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: outer_scf_none,&
-                                             outer_scf_scp
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: kpoint_type
@@ -60,10 +58,6 @@ MODULE qs_scf_loop_utils
                                              special_diag_method_nr
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type,&
-                                             set_scp_env
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -83,7 +77,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes properties for a given hamilonian using the current wfn 
-!> \param scp_nddo ...
 !> \param scf_control ...
 !> \param scf_env ...
 !> \param diis_step ...
@@ -93,10 +86,9 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE qs_scf_set_loop_flags(scp_nddo,scf_control,scf_env,diis_step,&
+  SUBROUTINE qs_scf_set_loop_flags(scf_control,scf_env,diis_step,&
                       energy_only,just_energy,exit_inner_loop,error)
 
-    LOGICAL                                  :: scp_nddo
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     LOGICAL                                  :: diis_step, energy_only, &
@@ -106,23 +98,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: even_iter, odd_iter
-
-    IF ( scp_nddo  ) THEN
-! check if we are doing outer SCF optimization of SCP coeffs:
-      SELECT CASE (scf_control%outer_scf%type)
-      CASE ( outer_scf_none ) 
-         scf_env%qs_ot_env(1)%settings%ks = .TRUE.
-      CASE ( outer_scf_scp )      
-! IF outer scf count is even, then only optimize SCP, else optimize KS
-        even_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) == 0
-        odd_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) /= 0
-        scf_env%qs_ot_env(1)%settings%ks      = even_iter                                    
-        scf_env%qs_ot_env(1)%settings%scp_nddo= odd_iter .AND. scp_nddo
-      END SELECT
-    END IF
-
-    ! Some flags needed to be set at the beginning of the loop
+! Some flags needed to be set at the beginning of the loop
 
     diis_step = .FALSE.
     energy_only = .FALSE.
@@ -162,25 +138,22 @@ CONTAINS
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure, has_unit_metric, &
-                                                scp_nddo, skip_diag_sub
+                                                skip_diag_sub
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
-    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(scp_environment_type), POINTER      :: scp_env
 
     failure=.FALSE.
-    NULLIFY(energy, ks_env, scp_env, matrix_ks, matrix_s, rho, mos, dft_control, &
-          ks_scp, pscp)
+    NULLIFY(energy, ks_env, matrix_ks, matrix_s, rho, mos, dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,energy=energy,&
-                    ks_env=ks_env, scp_env=scp_env, &
+                    ks_env=ks_env, &
                     matrix_ks=matrix_ks,rho=rho,mos=mos, &
                     dft_control=dft_control, &
                     has_unit_metric=has_unit_metric,&
@@ -192,7 +165,7 @@ CONTAINS
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"unknown scf method: "//&
             cp_to_string(scf_env%method),error,failure)
-! Diagonlization in non orthonormal case
+    ! Diagonlization in non orthonormal case
     CASE(general_diag_method_nr)
        IF (dft_control%roks) THEN
           CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
@@ -211,7 +184,7 @@ CONTAINS
             END IF
           END IF
        END IF
-! Diagonlization in orthonormal case
+    ! Diagonlization in orthonormal case
     CASE(special_diag_method_nr)
        IF (dft_control%roks) THEN
           CALL do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
@@ -222,11 +195,11 @@ CONTAINS
                                            scf_control,scf_section, &
                                            diis_step,error)
        END IF
-! OT diagonlization
+    ! OT diagonlization
     CASE(ot_diag_method_nr)
        CALL do_ot_diag(scf_env,mos,matrix_ks,matrix_s,&
                             scf_control,scf_section,diis_step,error)
-! Block Krylov diagonlization
+    ! Block Krylov diagonlization
     CASE(block_krylov_diag_method_nr)
        IF((scf_env%krylov_space%eps_std_diag > 0.0_dp) .AND.&
           (scf_env%iter_count==1 .OR. scf_env%iter_delta>scf_env%krylov_space%eps_std_diag)) THEN
@@ -248,28 +221,15 @@ CONTAINS
                     ks_env,scf_section, scf_control,error=error)
           END IF
        END IF
-! Block Davidson diagonlization
+    ! Block Davidson diagonlization
     CASE(block_davidson_diag_method_nr)
-
        CALL do_block_davidson_diag(qs_env,scf_env,mos,matrix_ks,matrix_s,scf_control,&
            scf_section,.FALSE.,error=error)
-! OT without diagonlization. Needs special treatment for SCP runs
+    ! OT without diagonlization. Needs special treatment for SCP runs
     CASE(ot_method_nr)
-       scp_nddo = scf_env%qs_ot_env(1)%settings%scp_nddo
-       ! ***SCP
-       IF ( scp_nddo ) THEN
-          CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
-          CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
-               qs_env%mo_derivs,energy%total, &
-               matrix_s, pscp=pscp, fscp=ks_scp, energy_only=energy_only, &
-               has_unit_metric=has_unit_metric,error=error)
-          CALL set_scp_env ( scp_env = scp_env, pscp = pscp, error = error )
-       ELSE
-          CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
-               qs_env%mo_derivs,energy%total, &
-               matrix_s, energy_only=energy_only,has_unit_metric=has_unit_metric,error=error)
-       ENDIF
-       ! ***SCP
+       CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
+            qs_env%mo_derivs,energy%total, &
+            matrix_s, energy_only=energy_only,has_unit_metric=has_unit_metric,error=error)
     END SELECT
 
     energy%kTS = 0.0_dp
@@ -365,9 +325,6 @@ CONTAINS
 !> \param mo_derivs ...
 !> \param total_energy ...
 !> \param matrix_s ...
-!> \param aux_coeff_set ...
-!> \param pscp ...
-!> \param fscp ...
 !> \param energy_only ...
 !> \param has_unit_metric ...
 !> \param error ...
@@ -377,8 +334,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_scf_loop_do_ot(qs_env,scf_env,smear,mos,rho,mo_derivs,total_energy,&
-                               matrix_s,aux_coeff_set,pscp,fscp,energy_only, &
-                               has_unit_metric,error)
+                               matrix_s,energy_only,has_unit_metric,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -391,9 +347,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: total_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(aux_coeff_set_type), OPTIONAL, &
-      POINTER                                :: aux_coeff_set
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
     LOGICAL, INTENT(INOUT)                   :: energy_only
     LOGICAL, INTENT(IN)                      :: has_unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -423,8 +376,7 @@ CONTAINS
     ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
 
     CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
-                    total_energy, aux_coeff_set,    &
-                    pscp,fscp,energy_only,scf_env%iter_delta, &
+                    total_energy,energy_only,scf_env%iter_delta, &
                     scf_env%qs_ot_env,qs_env%input,error=error)
 
 
@@ -698,7 +650,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_kpoints, failure, scp_nddo
+    LOGICAL                                  :: do_kpoints, failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
@@ -711,12 +663,6 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, energy=energy,ks_env=ks_env,&
                     rho=rho, dft_control=dft_control,para_env=para_env,&
                     do_kpoints=do_kpoints, error=error)
-
-    scp_nddo = dft_control%qs_control%se_control%scp
-
-!   consistent deallocation in cleanup_scf_loop
-    IF ( scp_nddo  .AND. scf_control%outer_scf%type==outer_scf_scp ) &
-    scf_env%qs_ot_env(1)%settings%scp_nddo=.TRUE.
 
     CALL cleanup_scf_loop(scf_env,error)
 

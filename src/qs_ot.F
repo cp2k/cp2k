@@ -47,8 +47,6 @@ MODULE qs_ot
   PUBLIC  :: qs_ot_get_orbitals_ref
   PUBLIC  :: qs_ot_get_derivative_ref
   PUBLIC  :: qs_ot_new_preconditioner
-  PUBLIC  :: qs_ot_get_scp_nddo_derivative
-  PUBLIC  :: qs_ot_get_scp_nddo_coeffs
   PRIVATE :: qs_ot_p2m_diag
   PRIVATE :: qs_ot_sinc
   PRIVATE :: qs_ot_ref_poly
@@ -110,14 +108,6 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
-       ! ***SCP
-       IF ( qs_ot_env % settings % scp_nddo ) THEN
-          ALLOCATE(qs_ot_env % dxmat)
-          CALL cp_dbcsr_init(qs_ot_env % dxmat, error=error)
-          CALL cp_dbcsr_copy(qs_ot_env % dxmat, qs_ot_env % gxmat, "SCP_DXMAT", error=error)
-          CALL cp_dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
-       ENDIF
-       ! ***SCP
     ENDIF
 
   END SUBROUTINE qs_ot_new_preconditioner
@@ -1219,36 +1209,6 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_orbitals
 
-! *****************************************************************************
-!> \brief ...
-!> \param qs_ot_env ...
-!> \param pscp ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_nddo_coeffs ( qs_ot_env, pscp, error )
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_dbcsr_type), POINTER             :: pscp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CALL cp_dbcsr_copy(pscp,qs_ot_env%xmat,error=error)
-
-  END SUBROUTINE qs_ot_get_scp_nddo_coeffs
-! *****************************************************************************
-!> \brief ...
-!> \param qs_ot_env ...
-!> \param pscp ...
-!> \param fscp ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_nddo_derivative ( qs_ot_env, pscp, fscp, error )
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_dbcsr_type), POINTER             :: pscp, fscp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CALL cp_dbcsr_copy(qs_ot_env%xmat,pscp,error=error)
-    CALL cp_dbcsr_copy(qs_ot_env%gxmat,fscp,error=error)
-
-  END SUBROUTINE qs_ot_get_scp_nddo_derivative
 ! *****************************************************************************
   ! this routines computes dE/dx=dx, with dx ortho to sc0
   ! needs dE/dC=hc,C0,X,SX,p

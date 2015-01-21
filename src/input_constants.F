@@ -563,8 +563,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: outer_scf_ddapc_constraint=123, &
                                               outer_scf_s2_constraint=124,&
                                               outer_scf_becke_constraint=125, &
-                                              outer_scf_scp=126, &
-                                              outer_scf_none=127
+                                              outer_scf_none=126
 
   ! outer scf optimizers
   INTEGER, PARAMETER, PUBLIC               :: outer_scf_optimizer_sd=1001, &
@@ -636,9 +635,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: use_orb_basis_set=1,&
                                               use_aux_fit_basis_set=2,&
                                               use_aux_basis_set=3,&
-                                              use_scp_basis_set=4,&
-                                              use_ri_aux_basis_set=5,&
-                                              use_lri_basis_set=6
+                                              use_ri_aux_basis_set=4,&
+                                              use_lri_basis_set=5
   ! ADMM PARAMETER
   ! This parameter defines the method to use for the purification
   INTEGER, PARAMETER, PUBLIC               :: do_admm_purify_none=1,&
@@ -701,9 +699,6 @@ MODULE input_constants
                                               fftw_plan_patient=3, &
                                               fftw_plan_exhaustive=4
 
-  ! SCP-DFT
-  INTEGER, PARAMETER, PUBLIC               :: copy_coeff=1,  &
-                                              copy_fcoeff=2
   !real time propagation
   INTEGER, PARAMETER, PUBLIC               :: do_taylor=1,  &
                                               do_pade=2,&

@@ -40,19 +40,11 @@ tio.inp            3
 # integrals in-core
 H2O-MNDO-si.inp    3
 H2O-MNDO-si-nc.inp 3
-# SCP NDDO
-# dimer.inp                         3     7e-14
-# dimer2.inp          3
-# dimer3.inp                        3     3e-13
-# dimer4.inp                        3     1e-12
 # GKS INTEGRALS
 h2o_gks.inp        3
 h2o_gks_p.inp                     3     4e-14
 # GKS INTEGRALS + EWALD
 h2o_gks_e.inp                     3     9e-14
-# SCP ice
-ice-scp-ewald.inp                 3     2e-13
-ice-scp-ewald_gks.inp             3     1e-13
 # ewald with a molecular topology defined
 ice-ewald-mol.inp 3
 ice-ewald-nomol.inp 3

@@ -9,10 +9,7 @@
 !> \author Joost VandeVondele March 2003
 ! *****************************************************************************
 MODULE mulliken
-  USE atomic_charges,                  ONLY: print_atomic_charges,&
-                                             print_multipoles
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_control_types,                ONLY: mulliken_restraint_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_iterator, &
@@ -23,12 +20,7 @@ MODULE mulliken
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                             qs_kind_type
-  USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
-  USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
-  USE semi_empirical_types,            ONLY: get_se_param,&
-                                             semi_empirical_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -42,14 +34,10 @@ MODULE mulliken
 
 ! *** Public subroutines ***
 
-  PUBLIC :: mulliken_charges, mulliken_restraint, multipoles
+  PUBLIC :: mulliken_charges, mulliken_restraint
 
   INTERFACE mulliken_charges
      MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b, mulliken_charges_c
-  END INTERFACE
-
-  INTERFACE multipoles
-     MODULE PROCEDURE multipoles_a, multipoles_b
   END INTERFACE
 
 CONTAINS
@@ -518,220 +506,5 @@ END SUBROUTINE rf_deriv_check
   END SUBROUTINE mulliken_charges_c
 
 ! *****************************************************************************
-
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-!> \param particle_set ...
-!> \param p_matrix ...
-!> \param pscp ...
-!> \param s_matrix ...
-!> \param charge ...
-!> \param dipole ...
-!> \param quadrupole ...
-!> \param para_env ...
-! *****************************************************************************
-  SUBROUTINE compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
-                                p_matrix,pscp,s_matrix,charge,dipole,quadrupole,para_env)
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
-    TYPE(cp_dbcsr_type), POINTER             :: pscp, s_matrix
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipole
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: quadrupole
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-    INTEGER                                  :: blk, iatom, iblock_col, &
-                                                iblock_row, ikind, indi, &
-                                                indj, ispin, jint, natorb_a, &
-                                                nspin, size_1c_int
-    LOGICAL                                  :: defined, found
-    REAL(kind=dp)                            :: fac
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pscp_block, s_block
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(semi_empirical_mpole_type), POINTER :: mpole
-    TYPE(semi_empirical_type), POINTER       :: se_kind_a
-
-    nspin=SIZE(p_matrix)
-
-    charge=     0.0_dp
-    dipole=     0.0_dp
-    quadrupole= 0.0_dp
-
-    DO ispin=1,nspin
-       CALL cp_dbcsr_iterator_start(iter, s_matrix)
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
-          CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
-               row=iblock_row,col=iblock_col,BLOCK=p_block,found=found)
-          ! we can cycle if a block is not present
-          IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
-          IF (iblock_row.NE.iblock_col) CYCLE
-
-          iatom=iblock_row
-
-          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
-          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
-
-          CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
-               row=iatom,col=iatom,BLOCK=p_block,found=found)
-          CALL cp_dbcsr_get_block_p(matrix=pscp,&
-               row=iatom,col=iatom,BLOCK=pscp_block,found=found)
-
-          charge(iatom)=charge(iatom)+se_kind_a%zeff
-          size_1c_int = SIZE(se_kind_a%w_mpole)
-          DO jint = 1, size_1c_int
-
-             mpole => se_kind_a%w_mpole(jint)%mpole
-             indi  = se_orbital_pointer(mpole%indi)
-             indj  = se_orbital_pointer(mpole%indj)
-             fac   = 1.0_dp
-             IF (indi/=indj) fac = 2.0_dp
-
-             IF(mpole%task(1))THEN
-               charge(iatom) = charge(iatom)       + fac*p_block(indi,indj)*mpole%c
-               charge(iatom) = charge(iatom)       + fac*pscp_block(indi,indj)*mpole%c
-             END IF
-             IF(mpole%task(2))THEN
-               dipole(:,iatom) = dipole(:,iatom)   + fac*p_block(indi,indj)*mpole%d(:)
-               dipole(:,iatom) = dipole(:,iatom)   + fac*pscp_block(indi,indj)*mpole%d(:)
-             END IF
-             IF(mpole%task(3))THEN
-               quadrupole(:,:,iatom) = quadrupole(:,:,iatom) + fac*p_block(indi,indj)*mpole%qc(:,:)/3.0_dp
-               quadrupole(:,:,iatom) = quadrupole(:,:,iatom) + fac*pscp_block(indi,indj)*mpole%qc(:,:)/3.0_dp
-             END IF
-
-             END DO
-
-       ENDDO
-       CALL cp_dbcsr_iterator_stop(iter)
-    ENDDO
-    CALL mp_sum(charge,para_env%group)
-    CALL mp_sum(dipole,para_env%group)
-    CALL mp_sum(quadrupole,para_env%group)
-
-  END SUBROUTINE compute_multipoles
-
-! *****************************************************************************
-
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-!> \param particle_set ...
-!> \param p_matrix ...
-!> \param pscp ...
-!> \param s_matrix ...
-!> \param para_env ...
-!> \param scr ...
-!> \param title ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE multipoles_a(atomic_kind_set,qs_kind_set,particle_set,&
-                          p_matrix,pscp,s_matrix,para_env,scr,title,error)
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
-    TYPE(cp_dbcsr_type), POINTER             :: pscp, s_matrix
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: scr
-    CHARACTER(LEN=*)                         :: title
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'multipoles_a', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, nblock, nspin
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipole
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: quadrupole
-
-    CALL timeset(routineN,handle)
-
-    ! here we get the numbers for charges
-    nspin=SIZE(p_matrix)
-    CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
-
-    ALLOCATE(charge(nblock))
-    ALLOCATE(dipole(3,nblock))
-    ALLOCATE(quadrupole(3,3,nblock))
-
-    CALL compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
-                            p_matrix,pscp,s_matrix,charge,dipole,quadrupole,para_env)
-
-    CALL print_multipoles(particle_set,qs_kind_set,scr,title,charge=charge,&
-                          dipole=dipole,quadrupole=quadrupole)
-
-    DEALLOCATE(charge)
-    DEALLOCATE(dipole)
-    DEALLOCATE(quadrupole)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE multipoles_a
-
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-!> \param particle_set ...
-!> \param p_matrix ...
-!> \param pscp ...
-!> \param s_matrix ...
-!> \param para_env ...
-!> \param mcharge ...
-!> \param mdipole ...
-!> \param mquadrupole ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE multipoles_b(atomic_kind_set,qs_kind_set,particle_set,&
-                          p_matrix,pscp,s_matrix,para_env,&
-                          mcharge,mdipole,mquadrupole,error)
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
-    TYPE(cp_dbcsr_type), POINTER             :: pscp, s_matrix
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mdipole
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: mquadrupole
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'multipoles_b', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-
-    CALL timeset(routineN,handle)
-
-    CALL compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
-                            p_matrix,pscp,s_matrix,mcharge,mdipole,mquadrupole,para_env)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE multipoles_b
 
 END MODULE mulliken

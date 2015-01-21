@@ -110,7 +110,6 @@ MODULE cp_control_types
      LOGICAL               :: analytical_gradients
      LOGICAL               :: force_kdsod_EX
      LOGICAL               :: do_ewald, do_ewald_r3, do_ewald_gks
-     LOGICAL               :: scp
      INTEGER               :: integral_screening, periodic_type
      INTEGER               :: max_multipole
      INTEGER               :: ga_ncells
@@ -1248,7 +1247,6 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(se_control),cp_failure_level,routineP,error,failure)
     ALLOCATE(se_control,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    se_control%scp = .FALSE. ! Flag is needed even in non-semiempirical methods
   END SUBROUTINE se_control_create
 
 ! *****************************************************************************

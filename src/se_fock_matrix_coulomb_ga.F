@@ -155,8 +155,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
-                                                failure, scp_nddo, switch, &
-                                                use_virial
+                                                failure, switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(dp), POINTER                        :: dens_i_info( :, : ), &
                                                 dens_j_info( :, : ), &
@@ -220,7 +219,6 @@ CONTAINS
        CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
        se_control  => dft_control%qs_control%se_control
        anag        =  se_control%analytical_gradients
-       scp_nddo    =  se_control%scp
        use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer)
        atener      = atprop%energy
 
@@ -622,7 +620,7 @@ CONTAINS
       nparticle_local, nspins, se_dims( 3 ), size_1c_int, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
-                                                failure, scp_nddo, use_virial
+                                                failure, use_virial
     LOGICAL, DIMENSION(3)                    :: task
     REAL(dp), POINTER                        :: dens_i_info( :, : ), &
                                                 ks_i( :, :, : )
@@ -699,7 +697,6 @@ CONTAINS
        ! Parameters
        se_section => section_vals_get_subs_vals(qs_env%input,"DFT%QS%SE",error=error)
        se_control => dft_control%qs_control%se_control
-       scp_nddo   =  se_control%scp
        anag       =  se_control%analytical_gradients
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
        atener     = atprop%energy
@@ -1051,8 +1048,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
-                                                failure, scp_nddo, switch, &
-                                                use_virial
+                                                failure, switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(dp), POINTER                        :: dens_i_info( :, : ), &
                                                 dens_j_info( :, : ), &
@@ -1108,7 +1104,6 @@ CONTAINS
        CALL initialize_se_taper(se_taper,lr_corr=.TRUE.,error=error)
        se_control  => dft_control%qs_control%se_control
        anag        =  se_control%analytical_gradients
-       scp_nddo    =  se_control%scp
        use_virial  = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
        atener      = atprop%energy
 
