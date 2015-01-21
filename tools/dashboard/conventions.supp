@@ -82,7 +82,6 @@ dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_make_in
 dbcsr_index_operations.F.ast: Found FORALL statement in procedure "dbcsr_sort_indices"
 dbcsr_index_operations.F.ast: Found FORALL statement in procedure "make_undense_index"
 dbcsr_mm_cannon.F.ast: Found FORALL statement in procedure "cannon_multiply_low"
-dbcsr_mm_cannon.F.ast: Found FORALL statement in procedure "make_images"
 dbcsr_mm_hostdrv.F.ast: Symbol "smm_cnn" in "smm_process_mm_stack_c" not defined
 dbcsr_mm_hostdrv.F.ast: Symbol "smm_dnn" in "smm_process_mm_stack_d" not defined
 dbcsr_mm_hostdrv.F.ast: Symbol "smm_snn" in "smm_process_mm_stack_s" not defined
@@ -100,18 +99,6 @@ eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_b"
 eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_l"
 eip_silicon.F.ast: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F.ast: Found OPEN statement in procedure "eip_lenosky_silicon"
-ep_f77.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f" not defined
-ep_f77.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create" not defined
-ep_f77.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy" not defined
-ep_f77.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env" not defined
-ep_f77.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release" not defined
-ep_f77.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_calc_e_f_low" in "ep_f77_calc_e_f_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_create_low" in "ep_f77_create_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_get_energy_low" in "ep_f77_get_energy_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_get_main_qs_env_low" in "ep_f77_get_main_qs_env_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_release_low" in "ep_f77_release_low" not defined
-ep_f77_low.F.ast: Symbol "ep_f77_retain_low" in "ep_f77_retain_low" not defined
 erf_fn.F.ast: Found GOTO statement in procedure "calerf"
 farming_methods.F.ast: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F.ast: Found OPEN statement in procedure "farming_parse_input"
@@ -204,7 +191,6 @@ qs_integrate_potential_low.F.ast: Symbol "integrate_core_9" in "call_integrate" 
 qs_integrate_potential_low.F.ast: Symbol "integrate_core_default" in "call_integrate" not defined
 qs_localization_methods.F.ast: Found GOTO statement in procedure "jacobi_rot_para"
 qs_outer_scf.F.ast: Found GOTO statement in procedure "outer_loop_optimize"
-scp_diis_utils.F.ast: Found GOTO statement in procedure "store_hist"
 se_ga_tools.F.ast: Found GOTO statement in procedure "grid_factor"
 statistical_methods.F.ast: Found GOTO statement in procedure "alnorm"
 statistical_methods.F.ast: Found GOTO statement in procedure "poly"

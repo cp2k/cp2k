@@ -65,7 +65,7 @@ def main():
     log_files = sys.argv[1:]
     if sys.argv[1].startswith("--suppressions="):
         content = open(sys.argv[1].split("=")[1]).read()
-        lines = [l.strip() for l in content.split("\n")]
+        lines = [l.strip() for l in content.split("\n") if len(l.strip())>0 ]
         suppress = [l for l in lines if not l.startswith("#")]
         log_files = sys.argv[2:]
 
@@ -81,11 +81,15 @@ def main():
     #    issues.append("Found %d unused public symbols"%len(unused_public_symbols))
 
     issues = sorted(set(issues))
-    issues_shown = [i for i in issues if(i not in suppress)]
-    issues_supp  = [i for i in issues if(i     in suppress)]
+    issues_shown = [i for i in issues   if(i not in suppress)]
+    issues_supp  = [i for i in issues   if(i     in suppress)]
+    unused_supp  = [i for i in suppress if(i not in issues)]
 
     for i in issues_supp:
         print i+" (suppressed)"
+
+    for i in unused_supp:
+        print i+" (unused suppression)"
 
     for i in issues_shown:
         print i
