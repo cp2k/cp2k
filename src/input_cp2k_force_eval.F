@@ -17,10 +17,9 @@ MODULE input_cp2k_force_eval
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: &
-       do_eip, do_fist, do_mixed, do_qmmm, do_qs, &
-       do_stress_analytical, do_stress_diagonal_anal, &
-       do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
-       numerical
+       do_eip, do_fist, do_mixed, do_qmmm, do_qs, do_stress_analytical, &
+       do_stress_diagonal_anal, do_stress_diagonal_numer, do_stress_none, &
+       do_stress_numerical, numerical
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section
   USE input_cp2k_eip,                  ONLY: create_eip_section
