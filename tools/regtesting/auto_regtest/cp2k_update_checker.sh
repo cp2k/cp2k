@@ -75,27 +75,27 @@ while true; do
 
   send_email=false
 
-# Deciding whether to test or not
-  runregtest=true
+# Enter wwwtestdir  to update links and generate new plot     
+    cd ${wwwtestdir}
 
 # Check if test is suspended or forced
   forceregtest=false
   if [[ -f SUSPEND_AUTO_REGTEST ]]; then
-    runregtest=false
+    echo "Testing has been manually suspended"
+    sleep ${sleep_time}
+    continue
   elif [[ -f FORCE_AUTO_REGTEST ]]; then
     forceregtest=true    
     rm FORCE_AUTO_REGTEST
   fi
    
-# Enter wwwtestdir  to update links and generate new plot     
-  cd ${wwwtestdir}
-
 # Execute remote commands
   if [[ ${forceregtest} == false ]]
   then
     eval "${test_command} NO"
     exitcode=$?
   else
+    echo "Testing has been forced, even if SVN has not changed"
     eval "${test_command} YES"
     exitcode=$?
     forceregtest=false
