@@ -178,7 +178,6 @@ CONTAINS
                                    poisson_params%dbc_params%planar_Avtx(:,j - l), &
                                    poisson_params%dbc_params%planar_Bvtx(:,j - l), &
                                    poisson_params%dbc_params%planar_Cvtx(:,j - l), &
-                                   poisson_params%dbc_params%planar_Dvtx(:,j - l), &
                                    v_D, smooth, zeta, dbc_id, dbcs(j)%dirichlet_bc, error)
 
          CALL dirichlet_bc_partition(v_D, smooth, zeta, n_prtn, pw_pool, x_glbl, y_glbl, z_glbl, &
@@ -681,8 +680,8 @@ CONTAINS
        dirichlet_bc%n_tiles = 1
     ELSE 
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "According to the given extents, the gate is not axis-aligned. "//&
-                      "Try the input section PLANAR instead.",error)
+                      "According to the given extents, the Dirichlet region is not axis-aligned or a plane. "//&
+                      "Try the input section PLANAR or AA_CUBOIDAL instead.",error)
     END IF
       
     IF ((unit_nr .GT. 0) .AND. debug) THEN 
@@ -705,7 +704,6 @@ CONTAINS
 !> \param A coordinates of the vertex A
 !> \param B coordinates of the vertex B
 !> \param C coordinates of the vertex C
-!> \param D coordinates of the vertex D
 !> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
 !> \param smooth whether or not to smoothen the dirichlet region 
 !> \param zeta the mollifier's width
@@ -717,13 +715,13 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE create_arbitrary_planar_dbc(pw_pool, &
-                       x_glbl, y_glbl, z_glbl, A, B, C, D, v_D, smooth, zeta, &
+                       x_glbl, y_glbl, z_glbl, A, B, C, v_D, smooth, zeta, &
                        dbc_id, dirichlet_bc, error)
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
-    REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C, D
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C
     REAL(dp), INTENT(IN)                     :: v_D
     LOGICAL, INTENT(IN)                      :: smooth
     REAL(dp), INTENT(IN)                     :: zeta
@@ -737,12 +735,11 @@ CONTAINS
 
     INTEGER                                  :: glb1, glb2, glb3, gub1, gub2, &
                                                 gub3, handle, i, unit_nr
-    LOGICAL                                  :: A_is_inside, are_coplanar, &
-                                                B_is_inside, C_is_inside, &
-                                                D_is_inside, is_rectangle
+    LOGICAL :: A_is_inside, are_coplanar, are_orthogonal, B_is_inside, &
+      C_is_inside, D_is_inside, is_rectangle
     REAL(dp)                                 :: dist1, dist2, dist3, dist4, &
                                                 dx, dy, dz
-    REAL(dp), DIMENSION(3)                   :: AB, AC, AD, cm
+    REAL(dp), DIMENSION(3)                   :: AB, AC, AD, BC, cm, D
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -761,6 +758,14 @@ CONTAINS
     dy = y_glbl(glb2+1) - y_glbl(glb2)
     dz = z_glbl(glb3+1) - z_glbl(glb3)
 
+    D = A + (C - B)
+    AB = B - A;     AC = C - A;     AD = D - A;     BC = C - B;
+    are_orthogonal = ABS( DOT_PRODUCT(AB, BC)/(SQRT(SUM(AB**2)) * SQRT(SUM(BC**2))) ) .LE. small_value
+    IF (.NOT. are_orthogonal) THEN
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
+            "The given vertices for defining a planar Dirichlet region do not form orthogonal edges.", error)
+    END IF
+
     A_is_inside = ((A(1) .GT. x_glbl(glb1)) .AND. (A(1) .LT. x_glbl(gub1)+dx)) .AND. &
                   ((A(2) .GT. y_glbl(glb2)) .AND. (A(2) .LT. y_glbl(gub2)+dy)) .AND. &
                   ((A(3) .GT. z_glbl(glb3)) .AND. (A(3) .LT. z_glbl(gub3)+dz)) 
@@ -775,15 +780,14 @@ CONTAINS
                   ((D(3) .GT. z_glbl(glb3)) .AND. (D(3) .LT. z_glbl(gub3)+dz)) 
     IF (.NOT. (A_is_inside .AND. B_is_inside .AND. C_is_inside .AND. D_is_inside)) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-                      "At least One of the given vertices for defining a planar Dirichlet "//&
+                      "At least one of the given vertices for defining a planar Dirichlet "//&
                       "region is outside the simulation box.", error)
     END IF
 
-    AB = B - A;     AC = C - A;     AD = D - A
     are_coplanar = ABS(DOT_PRODUCT(vector_product(AB, AC), AD)) .LE. small_value
     IF (.NOT. are_coplanar) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP, &
-            "The given vertices for for defining a planar Dirichlet region are not coplanar.", error)
+            "The given vertices for defining a planar Dirichlet region are not coplanar.", error)
     END IF
 
     cm(1) = (A(1) + B(1) + C(1) + D(1))/4.0_dp

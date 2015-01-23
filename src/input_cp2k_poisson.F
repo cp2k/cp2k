@@ -749,9 +749,9 @@ END SUBROUTINE create_ewald_section
            enum_desc=s2a("FFT based deriv of epsilon, without correction (high cutoff needed).",&
                          "FFT based deriv of epsilon, with correction using gradient of epsilon (high cutoff needed).",&
                          "FFT based deriv of epsilon, with correction using gradient of rho (high cutoff needed).",&
-                         "central difference 3rd order.",&
-                         "central difference 5rd order (recommended).",&
-                         "central difference 7rd order."),&
+                         "3-point central difference derivative.",&
+                         "5-point central difference derivative (recommended).",&
+                         "7-point central difference derivative."),&
             description="Preferred method for evaluating the gradient of ln(eps).", &
             usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd5, error=error)
        CALL section_add_keyword(section, keyword, error=error)
@@ -908,7 +908,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PLANAR", &
             description="Parameters for creating an arbitrary planar Dirichlet boundary region.",&
-            n_keywords=8, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -936,13 +936,6 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="C", &
             description="Coordinates of the vertex C.", &
             usage="C <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
-            n_var=3, type_of_var=real_t, error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-       CALL keyword_create(keyword, name="D", &
-            description="Coordinates of the vertex D.", &
-            usage="D <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
             n_var=3, type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

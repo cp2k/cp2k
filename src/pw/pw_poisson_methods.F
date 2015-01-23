@@ -397,12 +397,6 @@ CONTAINS
 
        CASE (use_rs_grid)
 
-          IF (PRESENT(vhartree)) THEN
-             CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,error,failure)
-             CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
-                            cp_failure_level,routineP,&
-                            "vhartree has a different grid than the poisson solver",error,failure)
-          END IF
           CALL pw_pool_create_pw(pw_pool,rhor,use_data=REALDATA3D,in_space=REALSPACE,error=error)
           CALL pw_transfer(density,rhor,error=error)
           CALL cp2k_distribution_to_z_slices(rhor,poisson_env%wavelet,rhor%pw_grid,error)

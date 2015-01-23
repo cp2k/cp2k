@@ -228,8 +228,8 @@ CONTAINS
                                                 zeta
     REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, &
       aa_cuboidal_zxtnt, aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt, &
-      planar_Avtx, planar_Bvtx, planar_Cvtx, planar_Dvtx, &
-      xaa_cylindrical_bctr, xaa_cylindrical_xxtnt
+      planar_Avtx, planar_Bvtx, planar_Cvtx, xaa_cylindrical_bctr, &
+      xaa_cylindrical_xxtnt
     TYPE(section_vals_type), POINTER :: aa_cuboidal_section, &
       aa_planar_section, dbc_section, dielectric_section, planar_section, &
       ps_implicit_section, xaa_cylindrical_section
@@ -308,12 +308,11 @@ CONTAINS
           ALLOCATE(params%dbc_params%planar_Avtx(3, n_p_rep), &
                    params%dbc_params%planar_Bvtx(3, n_p_rep), &
                    params%dbc_params%planar_Cvtx(3, n_p_rep), &
-                   params%dbc_params%planar_Dvtx(3, n_p_rep), &
                    params%dbc_params%planar_nprtn(3, n_p_rep), &
                    params%dbc_params%planar_vD(n_p_rep), &
                    params%dbc_params%planar_zeta(n_p_rep), &
                    params%dbc_params%planar_smooth(n_p_rep))
-          NULLIFY(planar_Avtx, planar_Bvtx, planar_Cvtx, planar_Dvtx, planar_nprtn)
+          NULLIFY(planar_Avtx, planar_Bvtx, planar_Cvtx, planar_nprtn)
           DO i = 1, n_p_rep
              CALL section_vals_val_get(planar_section,"v_D"   ,&
                                        i_rep_section=i,r_val=v_D,error=error)
@@ -327,8 +326,6 @@ CONTAINS
                                        i_rep_section=i,r_vals=planar_Bvtx,error=error)
              CALL section_vals_val_get(planar_section,"C"     ,&
                                        i_rep_section=i,r_vals=planar_Cvtx,error=error)
-             CALL section_vals_val_get(planar_section,"D"     ,&
-                                       i_rep_section=i,r_vals=planar_Dvtx,error=error)
              CALL section_vals_val_get(planar_section,"n_prtn",&
                                        i_rep_section=i,i_vals=planar_nprtn,error=error)
              params%dbc_params%planar_vD(i) = v_D
@@ -337,7 +334,6 @@ CONTAINS
              params%dbc_params%planar_Avtx(:,i) = planar_Avtx
              params%dbc_params%planar_Bvtx(:,i) = planar_Bvtx
              params%dbc_params%planar_Cvtx(:,i) = planar_Cvtx
-             params%dbc_params%planar_Dvtx(:,i) = planar_Dvtx
              params%dbc_params%planar_nprtn(:,i) = planar_nprtn
           END DO
        ELSE
