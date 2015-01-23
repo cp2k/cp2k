@@ -123,6 +123,12 @@ else
   cd ../..
 fi
 
+# lsan suppressions for known leaks are created as well, this might need to be adjusted for the versions of the software employed
+cat << EOF > ${INSTALLDIR}/lsan.supp
+# known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
+leak:__cp_fm_types_MOD_cp_fm_write_unformatted
+EOF
+
 # now we need these tools and compiler to be in the path
 cat << EOF > ${INSTALLDIR}/setup
 if [ -z "\${LD_LIBRARY_PATH}" ]
@@ -138,6 +144,7 @@ else
     PATH=${INSTALLDIR}/bin:${INSTALLDIR}/usr/bin:\$PATH; export PATH
 fi 
 CP2KINSTALLDIR=${INSTALLDIR} ; export CP2KINSTALLDIR
+LSAN_OPTIONS=suppressions=$CP2KINSTALLDIR/lsan.supp ; export LSAN_OPTIONS
 EOF
 SETUPFILE=${INSTALLDIR}/setup
 source ${SETUPFILE}
@@ -261,7 +268,7 @@ mkdir -p ${INSTALLDIR}/arch
 WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak"
 BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1"
-OPTFLAGS="-O3 -march=native -ffast-math"
+OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
 
