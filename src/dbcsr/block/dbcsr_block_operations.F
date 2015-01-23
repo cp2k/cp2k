@@ -43,8 +43,8 @@ MODULE dbcsr_block_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_operations'
 
-  PUBLIC :: dbcsr_block_transpose, dbcsr_data_set
-  PUBLIC :: dbcsr_block_copy, dbcsr_block_partial_copy
+  PUBLIC :: dbcsr_block_transpose, dbcsr_block_transpose_aa, dbcsr_data_set
+  PUBLIC :: dbcsr_block_copy, dbcsr_block_copy_aa, dbcsr_block_partial_copy
   PUBLIC :: dbcsr_data_clear
   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
   PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
@@ -204,16 +204,16 @@ CONTAINS
             .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
             .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
             dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
-    ENDIF
-    IF (PRESENT (scale)) THEN
-       IF (dbcsr_type_is_2d (src%d%data_type)) THEN
-          CALL dbcsr_assert (scale%data_type, &
-               'EQ', dbcsr_type_2d_to_1d (src%d%data_type),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Incompatible data types",__LINE__,error)
-       ELSE
-          CALL dbcsr_assert (scale%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN, "Incompatible data types",__LINE__,error)
+       IF (PRESENT (scale)) THEN
+          IF (dbcsr_type_is_2d (src%d%data_type)) THEN
+             CALL dbcsr_assert (scale%data_type, &
+                  'EQ', dbcsr_type_2d_to_1d (src%d%data_type),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Incompatible data types",__LINE__,error)
+          ELSE
+             CALL dbcsr_assert (scale%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
+                  dbcsr_wrong_args_error, routineN, "Incompatible data types",__LINE__,error)
+          ENDIF
        ENDIF
     ENDIF
     data_size = row_size*col_size
@@ -325,6 +325,118 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_block_transpose_aa
 
+! *****************************************************************************
+!> \brief Copy data from one data area to another.
+!>
+!> There are no checks done for correctness!
+!> \param[in] dst        destination data area
+!> \param[in] src        source data area
+!> \param[in] row_size   row size of existing block
+!> \param[in] col_size   column size of existing block
+!> \param[in] lb         (optional) lower bound for destination (and source if
+!>                       not given explicity)
+!> \param[in] source_lb  (optional) lower bound of source
+!> \param[in] scale      (optional) scale data
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_block_copy_aa (dst, src, &
+       row_size, col_size, lb, source_lb, scale, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: src
+    INTEGER, INTENT(IN)                      :: row_size, col_size
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, source_lb
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: scale
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_copy_aa', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: data_size, lb_s, lb_t, ub_s, &
+                                                ub_t
+
+!   ---------------------------------------------------------------------------
+
+    IF (debug_mod) THEN
+       CALL dbcsr_assert (ASSOCIATED(dst%d), 'AND', ASSOCIATED(src%d),&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "Data areas must be setup.",__LINE__,error)
+       CALL dbcsr_assert (dst%d%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "Data type must be the same.",__LINE__,error)
+       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
+            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
+       IF (PRESENT (scale)) THEN
+          IF (dbcsr_type_is_2d (src%d%data_type)) THEN
+             CALL dbcsr_assert (scale%data_type, &
+                  'EQ', dbcsr_type_2d_to_1d (src%d%data_type),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Incompatible data types",__LINE__,error)
+          ELSE
+             CALL dbcsr_assert (scale%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
+                  dbcsr_wrong_args_error, routineN, "Incompatible data types",__LINE__,error)
+          ENDIF
+       ENDIF
+    ENDIF
+    data_size = row_size*col_size
+    lb_t = 1
+    IF (PRESENT (lb)) lb_t = lb
+    ub_t = lb_t + data_size - 1
+    IF (PRESENT (source_lb)) THEN
+       lb_s = source_lb
+       ub_s = source_lb + data_size-1
+    ELSE
+       lb_s = lb_t
+       ub_s = ub_t
+    ENDIF
+    SELECT CASE (src%d%data_type)
+    CASE (dbcsr_type_real_8)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_copy (dst%d%r_dp(lb_t:ub_t),&
+               src%d%r_dp(lb_s:ub_s) * scale%r_dp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%r_dp(lb_t:ub_t),&
+               src%d%r_dp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
+    CASE (dbcsr_type_real_4)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_copy (dst%d%r_sp(lb_t:ub_t),&
+               src%d%r_sp(lb_s:ub_s) * scale%r_sp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%r_sp(lb_t:ub_t),&
+               src%d%r_sp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
+    CASE (dbcsr_type_complex_8)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_copy (dst%d%c_dp(lb_t:ub_t),&
+               src%d%c_dp(lb_s:ub_s) * scale%c_dp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%c_dp(lb_t:ub_t),&
+               src%d%c_dp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
+    CASE (dbcsr_type_complex_4)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_copy (dst%d%c_sp(lb_t:ub_t),&
+               src%d%c_sp(lb_s:ub_s) * scale%c_sp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%c_sp(lb_t:ub_t),&
+               src%d%c_sp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
+    END SELECT
+  END SUBROUTINE dbcsr_block_copy_aa
 
 ! *****************************************************************************
 !> \brief Scale a data area.
@@ -1037,7 +1149,6 @@ CONTAINS
     END SELECT
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_data_copy_aa2
-
 
 ! *****************************************************************************
 !> \brief Clears a data area, possibly transposed.

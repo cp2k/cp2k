@@ -31,10 +31,10 @@ MODULE dbcsr_mm_cannon
                                              array_release
   USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
-                                             dbcsr_block_copy,&
+                                             dbcsr_block_copy_aa,&
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
-                                             dbcsr_block_transpose
+                                             dbcsr_block_transpose_aa
   USE dbcsr_config,                    ONLY: default_resize_factor,&
                                              mm_async,&
                                              mm_driver,&
@@ -110,11 +110,8 @@ MODULE dbcsr_mm_cannon
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype,&
-                                             hybrid_alltoall_c1,&
-                                             hybrid_alltoall_d1,&
-                                             hybrid_alltoall_i1,&
-                                             hybrid_alltoall_s1,&
-                                             hybrid_alltoall_z1
+                                             hybrid_alltoall_any,&
+                                             hybrid_alltoall_i1
   USE dbcsr_operations,                ONLY: dbcsr_conjg,&
                                              dbcsr_copy,&
                                              dbcsr_crop_matrix,&
@@ -1339,7 +1336,8 @@ MODULE dbcsr_mm_cannon
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk,&
             row_size=row_size, col_size=col_size)
-       IF (row_size.EQ.0 .OR. col_size.EQ.0) CYCLE
+       nze = row_size * col_size
+       IF (nze.EQ.0) CYCLE
        DO symmetry_i = 1, nsymmetries
           IF (symmetry_i .EQ. 1) THEN
              stored_row = row ; stored_col = col
@@ -1363,7 +1361,6 @@ MODULE dbcsr_mm_cannon
           ! These counts are meant for the thread that processes this row.
           myt_send_count(1, rowi, coli, dst_p) =&
                myt_send_count(1, rowi, coli, dst_p) + 1
-          nze = row_blk_size(stored_row) * col_blk_size(stored_col)
           myt_send_count(2, rowi, coli, dst_p) =&
                myt_send_count(2, rowi, coli, dst_p) + nze
        END DO  ! symmetry_i
@@ -1384,11 +1381,15 @@ MODULE dbcsr_mm_cannon
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
          mp_group)
     CALL dbcsr_error_stop(error_handler2, dbcsr_error)
+!$omp end master
+!$omp barrier
     ! Fill in the meta data structures and copy the data.
+!$omp do
     DO dst_p = 0, numproc-1
        total_recv_count(1, dst_p) = SUM (recv_count (1, :, :, dst_p))
        total_recv_count(2, dst_p) = SUM (recv_count (2, :, :, dst_p))
     ENDDO
+!$omp master
     ! Allocate data structures needed for data exchange.
     CALL dbcsr_data_init (recv_data_area)
     IF (nrow_images.EQ.1 .AND. ncol_images.eq.1 .OR. nocopy) THEN
@@ -1456,7 +1457,8 @@ MODULE dbcsr_mm_cannon
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk, blk_p=blk_p,&
             row_size=row_size, col_size=col_size)
-       IF (row_size.EQ.0 .OR. col_size.EQ.0) CYCLE
+       nze = row_size * col_size
+       IF (nze.EQ.0) CYCLE
        bp = ABS(blk_p)
        DO symmetry_i = 1, nsymmetries
           IF (symmetry_i .EQ. 1) THEN
@@ -1482,63 +1484,26 @@ MODULE dbcsr_mm_cannon
           dst_p = blacs2mpi(prow, pcol)
           sm_pos = myt_smp(dst_p)
           myt_smp(dst_p) = myt_smp(dst_p) + metalen
-          nze = row_blk_size(stored_row) * col_blk_size(stored_col)
           sd_pos = myt_sdp(dst_p)
           myt_sdp(dst_p) = myt_sdp(dst_p) + nze
-
           IF (tr) THEN
-             SELECT CASE (data_type)
-             CASE (dbcsr_type_real_4)
-                CALL dbcsr_block_transpose(send_data_area%d%r_sp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%r_sp(bp:bp+nze-1), tr_row_size, tr_col_size)
-             CASE (dbcsr_type_real_8)
-                CALL dbcsr_block_transpose(send_data_area%d%r_dp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%r_dp(bp:bp+nze-1), tr_row_size, tr_col_size)
-             CASE (dbcsr_type_complex_4)
-                CALL dbcsr_block_transpose(send_data_area%d%c_sp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%c_sp(bp:bp+nze-1), tr_row_size, tr_col_size)
-             CASE (dbcsr_type_complex_8)
-                CALL dbcsr_block_transpose(send_data_area%d%c_dp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%c_dp(bp:bp+nze-1), tr_row_size, tr_col_size)
-             CASE default
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                     routineN, "Invalid data type.",__LINE__,error)
-             END SELECT
-          ELSE
-             SELECT CASE (data_type)
-             CASE (dbcsr_type_real_4)
-                CALL dbcsr_block_copy(send_data_area%d%r_sp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%r_sp(bp:bp+nze-1), row_size, col_size)
-             CASE (dbcsr_type_real_8)
-                CALL dbcsr_block_copy(send_data_area%d%r_dp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%r_dp(bp:bp+nze-1), row_size, col_size)
-             CASE (dbcsr_type_complex_4)
-                CALL dbcsr_block_copy(send_data_area%d%c_sp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%c_sp(bp:bp+nze-1), row_size, col_size)
-             CASE (dbcsr_type_complex_8)
-                CALL dbcsr_block_copy(send_data_area%d%c_dp(sd_pos:myt_sdp(dst_p)-1),&
-                     sm%data_area%d%c_dp(bp:bp+nze-1), row_size, col_size)
-             CASE default
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                     routineN, "Invalid data type.",__LINE__,error)
-             END SELECT
-          END IF
-          IF (PRESENT (scale_value)) THEN
-             CALL dbcsr_block_scale (send_data_area, scale=scale_value,&
-                  row_size=nze, col_size=1, lb=sd_pos, error=error)
-          ENDIF
-          IF (tr) THEN
+             CALL dbcsr_block_transpose_aa(send_data_area,sm%data_area,tr_row_size,tr_col_size,&
+                                           sd_pos,bp,scale_value,error=dbcsr_error)
              IF (sm%negate_real .AND. sm%negate_imaginary) THEN
                 CALL dbcsr_block_scale (send_data_area, scale=scale_neg_one,&
-                     row_size=nze, col_size=1, lb=sd_pos, error=error)
+                                        row_size=nze, col_size=1, lb=sd_pos, error=error)
              ELSEIF (sm%negate_real) THEN
                 CALL dbcsr_block_real_neg (send_data_area,&
-                     row_size=nze, col_size=1, lb=sd_pos, error=error)
+                                           row_size=nze, col_size=1, lb=sd_pos, error=error)
              ELSEIF (sm%negate_imaginary) THEN
                 CALL dbcsr_block_conjg (send_data_area,&
-                     row_size=nze, col_size=1, lb=sd_pos, error=error)
+                                        row_size=nze, col_size=1, lb=sd_pos, error=error)
              ENDIF
+          ELSE
+             CALL dbcsr_block_copy_aa(send_data_area,sm%data_area,row_size,col_size,&
+                                      sd_pos,bp,scale_value,error=dbcsr_error)
           END IF
+
           send_meta(sm_pos) = stored_row
           send_meta(sm_pos+1) = stored_col
           send_meta(sm_pos+2) = sd_pos-sd_disp(dst_p)+1
@@ -1561,32 +1526,11 @@ MODULE dbcsr_mm_cannon
     ! there are only very few processors that need to exchange data.
     ! The hybrid_alltoall deals with this by doing point to point communication
     CALL dbcsr_error_set(routineN//"_data", error_handler2, dbcsr_error)
-    SELECT CASE (data_type)
-    CASE (dbcsr_type_real_4)
-       CALL hybrid_alltoall_s1(&
-            send_data_area%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
-            mp_env = mp_obj)
-    CASE (dbcsr_type_real_8)
-       CALL hybrid_alltoall_d1 (&
-            send_data_area%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
-            mp_env = mp_obj)
-    CASE (dbcsr_type_complex_4)
-       CALL hybrid_alltoall_c1(&
-            send_data_area%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
-            mp_env = mp_obj)
-    CASE (dbcsr_type_complex_8)
-       CALL hybrid_alltoall_z1(&
-            send_data_area%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data_area%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
-            mp_env = mp_obj)
-    END SELECT
+    CALL hybrid_alltoall_any(send_data_area,total_send_count(2,:),sd_disp(:)-1,&
+                             recv_data_area,total_recv_count(2,:),rd_disp(:)-1,&
+                             mp_obj,&
+                             most_ptp=.TRUE.,remainder_ptp=.TRUE.,no_hybrid=.FALSE.,&
+                             error=dbcsr_error)
     CALL hybrid_alltoall_i1(&
          send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1,&
