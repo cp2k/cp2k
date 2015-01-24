@@ -81,3 +81,5 @@ C11H24-qmmmgapw-gauss-0.inp
 C11H24-qmmmgapw-gauss-0.inp
 # Numerics due to changed BFGS model Hessian 
 C11H24-qmmmgapw-gauss-0.inp
+#  
+H2O-qmmm-hfx.inp

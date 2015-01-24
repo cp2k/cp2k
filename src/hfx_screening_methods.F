@@ -862,7 +862,7 @@ END SUBROUTINE calc_pair_dist_radii
      ! we restart afterwards for the assym.
      ! the assym function appears to have several local minima, depending on the data to fit
      ! the loop over k can make the switch gradual, but there is not much need, seemingly
-     DO k=0,4,5
+     DO k=0,4,4
 
         small_weight=1.0_dp
         large_weight=small_weight*(10.0_dp**k)

@@ -65,3 +65,19 @@ CH3-trunc-auto-md.inp
 # Update of atomic weights 
 H2O-trunc-auto-md.inp
 CH3-trunc-auto-md.inp
+#  
+H2O-trunc-2.inp
+#  
+H2O-trunc-auto.inp
+#  
+H2O-trunc-auto-md.inp
+#  
+CH3-trunc-auto.inp
+#  
+CH3-trunc-1.inp
+#  
+CH3-trunc-auto-md.inp
+#  
+CH3-coul-0.inp
+#  
+h2o-respa.inp

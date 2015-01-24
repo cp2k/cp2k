@@ -397,3 +397,11 @@ H2O-hfx-ls-emd.inp
 H2O-hfx-ls-emd-bch.inp
 H2O-hfx-ls-rtp.inp
 H2O-hfx-ls-rtp-bch.inp
+#  
+CH-hfx-md-2.inp
+#  
+4H2O-disk.inp
+#  
+4H2O-mix-disk-ram.inp
+#  
+4H2O-mix-disk-ram-on-the-fly.inp

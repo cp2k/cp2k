@@ -17,3 +17,7 @@ O2-triplett-ADMMS.inp
 #fix for generalized arnoldi ev
 CH4-ADMMS-stress-tensor-numerical.inp
 H2O-ADMMS.inp
+#  
+CH4-ADMMS-stress-tensor-analytical.inp
+#  
+CH4-ADMMS-stress-tensor-numerical.inp
