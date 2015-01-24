@@ -308,8 +308,6 @@ MODULE cp_control_types
     TYPE (semi_empirical_control_type),POINTER    :: se_control
     TYPE (gapw_control_type), POINTER             :: gapw_control
     TYPE (pw_grid_option)                         :: pw_grid_opt
-    LOGICAL                                       :: check_bcsr_code
-    INTEGER                                       :: bcsr_code
     LOGICAL                                       :: skip_load_balance_distributed
   END TYPE qs_control_type
 

@@ -2652,20 +2652,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CHECK_BCSR_CODE",&
-            description="Check the BCSR code on actual data, once per QS run.",&
-            usage="CHECK_BCSR_CODE TRUE",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BCSR_CODE",&
-            description="Selects BCSR pathway.",&
-            usage="BCSR_CODE 0",&
-            default_i_val=0,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="DEBUG_LRI_INTEGRALS",&
             description="Debug the integrals needed for LRIGPW.",&
             usage="DEBUG_LRI_INTEGRALS TRUE",&

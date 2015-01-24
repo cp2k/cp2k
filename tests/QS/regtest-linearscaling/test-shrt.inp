@@ -12,7 +12,6 @@
       EPS_DEFAULT 1.0E-12
       EPS_GVG 1.0E-6
       EPS_PGF_ORB 1.0E-6
-      CHECK_BCSR_CODE T
     &END QS
     &SCF
       EPS_SCF 1.0E-6

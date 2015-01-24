@@ -705,7 +705,6 @@ CPSourceFileRef,&
     IF(qs_control%gapw_control%alpha0_hard/=0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
     CALL section_vals_val_get(qs_section,"FORCE_PAW",l_val=qs_control%gapw_control%force_paw,error=error)
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
-    CALL section_vals_val_get(qs_section,"BCSR_CODE",i_val=qs_control%bcsr_code,error=error)
 
     CALL section_vals_val_get(qs_section,"LS_SCF",l_val=qs_control%do_ls_scf,error=error)
     CALL section_vals_val_get(qs_section,"ALMO_SCF",l_val=qs_control%do_almo_scf,error=error)
@@ -713,7 +712,6 @@ CPSourceFileRef,&
 
     ! Logicals
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
-    CALL section_vals_val_get(qs_section,"CHECK_BCSR_CODE",l_val=qs_control%check_bcsr_code,error=error)
 
     ! Integers gapw
     CALL section_vals_val_get(qs_section,"LMAXN1",i_val=qs_control%gapw_control%lmax_sphere,error=error)
