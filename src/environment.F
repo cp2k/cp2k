@@ -17,7 +17,7 @@ MODULE environment
   USE cp2k_info,                       ONLY: &
        compile_arch, compile_date, compile_host, compile_revision, cp2k_home, &
        cp2k_version, cp2k_year, get_runtime_info, id_cp2k_version, &
-       r_host_name, r_pid, r_user_name
+       r_host_name, r_pid, r_user_name, cp2k_flags
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_diag,                      ONLY: diag_init
@@ -193,6 +193,8 @@ CONTAINS
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| source code revision number:",&
             ADJUSTR(compile_revision)
+       WRITE (UNIT=my_output_unit,FMT="(T2,A)")&
+            "CP2K| ",TRIM(cp2k_flags())
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| is freely available from ",&
             ADJUSTR(TRIM(cp2k_home))

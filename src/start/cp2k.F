@@ -41,7 +41,8 @@ PROGRAM cp2k
   USE cp2k_info,                       ONLY: compile_revision,&
                                              cp2k_version,&
                                              id_cp2k_version,&
-                                             print_cp2k_license
+                                             print_cp2k_license,&
+                                             cp2k_flags
   USE cp2k_runs,                       ONLY: run_input,&
                                              write_cp2k_html_manual,&
                                              write_xml_file
@@ -64,10 +65,6 @@ PROGRAM cp2k
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
-#if defined(__USE_PAT)
-#include "pat_apif.h"
-  INTEGER                              :: istat
-#endif
 
   CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,&
                                           arg_att, mpi_mapping
@@ -224,10 +221,6 @@ PROGRAM cp2k
     CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
 
 
-#if defined(__USE_PAT)
-  CALL PAT_sampling_state(PAT_STATE_OFF,istat)
-#endif
-
   IF (ierr==0) THEN
      ! some first info concerning how to run CP2K
 
@@ -279,7 +272,8 @@ PROGRAM cp2k
               IF (id_cp2k_version == id_development_version) dev_flag=" (Development Version)"
               WRITE (output_unit,"(T2,A)")&
                cp2k_version//TRIM(dev_flag),&
-               "SVN source code revision "//TRIM(compile_revision)
+               "SVN source code revision "//TRIM(compile_revision),&
+               TRIM(cp2k_flags())
            ENDIF
         ENDIF
 
@@ -335,10 +329,6 @@ PROGRAM cp2k
   ELSE
      WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error"
   END IF
-
-#if defined(__USE_PAT)
-  CALL PAT_sampling_state(PAT_STATE_ON,istat)
-#endif
 
   ! and the final cleanup
   CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)

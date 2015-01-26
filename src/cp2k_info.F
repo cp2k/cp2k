@@ -26,7 +26,7 @@ MODULE cp2k_info
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version
+  PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version, cp2k_flags
   PUBLIC :: compile_arch,compile_date,compile_host,compile_revision
   PUBLIC :: print_cp2k_license, get_runtime_info, write_restart_header
 
@@ -76,6 +76,59 @@ MODULE cp2k_info
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_info'
 CONTAINS
+
+! *****************************************************************************
+!> \brief list all compile time options that influence the capabilities of cp2k.
+!>        All new flags should be added here (and be unique grep-able)
+!> \retval flags ...
+! *****************************************************************************
+  FUNCTION cp2k_flags() RESULT(flags)
+    CHARACTER(len=default_string_length)     :: flags
+
+    flags="cp2kflags:"
+!$  flags=TRIM(flags)//" omp"
+
+#if defined(__LIBINT)
+    flags=TRIM(flags)//" libint"
+#endif
+#if defined(__FFTW3)
+    flags=TRIM(flags)//" fftw3"
+#endif
+#if defined(__LIBXC2)
+    flags=TRIM(flags)//" libxc2"
+#endif
+#if defined(__ELPA)
+    flags=TRIM(flags)//" elpa"
+#endif
+#if defined(__parallel)
+    flags=TRIM(flags)//" parallel"
+#endif
+#if defined(__SCALAPACK)
+    flags=TRIM(flags)//" scalapack"
+#endif
+
+#if defined(__QUIP)
+    flags=TRIM(flags)//" quip"
+#endif
+#if defined(__PLUMED_CP2K)
+    flags=TRIM(flags)//" plumed"
+#endif
+
+#if defined(__ACC)
+    flags=TRIM(flags)//" acc"
+#endif
+#if defined(__PW_CUDA)
+    flags=TRIM(flags)//" pw_cuda"
+#endif
+#if defined __HAS_smm_dnn || __HAS_smm_snn || __HAS_smm_dnn || __HAS_smm_dnn
+    flags=TRIM(flags)//" smm"
+#endif
+
+#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET || __HWLOC || __LIBNUMA
+    flags=TRIM(flags)//" macharch"
+#endif
+
+  END FUNCTION cp2k_flags
 
 ! *****************************************************************************
 !> \brief ...
