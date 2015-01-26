@@ -15,9 +15,9 @@ MODULE environment
   USE bibliography,                    ONLY: Frigo2005,&
                                              cite_reference
   USE cp2k_info,                       ONLY: &
-       compile_arch, compile_date, compile_host, compile_revision, cp2k_home, &
-       cp2k_version, cp2k_year, get_runtime_info, id_cp2k_version, &
-       r_host_name, r_pid, r_user_name, cp2k_flags
+       compile_arch, compile_date, compile_host, compile_revision, &
+       cp2k_flags, cp2k_home, cp2k_version, cp2k_year, get_runtime_info, &
+       id_cp2k_version, r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_diag,                      ONLY: diag_init

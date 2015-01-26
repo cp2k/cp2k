@@ -39,10 +39,10 @@
 PROGRAM cp2k
 
   USE cp2k_info,                       ONLY: compile_revision,&
+                                             cp2k_flags,&
                                              cp2k_version,&
                                              id_cp2k_version,&
-                                             print_cp2k_license,&
-                                             cp2k_flags
+                                             print_cp2k_license
   USE cp2k_runs,                       ONLY: run_input,&
                                              write_cp2k_html_manual,&
                                              write_xml_file
