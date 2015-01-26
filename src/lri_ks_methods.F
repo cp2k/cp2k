@@ -99,6 +99,7 @@ CONTAINS
       nneighbor, row, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure, found, trans
+    REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: h_work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
@@ -126,9 +127,11 @@ CONTAINS
 
       DO WHILE (neighbor_list_iterate(nl_iterator)==0)
          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-              jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
+              jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
+              r=rab)
 
          iac = ikind + nkind*(jkind - 1)
+         dab = SQRT(SUM(rab*rab))
  
          IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
@@ -170,7 +173,7 @@ CONTAINS
                                    lri_v_int(ikind)%v_int(atom_a,i)*lrii%dacoef(1:nba,1:nbb,i)
          ENDDO
          ! Hab(b)
-         IF(iatom /= jatom) THEN
+         IF(dab > lri_env%delta) THEN
           DO i=1,nfb
               h_work(1:nba, 1:nbb) = h_work(1:nba,1:nbb) + &
                                      lri_v_int(jkind)%v_int(atom_b,i)*lrii%dacoef(1:nba,1:nbb,nfa+i) 

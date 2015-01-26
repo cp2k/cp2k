@@ -169,6 +169,8 @@ MODULE lri_environment_types
      INTEGER :: id_nr, ref_count, in_use
      ! flag for debugging lri integrals
      LOGICAL                                                 :: debug
+     ! parameter for checking distance between atom pairs
+     REAL(KIND=dp)                                           :: delta
      ! orbital basis set
      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis
      ! lri (fit) basis set 
@@ -276,6 +278,7 @@ CONTAINS
     lri_env%in_use=0
 
     lri_env%debug = .FALSE.
+    lri_env%delta = 1.E-8_dp
 
     NULLIFY(lri_env%orb_basis)
     NULLIFY(lri_env%ri_basis)
@@ -714,6 +717,7 @@ CONTAINS
                                                 nbb, nfa, nfb, nlist, nn, &
                                                 nneighbor, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, rab(3)
     TYPE(gto_basis_set_type), POINTER        :: fbasa, fbasb, obasa, obasb
     TYPE(lri_int_type), POINTER              :: lrii
     TYPE(neighbor_list_iterator_p_type), &
@@ -739,10 +743,11 @@ CONTAINS
 
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
             nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
-            iatom=iatom,jatom=jatom)
+            iatom=iatom,jatom=jatom,r=rab)
       
        iac = ikind + nkind*(jkind - 1)
-
+       dab = SQRT(SUM(rab*rab))
+ 
        obasa => lri_env%orb_basis(ikind)%gto_basis_set
        obasb => lri_env%orb_basis(jkind)%gto_basis_set
        fbasa => lri_env%ri_basis(ikind)%gto_basis_set
@@ -791,7 +796,7 @@ CONTAINS
        lrii%sab  = 0._dp
        lrii%dsab = 0._dp
 
-       IF(iatom == jatom) THEN
+       IF(iatom == jatom.AND.dab < lri_env%delta) THEN
         ALLOCATE(lrii%sinv(nfa,nfa),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE
@@ -800,7 +805,7 @@ CONTAINS
        ENDIF
        lrii%sinv = 0._dp
 
-       IF(iatom == jatom) THEN
+       IF(iatom == jatom.AND.dab < lri_env%delta) THEN
         ALLOCATE(lrii%n(nfa),lrii%sn(nfa),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE
@@ -815,7 +820,7 @@ CONTAINS
        lrii%soo  = 0._dp
        lrii%dsoo = 0._dp
 
-       IF(iatom == jatom) THEN
+       IF(iatom == jatom.AND.dab < lri_env%delta) THEN
         ALLOCATE(lrii%dacoef(nba,nbb,nfa),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE
@@ -943,6 +948,7 @@ CONTAINS
                                                 jneighbor, nfa, nfb, nlist, &
                                                 nn, nneighbor, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, rab(3)
     TYPE(lri_int_type), POINTER              :: lrii
     TYPE(lri_list_type), POINTER             :: lri_rho
     TYPE(lri_rhoab_type), POINTER            :: lrho
@@ -973,10 +979,12 @@ CONTAINS
 
        CALL neighbor_list_iterator_create(nl_iterator,lri_env%soo_list)
        DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
+          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
+               iatom=iatom,jatom=jatom,nlist=nlist,ilist=ilist,&
+               nnode=nneighbor,inode=jneighbor,r=rab)
   
           iac = ikind + nkind*(jkind - 1)
+          dab = SQRT(SUM(rab*rab))
 
           IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
@@ -1007,7 +1015,7 @@ CONTAINS
           nfb = lrho%nfb
           nn  = nfa + nfb
 
-          IF(iatom == jatom) THEN
+          IF(iatom == jatom.AND.dab < lri_env%delta) THEN
            ALLOCATE(lrho%avec(nfa), STAT=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            ALLOCATE(lrho%tvec(nfa), STAT=stat)

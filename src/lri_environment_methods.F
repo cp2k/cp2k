@@ -123,7 +123,7 @@ CONTAINS
 
     INTEGER :: handle, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
       nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_calcforces
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     TYPE(cell_type), POINTER                 :: cell
@@ -191,33 +191,43 @@ CONTAINS
          rb(:) = pbc(particle_set(jatom)%r, cell) 
 
          ! calculate integrals (a,b,fa) and (a,b,fb)
-         IF(iatom == jatom) THEN
+         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
            CALL lri_int_aba(lrii%abaint,ra=ra,rb=rb,rab=rab,oba=obasa,obb=obasb,&
                             fba=fbasa, calculate_forces=.FALSE.,debug=lri_env%debug,&
                             dmax=lrii%dmax_aba,error=error)
            lrii%dabdaint = 0.0_dp
            lrii%dabbint  = 0.0_dp
          ELSE
+           IF(iatom == jatom) THEN
+             my_calcforces = .FALSE.
+           ELSE
+             my_calcforces = calculate_forces
+           ENDIF
            CALL lri_int_aba(lrii%abaint,lrii%dabdaint,ra,rb,rab,obasa,obasb,fbasa,&
-                            calculate_forces,lri_env%debug,lrii%dmax_aba,&
+                            my_calcforces,lri_env%debug,lrii%dmax_aba,&
                             error=error)
            CALL lri_int_abb(lrii%abbint,lrii%dabbint,ra,rb,rab,obasa,obasb,fbasb,&
-                            calculate_forces,lri_env%debug,lrii%dmax_abb,&
+                            my_calcforces,lri_env%debug,lrii%dmax_abb,&
                             error=error)
          ENDIF
 
          ! calculate integrals (fa,fb); for iatom=jatom this is the self-overlap
-         IF(iatom == jatom) THEN
+         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
            lrii%sab(1:nfa,1:nfa)=lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
            lrii%dsab = 0._dp
          ELSE
-           CALL lri_int_ab(lrii%sab,lrii%dsab,ra,rb,rab,fbasa,fbasb,calculate_forces,&
+           IF(iatom == jatom) THEN
+             my_calcforces = .FALSE.
+           ELSE
+             my_calcforces = calculate_forces
+           ENDIF
+           CALL lri_int_ab(lrii%sab,lrii%dsab,ra,rb,rab,fbasa,fbasb,my_calcforces,&
                            lri_env%debug,lrii%dmax_ab,error)
          ENDIF
 
-         ! construct and invert S matrix 
+         ! construct and invert S matrix
          lrii%sinv(1:nfa,1:nfa) = lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
-         IF(iatom /= jatom) THEN
+         IF(dab > lri_env%delta) THEN
            nn = nfa+nfb
            lrii%sinv(1:nfa,nfa+1:nn) = lrii%sab(1:nfa,1:nfb)
            lrii%sinv(nfa+1:nn,1:nfa) = TRANSPOSE(lrii%sab(1:nfa,1:nfb))
@@ -228,7 +238,7 @@ CONTAINS
 
          ! calculate Sinv*n and n*Sinv*n
          lrii%n(1:nfa) = lri_env%bas_int(ikind)%int_fbas(1:nfa)
-         IF(iatom == jatom) THEN
+         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
            lrii%sn(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),lrii%n(1:nfa))
            lrii%nsn = SUM(lrii%sn(1:nfa)*lrii%n(1:nfa))
          ELSE
@@ -238,17 +248,23 @@ CONTAINS
          ENDIF
 
          ! calculate integrals (a,b), overlap of primary basis
-         IF(iatom == jatom) THEN
+         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
            lrii%soo(1:nba,1:nba) = lri_env%bas_ovlp(ikind)%orb_ovlp(1:nba,1:nba)
            lrii%dsoo = 0._dp
          ELSE
-           CALL lri_int_ab(lrii%soo,lrii%dsoo,ra,rb,rab,obasa,obasb,calculate_forces,&
+           IF(iatom == jatom) THEN
+             my_calcforces = .FALSE.
+           ELSE
+             my_calcforces = calculate_forces
+           ENDIF
+           CALL lri_int_ab(lrii%soo,lrii%dsoo,ra,rb,rab,obasa,obasb,my_calcforces,&
                            lri_env%debug,lrii%dmax_oo,error=error)
          ENDIF
 
          ! calculate derivative of fit coefficients, needed for update of KS matrix
          IF(.NOT.dft_control%qs_control%lri_optbas) THEN
-           CALL lri_calculate_derivative_acoef(lrii,iatom,jatom,nba,nbb,nfa,nfb,error)
+           CALL lri_calculate_derivative_acoef(lri_env,lrii,iatom,jatom,nba,nbb,&
+                                               nfa,nfb,dab,error)
          ENDIF
  
       END DO
@@ -418,6 +434,7 @@ CONTAINS
     INTEGER :: handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
       jneighbor, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin, stat
     LOGICAL                                  :: failure, found, trans
+    REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbij
     TYPE(cp_dbcsr_type), POINTER             :: pmat
@@ -453,9 +470,11 @@ CONTAINS
          CALL neighbor_list_iterator_create(nl_iterator,soo_list)
          DO WHILE (neighbor_list_iterate(nl_iterator)==0)
             CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-                 jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
+                 jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
+                 r=rab)
   
             iac = ikind + nkind*(jkind - 1)
+            dab = SQRT(SUM(rab*rab))
 
             IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
@@ -486,27 +505,27 @@ CONTAINS
                DO i=1,nfa
                   lrho%tvec(i) = SUM(TRANSPOSE(pbij(1:nbb,1:nba))*lrii%abaint(1:nba,1:nbb,i))
                END DO
-               IF(iatom /= jatom) THEN
-                DO i=1,nfb
-                   lrho%tvec(nfa+i) = SUM(TRANSPOSE(pbij(1:nbb,1:nba))*lrii%abbint(1:nba,1:nbb,i))
-                END DO
+               IF(dab > lri_env%delta) THEN
+                 DO i=1,nfb
+                    lrho%tvec(nfa+i) = SUM(TRANSPOSE(pbij(1:nbb,1:nba))*lrii%abbint(1:nba,1:nbb,i))
+                 END DO
                ENDIF
             ELSE
                lrho%charge = SUM(pbij(1:nba,1:nbb)*lrii%soo(1:nba,1:nbb))
                DO i=1,nfa
                   lrho%tvec(i) = SUM(pbij(1:nba,1:nbb)*lrii%abaint(1:nba,1:nbb,i))
                END DO
-               IF(iatom /= jatom) THEN
-                DO i=1,nfb
-                   lrho%tvec(nfa+i) = SUM(pbij(1:nba,1:nbb)*lrii%abbint(1:nba,1:nbb,i))
-                END DO
+               IF(dab > lri_env%delta) THEN
+                 DO i=1,nfb
+                    lrho%tvec(nfa+i) = SUM(pbij(1:nba,1:nbb)*lrii%abbint(1:nba,1:nbb,i))
+                 END DO
                ENDIF
             END IF
 
-            IF(iatom == jatom) THEN
-             lrho%nst = SUM(lrho%tvec(1:nfa) * lrii%sn(1:nfa))
+            IF(iatom == jatom.AND.dab < lri_env%delta) THEN
+              lrho%nst = SUM(lrho%tvec(1:nfa) * lrii%sn(1:nfa))
             ELSE
-             lrho%nst = SUM(lrho%tvec(1:nn) * lrii%sn(1:nn))
+              lrho%nst = SUM(lrho%tvec(1:nn) * lrii%sn(1:nn))
             ENDIF
             lrho%lambda = (lrho%charge - lrho%nst)/lrii%nsn
 
@@ -514,7 +533,7 @@ CONTAINS
             ALLOCATE(m(nn),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             m = 0._dp
-            IF(iatom == jatom) THEN
+            IF(iatom == jatom.AND.dab < lri_env%delta) THEN
               m(1:nfa) = lrho%tvec(1:nfa) + lrho%lambda * lrii%n(1:nfa)
               lrho%avec(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),m(1:nfa))
             ELSE
@@ -570,6 +589,7 @@ CONTAINS
       jatom, jkind, jneighbor, nat, natom, nfa, nfb, nkind, nspin, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: aci, acj, tot_rho_r
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(lri_kind_type), DIMENSION(:), &
@@ -610,7 +630,8 @@ CONTAINS
          CALL neighbor_list_iterator_create(nl_iterator,soo_list)
          DO WHILE (neighbor_list_iterate(nl_iterator)==0)
             CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
-                 iatom=iatom,jatom=jatom,ilist=ilist,inode=jneighbor)
+                 iatom=iatom,jatom=jatom,ilist=ilist,inode=jneighbor,r=rab)
+            dab = SQRT(SUM(rab*rab))
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
             aci => lri_coef(ikind)%acoef(atom_a,:)
@@ -619,11 +640,11 @@ CONTAINS
             lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
             nfa = lrho%nfa
             nfb = lrho%nfb
-            IF(iatom == jatom) THEN
-             aci(1:nfa) = aci(1:nfa) + lrho%avec(1:nfa)
+            IF(iatom == jatom.AND.dab < lri_env%delta) THEN
+              aci(1:nfa) = aci(1:nfa) + lrho%avec(1:nfa)
             ELSE
-             aci(1:nfa) = aci(1:nfa) + 2.0_dp*lrho%avec(1:nfa)
-             acj(1:nfb) = acj(1:nfb) + 2.0_dp*lrho%avec(nfa+1:nfa+nfb)
+              aci(1:nfa) = aci(1:nfa) + 2.0_dp*lrho%avec(1:nfa)
+              acj(1:nfb) = acj(1:nfb) + 2.0_dp*lrho%avec(nfa+1:nfa+nfb)
             ENDIF
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
@@ -1549,6 +1570,7 @@ CONTAINS
 !>        R = (a,b)/nsn  - SUM_i (a,b,ai)*sn(i)/nsn 
 !>        Q = SUM_i sinv*(a,b,ai)
 !>        derviate_aci = R + Q
+!> \param lri_env ...
 !> \param lrii ...
 !> \param iatom ...
 !> \param jatom ...
@@ -1556,13 +1578,17 @@ CONTAINS
 !> \param nbb number of primary basis functions on b
 !> \param nfa number of ri basis functions on a
 !> \param nfb number of ri basis functions on b
+!> \param dab ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE lri_calculate_derivative_acoef(lrii,iatom,jatom,nba,nbb,nfa,nfb,error)
+  SUBROUTINE lri_calculate_derivative_acoef(lri_env,lrii,iatom,jatom,nba,nbb,&
+                                            nfa,nfb,dab,error)
 
+    TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_int_type), POINTER              :: lrii
     INTEGER, INTENT(IN)                      :: iatom, jatom, nba, nbb, nfa, &
                                                 nfb
+    REAL(KIND=dp), INTENT(IN)                :: dab
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -1592,7 +1618,7 @@ CONTAINS
 
     abxint_work(1:nba,1:nbb,1:nfa)=lrii%abaint(1:nba,1:nbb,1:nfa)    !abaint
     abxint_work(1:nba,1:nbb,nfa+1:nn)=lrii%abbint(1:nba,1:nbb,1:nfb) !abbint
-    IF(iatom == jatom) THEN
+    IF(iatom == jatom.AND.dab < lri_env%delta) THEN
       DO i=1,nba
         DO j=1,nbb
           R(i,j,1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),abxint_work(i,j,1:nfa))

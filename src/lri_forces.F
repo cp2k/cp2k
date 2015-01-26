@@ -151,7 +151,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure, found, trans
     REAL(KIND=dp), DIMENSION(3)              :: dcharge, dlambda, nsdssn, &
-                                                nsdsst, nsdt, rab
+                                                nsdsst, nsdt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: st, v_dadra, v_dadrb, v_inta, &
                                                 v_intb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: davec, dssn, dsst, dtvec, &
@@ -198,8 +198,7 @@ CONTAINS
        CALL neighbor_list_iterator_create(nl_iterator,soo_list)
        DO WHILE (neighbor_list_iterate(nl_iterator)==0)
           CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
-               r=rab)
+               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
 
           iac = ikind + nkind*(jkind - 1)
 
