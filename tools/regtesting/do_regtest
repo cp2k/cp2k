@@ -627,9 +627,15 @@ then
 fi
 
 #
+# get the cp2k flags for supported features
+#
+cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} | grep cp2kflags `
+echo "CP2K supports: $cp2kflags"
+
+#
 # get a list of directories to be tested, taking care of the exclusions
 #
-dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#"`
+dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
 newdirs=""
 for dir in ${dirs}
 do
@@ -656,8 +662,20 @@ do
     restrictmatch="yes"
   fi
 
+  # does this dir require features we do not have ?
+  featurematch="yes"
+  features_required=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
+  for fr in $features_required
+  do
+     echo $cp2kflags | grep $fr >& /dev/null 
+     if [[ "$?" == "1" ]]; then
+        featurematch="no"
+        echo "Skipping $dir : missing required feature in cp2kflags : $fr" 
+     fi
+  done
+
   # If not excluded add to list of dirs
-  if [[ "${match}" == "no" && "${restrictmatch}" == "yes" ]]; then
+  if [[ "${match}" == "no" && "${restrictmatch}" == "yes" && "$featurematch" == "yes" ]]; then
      new_dirs="$new_dirs $dir"
   fi
 done
