@@ -291,16 +291,7 @@ MODULE hfx_energy_potential
 
     NULLIFY(dft_control)
 
-#if defined(__USE_PAT)
-    INTEGER :: istat
-#include "pat_apif.h"
-#endif
-
     CALL timeset(routineN,handle)
-
-#if defined(__USE_PAT)
-  CALL PAT_sampling_state(PAT_STATE_ON,istat)
-#endif
 
     CALL cite_reference(Guidon2008)
     CALL cite_reference(Guidon2009)
@@ -2199,10 +2190,6 @@ MODULE hfx_energy_potential
 
 !$OMP BARRIER
 !$OMP END PARALLEL
-
-#if defined(__USE_PAT)
-  CALL PAT_sampling_state(PAT_STATE_OFF,istat)
-#endif
 
     CALL timestop(handle)
   END SUBROUTINE integrate_four_center

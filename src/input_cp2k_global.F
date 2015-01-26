@@ -479,12 +479,7 @@ CONTAINS
                         supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"HPM",&
-         description="if the keyword is active controls the printing of the hpm info (if linked as"//&
-         " external library, on IBM only)",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
     NULLIFY(sub_section)
