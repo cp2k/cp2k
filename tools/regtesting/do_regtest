@@ -44,15 +44,15 @@
 #
 # Adding/resetting/creating tests to the testsuite
 #  these is fully controlled by the following files in the cp2k/tests directories
-#  -TEST_DIRS  : is just a list of directories that contain tests. You can add your directory here.
-#  -TEST_FILES : the list of input files that need to be executed. You can add your file name here.
+#  TEST_DIRS  : is just a list of directories that contain tests. You can add your directory here.
+#  TEST_FILES : the list of input files that need to be executed. You can add your file name here.
 #                adding a comment about what it tests might help later debugging problems if a regtest
 #                fails
-#  -TEST_FILES_RESET : you can add files for which the reference output became invalid (e.g. bug fix)
+#  TEST_FILES_RESET : you can add files for which the reference output became invalid (e.g. bug fix)
 #                      to this list fo files. However be absolutely sure that the change is due to
 #                      a bug fix, do not reset these that fail because of unclear reasons. Try to add
 #                      a comment to the svn message and/or the file itself
-#  -TEST_TYPES : this file allows you to create a new test type. I.e. to specify for which words should
+#  TEST_TYPES : this file allows you to create a new test type. I.e. to specify for which words should
 #                be grepped and what field should be used in the numerical comparison.
 #
 # Command line switches to the do_regtest script (also configurable from within the script)
