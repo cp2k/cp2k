@@ -28,8 +28,8 @@ download from http://ftp.gnu.org/pub/gnu/make/
 also python (2.X) is required for building.
 
 ==== 2b. Fortran and C Compiler ====
-A Fortran 95 compiler and matching C compiler should be installed on your system.
-We have good experience with gcc/gfortran 4.6.X and above.  Be aware that some
+A Fortran 2003 compiler and matching C compiler should be installed on your system.
+We have good experience with gcc/gfortran 4.9.2, but gcc >=4.6 works.  Be aware that some
 compilers have bugs that might cause them to fail (internal compiler errors,
 segfaults) or, worse, yield a mis-compiled CP2K. Report bugs to compiler
 vendors; they (and we) have an interest in fixing them.
@@ -101,7 +101,7 @@ cp2k/tools/hfx_tools/libint_tools/README_LIBINT
 Tested against libinit-1.1.4 and currently hardcoded to the default
 angular momentum LIBINT_MAX_AM 5
 (check your include/libint/libint.h to see if it matches)
-http://www.chem.vt.edu/chem-dept/valeev/software/libint/libint.html
+http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download
 Note that you should **NOT** use libinit-1.1.3.
 
 ==== 2g. libsmm (optional) ====
