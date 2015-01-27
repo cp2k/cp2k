@@ -81,3 +81,11 @@ CH3-trunc-auto-md.inp
 CH3-coul-0.inp
 #  
 h2o-respa.inp
+#  
+H2O-trunc-2.inp
+#  
+H2O-trunc-auto-md.inp
+#  
+CH3-trunc-auto-md.inp
+#  
+h2o-respa.inp
