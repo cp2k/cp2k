@@ -400,7 +400,7 @@ MODULE dbcsr_mm_cannon
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
     CHARACTER                                :: transa_l, transb_l
-    INTEGER :: comm, error_handler, error_handler2, f_col, f_k, f_row, i, &
+    INTEGER :: comm, error_handler, error_handler2, f_col, f_k, f_row, &
       ithread, l_col, l_k, l_row, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, new_left, &
@@ -416,8 +416,8 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_imagedistribution_obj)        :: dense_rdist_left, &
                                                 dense_rdist_right, &
                                                 rdist_left, rdist_right
-    TYPE(dbcsr_obj) :: dense_template_left, dense_template_right, &
-      matrix_left, matrix_right, matrix_tmp, product_matrix
+    TYPE(dbcsr_obj)                          :: matrix_left, matrix_right, &
+                                                product_matrix
     TYPE(dbcsr_scalar_type)                  :: eps_any
 
     CALL dbcsr_error_set(routineN, error_handler, error)
@@ -754,16 +754,6 @@ MODULE dbcsr_mm_cannon
             dbcsr_distribution_nrows (dense_rdist_right%i%main),&
             dense_k_sizes,&
             error=error)
-       CALL dbcsr_init (dense_template_left)
-       CALL dbcsr_create (dense_template_left, template=matrix_left,&
-            dist=dense_rdist_left%i%main,&
-            row_blk_size=dense_row_sizes, col_blk_size=dense_k_sizes,&
-            error=error)
-       CALL dbcsr_init (dense_template_right)
-       CALL dbcsr_create (dense_template_right, template=matrix_right,&
-            dist=dense_rdist_right%i%main,&
-            row_blk_size=dense_k_sizes, col_blk_size=dense_col_sizes,&
-            error=error)
     ENDIF
     !
     CALL dbcsr_assert (use_dense_mult, "IMP", ab_dense,&
@@ -794,11 +784,11 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_distribution_release (dense_product_distribution)
     ENDIF
     !
-    IF (.TRUE. .OR. use_local_indexing) THEN
-       ! This is needed to build the hash tables because they are
-       ! locally indexed.
-       CALL dbcsr_reset_locals (product_matrix, error=error)
-    ENDIF
+
+    ! This is needed to build the hash tables because they are
+    ! locally indexed.
+    CALL dbcsr_reset_locals (product_matrix, error=error)
+
     IF (debug_mod) THEN
        WRITE(*,*)routineN//" Matrices ", dbcsr_get_matrix_type(matrix_a),&
             dbcsr_get_matrix_type(matrix_b), dbcsr_get_matrix_type(matrix_c)
@@ -835,139 +825,25 @@ MODULE dbcsr_mm_cannon
     product_matrix%m%nblks = 0
     product_matrix%m%valid = .FALSE.
 
-    NULLIFY (m2s_right)
-    NULLIFY (m2s_left)
     !
     ! Right images
-    ALLOCATE (m2s_right)
-    IF (.NOT. dbcsr_scalar_are_equal (alpha, dbcsr_scalar_one(alpha%data_type))) THEN
-       ! Copy and scale matrix B if alpha is not 1.
-       CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
-            predistribute="R", &
-            data_memory_type = memtype_abpanel_1,&
-            index_memory_type = dbcsr_memtype_default,&
-            no_copy_data=use_dense_mult, scale_value=alpha, error=error)
-    ELSE
-       CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
-            predistribute="R", &
-            data_memory_type = memtype_abpanel_1,&
-            index_memory_type = dbcsr_memtype_default,&
-            no_copy_data=use_dense_mult, error=error)
-    ENDIF
-    ! Post-processing of images.
-    DO i = 1, SIZE (m2s_right%mats,1)
-       CALL dbcsr_reset_vlocals (m2s_right%mats(i,1), rdist_right, error=error)
-       ! Crop if necessary
-       IF (ANY ((/ f_k, l_k, f_col, l_col /) .NE. 0)) THEN
-          CALL dbcsr_init (matrix_tmp)
-          CALL dbcsr_crop_matrix (matrix_tmp, m2s_right%mats(i,1),&
-               full_row_bounds=((/ f_k, l_k /)),&
-               full_column_bounds=((/ f_col, l_col /)),&
-               shallow_data = .FALSE., error=error)
-          CALL dbcsr_release (m2s_right%mats(i,1))
-          CALL dbcsr_copy (m2s_right%mats(i,1), matrix_tmp, shallow_data=.TRUE.,&
-               error=error)
-          CALL dbcsr_release (matrix_tmp)
-          CALL dbcsr_reset_vlocals (m2s_right%mats(i,1), rdist_right, error=error)
-       ENDIF
-    ENDDO
-    IF (ab_dense) THEN
-       CALL dbcsr_make_images_dense (m2s_right, dense_rdist_right, &
-            row_map = k_vmap, col_map = n_map,&
-            join_cols = use_dense_mult, join_rows=ab_dense, &
-            new_template=dense_template_right, error=error)
-       CALL dbcsr_image_dist_release (rdist_right, error=error)
-       rdist_right = dense_rdist_right
-       CALL dbcsr_image_dist_hold (rdist_right, error=error)
-       DO i = 1, SIZE (m2s_right%mats,1)
-          CALL dbcsr_reset_vlocals (m2s_right%mats(i,1), rdist_right, error=error)
-       ENDDO
-    ENDIF
-    IF (use_local_indexing) THEN
-       ! Convert to local-row index
-       DO i = 1, SIZE (m2s_right%mats,1)
-          CALL dbcsr_make_index_local_row(m2s_right%mats(i,1), error=error)
-       ENDDO
-    ENDIF
-    IF (use_list_indexing) THEN
-       ! Convert to list index
-       DO i = 1, SIZE (m2s_right%mats,1)
-          CALL dbcsr_make_index_list(m2s_right%mats(i,1), thread_redist=.FALSE.,&
-               error=error)
-       ENDDO
-    ENDIF
-    IF (use_local_indexing .AND. .NOT. use_list_indexing) THEN
-       DO i = 1, SIZE (m2s_right%mats,1)
-          CALL dbcsr_index_compact(m2s_right%mats(i,1), error=error)
-       ENDDO
-    ENDIF
-    IF (ab_dense) THEN
-       CALL dbcsr_image_dist_release (dense_rdist_right, error=error)
-    ENDIF
-
+    CALL make_m2s(matrix_right,m2s_right,rdist_right,dense_rdist_right,&
+                  use_dense_mult,ab_dense,use_local_indexing,use_list_indexing,&
+                  "R",f_k,l_k,f_row,l_row,f_col,l_col,&
+                  dense_k_sizes,dense_col_sizes,&
+                  k_vmap,m_map,n_map,&
+                  alpha,error)
+    !
     ! Left images
-    ALLOCATE (m2s_left)
-    CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
-         predistribute="L", &
-         data_memory_type = memtype_abpanel_1,&
-         index_memory_type = dbcsr_memtype_default,&
-         no_copy_data=use_dense_mult, error=error)
-    ! Post-processing of images.
-    DO i = 1, SIZE (m2s_left%mats,2)
-       CALL dbcsr_reset_vlocals (m2s_left%mats(1,i), rdist_left, error=error)
-       ! Crop if necessary
-       IF (ANY ((/ f_row, l_row, f_k, l_k /) .NE. 0)) THEN
-          CALL dbcsr_init (matrix_tmp)
-          CALL dbcsr_crop_matrix (matrix_tmp, m2s_left%mats(1,i),&
-               full_row_bounds=((/ f_row, l_row /)),&
-               full_column_bounds=((/ f_k, l_k /)),&
-               shallow_data = .FALSE., error=error)
-          CALL dbcsr_release (m2s_left%mats(1,i))
-          CALL dbcsr_copy (m2s_left%mats(1,i), matrix_tmp, shallow_data=.TRUE.,&
-               error=error)
-          CALL dbcsr_release (matrix_tmp)
-          CALL dbcsr_reset_vlocals (m2s_left%mats(1,i), rdist_left, error=error)
-       ENDIF
-    ENDDO
-    IF (ab_dense) THEN
-       CALL dbcsr_make_images_dense (m2s_left, dense_rdist_left,&
-            row_map = m_map, col_map = k_vmap,&
-            join_rows = use_dense_mult, join_cols=ab_dense,&
-            new_template=dense_template_left, error=error)
-       CALL dbcsr_image_dist_release (rdist_left, error=error)
-       rdist_left = dense_rdist_left
-       CALL dbcsr_image_dist_hold (rdist_left, error=error)
-       DO i = 1, SIZE (m2s_left%mats,2)
-          CALL dbcsr_reset_vlocals (m2s_left%mats(1,i), rdist_left, error=error)
-       ENDDO
-    ENDIF
-
-    IF (use_local_indexing) THEN
-       ! Convert to local-row index
-       DO i = 1, SIZE (m2s_left%mats,2)
-          CALL dbcsr_make_index_local_row (m2s_left%mats(1,i), error=error)
-       ENDDO
-    END IF
-    IF (use_list_indexing) THEN
-       ! Convert to list index
-       DO i = 1, SIZE (m2s_left%mats,2)
-          CALL dbcsr_make_index_list (m2s_left%mats(1,i), thread_redist=.TRUE.,&
-               error=error)
-       ENDDO
-    END IF
-    IF (use_local_indexing .AND. .NOT. use_list_indexing) THEN
-       DO i = 1, SIZE (m2s_left%mats,2)
-          CALL dbcsr_index_compact (m2s_left%mats(1,i), error=error)
-       ENDDO
-    ENDIF
-    IF (ab_dense) THEN
-       CALL dbcsr_image_dist_release (dense_rdist_left, error=error)
-    ENDIF
+    CALL make_m2s(matrix_left,m2s_left,rdist_left,dense_rdist_left,&
+                  use_dense_mult,ab_dense,use_local_indexing,use_list_indexing,&
+                  "L",f_k,l_k,f_row,l_row,f_col,l_col,&
+                  dense_row_sizes,dense_k_sizes,&
+                  k_vmap,m_map,n_map,&
+                  error=error)
     !
     IF (ab_dense) THEN
        CALL array_release (k_vmap)
-       CALL dbcsr_release (dense_template_left)
-       CALL dbcsr_release (dense_template_right)
        CALL array_release (dense_row_sizes)
        CALL array_release (dense_col_sizes)
        CALL array_release (dense_k_sizes)
@@ -983,7 +859,9 @@ MODULE dbcsr_mm_cannon
          retain_sparsity=retain_sparsity,&
          filter_eps=filter_eps, error=error,&
          flop=my_flop)
+
     CALL dbcsr_finalize(product_matrix, error=error)
+
     IF (PRESENT (flop)) THEN
        ! return the average number of flops per MPI rank. Variance (which is fairly large) could be computed as well.
        CALL dbcsr_error_set(routineN//"_mpsum_flop",error_handler2, error)
@@ -1071,6 +949,168 @@ MODULE dbcsr_mm_cannon
     output_unit = default_output_unit
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mm_cannon_multiply
+
+
+
+! *****************************************************************************
+!> \brief Make images from the matrix (left or right)
+!> \param[in] matrix ...
+!> \param[out] m2s ...
+!> \param[in,out] rdist ...
+!> \param[in,out] dense_rdist ...
+!> \param[in] use_dense_mult ...
+!> \param[in] ab_dense ...
+!> \param[in] use_local_indexing ...
+!> \param[in] use_list_indexing ...
+!> \param[in] predistribute ...
+!> \param[in] f_k ...
+!> \param[in] l_k ...
+!> \param[in] f_row ...
+!> \param[in] l_row ...
+!> \param[in] f_col ...
+!> \param[in] l_col ...
+!> \param[in,out] row_blk_size ...
+!> \param[in,out] col_blk_size ...
+!> \param[in] k_vmap ...
+!> \param[in] m_map ...
+!> \param[in] n_map ...
+!> \param[in] alpha ...
+!> \param[in,out] error ...
+! *****************************************************************************
+  SUBROUTINE make_m2s(matrix,m2s,rdist,dense_rdist,&
+                      use_dense_mult,ab_dense,&
+                      use_local_indexing,use_list_indexing,&
+                      predistribute,f_k,l_k,f_row,l_row,f_col,l_col,&
+                      row_blk_size,col_blk_size,&
+                      k_vmap,m_map,n_map,&
+                      alpha,error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(dbcsr_2d_array_type), INTENT(OUT), &
+      POINTER                                :: m2s
+    TYPE(dbcsr_imagedistribution_obj), &
+      INTENT(INOUT)                          :: rdist, dense_rdist
+    LOGICAL, INTENT(IN)                      :: use_dense_mult, ab_dense, &
+                                                use_local_indexing, &
+                                                use_list_indexing
+    CHARACTER, INTENT(IN)                    :: predistribute
+    INTEGER, INTENT(IN)                      :: f_k, l_k, f_row, l_row, &
+                                                f_col, l_col
+    TYPE(array_i1d_obj), INTENT(INOUT)       :: row_blk_size, col_blk_size
+    TYPE(array_i1d_obj), INTENT(IN)          :: k_vmap, m_map, n_map
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: alpha
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    INTEGER                                  :: i, im, j, jm
+    INTEGER, DIMENSION(4)                    :: f_crop
+    LOGICAL                                  :: do_scale, thread_redist
+    TYPE(array_i1d_obj)                      :: col_map, row_map
+    TYPE(dbcsr_obj)                          :: dense_template, matrix_tmp
+
+    ALLOCATE (m2s)
+    do_scale = .FALSE.
+    IF (PRESENT(alpha)) THEN
+       IF (.NOT. dbcsr_scalar_are_equal (alpha, dbcsr_scalar_one(alpha%data_type))) THEN
+          do_scale = .TRUE.
+       END IF
+    END IF
+
+    IF (do_scale) THEN
+       ! Copy and scale matrix if alpha is not 1.
+       CALL dbcsr_make_images (matrix, m2s, rdist,&
+            predistribute=predistribute, &
+            data_memory_type = memtype_abpanel_1,&
+            index_memory_type = dbcsr_memtype_default,&
+            no_copy_data=use_dense_mult, scale_value=alpha, error=error)
+    ELSE
+       CALL dbcsr_make_images (matrix, m2s, rdist,&
+            predistribute=predistribute, &
+            data_memory_type = memtype_abpanel_1,&
+            index_memory_type = dbcsr_memtype_default,&
+            no_copy_data=use_dense_mult, error=error)
+    END IF
+    
+    SELECT CASE (predistribute)
+    CASE('L')
+       im = 1
+       jm = SIZE (m2s%mats,2)
+       f_crop = (/ f_row, l_row, f_k, l_k /)
+       row_map = m_map
+       col_map = k_vmap
+       thread_redist = .TRUE.
+    CASE default
+       im = SIZE (m2s%mats,1)
+       jm = 1
+       f_crop = (/ f_k, l_k, f_col, l_col /)
+       row_map = k_vmap
+       col_map = n_map
+       thread_redist = .FALSE.
+    END SELECT
+
+    ! Post-processing of images.
+    DO i = 1, im
+       DO j = 1, jm
+          CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist, error=error)
+          ! Crop if necessary
+          IF (ANY(f_crop .NE. 0)) THEN
+             CALL dbcsr_init (matrix_tmp)
+             CALL dbcsr_crop_matrix (matrix_tmp, m2s%mats(i,j),&
+                  full_row_bounds=f_crop(1:2),&
+                  full_column_bounds=f_crop(3:4),&
+                  shallow_data = .FALSE., error=error)
+             CALL dbcsr_release (m2s%mats(i,j))
+             CALL dbcsr_copy (m2s%mats(i,j), matrix_tmp, shallow_data=.TRUE.,&
+                  error=error)
+             CALL dbcsr_release (matrix_tmp)
+             CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist, error=error)
+          ENDIF
+       ENDDO
+    ENDDO
+
+    IF (ab_dense) THEN
+       CALL dbcsr_init (dense_template)
+       CALL dbcsr_create (dense_template, template=matrix,&
+            dist=dense_rdist%i%main,&
+            row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
+            error=error)
+       CALL dbcsr_make_images_dense (m2s, dense_rdist, &
+            row_map = row_map, col_map = col_map,&
+            join_cols = use_dense_mult, join_rows=ab_dense, &
+            new_template=dense_template, error=error)
+       CALL dbcsr_image_dist_release (rdist, error=error)
+       rdist = dense_rdist
+       CALL dbcsr_image_dist_hold (rdist, error=error)
+       DO i = 1, im
+          DO j = 1, jm
+             CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist, error=error)
+          ENDDO
+       ENDDO
+    ENDIF
+
+    DO i = 1, im
+       DO j = 1, jm
+          ! Convert to local-row index
+          IF (use_local_indexing) THEN
+             CALL dbcsr_make_index_local_row(m2s%mats(i,j), error=error)
+          ENDIF
+          ! Convert to list index
+          IF (use_list_indexing) THEN
+             CALL dbcsr_make_index_list(m2s%mats(i,j), thread_redist=thread_redist,&
+                  error=error)
+          ENDIF
+          IF (use_local_indexing .AND. .NOT. use_list_indexing) THEN
+             CALL dbcsr_index_compact(m2s%mats(i,j), error=error)
+          ENDIF
+       ENDDO
+    ENDDO
+
+    IF (ab_dense) THEN
+       CALL dbcsr_image_dist_release (dense_rdist, error=error)
+       CALL dbcsr_release (dense_template)
+    ENDIF
+
+  END SUBROUTINE make_m2s
+
 
 ! *****************************************************************************
 !> \brief Creates row and column images of a matrix.
