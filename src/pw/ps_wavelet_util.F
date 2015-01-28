@@ -310,20 +310,18 @@ CONTAINS
     md1=n1
     md2=n2
     md3=n3
-151 IF (nproc*(md2/nproc).lt.n2) THEN
+    DO WHILE (nproc*(md2/nproc).lt.n2)
        md2=md2+1
-       GOTO 151
-    ENDIF
+    ENDDO
 
     !dimensions of the kernel, 1/8 of the total volume,
     !compatible with nproc
     nd1=n1/2+1
     nd2=n2/2+1
     nd3=n3/2+1
-250 IF (MODULO(nd3,nproc) .NE. 0) THEN
+    DO WHILE (MODULO(nd3,nproc) .NE. 0)
        nd3=nd3+1
-       GOTO 250
-    ENDIF
+    ENDDO
 
   END SUBROUTINE P_FFT_dimensions
 
@@ -413,10 +411,9 @@ CONTAINS
     md1=n1
     md2=n2
     md3=n3/2
-151 IF (nproc*(md2/nproc).lt.n2) THEN
+    DO WHILE (nproc*(md2/nproc).lt.n2)
        md2=md2+1
-       GOTO 151
-    ENDIF
+    ENDDO
 
     !dimensions of the kernel, 1/8 of the total volume,
     !compatible with nproc
@@ -426,10 +423,9 @@ CONTAINS
     nd2=n2/2+1
 
     nd3=n3/2+1
-250 IF (MODULO(nd3,nproc) .NE. 0) THEN
+    DO WHILE (MODULO(nd3,nproc) .NE. 0)
        nd3=nd3+1
-       GOTO 250
-    ENDIF
+    ENDDO
     CALL timestop(handle)
 
   END SUBROUTINE S_FFT_dimensions
@@ -517,10 +513,9 @@ CONTAINS
     md1=n1/2
     md2=n2/2
     md3=n3/2
-151 IF (nproc*(md2/nproc).LT.n2/2) THEN
+    DO WHILE (nproc*(md2/nproc).LT.n2/2)
        md2=md2+1
-       GOTO 151
-    ENDIF
+    ENDDO
 
     !dimensions of the kernel, 1/8 of the total volume,
     !compatible with nproc
@@ -528,10 +523,9 @@ CONTAINS
     nd2=n2/2+1
     nd3=n3/2+1
 
-250 IF (MODULO(nd3,nproc) .NE. 0) THEN
+    DO WHILE (MODULO(nd3,nproc) .NE. 0)
        nd3=nd3+1
-       GOTO 250
-    ENDIF
+    ENDDO
 
   END SUBROUTINE F_FFT_dimensions
 

@@ -591,19 +591,20 @@ IF (ABS(x) < 0.15e0_dp) THEN
   RETURN
 END IF
 
-IF (x < 0.0e0_dp) GO TO 20
-e = EXP(x)
-fn_val = e*(0.5e0_dp + (0.5e0_dp - 1.0e0_dp/e))
+IF (x < 0.0e0_dp) THEN
+   IF (x > -37.0e0_dp) THEN
+     fn_val = (EXP(x) - 0.5e0_dp) - 0.5e0_dp
+   ELSE
+     fn_val = -1.0e0_dp
+   ENDIF
+ELSE
+   e = EXP(x)
+   fn_val = e*(0.5e0_dp + (0.5e0_dp - 1.0e0_dp/e))
+ENDIF
+
 RETURN
 
-20 IF (x > -37.0e0_dp) THEN
-  fn_val = (EXP(x) - 0.5e0_dp) - 0.5e0_dp
-  RETURN
-END IF
 
-fn_val = -1.0e0_dp
-
-RETURN
 END FUNCTION rexp
 
 ! *****************************************************************************
@@ -641,12 +642,17 @@ SUBROUTINE bgrat (a, b, x, y, w, eps, ierr)
 
 bm1 = (b - half) - half
 nu = a + half*bm1
-IF (y > 0.375e0_dp) GO TO 10
-lnx = alnrel(-y)
-GO TO 11
-10 lnx = LOG(x)
-11 z = -nu*lnx
-IF (b*z == zero) GO TO 100
+IF (y > 0.375e0_dp) THEN
+  lnx = LOG(x)
+ELSE
+  lnx = alnrel(-y)
+ENDIF
+z = -nu*lnx
+IF (b*z == zero) THEN
+   !               THE EXPANSION CANNOT BE COMPUTED
+   ierr = 1
+   RETURN
+ENDIF
 
 !                 COMPUTATION OF THE EXPANSION
 !                 SET R = EXP(-Z)*Z**B/GAMMA(B)
@@ -655,7 +661,11 @@ r = b*(one + gam1(b))*EXP(b*LOG(z))
 r = r*EXP(a*lnx)*EXP(half*bm1*lnx)
 u = algdiv(b,a) + b*LOG(nu)
 u = r*EXP(-u)
-IF (u == zero) GO TO 100
+IF (u == zero) THEN
+   !               THE EXPANSION CANNOT BE COMPUTED
+   ierr = 1
+   RETURN
+ENDIF
 CALL grat1 (b, z, r, q=q, eps=eps)
 
 tol = 15.0e0_dp*eps
@@ -675,29 +685,30 @@ DO n = 1,30
   cn = cn/(n2*(n2 + one))
   c(n) = cn
   s = zero
-  IF (n == 1) GO TO 21
-  coef = b - n
-  DO i = 1, n-1
-    s = s + coef*c(i)*d(n-i)
-    coef = coef + b
-  END DO
-  21 d(n) = bm1*cn + s/n
+  IF (.NOT.(n == 1)) THEN
+    coef = b - n
+    DO i = 1, n-1
+      s = s + coef*c(i)*d(n-i)
+      coef = coef + b
+    END DO
+  ENDIF
+  d(n) = bm1*cn + s/n
   dj = d(n)*j
   sum = sum + dj
-  IF (sum <= zero) GO TO 100
-  IF (ABS(dj) <= tol*(sum + l)) GO TO 30
+  IF (sum <= zero) THEN
+   !               THE EXPANSION CANNOT BE COMPUTED
+   ierr = 1
+   RETURN
+  ENDIF
+  IF (ABS(dj) <= tol*(sum + l)) EXIT
 END DO
 
 !                    ADD THE RESULTS TO W
 
-30 ierr = 0
+ierr = 0
 w = w + u*sum
 RETURN
 
-!               THE EXPANSION CANNOT BE COMPUTED
-
-100 ierr = 1
-RETURN
 END SUBROUTINE bgrat
 
 ! *****************************************************************************
@@ -2218,16 +2229,16 @@ FUNCTION basym (a, b, lambda, eps) RESULT(fn_val)
 !------------------------
 
 fn_val = 0.0e0_dp
-IF (a >= b) GO TO 10
-h = a/b
-r0 = 1.0e0_dp/(1.0e0_dp + h)
-r1 = (b - a)/b
-w0 = 1.0e0_dp/SQRT(a*(1.0e0_dp + h))
-GO TO 20
-10 h = b/a
-r0 = 1.0e0_dp/(1.0e0_dp + h)
-r1 = (b - a)/a
-w0 = 1.0e0_dp/SQRT(b*(1.0e0_dp + h))
+IF (a >= b) THEN
+   r0 = 1.0e0_dp/(1.0e0_dp + h)
+   r1 = (b - a)/a
+   w0 = 1.0e0_dp/SQRT(b*(1.0e0_dp + h))
+ELSE
+   h = a/b
+   r0 = 1.0e0_dp/(1.0e0_dp + h)
+   r1 = (b - a)/b
+   w0 = 1.0e0_dp/SQRT(a*(1.0e0_dp + h))
+ENDIF
 
 20 f = a*rlog1(-lambda/a) + b*rlog1(lambda/b)
 t = EXP(-f)
@@ -2288,10 +2299,10 @@ DO n = 2, num, 2
   w = w0*w
   t1 = d(np1)*w*j1
   sum = sum + (t0 + t1)
-  IF ((ABS(t0) + ABS(t1)) <= eps*sum) GO TO 60
+  IF ((ABS(t0) + ABS(t1)) <= eps*sum) EXIT
 END DO
 
-60 u = EXP(-bcorr(a,b))
+u = EXP(-bcorr(a,b))
 fn_val = e0*t*u*sum
 RETURN
 END FUNCTION basym

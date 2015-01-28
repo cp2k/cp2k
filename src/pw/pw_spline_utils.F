@@ -3461,7 +3461,7 @@ CPSourceFileRef,&
     DO i=1,3
        s(i)=bo(2,i)-bo(1,i)+1
     END DO
-    IF (ANY(s<1)) go to 666
+    IF (ANY(s<1)) RETURN
     is_split= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
          pw_in%pw_grid%bounds(:,1))
     has_l_boundary=(gbo(1,1)==bo(1,1))
@@ -3761,7 +3761,6 @@ CPSourceFileRef,&
        DEALLOCATE(l_boundary,u_boundary,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-666 CONTINUE
   END SUBROUTINE pw_nn_compose_r_no_pbc
 
 ! *****************************************************************************

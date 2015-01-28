@@ -2926,15 +2926,17 @@ CONTAINS
        END IF
        !       Compare WVK with this element
        DO j = 1, 3
-          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) GO TO 315
+          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) THEN
+             !       Next element of list
+             ihash = ipoint
+             ipoint = list(ihash)
+             EXIT
+          ENDIF
        END DO
        !       WVK was located in the garbage list
        iplace = i
        RETURN
-       !       Next element of list
-315    CONTINUE
-       ihash = ipoint
-       ipoint = list(ihash)
+
     END DO
     !     List too long
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -3006,7 +3008,14 @@ CONTAINS
                 wva(i) = wvk(i) + REAL(i1,KIND=dp)*b1(i) + REAL(i2,KIND=dp)*b2(i) + &
                      REAL(i3,kind=dp)*b3(i)
              END DO
-             IF (inbz(wva,rsdir,nrsdir,nplane,delta)==yes) GO TO 210
+             IF (inbz(wva,rsdir,nrsdir,nplane,delta)==yes) THEN
+             !------------------------------------------------------------------------------!
+             !     The reduced vector
+                DO i = 1, 3
+                   wvk(i) = wva(i)
+                END DO
+                RETURN
+             ENDIF
           END DO
        END DO
     END DO
@@ -3015,12 +3024,7 @@ CONTAINS
     WRITE (*,'(A,/,A,3F10.4,A)') ' SUBROUTINE BZRDUC *** FATAL ERROR ***', &
          ' WAVEVECTOR ', wvk, ' COULD NOT BE REDUCED TO THE 1BZ'
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    !------------------------------------------------------------------------------!
-    !     The reduced vector
-210 CONTINUE
-    DO i = 1, 3
-       wvk(i) = wva(i)
-    END DO
+
   END SUBROUTINE bzrduc
 ! *****************************************************************************
 !> \brief ...

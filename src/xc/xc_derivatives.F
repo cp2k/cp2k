@@ -421,7 +421,8 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CALL section_vals_val_get(functional,"_SECTION_PARAMETERS_",&
           l_val=fun_active,error=error)
      IF (.NOT.fun_active) THEN
-        go to 123
+        CALL timestop(handle)
+        RETURN
      END IF
 
      SELECT CASE(functional%section%name)
@@ -617,7 +618,7 @@ CPSourceFileRef,&
              error=error)
      END SELECT
   END IF
-123 CONTINUE
+
   CALL timestop(handle)
 END SUBROUTINE xc_functional_eval
 
