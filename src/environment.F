@@ -194,7 +194,7 @@ CONTAINS
             "CP2K| source code revision number:",&
             ADJUSTR(compile_revision)
        WRITE (UNIT=my_output_unit,FMT="(T2,A)")&
-            "CP2K| ",TRIM(cp2k_flags())
+            "CP2K| "//TRIM(cp2k_flags())
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| is freely available from ",&
             ADJUSTR(TRIM(cp2k_home))
