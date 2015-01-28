@@ -77,7 +77,8 @@ def gen_benchmark(outdir, m, n, k):
             kernel_descr.append(kernclass.__name__ + format_params(p))
 
     print("Found %d parameter sets for %dx%dx%d"%(len(launchers), m, n, k))
-    assert(len(launchers)> 0)
+    if(len(launchers)==0): return
+    #assert(len(launchers)> 0)
 
     incl_output = '#include "../kernels/cusmm_common.h"\n'
     for i in set(includes):
@@ -128,7 +129,7 @@ def gen_jobfile(outdir, m, n, k):
     output  = "#!/bin/bash -l\n"
     output += "#SBATCH --nodes=%d\n"%len(all_exe)
     output += "#SBATCH --time=0:30:00\n"
-    output += "#SBATCH --account=s441\n"
+    output += "#SBATCH --account=ch5\n"
     output += "\n"
     output += "source ${MODULESHOME}/init/sh;\n"
     output += "module unload PrgEnv-cray\n"
