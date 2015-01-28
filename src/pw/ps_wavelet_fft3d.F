@@ -201,26 +201,27 @@ CONTAINS
          7680,   6, 8, 8, 5, 4, 1,    8000,   8, 8, 5, 5, 5, 1,   &
          8192,   8, 8, 8, 4, 4, 1 /
 
-        DO 111 i=1,149
-        IF (n.eq.idata(1,i)) THEN
-        ic=0
-        DO 11 j=1,6
-        itt=idata(1+j,i)
-        IF (itt.gt.1) THEN
-        ic=ic+1
-        now(j)=idata(1+j,i)
-        ELSE
-        GOTO 1000
-        ENDIF
-11        CONTINUE
-        GOTO 1000
-        ENDIF
-111        CONTINUE
-        PRINT*,'VALUE OF',n,'NOT ALLOWED FOR FFT, ALLOWED VALUES ARE:'
-37        FORMAT(15(i5))
-        WRITE(*,37) (idata(1,i),i=1,149)
-        STOP
-1000        CONTINUE
+        DO i=1,150
+          IF(i==150) THEN
+            PRINT*,'VALUE OF',n,'NOT ALLOWED FOR FFT, ALLOWED VALUES ARE:'
+  37        FORMAT(15(i5))
+            WRITE(*,37) (idata(1,j),j=1,149)
+            STOP
+          ENDIF
+          IF (n.eq.idata(1,i)) THEN
+            ic=0
+            DO j=1,6
+              itt=idata(1+j,i)
+              IF (itt.gt.1) THEN
+                ic=ic+1
+                now(j)=idata(1+j,i)
+              ELSE
+                EXIT
+              ENDIF
+            ENDDO
+            EXIT
+          ENDIF
+        ENDDO
 
         after(1)=1
         before(ic)=1

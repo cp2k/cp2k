@@ -209,7 +209,7 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
      RESULT = X * (XNUM + A(4)) / (XDEN + B(4))
      IF (JINT /= 0) RESULT = ONE - RESULT
      IF (JINT == 2) RESULT = EXP(YSQ) * RESULT
-     GO TO 800
+     RETURN
 !------------------------------------------------------------------
 !  Evaluate  erfc  for 0.46875 <= |X| <= 4.0
 !------------------------------------------------------------------
@@ -273,7 +273,7 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
         END IF
      END IF
   END IF
-800 RETURN
+
 !---------- Last card of CALERF ----------
 END SUBROUTINE CALERF
 

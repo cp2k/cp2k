@@ -1591,7 +1591,14 @@ CONTAINS
       WRITE(output_unit,'(T20,A12,T32, A22,T60, A12,A8 )') "Iteration", "Functional", "Tolerance"," Time "
     END IF
 
-    DO sweeps = 1,max_iter
+    DO sweeps = 1,max_iter+1
+      IF(sweeps==max_iter+1) THEN
+        IF(output_unit>0) THEN
+          WRITE(output_unit,*) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
+          WRITE(output_unit,*) '               Present  Max. gradient = ', tolerance
+        END IF
+        EXIT
+      ENDIF
       t1= m_walltime()
 
       DO iperm = 1,nperm
@@ -1926,20 +1933,12 @@ CONTAINS
          WRITE(output_unit,'(T20,I12,T35,F20.10,T60,E12.4,F8.3)') sweeps,func, tolerance,t2-t1
          CALL m_flush(output_unit)
       END IF
-      IF(tolerance < eps_localization) GOTO 1000
+      IF(tolerance < eps_localization) EXIT
       CALL external_control(should_stop,"LOC",target_time=target_time, start_time=start_time,error=error)
       IF(should_stop) EXIT
 
 
     END DO ! sweeps
-
-
-    IF(output_unit>0) THEN
-       WRITE(output_unit,*) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
-       WRITE(output_unit,*) '               Present  Max. gradient = ', tolerance
-    END IF
-
-1000 CONTINUE
 
     ! buffer for message passing
     DEALLOCATE(rmat_recv_all,STAT=istat)

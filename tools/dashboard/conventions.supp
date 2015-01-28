@@ -2,7 +2,6 @@ almo_scf_optimizer.F.ast: Found CLOSE statement in procedure "almo_scf_xalmo_pcg
 almo_scf_optimizer.F.ast: Found OPEN statement in procedure "almo_scf_xalmo_pcg"
 atom_xc.F.ast: Found CLOSE statement in procedure "calculate_atom_vxc_lda"
 atom_xc.F.ast: Found OPEN statement in procedure "calculate_atom_vxc_lda"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "apser"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "betaln"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "bfrac"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "bpser"
@@ -13,12 +12,8 @@ beta_gamma_psi.F.ast: Found GOTO statement in procedure "bup"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "erfc1"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "esum"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "fpser"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "gamln1"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "grat1"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "gsumln"
 beta_gamma_psi.F.ast: Found GOTO statement in procedure "psi"
-beta_gamma_psi.F.ast: Found GOTO statement in procedure "rlog1"
 bfgs_optimizer.F.ast: Found GOTO statement in procedure "rat_fun_opt"
 cp2k_shell.F.ast: Found GOTO statement in procedure "cp2k_shell"
 cp2k_shell.F.ast: Found OPEN statement in procedure "get_eof_stat"
@@ -92,7 +87,6 @@ dbcsr_mp_operations.F.ast: Found FORALL statement in procedure "remainder_alltoa
 dbcsr_test_methods.F.ast: Found FORALL statement in procedure "dbcsr_random_dist"
 eip_silicon.F.ast: Found GOTO statement in procedure "eip_bazant_silicon"
 eip_silicon.F.ast: Found GOTO statement in procedure "eip_lenosky_silicon"
-eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_b"
 eip_silicon.F.ast: Found GOTO statement in procedure "sublstiat_l"
 eip_silicon.F.ast: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F.ast: Found OPEN statement in procedure "eip_lenosky_silicon"
@@ -120,7 +114,6 @@ hfx_load_balance_methods.F.ast: Found OPEN statement in procedure "hfx_recursive
 input_section_types.F.ast: Found CLOSE statement in procedure "section_describe_html"
 input_section_types.F.ast: Found OPEN statement in procedure "section_describe_html"
 k290.F.ast: Found GOTO statement in procedure "atftm1"
-k290.F.ast: Found GOTO statement in procedure "bzdefi"
 k290.F.ast: Found GOTO statement in procedure "checkrlv3"
 k290.F.ast: Found GOTO statement in procedure "mesh"
 k290.F.ast: Found GOTO statement in procedure "pgl1"
@@ -149,9 +142,7 @@ mp2_direct_method.F.ast: Found OPEN statement in procedure "mp2_canonical_direct
 mp2_ri_libint.F.ast: Found CLOSE statement in procedure "calc_lai_libint"
 mp2_ri_libint.F.ast: Found OPEN statement in procedure "calc_lai_libint"
 pilaenv_hack.F.ast: Symbol "nag_dummy" in "nag_dummy" not defined
-powell.F.ast: Found GOTO statement in procedure "newuoa"
 powell.F.ast: Found GOTO statement in procedure "newuob"
-ps_wavelet_fft3d.F.ast: Found GOTO statement in procedure "ctrig"
 qmmm_init.F.ast: Found WHERE statement in procedure "setup_qmmm_links"
 qs_collocate_density.F.ast: Symbol "collocate_core_0" in "collocate_ortho" not defined
 qs_collocate_density.F.ast: Symbol "collocate_core_1" in "collocate_ortho" not defined
@@ -164,7 +155,6 @@ qs_collocate_density.F.ast: Symbol "collocate_core_7" in "collocate_ortho" not d
 qs_collocate_density.F.ast: Symbol "collocate_core_8" in "collocate_ortho" not defined
 qs_collocate_density.F.ast: Symbol "collocate_core_9" in "collocate_ortho" not defined
 qs_collocate_density.F.ast: Symbol "collocate_core_default" in "collocate_ortho" not defined
-qs_dispersion_pairpot.F.ast: Found GOTO statement in procedure "limit"
 qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_opt" not defined
 qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_subpatch" not defined
 qs_integrate_potential_low.F.ast: Symbol "call_to_xyz_to_vab" in "integrate_general_wings" not defined
@@ -180,11 +170,7 @@ qs_integrate_potential_low.F.ast: Symbol "integrate_core_7" in "call_integrate" 
 qs_integrate_potential_low.F.ast: Symbol "integrate_core_8" in "call_integrate" not defined
 qs_integrate_potential_low.F.ast: Symbol "integrate_core_9" in "call_integrate" not defined
 qs_integrate_potential_low.F.ast: Symbol "integrate_core_default" in "call_integrate" not defined
-qs_localization_methods.F.ast: Found GOTO statement in procedure "jacobi_rot_para"
 qs_outer_scf.F.ast: Found GOTO statement in procedure "outer_loop_optimize"
-se_ga_tools.F.ast: Found GOTO statement in procedure "grid_factor"
-statistical_methods.F.ast: Found GOTO statement in procedure "alnorm"
-statistical_methods.F.ast: Found GOTO statement in procedure "poly"
 swarm_mpi.F.ast: Found CLOSE statement in procedure "logger_init_master"
 swarm_mpi.F.ast: Found OPEN statement in procedure "logger_finalize"
 tmc_move_handle.F.ast: Found WHERE statement in procedure "add_mv_prob"

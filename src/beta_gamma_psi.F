@@ -102,7 +102,6 @@ SELECT CASE(i)
     STOP "unknown case"
 END SELECT
 
-RETURN
 END FUNCTION ipmpar
 
 ! *****************************************************************************
@@ -142,7 +141,6 @@ SELECT CASE (i)
     fn_val = HUGE(one)
 END SELECT
 
-RETURN
 END FUNCTION dpmpar
 
 ! *****************************************************************************
@@ -161,7 +159,7 @@ FUNCTION epsln () RESULT(fn_val)
 ! Local variable
 
 fn_val = LOG( EPSILON(one) )
-RETURN
+
 END FUNCTION epsln
 
 ! *****************************************************************************
@@ -191,7 +189,7 @@ IF (l == 0) THEN
 ELSE
   fn_val = LOG( TINY(one) )
 END IF
-RETURN
+
 END FUNCTION exparg
 
 ! *****************************************************************************
@@ -210,7 +208,7 @@ FUNCTION depsln () RESULT(fn_val)
 ! Local variable
 
 fn_val = LOG( EPSILON(one) )
-RETURN
+
 END FUNCTION depsln
 
 ! *****************************************************************************
@@ -240,7 +238,7 @@ IF (l == 0) THEN
 ELSE
   fn_val = LOG( TINY(one) )
 END IF
-RETURN
+
 END FUNCTION dxparg
 
 ! *****************************************************************************
@@ -276,7 +274,6 @@ ELSE
   fn_val = LOG(x)
 END IF
 
-RETURN
 END FUNCTION alnrel
 
 ! *****************************************************************************
@@ -343,7 +340,6 @@ ELSE
   fn_val = SIGN(1.0e0_dp,x)
 END IF
 
-RETURN
 END FUNCTION erf
 
 ! *****************************************************************************
@@ -438,7 +434,7 @@ RETURN
 !                       WHEN IND = 0
 
 60 fn_val = 0.0e0_dp
-RETURN
+
 END FUNCTION erfc1
 
 ! *****************************************************************************
@@ -496,7 +492,6 @@ ELSE
   fn_val = 0.0e0_dp
 END IF
 
-RETURN
 END FUNCTION gam1
 
 ! *****************************************************************************
@@ -564,7 +559,6 @@ ELSE
   fn_val = (w - u) - v
 END IF
 
-RETURN
 END FUNCTION algdiv
 
 ! *****************************************************************************
@@ -601,9 +595,6 @@ ELSE
    e = EXP(x)
    fn_val = e*(0.5e0_dp + (0.5e0_dp - 1.0e0_dp/e))
 ENDIF
-
-RETURN
-
 
 END FUNCTION rexp
 
@@ -707,7 +698,6 @@ END DO
 
 ierr = 0
 w = w + u*sum
-RETURN
 
 END SUBROUTINE bgrat
 
@@ -824,7 +814,6 @@ GO TO 110
 500 IF (PRESENT(p)) p = pp
 IF (PRESENT(q)) q = qq
 
-RETURN
 END SUBROUTINE grat1
 
 ! *****************************************************************************
@@ -860,7 +849,6 @@ RETURN
 20 w = mu
 fn_val = EXP(w)*EXP(x)
 
-RETURN
 END FUNCTION esum
 
 ! *****************************************************************************
@@ -885,38 +873,36 @@ FUNCTION rlog1(x) RESULT(fn_val)
 
     REAL(dp)                                 :: r, t, u, up2, w, w1
 
-IF (x < -0.39e0_dp .OR. x > 0.57e0_dp) GO TO 100
-IF (x < -0.18e0_dp) GO TO 10
-IF (x >  0.18e0_dp) GO TO 20
+IF (x < -0.39e0_dp .OR. x > 0.57e0_dp) THEN
+   w = (x + 0.5e0_dp) + 0.5e0_dp
+   fn_val = x - LOG(w)
+   RETURN
+ENDIF
 
 !                 ARGUMENT REDUCTION
 
-u = x
-up2 = u + 2.0e0_dp
-w1 = 0.0e0_dp
-GO TO 30
-
-10 u = (x + 0.3e0_dp)/0.7e0_dp
-up2 = u + 2.0e0_dp
-w1 = a - u*0.3e0_dp
-GO TO 30
-
-20 t = 0.75e0_dp*x
-u = t - 0.25e0_dp
-up2 = t + 1.75e0_dp
-w1 = b + u/3.0e0_dp
+IF (x < -0.18e0_dp) THEN
+  u = (x + 0.3e0_dp)/0.7e0_dp
+  up2 = u + 2.0e0_dp
+  w1 = a - u*0.3e0_dp
+ELSEIF (x >  0.18e0_dp) THEN
+  t = 0.75e0_dp*x
+  u = t - 0.25e0_dp
+  up2 = t + 1.75e0_dp
+  w1 = b + u/3.0e0_dp
+ELSE
+  u = x
+  up2 = u + 2.0e0_dp
+  w1 = 0.0e0_dp
+ENDIF
 
 !                  SERIES EXPANSION
 
-30 r = u/up2
+r = u/up2
 t = r*r
 w = ((p2*t + p1)*t + p0)/((q2*t + q1)*t + 1.0e0_dp)
 fn_val = r*(u - 2.0e0_dp*t*w) + w1
-RETURN
 
-100 w = (x + 0.5e0_dp) + 0.5e0_dp
-fn_val = x - LOG(w)
-RETURN
 END FUNCTION rlog1
 
 ! *****************************************************************************
@@ -945,30 +931,26 @@ FUNCTION gamln (a) RESULT(fn_val)
     INTEGER                                  :: i, n
     REAL(dp)                                 :: t, w
 
-IF (a > 0.8e0_dp) GO TO 10
-fn_val = gamln1(a) - LOG(a)
-RETURN
-10 IF (a > 2.25e0_dp) GO TO 20
-t = (a - 0.5e0_dp) - 0.5e0_dp
-fn_val = gamln1(t)
-RETURN
+IF (a <= 0.8e0_dp) THEN
+  fn_val = gamln1(a) - LOG(a)
+ELSEIF (a <= 2.25e0_dp) THEN
+  t = (a - 0.5e0_dp) - 0.5e0_dp
+  fn_val = gamln1(t)
+ELSEIF (a < 10.0e0_dp) THEN
+  n = INT(a - 1.25e0_dp)
+  t = a
+  w = 1.0e0_dp
+  DO i = 1, n
+    t = t - 1.0e0_dp
+    w = t*w
+  END DO
+  fn_val = gamln1(t - 1.0e0_dp) + LOG(w)
+ELSE
+  t = (1.0e0_dp/a)**2
+  w = (((((c5*t + c4)*t + c3)*t + c2)*t + c1)*t + c0)/a
+  fn_val = (d + w) + (a - 0.5e0_dp)*(LOG(a) - 1.0e0_dp)
+ENDIF
 
-20 IF (a >= 10.0e0_dp) GO TO 30
-n = INT(a - 1.25e0_dp)
-t = a
-w = 1.0e0_dp
-DO i = 1, n
-  t = t - 1.0e0_dp
-  w = t*w
-END DO
-fn_val = gamln1(t - 1.0e0_dp) + LOG(w)
-RETURN
-
-30 t = (1.0e0_dp/a)**2
-w = (((((c5*t + c4)*t + c3)*t + c2)*t + c1)*t + c0)/a
-fn_val = (d + w) + (a - 0.5e0_dp)*(LOG(a) - 1.0e0_dp)
-
-RETURN
 END FUNCTION gamln
 
 ! *****************************************************************************
@@ -999,17 +981,17 @@ FUNCTION gamln1 (a) RESULT(fn_val)
 
     REAL(dp)                                 :: w, x
 
-IF (a >= 0.6e0_dp) GO TO 10
-w = ((((((p6*a + p5)*a + p4)*a + p3)*a + p2)*a + p1)*a + p0)/  &
-    ((((((q6*a + q5)*a + q4)*a + q3)*a + q2)*a + q1)*a + 1.0e0_dp)
-fn_val = -a*w
-RETURN
+IF (a < 0.6e0_dp) THEN
+  w = ((((((p6*a + p5)*a + p4)*a + p3)*a + p2)*a + p1)*a + p0)/  &
+      ((((((q6*a + q5)*a + q4)*a + q3)*a + q2)*a + q1)*a + 1.0e0_dp)
+  fn_val = -a*w
+ELSE
+  x = (a - 0.5e0_dp) - 0.5e0_dp
+  w = (((((r5*x + r4)*x + r3)*x + r2)*x + r1)*x + r0)/  &
+      (((((s5*x + s4)*x + s3)*x + s2)*x + s1)*x + 1.0e0_dp)
+  fn_val = x*w
+ENDIF
 
-10 x = (a - 0.5e0_dp) - 0.5e0_dp
-w = (((((r5*x + r4)*x + r3)*x + r2)*x + r1)*x + r0)/  &
-    (((((s5*x + s4)*x + s3)*x + s2)*x + s1)*x + 1.0e0_dp)
-fn_val = x*w
-RETURN
 END FUNCTION gamln1
 
 ! *****************************************************************************
@@ -1183,7 +1165,7 @@ RETURN
 !     ERROR RETURN
 !---------------------------------------------------------------------
 400 fn_val = 0.0e0_dp
-RETURN
+
 END FUNCTION psi
 
 ! *****************************************************************************
@@ -1276,11 +1258,12 @@ h = a/b
 c = h/(1.0e0_dp + h)
 u = -(a - 0.5e0_dp)*LOG(c)
 v = b*alnrel(h)
-IF (u <= v) GO TO 61
-fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - v) - u
-RETURN
-61 fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - u) - v
-RETURN
+IF (u > v) THEN
+  fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - v) - u
+ELSE
+  fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - u) - v
+ENDIF
+
 END FUNCTION betaln
 
 ! *****************************************************************************
@@ -1300,14 +1283,13 @@ FUNCTION gsumln (a, b) RESULT(fn_val)
     REAL(dp)                                 :: x
 
 x = a + b - 2.e0_dp
-IF (x > 0.25e0_dp) GO TO 10
-fn_val = gamln1(1.0e0_dp + x)
-RETURN
-10 IF (x > 1.25e0_dp) GO TO 20
-fn_val = gamln1(x) + alnrel(x)
-RETURN
-20 fn_val = gamln1(x - 1.0e0_dp) + LOG(x*(1.0e0_dp + x))
-RETURN
+IF (x <= 0.25e0_dp) THEN
+  fn_val = gamln1(1.0e0_dp + x)
+ELSEIF (x <= 1.25e0_dp) THEN
+  fn_val = gamln1(x) + alnrel(x)
+ELSE
+  fn_val = gamln1(x - 1.0e0_dp) + LOG(x*(1.0e0_dp + x))
+ENDIF
 END FUNCTION gsumln
 
 ! *****************************************************************************
@@ -1587,7 +1569,7 @@ RETURN
 350 ierr = 6
 RETURN
 360 ierr = 7
-RETURN
+
 END SUBROUTINE bratio
 
 ! *****************************************************************************
@@ -1635,7 +1617,7 @@ s = s + c
 IF (ABS(c) > tol) GO TO 20
 
 fn_val = fn_val*(1.0e0_dp + a*s)
-RETURN
+
 END FUNCTION fpser
 
 ! *****************************************************************************
@@ -1661,22 +1643,27 @@ FUNCTION apser (a, b, x, eps) RESULT(fn_val)
 
 bx = b*x
 t = x - bx
-IF (b*eps > 2.e-2_dp) GO TO 10
-c = LOG(x) + psi(b) + g + t
-GO TO 20
-10 c = LOG(bx) + g + t
+IF (b*eps > 2.e-2_dp) THEN
+  c = LOG(bx) + g + t
+ELSE
+  c = LOG(x) + psi(b) + g + t
+ENDIF
 
-20 tol = 5.0e0_dp*eps*ABS(c)
+tol = 5.0e0_dp*eps*ABS(c)
 j = 1.0e0_dp
 s = 0.0e0_dp
-30    j = j + 1.0e0_dp
+j = j + 1.0e0_dp
 t = t*(x - bx/j)
 aj = t/j
 s = s + aj
-IF (ABS(aj) > tol) GO TO 30
+DO WHILE (ABS(aj) > tol)
+  t = t*(x - bx/j)
+  aj = t/j
+  s = s + aj
+ENDDO
 
 fn_val = -a*(c + s)
-RETURN
+
 END FUNCTION apser
 
 ! *****************************************************************************
@@ -1771,7 +1758,7 @@ w = c/(a + n)
 sum = sum + w
 IF (ABS(w) > tol) GO TO 100
 fn_val = fn_val*(1.0e0_dp + a*sum)
-RETURN
+
 END FUNCTION bpser
 
 ! *****************************************************************************
@@ -1852,7 +1839,7 @@ END DO
 !               TERMINATE THE PROCEDURE
 
 50 fn_val = fn_val*w
-RETURN
+
 END FUNCTION bup
 
 ! *****************************************************************************
@@ -1930,7 +1917,7 @@ GO TO 10
 !                 TERMINATION
 
 20 fn_val = fn_val*r
-RETURN
+
 END FUNCTION bfrac
 
 ! *****************************************************************************
@@ -2058,7 +2045,7 @@ GO TO 130
 
 130 z = EXP(-(a*u + b*v))
 fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
-RETURN
+
 END FUNCTION brcomp
 
 ! *****************************************************************************
@@ -2186,7 +2173,7 @@ GO TO 130
 
 130 z = esum(mu,-(a*u + b*v))
 fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
-RETURN
+
 END FUNCTION brcmp1
 
 ! *****************************************************************************
@@ -2304,7 +2291,7 @@ END DO
 
 u = EXP(-bcorr(a,b))
 fn_val = e0*t*u*sum
-RETURN
+
 END FUNCTION basym
 
 END MODULE beta_gamma_psi

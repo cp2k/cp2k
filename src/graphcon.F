@@ -558,12 +558,18 @@ loop:   DO I=1,SIZE(reference)
         q(k)=m-1
         k=k+1
 2       m=n
-3       t=x(m)
+        t=x(m)
         x(m)=x(k)
         x(k)=t
         m=m-1
         k=k+1
-        IF(k.lt.m) GOTO 3
+        DO WHILE (k.lt.m)
+          t=x(m)
+          x(m)=x(k)
+          x(k)=t
+          m=m-1
+          k=k+1
+        END DO
         END SUBROUTINE
 END MODULE graphcon
 

@@ -3148,7 +3148,7 @@ CONTAINS
           i2 = nb2 + 1 - n2
           DO n3 = 1, nnb3
              i3 = nb3 + 1 - n3
-             IF (i1==0 .AND. i2==0 .AND. i3==0) GO TO 150
+             IF (i1==0 .AND. i2==0 .AND. i3==0) CYCLE
              DO i = 1, 3
                 bvec(i) = REAL(i1,KIND=dp)*b1(i) + REAL(i2,KIND=dp)*b2(i) + &
                      REAL(i3,KIND=dp)*b3(i)
@@ -3160,18 +3160,27 @@ CONTAINS
                 !             1/2*BVEC is outside the Bz - skip this direction
                 !             The 1.0E-6_dp takes care of single points touching the Bz,
                 !             and of the -(plane)
-                IF (ABS(projct)>0.5E0_dp-delta) GO TO 150
+                IF (ABS(projct)>0.5E0_dp-delta) EXIT
              END DO
+             IF (ABS(projct)>0.5E0_dp-delta) CYCLE
              !           1/2*BVEC further confines the 1Bz - include into RSDIR
              nplane = nplane + 1
              !           PRINT *,NPLANE,' PLANE INCLUDED, I1,2,3 = ',I1,I2,I3
-             IF (nplane>nrsdir) GO TO 470
+             IF (nplane>nrsdir) THEN
+                !------------------------------------------------------------------------------!
+                !     Error messages
+                IF (iout>0) THEN
+                   WRITE (iout,'(A)') ' SUBROUTINE BZDEFI *** FATAL ERROR ***'
+                   WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
+                END IF
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                RETURN
+             ENDIF
              DO i = 1, 3
                 rsdir(i,nplane) = bvec(i)
              END DO
              !           Length squared
              rsdir(4,nplane) = bvec(1)**2 + bvec(2)**2 + bvec(3)**2
-150          CONTINUE
           END DO
        END DO
     END DO
@@ -3181,15 +3190,7 @@ CONTAINS
          ' THE 1ST BRILLOUIN ZONE IS CONFINED BY (AT MOST)', nplane, &
          ' PLANES', ' AS DEFINED BY THE +/- HALVES OF THE VECTORS:', &
          ((rsdir(i,n),i=1,3),n=1,nplane)
-    RETURN
-    !------------------------------------------------------------------------------!
-    !     Error messages
-470 CONTINUE
-    IF (iout>0) THEN
-       WRITE (iout,'(A)') ' SUBROUTINE BZDEFI *** FATAL ERROR ***'
-       WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
-    END IF
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE bzdefi
 
 END MODULE k290

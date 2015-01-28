@@ -161,7 +161,7 @@ CONTAINS
     nptm=npt-np
     IF (npt < n+2 .OR. npt > ((n+2)*np)/2) THEN
        optstate%state = 5
-       GO TO 20
+       RETURN
     END IF
     ndim=npt+n
     ixb=1
@@ -189,7 +189,6 @@ CONTAINS
 
     optstate%xopt(1:n) = optstate%w(ixb:ixb+n-1) + optstate%w(ixo:ixo+n-1)
 
-20  CONTINUE
 
   END SUBROUTINE newuoa
 

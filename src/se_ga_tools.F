@@ -1101,12 +1101,12 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       pmax = 0
       DO i = 2, ip
         DO j = 1, pmax
-          IF (MOD(i,prime(j))==0) go to 100
+          IF (MOD(i,prime(j))==0) EXIT
         END DO
+        IF (MOD(i,prime(j))==0) CYCLE
         pmax = pmax + 1
         IF (pmax>MAX_FACTOR) WRITE(*,*) 'Overflow in grid_factor'
         prime(pmax) = i
-        100   CONTINUE
       END DO
 !
 !    find all prime factors of p
@@ -1114,12 +1114,11 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       ip = p
       ifac = 0
       DO i = 1, pmax
-        200   IF (MOD(ip,prime(i))==0) THEN
+        DO WHILE (MOD(ip,prime(i))==0)
           ifac = ifac + 1
           fac(ifac) = prime(i)
           ip = ip/prime(i)
-          go to 200
-        ENDIF
+        ENDDO
       END DO
 !
 !    determine three factors of p of approximately the

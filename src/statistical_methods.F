@@ -311,19 +311,22 @@ CONTAINS
 
     up = upper
     z = x
-    IF(z >=  zero) GO TO 10
-    up = .NOT. up
-    z = -z
-10  IF(z <= ltone .OR. up .AND. z <= utzero) GO TO 20
-    fn_val = zero
-    GO TO 40
-20  y = half*z*z
-    IF(z > con) GO TO 30
-
-    fn_val = half - z*(p-q*y/(y+a1+b1/(y+a2+b2/(y+a3))))
-    GO TO 40
-30  fn_val = r*EXP(-y)/(z+c1+d1/(z+c2+d2/(z+c3+d3/(z+c4+d4/(z+c5+d5/(z+c6))))))
-40  IF(.NOT. up) fn_val = one - fn_val
+    IF(z <  zero) THEN
+      up = .NOT. up
+      z = -z
+    ENDIF
+    IF(.NOT.(z <= ltone .OR. up .AND. z <= utzero)) THEN
+      fn_val = zero
+      IF(.NOT. up) fn_val = one - fn_val
+      RETURN
+    ENDIF
+    y = half*z*z
+    IF(z <= con) THEN
+      fn_val = r*EXP(-y)/(z+c1+d1/(z+c2+d2/(z+c3+d3/(z+c4+d4/(z+c5+d5/(z+c6))))))
+    ELSE
+      fn_val = half - z*(p-q*y/(y+a1+b1/(y+a2+b2/(y+a3))))
+    ENDIF
+    IF(.NOT. up) fn_val = one - fn_val
 
   END FUNCTION alnorm
 
@@ -352,14 +355,17 @@ CONTAINS
     fn_val = c(1)
     IF (nord == 1) RETURN
     p = x*c(nord)
-    IF (nord == 2) GO TO 20
+    IF (nord == 2) THEN
+      fn_val = fn_val + p
+      RETURN
+    ENDIF
     n2 = nord - 2
     j = n2 + 1
     DO i = 1,n2
        p = (p + c(j))*x
        j = j - 1
     END DO
-20  fn_val = fn_val + p
+    fn_val = fn_val + p
   END FUNCTION poly
 
 ! *****************************************************************************

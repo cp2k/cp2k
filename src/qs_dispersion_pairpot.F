@@ -1946,18 +1946,16 @@ CONTAINS
       iadr=1
       jadr=1
       i=100
- 10   IF(iat.gt.100) THEN
+      DO WHILE(iat.gt.100)
          iat=iat-100
          iadr=iadr+1
-         GOTO 10
-      ENDIF
+      ENDDO
 
       i=100
- 20   IF(jat.gt.100) THEN
+      DO WHILE (jat.gt.100)
          jat=jat-100
          jadr=jadr+1
-         GOTO 20
-      ENDIF
+      ENDDO
    END SUBROUTINE limit
 
 ! *****************************************************************************
