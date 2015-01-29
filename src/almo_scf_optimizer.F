@@ -50,6 +50,8 @@ MODULE almo_scf_optimizer
        dbcsr_func_tanh, dbcsr_mp_mynode, dbcsr_mp_numnodes, &
        dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry
   USE cp_external_control,             ONLY: external_control
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE ct_methods,                      ONLY: analytic_line_search,&
                                              ct_step_execute,&
                                              diagonalize_diagonal_blocks
@@ -790,12 +792,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_pcg', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: iunit = 78
 
     CHARACTER(LEN=100)                       :: mylogfile, mynodestr
     CHARACTER(LEN=20)                        :: iter_type
     INTEGER :: cg_iteration, dim0, fixed_line_search_niter, handle, ispin, &
-      iteration, jj, line_search_iteration, max_iter, my_special_case, &
+      iteration, iunit, jj, line_search_iteration, max_iter, my_special_case, &
       mynode, ncores, ndomains, occ1, outer_iteration, outer_max_iter, &
       prec_type, precond_domain_projector, unit_nr, zero_neg_eiv
     LOGICAL :: converged, do_md, failure, first_md_iteration, just_started, &
@@ -2343,10 +2344,10 @@ CONTAINS
                    cp_dbcsr_distribution(m_tmp_no_1)))
                 WRITE(mynodestr,'(I6.6)') mynode
                 mylogfile='EDA.'//TRIM(ADJUSTL(mynodestr))
-                OPEN (iunit,file=mylogfile,status='REPLACE')
+                CALL open_file(file_name=mylogfile,file_status="REPLACE",unit_number=iunit)
                 
                 CALL cp_dbcsr_print_block_sum(m_tmp_no_1,iunit,error=error)
-                CLOSE(iunit)
+                CALL close_file(iunit)
                 
                 !IF (unit_nr>0) THEN
                 !   WRITE(unit_nr,*)

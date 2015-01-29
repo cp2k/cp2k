@@ -216,7 +216,7 @@ CONTAINS
 
     INTEGER                                  :: deriv_order, handle, i, ierr, &
                                                 l, myfun, n1, n2, n3, nr, &
-                                                nspins
+                                                nspins, unit_nr
     INTEGER, DIMENSION(2, 3)                 :: bounds
     LOGICAL                                  :: failure, lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
@@ -315,11 +315,11 @@ CONTAINS
 
         ! dump grid density and xcpot (xc energy?)
         IF (.FALSE.) THEN
-           OPEN(UNIT=17,FILE="atom.dat")
+           CALL open_file(unit_number=unit_nr,file_name="atom.dat")
            DO i=1,SIZE(xcpot(:,1,1))
-              WRITE(17,*) atom%basis%grid%rad(i),rho(i,1),xcpot(i,1,1)
+              WRITE(unit_nr,*) atom%basis%grid%rad(i),rho(i,1),xcpot(i,1,1)
            ENDDO
-           CLOSE(UNIT=17)
+           CALL close_file(unit_nr)
         ENDIF
 
         IF ( needs%rho ) THEN

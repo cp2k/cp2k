@@ -13,6 +13,8 @@ MODULE kg_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -471,7 +473,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_to_file', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, imol, jmol, npairs
+    INTEGER                                  :: handle, i, imol, jmol, &
+                                                npairs, unit_nr
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sorted_pairs
     LOGICAL                                  :: failure
@@ -507,16 +510,16 @@ CONTAINS
     ! should now be half as much pairs as before
     CPPostcondition(npairs==SIZE(pairs,2)/2,cp_failure_level,routineP,error,failure)
 
-    OPEN(33, FILE="graph.col")
+    CALL open_file(unit_number=unit_nr, file_name="graph.col")
 
-    WRITE(33, '(A6,1X,I8,1X,I8)') "p edge", nnodes, npairs
+    WRITE(unit_nr, '(A6,1X,I8,1X,I8)') "p edge", nnodes, npairs
 
     ! only write out the first npairs entries
     DO i=1,npairs
-      WRITE(33, '(A1,1X,I8,1X,I8)') "e", sorted_pairs(1,i), sorted_pairs(2,i)
+      WRITE(unit_nr, '(A1,1X,I8,1X,I8)') "e", sorted_pairs(1,i), sorted_pairs(2,i)
     END DO
 
-    CLOSE(33)
+   CALL close_file(unit_nr)
 
     DEALLOCATE(sorted_pairs)
 

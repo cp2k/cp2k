@@ -11,6 +11,8 @@
 ! *****************************************************************************
 MODULE hfx_load_balance_methods
   USE cell_types,                      ONLY: cell_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
                                              build_pair_list
@@ -1017,7 +1019,7 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
     INTEGER :: handle, i, iatom_block, iatom_end, iatom_start, j, &
       jatom_block, jatom_end, jatom_start, katom_block, katom_end, &
       katom_start, latom_block, latom_end, latom_start, nP, nQ, numBins, p, &
-      q, sizeP, sizeQ
+      q, sizeP, sizeQ, unit_nr
     INTEGER(int_8)                           :: local_cost, pidx, qidx, sumP, &
                                                 sumQ
     INTEGER(int_8), ALLOCATABLE, &
@@ -1155,15 +1157,15 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
     !$OMP MASTER
         ! only output once
         IF( my_process_id == 0) THEN
-            OPEN(UNIT=1000,FILE="loads.dat")
-            WRITE(1000,*) 'maximum cost:', maximum
-            WRITE(1000,*) 'mean cost:', mean
-            WRITE(1000,*) 'load balance ratio max/mean: ', maximum/mean
-            WRITE(1000,*) '-------- detailed per-process costs ---------'
+            CALL open_file(unit_number=unit_nr,file_name="loads.dat")
+            WRITE(unit_nr,*) 'maximum cost:', maximum
+            WRITE(unit_nr,*) 'mean cost:', mean
+            WRITE(unit_nr,*) 'load balance ratio max/mean: ', maximum/mean
+            WRITE(unit_nr,*) '-------- detailed per-process costs ---------'
             DO i=1,n_processes
-                WRITE(1000,*) local_cost_vector(i)
+                WRITE(unit_nr,*) local_cost_vector(i)
             END DO
-            CLOSE(1000)
+            CALL close_file(unit_nr)
         END IF
     !$OMP END MASTER
     !$OMP BARRIER

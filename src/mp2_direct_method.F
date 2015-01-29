@@ -15,7 +15,8 @@ MODULE mp2_direct_method
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
-  USE cp_files,                        ONLY: get_unit_number
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_energy_potential,            ONLY: coulomb4
@@ -277,12 +278,11 @@ MODULE mp2_direct_method
     IF(mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
       IF(l_max>init_TShPSC_lmax) THEN
         IF( para_env%mepos == 0 ) THEN
-          unit_id = get_unit_number()
-          OPEN(unit_id,FILE=mp2_env%potential_parameter%filename)
+          CALL open_file(unit_number=unit_id,file_name=mp2_env%potential_parameter%filename)
         END IF
         CALL init(l_max, unit_id, para_env%mepos, para_env%group)
         IF(para_env%mepos == 0 ) THEN
-          CLOSE(unit_id)
+          CALL close_file(unit_id)
         END IF
         init_TShPSC_lmax = l_max
       END IF

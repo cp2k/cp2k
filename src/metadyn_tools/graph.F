@@ -18,6 +18,8 @@
 ! *****************************************************************************
 PROGRAM graph
 
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE graph_methods,                   ONLY: fes_compute_low,&
                                              fes_cube_write,&
                                              fes_min,&
@@ -41,7 +43,7 @@ PROGRAM graph
                                               it, iw, ix, j, ncount, ndim, &
                                               ndw, nf, nfes, ngauss, nh, &
                                               nprd, nt, nt_p, nwr, p, q, &
-                                              stat
+                                              stat, unit_nr
   INTEGER, POINTER                         :: i_map(:), idw(:), ind(:), &
                                               inds(:), iperd(:), iprd(:), &
                                               ngrid(:), nn(:,:), nn_max(:), &
@@ -372,11 +374,11 @@ PROGRAM graph
 
         ALLOCATE(mep_input_data%minima(ndw,mep_input_data%nreplica))
 
-        OPEN(87,file=path_file,status='old')
+        CALL open_file(unit_number=unit_nr,file_name=path_file,file_status='old')
         DO id=1, mep_input_data%nreplica
-         READ(87,*) j, mep_input_data%minima(:,id)
+         READ(unit_nr,*) j, mep_input_data%minima(:,id)
         END DO
-        CLOSE(87)
+        CALL close_file(unit_nr)
 
         DO id=1, mep_input_data%nreplica
          WRITE(*,*)  mep_input_data%minima(:,id)

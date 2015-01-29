@@ -11,6 +11,8 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_section_types
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_linked_list_val,              ONLY: &
        cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
        cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
@@ -419,13 +421,13 @@ CONTAINS
 !> \param section ...
 !> \param prefix ...
 !> \param depth ...
-!> \param unit_nr ...
+!> \param unit_number ...
 !> \param error ...
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  error)
+  RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_number,  error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
-    INTEGER, INTENT(in)                      :: depth, unit_nr
+    INTEGER, INTENT(in)                      :: depth, unit_number
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
@@ -435,101 +437,102 @@ CONTAINS
     CHARACTER(LEN=1000)                      :: local_prefix
     CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location, name
     CHARACTER(LEN=default_path_length)       :: message
-    INTEGER                                  :: idepth, ikeyword, iref, isub
+    INTEGER                                  :: idepth, ikeyword, iref, isub, &
+                                                unit_nr
     LOGICAL                                  :: failure, has_keywords
 
     failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
-       OPEN(unit=179,FILE=TRIM(local_prefix)//".html")
-       WRITE(179,FMT='(A)') "<HTML><BODY>"
-       WRITE(179,FMT='(A)') "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
-       WRITE(179,FMT='(A)') '<META NAME="description" content="CP2K">'
-       WRITE(179,FMT='(A)') &
+       CALL open_file(unit_number=unit_nr,file_name=TRIM(local_prefix)//".html")
+       WRITE(unit_nr,FMT='(A)') "<HTML><BODY>"
+       WRITE(unit_nr,FMT='(A)') "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
+       WRITE(unit_nr,FMT='(A)') '<META NAME="description" content="CP2K">'
+       WRITE(unit_nr,FMT='(A)') &
             '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
             'documentation,help,manual,Fortran,parallel">'
        color_tag='<font color="#000000">'
        IF (enable_color_tags.AND.section%supported_feature) THEN
           color_tag='<font color="#00CC00">'
        END IF
-       WRITE(179,FMT='(A)') "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
-       WRITE(179,FMT='(A)') ' <A HREF="index.html">Index of all sections</A>. This section is located at '
+       WRITE(unit_nr,FMT='(A)') "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
+       WRITE(unit_nr,FMT='(A)') ' <A HREF="index.html">Index of all sections</A>. This section is located at '
        DO idepth=1,depth
-          WRITE(179,FMT='(A)',ADVANCE="NO") '<A HREF="'//TRIM(location(idepth))//'">'//TRIM(name(idepth))//'</A>%'
+          WRITE(unit_nr,FMT='(A)',ADVANCE="NO") '<A HREF="'//TRIM(location(idepth))//'">'//TRIM(name(idepth))//'</A>%'
        ENDDO
        location(depth+1)=TRIM(local_prefix)//".html"
        name(depth+1)=TRIM(section%name)
-       WRITE(179,FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
+       WRITE(unit_nr,FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
 
        message = get_section_info(section, error)
-       WRITE(179,FMT='(A)') '<BR><BR>'//TRIM(a2s(section%description))//TRIM(message)
+       WRITE(unit_nr,FMT='(A)') '<BR><BR>'//TRIM(a2s(section%description))//TRIM(message)
 
        IF (ASSOCIATED(section%citations)) THEN
           IF (SIZE(section%citations,1)>1) THEN
-             WRITE(179,FMT='(A)') '<BR><BR> This section cites following references: '
+             WRITE(unit_nr,FMT='(A)') '<BR><BR> This section cites following references: '
           ELSE
-             WRITE(179,FMT='(A)') '<BR><BR> This section cites following reference: '
+             WRITE(unit_nr,FMT='(A)') '<BR><BR> This section cites following reference: '
           ENDIF
           DO iref=1,SIZE(section%citations,1)
-             WRITE(179,FMT='(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
-             CALL print_reference(section%citations(iref),FORMAT=print_format_journal,unit=179)
-             WRITE(179,FMT='(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
+             WRITE(unit_nr,FMT='(A,I0,A)') '<A HREF="references.html#reference_',section%citations(iref),'" TITLE="'
+             CALL print_reference(section%citations(iref),FORMAT=print_format_journal,unit=unit_nr)
+             WRITE(unit_nr,FMT='(A)') '">['//TRIM(get_citation_key(section%citations(iref)))//']</A>'
           ENDDO
        ENDIF
 
-       WRITE(179,FMT='(A)') "<H2> Subsections</H2>"
+       WRITE(unit_nr,FMT='(A)') "<H2> Subsections</H2>"
        IF (section%n_subsections>0) THEN
-          WRITE(179,FMT='(A)') "<UL>"
+          WRITE(unit_nr,FMT='(A)') "<UL>"
           DO isub=1,section%n_subsections
              color_tag='<font color="#0000FF">'
              IF (enable_color_tags.AND.section%subsections(isub)%section%supported_feature) THEN
                 color_tag='<font color="#00CC00">'
              END IF
-             WRITE(179,FMT='(A)') &
+             WRITE(unit_nr,FMT='(A)') &
                   '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
                   TRIM(color_tag)//TRIM(section%subsections(isub)%section%name)//'</font> </A>'
           END DO
-          WRITE(179,FMT='(A)') "</UL>"
+          WRITE(unit_nr,FMT='(A)') "</UL>"
        ELSE
-          WRITE(179,FMT='(A)') "None"
+          WRITE(unit_nr,FMT='(A)') "None"
        ENDIF
-       WRITE(179,FMT='(A)') "<H2> Section keywords </H2>"
+       WRITE(unit_nr,FMT='(A)') "<H2> Section keywords </H2>"
        has_keywords=ASSOCIATED(section%keywords(-1)%keyword) .OR. &
             ASSOCIATED(section%keywords(0)%keyword) .OR. &
             section%n_keywords>=1
        IF (has_keywords) THEN
-          WRITE(179,FMT='(A)') "<UL>"
+          WRITE(unit_nr,FMT='(A)') "<UL>"
           DO ikeyword=-1,section%n_keywords
              IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
                 color_tag='<font color="#0000FF">'
                 IF (enable_color_tags.AND.section%keywords(ikeyword)%keyword%supported_feature) THEN
                    color_tag='<font color="#00CC00">'
                 END IF
-                WRITE(179,FMT='(A)') &
+                WRITE(unit_nr,FMT='(A)') &
                      '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
                      TRIM(color_tag)//TRIM(section%keywords(ikeyword)%keyword%names(1))//"</font> </A>"
              END IF
           END DO
-          WRITE(179,FMT='(A)') "</UL>"
-          WRITE(179,FMT='(A)') "<H2> Keyword descriptions </H2>"
-          WRITE(179,FMT='(A)') "<TABLE>"
+          WRITE(unit_nr,FMT='(A)') "</UL>"
+          WRITE(unit_nr,FMT='(A)') "<H2> Keyword descriptions </H2>"
+          WRITE(unit_nr,FMT='(A)') "<TABLE>"
           DO ikeyword=-1,section%n_keywords
              IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
-                CALL keyword_describe_html(section%keywords(ikeyword)%keyword,179,error=error)
+                CALL keyword_describe_html(section%keywords(ikeyword)%keyword,unit_nr,error=error)
              END IF
           END DO
-          WRITE(179,FMT='(A)') "</TABLE>"
+          WRITE(unit_nr,FMT='(A)') "</TABLE>"
        ELSE
-          WRITE(179,FMT='(A)') "None"
+          WRITE(unit_nr,FMT='(A)') "None"
        ENDIF
-       WRITE(179,FMT='(A)') &
+       WRITE(unit_nr,FMT='(A)') &
             '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A> or '// &
             'the latest version of <A HREF="http://manual.cp2k.org/trunk/">this manual</A>'
-       WRITE(179,FMT='(A)') "</BODY></HTML>"
-       CLOSE(unit=179)
+       WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
+       CALL close_file(unit_nr)
        DO isub=1,section%n_subsections
-          CALL section_describe_html(section%subsections(isub)%section,TRIM(local_prefix),depth+1,unit_nr,&
+          CALL section_describe_html(section%subsections(isub)%section,TRIM(local_prefix),depth+1,unit_number,&
                error=error)
        END DO
     END IF

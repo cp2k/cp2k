@@ -18,6 +18,8 @@
 ! *****************************************************************************
 MODULE graph_methods
 
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE graph_utils,                     ONLY: derivative,&
                                              get_val_res,&
                                              mep_input_data_type,&
@@ -388,7 +390,7 @@ CONTAINS
     LOGICAL                                  :: l_int
 
     INTEGER                                  :: i, id, irep, iter, nf, &
-                                                nreplica, ns, pnt
+                                                nreplica, ns, pnt, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: ipos
     LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: avg1, avg2, diff, ene, &
@@ -545,15 +547,15 @@ CONTAINS
     END DO
 
     WRITE(*,*)"MEP saved on <mep.data> file."
-    OPEN(10,FILE="mep.data",STATUS='unknown',FORM='formatted')
+    CALL open_file(unit_number=unit_nr,file_name="mep.data",file_status='unknown',file_form='formatted')
     DO irep=1,nreplica
        ! compute energy and derivative for each single point of the replica
        ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
        pnt = point_no_pbc(ipos,ngrid,ndim)
        fes_rep(irep) = -fes(pnt)
-       WRITE(10,*)irep, pos(:,nreplica-irep+1), fes_rep(nreplica-irep+1)
+       WRITE(unit_nr,*)irep, pos(:,nreplica-irep+1), fes_rep(nreplica-irep+1)
     END DO
-    CLOSE(10)
+    CALL close_file(unit_nr)
 
     DEALLOCATE(xx,dx,pos,fes_rep,ipos,pos_old,yy,dyy,dxx,davg1,tang,davg2)
   END SUBROUTINE fes_path

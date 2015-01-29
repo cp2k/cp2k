@@ -187,7 +187,7 @@ CONTAINS
     ihistory=scf_env%outer_scf%iter_count
     optimizer_type=scf_control%outer_scf%optimizer
 
-100 CONTINUE ! if we need a different run type we'll restart here
+    DO WHILE(.TRUE.) ! if we need a different run type we'll restart here
 
     SELECT CASE(optimizer_type)
     CASE(outer_scf_optimizer_bisect) ! bisection on the gradient, needs to be 1D
@@ -216,7 +216,7 @@ CONTAINS
        ENDDO
        IF (ilow == -1) THEN ! we didn't bracket a minimum yet, try something else
           optimizer_type=outer_scf_optimizer_diis
-          GOTO 100
+          CYCLE
        ENDIF
        scf_env%outer_scf%count(ilow)=scf_env%outer_scf%count(ilow)+1
        scf_env%outer_scf%count(ihigh)=scf_env%outer_scf%count(ihigh)+1
@@ -236,7 +236,7 @@ CONTAINS
        nb=MIN(ihistory,scf_control%outer_scf%diis_buffer_length)
        IF (nb<2) THEN
           optimizer_type = outer_scf_optimizer_sd
-          GOTO 100
+          CYCLE
        ELSE
           ALLOCATE(b(nb+1,nb+1),a(nb+1,nb+1),ev(nb+1),ipivot(nb+1))
           DO I=1,nb
@@ -274,6 +274,8 @@ CONTAINS
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
+    EXIT
+    ENDDO
 
     CALL timestop(handle)
 

@@ -23,7 +23,8 @@ MODULE hfx_energy_potential
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_trace,&
                                              dbcsr_type_antisymmetric
-  USE cp_files,                        ONLY: get_unit_number
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -342,12 +343,11 @@ MODULE hfx_energy_potential
        x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
       IF(l_max>init_t_c_g0_lmax) THEN
         IF( para_env%mepos == 0 ) THEN
-          unit_id = get_unit_number()
-          OPEN(unit_id,FILE=x_data(1,1)%potential_parameter%filename)
+          CALL open_file(unit_number=unit_id,file_name=x_data(1,1)%potential_parameter%filename)
         END IF
         CALL init(l_max, unit_id, para_env%mepos, para_env%group)
         IF(para_env%mepos == 0 ) THEN
-          CLOSE(unit_id)
+          CALL close_file(unit_id)
         END IF
         init_t_c_g0_lmax = l_max
       END IF
