@@ -638,10 +638,10 @@ PROGRAM graph
         ELSE
            WRITE(out3_stride,'(A,i3)')TRIM(out3),ncount
         END IF
-        OPEN(123,file=out3_stride)
+        CALL open_file(unit_number=unit_nr,file_name=out3_stride)
         ind   = 1
-        CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, dp_grid, ndw, l_fes_int)
-        CLOSE(123)
+        CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, dp_grid, ndw, l_fes_int, unit_nr)
+        CALL close_file(unit_nr)
      END IF
 
      nh=nh+nt_p
@@ -656,17 +656,17 @@ PROGRAM graph
   END IF
  
   WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out3)//" >"
-  OPEN(123,file=out3)
+  CALL open_file(unit_number=unit_nr,file_name=out3)
   IF (l_cube) THEN
      ind   = 1 
      CALL fes_cube_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file)
   ELSE
      ix=0
-     IF (l_math) WRITE(123,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
+     IF (l_math) WRITE(unit_nr,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
      ind   = 1   
      CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
   END IF
-  CLOSE(123)
+  CALL close_file(unit_nr)
 
   ! If requested find minima
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)

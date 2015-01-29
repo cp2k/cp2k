@@ -392,17 +392,17 @@ ENDIF
 
 !                  0.5 < ABS(X) <= 4
 
-10 IF (ax > 4.0e0_dp) GO TO 20
+IF (ax <= 4.0e0_dp) THEN
 top = ((((((p(1)*ax + p(2))*ax + p(3))*ax + p(4))*ax + p(5))*ax  &
       + p(6))*ax + p(7))*ax + p(8)
 bot = ((((((q(1)*ax + q(2))*ax + q(3))*ax + q(4))*ax + q(5))*ax  &
       + q(6))*ax + q(7))*ax + q(8)
 fn_val = top/bot
-GO TO 40
+ELSE
 
 !                      ABS(X) > 4
 
-20 IF (x <= -5.6e0_dp) THEN
+IF (x <= -5.6e0_dp) THEN
 !             LIMIT VALUE FOR LARGE NEGATIVE X
   fn_val = 2.0e0_dp
   IF (ind /= 0) fn_val = 2.0e0_dp*EXP(x*x)
@@ -419,10 +419,11 @@ t = (1.0e0_dp/x)**2
 top = (((r(1)*t + r(2))*t + r(3))*t + r(4))*t + r(5)
 bot = (((s(1)*t + s(2))*t + s(3))*t + s(4))*t + 1.0e0_dp
 fn_val = (c - t*top/bot)/ax
+ENDIF
 
 !                      FINAL ASSEMBLY
 
-40 IF (ind /= 0) THEN
+IF (ind /= 0) THEN
   IF (x < 0.0e0_dp) fn_val = 2.0e0_dp*EXP(x*x) - fn_val
   RETURN
 END IF
@@ -1438,14 +1439,15 @@ IF (MIN(a0, b0) > 1.0e0_dp) GO TO 30
 
 !             PROCEDURE FOR A0 .LE. 1 OR B0 .LE. 1
 
-IF (x <= 0.5e0_dp) GO TO 10
-ind = 1
-a0 = b
-b0 = a
-x0 = y
-y0 = x
+IF (x > 0.5e0_dp) THEN
+  ind = 1
+  a0 = b
+  b0 = a
+  x0 = y
+  y0 = x
+ENDIF
 
-10 IF (b0 < MIN(eps,eps*a0)) GO TO 80
+IF (b0 < MIN(eps,eps*a0)) GO TO 80
 IF (a0 < MIN(eps,eps*b0) .AND. b0*x0 <= 1.0e0_dp) GO TO 90
 IF (MAX(a0, b0) > 1.0e0_dp) GO TO 20
 IF (a0 >= MIN(0.2e0_dp, b0)) GO TO 100
@@ -1768,11 +1770,16 @@ sum = 0.0e0_dp
 n = 0.0e0_dp
 c = 1.0e0_dp
 tol = eps/a
-100    n = n + 1.0e0_dp
+n = n + 1.0e0_dp
 c = c*(0.5e0_dp + (0.5e0_dp - b/n))*x
 w = c/(a + n)
 sum = sum + w
-IF (ABS(w) > tol) GO TO 100
+DO WHILE (ABS(w) > tol)
+  n = n + 1.0e0_dp
+  c = c*(0.5e0_dp + (0.5e0_dp - b/n))*x
+  w = c/(a + n)
+  sum = sum + w
+END DO
 fn_val = fn_val*(1.0e0_dp + a*sum)
 
 END FUNCTION bpser
@@ -2187,12 +2194,13 @@ GO TO 120
 111 u = e - LOG(x/x0)
 
 120 e = lambda/b
-IF (ABS(e) > 0.6e0_dp) GO TO 121
-v = rlog1(e)
-GO TO 130
-121 v = e - LOG(y/y0)
+IF (ABS(e) <= 0.6e0_dp) THEN
+  v = rlog1(e)
+ELSE
+  v = e - LOG(y/y0)
+ENDIF
 
-130 z = esum(mu,-(a*u + b*v))
+z = esum(mu,-(a*u + b*v))
 fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
 
 END FUNCTION brcmp1

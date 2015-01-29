@@ -205,7 +205,7 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, dp_grid, ndw, l_fes_int)
+  RECURSIVE SUBROUTINE fes_only_write(idim, fes,  pos,  ndim, ngrid, dp_grid, ndw, l_fes_int, unit_nr)
     INTEGER, INTENT(IN)                      :: idim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, DIMENSION(:), POINTER           :: pos
@@ -215,25 +215,25 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndw
     LOGICAL, INTENT(IN)                      :: l_fes_int
 
-    INTEGER                                  :: dimval, i, is, pnt
+    INTEGER                                  :: dimval, i, is, pnt, unit_nr
     REAL(KIND=dp)                            :: dvol, sum_fes
 
     DO i = 1,ngrid(idim)
        pos(idim)=i
        IF(idim/=ndim-ndw+1) THEN
-          CALL fes_only_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid, ndw, l_fes_int)
+          CALL fes_only_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid, ndw, l_fes_int, unit_nr)
        ELSE        
           pnt=point_no_pbc(pos,ngrid,ndim)
           dimval = PRODUCT(ngrid(1:ndim-ndw))
           IF (l_fes_int) THEN
-             WRITE(123,'(1f12.5)')MINVAL(-fes(pnt:pnt+dimval-1))
+             WRITE(unit_nr,'(1f12.5)')MINVAL(-fes(pnt:pnt+dimval-1))
           ELSE
              sum_fes =0.0_dp
              dvol = PRODUCT(dp_grid(1:ndim-ndw))
              DO is = pnt,pnt+dimval-1
                 sum_fes = sum_fes + fes(is)*dvol
              END DO
-             WRITE(123,'(1f12.5)')-sum_fes
+             WRITE(unit_nr,'(1f12.5)')-sum_fes
           END IF
        END IF
     END DO
