@@ -156,6 +156,7 @@ CONTAINS
 !>                 dsave(14) = the relative step length in the line search;
 !>                 dsave(15) = the slope of the line search function at the starting point of the line search;
 !>                 dsave(16) = the square of the 2-norm of the line search direction vector.
+!> \param trust_radius ...
 !> \author         NEOS, November 1994. (Latest revision June 1996.)
 !>                 Optimization Technology Center.
 !>                 Argonne National Laboratory and Northwestern University.
@@ -164,12 +165,12 @@ CONTAINS
 !>                 in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
       SUBROUTINE setulb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, wa, iwa,&
-                       task, iprint, csave, lsave, isave, dsave)
+                       task, iprint, csave, lsave, isave, dsave, trust_radius)
 
     INTEGER, INTENT(in)                      :: n, m
     REAL(KIND=dp), INTENT(inout)             :: x(n)
-    REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
-    INTEGER, INTENT(in)                      :: nbd(n)
+    REAL(KIND=dp)                            :: lower_bound(n), upper_bound(n)
+    INTEGER                                  :: nbd(n)
     REAL(KIND=dp)                            :: f, g(n)
     REAL(KIND=dp), INTENT(in)                :: factr, pgtol
     REAL(KIND=dp)                            :: wa(2*m*n + 5*n + 11*m*m + 8*m)
@@ -180,10 +181,11 @@ CONTAINS
     LOGICAL                                  :: lsave(4)
     INTEGER                                  :: isave(44)
     REAL(KIND=dp)                            :: dsave(29)
+    REAL(KIND=dp), INTENT(in)                :: trust_radius
 
-    INTEGER                                  :: ld, lr, lsnd, lss, lsy, lt, &
-                                                lwa, lwn, lws, lwt, lwy, lxp, &
-                                                lz
+    INTEGER                                  :: i, ld, lr, lsnd, lss, lsy, &
+                                                lt, lwa, lwn, lws, lwt, lwy, &
+                                                lxp, lz
 
 !     References:
 !
@@ -246,6 +248,18 @@ CONTAINS
       lt   = isave(14)
       lxp  = isave(15)
       lwa  = isave(16)
+
+      !in case we use a trust radius we set the boundaries to be one times the trust radius away from the current positions
+      !the original implementation only allowed for boundaries that remain constant during the optimization.
+      !This way of including a trust radius seems to work,
+      !but the change of the boundaries during optimization might introduce some not yet discovered problems.
+      IF(trust_radius>0) THEN
+        DO i=1,n
+          lower_bound(i)=x(i)-trust_radius
+          upper_bound(i)=x(i)+trust_radius
+          nbd(i)=2
+        END DO
+      ENDIF
 
       CALL mainlb(n,m,x,lower_bound,upper_bound,nbd,f,g,factr,pgtol,                        &
         wa(lws),wa(lwy),wa(lsy),wa(lss), wa(lwt),                       &
@@ -377,11 +391,11 @@ CONTAINS
     CHARACTER(LEN=3)                         :: word
     INTEGER :: col, head, i, iback, ifun, ileave, info, itail, iter, itfile, &
       iupdat, iword, k, nact, nenter, nfgv, nfree, nintol, nseg, nskip
-    LOGICAL                                  :: boxed, cnstnd, first, prjctd, &
-                                                updatd, wrk
+    LOGICAL                                  :: boxed, constrained, first, &
+                                                updatd, wrk, x_projected
     REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, &
-      fold, gd, gdold, lnscht, rr, sbgnrm, sbtime, stp, stpmx, theta, time, &
-      time1, time2, tol, xstep
+      fold, g_inf_norm, gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, &
+      time, time1, time2, tol, xstep
 
 !     References:
 !
@@ -427,8 +441,8 @@ CONTAINS
          dnorm  = zero
          cpu1   = zero
          gd     = zero
-         stpmx  = zero
-         sbgnrm = zero
+         step_max  = zero
+         g_inf_norm = zero
          stp    = zero
          gdold  = zero
          dtd    = zero
@@ -466,7 +480,7 @@ CONTAINS
          CALL errclb(n,m,factr,lower_bound,upper_bound,nbd,task,info,k)
          IF (task(1:5) == 'ERROR') THEN
             CALL prn3lb(n,x,f,task,iprint,info,itfile,                  &
-                        iter,nfgv,nintol,nskip,nact,sbgnrm,             &
+                        iter,nfgv,nintol,nskip,nact,g_inf_norm,             &
                         zero,nseg,word,iback,stp,xstep,k,               &
                         cachyt,sbtime,lnscht)
             RETURN
@@ -476,20 +490,20 @@ CONTAINS
 
 !        Initialize iwhere & project x onto the feasible set.
 
-         CALL active(n,lower_bound,upper_bound,nbd,x,iwhere,iprint,prjctd,cnstnd,boxed)
+         CALL active(n,lower_bound,upper_bound,nbd,x,iwhere,iprint,x_projected,constrained,boxed)
 
 !        The end of the initialization.
          task = 'FG_START'
 !        return to the driver to calculate f and g; reenter at 111.
-         CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                            nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                            lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+         CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
          RETURN
       ELSE
 !          restore local variables.
 
-         prjctd = lsave(1)
-         cnstnd = lsave(2)
+         x_projected = lsave(1)
+         constrained = lsave(2)
          boxed  = lsave(3)
          updatd = lsave(4)
 
@@ -523,8 +537,8 @@ CONTAINS
          lnscht = dsave(9)
          time1  = dsave(10)
          gd     = dsave(11)
-         stpmx  = dsave(12)
-         sbgnrm = dsave(13)
+         step_max  = dsave(12)
+         g_inf_norm = dsave(13)
          stp    = dsave(14)
          gdold  = dsave(15)
          dtd    = dsave(16)
@@ -542,12 +556,12 @@ CONTAINS
             CALL timer(time2)
             time = time2 - time1
             CALL prn3lb(n,x,f,task,iprint,info,itfile,                        &
-                        iter,nfgv,nintol,nskip,nact,sbgnrm,                   &
+                        iter,nfgv,nintol,nskip,nact,g_inf_norm,                   &
                         time,nseg,word,iback,stp,xstep,k,                     &
                         cachyt,sbtime,lnscht)
-            CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                               nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                               lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+         CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
             RETURN
          END IF
       END IF
@@ -559,24 +573,24 @@ CONTAINS
 
 !     Compute the infinity norm of the (-) projected gradient.
 
-      CALL projgr(n,lower_bound,upper_bound,nbd,x,g,sbgnrm)
+      CALL projgr(n,lower_bound,upper_bound,nbd,x,g,g_inf_norm)
 
       IF (iprint >= 1) THEN
-         WRITE (*,1002) iter,f,sbgnrm
-         WRITE (itfile,1003) iter,nfgv,sbgnrm,f
+         WRITE (*,1002) iter,f,g_inf_norm
+         WRITE (itfile,1003) iter,nfgv,g_inf_norm,f
       END IF
-      IF (sbgnrm <= pgtol) THEN
+      IF (g_inf_norm <= pgtol) THEN
 !                                terminate the algorithm.
          task = 'CONVERGENCE: NORM_OF_PROJECTED_GRADIENT_<=_PGTOL'
          CALL timer(time2)
          time = time2 - time1
          CALL prn3lb(n,x,f,task,iprint,info,itfile,                        &
-                     iter,nfgv,nintol,nskip,nact,sbgnrm,                   &
+                     iter,nfgv,nintol,nskip,nact,g_inf_norm,                   &
                      time,nseg,word,iback,stp,xstep,k,                     &
                      cachyt,sbtime,lnscht)
-         CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                            nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                            lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+         CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
          RETURN
       END IF
       END IF
@@ -587,7 +601,7 @@ CONTAINS
       IF (iprint >= 99) WRITE (*,1001) iter + 1
       iword = -1
 !
-      IF (.NOT. cnstnd .AND. col > 0) THEN
+      IF (.NOT. constrained .AND. col > 0) THEN
 !                                            skip the search for GCP.
          CALL dcopy(n,x,1,z,1)
          wrk = updatd
@@ -604,7 +618,7 @@ CONTAINS
          CALL cauchy(n,x,lower_bound,upper_bound,nbd,g,indx2,iwhere,t,d,z,                     &
                      m,wy,ws,sy,wt,theta,col,head,                         &
                      wa(1),wa(2*m+1),wa(4*m+1),wa(6*m+1),nseg,             &
-                     iprint, sbgnrm, info, epsmch)
+                     iprint, g_inf_norm, info, epsmch)
          IF (info /= 0) THEN
 !            singular triangular system detected; refresh the lbfgs memory.
             IF(iprint >= 1) WRITE (*, 1005)
@@ -627,7 +641,7 @@ CONTAINS
 !        find the index set of free and active variables at the GCP.
 
          CALL freev(n,nfree,index,nenter,ileave,indx2,                     &
-                    iwhere,wrk,updatd,cnstnd,iprint,iter)
+                    iwhere,wrk,updatd,constrained,iprint,iter)
          nact = n - nfree
 
       ENDIF
@@ -672,7 +686,7 @@ CONTAINS
 !        compute r=-Z'B(xcp-xk)-Z'g (using wa(2m+1)=W'(xcp-x)
 !                                                   from 'cauchy').
       CALL cmprlb(n,m,x,g,ws,wy,sy,wt,z,r,wa,index,                     &
-                 theta,col,head,nfree,cnstnd,info)
+                 theta,col,head,nfree,constrained,info)
       IF (info == 0) THEN
 
 !     call the direct method.
@@ -715,8 +729,8 @@ CONTAINS
       ENDIF
       IF(.NOT.first.OR..NOT.(task(1:5) == 'NEW_X')) THEN
       CALL lnsrlb(n,lower_bound,upper_bound,nbd,x,f,fold,gd,gdold,g,d,r,t,z,stp,dnorm,      &
-                  dtd,xstep,stpmx,iter,ifun,iback,nfgv,info,task,       &
-                  boxed,cnstnd,csave,isave(22),dsave(17))
+                  dtd,xstep,step_max,iter,ifun,iback,nfgv,info,task,       &
+                  boxed,constrained,csave,isave(22),dsave(17))
       IF (info /= 0 .OR. iback >= 20) THEN
 !          restore the previous iterate.
          CALL dcopy(n,t,1,x,1)
@@ -736,12 +750,12 @@ CONTAINS
             CALL timer(time2)
             time = time2 - time1
             CALL prn3lb(n,x,f,task,iprint,info,itfile,                        &
-                        iter,nfgv,nintol,nskip,nact,sbgnrm,                   &
+                        iter,nfgv,nintol,nskip,nact,g_inf_norm,                   &
                         time,nseg,word,iback,stp,xstep,k,                     &
-                       cachyt,sbtime,lnscht)
-            CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                               nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                               lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+                        cachyt,sbtime,lnscht)
+            CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
             RETURN
          ELSE
 !             refresh the lbfgs memory and restart the iteration.
@@ -761,9 +775,9 @@ CONTAINS
          END IF
       ELSE IF (task(1:5) == 'FG_LN') THEN
 !          return to the driver for calculating f and g; reenter at 666.
-         CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                            nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                            lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+         CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
          RETURN
       ELSE
 !          calculate and print out the quantities related to the new X.
@@ -773,33 +787,33 @@ CONTAINS
 
 !        Compute the infinity norm of the projected (-)gradient.
 
-         CALL projgr(n,lower_bound,upper_bound,nbd,x,g,sbgnrm)
+         CALL projgr(n,lower_bound,upper_bound,nbd,x,g,g_inf_norm)
 
 !        Print iteration information.
 
          CALL prn2lb(n,x,f,g,iprint,itfile,iter,nfgv,nact,              &
-                     sbgnrm,nseg,word,iword,iback,stp,xstep)
-         CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                            nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                            lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+                     g_inf_norm,nseg,word,iword,iback,stp,xstep)
+         CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
          RETURN
       END IF
       ENDIF
 
 !     Test for termination.
 
-      IF (sbgnrm <= pgtol) THEN
+      IF (g_inf_norm <= pgtol) THEN
 !                                terminate the algorithm.
          task = 'CONVERGENCE: NORM_OF_PROJECTED_GRADIENT_<=_PGTOL'
          CALL timer(time2)
          time = time2 - time1
          CALL prn3lb(n,x,f,task,iprint,info,itfile,                        &
-                     iter,nfgv,nintol,nskip,nact,sbgnrm,                   &
+                     iter,nfgv,nintol,nskip,nact,g_inf_norm,                   &
                      time,nseg,word,iback,stp,xstep,k,                     &
                      cachyt,sbtime,lnscht)
-         CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                            nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                            lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+         CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
          RETURN
       END IF
 
@@ -812,12 +826,12 @@ CONTAINS
          CALL timer(time2)
          time = time2 - time1
          CALL prn3lb(n,x,f,task,iprint,info,itfile,                        &
-                     iter,nfgv,nintol,nskip,nact,sbgnrm,                   &
+                     iter,nfgv,nintol,nskip,nact,g_inf_norm,                   &
                      time,nseg,word,iback,stp,xstep,k,                     &
                      cachyt,sbtime,lnscht)
-         CALL save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                            nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                            lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+         CALL save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,&
+                            cpu1,cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
          RETURN
       END IF
 
@@ -921,8 +935,8 @@ CONTAINS
 !>                           0   otherwise.
 !>                In cauchy, iwhere is given finer gradations.
 !> \param iprint ...
-!> \param prjctd ...
-!> \param cnstnd ...
+!> \param x_projected ...
+!> \param constrained ...
 !> \param boxed ...
 !> \author        NEOS, November 1994. (Latest revision June 1996.)
 !>                Optimization Technology Center.
@@ -932,7 +946,7 @@ CONTAINS
 !>                in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
       SUBROUTINE active(n, lower_bound,upper_bound, nbd, x, iwhere, iprint,                &
-                        prjctd, cnstnd, boxed)
+                        x_projected, constrained, boxed)
 
     INTEGER, INTENT(in)                      :: n
     REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
@@ -940,18 +954,19 @@ CONTAINS
     REAL(KIND=dp)                            :: x(n)
     INTEGER, INTENT(out)                     :: iwhere(n)
     INTEGER                                  :: iprint
-    LOGICAL                                  :: prjctd, cnstnd, boxed
+    LOGICAL                                  :: x_projected, constrained, &
+                                                boxed
 
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: i, nbdd
 
 !     ************
-!     Initialize nbdd, prjctd, cnstnd and boxed.
+!     Initialize nbdd, x_projected, constrained and boxed.
 
       nbdd = 0
-      prjctd = .FALSE.
-      cnstnd = .FALSE.
+      x_projected = .FALSE.
+      constrained = .FALSE.
       boxed = .TRUE.
 
 !     Project the initial x to the easible set if necessary.
@@ -960,13 +975,13 @@ CONTAINS
          IF (nbd(i) > 0) THEN
             IF (nbd(i) <= 2 .AND. x(i) <= lower_bound(i)) THEN
                IF (x(i) < lower_bound(i)) THEN
-                  prjctd = .TRUE.
+                  x_projected = .TRUE.
                   x(i) = lower_bound(i)
                END IF
                nbdd = nbdd + 1
             ELSE IF (nbd(i) >= 2 .AND. x(i) >= upper_bound(i)) THEN
                IF (x(i) > upper_bound(i)) THEN
-                  prjctd = .TRUE.
+                  x_projected = .TRUE.
                   x(i) = upper_bound(i)
                END IF
                nbdd = nbdd + 1
@@ -974,7 +989,7 @@ CONTAINS
          END IF
       END DO
 
-!     Initialize iwhere and assign values to cnstnd and boxed.
+!     Initialize iwhere and assign values to constrained and boxed.
 
       DO i = 1, n
          IF (nbd(i) /= 2) boxed = .FALSE.
@@ -984,7 +999,7 @@ CONTAINS
 
 !           otherwise set x(i)=mid(x(i), u(i), l(i)).
          ELSE
-            cnstnd = .TRUE.
+            constrained= .TRUE.
             IF (nbd(i) == 2 .AND. upper_bound(i) - lower_bound(i) <= zero) THEN
 !                   this variable is always fixed
                iwhere(i) = 3
@@ -995,9 +1010,9 @@ CONTAINS
       END DO
 
       IF (iprint >= 0) THEN
-         IF (prjctd) WRITE (*,*)                                        &
+         IF (x_projected) WRITE (*,*)                                        &
      &   'The initial X is infeasible.  Restart with its projection.'
-         IF (.NOT. cnstnd)                                              &
+         IF (.NOT. constrained)                                              &
             WRITE (*,*) 'This problem is unconstrained.'
       END IF
 
@@ -1092,7 +1107,7 @@ CONTAINS
       END SUBROUTINE bmv
 
 ! *****************************************************************************
-!> \brief        For given x, l, u, g (with sbgnrm > 0), and a limited memory
+!> \brief        For given x, l, u, g (with g_inf_norm > 0), and a limited memory
 !>               BFGS matrix B defined in terms of matrices WY, WS, WT, and
 !>               scalars head, col, and theta, this subroutine computes the
 !>               generalized Cauchy point (GCP), defined as the first local
@@ -1157,7 +1172,7 @@ CONTAINS
 !>               iprint=100  print also the changes of active set and final x;
 !>               iprint>100  print details of every iteration including x and g;
 !>               When iprint > 0, the file iterate.dat will be created to summarize the iteration.
-!> \param sbgnrm sbgnrm is the norm of the projected gradient at x.
+!> \param g_inf_norm g_inf_norm is the norm of the projected gradient at x.
 !> \param info   On entry info is 0.
 !>               On exit info = 0       for normal return,
 !>                            = nonzero for abnormal return when the the system
@@ -1172,7 +1187,7 @@ CONTAINS
 ! *****************************************************************************
       SUBROUTINE cauchy(n, x, lower_bound, upper_bound, nbd, g, iorder, iwhere, t, d, xcp,  &
                         m, wy, ws, sy, wt, theta, col, head, p, c, wbp, &
-                        v, nseg, iprint, sbgnrm, info, epsmch)
+                        v, nseg, iprint, g_inf_norm, info, epsmch)
     INTEGER, INTENT(in)                      :: n
     REAL(KIND=dp), INTENT(in)                :: x(n), lower_bound(n), &
                                                 upper_bound(n)
@@ -1189,7 +1204,7 @@ CONTAINS
     REAL(KIND=dp)                            :: p(2*m), c(2*m), wbp(2*m), &
                                                 v(2*m)
     INTEGER                                  :: nseg, iprint
-    REAL(KIND=dp), INTENT(in)                :: sbgnrm
+    REAL(KIND=dp), INTENT(in)                :: g_inf_norm
     INTEGER, INTENT(inout)                   :: info
     REAL(KIND=dp)                            :: epsmch
 
@@ -1223,7 +1238,7 @@ CONTAINS
 !       compute the Cauchy direction d and the breakpoints t; initialize
 !       the derivative f1 and the vector p = W'd (for theta = 1).
 
-      IF (sbgnrm <= zero) THEN
+      IF (g_inf_norm <= zero) THEN
          IF (iprint >= 0) WRITE (*,*) 'Subgnorm = 0.  GCP = X.'
          CALL dcopy(n,x,1,xcp,1)
          RETURN
@@ -1564,7 +1579,7 @@ CONTAINS
 !> \param col ...
 !> \param head ...
 !> \param nfree ...
-!> \param cnstnd ...
+!> \param constrained ...
 !> \param info ...
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
@@ -1574,7 +1589,7 @@ CONTAINS
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
       SUBROUTINE cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index,    &
-                       theta, col, head, nfree, cnstnd, info)
+                       theta, col, head, nfree, constrained, info)
 
     INTEGER, INTENT(in)                      :: n, m
     REAL(KIND=dp), INTENT(in)                :: x(n), g(n), ws(n, m), &
@@ -1584,13 +1599,13 @@ CONTAINS
     INTEGER, INTENT(in)                      :: INDEX(n)
     REAL(KIND=dp), INTENT(in)                :: theta
     INTEGER, INTENT(in)                      :: col, head, nfree
-    LOGICAL, INTENT(in)                      :: cnstnd
+    LOGICAL, INTENT(in)                      :: constrained
     INTEGER                                  :: info
 
     INTEGER                                  :: i, j, k, pointr
     REAL(KIND=dp)                            :: a1, a2
 
-      IF (.NOT. cnstnd .AND. col > 0) THEN
+      IF (.NOT. constrained .AND. col > 0) THEN
          DO i = 1, n
             r(i) = -g(i)
          END DO
@@ -2031,7 +2046,7 @@ CONTAINS
 !> \param iwhere ...
 !> \param wrk ...
 !> \param updatd ...
-!> \param cnstnd cnstnd is a logical variable indicating whether bounds are present
+!> \param constrained     A variable indicating whether bounds are present
 !> \param iprint ...
 !> \param iter ...
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
@@ -2042,21 +2057,21 @@ CONTAINS
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
       SUBROUTINE freev(n, nfree, index, nenter, ileave, indx2,          &
-                       iwhere, wrk, updatd, cnstnd, iprint, iter)
+                       iwhere, wrk, updatd, constrained, iprint, iter)
 
     INTEGER                                  :: n, nfree
     INTEGER, INTENT(inout)                   :: INDEX(n)
     INTEGER                                  :: nenter, ileave
     INTEGER, INTENT(out)                     :: indx2(n)
     INTEGER                                  :: iwhere(n)
-    LOGICAL                                  :: wrk, updatd, cnstnd
+    LOGICAL                                  :: wrk, updatd, constrained
     INTEGER                                  :: iprint, iter
 
     INTEGER                                  :: i, iact, k
 
       nenter = 0
       ileave = n + 1
-      IF (iter > 0 .AND. cnstnd) THEN
+      IF (iter > 0 .AND. constrained) THEN
 !                           count the entering and leaving variables.
          DO i = 1, nfree
             k = INDEX(i)
@@ -2224,7 +2239,7 @@ CONTAINS
 !> \param dnorm ...
 !> \param dtd ...
 !> \param xstep ...
-!> \param stpmx ...
+!> \param step_max ...
 !> \param iter ...
 !> \param ifun ...
 !> \param iback ...
@@ -2232,7 +2247,7 @@ CONTAINS
 !> \param info ...
 !> \param task ...
 !> \param boxed ...
-!> \param cnstnd ...
+!> \param constrained ...
 !> \param csave ...
 !> \param isave ...
 !> \param dsave ...
@@ -2244,8 +2259,8 @@ CONTAINS
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
       SUBROUTINE lnsrlb(n, lower_bound, upper_bound, nbd, x, f, fold, gd, gdold, g, d, r, t,&
-                        z, stp, dnorm, dtd, xstep, stpmx, iter, ifun,   &
-                        iback, nfgv, info, task, boxed, cnstnd, csave,  &
+                        z, stp, dnorm, dtd, xstep, step_max, iter, ifun,   &
+                        iback, nfgv, info, task, boxed, constrained, csave,  &
                         isave, dsave)
 
     INTEGER, INTENT(in)                      :: n
@@ -2253,10 +2268,11 @@ CONTAINS
     INTEGER                                  :: nbd(n)
     REAL(KIND=dp)                            :: x(n), f, fold, gd, gdold, &
                                                 g(n), d(n), r(n), t(n), z(n), &
-                                                stp, dnorm, dtd, xstep, stpmx
+                                                stp, dnorm, dtd, xstep, &
+                                                step_max
     INTEGER                                  :: iter, ifun, iback, nfgv, info
     CHARACTER(LEN=60)                        :: task
-    LOGICAL                                  :: boxed, cnstnd
+    LOGICAL                                  :: boxed, constrained
     CHARACTER(LEN=60)                        :: csave
     INTEGER                                  :: isave(2)
     REAL(KIND=dp)                            :: dsave(13)
@@ -2274,10 +2290,10 @@ CONTAINS
 
 !     Determine the maximum step length.
 
-      stpmx = big
-      IF (cnstnd) THEN
+      step_max = big
+      IF (constrained) THEN
          IF (iter == 0) THEN
-            stpmx = one
+            step_max = one
          ELSE
             DO i = 1, n
                a1 = d(i)
@@ -2285,16 +2301,16 @@ CONTAINS
                   IF (a1 < zero .AND. nbd(i) <= 2) THEN
                      a2 = lower_bound(i) - x(i)
                      IF (a2 >= zero) THEN
-                        stpmx = zero
-                     ELSE IF (a1*stpmx < a2) THEN
-                        stpmx = a2/a1
+                        step_max = zero
+                     ELSE IF (a1*step_max < a2) THEN
+                        step_max = a2/a1
                      END IF
                   ELSE IF (a1 > zero .AND. nbd(i) >= 2) THEN
                      a2 = upper_bound(i) - x(i)
                      IF (a2 <= zero) THEN
-                        stpmx = zero
-                     ELSE IF (a1*stpmx > a2) THEN
-                        stpmx = a2/a1
+                        step_max = zero
+                     ELSE IF (a1*step_max > a2) THEN
+                        step_max = a2/a1
                      END IF
                   END IF
                END IF
@@ -2303,7 +2319,7 @@ CONTAINS
       END IF
 
       IF (iter == 0 .AND. .NOT. boxed) THEN
-         stp = MIN(one/dnorm, stpmx)
+         stp = MIN(one/dnorm, step_max)
       ELSE
          stp = one
       END IF
@@ -2327,7 +2343,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL dcsrch(f,gd,stp,ftol,gtol,xtol,zero,stpmx,csave,isave,dsave)
+      CALL dcsrch(f,gd,stp,ftol,gtol,xtol,zero,step_max,csave,isave,dsave)
 
       xstep = stp*dnorm
       IF (csave(1:4) /= 'CONV' .AND. csave(1:4) /= 'WARN') THEN
@@ -2522,7 +2538,7 @@ CONTAINS
 !> \param iter ...
 !> \param nfgv ...
 !> \param nact ...
-!> \param sbgnrm ...
+!> \param g_inf_norm ...
 !> \param nseg ...
 !> \param word ...
 !> \param iword ...
@@ -2537,13 +2553,13 @@ CONTAINS
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
       SUBROUTINE prn2lb(n, x, f, g, iprint, itfile, iter, nfgv, nact,   &
-                        sbgnrm, nseg, word, iword, iback, stp, xstep)
+                        g_inf_norm, nseg, word, iword, iback, stp, xstep)
 
     INTEGER, INTENT(in)                      :: n
     REAL(KIND=dp), INTENT(in)                :: x(n), f, g(n)
     INTEGER, INTENT(in)                      :: iprint, itfile, iter, nfgv, &
                                                 nact
-    REAL(KIND=dp), INTENT(in)                :: sbgnrm
+    REAL(KIND=dp), INTENT(in)                :: g_inf_norm
     INTEGER, INTENT(in)                      :: nseg
     CHARACTER(LEN=3)                         :: word
     INTEGER                                  :: iword, iback
@@ -2567,17 +2583,17 @@ CONTAINS
       END IF
       IF (iprint >= 99) THEN
          WRITE (*,*) 'LINE SEARCH',iback,' times; norm of step = ',xstep
-         WRITE (*,2001) iter,f,sbgnrm
+         WRITE (*,2001) iter,f,g_inf_norm
          IF (iprint > 100) THEN
             WRITE (*,1004) 'X =',(x(i), i = 1, n)
             WRITE (*,1004) 'G =',(g(i), i = 1, n)
          END IF
       ELSE IF (iprint > 0) THEN
          imod = MOD(iter,iprint)
-         IF (imod == 0) WRITE (*,2001) iter,f,sbgnrm
+         IF (imod == 0) WRITE (*,2001) iter,f,g_inf_norm
       END IF
       IF (iprint >= 1) WRITE (itfile,3001)                            &
-                iter,nfgv,nseg,nact,word,iback,stp,xstep,sbgnrm,f
+                iter,nfgv,nseg,nact,word,iback,stp,xstep,g_inf_norm,f
 
  1004 FORMAT (/,a4, 1p, 6(1x,d11.4),/,(4x,1p,6(1x,d11.4)))
  2001 FORMAT                                                            &
@@ -2604,7 +2620,7 @@ CONTAINS
 !> \param nintol ...
 !> \param nskip ...
 !> \param nact ...
-!> \param sbgnrm ...
+!> \param g_inf_norm ...
 !> \param time ...
 !> \param nseg ...
 !> \param word ...
@@ -2623,7 +2639,7 @@ CONTAINS
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
       SUBROUTINE prn3lb(n, x, f, task, iprint, info, itfile,            &
-                        iter, nfgv, nintol, nskip, nact, sbgnrm,        &
+                        iter, nfgv, nintol, nskip, nact, g_inf_norm,        &
                         time, nseg, word, iback, stp, xstep, k,         &
                         cachyt, sbtime, lnscht)
 
@@ -2632,7 +2648,7 @@ CONTAINS
     CHARACTER(LEN=60), INTENT(in)            :: task
     INTEGER, INTENT(in)                      :: iprint, info, itfile, iter, &
                                                 nfgv, nintol, nskip, nact
-    REAL(KIND=dp), INTENT(in)                :: sbgnrm, time
+    REAL(KIND=dp), INTENT(in)                :: g_inf_norm, time
     INTEGER, INTENT(in)                      :: nseg
     CHARACTER(LEN=3)                         :: word
     INTEGER                                  :: iback
@@ -2645,7 +2661,7 @@ CONTAINS
       IF (iprint >= 0.AND..NOT.(task(1:5) == 'ERROR')) THEN
          WRITE(*,3003)
          WRITE(*,3004)
-         WRITE(*,3005) n,iter,nfgv,nintol,nskip,nact,sbgnrm,f
+         WRITE(*,3005) n,iter,nfgv,nintol,nskip,nact,g_inf_norm,f
          IF (iprint >= 100) THEN
             WRITE (*,1004) 'X =',(x(i),i = 1,n)
          END IF
@@ -2742,7 +2758,7 @@ CONTAINS
 !> \param nbd ...
 !> \param x ...
 !> \param g ...
-!> \param sbgnrm ...
+!> \param g_inf_norm ...
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -2750,20 +2766,20 @@ CONTAINS
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! *****************************************************************************
-      SUBROUTINE projgr(n, lower_bound, upper_bound, nbd, x, g, sbgnrm)
+      SUBROUTINE projgr(n, lower_bound, upper_bound, nbd, x, g, g_inf_norm)
 
     INTEGER, INTENT(in)                      :: n
     REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
     INTEGER, INTENT(in)                      :: nbd(n)
     REAL(KIND=dp), INTENT(in)                :: x(n), g(n)
-    REAL(KIND=dp)                            :: sbgnrm
+    REAL(KIND=dp)                            :: g_inf_norm
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: gi
 
-      sbgnrm = zero
+      g_inf_norm=zero
       DO i = 1, n
         gi = g(i)
         IF (nbd(i) /= 0) THEN
@@ -2773,7 +2789,7 @@ CONTAINS
               IF (nbd(i) <= 2) gi = MIN((x(i)-lower_bound(i)),gi)
            END IF
         END IF
-        sbgnrm = MAX(sbgnrm,ABS(gi))
+        g_inf_norm = MAX(g_inf_norm,ABS(gi))
       END DO
 
       RETURN
@@ -3016,8 +3032,8 @@ CONTAINS
       END DO
       IF ( dd_p .gt.zero ) THEN
          CALL dcopy( n, xp, 1, x, 1 )
-         WRITE(*,*) ' Positive dir derivative in projection '
-         WRITE(*,*) ' Using the backtracking step '
+         IF(iprint >0) WRITE(*,*) ' Positive dir derivative in projection '
+         IF(iprint >0) WRITE(*,*) ' Using the backtracking step '
          alpha = one
          temp1 = alpha
          ibd   = 0
@@ -3824,11 +3840,50 @@ CONTAINS
 
 ! *****************************************************************************    
 !> \brief  Saves the lcoal variables, long term this should be replaces by a lbfgs type
-!> \param lsave ...
-!> \param isave ...
-!> \param dsave ...
-!> \param prjctd ...
-!> \param cnstnd ...
+!> \param lsave    lsave is a working array
+!>                 On exit with 'task' = NEW_X, the following information is available:
+!>                 If lsave(1) = .true.  then  the initial X has been replaced by
+!>                               its projection in the feasible set
+!>                 If lsave(2) = .true.  then  the problem is constrained;
+!>                 If lsave(3) = .true.  then  each variable has upper and lower bounds;
+!> \param isave    isave is a working array
+!>                 On exit with 'task' = NEW_X, the following information is available:
+!>                 isave(22) = the total number of intervals explored in the
+!>                         search of Cauchy points;
+!>                 isave(26) = the total number of skipped BFGS updates before the current iteration;
+!>                 isave(30) = the number of current iteration;
+!>                 isave(31) = the total number of BFGS updates prior the current iteration;
+!>                 isave(33) = the number of intervals explored in the search of
+!>                             Cauchy point in the current iteration;
+!>                 isave(34) = the total number of function and gradient evaluations;
+!>                 isave(36) = the number of function value or gradient
+!>                             evaluations in the current iteration;
+!>                 if isave(37) = 0  then the subspace argmin is within the box;
+!>                 if isave(37) = 1  then the subspace argmin is beyond the box;
+!>                 isave(38) = the number of free variables in the current iteration;
+!>                 isave(39) = the number of active constraints in the current iteration;
+!>                 n + 1 - isave(40) = the number of variables leaving the set of
+!>                                     active constraints in the current iteration;
+!>                 isave(41) = the number of variables entering the set of active
+!>                             constraints in the current iteration.
+!> \param dsave    dsave is a working array of dimension 29.
+!>                 On exit with 'task' = NEW_X, the following information is available:
+!>                 dsave(1) = current 'theta' in the BFGS matrix;
+!>                 dsave(2) = f(x) in the previous iteration;
+!>                 dsave(3) = factr*epsmch;
+!>                 dsave(4) = 2-norm of the line search direction vector;
+!>                 dsave(5) = the machine precision epsmch generated by the code;
+!>                 dsave(7) = the accumulated time spent on searching for Cauchy points;
+!>                 dsave(8) = the accumulated time spent on subspace minimization;
+!>                 dsave(9) = the accumulated time spent on line search;
+!>                 dsave(11) = the slope of the line search function at the current point of line search;
+!>                 dsave(12) = the maximum relative step length imposed in line search;
+!>                 dsave(13) = the infinity norm of the projected gradient;
+!>                 dsave(14) = the relative step length in the line search;
+!>                 dsave(15) = the slope of the line search function at the starting point of the line search;
+!>                 dsave(16) = the square of the 2-norm of the line search direction vector.
+!> \param x_projected ...
+!> \param constrained ...
 !> \param boxed ...
 !> \param updatd ...
 !> \param nintol ...
@@ -3860,30 +3915,29 @@ CONTAINS
 !> \param lnscht ...
 !> \param time1 ...
 !> \param gd ...
-!> \param stpmx ...
-!> \param sbgnrm ...
+!> \param step_max ...
+!> \param g_inf_norm ...
 !> \param stp ...
 !> \param gdold ...
 !> \param dtd ...
 !> \author Samuel Andermatt (01.15)
 ! *****************************************************************************
 
-      SUBROUTINE save_local(lsave,isave,dsave,prjctd,cnstnd,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,iter,iupdat,&
-                            nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,cachyt,sbtime,&
-                            lnscht,time1,gd,stpmx,sbgnrm,stp,gdold,dtd)
+      SUBROUTINE save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+                            iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,&
+                            cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
     LOGICAL, INTENT(out)                     :: lsave(4)
     INTEGER, INTENT(out)                     :: isave(23)
     REAL(KIND=dp), INTENT(out)               :: dsave(29)
-    LOGICAL, INTENT(in)                      :: prjctd, cnstnd, boxed, updatd
+    LOGICAL, INTENT(in)                      :: x_projected, constrained, &
+                                                boxed, updatd
     INTEGER, INTENT(in) :: nintol, itfile, iback, nskip, head, col, itail, &
       iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter
-    REAL(KIND=dp), INTENT(in)                :: theta, fold, tol, dnorm, &
-                                                epsmch, cpu1, cachyt, sbtime, &
-                                                lnscht, time1, gd, stpmx, &
-                                                sbgnrm, stp, gdold, dtd
+    REAL(KIND=dp), INTENT(in) :: theta, fold, tol, dnorm, epsmch, cpu1, &
+      cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd
 
-      lsave(1)  = prjctd
-      lsave(2)  = cnstnd
+      lsave(1)  = x_projected
+      lsave(2)  = constrained
       lsave(3)  = boxed
       lsave(4)  = updatd
 
@@ -3917,8 +3971,8 @@ CONTAINS
       dsave(9)  = lnscht
       dsave(10) = time1
       dsave(11) = gd
-      dsave(12) = stpmx
-      dsave(13) = sbgnrm
+      dsave(12) = step_max
+      dsave(13) = g_inf_norm
       dsave(14) = stp
       dsave(15) = gdold
       dsave(16) = dtd

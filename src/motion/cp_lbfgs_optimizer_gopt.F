@@ -159,7 +159,7 @@ MODULE cp_lbfgs_optimizer_gopt
      INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
      REAL(kind=dp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
-          last_f, projected_gradient, eold, emin
+          last_f, projected_gradient, eold, emin, trust_radius
      REAL(kind=dp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
      TYPE(cp_para_env_type), POINTER :: para_env
@@ -183,6 +183,7 @@ CONTAINS
 !> \param kind_of_bound ...
 !> \param master ...
 !> \param max_f_per_iter ...
+!> \param trust_radius ...
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
 !> \par History
@@ -194,7 +195,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_opt_gopt_create(optimizer, para_env, obj_funct, x0, m, print_every, &
        wanted_relative_f_delta, wanted_projected_gradient, lower_bound,upper_bound,&
-       kind_of_bound, master, max_f_per_iter, error)
+       kind_of_bound, master, max_f_per_iter, trust_radius, error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gopt_f_type), POINTER               :: obj_funct
@@ -207,6 +208,7 @@ CONTAINS
     INTEGER, DIMENSION(SIZE(x0)), &
       INTENT(in), OPTIONAL                   :: kind_of_bound
     INTEGER, INTENT(in), OPTIONAL            :: master, max_f_per_iter
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: trust_radius
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_create', &
@@ -270,6 +272,7 @@ CONTAINS
           IF (PRESENT(kind_of_bound)) optimizer%kind_of_bound=kind_of_bound
           IF (PRESENT(lower_bound)) optimizer%lower_bound=lower_bound
           IF (PRESENT(upper_bound)) optimizer%upper_bound=upper_bound
+          IF (PRESENT(trust_radius)) optimizer%trust_radius=trust_radius
 
           CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
                optimizer%lower_bound, optimizer%upper_bound, &
@@ -278,7 +281,7 @@ CONTAINS
                optimizer%wanted_projected_gradient, optimizer%work_array, &
                optimizer%i_work_array, optimizer%task, optimizer%print_every,&
                optimizer%csave, optimizer%lsave, optimizer%isave, &
-               optimizer%dsave)
+               optimizer%dsave, optimizer%trust_radius)
        ELSE
           NULLIFY(&
                optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
@@ -463,57 +466,55 @@ END SUBROUTINE cp_opt_gopt_release
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+!  call timeset(routineN,handle)
 
-    !  call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(is_master)) is_master=optimizer%master==optimizer%para_env%mepos
-       IF (PRESENT(master)) master=optimizer%master
-       IF (PRESENT(status)) status=optimizer%status
-       IF (PRESENT(para_env)) para_env => optimizer%para_env
-       IF (PRESENT(id_nr)) id_nr=optimizer%id_nr
-       IF (PRESENT(obj_funct)) obj_funct=optimizer%obj_funct
-       IF (PRESENT(m)) m=optimizer%m
-       IF (PRESENT(max_f_per_iter)) max_f_per_iter=optimizer%max_f_per_iter
-       IF (PRESENT(wanted_projected_gradient)) &
-            wanted_projected_gradient=optimizer%wanted_projected_gradient
-       IF (PRESENT(wanted_relative_f_delta)) &
-            wanted_relative_f_delta=optimizer%wanted_relative_f_delta
-       IF (PRESENT(print_every)) print_every=optimizer%print_every
-       IF (PRESENT(x)) x => optimizer%x
-       IF (PRESENT(n_var)) n_var=SIZE(x)
-       IF (PRESENT(lower_bound)) lower_bound => optimizer%lower_bound
-       IF (PRESENT(upper_bound)) upper_bound => optimizer%upper_bound
-       IF (PRESENT(kind_of_bound)) kind_of_bound => optimizer%kind_of_bound
-       IF (PRESENT(n_iter)) n_iter= optimizer%n_iter
-       IF (PRESENT(last_f)) last_f = optimizer%last_f
-       IF (PRESENT(f)) f= optimizer%f
-       IF (PRESENT(at_end)) at_end=optimizer%status>3
-       IF (PRESENT(actual_projected_gradient))&
-            actual_projected_gradient=optimizer%projected_gradient
-       IF (optimizer%master==optimizer%para_env%mepos) THEN
-          IF (optimizer%isave(30)>1 .AND. (optimizer%task(1:5)=="NEW_X".OR.&
-               optimizer%task(1:4)=="STOP".AND.optimizer%task(7:9)=="CPU")) THEN
-             ! nr iterations >1 .and. dsave contains the wanted data
-             IF (PRESENT(last_f)) last_f = optimizer%dsave(2)
-             IF (PRESENT(actual_projected_gradient))&
-                  actual_projected_gradient=optimizer%dsave(13)
-          ELSE
-             CPPrecondition(.NOT.PRESENT(last_f),cp_warning_level,routineP,error,failure)
-             CPPrecondition(.NOT.PRESENT(actual_projected_gradient),cp_warning_level,routineP,error,failure)
-          END IF
-       ELSE
-          CALL cp_assert(.NOT.(PRESENT(lower_bound).OR.&
-               PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
-               cp_warning_level,cp_assertion_failed,&
-               routineP, "asked undefined types in "//&
-CPSourceFileRef,&
-               error,failure)
-       END IF
 
+    IF (PRESENT(is_master)) is_master=optimizer%master==optimizer%para_env%mepos
+    IF (PRESENT(master)) master=optimizer%master
+    IF (PRESENT(status)) status=optimizer%status
+    IF (PRESENT(para_env)) para_env => optimizer%para_env
+    IF (PRESENT(id_nr)) id_nr=optimizer%id_nr
+    IF (PRESENT(obj_funct)) obj_funct=optimizer%obj_funct
+    IF (PRESENT(m)) m=optimizer%m
+    IF (PRESENT(max_f_per_iter)) max_f_per_iter=optimizer%max_f_per_iter
+    IF (PRESENT(wanted_projected_gradient)) &
+         wanted_projected_gradient=optimizer%wanted_projected_gradient
+    IF (PRESENT(wanted_relative_f_delta)) &
+         wanted_relative_f_delta=optimizer%wanted_relative_f_delta
+    IF (PRESENT(print_every)) print_every=optimizer%print_every
+    IF (PRESENT(x)) x => optimizer%x
+    IF (PRESENT(n_var)) n_var=SIZE(x)
+    IF (PRESENT(lower_bound)) lower_bound => optimizer%lower_bound
+    IF (PRESENT(upper_bound)) upper_bound => optimizer%upper_bound
+    IF (PRESENT(kind_of_bound)) kind_of_bound => optimizer%kind_of_bound
+    IF (PRESENT(n_iter)) n_iter= optimizer%n_iter
+    IF (PRESENT(last_f)) last_f = optimizer%last_f
+    IF (PRESENT(f)) f= optimizer%f
+    IF (PRESENT(at_end)) at_end=optimizer%status>3
+    IF (PRESENT(actual_projected_gradient))&
+         actual_projected_gradient=optimizer%projected_gradient
+    IF (optimizer%master==optimizer%para_env%mepos) THEN
+       IF (optimizer%isave(30)>1 .AND. (optimizer%task(1:5)=="NEW_X".OR.&
+            optimizer%task(1:4)=="STOP".AND.optimizer%task(7:9)=="CPU")) THEN
+          ! nr iterations >1 .and. dsave contains the wanted data
+          IF (PRESENT(last_f)) last_f = optimizer%dsave(2)
+          IF (PRESENT(actual_projected_gradient))&
+               actual_projected_gradient=optimizer%dsave(13)
+       ELSE
+          CPPrecondition(.NOT.PRESENT(last_f),cp_warning_level,routineP,error,failure)
+          CPPrecondition(.NOT.PRESENT(actual_projected_gradient),cp_warning_level,routineP,error,failure)
+       END IF
+    ELSE
+       CALL cp_assert(.NOT.(PRESENT(lower_bound).OR.&
+            PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
+            cp_warning_level,cp_assertion_failed,&
+            routineP, "asked undefined types in "//&
+CPSourceFileRef,&
+            error,failure)
     END IF
+
     !  call timestop(handle)
   END SUBROUTINE cp_opt_gopt_get
 
@@ -592,91 +593,29 @@ CPSourceFileRef,&
                optimizer%wanted_projected_gradient, optimizer%work_array, &
                optimizer%i_work_array, optimizer%task, optimizer%print_every,&
                optimizer%csave, optimizer%lsave, optimizer%isave, &
-               optimizer%dsave)
+               optimizer%dsave, optimizer%trust_radius)
        END IF
     END IF
-    IF (.NOT. failure) THEN
-       DO
-          ifMaster: IF (is_master) THEN
-             IF (optimizer%task(1:7)=='RESTART') THEN
-                ! restart the optimizer
-                optimizer%status=0
-                optimizer%task='START'
-                CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                     optimizer%lower_bound, optimizer%upper_bound, &
-                     optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                     optimizer%wanted_relative_f_delta, &
-                     optimizer%wanted_projected_gradient, optimizer%work_array, &
-                     optimizer%i_work_array, optimizer%task, optimizer%print_every,&
-                     optimizer%csave, optimizer%lsave, optimizer%isave, &
-                     optimizer%dsave)
-             END IF
-             IF (optimizer%task(1:2)=='FG') THEN
-                IF (optimizer%isave(36)>optimizer%max_f_per_iter) THEN
-                   optimizer%task='STOP: CPU, hit max f eval in iter'
-                   optimizer%status=5 ! anormal exit
-                   CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                        optimizer%lower_bound, optimizer%upper_bound, &
-                        optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                        optimizer%wanted_relative_f_delta, &
-                        optimizer%wanted_projected_gradient, optimizer%work_array, &
-                        optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-                        optimizer%csave, optimizer%lsave, optimizer%isave, &
-                        optimizer%dsave)
-                ELSE
-                   optimizer%status=1
-                END IF
-             ELSE IF (optimizer%task(1:5)=='NEW_X') THEN
-                IF (justEntred) THEN
-                   optimizer%status=2
-                   CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
-                        optimizer%lower_bound, optimizer%upper_bound, &
-                        optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-                        optimizer%wanted_relative_f_delta, &
-                        optimizer%wanted_projected_gradient, optimizer%work_array, &
-                        optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-                        optimizer%csave, optimizer%lsave, optimizer%isave, &
-                        optimizer%dsave)
-                ELSE
-                   optimizer%status=3
-                END IF
-             ELSE IF (optimizer%task(1:4)=='CONV') THEN
-                optimizer%status=4
-             ELSE IF (optimizer%task(1:4)=='STOP') THEN
-                optimizer%status=5
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                     routineP,"task became stop in an unknown way in "//&
-CPSourceFileRef,&
-                     error)
-             ELSE IF (optimizer%task(1:5)=='ERROR') THEN
-                optimizer%status=5
-             ELSE
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                     routineP,"unknown task '"//optimizer%task//"' in "//&
-CPSourceFileRef,&
-                     error)
-             END IF
-          END IF ifMaster
-          CALL mp_bcast(optimizer%status,optimizer%master, optimizer%para_env%group)
-          ! Dump info
-          IF (optimizer%status == 3) THEN
-             its = 0
-             IF (is_master) THEN
-                ! Iteration level is taken into account in the optimizer external loop
-                its = optimizer%isave(30)
-             END IF
+
+    DO
+       ifMaster: IF (is_master) THEN
+          IF (optimizer%task(1:7)=='RESTART') THEN
+             ! restart the optimizer
+             optimizer%status=0
+             optimizer%task='START'
+             CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                  optimizer%lower_bound, optimizer%upper_bound, &
+                  optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                  optimizer%wanted_relative_f_delta, &
+                  optimizer%wanted_projected_gradient, optimizer%work_array, &
+                  optimizer%i_work_array, optimizer%task, optimizer%print_every,&
+                  optimizer%csave, optimizer%lsave, optimizer%isave, &
+                  optimizer%dsave, optimizer%trust_radius)
           END IF
-          !
-          SELECT CASE (optimizer%status)
-          CASE (1)
-             !op=1 evaluate f and g
-             CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x,&
-                  f=optimizer%f,&
-                  gradient=optimizer%gradient,&
-                  final_evaluation=.FALSE.,&
-                  master=optimizer%master,para_env=optimizer%para_env,&
-                  error=error) ! do not use keywords?
-             IF (is_master) THEN
+          IF (optimizer%task(1:2)=='FG') THEN
+             IF (optimizer%isave(36)>optimizer%max_f_per_iter) THEN
+                optimizer%task='STOP: CPU, hit max f eval in iter'
+                optimizer%status=5 ! anormal exit
                 CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
                      optimizer%lower_bound, optimizer%upper_bound, &
                      optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
@@ -684,88 +623,150 @@ CPSourceFileRef,&
                      optimizer%wanted_projected_gradient, optimizer%work_array, &
                      optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                      optimizer%csave, optimizer%lsave, optimizer%isave, &
-                     optimizer%dsave)
+                     optimizer%dsave, optimizer%trust_radius)
+             ELSE
+                optimizer%status=1
              END IF
-             CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
-          CASE (2)
-             !op=2 begin new iter
-             CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
-             t_old = m_walltime()
-          CASE (3)
-             !op=3 ended iter
-             wildcard = "LBFGS"
-             dataunit = cp_print_key_unit_nr(logger,geo_section,&
-                  "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
-             IF (is_master) its = optimizer%isave(30)
-             CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
-
-             ! Some IO and Convergence check
-             t_now  = m_walltime()
-             t_diff = t_now - t_old
-             t_old  = t_now
-             CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
-                  its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
-                  SIZE(optimizer%x), optimizer%x-xold, optimizer%gradient, conv, used_time=t_diff,&
-                  error=error)
-             CALL mp_bcast(conv,optimizer%master,optimizer%para_env%group)
-             CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
-                  "PRINT%PROGRAM_RUN_INFO", error=error)
-             optimizer%eold = optimizer%f
-             optimizer%emin = MIN(optimizer%emin,optimizer%eold)
-             xold = optimizer%x
-             IF (PRESENT(converged)) converged=conv
-             EXIT
-          CASE (4)
-             !op=4 (convergence - normal exit)
-             ! Specific L-BFGS convergence criteria.. overrides the convergence criteria on
-             ! stepsize and gradients
-             dataunit = cp_print_key_unit_nr(logger,geo_section,&
-                  "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
-             IF (dataunit>0) THEN
-                WRITE(dataunit,'(T2,A)')""
-                WRITE(dataunit,'(T2,A)')"***********************************************"
-                WRITE(dataunit,'(T2,A)')"* Specific L-BFGS convergence criteria         "
-                WRITE(dataunit,'(T2,A)')"* WANTED_PROJ_GRADIENT and WANTED_REL_F_ERROR  "
-                WRITE(dataunit,'(T2,A)')"* satisfied .... run CONVERGED!                "
-                WRITE(dataunit,'(T2,A)')"***********************************************"
-                WRITE(dataunit,'(T2,A)')""
+          ELSE IF (optimizer%task(1:5)=='NEW_X') THEN
+             IF (justEntred) THEN
+                optimizer%status=2
+                CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                     optimizer%lower_bound, optimizer%upper_bound, &
+                     optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                     optimizer%wanted_relative_f_delta, &
+                     optimizer%wanted_projected_gradient, optimizer%work_array, &
+                     optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                     optimizer%csave, optimizer%lsave, optimizer%isave, &
+                     optimizer%dsave, optimizer%trust_radius)
+             ELSE
+                optimizer%status=3
              END IF
-             CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
-                  "PRINT%PROGRAM_RUN_INFO", error=error)
-             IF (PRESENT(converged)) converged=.TRUE.
-             EXIT
-          CASE (5)
-             ! op=5 abnormal exit (error)
-             CALL mp_bcast(optimizer%task,optimizer%master,&
-                  optimizer%para_env%group)
-          CASE (6)
-             ! deallocated
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"step on a deallocated opt structure "//&
-CPSourceFileRef,&
-                  error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"unknown status "//cp_to_string(optimizer%status)//&
-                  " in "//&
-CPSourceFileRef,&
-                  error,failure)
+          ELSE IF (optimizer%task(1:4)=='CONV') THEN
+             optimizer%status=4
+          ELSE IF (optimizer%task(1:4)=='STOP') THEN
              optimizer%status=5
-             EXIT
-          END SELECT
-          IF (optimizer%status == 1 .AND. justEntred) THEN
-             optimizer%eold = optimizer%f
-             optimizer%emin = optimizer%eold
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                  routineP,"task became stop in an unknown way in "//&
+CPSourceFileRef,&
+                  error)
+          ELSE IF (optimizer%task(1:5)=='ERROR') THEN
+             optimizer%status=5
+          ELSE
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                  routineP,"unknown task '"//optimizer%task//"' in "//&
+CPSourceFileRef,&
+                  error)
           END IF
-          justEntred=.FALSE.
-       END DO
-       CALL mp_bcast(optimizer%x,optimizer%master,&
-            optimizer%para_env%group)
-       CALL cp_opt_gopt_bcast_res(optimizer,&
-            n_iter=optimizer%n_iter,&
-            f=optimizer%f, last_f=optimizer%last_f,&
-            projected_gradient=optimizer%projected_gradient,error=error)
-    END IF
+       END IF ifMaster
+       CALL mp_bcast(optimizer%status,optimizer%master, optimizer%para_env%group)
+       ! Dump info
+       IF (optimizer%status == 3) THEN
+          its = 0
+          IF (is_master) THEN
+             ! Iteration level is taken into account in the optimizer external loop
+             its = optimizer%isave(30)
+          END IF
+       END IF
+       !
+       SELECT CASE (optimizer%status)
+       CASE (1)
+          !op=1 evaluate f and g
+          CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x,&
+               f=optimizer%f,&
+               gradient=optimizer%gradient,&
+               final_evaluation=.FALSE.,&
+               master=optimizer%master,para_env=optimizer%para_env,&
+               error=error) ! do not use keywords?
+          IF (is_master) THEN
+             CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
+                  optimizer%lower_bound, optimizer%upper_bound, &
+                  optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                  optimizer%wanted_relative_f_delta, &
+                  optimizer%wanted_projected_gradient, optimizer%work_array, &
+                  optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                  optimizer%csave, optimizer%lsave, optimizer%isave, &
+                  optimizer%dsave, optimizer%trust_radius)
+          END IF
+          CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
+       CASE (2)
+          !op=2 begin new iter
+          CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
+          t_old = m_walltime()
+       CASE (3)
+          !op=3 ended iter
+          wildcard = "LBFGS"
+          dataunit = cp_print_key_unit_nr(logger,geo_section,&
+               "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+          IF (is_master) its = optimizer%isave(30)
+          CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
+
+          ! Some IO and Convergence check
+          t_now  = m_walltime()
+          t_diff = t_now - t_old
+          t_old  = t_now
+          CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
+               its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
+               SIZE(optimizer%x), optimizer%x-xold, optimizer%gradient, conv, used_time=t_diff,&
+               error=error)
+          CALL mp_bcast(conv,optimizer%master,optimizer%para_env%group)
+          CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
+          optimizer%eold = optimizer%f
+          optimizer%emin = MIN(optimizer%emin,optimizer%eold)
+          xold = optimizer%x
+          IF (PRESENT(converged)) converged=conv
+          EXIT
+       CASE (4)
+          !op=4 (convergence - normal exit)
+          ! Specific L-BFGS convergence criteria.. overrides the convergence criteria on
+          ! stepsize and gradients
+          dataunit = cp_print_key_unit_nr(logger,geo_section,&
+               "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+          IF (dataunit>0) THEN
+             WRITE(dataunit,'(T2,A)')""
+             WRITE(dataunit,'(T2,A)')"***********************************************"
+             WRITE(dataunit,'(T2,A)')"* Specific L-BFGS convergence criteria         "
+             WRITE(dataunit,'(T2,A)')"* WANTED_PROJ_GRADIENT and WANTED_REL_F_ERROR  "
+             WRITE(dataunit,'(T2,A)')"* satisfied .... run CONVERGED!                "
+             WRITE(dataunit,'(T2,A)')"***********************************************"
+             WRITE(dataunit,'(T2,A)')""
+          END IF
+          CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
+          IF (PRESENT(converged)) converged=.TRUE.
+          EXIT
+       CASE (5)
+          ! op=5 abnormal exit (error)
+          CALL mp_bcast(optimizer%task,optimizer%master,&
+               optimizer%para_env%group)
+       CASE (6)
+          ! deallocated
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"step on a deallocated opt structure "//&
+CPSourceFileRef,&
+               error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown status "//cp_to_string(optimizer%status)//&
+               " in "//&
+CPSourceFileRef,&
+               error,failure)
+          optimizer%status=5
+          EXIT
+       END SELECT
+       IF (optimizer%status == 1 .AND. justEntred) THEN
+          optimizer%eold = optimizer%f
+          optimizer%emin = optimizer%eold
+       END IF
+       justEntred=.FALSE.
+    END DO
+    CALL mp_bcast(optimizer%x,optimizer%master,&
+         optimizer%para_env%group)
+    CALL cp_opt_gopt_bcast_res(optimizer,&
+         n_iter=optimizer%n_iter,&
+         f=optimizer%f, last_f=optimizer%last_f,&
+         projected_gradient=optimizer%projected_gradient,error=error)
+
     DEALLOCATE(xold,stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(f)) f=optimizer%f
@@ -806,24 +807,23 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(4)              :: results
 
-    failure=.FALSE.
+!  call timeset(routineN,handle)
 
-    !  call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (optimizer%master==optimizer%para_env%mepos) THEN
-          results=(/ REAL(optimizer%isave(30), kind=dp), &
-               optimizer%f, optimizer%dsave(2), optimizer%dsave(13) /)
-       END IF
-       CALL mp_bcast(results,optimizer%master, &
-            optimizer%para_env%group)
-       IF (PRESENT(n_iter)) n_iter= NINT(results(1))
-       IF (PRESENT(f)) f=results(2)
-       IF (PRESENT(last_f)) last_f=results(3)
-       IF (PRESENT(projected_gradient)) &
-            projected_gradient=results(4)
+
+    IF (optimizer%master==optimizer%para_env%mepos) THEN
+       results=(/ REAL(optimizer%isave(30), kind=dp), &
+            optimizer%f, optimizer%dsave(2), optimizer%dsave(13) /)
     END IF
+    CALL mp_bcast(results,optimizer%master, &
+         optimizer%para_env%group)
+    IF (PRESENT(n_iter)) n_iter= NINT(results(1))
+    IF (PRESENT(f)) f=results(2)
+    IF (PRESENT(last_f)) last_f=results(3)
+    IF (PRESENT(projected_gradient)) &
+         projected_gradient=results(4)
+
     !  call timestop(handle)
   END SUBROUTINE cp_opt_gopt_bcast_res
 
@@ -912,20 +912,20 @@ CPSourceFileRef,&
     !  call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       optimizer%task='STOPPED on user request'
-       optimizer%status=4 ! normal exit
-       IF (optimizer%master==optimizer%para_env%mepos) THEN
-          CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
-               optimizer%lower_bound, optimizer%upper_bound, &
-               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-               optimizer%wanted_relative_f_delta, &
-               optimizer%wanted_projected_gradient, optimizer%work_array, &
-               optimizer%i_work_array, optimizer%task, optimizer%print_every, &
-               optimizer%csave, optimizer%lsave, optimizer%isave, &
-               optimizer%dsave)
-       END IF
+
+    optimizer%task='STOPPED on user request'
+    optimizer%status=4 ! normal exit
+    IF (optimizer%master==optimizer%para_env%mepos) THEN
+       CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
+            optimizer%lower_bound, optimizer%upper_bound, &
+            optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+            optimizer%wanted_relative_f_delta, &
+            optimizer%wanted_projected_gradient, optimizer%work_array, &
+            optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+            optimizer%csave, optimizer%lsave, optimizer%isave, &
+            optimizer%dsave, optimizer%trust_radius)
     END IF
+
     ! call timestop(handle)
   END SUBROUTINE cp_opt_gopt_stop
 

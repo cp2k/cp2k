@@ -12,6 +12,7 @@ H2-geo-1.inp       1 1E-11
 H2-geo-2.inp       1
 H2-geo-3.inp                      1     4e-14
 H2-geo-4.inp       1 1E-13
+H2-geo-5.inp       1 1E-13
 # some problems with CU
 Cu.inp             1
 # test derivatives and keywords

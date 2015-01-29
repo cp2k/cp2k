@@ -1522,6 +1522,13 @@ CONTAINS
             default_r_val=1.0E-16_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TRUST_RADIUS",&
+            description="Trust radius used in LBFGS. Not completly in dept tested. Negativ values means no trust radius is used.",&
+            usage="TRUST_RADIUS {real}",unit_str='angstrom',&
+            default_r_val=-1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
     END IF
 
   END SUBROUTINE create_lbfgs_section
