@@ -103,7 +103,7 @@ echo "==================== Installing valgrind ================="
 if [ -f valgrind-${valgrind_ver}.tar.bz2 ]; then
   echo "Installation already started, skipping it."
 else
-  wget http://valgrind.org/downloads/valgrind-${valgrind_ver}.tar.bz2
+  wget http://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
   echo "${valgrind_sha} *valgrind-${valgrind_ver}.tar.bz2" | sha256sum  --check
   tar -xjf valgrind-${valgrind_ver}.tar.bz2
   cd valgrind-${valgrind_ver}
@@ -117,7 +117,7 @@ echo "==================== Installing lcov ====================="
 if [ -f lcov-${lcov_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
-  wget http://downloads.sourceforge.net/ltp/lcov-${lcov_ver}.tar.gz
+  wget http://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
   echo "${lcov_sha} *lcov-${lcov_ver}.tar.gz" | sha256sum  --check
   tar -xzf lcov-${lcov_ver}.tar.gz
   cd lcov-${lcov_ver}
@@ -130,7 +130,7 @@ echo "================== Installing CMake ================="
 if [ -f cmake-${cmake_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
-  wget http://www.cmake.org/files/v3.1/cmake-${cmake_ver}.tar.gz
+  wget http://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
   echo "${cmake_sha} *cmake-${cmake_ver}.tar.gz" | sha256sum  --check
   tar -xzf cmake-${cmake_ver}.tar.gz
   cd cmake-${cmake_ver}
@@ -198,7 +198,7 @@ if [ -f mpich-${mpich_ver}.tar.gz ]; then
 else
   # needed to install mpich ??
   unset F90; unset F90FLAGS
-  wget http://www.mpich.org/static/downloads/${mpich_ver}/mpich-${mpich_ver}.tar.gz
+  wget http://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
   echo "${mpich_sha} *mpich-${mpich_ver}.tar.gz" | sha256sum  --check
   tar -xzf mpich-${mpich_ver}.tar.gz
   cd mpich-${mpich_ver}
@@ -212,7 +212,7 @@ echo "================= Installing scalapack ==================="
 if [ -f scalapack_installer.tgz ]; then
   echo "Installation already started, skipping it."
 else
-  wget http://www.netlib.org/scalapack/scalapack_installer.tgz
+  wget http://www.cp2k.org/static/downloads/scalapack_installer.tgz
   echo "${scalapack_sha} *scalapack_installer.tgz" | sha256sum  --check
   tar -xzf scalapack_installer.tgz
   # we dont know the version

@@ -20,6 +20,8 @@ If SVN is not installed on your system get it at
 ===== 2. Install Prerequisites =====
 Sub-points here discuss prerequisites needed to build CP2K.
 Some of these can be conveniently installed by a script see: cp2k/tools/toolchain
+Copies of the recommended versions of 3rd party software can be
+downloaded from http://www.cp2k.org/static/downloads/ .
 
 ==== 2a. GNU make ====
 GNU make should be on your system (gmake or make on linux) and used for
