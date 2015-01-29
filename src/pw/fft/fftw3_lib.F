@@ -262,17 +262,18 @@ SUBROUTINE sortint ( iarr, n, index )
   jstack = 0
   l = 1
   ir = n
-1 IF (ir-l<m) THEN
+  DO WHILE(.TRUE.)
+  IF (ir-l<m) THEN
      DO j = l + 1, ir
         a = iarr(j)
         ib = INDEX(j)
-        DO i = j - 1, 1, -1
-           IF (iarr(i)<=a) GO TO 2
+        DO i = j - 1, 0, -1
+           IF(i==0) EXIT
+           IF (iarr(i)<=a) EXIT
            iarr(i+1) = iarr(i)
            INDEX(i+1) = INDEX(i)
         END DO
-        i = 0
-2       iarr(i+1) = a
+        iarr(i+1) = a
         INDEX(i+1) = ib
      END DO
      IF (jstack==0) RETURN
@@ -315,21 +316,24 @@ SUBROUTINE sortint ( iarr, n, index )
      j = ir
      a = iarr(l)
      ib = INDEX(l)
-3    CONTINUE
+     DO WHILE(.TRUE.)
      i = i + 1
-     IF (iarr(i)<a) GO TO 3
-4    CONTINUE
+     DO WHILE(iarr(i)<a)
+       i = i + 1
+     ENDDO
      j = j - 1
-     IF (iarr(j)>a) GO TO 4
-     IF (j<i) GO TO 5
+     DO WHILE(iarr(j)>a)
+       j = j - 1
+     ENDDO
+     IF (j<i) EXIT
      temp = iarr(i)
      iarr(i) = iarr(j)
      iarr(j) = temp
      itemp = INDEX(i)
      INDEX(i) = INDEX(j)
      INDEX(j) = itemp
-     GO TO 3
-5    iarr(l) = iarr(j)
+     ENDDO
+     iarr(l) = iarr(j)
      iarr(j) = a
      INDEX(l) = INDEX(j)
      INDEX(j) = ib
@@ -346,7 +350,7 @@ SUBROUTINE sortint ( iarr, n, index )
      END IF
   END IF
 
-  GO TO 1
+  ENDDO
 
 END SUBROUTINE sortint
 

@@ -482,7 +482,7 @@ CONTAINS
                start_time=qs_env%start_time,error=error)
           IF(should_stop)THEN
              CALL scf_env_cleanup(scf_env,error=error)
-             GO TO 1000
+             EXIT
           END IF
 
         END IF
