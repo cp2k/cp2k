@@ -42,6 +42,17 @@ fftw_sha=8f0cde90929bc05587c3368d2f15cd0530a60b8a9912a8e2979a72dbe5af0982
 elpa_ver=2013.11.008
 elpa_sha=d4a028fddb64a7c1454f08b930525cce0207893c6c770cb7bf92ab6f5d44bd78
 
+cmake_ver=3.1.1
+cmake_sha=b58694e545d51cde5756a894f53107e3d9e469360e1d92e7f6892b55ebc0bebf
+
+parmetis_ver=4.0.2
+parmetis_sha=5acbb700f457d3bda7d4bb944b559d7f21f075bb6fa4c33f42c261019ef2f0b2
+
+superlu_ver=3.3
+superlu_sha=d2fd8dc847ae63ed7980cff2ad4db8d117640ecdf0234c9711e0f6ee1398cac2
+
+pexsi_ver=0.7.3
+pexsi_sha=077c0de466bdbef055992eea91e2fee5c10814552fb1f7e2a354a8881dc7d39f
 #
 #
 #
@@ -73,10 +84,6 @@ export CFLAGS="-O2 -g -Wno-error"
 export FFLAGS="-O2 -g -Wno-error"
 export FCFLAGS="-O2 -g -Wno-error"
 export CXXFLAGS="-O2 -g -Wno-error"
-
-# F90 and F90FLAGS confuse mpich's configure.
-unset F90
-unset F90FLAGS
 
 echo "==================== Installing binutils ================="
 if [ -f binutils-${binutils_ver}.tar.gz  ]; then
@@ -119,6 +126,20 @@ else
   cd ..
 fi
 
+echo "================== Installing CMake ================="
+if [ -f cmake-${cmake_ver}.tar.gz ]; then
+  echo "Installation already started, skipping it."
+else
+  wget http://www.cmake.org/files/v3.1/cmake-${cmake_ver}.tar.gz
+  echo "${cmake_sha} *cmake-${cmake_ver}.tar.gz" | sha256sum  --check
+  tar -xzf cmake-${cmake_ver}.tar.gz
+  cd cmake-${cmake_ver}
+  ./bootstrap --prefix=${INSTALLDIR} >& config.log
+  make -j $nprocs >&  make.log
+  make install >& install.log
+  cd ..
+fi
+
 echo "==================== Installing gcc ======================"
 if [ -f gcc-${gcc_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
@@ -141,6 +162,8 @@ fi
 cat << EOF > ${INSTALLDIR}/lsan.supp
 # known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
+# leak in SuperLU_DIST_3.3
+leak:symbfact_dist
 EOF
 
 # now we need these tools and compiler to be in the path
@@ -158,7 +181,7 @@ else
     PATH=${INSTALLDIR}/bin:${INSTALLDIR}/usr/bin:\$PATH; export PATH
 fi 
 CP2KINSTALLDIR=${INSTALLDIR} ; export CP2KINSTALLDIR
-LSAN_OPTIONS=suppressions=$CP2KINSTALLDIR/lsan.supp ; export LSAN_OPTIONS
+LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp ; export LSAN_OPTIONS
 EOF
 SETUPFILE=${INSTALLDIR}/setup
 source ${SETUPFILE}
@@ -173,6 +196,8 @@ echo "=================== Installing mpich ====================="
 if [ -f mpich-${mpich_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
+  # needed to install mpich ??
+  unset F90; unset F90FLAGS
   wget http://www.mpich.org/static/downloads/${mpich_ver}/mpich-${mpich_ver}.tar.gz
   echo "${mpich_sha} *mpich-${mpich_ver}.tar.gz" | sha256sum  --check
   tar -xzf mpich-${mpich_ver}.tar.gz
@@ -273,10 +298,135 @@ else
   cd ..
 fi
 
-echo "================== generating arch files ================="
+echo "================== Installing ParMETIS =================="
+if [ -f parmetis-${parmetis_ver}.tar.gz ]; then
+  echo "Installation already started, skipping it."
+else
+  wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/parmetis-${parmetis_ver}.tar.gz
+  echo "${parmetis_sha} *parmetis-${parmetis_ver}.tar.gz" | sha256sum  --check
+  tar -xzf parmetis-${parmetis_ver}.tar.gz
+
+  cd parmetis-${parmetis_ver}
+  make config prefix=${INSTALLDIR} >& config.log
+  make -j $nprocs >& make.log
+  make install >& install.log
+
+  # Have to build METIS again independently due to bug in ParMETIS make install
+  cd metis
+  make config prefix=${INSTALLDIR} >& config.log
+  make -j $nprocs >& make.log
+  make install >& install.log
+  cd ../..
+fi
+
+echo "================== Installing SuperLU_DIST =================="
+
+if [ -f superlu_dist_${superlu_ver}.tar.gz ]; then
+  echo "Installation already started, skipping it."
+else
+  wget http://crd-legacy.lbl.gov/~xiaoye/SuperLU/superlu_dist_${superlu_ver}.tar.gz
+  echo "${superlu_sha} *superlu_dist_${superlu_ver}.tar.gz" | sha256sum  --check
+  tar -xzf superlu_dist_${superlu_ver}.tar.gz
+
+  cd SuperLU_DIST_${superlu_ver}
+  mv make.inc make.inc.orig
+  cat <<EOF >> make.inc
+PLAT=_x86_64
+DSUPERLULIB= ${PWD}/lib/libsuperlu_dist_${superlu_ver}.a
+LIBS=\$(DSUPERLULIB) -lparmetis -lmetis -lrefblas
+ARCH=ar
+ARCHFLAGS=cr
+RANLIB=ranlib
+CC=mpicc
+CFLAGS=${CFLAGS}
+NOOPTS=-O0
+FORTRAN=mpif90
+F90FLAGS=${FFLAGS}
+LOADER=\$(CC)
+LOADOPTS=${CFLAGS}
+CDEFS=-DAdd_
+EOF
+  make &> make.log #-j $nprocs will crash
+  # no make install
+  chmod a+r lib/* SRC/*.h
+  cp lib/libsuperlu_dist_${superlu_ver}.a ${INSTALLDIR}/lib/
+  mkdir -p ${INSTALLDIR}/include/superlu_dist_${superlu_ver}
+  cp SRC/*.h ${INSTALLDIR}/include/superlu_dist_${superlu_ver}/
+  cd ..
+fi
+
+echo "================== Installing PEXSI =================="
+
+if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
+  echo "Installation already started, skipping it."
+else
+  wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
+  echo "${pexsi_sha} *pexsi_v${pexsi_ver}.tar.gz" | sha256sum  --check
+  mkdir pexsi_v${pexsi_ver}
+  tar -xzf pexsi_v${pexsi_ver}.tar.gz -C pexsi_v${pexsi_ver}
+
+  cd pexsi_v${pexsi_ver}
+
+  # fix uninitialised variables
+  cat <<EOF >> pexsi.patch 
+--- src/get_perm_c_parmetis.c
++++ src/get_perm_c_parmetis.c
+@@ -131,0 +132 @@
++ dist_order = 0;
+--- src/pdsymbfact.c
++++ src/pdsymbfact.c
+@@ -87,0 +88 @@
++ symb_mem_usage.total = 0.;
+--- src/pzsymbfact.c
++++ src/pzsymbfact.c
+@@ -87,0 +88 @@
++ symb_mem_usage.total = 0.;
+EOF
+  patch -p0 < pexsi.patch >& patch.log
+
+  cat config/make.inc.linux.gnu | \
+  sed 's|\(PAR_ND_LIBRARY *=\).*|\1 parmetis|' |\
+  sed 's|\(SEQ_ND_LIBRARY *=\).*|\1 metis|' |\
+  sed "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|" |\
+  sed "s|\(CPP_LIB *=\).*|\1 -lstdc++|" |\
+  sed 's|\(LAPACK_LIB *=\).*|\1 -lreflapack|' |\
+  sed 's|\(BLAS_LIB *=\).*|\1 -lrefblas|' |\
+  sed 's|\(\bMETIS_LIB *=\).*|\1 -lmetis|' |\
+  sed 's|\(PARMETIS_LIB *=\).*|\1 -lparmetis|' |\
+  sed "s|\(DSUPERLU_LIB *=\).*|\1 -lsuperlu_dist_${superlu_ver}|" |\
+  sed 's|#FLOADOPTS *=.*|FLOADOPTS    = ${LIBS} ${CPP_LIB}|' |\
+  sed "s|\(DSUPERLU_INCLUDE *=\).*|\1 -I${INSTALLDIR}/include/superlu_dist_${superlu_ver}|" |\
+  sed 's|\(INCLUDES *=\).*|\1 ${DSUPERLU_INCLUDE} ${PEXSI_INCLUDE}|' |\
+  sed "s|\(COMPILE_FLAG *=\).*|\1 ${CFLAGS}|" |\
+  sed "s|\(SUFFIX *=\).*|\1 linux_v${pexsi_ver}|" |\
+  sed 's|\(DSUPERLU_DIR *=\).*|\1|' |\
+  sed 's|\(METIS_DIR *=\).*|\1|' |\
+  sed 's|\(PARMETIS_DIR *=\).*|\1|' |\
+  sed 's|\(PTSCOTCH_DIR *=\).*|\1|' |\
+  sed 's|\(LAPACK_DIR *=\).*|\1|' |\
+  sed 's|\(BLAS_DIR *=\).*|\1|' |\
+  sed 's|\(GFORTRAN_LIB *=\).*|\1|' > make.inc
+  cd src
+  make -j $nprocs >& make.log
+  # no make install
+  chmod a+r libpexsi_linux_v${pexsi_ver}.a
+  cp libpexsi_linux_v${pexsi_ver}.a ${INSTALLDIR}/lib/
+
+  # make fortran interface
+  cd ../fortran
+  make >& make.log #-j $nprocs will crash
+  chmod a+r f_ppexsi_interface.mod
+  cp f_ppexsi_interface.mod ${INSTALLDIR}/include/ 
+  cd ..
+  # no need to install PEXSI headers
+  #mkdir -p ${INSTALLDIR}/include/pexsi_v${pexsi_ver}
+  #cp include/* ${INSTALLDIR}/include/pexsi_v${pexsi_ver}/
+  cd ..
+fi
+
+echo "==================== generating arch files ===================="
 echo "arch files can be found in the ${INSTALLDIR}/arch subdirectory"
 mkdir -p ${INSTALLDIR}/arch
-
 
 #
 # unfortunately, optimal flags depend on compiler etc.
@@ -287,7 +437,7 @@ BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
-
+LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lparmetis -lmetis"
 
 cat << EOF > ${INSTALLDIR}/arch/local.pdbg
 CC       = gcc
@@ -296,11 +446,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK
+DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint  -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.popt
@@ -310,11 +460,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK
+DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint  -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 
+LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.psmp
@@ -324,11 +474,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK
+DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint  -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sdbg
@@ -342,7 +492,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 
+LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sopt
@@ -356,7 +506,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 
+LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.ssmp
@@ -370,7 +520,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -fopenmp -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint  -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.sdbg
@@ -384,7 +534,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 
+LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.pdbg
@@ -394,11 +544,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS}  -D__parallel -D__SCALAPACK
+DFLAGS   = ${DFLAGS}  -D__parallel -D__SCALAPACK -D__LIBPEXSI
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint  -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
@@ -409,12 +559,12 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__ACC -D__DBCSR_ACC -D__PW_CUDA -D__parallel -D__SCALAPACK
+DFLAGS   = ${DFLAGS} -D__ACC -D__DBCSR_ACC -D__PW_CUDA -D__parallel -D__SCALAPACK -D__LIBPEXSI
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint  -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
@@ -430,7 +580,7 @@ FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFL
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint  -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 echo "========================== usage ========================="
@@ -439,6 +589,6 @@ echo "now copy: cp ${INSTALLDIR}/arch/* to the cp2k/arch/ directory"
 echo "to use this toolchain or the cp2k version compiled with it you will first need to execute at the prompt:"
 echo "source ${SETUPFILE}"
 echo "to build CP2K you should change directory cd cp2k/makefiles/"
-echo "make -j${nprocs}" 'ARCH=local  VERSION="sdbg sopt ssmp popt pdbg psmp"'
+echo "make -j${nprocs}" 'ARCH=local VERSION="sdbg sopt ssmp popt pdbg psmp"'
 
 #EOF

@@ -8,17 +8,20 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_cp2k_ls
-  USE bibliography,                    ONLY: Niklasson2003,&
+  USE bibliography,                    ONLY: Lin2009,&
+                                             Lin2013,&
+                                             Niklasson2003,&
                                              Shao2003,&
                                              VandeVondele2012
   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                              high_print_level
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: &
        ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
        ls_s_preconditioner_molecular, ls_s_preconditioner_none, &
        ls_scf_line_search_3point, ls_scf_line_search_3point_2d, ls_scf_ns, &
-       ls_scf_tc2, ls_scf_trs4
+       ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -177,11 +180,12 @@ CONTAINS
             usage="PURIFICATION_METHOD TRS4",&
             default_i_val=ls_scf_ns,&
             citations=(/VandeVondele2012,Niklasson2003/),&
-            enum_c_vals=s2a( "SIGN_MATRIX", "TRS4", "TC2" ),&
+            enum_c_vals=s2a( "SIGN_MATRIX", "TRS4", "TC2", "PEXSI" ),&
             enum_desc=s2a("Newton-Schulz sign matrix iteration.",&
                           "Trace resetting 4th order scheme",&
-                          "Trace conserving 2nd order scheme"),&
-            enum_i_vals=(/ls_scf_ns, ls_scf_trs4, ls_scf_tc2/),&
+                          "Trace conserving 2nd order scheme",&
+                          "PEXSI method"),&
+            enum_i_vals=(/ls_scf_ns, ls_scf_trs4, ls_scf_tc2, ls_scf_pexsi/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -269,6 +273,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_chebyshev_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_pexsi_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -442,5 +450,152 @@ CONTAINS
    END IF
 
   END SUBROUTINE create_ls_curvy_section
+
+! *****************************************************************************
+!> \brief creates the PEXSI library subsection of the linear scaling section.
+!> \param section ...
+!> \param error ...
+!> \par History
+!>      11.2014 created [Patrick Seewald]
+!> \author Patrick Seewald
+! *****************************************************************************
+  SUBROUTINE create_pexsi_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_pexsi_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+! Most of the default values exactly the same as in PEXSI but in Hartree atomic units.
+! Following options not PEXSI default:
+! Verbosity=0: PEXSI log file not needed
+! isInertiaCount=.FALSE.: note that inertia counting is still done in the first SCF
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+      CALL section_create(section,"PEXSI",&
+           description="Specifies the parameters required by PEXSI library. Provided "//&
+           "parameters, their defaults and their documentation is nearly identical to "//& 
+           "the options of the PEXSI library.",&
+           n_keywords=15, repeats=.FALSE.,required=.FALSE.,citations=(/Lin2009,Lin2013/),error=error)
+       NULLIFY (keyword)
+
+       CALL keyword_create(keyword, name="TEMPERATURE",&
+            description="Electronic temperature",&
+            default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K", error=error),&
+            unit_str="K", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GAP",&
+            description="Spectral gap. Note: This can be set to be 0 in most cases.",&
+            default_r_val=0.0_dp,unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUM_POLE",&
+            description="Number of terms in the pole expansion (should be even).",&
+            default_i_val=64,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="IS_INERTIA_COUNT",&
+            description="Whether inertia counting is used each time the DFT driver "//& 
+            "of PEXSI is invoked. If FALSE, inertia counting is still used in the "//&
+            "first SCF iteration.",&
+            default_l_val=.FALSE., lone_keyword_l_val = .TRUE. ,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_PEXSI_ITER",&
+            description="Maximum number of PEXSI iterations after each inertia counting procedure.",&
+            default_i_val=3,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MU_MIN_0",&
+            description="Initial guess of lower bound for mu.",&
+            default_r_val=-5.0_dp,unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MU_MAX_0",&
+            description="Initial guess of upper bound for mu.",&
+            default_r_val=5.0_dp,unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MU_INERTIA_TOLERANCE",&
+            description="Stopping criterion in terms of the chemical potential for the "//&
+            "inertia counting procedure.",&
+            default_r_val=0.025_dp,unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MU_INERTIA_EXPANSION",&
+            description="If the chemical potential is not in the initial interval, "//&
+            "the interval is expanded by MU_INERTIA_EXPANSION.",&
+            default_r_val=0.15_dp,unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MU_PEXSI_SAFE_GUARD",&
+            description="Safe guard criterion in terms of the chemical potential to "//& 
+            "reinvoke the inertia counting procedure.",&
+            default_r_val=0.025_dp,unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUM_ELECTRON_PEXSI_TOLERANCE",&
+            description="Stopping criterion of the PEXSI iteration in terms of "//&
+            "the number of electrons compared to the exact number of electrons.",&
+            default_r_val=0.01_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORDERING",&
+            description="Ordering strategy for factorization and selected inversion.",&
+            enum_c_vals=s2a("PARALLEL","SEQUENTIAL","MULTIPLE_MINIMUM_DEGREE"),&
+            enum_desc=s2a("Parallel ordering using ParMETIS/PT-SCOTCH (PARMETIS option in SuperLU_DIST)",&
+            "Sequential ordering using METIS (METIS_AT_PLUS_A option in SuperLU_DIST)",&
+            "Multiple minimum degree ordering (MMD_AT_PLUS_A option in SuperLU_DIST)"),&
+            enum_i_vals=(/0,1,2/), default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NP_SYMB_FACT",&
+            description="Number of processors for PARMETIS/PT-SCOTCH. Only used if the ordering == 0. "//&
+            "If 0, the number of processors for PARMETIS/PT-SCOTCH will be set equal to the number of "//&
+            "MPI ranks per pole. Note: if more than one processor is used, a segmentation fault may occur in the "//&
+            "symbolic factorization phase.",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="VERBOSITY",&
+            description="The level of output information.",&
+            enum_c_vals=s2a("SILENT","BASIC","DETAILED"),&
+            enum_i_vals=(/0,1,2/), default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MIN_RANKS_PER_POLE",&
+            description="The minimum number of processors used for each pole. The real "//&
+            "number of processors per pole is the smallest number greater or equal to "//&
+            "MIN_RANKS_PER_POLE that divides MPI size without remainder. If 0 (default), the number "//&
+            "of processors per pole will be set equal to MPI size. For efficiency, MIN_RANKS_PER_POLE "//&
+            "should be a small numbers (limited by the available memory).", &
+            default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    ENDIF
+  END SUBROUTINE create_pexsi_section
 
 END MODULE input_cp2k_ls

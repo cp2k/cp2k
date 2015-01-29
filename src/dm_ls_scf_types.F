@@ -20,6 +20,7 @@ MODULE dm_ls_scf_types
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE pexsi_types,                     ONLY: lib_pexsi_env
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -125,6 +126,8 @@ MODULE dm_ls_scf_types
      TYPE(ls_scf_curvy_type) :: curvy_data
 
      TYPE(chebyshev_type) :: chebyshev
+
+     TYPE(lib_pexsi_env) :: pexsi
 
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE ls_scf_env_type

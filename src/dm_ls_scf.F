@@ -12,6 +12,8 @@
 ! *****************************************************************************
 MODULE dm_ls_scf
   USE bibliography,                    ONLY: Kolafa2004,&
+                                             Lin2009,&
+                                             Lin2013,&
                                              Niklasson2003,&
                                              Niklasson2014,&
                                              Shao2003,&
@@ -47,9 +49,10 @@ MODULE dm_ls_scf
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE input_constants,                 ONLY: &
        ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
-       ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
-       ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
-       ls_scf_tc2, ls_scf_trs4
+       ls_s_inversion_none, ls_s_inversion_sign_sqrt, &
+       ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
+       ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, &
+       ls_scf_trs4
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_retain,&
@@ -66,6 +69,11 @@ MODULE dm_ls_scf
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
+  USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
+                                             pexsi_init_read_input,&
+                                             pexsi_to_qs
+  USE pexsi_types,                     ONLY: lib_pexsi_finalize,&
+                                             lib_pexsi_init
   USE qs_diis,                         ONLY: qs_diis_b_clear_sparse,&
                                              qs_diis_b_create_sparse,&
                                              qs_diis_b_step_4lscf
@@ -286,6 +294,10 @@ CONTAINS
 
     ! get the initial guess for the SCF
     CALL ls_scf_initial_guess(qs_env,ls_scf_env,error)
+  
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+       CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%matrix_s, nspin, error)
+    ENDIF
 
     IF (qs_env%do_transport) THEN
        CALL transport_initialize(qs_env%transport_env, ls_scf_env%matrix_s, error)
@@ -380,30 +392,34 @@ CONTAINS
     CASE(atomic_guess)
       ! do nothing
     CASE(aspc_guess,restart_guess)
-       DO ispin=1,SIZE(ls_scf_env%matrix_p)
-          ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
-          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
-          CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin),ls_scf_env%eps_filter,3,error)
-          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
+       ! purification can't be done on the pexsi matrix, which is not necessarily idempotent,
+       ! and not stored in an ortho basis form
+       IF (.NOT.(ls_scf_env%purification_method .EQ. ls_scf_pexsi)) THEN
+         DO ispin=1,SIZE(ls_scf_env%matrix_p)
+            ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
+            IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
+            CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin),ls_scf_env%eps_filter,3,error)
+            IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
 
-          IF (ls_scf_env%use_s_sqrt) THEN
-             ! need to get P in the non-orthogonal basis if it was stored differently
-             CALL cp_dbcsr_init(matrix_tmp1,error=error)
-             CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
-                                  matrix_type=dbcsr_type_no_symmetry,error=error)
-             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_p(ispin),&
-                                          0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
-             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
-                                          0.0_dp, ls_scf_env%matrix_p(ispin)  , &
-                                          filter_eps=ls_scf_env%eps_filter,error=error)
-             CALL cp_dbcsr_release(matrix_tmp1,error=error)
+            IF (ls_scf_env%use_s_sqrt) THEN
+               ! need to get P in the non-orthogonal basis if it was stored differently
+               CALL cp_dbcsr_init(matrix_tmp1,error=error)
+               CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
+                                    matrix_type=dbcsr_type_no_symmetry,error=error)
+               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_p(ispin),&
+                                            0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
+               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
+                                            0.0_dp, ls_scf_env%matrix_p(ispin)  , &
+                                            filter_eps=ls_scf_env%eps_filter,error=error)
+               CALL cp_dbcsr_release(matrix_tmp1,error=error)
 
-             IF (ls_scf_env%has_s_preconditioner) THEN
-                 CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
-                                ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
-             ENDIF
-          ENDIF
-       ENDDO
+               IF (ls_scf_env%has_s_preconditioner) THEN
+                   CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
+                                  ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
+               ENDIF
+            ENDIF
+         ENDDO
+       ENDIF
 
        ! compute corresponding energy and ks matrix
        CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,error)
@@ -652,7 +668,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mu
     TYPE(section_vals_type), POINTER         :: chebyshev_section, &
-                                                curvy_section, ls_scf_section
+                                                curvy_section, &
+                                                ls_scf_section, pexsi_section
 
     CALL timeset(routineN,handle)
     CALL cite_reference(VandeVondele2012)
@@ -714,12 +731,26 @@ CONTAINS
       CALL section_vals_retain(ls_scf_env%chebyshev%print_key_cube,error=error)
     ENDIF
 
+    pexsi_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PEXSI",error=error)
+    CALL section_vals_get(pexsi_section, error=error)
+
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+      CALL pexsi_init_read_input(pexsi_section,ls_scf_env%pexsi, error)
+      ! Turn off S inversion (not used for PEXSI).
+      ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
+      ! a finite temperature one, and thus not idempotent
+      ls_scf_env%s_inversion_type=ls_s_inversion_none 
+    ENDIF
+
     SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
         ls_scf_env%needs_s_inv=.TRUE.
         ls_scf_env%use_s_sqrt=.TRUE.
     CASE(ls_s_inversion_hotelling)
         ls_scf_env%needs_s_inv=.TRUE.
+        ls_scf_env%use_s_sqrt=.FALSE.
+    CASE(ls_s_inversion_none)
+        ls_scf_env%needs_s_inv=.FALSE.
         ls_scf_env%use_s_sqrt=.FALSE.
     CASE DEFAULT
         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -794,6 +825,10 @@ CONTAINS
        CASE(ls_scf_trs4)
            CALL cite_reference(Niklasson2003)
            WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Trace resetting 4th order"
+       CASE(ls_scf_pexsi)
+           CALL cite_reference(Lin2009)
+           CALL cite_reference(Lin2013)
+           WRITE(unit_nr,'(T2,A,T38,A20)') "Purification method","PEXSI"
        CASE DEFAULT
            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1029,9 +1064,21 @@ CONTAINS
                                           matrix_ks_deviation=matrix_ks_deviation(ispin), &
                                           eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
                                           error=error)
+               CASE(ls_scf_pexsi)
+                 CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed, routineP, &
+                                "S preconditioning not implemented in combination with the PEXSI library. ", &
+                                only_ionode=.TRUE., error=error)
+                 CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level, cp_assertion_failed, & 
+                                routineP,"Molecular clustering not implemented in combination with the PEXSI library. ", &
+                                only_ionode=.TRUE., error=error)
+                 CALL cp_assert(.NOT. ls_scf_env%ls_mstruct%single_precision,cp_failure_level,cp_assertion_failed, routineP, &
+                                "PEXSI library requires double precision datatype. ", only_ionode=.TRUE.,error=error)
+                 CALL density_matrix_pexsi(ls_scf_env%pexsi, ls_scf_env%matrix_p(ispin), ls_scf_env%pexsi%matrix_w(ispin),&
+                                           ls_scf_env%pexsi%kTS(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s,& 
+                                           nelectron_spin_real,ls_scf_env%mu_spin(ispin),iscf,ispin,error)
                END SELECT
             END IF
-                                     
+ 
             IF (ls_scf_env%has_s_preconditioner) THEN
                 CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
                                ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
@@ -1045,6 +1092,10 @@ CONTAINS
 
       ! compute the corresponding new energy KS matrix and new energy
       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,error)
+
+      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN 
+        CALL pexsi_to_qs(ls_scf_env, qs_env, kTS = ls_scf_env%pexsi%kTS, error = error)
+      ENDIF
 
       ! report current SCF loop
       energy_diff=energy_new-energy_old
@@ -1130,7 +1181,11 @@ CONTAINS
     ! compute the matrix_w if associated
     CALL get_qs_env(qs_env,matrix_w=matrix_w,error=error)
     IF (ASSOCIATED(matrix_w)) THEN
-       CALL calculate_w_matrix(matrix_w,ls_scf_env,error=error)
+      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+        CALL pexsi_to_qs(ls_scf_env, qs_env, matrix_w = ls_scf_env%pexsi%matrix_w, error=error)
+      ELSE
+        CALL calculate_w_matrix(matrix_w,ls_scf_env,error=error) 
+      ENDIF
     ENDIF
 
     ! compute properties
@@ -1175,6 +1230,9 @@ CONTAINS
        CALL cp_dbcsr_release(ls_scf_env%matrix_ks(ispin),error=error)
     ENDDO
     DEALLOCATE(ls_scf_env%matrix_ks)
+
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) &
+      CALL lib_pexsi_finalize(ls_scf_env%pexsi, error)
 
     CALL timestop(handle)
 
@@ -1582,13 +1640,7 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-!   CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(1),"pmatrix.dat",error)
-!   CALL cp_dbcsr_init(matrix_tmp1,error=error)
-!   CALL cp_dbcsr_binary_read("pmatrix.dat", distribution=cp_dbcsr_distribution(ls_scf_env%matrix_p(1)), &
-!            matrix_new=matrix_tmp1, error=error)
-
     CALL timestop(handle)
-
   END SUBROUTINE post_scf_experiment
 
 END MODULE dm_ls_scf

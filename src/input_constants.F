@@ -730,10 +730,11 @@ MODULE input_constants
                                               ls_cluster_molecular=112
 
   INTEGER, PARAMETER, PUBLIC               :: ls_s_inversion_hotelling=3,&
-                                              ls_s_inversion_sign_sqrt=5
+                                              ls_s_inversion_sign_sqrt=5,&
+                                              ls_s_inversion_none=6
   
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_ns=17, ls_scf_trs4=18,&
-                                              ls_scf_tc2=19
+                                              ls_scf_tc2=19, ls_scf_pexsi=20
 
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point=3,&
                                               ls_scf_line_search_3point_2d=6

@@ -1,0 +1,112 @@
+@SET NREP 1
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/BASIS_SET
+    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    &POISSON
+    &END
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-10
+      LS_SCF
+      &DISTRIBUTION
+        BASIC_OPTIMIZATION .FALSE.
+        BASIC_SPATIAL_OPTIMIZATION .TRUE.
+      &END
+    &END QS
+    &LS_SCF
+      MAX_SCF    3
+      EPS_FILTER 1.0E-10
+      EPS_SCF    1.0E-10
+      MIXING_FRACTION 0.45
+      S_PRECONDITIONER NONE
+      MATRIX_CLUSTER_TYPE ATOMIC
+      REPORT_ALL_SPARSITIES OFF
+      PERFORM_MU_SCAN OFF
+      PURIFICATION_METHOD PEXSI
+      &PEXSI
+        NUM_POLE 60
+        MAX_PEXSI_ITER 3
+        MU_MIN_0 -0.5
+        MU_MAX_0 0.5
+        MU_INERTIA_EXPANSION 0.1
+        TEMPERATURE 300
+        MU_PEXSI_SAFE_GUARD 0.01
+        NUM_ELECTRON_PEXSI_TOLERANCE 0.01
+        MU_INERTIA_TOLERANCE 0.01
+        VERBOSITY BASIC
+        MIN_RANKS_PER_POLE 4
+        NP_SYMB_FACT 1
+        IS_INERTIA_COUNT .FALSE.
+      &END PEXSI
+    &END
+    &SCF
+      SCF_GUESS RESTART
+      MAX_SCF    30
+      EPS_SCF    1.0E-7
+      &OUTER_SCF
+        MAX_SCF    30
+        EPS_SCF    1.0E-7
+      &END
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END
+    &CELL
+      ABC 9.8528 9.8528 9.8528
+      !ABC 5.0 5.0 5.0
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END CELL
+    # 32 H2O (TIP5P,1bar,300K) a = 9.8528
+    &COORD
+     O       2.280398       9.146539       5.088696 H2O
+     H       1.762019       9.820429       5.528454 H2O
+     H       3.095987       9.107088       5.588186 H2O
+     O       1.251703       2.406261       7.769908 H2O
+     H       0.554129       2.982634       8.082024 H2O
+     H       1.771257       2.954779       7.182181 H2O
+     O       1.596302       6.920128       0.656695 H2O
+     H       2.112148       6.126321       0.798136 H2O
+     H       1.776389       7.463264       1.424030 H2O
+     O       2.957518       3.771868       1.877387 H2O
+     H       3.754249       3.824017       1.349436 H2O
+     H       3.010580       4.524142       2.466878 H2O
+     O       0.228972       5.884026       6.532308 H2O
+     H       0.939475       5.243834       6.571945 H2O
+     H       0.515723       6.520548       5.877445 H2O
+     O       9.023431       6.119654       0.092451 H2O
+     H       9.852960       6.490366       0.393593 H2O
+     H       8.556008       6.860063      -0.294256 H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT PEXSI_TEST
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+  &TIMINGS
+     THRESHOLD 0.000001
+  &END
+  EXTENDED_FFT_LENGTHS
+&END GLOBAL

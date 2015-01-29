@@ -71,7 +71,7 @@ MODULE bibliography
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Grimme2011, Fattebert2002, Andreussi2012,                       &
-       Khaliullin2007, Khaliullin2008, Merlot2014,                     &
+       Khaliullin2007, Khaliullin2008, Merlot2014,Lin2009,Lin2013,                     &
        QUIP_ref
 
 CONTAINS
@@ -209,7 +209,7 @@ CONTAINS
          "AU ZHAO, QS",&
          "   MORRISON, RC",&
          "   PARR, RG",&
-         "TI FOR ELECTRON DENSITIES TO KHON-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
+         "TI FOR ELECTRON DENSITIES TO KOHN-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
          "   EXCHANGE-CORRELATION POTENTIALS, AND EXCHANGE-CORRELATION ENERGIES",&
          "SO PHYSICAL REVIEW A",&
          "SN 1050-2947",&
@@ -2798,6 +2798,65 @@ CONTAINS
          "DI /10.1063/1.4894267",&
          "ER"),&
          DOI="10.1063/1.4894267")
+
+    CALL add_reference(key=Lin2009, ISI_record=s2a(&
+          "PT J",&
+          "AU Lin, L",&
+          "   Lu, JF",&
+          "   Ying, LX",&
+          "   Car, R",&
+          "   E, WN",&
+          "AF Lin, Lin",&
+          "   Lu, Jianfeng",&
+          "   Ying, Lexing",&
+          "   Car, Roberto",&
+          "   E, Weinan",&
+          "TI FAST ALGORITHM FOR EXTRACTING THE DIAGONAL OF THE INVERSE MATRIX WITH",&
+          "   APPLICATION TO THE ELECTRONIC STRUCTURE ANALYSIS OF METALLIC SYSTEMS",&
+          "SO COMMUNICATIONS IN MATHEMATICAL SCIENCES",&
+          "VL 7",&
+          "SN 1539-6746",&
+          "PD SEP",&
+          "PY 2009",&
+          "RI Lin, Lin/I-2726-2012",&
+          "OI Lin, Lin/0000-0001-7738-5947",&
+          "TC 20",&
+          "ZB 0",&
+          "Z8 3",&
+          "ZS 0",&
+          "Z9 21",&
+          "VL 7",&
+          "IS 3",&
+          "BP 755",&
+          "EP 777",&
+          "UT WOS:000271568500012",&
+          "ER"),&
+          DOI="10.4310/CMS.2009.v7.n3.a12")
+
+     CALL add_reference(key=Lin2013, ISI_record=s2a(&
+          "PT J",&
+          "AU Lin, Lin",&
+          "   Chen, Mohan",&
+          "   Yang, Chao",&
+          "   He, Lixin",&
+          "TI Accelerating atomic orbital-based electronic structure calculation via",&
+          "   pole expansion and selected inversion",&
+          "SO JOURNAL OF PHYSICS-CONDENSED MATTER",&
+          "VL 25",&
+          "IS 29",&
+          "AR 295501",&
+          "PD JUL 24 2013",&
+          "PY 2013",&
+          "TC 3",&
+          "ZB 1",&
+          "Z8 0",&
+          "ZS 0",&
+          "Z9 3",&
+          "SN 0953-8984",&
+          "UT WOS:000321219200006",&
+          "PM 23803312",&
+          "ER"),&
+          DOI="10.1088/0953-8984/25/29/295501")
 
   END SUBROUTINE add_all_references
 

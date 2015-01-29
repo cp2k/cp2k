@@ -97,6 +97,9 @@ CONTAINS
 #if defined(__LIBXC2)
     flags=TRIM(flags)//" libxc2"
 #endif
+#if defined(__LIBPEXSI)
+    flags=TRIM(flags)//" pexsi"
+#endif
 #if defined(__ELPA)
     flags=TRIM(flags)//" elpa"
 #endif
