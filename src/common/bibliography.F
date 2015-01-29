@@ -2861,7 +2861,7 @@ CONTAINS
      CALL add_reference(key=DelBen2015, ISI_record=s2a(&
           "PT J",&
           "AU Del Ben, M",&
-          "   Schuutt, O",&
+          "   Schuett, O",&
           "   Wentz, T",&
           "   Messmer, P",&
           "   Hutter, J",&
