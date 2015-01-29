@@ -302,7 +302,7 @@ echo "================== Installing ParMETIS =================="
 if [ -f parmetis-${parmetis_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
-  wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/parmetis-${parmetis_ver}.tar.gz
+  wget http://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
   echo "${parmetis_sha} *parmetis-${parmetis_ver}.tar.gz" | sha256sum  --check
   tar -xzf parmetis-${parmetis_ver}.tar.gz
 
@@ -324,7 +324,7 @@ echo "================== Installing SuperLU_DIST =================="
 if [ -f superlu_dist_${superlu_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
-  wget http://crd-legacy.lbl.gov/~xiaoye/SuperLU/superlu_dist_${superlu_ver}.tar.gz
+  wget http://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
   echo "${superlu_sha} *superlu_dist_${superlu_ver}.tar.gz" | sha256sum  --check
   tar -xzf superlu_dist_${superlu_ver}.tar.gz
 
@@ -360,7 +360,7 @@ echo "================== Installing PEXSI =================="
 if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
-  wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
+  wget http://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
   echo "${pexsi_sha} *pexsi_v${pexsi_ver}.tar.gz" | sha256sum  --check
   mkdir pexsi_v${pexsi_ver}
   tar -xzf pexsi_v${pexsi_ver}.tar.gz -C pexsi_v${pexsi_ver}
