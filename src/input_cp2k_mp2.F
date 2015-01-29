@@ -611,6 +611,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MULTIPOLE_TWO_CENT_INT",&
+            description="Use fast algorithm to calculate two-center RI integrals based on multipole expansion",&
+            usage="MULTIPOLE_TWO_CENT_INT",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PRINT_LEVEL",&
             variants=(/"IOLEVEL"/),&
             description="How much output is written by the individual groups.",&
