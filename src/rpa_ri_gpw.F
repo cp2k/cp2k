@@ -10,6 +10,9 @@
 ! *****************************************************************************
 MODULE rpa_ri_gpw
 ! 
+  USE bibliography,                    ONLY: DelBen2013,&
+                                             DelBen2015,&
+                                             cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
@@ -156,6 +159,9 @@ MODULE rpa_ri_gpw
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
+  
+    CALL cite_reference(DelBen2013)
+    CALL cite_reference(DelBen2015)
 
     my_open_shell=.FALSE.
     IF(PRESENT(BIb_C_beta).AND.&

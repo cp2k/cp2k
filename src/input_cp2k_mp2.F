@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE input_cp2k_mp2
   USE bibliography,                    ONLY: DelBen2012,&
-                                             DelBen2013
+                                             DelBen2013,DelBen2015
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -73,7 +73,7 @@ CONTAINS
        CALL section_create(section,"WF_CORRELATION",&
             description="Sets up the Wavefunction-based Correlation parameters if requested ",&
             n_keywords=8, n_subsections=6, repeats=.TRUE., required=.TRUE.,&
-            citations=(/DelBen2012/),&
+            citations=(/DelBen2012,DelBen2013,DelBen2015/),&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -497,7 +497,7 @@ CONTAINS
        CALL section_create(section,"RI_RPA",&
             description="Parameters influencing the RI RPA method",&
             n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            citations=(/DelBen2013/),&
+            citations=(/DelBen2013,DelBen2015/),&
             error=error)
 
        NULLIFY(keyword,subsection)

@@ -71,8 +71,8 @@ MODULE bibliography
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Grimme2011, Fattebert2002, Andreussi2012,                       &
-       Khaliullin2007, Khaliullin2008, Merlot2014,Lin2009,Lin2013,                     &
-       QUIP_ref
+       Khaliullin2007, Khaliullin2008, Merlot2014,Lin2009,Lin2013,     &
+       QUIP_ref,DelBen2015
 
 CONTAINS
 
@@ -2857,6 +2857,35 @@ CONTAINS
           "PM 23803312",&
           "ER"),&
           DOI="10.1088/0953-8984/25/29/295501")
+
+     CALL add_reference(key=DelBen2015, ISI_record=s2a(&
+          "PT J",&
+          "AU Del Ben, M",&
+          "   Schuutt, O",&
+          "   Wentz, T",&
+          "   Messmer, P",&
+          "   Hutter, J",&
+          "   VandeVondele, J",&
+          "AF Del Ben, Mauro",&
+          "   Schuett, Ole",&
+          "   Wentz, Tim",&
+          "   Messmer, Peter",&
+          "   Hutter, Juerg",&
+          "   VandeVondele, Joost",&
+          "TI Enabling simulation at the fifth rung of DFT: Large scale RPA",&
+          "   calculations with excellent time to solution",&
+          "SO COMPUTER PHYSICS COMMUNICATIONS",&
+          "SN 0010-4655",&
+          "EI 1879-2944",&
+          "PD FEB",&
+          "PY 2015",&
+          "VL 187",&
+          "BP 120",&
+          "EP 129",&
+          "DI 10.1016/j.cpc.2014.10.021",&
+          "UT WOS:000346954200014",&
+          "ER"),&
+          DOI="10.1016/j.cpc.2014.10.021")
 
   END SUBROUTINE add_all_references
 
