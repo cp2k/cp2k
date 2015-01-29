@@ -214,8 +214,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid
     INTEGER, INTENT(IN)                      :: ndw
     LOGICAL, INTENT(IN)                      :: l_fes_int
+    INTEGER                                  :: unit_nr
 
-    INTEGER                                  :: dimval, i, is, pnt, unit_nr
+    INTEGER                                  :: dimval, i, is, pnt
     REAL(KIND=dp)                            :: dvol, sum_fes
 
     DO i = 1,ngrid(idim)
