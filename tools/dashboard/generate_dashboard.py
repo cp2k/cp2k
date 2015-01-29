@@ -234,7 +234,7 @@ def write_file(fn, content, gz=False):
     print("Wrote: "+fn)
 
 #===============================================================================
-def svn_log(limit=500):
+def svn_log(limit=3000):
     sys.stdout.write("Fetching svn log... ")
     sys.stdout.flush()
     # xml version contains nice UTC timestamp
