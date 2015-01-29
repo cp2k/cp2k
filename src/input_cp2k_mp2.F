@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_mp2
   USE bibliography,                    ONLY: DelBen2012,&
-                                             DelBen2013,DelBen2015
+                                             DelBen2013,&
+                                             DelBen2015
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
