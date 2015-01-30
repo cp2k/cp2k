@@ -61,11 +61,11 @@ function do_regression_test_remote() {
   done
  
 # Do not forget to copy output of do_regtest from batch job 
-  cat "=========== Standard output ===========" >>${reglog}
+  echo "=========== Standard output ===========" >>${reglog}
   cat regtest_sopt_bsub.out | head -n -7 >>${reglog}
-  cat "=========== Standard error ============" >>${reglog}
+  echo "=========== Standard error ============" >>${reglog}
   cat regtest_sopt_bsub.err >>${reglog}
-  cat "=========== End of output =============" >>${reglog}
+  echo "=========== End of output =============" >>${reglog}
 
 }
 
