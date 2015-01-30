@@ -445,7 +445,8 @@ CONTAINS
     IF (ASSOCIATED(section)) THEN
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
-       CALL open_file(unit_number=unit_nr,file_name=TRIM(local_prefix)//".html")
+       CALL open_file(unit_number=unit_nr,file_name=TRIM(local_prefix)//".html",&
+                      file_status="UNKNOWN",file_action="WRITE")
        WRITE(unit_nr,FMT='(A)') "<HTML><BODY>"
        WRITE(unit_nr,FMT='(A)') "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
        WRITE(unit_nr,FMT='(A)') '<META NAME="description" content="CP2K">'

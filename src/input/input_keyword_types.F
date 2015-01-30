@@ -866,7 +866,7 @@ CONTAINS
           WRITE(unit_nr,FMT='(A,I0,A)') &
                '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
           CALL print_reference(keyword%citations(iref),FORMAT=print_format_journal,unit=unit_nr)
-          WRITE(179,FMT='(A)') &
+          WRITE(unit_nr,FMT='(A)') &
                '">[' // TRIM(get_citation_key( keyword%citations(iref) )) // ']</A>'
        ENDDO
     ENDIF
