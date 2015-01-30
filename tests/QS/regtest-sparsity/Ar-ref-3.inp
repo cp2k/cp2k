@@ -4,7 +4,7 @@
     BASIS_SET_FILE_NAME ../../../data/BASIS_SET
     POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
-      CUTOFF 200
+      CUTOFF 50
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
@@ -20,10 +20,33 @@
       &OT 
       &END
     &END SCF
-    &XC
-      &XC_FUNCTIONAL Pade
-      &END XC_FUNCTIONAL
-    &END XC
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      METHOD BASIS_PROJECTION
+      ADMM_PURIFICATION_METHOD NONE
+    &END
+     &XC
+       &XC_FUNCTIONAL
+         &PBE
+           SCALE_X 0.75
+           SCALE_C 1.0
+         &END
+       &END XC_FUNCTIONAL
+       &HF
+         FRACTION  0.25
+         &SCREENING
+           EPS_SCHWARZ 1.0E-7
+           SCREEN_ON_INITIAL_P  FALSE
+         &END SCREENING
+         &INTERACTION_POTENTIAL
+           POTENTIAL_TYPE TRUNCATED
+           CUTOFF_RADIUS  2.5
+           T_C_G_DATA ../../../data/t_c_g.dat
+         &END
+         &MEMORY
+           MAX_MEMORY 10
+         &END
+       &END HF
+     &END XC
   &END DFT
   &SUBSYS
     # cell and coords such that the overlap matrix is first dense
@@ -32,16 +55,17 @@
     &END CELL
     &COORD
     Ar     0.000000  0.000000  0.000000
-    Ar     0.000000  0.000000  2.000000
+    Ar     0.000000  0.000000  15.000000
     &END COORD
     &KIND Ar
       BASIS_SET DZVP-GTH-PADE
+      AUX_FIT_BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q8
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT Ar-ref-2
+  PROJECT Ar-ref-1
   RUN_TYPE MD
   PRINT_LEVEL MEDIUM
 &END GLOBAL
@@ -51,7 +75,7 @@
     STEPS 2
     # next MD step, overlap matrix will be sparse
     &REFTRAJ
-      TRAJ_FILE_NAME Ar-ref-2.xyz
+      TRAJ_FILE_NAME Ar-ref-1.xyz
       EVAL_ENERGY_FORCES T
     &END
   &END MD

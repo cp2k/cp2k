@@ -4,7 +4,7 @@
     BASIS_SET_FILE_NAME ../../../data/BASIS_SET
     POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
-      CUTOFF 200
+      CUTOFF 50
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
@@ -51,7 +51,7 @@
     &END CELL
     &COORD
     Ar     0.000000  0.000000  0.000000
-    Ar     0.000000  0.000000  2.000000
+    Ar     0.000000  0.000000  15.000000
     &END COORD
     &KIND Ar
       BASIS_SET DZVP-GTH-PADE
@@ -60,7 +60,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT Ar-ref-2
+  PROJECT Ar-ref-1
   RUN_TYPE MD
   PRINT_LEVEL MEDIUM
 &END GLOBAL
@@ -70,7 +70,7 @@
     STEPS 2
     # next MD step, overlap matrix will be sparse
     &REFTRAJ
-      TRAJ_FILE_NAME Ar-ref-2.xyz
+      TRAJ_FILE_NAME Ar-ref-1.xyz
       EVAL_ENERGY_FORCES T
     &END
   &END MD

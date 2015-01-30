@@ -4,7 +4,7 @@
     BASIS_SET_FILE_NAME ../../../data/BASIS_SET
     POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     &MGRID
-      CUTOFF 200
+      CUTOFF 50
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10

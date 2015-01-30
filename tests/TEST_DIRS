@@ -5,12 +5,19 @@
 # the order will be regularly checked and modified...
 QS/regtest-pexsi                                            pexsi
 QS/regtest-gpw-1                                            libint 
-QS/regtest-sccs
-QS/regtest-ps-implicit-1
+QS/regtest-sccs-1
+QS/regtest-sccs-2
+QS/regtest-sccs-3
+QS/regtest-sparsity                                         libint
+QS/regtest-ps-implicit-1-1
+QS/regtest-ps-implicit-1-2
+QS/regtest-ps-implicit-1-3
 QS/regtest-gpw-8
 QS/regtest-gpw-5
 QS/regtest-rtp-3
-QS/regtest-ps-implicit-2
+QS/regtest-ps-implicit-2-1
+QS/regtest-ps-implicit-2-2
+QS/regtest-ps-implicit-2-3
 QS/regtest-rel
 QS/regtest-gapw-4                                           libint 
 QS/regtest-ot
