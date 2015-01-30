@@ -46,10 +46,9 @@ function do_regression_test_local() {
 function do_regression_test_remote() {
 
 # Submit the job through the batching system
-  job_id=`bsub < regtest.remote-sopt.sh | sed 's/[^0-9]*<\([0-9]*\)>[^0-9]*/\1/'`
+  job_id=`bsub < regtest.sopt.sh | sed 's/[^0-9]*<\([0-9]*\)>[^0-9]*/\1/'`
 
 # Wait some time for the results
-  echo ${job_id}
   while true
   do
     status=`bjobs ${job_id} | grep -E 'DONE|EXIT'`
@@ -62,8 +61,11 @@ function do_regression_test_remote() {
   done
  
 # Do not forget to copy output of do_regtest from batch job 
-  cat regtest_remote_sopt_bsub.out | tail -n +42 | head -n -7 >>${reglog}
-  cat regtest_remote_sopt_bsub.err >>${reglog}
+  cat "=========== Standard output ===========" >>${reglog}
+  cat regtest_sopt_bsub.out | head -n -7 >>${reglog}
+  cat "=========== Standard error ============" >>${reglog}
+  cat regtest_sopt_bsub.err >>${reglog}
+  cat "=========== End of output =============" >>${reglog}
 
 }
 

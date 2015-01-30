@@ -58,6 +58,13 @@ echo "svn update went fine"
 cp2k_lines=`wc src/*.F | tail -1 |  awk  '{print $1}'`
 echo "cp2k is now ${cp2k_lines} lines .F"
 
+# Update the do_regtest script from the SVN checkout
+cp tools/regtesting/do_regtest ../
+if (( $? )); then
+echo "Error : could not copy do_regtest from the SVN checkout to test directory"
+exit 1
+fi
+
 # *** using svn2cl.pl to generate GNU like changlelog
 ${cp2kdir}/cp2k/tools/svn2cl/svn2cl.sh --limit 100 -i -o ChangeLog.new &> out
 
