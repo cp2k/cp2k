@@ -2323,9 +2323,9 @@ CONTAINS
     new_data(1:sz) = old_data(1:sz)
     max_bin = MAXVAL (old_data)
     IF (max_bin .GT. 0) THEN
-       FORALL (i = sz+1 : new_size)
+       DO i = sz+1 , new_size
           new_data(i) = MOD (i, max_bin)
-       END FORALL
+       END DO
     ELSE
        new_data(sz+1:new_size) = 0
     ENDIF

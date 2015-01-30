@@ -724,92 +724,93 @@ SUBROUTINE grat1 (a, x, r, p, q, eps)
                                                 c, g, h, j, l, pp, qq, sum, &
                                                 t, tol, w, z
 
-IF (a*x == zero) GO TO 130
-IF (a == half) GO TO 120
-IF (x < 1.1e0_dp) GO TO 10
-GO TO 50
+IF (a*x == zero) THEN
+  IF (x <= a) THEN
+    pp = zero
+    qq = one
+  ELSE
+    pp = one
+    qq = zero
+  ENDIF
+  IF (PRESENT(p)) p = pp
+  IF (PRESENT(q)) q = qq
+  RETURN
+ENDIF
+IF (a == half) THEN
+IF (x < quarter) THEN
+    pp = erf(SQRT(x))
+    qq = half + (half - pp)
+  ELSE
+    qq = erfc1(0,SQRT(x))
+    pp = half + (half - qq)
+  END IF
+  IF (PRESENT(p)) p = pp
+  IF (PRESENT(q)) q = qq
+  RETURN
+ENDIF
+IF (x < 1.1e0_dp) THEN
+  !             TAYLOR SERIES FOR P(A,X)/X**A
 
-!             TAYLOR SERIES FOR P(A,X)/X**A
+  an = three
+  c = x
+  sum = x/(a + three)
+  tol = three*eps/(a + one)
+  an = an + one
+  c = -c*(x/an)
+  t = c/(a + an)
+  sum = sum + t
+  DO WHILE (ABS(t) > tol)
+    an = an + one
+    c = -c*(x/an)
+    t = c/(a + an)
+    sum = sum + t
+  END DO
+  j = a*x*((sum/6.0e0_dp - half/(a + two))*x + one/(a + one))
 
-10 an = three
-c = x
-sum = x/(a + three)
-tol = three*eps/(a + one)
-11 an = an + one
-c = -c*(x/an)
-t = c/(a + an)
-sum = sum + t
-IF (ABS(t) > tol) GO TO 11
-j = a*x*((sum/6.0e0_dp - half/(a + two))*x + one/(a + one))
-
-z = a*LOG(x)
-h = gam1(a)
-g = one + h
-IF (x < quarter) GO TO 20
-IF (a < x/2.59e0_dp) GO TO 40
-GO TO 30
-20 IF (z > -.13394e0_dp) GO TO 40
-
-30 w = EXP(z)
-pp = w*g*(half + (half - j))
-qq = half + (half - pp)
-GO TO 500
-
-40 l = rexp(z)
-qq = ((half + (half + l))*j - l)*g - h
-IF (qq <= zero) GO TO 110
-pp = half + (half - qq)
-GO TO 500
-
-!              CONTINUED FRACTION EXPANSION
-
-50 tol = 8.0e0_dp*eps
-a2nm1 = one
-a2n = one
-b2nm1 = x
-b2n = x + (one - a)
-c = one
-DO
-  a2nm1 = x*a2n + c*a2nm1
-  b2nm1 = x*b2n + c*b2nm1
-  c = c + one
-  a2n = a2nm1 + (c - a)*a2n
-  b2n = b2nm1 + (c - a)*b2n
-  a2nm1 = a2nm1/b2n
-  b2nm1 = b2nm1/b2n
-  a2n = a2n/b2n
-  b2n = one
-  IF (ABS(a2n - a2nm1/b2nm1) < tol*a2n) EXIT
-END DO
-
-qq = r*a2n
-pp = half + (half - qq)
-GO TO 500
-
-!                SPECIAL CASES
-
-100 pp = zero
-qq = one
-GO TO 500
-
-110 pp = one
-qq = zero
-GO TO 500
-
-120 IF (x < quarter) THEN
-  pp = erf(SQRT(x))
-  qq = half + (half - pp)
-  GO TO 500
+  z = a*LOG(x)
+  h = gam1(a)
+  g = one + h
+  IF ((x < quarter.AND.z > -.13394e0_dp).OR.a < x/2.59e0_dp) THEN
+    l = rexp(z)
+    qq = ((half + (half + l))*j - l)*g - h
+    IF (qq <= zero) THEN
+      pp = one
+      qq = zero
+    ELSE
+      pp = half + (half - qq)
+    ENDIF
+  ELSE
+    w = EXP(z)
+    pp = w*g*(half + (half - j))
+    qq = half + (half - pp)
+  ENDIF
 ELSE
-  qq = erfc1(0,SQRT(x))
+  !              CONTINUED FRACTION EXPANSION
+
+  tol = 8.0e0_dp*eps
+  a2nm1 = one
+  a2n = one
+  b2nm1 = x
+  b2n = x + (one - a)
+  c = one
+  DO
+    a2nm1 = x*a2n + c*a2nm1
+    b2nm1 = x*b2n + c*b2nm1
+    c = c + one
+    a2n = a2nm1 + (c - a)*a2n
+    b2n = b2nm1 + (c - a)*b2n
+    a2nm1 = a2nm1/b2n
+    b2nm1 = b2nm1/b2n
+    a2n = a2n/b2n
+    b2n = one
+    IF (ABS(a2n - a2nm1/b2nm1) < tol*a2n) EXIT
+  END DO
+
+  qq = r*a2n
   pp = half + (half - qq)
-  GO TO 500
-END IF
+ENDIF
 
-130 IF (x <= a) GO TO 100
-GO TO 110
-
-500 IF (PRESENT(p)) p = pp
+IF (PRESENT(p)) p = pp
 IF (PRESENT(q)) q = qq
 
 END SUBROUTINE grat1
@@ -1067,35 +1068,37 @@ xsmall = 1.e-9_dp
 !---------------------------------------------------------------------
 x = xx
 aug = 0.0e0_dp
-IF (x >= 0.5e0_dp) GO TO 200
+IF (x < 0.5e0_dp) THEN
 !---------------------------------------------------------------------
 !     X .LT. 0.5,  USE REFLECTION FORMULA
 !     PSI(1-X) = PSI(X) + PI * COTAN(PI*X)
 !---------------------------------------------------------------------
-IF (ABS(x) > xsmall) GO TO 100
-IF (x == 0.0e0_dp) THEN
-  !     ERROR RETURN
-  fn_val = 0.0e0_dp
-  RETURN
-ENDIF
+IF (ABS(x) <= xsmall) THEN
+  IF (x == 0.0e0_dp) THEN
+    !     ERROR RETURN
+    fn_val = 0.0e0_dp
+    RETURN
+  ENDIF
 !---------------------------------------------------------------------
 !     0 .LT. ABS(X) .LE. XSMALL.  USE 1/X AS A SUBSTITUTE
 !     FOR  PI*COTAN(PI*X)
 !---------------------------------------------------------------------
-aug = -1.0e0_dp / x
-GO TO 150
+  aug = -1.0e0_dp / x
+  x = 1.0e0_dp - x
+ELSE
 !---------------------------------------------------------------------
 !     REDUCTION OF ARGUMENT FOR COTAN
 !---------------------------------------------------------------------
-100 w = - x
+w = - x
 sgn = piov4
-IF (w > 0.0e0_dp) GO TO 120
-w = - w
-sgn = -sgn
+IF (w <= 0.0e0_dp) THEN
+  w = - w
+  sgn = -sgn
+ENDIF
 !---------------------------------------------------------------------
 !     MAKE AN ERROR EXIT IF X .LE. -XMAX1
 !---------------------------------------------------------------------
-120 IF (w >= xmax1) THEN
+IF (w >= xmax1) THEN
   !     ERROR RETURN
   fn_val = 0.0e0_dp
   RETURN
@@ -1120,45 +1123,47 @@ IF ((m+m) /= n) sgn = - sgn
 n = (nq + 1) / 2
 m = n / 2
 m = m + m
-IF (m /= n) GO TO 140
-!---------------------------------------------------------------------
-!     CHECK FOR SINGULARITY
-!---------------------------------------------------------------------
-IF (z == 0.0e0_dp) THEN
-  !     ERROR RETURN
-  fn_val = 0.0e0_dp
-  RETURN
-ENDIF
-
-
+IF (m /= n) THEN
+   aug = sgn * ((SIN(z) / COS(z)) * 4.0e0_dp)
+ELSE
+  !---------------------------------------------------------------------
+  !     CHECK FOR SINGULARITY
+  !---------------------------------------------------------------------
+  IF (z == 0.0e0_dp) THEN
+    !     ERROR RETURN
+    fn_val = 0.0e0_dp
+    RETURN
+  ENDIF
 !---------------------------------------------------------------------
 !     USE COS/SIN AS A SUBSTITUTE FOR COTAN, AND
 !     SIN/COS AS A SUBSTITUTE FOR TAN
 !---------------------------------------------------------------------
-aug = sgn * ((COS(z) / SIN(z)) * 4.0e0_dp)
-GO TO 150
-140 aug = sgn * ((SIN(z) / COS(z)) * 4.0e0_dp)
-150 x = 1.0e0_dp - x
-200 IF (x > 3.0e0_dp) GO TO 300
+  aug = sgn * ((COS(z) / SIN(z)) * 4.0e0_dp)
+ENDIF
+x = 1.0e0_dp - x
+ENDIF
+ENDIF
+IF (x <= 3.0e0_dp) THEN
 !---------------------------------------------------------------------
 !     0.5 .LE. X .LE. 3.0
 !---------------------------------------------------------------------
-den = x
-upper = p1(1) * x
+  den = x
+  upper = p1(1) * x
 
-DO i = 1, 5
-  den = (den + q1(i)) * x
-  upper = (upper + p1(i+1)) * x
-END DO
+  DO i = 1, 5
+    den = (den + q1(i)) * x
+    upper = (upper + p1(i+1)) * x
+  END DO
 
-den = (upper + p1(7)) / (den + q1(6))
-xmx0 = x - dx0
-fn_val = den * xmx0 + aug
-RETURN
+  den = (upper + p1(7)) / (den + q1(6))
+  xmx0 = x - dx0
+  fn_val = den * xmx0 + aug
+  RETURN
+ENDIF
 !---------------------------------------------------------------------
 !     IF X .GE. XMAX1, PSI = LN(X)
 !---------------------------------------------------------------------
-300 IF (x >= xmax1) GO TO 350
+IF (x < xmax1) THEN
 !---------------------------------------------------------------------
 !     3.0 .LT. X .LT. XMAX1
 !---------------------------------------------------------------------
@@ -1172,7 +1177,8 @@ DO i = 1, 3
 END DO
 
 aug = upper / (den + q2(4)) - 0.5e0_dp / x + aug
-350 fn_val = aug + LOG(x)
+ENDIF
+fn_val = aug + LOG(x)
 
 END FUNCTION psi
 
@@ -1200,77 +1206,85 @@ FUNCTION betaln (a0, b0) RESULT(fn_val)
 
 a = MIN(a0,b0)
 b = MAX(a0,b0)
-IF (a >= 8.0e0_dp) GO TO 60
-IF (a >= 1.0e0_dp) GO TO 20
-!-----------------------------------------------------------------------
-!                   PROCEDURE WHEN A .LT. 1
-!-----------------------------------------------------------------------
-IF (b >= 8.0e0_dp) GO TO 10
-fn_val = gamln(a) + (gamln(b) - gamln(a + b))
-RETURN
-10 fn_val = gamln(a) + algdiv(a,b)
-RETURN
-!-----------------------------------------------------------------------
-!                PROCEDURE WHEN 1 .LE. A .LT. 8
-!-----------------------------------------------------------------------
-20 IF (a > 2.0e0_dp) GO TO 30
-IF (b > 2.0e0_dp) GO TO 21
-fn_val = gamln(a) + gamln(b) - gsumln(a,b)
-RETURN
-21 w = 0.0e0_dp
-IF (b < 8.0e0_dp) GO TO 40
-fn_val = gamln(a) + algdiv(a,b)
-RETURN
-
-!                REDUCTION OF A WHEN B .LE. 1000
-
-30 IF (b > 1000.0e0_dp) GO TO 50
-n = INT(a - 1.0e0_dp)
-w = 1.0e0_dp
-DO i = 1, n
-  a = a - 1.0e0_dp
-  h = a/b
-  w = w * (h/(1.0e0_dp + h))
-END DO
-w = LOG(w)
-IF (b >= 8.0e0_dp) THEN
-  fn_val = w + gamln(a) + algdiv(a,b)
-  RETURN
-ENDIF
-
-!                 REDUCTION OF B WHEN B .LT. 8
-
-40 n = INT(b - 1.0e0_dp)
-z = 1.0e0_dp
-DO i = 1,n
-  b = b - 1.0e0_dp
-  z = z * (b/(a + b))
-END DO
-fn_val = w + LOG(z) + (gamln(a) + (gamln(b) - gsumln(a,b)))
-RETURN
-
-!                REDUCTION OF A WHEN B .GT. 1000
-
-50 n = INT(a - 1.0e0_dp)
-w = 1.0e0_dp
-DO i = 1,n
-  a = a - 1.0e0_dp
-  w = w * (a/(1.0e0_dp + a/b))
-END DO
-fn_val = (LOG(w) - n*LOG(b)) + (gamln(a) + algdiv(a,b))
-RETURN
 !-----------------------------------------------------------------------
 !                   PROCEDURE WHEN A .GE. 8
 !-----------------------------------------------------------------------
-60 w = bcorr(a,b)
-h = a/b
-c = h/(1.0e0_dp + h)
-u = -(a - 0.5e0_dp)*LOG(c)
-v = b*alnrel(h)
-IF (u > v) THEN
-  fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - v) - u
+IF (a >= 8.0e0_dp) THEN
+  w = bcorr(a,b)
+  h = a/b
+  c = h/(1.0e0_dp + h)
+  u = -(a - 0.5e0_dp)*LOG(c)
+  v = b*alnrel(h)
+  IF (u > v) THEN
+    fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - v) - u
+  ELSE
+    fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - u) - v
+  ENDIF
+!-----------------------------------------------------------------------
+!                   PROCEDURE WHEN A .LT. 1
+!-----------------------------------------------------------------------
+ELSEIF (a < 1.0e0_dp) THEN
+  IF (b < 8.0e0_dp) THEN
+    fn_val = gamln(a) + (gamln(b) - gamln(a + b))
+  ELSE
+    fn_val = gamln(a) + algdiv(a,b)
+  ENDIF
+!-----------------------------------------------------------------------
+!                PROCEDURE WHEN 1 .LE. A .LT. 8
+!-----------------------------------------------------------------------
+ELSEIF (a <= 2.0e0_dp) THEN
+  IF (b <= 2.0e0_dp) THEN
+    fn_val = gamln(a) + gamln(b) - gsumln(a,b)
+    RETURN
+  ENDIF
+  w = 0.0e0_dp
+  IF (b < 8.0e0_dp) THEN
+    !                 REDUCTION OF B WHEN B .LT. 8
+
+    n = INT(b - 1.0e0_dp)
+    z = 1.0e0_dp
+    DO i = 1,n
+      b = b - 1.0e0_dp
+      z = z * (b/(a + b))
+    END DO
+    fn_val = w + LOG(z) + (gamln(a) + (gamln(b) - gsumln(a,b)))
+    RETURN
+  ENDIF
+  fn_val = gamln(a) + algdiv(a,b)
+!                REDUCTION OF A WHEN B .LE. 1000
+ELSEIF (b <= 1000.0e0_dp) THEN
+  n = INT(a - 1.0e0_dp)
+  w = 1.0e0_dp
+  DO i = 1, n
+    a = a - 1.0e0_dp
+    h = a/b
+    w = w * (h/(1.0e0_dp + h))
+  END DO
+  w = LOG(w)
+  IF (b >= 8.0e0_dp) THEN
+    fn_val = w + gamln(a) + algdiv(a,b)
+    RETURN
+  ENDIF
+
+  !                 REDUCTION OF B WHEN B .LT. 8
+
+  n = INT(b - 1.0e0_dp)
+  z = 1.0e0_dp
+  DO i = 1,n
+    b = b - 1.0e0_dp
+    z = z * (b/(a + b))
+  END DO
+  fn_val = w + LOG(z) + (gamln(a) + (gamln(b) - gsumln(a,b)))
 ELSE
-  fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - u) - v
+!                REDUCTION OF A WHEN B .GT. 1000
+
+  n = INT(a - 1.0e0_dp)
+  w = 1.0e0_dp
+  DO i = 1,n
+    a = a - 1.0e0_dp
+    w = w * (a/(1.0e0_dp + a/b))
+  END DO
+  fn_val = (LOG(w) - n*LOG(b)) + (gamln(a) + algdiv(a,b))
 ENDIF
 
 END FUNCTION betaln
@@ -1414,12 +1428,27 @@ eps = dpmpar(1)
 
 w = 0.0e0_dp
 w1 = 0.0e0_dp
-IF (a < 0.0e0_dp .OR. b < 0.0e0_dp) GO TO 300
-IF (a == 0.0e0_dp .AND. b == 0.0e0_dp) GO TO 310
-IF (x < 0.0e0_dp .OR. x > 1.0e0_dp) GO TO 320
-IF (y < 0.0e0_dp .OR. y > 1.0e0_dp) GO TO 330
+IF (a < 0.0e0_dp .OR. b < 0.0e0_dp) THEN
+  ierr = 1
+  RETURN
+ENDIF
+IF (a == 0.0e0_dp .AND. b == 0.0e0_dp) THEN
+  ierr = 2
+  RETURN
+ENDIF
+IF (x < 0.0e0_dp .OR. x > 1.0e0_dp) THEN
+  ierr = 3
+  RETURN
+ENDIF
+IF (y < 0.0e0_dp .OR. y > 1.0e0_dp) THEN
+  ierr = 4
+  RETURN
+ENDIF
 z = ((x + y) - 0.5e0_dp) - 0.5e0_dp
-IF (ABS(z) > 3.0e0_dp*eps) GO TO 340
+IF (ABS(z) > 3.0e0_dp*eps) THEN
+  ierr = 5
+  RETURN
+ENDIF
 
 ierr = 0
 IF (x == 0.0e0_dp) GO TO 200
@@ -1458,9 +1487,8 @@ GO TO 130
 
 20 IF (b0 <= 1.0e0_dp) GO TO 100
 IF (x0 >= 0.3e0_dp) GO TO 110
-IF (x0 >= 0.1e0_dp) GO TO 21
-IF ((x0*b0)**a0 <= 0.7e0_dp) GO TO 100
-21 IF (b0 > 15.0e0_dp) GO TO 131
+IF (x0 < 0.1e0_dp.AND.(x0*b0)**a0 <= 0.7e0_dp) GO TO 100
+IF (b0 > 15.0e0_dp) GO TO 131
 n = 20
 GO TO 130
 
@@ -1542,12 +1570,18 @@ GO TO 220
 
 !               TERMINATION OF THE PROCEDURE
 
-200 IF (a == 0.0e0_dp) GO TO 350
+200 IF (a == 0.0e0_dp) THEN
+  ierr = 6
+  RETURN
+ENDIF
 201 w = 0.0e0_dp
 w1 = 1.0e0_dp
 RETURN
 
-210 IF (b == 0.0e0_dp) GO TO 360
+210 IF (b == 0.0e0_dp) THEN
+  ierr = 7
+  RETURN
+ENDIF
 211 w = 1.0e0_dp
 w1 = 0.0e0_dp
 RETURN
@@ -1563,22 +1597,6 @@ RETURN
 230 w = b/(a + b)
 w1 = a/(a + b)
 RETURN
-
-!                       ERROR RETURN
-
-300 ierr = 1
-RETURN
-310 ierr = 2
-RETURN
-320 ierr = 3
-RETURN
-330 ierr = 4
-RETURN
-340 ierr = 5
-RETURN
-350 ierr = 6
-RETURN
-360 ierr = 7
 
 END SUBROUTINE bratio
 
@@ -1621,7 +1639,7 @@ tol = eps/a
 an = a + 1.0e0_dp
 t = x
 s = t/an
-20    an = an + 1.0e0_dp
+an = an + 1.0e0_dp
 t = x*t
 c = t/an
 s = s + c
@@ -1708,61 +1726,60 @@ IF (x == 0.0e0_dp) RETURN
 !            COMPUTE THE FACTOR X**A/(A*BETA(A,B))
 !-----------------------------------------------------------------------
 a0 = MIN(a,b)
-IF (a0 < 1.0e0_dp) GO TO 10
-z = a*LOG(x) - betaln(a,b)
-fn_val = EXP(z)/a
-GO TO 70
-10 b0 = MAX(a,b)
-IF (b0 >= 8.0e0_dp) GO TO 60
-IF (b0 > 1.0e0_dp) GO TO 40
-
-!            PROCEDURE FOR A0 .LT. 1 AND B0 .LE. 1
-
-fn_val = x**a
-IF (fn_val == 0.0e0_dp) RETURN
-
-apb = a + b
-IF (apb > 1.0e0_dp) GO TO 20
-z = 1.0e0_dp + gam1(apb)
-GO TO 30
-20 u = a + b - 1.e0_dp
-z = (1.0e0_dp + gam1(u))/apb
-
-30 c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
-fn_val = fn_val*c*(b/apb)
-GO TO 70
-
+b0 = MAX(a,b)
+IF (a0 >= 1.0e0_dp) THEN
+  z = a*LOG(x) - betaln(a,b)
+  fn_val = EXP(z)/a
+ELSEIF (b0 >= 8.0e0_dp) THEN
+  u = gamln1(a0) + algdiv(a0,b0)
+  z = a*LOG(x) - u
+  fn_val = (a0/a)*EXP(z)
+ELSEIF (b0 > 1.0e0_dp) THEN
 !         PROCEDURE FOR A0 .LT. 1 AND 1 .LT. B0 .LT. 8
 
-40 u = gamln1(a0)
-m = INT(b0 - 1.0e0_dp)
-IF (m >= 1) THEN
-  c = 1.0e0_dp
-  DO i = 1, m
-    b0 = b0 - 1.0e0_dp
-    c = c*(b0/(a0 + b0))
-  END DO
-  u = LOG(c) + u
-ENDIF
+  u = gamln1(a0)
+  m = INT(b0 - 1.0e0_dp)
+  IF (m >= 1) THEN
+    c = 1.0e0_dp
+    DO i = 1, m
+      b0 = b0 - 1.0e0_dp
+      c = c*(b0/(a0 + b0))
+    END DO
+    u = LOG(c) + u
+  ENDIF
 
-z = a*LOG(x) - u
-b0 = b0 - 1.0e0_dp
-apb = a0 + b0
-IF (apb > 1.0e0_dp) THEN
-  u = a0 + b0 - 1.e0_dp
-  t = (1.0e0_dp + gam1(u))/apb
+  z = a*LOG(x) - u
+  b0 = b0 - 1.0e0_dp
+  apb = a0 + b0
+  IF (apb > 1.0e0_dp) THEN
+    u = a0 + b0 - 1.e0_dp
+    t = (1.0e0_dp + gam1(u))/apb
+  ELSE
+    t = 1.0e0_dp + gam1(apb)
+  ENDIF
+  fn_val = EXP(z)*(a0/a)*(1.0e0_dp + gam1(b0))/t
 ELSE
-  t = 1.0e0_dp + gam1(apb)
+
+  !            PROCEDURE FOR A0 .LT. 1 AND B0 .LE. 1
+
+  fn_val = x**a
+  IF (fn_val == 0.0e0_dp) RETURN
+
+  apb = a + b
+  IF (apb > 1.0e0_dp) THEN
+    u = a + b - 1.e0_dp
+    z = (1.0e0_dp + gam1(u))/apb
+  ELSE
+    z = 1.0e0_dp + gam1(apb)
+  ENDIF
+
+  c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
+  fn_val = fn_val*c*(b/apb)
 ENDIF
-fn_val = EXP(z)*(a0/a)*(1.0e0_dp + gam1(b0))/t
-GO TO 70
 
 !            PROCEDURE FOR A0 .LT. 1 AND B0 .GE. 8
 
-60 u = gamln1(a0) + algdiv(a0,b0)
-z = a*LOG(x) - u
-fn_val = (a0/a)*EXP(z)
-70 IF (fn_val == 0.0e0_dp .OR. a <= 0.1e0_dp*eps) RETURN
+IF (fn_val == 0.0e0_dp .OR. a <= 0.1e0_dp*eps) RETURN
 !-----------------------------------------------------------------------
 !                     COMPUTE THE SERIES
 !-----------------------------------------------------------------------
@@ -1830,28 +1847,43 @@ w = d
 !          LET K BE THE INDEX OF THE MAXIMUM TERM
 
 k = 0
-IF (b <= 1.0e0_dp) GO TO 40
-IF (y > 1.e-4_dp) GO TO 20
-k = nm1
-GO TO 30
-20 r = (b - 1.0e0_dp)*x/y - a
-IF (r < 1.0e0_dp) GO TO 40
-k = nm1
-t = nm1
-IF (r < t) k = INT(r)
+IF (b > 1.0e0_dp) THEN
+  IF (y <= 1.e-4_dp) THEN
+    k = nm1
+    DO i = 1,k
+      l = i - 1
+      d = ((apb + l)/(ap1 + l))*x*d
+      w = w + d
+    END DO
+    IF (k == nm1) THEN
+      fn_val = fn_val*w
+      RETURN
+    ENDIF
+  ELSE
+    r = (b - 1.0e0_dp)*x/y - a
+    IF (r >= 1.0e0_dp) THEN
+      k = nm1
+      t = nm1
+      IF (r < t) k = INT(r)
 
 !          ADD THE INCREASING TERMS OF THE SERIES
 
-30 DO i = 1,k
-  l = i - 1
-  d = ((apb + l)/(ap1 + l))*x*d
-  w = w + d
-END DO
-IF (k == nm1) GO TO 50
+      DO i = 1,k
+        l = i - 1
+        d = ((apb + l)/(ap1 + l))*x*d
+        w = w + d
+      END DO
+      IF (k == nm1) THEN 
+        fn_val = fn_val*w
+        RETURN
+      ENDIF
+    ENDIF
+  ENDIF
+ENDIF
 
 !          ADD THE REMAINING TERMS OF THE SERIES
 
-40 kp1 = k + 1
+kp1 = k + 1
 DO i = kp1,nm1
   l = i - 1
   d = ((apb + l)/(ap1 + l))*x*d
@@ -1861,7 +1893,7 @@ END DO
 
 !               TERMINATE THE PROCEDURE
 
-50 fn_val = fn_val*w
+fn_val = fn_val*w
 
 END FUNCTION bup
 
@@ -1978,44 +2010,49 @@ IF (x == 0.0e0_dp .OR. y == 0.0e0_dp) RETURN
 a0 = MIN(a,b)
 IF (a0 >= 8.0e0_dp) GO TO 100
 
-IF (x > 0.375e0_dp) GO TO 10
-lnx = LOG(x)
-lny = alnrel(-x)
-GO TO 20
-10 IF (y > 0.375e0_dp) GO TO 11
-lnx = alnrel(-y)
-lny = LOG(y)
-GO TO 20
-11 lnx = LOG(x)
-lny = LOG(y)
+IF (x > 0.375e0_dp) THEN
+  IF (y > 0.375e0_dp) THEN
+    lnx = LOG(x)
+    lny = LOG(y)
+  ELSE
+    lnx = alnrel(-y)
+    lny = LOG(y)
+  ENDIF
+ELSE
+  lnx = LOG(x)
+  lny = alnrel(-x)
+ENDIF
 
-20 z = a*lnx + b*lny
-IF (a0 < 1.0e0_dp) GO TO 30
-z = z - betaln(a,b)
-fn_val = EXP(z)
-RETURN
+z = a*lnx + b*lny
+IF (a0 >= 1.0e0_dp) THEN
+  z = z - betaln(a,b)
+  fn_val = EXP(z)
+  RETURN
+ENDIF
 !-----------------------------------------------------------------------
 !              PROCEDURE FOR A .LT. 1 OR B .LT. 1
 !-----------------------------------------------------------------------
 30 b0 = MAX(a,b)
 IF (b0 >= 8.0e0_dp) GO TO 80
-IF (b0 > 1.0e0_dp) GO TO 60
+IF (b0 <= 1.0e0_dp) THEN
 
 !                   ALGORITHM FOR B0 .LE. 1
 
-fn_val = EXP(z)
-IF (fn_val == 0.0e0_dp) RETURN
+  fn_val = EXP(z)
+  IF (fn_val == 0.0e0_dp) RETURN
 
-apb = a + b
-IF (apb > 1.0e0_dp) GO TO 40
-z = 1.0e0_dp + gam1(apb)
-GO TO 50
-40 u = a + b - 1.e0_dp
-z = (1.0e0_dp + gam1(u))/apb
+  apb = a + b
+  IF (apb > 1.0e0_dp) THEN
+    u = a + b - 1.e0_dp
+    z = (1.0e0_dp + gam1(u))/apb
+  ELSE
+    z = 1.0e0_dp + gam1(apb)
+  ENDIF
 
-50 c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
-fn_val = fn_val*(a0*c)/(1.0e0_dp + a0/b0)
-RETURN
+  c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
+  fn_val = fn_val*(a0*c)/(1.0e0_dp + a0/b0)
+  RETURN
+ENDIF
 
 !                ALGORITHM FOR 1 .LT. B0 .LT. 8
 
@@ -2104,104 +2141,111 @@ FUNCTION brcmp1 (mu, a, b, x, y) RESULT(fn_val)
 !-----------------
 
 a0 = MIN(a,b)
-IF (a0 >= 8.0e0_dp) GO TO 100
-
-IF (x > 0.375e0_dp) GO TO 10
-lnx = LOG(x)
-lny = alnrel(-x)
-GO TO 20
-10 IF (y > 0.375e0_dp) GO TO 11
-lnx = alnrel(-y)
-lny = LOG(y)
-GO TO 20
-11 lnx = LOG(x)
-lny = LOG(y)
-
-20 z = a*lnx + b*lny
-IF (a0 < 1.0e0_dp) GO TO 30
-z = z - betaln(a,b)
-fn_val = esum(mu,z)
-RETURN
-!-----------------------------------------------------------------------
-!              PROCEDURE FOR A .LT. 1 OR B .LT. 1
-!-----------------------------------------------------------------------
-30 b0 = MAX(a,b)
-IF (b0 >= 8.0e0_dp) GO TO 80
-IF (b0 > 1.0e0_dp) GO TO 60
-
-!                   ALGORITHM FOR B0 .LE. 1
-
-fn_val = esum(mu,z)
-IF (fn_val == 0.0e0_dp) RETURN
-
-apb = a + b
-IF (apb > 1.0e0_dp) GO TO 40
-z = 1.0e0_dp + gam1(apb)
-GO TO 50
-40 u = a + b - 1.e0_dp
-z = (1.0e0_dp + gam1(u))/apb
-
-50 c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
-fn_val = fn_val*(a0*c)/(1.0e0_dp + a0/b0)
-RETURN
-
-!                ALGORITHM FOR 1 .LT. B0 .LT. 8
-
-60 u = gamln1(a0)
-n = INT(b0 - 1.0e0_dp)
-IF (n < 1) GO TO 70
-c = 1.0e0_dp
-DO i = 1, n
-  b0 = b0 - 1.0e0_dp
-  c = c*(b0/(a0 + b0))
-END DO
-u = LOG(c) + u
-
-70 z = z - u
-b0 = b0 - 1.0e0_dp
-apb = a0 + b0
-IF (apb > 1.0e0_dp) GO TO 71
-t = 1.0e0_dp + gam1(apb)
-GO TO 72
-71 u = a0 + b0 - 1.e0_dp
-t = (1.0e0_dp + gam1(u))/apb
-72 fn_val = a0*esum(mu,z)*(1.0e0_dp + gam1(b0))/t
-RETURN
-
-!                   ALGORITHM FOR B0 .GE. 8
-
-80 u = gamln1(a0) + algdiv(a0,b0)
-fn_val = a0*esum(mu,z - u)
-RETURN
+IF (a0 >= 8.0e0_dp) THEN
 !-----------------------------------------------------------------------
 !              PROCEDURE FOR A .GE. 8 AND B .GE. 8
 !-----------------------------------------------------------------------
-100 IF (a > b) GO TO 101
-h = a/b
-x0 = h/(1.0e0_dp + h)
-y0 = 1.0e0_dp/(1.0e0_dp + h)
-lambda = a - (a + b)*x
-GO TO 110
-101 h = b/a
-x0 = 1.0e0_dp/(1.0e0_dp + h)
-y0 = h/(1.0e0_dp + h)
-lambda = (a + b)*y - b
+  IF (a > b) THEN
+    h = b/a
+    x0 = 1.0e0_dp/(1.0e0_dp + h)
+    y0 = h/(1.0e0_dp + h)
+    lambda = (a + b)*y - b
+  ENDIF
+  h = a/b
+  x0 = h/(1.0e0_dp + h)
+  y0 = 1.0e0_dp/(1.0e0_dp + h)
+  lambda = a - (a + b)*x
 
-110 e = -lambda/a
-IF (ABS(e) > 0.6e0_dp) GO TO 111
-u = rlog1(e)
-GO TO 120
-111 u = e - LOG(x/x0)
+  e = -lambda/a
+  IF (ABS(e) > 0.6e0_dp) THEN
+    u = e - LOG(x/x0)
+  ELSE
+    u = rlog1(e)
+  ENDIF
 
-120 e = lambda/b
-IF (ABS(e) <= 0.6e0_dp) THEN
-  v = rlog1(e)
-ELSE
-  v = e - LOG(y/y0)
+  e = lambda/b
+  IF (ABS(e) <= 0.6e0_dp) THEN
+    v = rlog1(e)
+  ELSE
+    v = e - LOG(y/y0)
+  ENDIF
+
+  z = esum(mu,-(a*u + b*v))
+  fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
 ENDIF
 
-z = esum(mu,-(a*u + b*v))
-fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
+IF (x > 0.375e0_dp) THEN
+  IF (y > 0.375e0_dp) THEN
+    lnx = LOG(x)
+    lny = LOG(y)
+  ELSE
+    lnx = alnrel(-y)
+    lny = LOG(y)
+  ENDIF
+ELSE
+  lnx = LOG(x)
+  lny = alnrel(-x)
+ENDIF
+z = a*lnx + b*lny
+IF (a0 >= 1.0e0_dp) THEN
+  z = z - betaln(a,b)
+  fn_val = esum(mu,z)
+  RETURN
+ENDIF
+!-----------------------------------------------------------------------
+!              PROCEDURE FOR A .LT. 1 OR B .LT. 1
+!-----------------------------------------------------------------------
+b0 = MAX(a,b)
+IF (b0 >= 8.0e0_dp) THEN
+!                   ALGORITHM FOR B0 .GE. 8
+
+  u = gamln1(a0) + algdiv(a0,b0)
+  fn_val = a0*esum(mu,z - u)
+  RETURN
+ENDIF
+IF (b0 <= 1.0e0_dp) THEN
+
+!                   ALGORITHM FOR B0 .LE. 1
+
+  fn_val = esum(mu,z)
+  IF (fn_val == 0.0e0_dp) RETURN
+
+  apb = a + b
+  IF (apb > 1.0e0_dp) THEN
+    u = a + b - 1.e0_dp
+    z = (1.0e0_dp + gam1(u))/apb
+  ELSE
+    z = 1.0e0_dp + gam1(apb)
+  ENDIF
+
+  c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
+  fn_val = fn_val*(a0*c)/(1.0e0_dp + a0/b0)
+  RETURN
+ENDIF
+
+!                ALGORITHM FOR 1 .LT. B0 .LT. 8
+
+u = gamln1(a0)
+n = INT(b0 - 1.0e0_dp)
+IF (n >= 1) THEN
+  c = 1.0e0_dp
+  DO i = 1, n
+    b0 = b0 - 1.0e0_dp
+    c = c*(b0/(a0 + b0))
+  END DO
+  u = LOG(c) + u
+ENDIF
+
+z = z - u
+b0 = b0 - 1.0e0_dp
+apb = a0 + b0
+IF (apb > 1.0e0_dp) THEN
+  u = a0 + b0 - 1.e0_dp
+  t = (1.0e0_dp + gam1(u))/apb
+ELSE
+  t = 1.0e0_dp + gam1(apb)
+ENDIF
+fn_val = a0*esum(mu,z)*(1.0e0_dp + gam1(b0))/t
 
 END FUNCTION brcmp1
 

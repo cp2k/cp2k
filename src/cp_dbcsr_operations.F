@@ -828,15 +828,15 @@ CONTAINS
     ALLOCATE (local_col_sizes (nblkcols_total))
     local_row_sizes(:) = 0
     IF (nblkrows_local .GE. 1) THEN
-       FORALL (row = 1 : nblkrows_local)
+       DO row = 1 , nblkrows_local
           local_row_sizes(local_rows(row)) = rbs(local_rows(row))
-       END FORALL
+       END DO
     ENDIF
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
-       FORALL (col = 1 : nblkcols_local)
+       DO col = 1 , nblkcols_local
           local_col_sizes(local_cols(col)) = cbs(local_cols(col))
-       END FORALL
+       END DO
     ENDIF
 
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
@@ -1018,15 +1018,15 @@ CONTAINS
     ALLOCATE (local_col_sizes (nblkcols_total))
     local_row_sizes(:) = 0
     IF (nblkrows_local .GE. 1) THEN
-       FORALL (row = 1 : nblkrows_local)
+       DO row = 1 , nblkrows_local
           local_row_sizes(local_rows(row)) = rbs(local_rows(row))
-       END FORALL
+       END DO
     ENDIF
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
-       FORALL (col = 1 : nblkcols_local)
+       DO col = 1 , nblkcols_local
           local_col_sizes(local_cols(col)) = cbs(local_cols(col))
-       END FORALL
+       END DO
     ENDIF
 
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
@@ -1206,15 +1206,15 @@ CONTAINS
     ALLOCATE (local_col_sizes (nblkcols_total))
     local_row_sizes(:) = 0
     IF (nblkrows_local .GE. 1) THEN
-       FORALL (row = 1 : nblkrows_local)
+       DO row = 1 , nblkrows_local
           local_row_sizes(local_rows(row)) = rbs(local_rows(row))
-       END FORALL
+       END DO
     ENDIF
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
-       FORALL (col = 1 : nblkcols_local)
+       DO col = 1 , nblkcols_local
           local_col_sizes(local_cols(col)) = cbs(local_cols(col))
-       END FORALL
+       END DO
     ENDIF
 
     ALLOCATE (first_row(nblkrows_total),last_row(nblkrows_total))
@@ -1347,15 +1347,15 @@ CONTAINS
     nblkcols_local = dbcsr_distribution_nlocal_cols (bc_dist)
     local_row_sizes(:) = 0
     IF (nblkrows_local .GE. 1) THEN
-       FORALL (row = 1 : nblkrows_local)
+       DO row = 1 , nblkrows_local
           local_row_sizes(local_rows(row)) = row_blk_sizes(local_rows(row))
-       END FORALL
+       END DO
     ENDIF
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
-       FORALL (col = 1 : nblkcols_local)
+       DO col = 1 , nblkcols_local
           local_col_sizes(local_cols(col)) = col_blk_sizes(local_cols(col))
-       END FORALL
+       END DO
     ENDIF
     nblkrows_total = dbcsr_distribution_nrows (bc_dist)
     nblkcols_total = dbcsr_distribution_ncols (bc_dist)
@@ -1493,15 +1493,15 @@ CONTAINS
     nblkcols_local = dbcsr_distribution_nlocal_cols (bc_dist)
     local_row_sizes(:) = 0
     IF (nblkrows_local .GE. 1) THEN
-       FORALL (row = 1 : nblkrows_local)
+       DO row = 1 , nblkrows_local
           local_row_sizes(local_rows(row)) = row_blk_sizes(local_rows(row))
-       END FORALL
+       END DO
     ENDIF
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
-       FORALL (col = 1 : nblkcols_local)
+       DO col = 1 , nblkcols_local
           local_col_sizes(local_cols(col)) = col_blk_sizes(local_cols(col))
-       END FORALL
+       END DO
     ENDIF
     nblkrows_total = dbcsr_distribution_nrows (bc_dist)
     nblkcols_total = dbcsr_distribution_ncols (bc_dist)
@@ -1611,15 +1611,15 @@ CONTAINS
     nblkcols_local = dbcsr_distribution_nlocal_cols (bc_dist)
     local_row_sizes(:) = 0
     IF (nblkrows_local .GE. 1) THEN
-       FORALL (row = 1 : nblkrows_local)
+       DO row = 1 , nblkrows_local
           local_row_sizes(local_rows(row)) = row_blk_sizes(local_rows(row))
-       END FORALL
+       END DO
     ENDIF
     local_col_sizes(:) = 0
     IF (nblkcols_local .GE. 1) THEN
-       FORALL (col = 1 : nblkcols_local)
+       DO col = 1 , nblkcols_local
           local_col_sizes(local_cols(col)) = col_blk_sizes(local_cols(col))
-       END FORALL
+       END DO
     ENDIF
     nblkrows_total = dbcsr_distribution_nrows (bc_dist)
     nblkcols_total = dbcsr_distribution_ncols (bc_dist)
