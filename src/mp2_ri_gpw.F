@@ -662,17 +662,18 @@ MODULE mp2_ri_gpw
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: debug = .FALSE.
 
     INTEGER :: best_group_size, color_exc, color_L, comm_exc, comm_exchange, &
       comm_L, dir, group_size, handle, handle2, handle3, i, i_bf, i_counter, &
       i_counter_diff_bf, i_counter_diff_bf_at_any_atom, i_counter_diff_sets, &
       i_global, iatom, igrid_level, igroup, iiB, ikind, info_chol, inode, &
       ipgf, iproc, iset, istat, itmp(2), j, j_global, j_ref_atom, j_ref_bf, &
-      j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, l_max, lb(3), LLL, &
+      j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, lb(3), LLL, &
       location(3), m, my_group_L_q_end, my_group_L_q_size, &
       my_group_L_q_start, my_group_pot_end, my_group_pot_size, &
-      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b
-    INTEGER :: ncol_local, nkind, nrow_local, nseta, nsetb, offset, offsetb, &
+      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b, ncol_local
+    INTEGER :: nkind, nrow_local, nseta, nsetb, offset, offsetb, &
       proc_receive, proc_receive_static, proc_send, proc_send_static, &
       proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, sgfb, stat, &
       strat_group_size, sub_sub_color, tp(3), ub(3)
@@ -683,7 +684,6 @@ MODULE mp2_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: atom_set_afo_diffbf, &
       atom_set_afo_diffbf_atanyatom, diffsets_atom_set_bf, ref_matrix
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: naolimits, ref_at_se_sgf_ofs
-    INTEGER, DIMENSION(1)                    :: max_loc
     INTEGER, DIMENSION(:), POINTER           :: col_indices, la_max, la_min, &
                                                 lb_max, lb_min, npgfa, npgfb, &
                                                 nsgfa, nsgfb, row_indices
@@ -993,77 +993,74 @@ MODULE mp2_ri_gpw
        END IF
      END DO
   
-     ! Determine atom with the largest basis and take it to calculate potential (q_a|_p
-     max_loc = MAXLOC(ref_matrix(:,6))
-     l_max = ref_matrix(max_loc(1),1)
-  
-  
-!     PRINT *, 'max_loc                       = ', max_loc
-!     PRINT *, 'i_counter_diff_bf_at_any_atom = ', i_counter_diff_bf_at_any_atom
-  
-!     DO i=1,dimen_RI
-!       WRITE(*,*)(ref_matrix(i,j),j=1,10)
-!     END DO
-  
-!     PRINT *, 'diffbf_noinbas'
-!     DO i=1,i_counter_diff_bf
-!       WRITE(*,*)(diffbf_noinbas(i))
-!     END DO
-  
-!     PRINT *, 'diffbfatanyatom_noinbas'
-!     DO i=1,i_counter_diff_bf_at_any_atom
-!       WRITE(*,*)(diffbfatanyatom_noinbas(i))
-!     END DO
-  
-!     PRINT *, 'diffbf_atom_arbitr_atom'
-!     DO i=1,i_counter_diff_bf
-!       WRITE(*,*)(diffbf_atom_arbitr_atom(i))
-!     END DO
-  
-!     PRINT *, 'atom_set_afo_diffbf'
-!     DO i=1,i_counter_diff_bf
-!       PRINT *, atom_set_afo_diffbf(i,1), atom_set_afo_diffbf(i,2)
-!     END DO
-  
-!     PRINT *, 'atom_set_afo_diffbf_atanyatom'
-!     DO i=1,i_counter_diff_bf_at_any_atom
-!       PRINT *, atom_set_afo_diffbf_atanyatom(i,1), atom_set_afo_diffbf_atanyatom(i,2)
-!     END DO
-  
-!     PRINT *, 'diffsets_atom_set_bf'
-!     DO i=1,i_counter_diff_sets
-!       WRITE(*,*)(diffsets_atom_set_bf(i,j),j=1,3)
-!     END DO
-  
-!     PRINT *, 'naolimits'
-!     DO iatom=1,natom
-!        ikind=kind_of(iatom)
-!        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
-!        nseta        =   basis_set_a%nset
-!  
-!        DO iset=1, nseta
-!          WRITE(*,*)(naolimits(iatom,iset,j),j=1,2)
-!        END DO
-!     END DO
-  
-!     PRINT *, 'ref_at_se_sgf_ofs'
-!     DO iatom=1,natom
-!        ikind=kind_of(iatom)
-!        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
-!        nseta        =   basis_set_a%nset
-!  
-!        DO iset=1, nseta
-!          WRITE(*,*)(ref_at_se_sgf_ofs(iatom,iset,j),j=1,4)
-!        END DO
-!     END DO
-  
-!     PRINT *, 'i_counter_diff_bf(end) = ', i_counter_diff_bf
-!     PRINT *, 'i_counter_diff_sets(end) = ', i_counter_diff_sets
-!     PRINT *, 'i_counter(end) = ', i_counter
-!     PRINT *, 'dimen_RI = ', dimen_RI
-!     PRINT *, 'my_group_L_end = ' ,my_group_L_end
-!     PRINT *, 'my_group_L_start = ' ,my_group_L_start 
-  
+     IF(debug) THEN  
+       PRINT *, 'i_counter_diff_bf_at_any_atom = ', i_counter_diff_bf_at_any_atom
+   
+       DO i=1,dimen_RI
+         WRITE(*,*)(ref_matrix(i,j),j=1,10)
+       END DO
+   
+       PRINT *, 'diffbf_noinbas'
+       DO i=1,i_counter_diff_bf
+         WRITE(*,*)(diffbf_noinbas(i))
+       END DO
+   
+       PRINT *, 'diffbfatanyatom_noinbas'
+       DO i=1,i_counter_diff_bf_at_any_atom
+         WRITE(*,*)(diffbfatanyatom_noinbas(i))
+       END DO
+   
+       PRINT *, 'diffbf_atom_arbitr_atom'
+       DO i=1,i_counter_diff_bf
+         WRITE(*,*)(diffbf_atom_arbitr_atom(i))
+       END DO
+    
+       PRINT *, 'atom_set_afo_diffbf'
+       DO i=1,i_counter_diff_bf
+         PRINT *, atom_set_afo_diffbf(i,1), atom_set_afo_diffbf(i,2)
+       END DO
+   
+       PRINT *, 'atom_set_afo_diffbf_atanyatom'
+       DO i=1,i_counter_diff_bf_at_any_atom
+         PRINT *, atom_set_afo_diffbf_atanyatom(i,1), atom_set_afo_diffbf_atanyatom(i,2)
+       END DO
+   
+       PRINT *, 'diffsets_atom_set_bf'
+       DO i=1,i_counter_diff_sets
+         WRITE(*,*)(diffsets_atom_set_bf(i,j),j=1,3)
+       END DO
+   
+       PRINT *, 'naolimits'
+       DO iatom=1,natom
+          ikind=kind_of(iatom)
+          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+          nseta        =   basis_set_a%nset
+    
+          DO iset=1, nseta
+            WRITE(*,*)(naolimits(iatom,iset,j),j=1,2)
+          END DO
+       END DO
+   
+       PRINT *, 'ref_at_se_sgf_ofs'
+       DO iatom=1,natom
+          ikind=kind_of(iatom)
+          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+          nseta        =   basis_set_a%nset
+    
+          DO iset=1, nseta
+            WRITE(*,*)(ref_at_se_sgf_ofs(iatom,iset,j),j=1,4)
+          END DO
+       END DO
+   
+       PRINT *, 'i_counter_diff_bf(end) = ', i_counter_diff_bf
+       PRINT *, 'i_counter_diff_sets(end) = ', i_counter_diff_sets
+       PRINT *, 'i_counter(end) = ', i_counter
+       PRINT *, 'dimen_RI = ', dimen_RI
+       PRINT *, 'my_group_L_end = ' ,my_group_L_end
+       PRINT *, 'my_group_L_start = ' ,my_group_L_start 
+
+     END IF !debug
+ 
      ! For parallelization: Check, which elements of L_local_col_q    
      ! are needed for setting up L_local_q
   
@@ -1077,11 +1074,6 @@ MODULE mp2_ri_gpw
        my_group_L_q_end = naolimits(ref_matrix(my_group_L_end,3),nseta,2)
      END IF
      my_group_L_q_size = my_group_L_q_end - my_group_L_q_start + 1
-  
-!     PRINT *, 'my_group_L_q_size  = ', my_group_L_q_size
-!     PRINT *, 'my_group_L_q_start = ', my_group_L_q_start
-!     PRINT *, 'my_group_L_q_end   = ', my_group_L_q_end
-!     PRINT *, 'color_sub          = ', color_sub
   
      ! calculate which potentials to calculate
      ALLOCATE(sizes_array_pot(0:ngroup-1),STAT=stat)
@@ -1104,10 +1096,6 @@ MODULE mp2_ri_gpw
      my_group_pot_size=sizes_array_pot(color_sub)
      my_group_pot_start=starts_array_pot(color_sub)
      my_group_pot_end=ends_array_pot(color_sub)
-  
-!     PRINT *, 'my_group_pot_size  = ', my_group_pot_size
-!     PRINT *, 'my_group_pot_start = ', my_group_pot_start
-!     PRINT *, 'my_group_pot_end   = ', my_group_pot_end
   
   
      DEALLOCATE(ref_matrix)
@@ -1219,10 +1207,6 @@ MODULE mp2_ri_gpw
      END DO
   
      CALL cp_para_env_release(para_env_exc,error=error)
-  
-     IF(color_sub == 1) THEN
-       CALL Sleep(1)
-     END IF
   
      ALLOCATE(L_local_col_q(i_counter_diff_bf,my_group_L_q_size),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1472,13 +1456,8 @@ MODULE mp2_ri_gpw
   
   
      ! End of calculation (q_alpha|q_beta) for every (l_alpha,m_alpha), (l_beta,m_beta) combination
-  
-!     PRINT *, 'L_local_col (after distribution of q_a/b, colour=', color_sub, ') ='
-!     DO i=1,dimen_RI
-!       WRITE(*,*)(L_local_col(i,j),j=1,my_group_L_size)
-!     END DO
-  
-  
+ 
+ 
      ! 4) Calculate (a|b)_s - (q_alpha|q_beta)_s and add them to (q_a|q_b)_p
   
      ! Loop over neighbor list
