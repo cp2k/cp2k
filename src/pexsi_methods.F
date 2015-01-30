@@ -410,7 +410,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, unit_nr
     REAL(KIND=dp)                            :: kTS_total
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_w_tmp
+      POINTER                                :: matrix_w_qs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_energy_type), POINTER            :: energy
 
@@ -426,15 +426,17 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    CALL get_qs_env(qs_env, energy = energy, matrix_w = matrix_w_tmp, error=error)
+    CALL get_qs_env(qs_env, energy = energy, matrix_w = matrix_w_qs, error=error)
+
     IF (PRESENT(matrix_w)) THEN
       DO ispin=1, ls_scf_env%nspins
-        IF (ls_scf_env%nspins.EQ.1) CALL cp_dbcsr_scale(matrix_w(ispin)%matrix, &
-                                                        2.0_dp,error=error)
-        CALL matrix_ls_to_qs(matrix_w_tmp(ispin)%matrix, matrix_w(ispin)%matrix,& 
+        CALL matrix_ls_to_qs(matrix_w_qs(ispin)%matrix, matrix_w(ispin)%matrix,& 
                              ls_scf_env%ls_mstruct, error=error)
+        IF (ls_scf_env%nspins.EQ.1) CALL cp_dbcsr_scale(matrix_w_qs(ispin)%matrix, &
+                                                        2.0_dp,error=error)
       ENDDO
     ENDIF
+
     IF (PRESENT(kTS)) THEN
       kTS_total = SUM(kTS)
       IF (ls_scf_env%nspins.EQ.1) kTS_total = kTS_total*2.0_dp
