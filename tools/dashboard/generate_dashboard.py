@@ -318,7 +318,7 @@ def parse_regtest_report(report_txt):
     if(wrong_results > 0):
         report['summary'] += "; wrong: %d"%wrong_results
     if(runtime_errors > 0):
-        report['summary'] += "; crashed: %d"%runtime_errors
+        report['summary'] += "; failed: %d"%runtime_errors
     if(memory_leaks > 0):
         report['summary'] += "; memleaks: %d"%memory_leaks
 
