@@ -491,9 +491,9 @@ PROGRAM graph
         READ(unit_nr2,*)dum,dum,delta_s_glob,ww(i)
         delta_s(1:ndim,i)=delta_s_glob*delta_s(1:ndim,i)
      END DO
-     CLOSE(unit_nr2)
+     CALL close_file(unit_nr2)
   END IF
-  CLOSE(unit_nr)
+  CALL close_file(unit_nr)
 
   ! ORAC conversion factor
   IF(l_orac) ww = ww * 10000._dp / 4.187_dp
