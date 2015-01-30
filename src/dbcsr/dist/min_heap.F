@@ -648,10 +648,10 @@ CONTAINS
     !
     ALLOCATE (keys(n))
     ALLOCATE (values(n))
-    FORALL (i = 1:n)
+    DO i = 1,n
        keys(i) = n-i
        values(i) = 10*(n-i)
-    END FORALL
+    END DO
     CALL heap_fill (heap, keys, values, error)
     CALL error_test (error, "fill")
     !

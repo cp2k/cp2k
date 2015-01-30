@@ -343,9 +343,9 @@ CONTAINS
 
     INTEGER                                  :: row
 
-    FORALL (row = 1:nrows)
+    DO row = 1,nrows
        counts(row) = rows(row+1) - rows(row)
-    END FORALL
+    END DO
   END SUBROUTINE dbcsr_count_row_index_copy
 
 ! *****************************************************************************
@@ -712,21 +712,21 @@ CONTAINS
     ! Since blk_d is usually not present we can have two loops that
     ! are essentially the same.
     IF (PRESENT (blk_p)) THEN
-       FORALL (i = 1:n)
+       DO i=1,n
           blk_p(i) = buf(col_i(i))
-       END FORALL
+       ENDDO
        DEALLOCATE (buf)
     END IF
     IF (PRESENT (blk_d)) THEN
-       FORALL (i = 1:n)
+       DO i=1,n
           blk_d(i) = buf_d(col_i(i))
-       END FORALL
+       ENDDO
        DEALLOCATE (buf_d)
     ENDIF
-    FORALL (i = 1:n)
+    DO i=1,n
        col_i(i) = INT (IAND(sort_keys(i), lmask8), int_4)
        row_i(i) = INT (ISHFT(sort_keys(i), -32), int_4)
-    END FORALL
+    ENDDO
     DEALLOCATE (sort_keys)
     IF(debug_mod.AND.PRESENT(blk_p))&
          WRITE(*,*)routineP//' sort, blk_p =',blk_p
@@ -1046,15 +1046,15 @@ CONTAINS
     ENDDO
     row_p(prev_row+1:nblkrows_total+1) = lr
     !
-    FORALL (row = 1 : nblkrows_local)
-       FORALL (col = 1 : nblkcols_local)
+    DO row = 1 , nblkrows_local
+       DO col = 1 , nblkcols_local
           col_i(nblkcols_local*(row-1)+col) = local_cols(col)
           blk_p(nblkcols_local*(row-1)+col) = 1 + &
                (local_row_offsets(row)-1)*nfullcols_local&
                + (local_col_offsets(col)-1)*&
                (local_row_offsets(row+1)-local_row_offsets(row))
-       END FORALL
-    END FORALL
+       END DO
+    END DO
   END SUBROUTINE make_undense_index
 
 
@@ -1297,9 +1297,9 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Mismatch in the number of local rows.", __LINE__, error=error)
     !> The counts are mapped to local rows,
-    FORALL (lrow = 1:nlocal_rows)
+    DO lrow = 1,nlocal_rows
        local_row_p(lrow) = matrix%m%row_p(local_rows(lrow))
-    END FORALL
+    ENDDO
     CALL dbcsr_assert (SUM (matrix%m%row_p(1:ntotal_rows)), "EQ",&
          SUM(local_row_p(1:nlocal_rows)),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1407,16 +1407,16 @@ CONTAINS
           WRITE(*,*)'local'
           WRITE(*,'(10(1X,i7))')array_data(matrix%m%local_cols)
        ENDIF
-       FORALL (blk = 1 : nblks)
+       DO blk = 1 , nblks
           blki(2,blk) = global_cols(matrix%m%col_i(blk))
           blki(3,blk) = matrix%m%blk_p(blk)
-       END FORALL
+       ENDDO
     ELSE
        IF (dbg) WRITE(*,*)routineN//" Not making local columns"
-       FORALL (blk = 1 : nblks)
+       DO blk = 1 , nblks
           blki(2,blk) = matrix%m%col_i(blk)
           blki(3,blk) = matrix%m%blk_p(blk)
-       END FORALL
+       END DO
     ENDIF
     CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_row_p)
     CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_col_i)

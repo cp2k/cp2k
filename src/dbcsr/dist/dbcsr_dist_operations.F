@@ -719,9 +719,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    FORALL (el = 1 : nelements)
+    DO el = 1 , nelements
        vbins(el) = bins(el) * decimation + images(el)-1
-    END FORALL
+    END DO
   END SUBROUTINE make_vdistribution
 
 
@@ -1456,16 +1456,16 @@ CONTAINS
     ! Calclate process row distribution
     npdims = dbcsr_mp_nprows (mp_env)
     sz = CEILING (REAL(nrows) / REAL(npdims))
-    FORALL (pdim = 0 : npdims-1)
+    DO pdim = 0 , npdims-1
        rd_data(pdim*sz+1 : MIN((pdim+1)*sz, nrows)) = pdim
-    END FORALL
+    END DO
     CALL array_new (row_dist, rd_data, gift=.TRUE.)
     ! Calclate process column distribution
     npdims = dbcsr_mp_npcols (mp_env)
     sz = CEILING (REAL(ncolumns) / REAL(npdims))
-    FORALL (pdim = 0 : npdims-1)
+    DO pdim = 0 , npdims-1
        cd_data(pdim*sz+1 : MIN((pdim+1)*sz, ncolumns)) = pdim
-    END FORALL
+    END DO
     CALL array_new (col_dist, cd_data, gift=.TRUE.)
     !
     CALL dbcsr_distribution_new (dist, mp_env,&
@@ -1595,15 +1595,15 @@ CONTAINS
     ENDIF
     ! Calculate process row distribution
     nprows = dbcsr_mp_nprows (mp_env)
-    FORALL (pdim = 0 : MIN(nprows-1,nblkrows-1))
+    DO pdim = 0 , MIN(nprows-1,nblkrows-1)
        rd_data(1+pdim:nblkrows:nprows) = pdim
-    END FORALL
+    END DO
     CALL array_new (row_dist, rd_data, gift=.TRUE.)
     ! Calculate process column distribution
     npcols = dbcsr_mp_npcols (mp_env)
-    FORALL (pdim = 0 : MIN(npcols-1, nblkcols-1))
+    DO pdim = 0 , MIN(npcols-1, nblkcols-1)
        cd_data(1+pdim:nblkcols:npcols) = pdim
-    END FORALL
+    END DO
     CALL array_new (col_dist, cd_data, gift=.TRUE.)
     !
     IF(debug_mod) THEN
@@ -1659,18 +1659,18 @@ CONTAINS
        CALL array_release (image_dist%i%row_image)
        CALL array_nullify (image_dist%i%row_image)
        ALLOCATE (new_rid (nvprows))
-       FORALL (i = 1 : nvprows)
+       DO i = 1 , nvprows
           new_rid(i) = MOD (i-1, nrow_images) + 1
-       END FORALL
+       END DO
        CALL array_new (image_dist%i%row_image, new_rid, gift=.TRUE.)
     ENDIF
     IF (jcols) THEN
        CALL array_release (image_dist%i%col_image)
        CALL array_nullify (image_dist%i%col_image)
        ALLOCATE (new_cid (nvpcols))
-       FORALL (i = 1 : nvpcols)
+       DO i = 1 , nvpcols
           new_cid(i) = MOD (i-1, ncol_images) + 1
-       END FORALL
+       END DO
        CALL array_new (image_dist%i%col_image, new_cid, gift=.TRUE.)
     ENDIF
   END SUBROUTINE make_image_distribution_dense
@@ -2627,10 +2627,10 @@ CONTAINS
 
     INTEGER                                  :: i
 
-    FORALL (i = 1 : nel)
+    DO i = 1 , nel
        pdist(i) = vdist(i) / nim
        idist(i) = MOD (vdist(i), nim) + 1
-    END FORALL
+    END DO
   END SUBROUTINE v_to_p_i_dist
 ! *****************************************************************************
 !> \brief ...
