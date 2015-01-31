@@ -166,17 +166,17 @@ def retrieve_report(report_url):
 #===============================================================================
 def parse_report(report_txt, report_type):
     if(report_txt==None):
-        return( {'status':'UNKOWN', 'summary':'Error while retrieving report.', 'revision':None} )
+        return( {'status':'UNKNOWN', 'summary':'Error while retrieving report.', 'revision':None} )
     try:
         if(report_type == "regtest"):
             return parse_regtest_report(report_txt)
         elif(report_type == "generic"):
             return parse_generic_report(report_txt)
         else:
-            raise(Exception("Unkown report_type"))
+            raise(Exception("Unknown report_type"))
     except:
         print traceback.print_exc()
-        return( {'status':'UNKOWN', 'summary':'Error while parsing report.', 'revision':None} )
+        return( {'status':'UNKNOWN', 'summary':'Error while parsing report.', 'revision':None} )
 
 #===============================================================================
 def send_notification(report, addressbook, last_ok, svn_log, name, s):

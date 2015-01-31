@@ -38,7 +38,7 @@ def main():
     if(not path.exists(ref_fn)):
         open(ref_fn, "w").write(pformat(coverage))
         print "Summary: Wrote new reference file"
-        print "Status: UNKOWN"
+        print "Status: UNKNOWN"
         sys.exit(0)
 
     ref_coverage = eval(open(ref_fn).read())
