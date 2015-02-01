@@ -1,16 +1,18 @@
-# Tested with: GFortran 4.9.1, MPICH 3.1, LAPACK 3.5.0, ScaLAPACK 2.0.2
+# Tested with: GFortran 4.9.2, MPICH 3.1.2, LAPACK 3.5.0, ScaLAPACK 2.0.2, ELPA 2013.11.008
 CC         = gcc
 CPP        =
 FC         = mpif90
 LD         = mpif90
 AR         = ar -r
+ELPA_INC   = $(GCC_DIR)/elpa/2013.11.008-gnu-regtest/include/elpa/modules
+ELPA_LIB   = $(GCC_DIR)/elpa/2013.11.008-gnu-regtest/lib
 FFTW_INC   = $(GCC_DIR)/fftw/3.3-gnu-regtest/include
 FFTW_LIB   = $(GCC_DIR)/fftw/3.3-gnu-regtest/lib64
 LIBINT_INC = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/include
 LIBINT_LIB = $(GCC_DIR)/libint/1.1.4-default-gnu-regtest/lib64
 LIBXC_INC  = $(GCC_DIR)/libxc/2.2.0-gnu-regtest/include
 LIBXC_LIB  = $(GCC_DIR)/libxc/2.2.0-gnu-regtest/lib64
-DFLAGS     = -D__FFTW3 -D__LIBINT -D__LIBXC2\
+DFLAGS     = -D__ELPA -D__FFTW3 -D__LIBINT -D__LIBXC2\
              -D__parallel -D__SCALAPACK
 CPPFLAGS   =
 WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
@@ -20,9 +22,10 @@ WFLAGS     = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
 FCFLAGS    = $(DFLAGS) -O1 -fcheck=bounds,do,recursion,pointer -ffree-form\
              -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
              -g -mtune=generic -std=f2003\
-             -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) $(WFLAGS)
+             -I$(ELPA_INC) -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) $(WFLAGS)
 LDFLAGS    = $(FCFLAGS) -fsanitize=leak
 LIBS       = $(MPI_LIBRARY_PATH)/libscalapack-gnu-regtest.a\
+             $(ELPA_LIB)/libelpa.a\
              $(LIBPATH)/liblapack-gnu-regtest.a\
              $(LIBPATH)/libblas-gnu-regtest.a\
              $(FFTW_LIB)/libfftw3.a\
