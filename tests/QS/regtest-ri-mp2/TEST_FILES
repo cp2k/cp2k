@@ -1,5 +1,5 @@
 RI_MP2_H2O.inp                   11     8e-14
 RI_MP2_CH3.inp                   11     4e-14
 opt_basis_O_ext_init.inp         57     9e-06
-opt_basis_O_auto_gen.inp         57     9e-06
+opt_basis_O_auto_gen.inp         57     1e-04
 opt_basis_O_num_func.inp         57     9e-06
