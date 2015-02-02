@@ -1,7 +1,9 @@
     isize   = iend-istart+1
     ! Initialize the INDEX array only for the first row..
     IF (j==1) THEN
-       FORALL(i = 1:isize) INDEX(i) = i
+       DO i = 1,isize
+          INDEX(i) = i
+       ENDDO
     END IF
 
     ! Allocate scratch arrays

@@ -20,9 +20,9 @@
 
 !   ---------------------------------------------------------------------------
 
-    FORALL (i = 1 : d)
+    DO i = 1 , d
        block_data(i,i) = diagonal(i)
-    END FORALL
+    END DO
   END SUBROUTINE set_block2d_diagonal_z
 
 
@@ -41,9 +41,9 @@
 
 !   ---------------------------------------------------------------------------
 
-    FORALL (i = 1 : d)
+    DO i = 1 , d
        diagonal(i) = block_data(i, i)
-    END FORALL
+    END DO
   END SUBROUTINE get_block2d_diagonal_z
 
 
@@ -92,25 +92,33 @@
 ! Factors out the 4 combinations to remove branches from the inner loop.
 !  rs is the logical row size so it always remains the leading dimension.
     IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
                 = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs) &
               = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
              = src(src_offset+src_c_lb+col+(src_r_lb+row-1)*src_cs)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs)&
              = src(src_offset + src_c_lb+col+(src_r_lb+row-1)*src_cs)
-       END FORALL
+         END DO
+       END DO
     ENDIF
   END SUBROUTINE block_partial_copy_z
 
@@ -157,25 +165,33 @@
 !   ---------------------------------------------------------------------------
 ! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
     IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
                 = src(src_r_lb+row, src_c_lb+col)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs) &
               = src(src_r_lb+row, src_c_lb+col)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
              = src(src_c_lb+col, src_r_lb+row)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs)&
              = src(src_c_lb+col, src_r_lb+row)
-       END FORALL
+         END DO
+       END DO
     ENDIF
   END SUBROUTINE block_partial_copy_1d2d_z
 ! *****************************************************************************
@@ -221,25 +237,33 @@
 !   ---------------------------------------------------------------------------
 ! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
     IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_r_lb+row, dst_c_lb+col) &
                 = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_c_lb+col, dst_r_lb+row) &
               = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_r_lb+row, dst_c_lb+col) &
              = src(src_offset+src_c_lb+col+(src_r_lb+row-1)*src_cs)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_c_lb+col, dst_r_lb+row)&
              = src(src_offset + src_c_lb+col+(src_r_lb+row-1)*src_cs)
-       END FORALL
+         END DO
+       END DO
     ENDIF
   END SUBROUTINE block_partial_copy_2d1d_z
 ! *****************************************************************************
@@ -282,25 +306,33 @@
 !   ---------------------------------------------------------------------------
 ! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
     IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_r_lb+row, dst_c_lb+col) &
                 = src(src_r_lb+row, src_c_lb+col)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_c_lb+col, dst_r_lb+row) &
               = src(src_r_lb+row, src_c_lb+col)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_r_lb+row, dst_c_lb+col) &
              = src(src_c_lb+col, src_r_lb+row)
-       END FORALL
+         END DO
+       END DO
     ELSEIF (dst_tr .AND. src_tr) THEN
-       FORALL (col = 0:ncol-1, row=0:nrow-1)
+       DO col = 0,ncol-1
+         DO row = 0,nrow-1
           dst(dst_c_lb+col, dst_r_lb+row)&
              = src(src_c_lb+col, src_r_lb+row)
-       END FORALL
+         END DO
+       END DO
     ENDIF
   END SUBROUTINE block_partial_copy_2d2d_z
 
@@ -565,13 +597,13 @@
 !   ---------------------------------------------------------------------------
 
     IF(PRESENT(imin).AND.PRESENT(imax)) THEN
-       FORALL (i = MAX(1,imin):MIN(m,imax))
-          blk(i,i) = blk(i,i) + alpha
-       END FORALL
+       DO i = MAX(1,imin),MIN(m,imax)
+         blk(i,i) = blk(i,i) + alpha
+       ENDDO
     ELSE
-       FORALL (i = 1:m)
+       DO i = 1,m
           blk(i,i) = blk(i,i) + alpha
-       END FORALL
+       END DO
     ENDIF
   END SUBROUTINE block_2d_add_on_diag_z
 

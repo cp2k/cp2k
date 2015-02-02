@@ -201,9 +201,9 @@ CONTAINS
     ALLOCATE (grid_dist(dist_size))
     CALL array_nullify (dist_array)
 
-    FORALL (i = 1 : dist_size)
+    DO i = 1 , dist_size
        grid_dist(i) = MODULO (nbins-i, nbins)
-    END FORALL
+    END DO
 
     CALL array_new (dist_array, grid_dist, lb=1)
     DEALLOCATE (grid_dist)

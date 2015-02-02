@@ -281,12 +281,12 @@ MODULE dbcsr_mm_multrec
     ELSE
        ALLOCATE (this%c_local_rows (product%nblkrows_total))
        ALLOCATE (this%c_local_cols (product%nblkcols_total))
-       FORALL (i = 1 : product%nblkrows_total)
+       DO i = 1 , product%nblkrows_total
           this%c_local_rows(i) = i
-       END FORALL
-       FORALL (i = 1 : product%nblkcols_total)
+       END DO
+       DO i = 1 , product%nblkcols_total
           this%c_local_cols(i) = i
-       END FORALL
+       END DO
     ENDIF
     IF (dbg) WRITE(*,*)"setting up for product", product%name
     IF (careful_mod) THEN
@@ -355,9 +355,9 @@ MODULE dbcsr_mm_multrec
     NULLIFY (this%k_sizes)
     IF (.NOT. this%local_indexing) THEN
        ALLOCATE (this%k_locals(right%nblkrows_total))
-       FORALL (i = 1:right%nblkrows_total)
+       DO i = 1,right%nblkrows_total
           this%k_locals(i) = i
-       END FORALL
+       END DO
        this%k_sizes => array_data (right%row_blk_size)
     ENDIF
 
@@ -780,10 +780,10 @@ MODULE dbcsr_mm_multrec
 
     INTEGER                                  :: i
 
-    FORALL (i = first : last)
+    DO i = first , last
        row_i(i) = local_rows(row_i(i))
        col_i(i) = local_cols(col_i(i))
-    END FORALL
+    END DO
   END SUBROUTINE remap_local2global
 
 ! *****************************************************************************
@@ -802,9 +802,9 @@ MODULE dbcsr_mm_multrec
 
     INTEGER                                  :: l
 
-    FORALL (l = 1 : nle)
+    DO l = 1 , nle
        local_data(l) = full_data(local_elements(l))
-    END FORALL
+    END DO
   END SUBROUTINE local_filter
 
 ! *****************************************************************************
@@ -825,9 +825,9 @@ MODULE dbcsr_mm_multrec
 
     INTEGER                                  :: l
 
-    FORALL (l = 1 : SIZE(local_data))
+    DO l = 1 , SIZE(local_data)
        local_data(l) = full_data(local_elements(l))
-    END FORALL
+    END DO
   END SUBROUTINE local_filter_sp
 
 

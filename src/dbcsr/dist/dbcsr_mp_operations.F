@@ -240,21 +240,21 @@ CONTAINS
 !> \brief ...
 ! *****************************************************************************
     SUBROUTINE most_alltoall()
-      FORALL (pcol = 0 : npcols-1)
+      DO pcol = 0 , npcols-1
          new_scount(1+pcol) = scount(1+pgrid(myprow, pcol))
          new_rcount(1+pcol) = rcount(1+pgrid(myprow, pcol))
          new_sdispl(1+pcol) = sdispl(1+pgrid(myprow, pcol))
          new_rdispl(1+pcol) = rdispl(1+pgrid(myprow, pcol))
-      END FORALL
+      END DO
       CALL mp_alltoall (sb, new_scount(1:npcols), new_sdispl(1:npcols),&
            rb, new_rcount(1:npcols), new_rdispl(1:npcols),&
            dbcsr_mp_my_row_group (mp_env))
-      FORALL (prow = 0 : nprows-1)
+      DO prow = 0 , nprows-1
          new_scount(1+prow) = scount(1+pgrid(prow, mypcol))
          new_rcount(1+prow) = rcount(1+pgrid(prow, mypcol))
          new_sdispl(1+prow) = sdispl(1+pgrid(prow, mypcol))
          new_rdispl(1+prow) = rdispl(1+pgrid(prow, mypcol))
-      END FORALL
+      END DO
       CALL mp_alltoall (sb, new_scount(1:nprows), new_sdispl(1:nprows),&
            rb, new_rcount(1:nprows), new_rdispl(1:nprows),&
            dbcsr_mp_my_col_group (mp_env))
@@ -318,14 +318,14 @@ CONTAINS
     SUBROUTINE remainder_alltoall ()
       new_scount(:) = scount(:)
       new_rcount(:) = rcount(:)
-      FORALL (prow = 0:nprows-1)
+      DO prow = 0,nprows-1
          new_scount(1+pgrid(prow, mypcol)) = 0
          new_rcount(1+pgrid(prow, mypcol)) = 0
-      END FORALL
-      FORALL (pcol = 0:npcols-1)
+      END DO
+      DO pcol = 0,npcols-1
          new_scount(1+pgrid(myprow, pcol)) = 0
          new_rcount(1+pgrid(myprow, pcol)) = 0
-      END FORALL
+      END DO
       CALL mp_alltoall (sb, new_scount, sdispl,&
            rb, new_rcount, rdispl, all_group)
     END SUBROUTINE remainder_alltoall

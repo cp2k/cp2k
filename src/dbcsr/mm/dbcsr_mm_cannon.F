@@ -2099,12 +2099,12 @@ MODULE dbcsr_mm_cannon
        ! The counted blocks are then summed up
        CALL mp_sum(total_row_counts, mp_group)
        ! and used to determine the maximum per-block epsilon.
-       FORALL (row = 1 : nblkrows_total)
+       DO row = 1 , nblkrows_total
           row_max_epss (row) &
                = REAL(filter_eps&
                / REAL(MAX(1, total_row_counts(row)), KIND=KIND(row_max_epss)),&
                KIND=KIND(row_max_epss))
-       END FORALL
+       END DO
        !
        DEALLOCATE (row_counts, stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
