@@ -343,12 +343,21 @@ trapcommand="rm -f ${lockfile} ; kill -- -$pgid  >& out.kill ; exit 8"
 trap "$trapcommand" SIGINT SIGTERM SIGKILL SIGPIPE
 
 if [[ -f ${lockfile} ]]; then
-   echo "ERROR: Directory ${dir_last} is locked"
-   echo "       Check if a regtest is already running for the same directory and if not then"
-   echo "       remove the lockfile ${lockfile}"
-   echo "       first and retry"
-   rm -rf ${dir_out}
-   end_test 7
+   # the lockfile is touched before the start of any new regtest. If it hasn't been touched
+   # recently (i.e. less than the time a single test is allowed to run), the lockfile is considered stale.
+   job_max_time_stale=$((job_max_time+10))
+   if [[ $(date +%s -r ${lockfile}) -gt $(date +%s --date="${job_max_time_stale} sec ago") ]]; then
+      echo "ERROR: Directory ${dir_last} is locked"
+      echo "       Check if a regtest is already running for the same directory and if not then"
+      echo "       remove the lockfile ${lockfile}"
+      echo "       first and retry"
+      rm -rf ${dir_out}
+      end_test 7
+    else
+      echo "WARNING: stale lockfile in directory ${dir_last} "
+      echo "         continuing regtest"
+      touch ${lockfile}
+    fi
 else
    touch ${lockfile}
 fi
@@ -740,6 +749,7 @@ for dir in ${dirs}; do
   t1=`date +%s`
   for ((itest=1;itest<=ntest;itest++));
   do
+     touch ${lockfile}
      n_tests=$((n_tests+1))
      this_test=""
      input_file=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
