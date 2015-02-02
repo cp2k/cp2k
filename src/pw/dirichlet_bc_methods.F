@@ -219,7 +219,7 @@ CONTAINS
        ! do nothing
     END SELECT
 
-!> we won't need parameters anymore so deallocate them 
+! we won't need parameters anymore so deallocate them 
     CALL dirichlet_bc_parameters_dealloc(poisson_params%dbc_params, error)
 
     CALL timestop(handle)
@@ -284,12 +284,12 @@ CONTAINS
 
     SELECT CASE (dirichlet_bc%dbc_geom)
     CASE (AA_PLANAR, PLANAR, CYLINDRICAL)
-!> In order to partition a rectangular shaped dirichlet_bc_type:
-!>   (1) Choose a plane parallel to the coordinate planes
-!>   (2) Rotate the rectangle onto the plane
-!>   (3) If the result is not axis-aligned rotate it on the plane until it becomes one
-!>   (4) Partition the final axis_aligned rectangle 
-!>   (5) Rotate back the rectangle and all the tiles created in the last step 
+! In order to partition a rectangular shaped dirichlet_bc_type:
+!   (1) Choose a plane parallel to the coordinate planes
+!   (2) Rotate the rectangle onto the plane
+!   (3) If the result is not axis-aligned rotate it on the plane until it becomes one
+!   (4) Partition the final axis_aligned rectangle 
+!   (5) Rotate back the rectangle and all the tiles created in the last step 
 
       ALLOCATE(rectangle_aa)
       CALL convert_to_aa_rectangle(dirichlet_bc%rectangle, rectangle_aa, &
@@ -496,9 +496,9 @@ CONTAINS
     theta = twopi/n_dbcs
 
     IF (intern_apx_type .EQ. INSCRIBED) THEN
-       h = base_radius                !> inscribed uniform prism
+       h = base_radius                ! inscribed uniform prism
     ELSE IF (intern_apx_type .EQ. CIRCUMSCRIBED) THEN
-       h = base_radius/COS(0.5*theta) !> circumscribed uniform prism
+       h = base_radius/COS(0.5*theta) ! circumscribed uniform prism
     ELSE 
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "Unknown approximation type for cylinder.",error)

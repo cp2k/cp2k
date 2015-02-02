@@ -273,7 +273,7 @@ CONTAINS
        src_pos2(:,:) = RESHAPE((/ tmp2_arr, - tmp2_arr(tmp_size2-2:1:-1) /), (/2, rs_dim2/))
     END IF
 
-!> default flipping status
+! default flipping status
     flipg_stat = NOT_FLIPPED
 
     srcs_coord(:,1) = (/src_pos1(1,rs_pos(1)) , src_pos2(1,rs_pos(2))/)
@@ -282,9 +282,9 @@ CONTAINS
     srcs_coord(:,4) = (/src_pos1(2,rs_pos(1)) , src_pos2(2,rs_pos(2))/)
 
     DO k = 1, 4
-!> convert srcs_coord to pid
+! convert srcs_coord to pid
        CALL mp_cart_rank(pw_grid%para%rs_group, ABS(srcs_coord(:,k)) - 1, srcs_expand(k))
-!> find out the flipping status 
+! find out the flipping status 
        IF ((srcs_coord(1,k) .GT. 0) .AND. (srcs_coord(2,k) .GT. 0)) THEN
           flipg_stat(k) = NOT_FLIPPED
        ELSE IF ((srcs_coord(1,k) .LT. 0) .AND. (srcs_coord(2,k) .GT. 0)) THEN
@@ -296,11 +296,11 @@ CONTAINS
        END IF
     END DO
 
-!> let all the nodes know about each others srcs_expand list 
+! let all the nodes know about each others srcs_expand list 
     ALLOCATE(srcs_expand_all(4, group_size))
     CALL mp_allgather(srcs_expand, srcs_expand_all, rs_group)
-!> now scan the srcs_expand_all list and check if I am on the srcs_expand list of the other nodes
-!> if that the case then I am obliged to send data to those nodes (the nodes are on my dests_expand list) 
+! now scan the srcs_expand_all list and check if I am on the srcs_expand list of the other nodes
+! if that the case then I am obliged to send data to those nodes (the nodes are on my dests_expand list) 
     k = 1
     DO i = 1, group_size
        DO j = 1, 4 
@@ -311,23 +311,23 @@ CONTAINS
        END DO 
     END DO
 
-!> find srcs and dests for the reverse procedure :
-!> initialize dests_shrink and srcs_shrink with invalid process id 
+! find srcs and dests for the reverse procedure :
+! initialize dests_shrink and srcs_shrink with invalid process id 
     dests_shrink = -1
     srcs_shrink = -1
-!> scan the flipping status of the data that I am supposed to receive  
-!> if the flipping status for a process is NOT_FLIPPED that means I will have to resend 
-!> data to that process in the reverse procedure (the process is on my dests_shrink list)
+! scan the flipping status of the data that I am supposed to receive  
+! if the flipping status for a process is NOT_FLIPPED that means I will have to resend 
+! data to that process in the reverse procedure (the process is on my dests_shrink list)
     DO i = 1, 4
        IF (flipg_stat(i) .EQ. NOT_FLIPPED) dests_shrink(i) = srcs_expand(i)
     END DO
 
-!> let all the nodes know about each others dests_shrink list 
+! let all the nodes know about each others dests_shrink list 
     ALLOCATE(dests_shrink_all(4,group_size))
     CALL mp_allgather(dests_shrink, dests_shrink_all, rs_group)
-!> now scan the dests_shrink_all list and check if I am on the rev_dest list of any other node 
-!> if that is the case then I'll receive data from that node (the node is on my rev_src list)
-!> note that in the shrinking procedure I will receive from only one node  
+! now scan the dests_shrink_all list and check if I am on the rev_dest list of any other node 
+! if that is the case then I'll receive data from that node (the node is on my rev_src list)
+! note that in the shrinking procedure I will receive from only one node  
     DO i = 1, group_size
        DO j = 1, 4
           IF (dests_shrink_all(j,i) .EQ. rs_mpo) THEN 
@@ -401,11 +401,11 @@ CONTAINS
 
     send_msg => pw_in%cr3d
 
-    src_hist = -1   !> keeps the history of sources 
-    dest_hist = -1  !> keeps the history of destinations 
+    src_hist = -1   ! keeps the history of sources 
+    dest_hist = -1  ! keeps the history of destinations 
 
     DO i = 1, 4
-!> no need to send to myself or to the destination that I have already sent to
+! no need to send to myself or to the destination that I have already sent to
        IF ((dests_expand(i) .NE. rs_mpo) .AND. .NOT. ANY(dest_hist .EQ. dests_expand(i))) THEN
           CALL mp_isend(send_msg, dests_expand(i), rs_group, send_reqs(i))
        END IF
@@ -419,11 +419,11 @@ CONTAINS
        ub2 = recv_msgs_bnds(2,2,i)
        lb3 = recv_msgs_bnds(1,3,i)
        ub3 = recv_msgs_bnds(2,3,i)
-!> no need to receive from myself
+! no need to receive from myself
        IF (srcs_expand(i) .EQ. rs_mpo) THEN
           ALLOCATE(recv_msgs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
           recv_msgs(i)%msg = send_msg
-!> if I have already received data from the source, just use the one from the last time
+! if I have already received data from the source, just use the one from the last time
        ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN
           loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1) 
           lb1_loc = recv_msgs_bnds(1,1,loc)
@@ -441,10 +441,10 @@ CONTAINS
        END IF
        src_hist(i) = srcs_expand(i)
     END DO
-!> cleanup mpi_request to prevent memory leak 
+! cleanup mpi_request to prevent memory leak 
     CALL mp_waitall(send_reqs(:))
 
-!> flip the received data according on the flipping status
+! flip the received data according on the flipping status
     DO i = 1, 4
        SELECT CASE (flipg_stat(i))
           CASE(NOT_FLIPPED)
@@ -466,8 +466,8 @@ CONTAINS
               CALL rot180(recv_msgs(i)%msg, pcs(i)%msg, bounds_shftd, error)
        END SELECT
     END DO
-!> concatenate the received (flipped) data store the result as catd
-!> need the bounds of the four pieces for concatenation
+! concatenate the received (flipped) data store the result as catd
+! need the bounds of the four pieces for concatenation
     DO i = 1, 4
        pcs_bnds(1,1,i) = LBOUND(pcs(i)%msg,1) 
        pcs_bnds(2,1,i) = UBOUND(pcs(i)%msg,1)
@@ -488,9 +488,9 @@ CONTAINS
             pcs_bnds(1,3,i):pcs_bnds(2,3,i)) = pcs(i)%msg
     END DO
 
-!> flip catd from back to front 
+! flip catd from back to front 
     CALL flipbf(catd, catd_flipdbf, bounds_shftd, error)
-!> concatenate catd and catd_flipdbf to get cr3d_xpndd
+! concatenate catd and catd_flipdbf to get cr3d_xpndd
     ALLOCATE(cr3d_xpndd(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new))
     cr3d_xpndd(:,:,lb3_new:ind) = catd
     cr3d_xpndd(:,:,ind+1:ub3_new) = catd_flipdbf
@@ -554,7 +554,7 @@ CONTAINS
     in_space = pw_in%in_space
     in_use = pw_in%in_use
 
-!> cosine transform is a real transform. The cosine transfrom of a 3D data must be real and 3D.
+! cosine transform is a real transform. The cosine transfrom of a 3D data must be real and 3D.
     NULLIFY(cr3d, cc3d)
     lb1_xpnd = bounds_local_xpnd(1,1)
     ub1_xpnd = bounds_local_xpnd(2,1)
@@ -582,12 +582,12 @@ CONTAINS
        END IF
     END IF
 
-!> let all the nodes know about each others shifted local bounds
+! let all the nodes know about each others shifted local bounds
     ALLOCATE(bounds_local_all(2,3,group_size))
     CALL mp_allgather(bounds_local_shftd, bounds_local_all, rs_group) 
 
     DO i = 1, 4
-!> no need to send to myself or to an invalid destination (pid = -1)
+! no need to send to myself or to an invalid destination (pid = -1)
        IF ((dests_shrink(i) .NE. rs_mpo) .AND. (dests_shrink(i) .NE. -1)) THEN
           send_lb1 = bounds_local_all(1,1,dests_shrink(i)+1)
           send_ub1 = bounds_local_all(2,1,dests_shrink(i)+1)
@@ -611,11 +611,11 @@ CONTAINS
     lb3_orig = bounds_local_shftd(1,3)
     ub3_orig = bounds_local_shftd(2,3)
 
-!> no need to receive from myself
+! no need to receive from myself
     IF (srcs_shrink .EQ. rs_mpo) THEN
        pw_shrinked%cr3d = cr3d(lb1_orig:ub1_orig, lb2_orig:ub2_orig, lb3_orig:ub3_orig)
     ELSE IF (srcs_shrink .EQ. -1) THEN
-!> the source is invalid ... do nothing
+! the source is invalid ... do nothing
     ELSE
        CALL mp_irecv(pw_shrinked%cr3d, srcs_shrink, rs_group, recv_req) 
        CALL mp_wait(recv_req)
@@ -918,14 +918,14 @@ CONTAINS
     bounds_local_shftd(:,2) = bounds_local(:,2) + shift(2) 
     bounds_local_shftd(:,3) = bounds_local(:,3) + shift(3)
 
-!> let all the nodes know about each others local shifted bounds
+! let all the nodes know about each others local shifted bounds
     ALLOCATE(bounds_local_all(2,3,group_size))
     CALL mp_allgather(bounds_local_shftd, bounds_local_all, rs_group) 
 
-    src_hist = -1   !> keeps the history of sources 
+    src_hist = -1   ! keeps the history of sources 
 
     DO i = 1, 4
-!> no need to receive from myself
+! no need to receive from myself
        IF (srcs_expand(i) .EQ. rs_mpo) THEN
           recv_msgs_bnds(1,1,i) = bounds_local_shftd(1,1)
           recv_msgs_bnds(2,1,i) = bounds_local_shftd(2,1)
@@ -933,7 +933,7 @@ CONTAINS
           recv_msgs_bnds(2,2,i) = bounds_local_shftd(2,2)
           recv_msgs_bnds(1,3,i) = bounds_local_shftd(1,3)
           recv_msgs_bnds(2,3,i) = bounds_local_shftd(2,3)
-!> if I have already received data from the source, just use the one from the last time
+! if I have already received data from the source, just use the one from the last time
        ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN 
           loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1)
           recv_msgs_bnds(1,1,i) = bounds_local_all(1,1,srcs_expand(loc)+1)
@@ -953,7 +953,7 @@ CONTAINS
        src_hist(i) = srcs_expand(i)
     END DO
 
-!> flip the received data based on the flipping status
+! flip the received data based on the flipping status
     DO i = 1, 4
        SELECT CASE (flipg_stat(i))
           CASE(NOT_FLIPPED)
@@ -973,7 +973,7 @@ CONTAINS
     lb2_new = MINVAL(pcs_bnds(1,2,:));    ub2_new = MAXVAL(pcs_bnds(2,2,:))
     lb3_new = MINVAL(pcs_bnds(1,3,:));    ub3_new = MAXVAL(pcs_bnds(2,3,:))
 
-!> calculate the new local and global bounds
+! calculate the new local and global bounds
     bounds_local_new(1,1) = MINVAL(pcs_bnds(1,1,:))    
     bounds_local_new(2,1) = MAXVAL(pcs_bnds(2,1,:))
     bounds_local_new(1,2) = MINVAL(pcs_bnds(1,2,:))    
@@ -1194,39 +1194,39 @@ CONTAINS
     lb2min = MIN(lb2_old, lb2_new);     lb2max = MAX(lb2_old, lb2_new)     
     ub1min = MIN(ub1_old, ub1_new);     ub1max = MAX(ub1_old, ub1_new)     
     ub2min = MIN(ub2_old, ub2_new);     ub2max = MAX(ub2_old, ub2_new)     
-    !> copy data within the shared bounds
+    ! copy data within the shared bounds
     pw_new%cr3d(lb1max:ub1min, lb2max:ub2min, :) = pw_old%cr3d(lb1max:ub1min, lb2max:ub2min, :)
 
-    IF (lb1_old .NE. bounds(1,1)) THEN  !> west neighbor exists
+    IF (lb1_old .NE. bounds(1,1)) THEN  ! west neighbor exists
        CALL mp_cart_rank(rs_group, (/rs_pos(1)-1, rs_pos(2)/), wnbr_pid) 
     ELSE
        wnbr_pid = -1
     END IF
-    IF (ub1_old .NE. bounds(2,1)) THEN  !> east neighbor exists
+    IF (ub1_old .NE. bounds(2,1)) THEN  ! east neighbor exists
        CALL mp_cart_rank(rs_group, (/rs_pos(1)+1, rs_pos(2)/), enbr_pid) 
     ELSE
        enbr_pid = -1
     END IF
-    IF (lb2_old .NE. bounds(1,2)) THEN  !> south neighbor exists
+    IF (lb2_old .NE. bounds(1,2)) THEN  ! south neighbor exists
        CALL mp_cart_rank(rs_group, (/rs_pos(1), rs_pos(2)+1/), snbr_pid) 
     ELSE
        snbr_pid = -1
     END IF
-    IF (ub2_old .NE. bounds(2,2)) THEN  !> north neighbor exists
+    IF (ub2_old .NE. bounds(2,2)) THEN  ! north neighbor exists
        CALL mp_cart_rank(rs_group, (/rs_pos(1), rs_pos(2)-1/), nnbr_pid) 
     ELSE
        nnbr_pid = -1
     END IF
 
-    !> set the colors for red-black algorithm 
+    ! set the colors for red-black algorithm 
     color = (/MOD(rs_pos(1),2), MOD(rs_pos(2),2)/) 
 
-    !> sweep edge data
+    ! sweep edge data
     CALL dim1_sweep(pw_old%cr3d, bounds_local_new(:,1), wnbr_pid, enbr_pid, &
                     rs_group, color, e_rmsg, w_rmsg, dim1swp_stat, error)
     CALL dim2_sweep(pw_old%cr3d, bounds_local_new(:,2), nnbr_pid, snbr_pid, &
                     rs_group, color, n_rmsg, s_rmsg, dim2swp_stat, error)
-    !> sweep corner data
+    ! sweep corner data
     IF (dim1swp_stat(1) .NE. nomsg_received) THEN
        CALL dim2_sweep(w_rmsg, bounds_local_new(:,2), nnbr_pid, snbr_pid, &
                        rs_group, color, nw_rmsg, sw_rmsg, wdim2swp_stat, error)
@@ -1240,7 +1240,7 @@ CONTAINS
        edim2swp_stat = nomsg_received
     END IF
 
-    !> copy edge data
+    ! copy edge data
     IF (dim1swp_stat(1) .EQ. msg_received) THEN 
        I1 = lb1_new;       I2 = lb1_old-1
        J1 = lb2_new;       J2 = ub2_new
@@ -1262,7 +1262,7 @@ CONTAINS
        pw_new%cr3d(I1:I2, J1:J2, :) = n_rmsg(I1:I2, J1:J2, :)
     END IF
 
-    !> copy corner data
+    ! copy corner data
     IF (edim2swp_stat(1) .EQ. msg_received) THEN
        I1 = ub1_old+1;     I2 = ub1_new
        J1 = lb2_new;       J2 = lb2_old-1
@@ -1284,7 +1284,7 @@ CONTAINS
        pw_new%cr3d(I1:I2, J1:J2, :) = nw_rmsg(I1:I2, J1:J2, :)
     END IF
 
-    !> deallocate received data after using them
+    ! deallocate received data after using them
     IF (dim1swp_stat(1)  .NE. nomsg_received) DEALLOCATE(w_rmsg)
     IF (dim1swp_stat(2)  .NE. nomsg_received) DEALLOCATE(e_rmsg)
     IF (dim2swp_stat(1)  .NE. nomsg_received) DEALLOCATE(s_rmsg)
@@ -1352,7 +1352,7 @@ CONTAINS
     should_sendw = lb1_old .LT. lb1_new;     should_sende = ub1_old .GT. ub1_new
     should_recvw = lb1_new .LT. lb1_old;     should_recve = ub1_new .GT. ub1_old 
 
-    !> initiate send buffers
+    ! initiate send buffers
     IF (should_sendw) THEN
        ALLOCATE(w_smsg(lb1_old:lb1_new-1 , lb2:ub2 , lb3:ub3))
        w_smsg  = arr3d_old(lb1_old:lb1_new-1 , : , :)
@@ -1362,7 +1362,7 @@ CONTAINS
        e_smsg  = arr3d_old(ub1_new+1:ub1_old , : , :)
     END IF 
 
-    !> allocate receive buffers
+    ! allocate receive buffers
     IF (should_recvw) THEN
        ALLOCATE(w_rmsg(lb1_new:lb1_old-1 , lb2:ub2 , lb3:ub3))
     END IF
@@ -1370,26 +1370,26 @@ CONTAINS
        ALLOCATE(e_rmsg(ub1_old+1:ub1_new , lb2:ub2 , lb3:ub3))
     END IF
 
-    !> WE , first black processes then red processes
+    ! WE , first black processes then red processes
     IF ((color(1) .EQ. black) .AND. enbr_exists) THEN 
-       !> black sends to the east
+       ! black sends to the east
        IF (should_sende) THEN
           CALL mp_isend(e_smsg, enbr_pid, mp_group, we_sreq)
           CALL mp_wait(we_sreq)
           DEALLOCATE(e_smsg)
        END IF
        IF (should_recve) THEN
-       !> black receives from the east
+       ! black receives from the east
           CALL mp_irecv(e_rmsg, enbr_pid, mp_group, ew_rreq)
           CALL mp_wait(ew_rreq)
        END IF
     ELSE IF ((color(1) .EQ. red) .AND. wnbr_exists) THEN
-       !> red receives from the west
+       ! red receives from the west
        IF (should_recvw) THEN
           CALL mp_irecv(w_rmsg, wnbr_pid, mp_group, we_rreq)
           CALL mp_wait(we_rreq)
        END IF
-       !> red sends to the west
+       ! red sends to the west
        IF (should_sendw) THEN
           CALL mp_isend(w_smsg, wnbr_pid, mp_group, ew_sreq)
           CALL mp_wait(ew_sreq)
@@ -1397,26 +1397,26 @@ CONTAINS
        END IF
     END IF
 
-    !> EW
+    ! EW
     IF ((color(1) .EQ. red) .AND. enbr_exists) THEN 
-       !> red sends to the east
+       ! red sends to the east
        IF (should_sende) THEN
           CALL mp_isend(e_smsg, enbr_pid, mp_group, we_sreq)
           CALL mp_wait(we_sreq)
           DEALLOCATE(e_smsg)
        END IF
        IF (should_recve) THEN
-       !> red receives from the east
+       ! red receives from the east
           CALL mp_irecv(e_rmsg, enbr_pid, mp_group, ew_rreq)
           CALL mp_wait(ew_rreq)
        END IF
     ELSE IF ((color(1) .EQ. black) .AND. wnbr_exists) THEN
-       !> black receives from the west
+       ! black receives from the west
        IF (should_recvw) THEN
           CALL mp_irecv(w_rmsg, wnbr_pid, mp_group, we_rreq)
           CALL mp_wait(we_rreq)
        END IF
-       !> black sends to the west
+       ! black sends to the west
        IF (should_sendw) THEN
           CALL mp_isend(w_smsg, wnbr_pid, mp_group, ew_sreq)
           CALL mp_wait(ew_sreq)
@@ -1499,7 +1499,7 @@ CONTAINS
     should_sends = lb2_old .LT. lb2_new;     should_sendn = ub2_old .GT. ub2_new
     should_recvs = lb2_new .LT. lb2_old;     should_recvn = ub2_new .GT. ub2_old 
 
-    !> initiate send buffers
+    ! initiate send buffers
     IF (should_sends) THEN
        ALLOCATE(s_smsg(lb1:ub1 , lb2_old:lb2_new-1 , lb3:ub3))
        s_smsg  = arr3d_old(: , lb2_old:lb2_new-1 , :)
@@ -1509,7 +1509,7 @@ CONTAINS
        n_smsg  = arr3d_old(: , ub2_new+1:ub2_old , :)
     END IF 
 
-    !> allocate receive buffers
+    ! allocate receive buffers
     IF (should_recvs) THEN
        ALLOCATE(s_rmsg(lb1:ub1 , lb2_new:lb2_old-1 , lb3:ub3))
     END IF
@@ -1517,26 +1517,26 @@ CONTAINS
        ALLOCATE(n_rmsg(lb1:ub1 , ub2_old+1:ub2_new , lb3:ub3))
     END IF
 
-    !> SN , first black processes then red processes
+    ! SN , first black processes then red processes
     IF ((color(1) .EQ. black) .AND. nnbr_exists) THEN 
-       !> black sends to the north
+       ! black sends to the north
        IF (should_sendn) THEN
           CALL mp_isend(n_smsg, nnbr_pid, mp_group, sn_sreq)
           CALL mp_wait(sn_sreq)
           DEALLOCATE(n_smsg)
        END IF
        IF (should_recvn) THEN
-       !> black receives from the north
+       ! black receives from the north
           CALL mp_irecv(n_rmsg, nnbr_pid, mp_group, ns_rreq)
           CALL mp_wait(ns_rreq)
        END IF
     ELSE IF ((color(1) .EQ. red) .AND. snbr_exists) THEN
-       !> red receives from the south
+       ! red receives from the south
        IF (should_recvs) THEN
           CALL mp_irecv(s_rmsg, snbr_pid, mp_group, sn_rreq)
           CALL mp_wait(sn_rreq)
        END IF
-       !> red sends to the south
+       ! red sends to the south
        IF (should_sends) THEN
           CALL mp_isend(s_smsg, snbr_pid, mp_group, ns_sreq)
           CALL mp_wait(ns_sreq)
@@ -1544,26 +1544,26 @@ CONTAINS
        END IF
     END IF
 
-    !> NS
+    ! NS
     IF ((color(1) .EQ. red) .AND. nnbr_exists) THEN 
-       !> red sends to the north
+       ! red sends to the north
        IF (should_sendn) THEN
           CALL mp_isend(n_smsg, nnbr_pid, mp_group, sn_sreq)
           CALL mp_wait(sn_sreq)
           DEALLOCATE(n_smsg)
        END IF
        IF (should_recvn) THEN
-       !> red receives from the north
+       ! red receives from the north
           CALL mp_irecv(n_rmsg, nnbr_pid, mp_group, ns_rreq)
           CALL mp_wait(ns_rreq)
        END IF
     ELSE IF ((color(1) .EQ. black) .AND. snbr_exists) THEN
-       !> black receives from the south
+       ! black receives from the south
        IF (should_recvs) THEN
           CALL mp_irecv(s_rmsg, snbr_pid, mp_group, sn_rreq)
           CALL mp_wait(sn_rreq)
        END IF
-       !> black sends to the south
+       ! black sends to the south
        IF (should_sends) THEN
           CALL mp_isend(s_smsg, snbr_pid, mp_group, ns_sreq)
           CALL mp_wait(ns_sreq)

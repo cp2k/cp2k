@@ -128,7 +128,7 @@ CONTAINS
 
     IF (.NOT. ASSOCIATED(ps_implicit_env)) THEN
        ALLOCATE(ps_implicit_env)
-!> get a copy of poisson_params%ps_implicit_params
+! get a copy of poisson_params%ps_implicit_params
        ps_implicit_env%params%boundary_condition = poisson_params%ps_implicit_params%boundary_condition
        ps_implicit_env%params%zero_initial_guess = poisson_params%ps_implicit_params%zero_initial_guess
        ps_implicit_env%params%max_iter = poisson_params%ps_implicit_params%max_iter
@@ -136,7 +136,7 @@ CONTAINS
        ps_implicit_env%params%omega = poisson_params%ps_implicit_params%omega
        ps_implicit_env%params%dielectric_params = poisson_params%dielectric_params
        ps_implicit_env%params%dbc_params = poisson_params%dbc_params
-!> create dielectric
+! create dielectric
        NULLIFY(ps_implicit_env%dielectric)
        CALL dielectric_create(ps_implicit_env%dielectric, pw_pool, poisson_params%dielectric_params, error)
 
@@ -148,7 +148,7 @@ CONTAINS
        IF (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) THEN
           CALL dct_type_init(pw_pool%pw_grid, ps_implicit_env%dct_env, error)
        END IF
-!> prepare dirichlet bc
+! prepare dirichlet bc
        CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%gates, error)
        CALL ps_implicit_prepare_blocks(pw_pool, dct_pw_grid, dct_aux_pw_grid, green, poisson_params, &
                                        ps_implicit_env, error)
@@ -215,7 +215,7 @@ CONTAINS
     use_zero_initial_guess = poisson_env%parameters%ps_implicit_params%zero_initial_guess
     times_called = ps_implicit_env%times_called 
 
-!> check if this is the first scf iteration
+! check if this is the first scf iteration
     IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
 
     CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE, error=error)
@@ -237,32 +237,32 @@ CONTAINS
 
     CALL pw_copy(v0, v_old, error=error)
 
-!> res_old = g - \Delta(v_old) - P(v_old)
+! res_old = g - \Delta(v_old) - P(v_old)
     CALL apply_poisson_operator(pw_pool, green, dielectric, v_old, res_old, error)
     CALL pw_scale(res_old, - 1.0_dp, error)
     CALL pw_axpy(g, res_old, error=error)
 
-!> evaluate \Delta^-1(res_old)
+! evaluate \Delta^-1(res_old)
     CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres_old, error)
 
     iter = 1
     DO
 
-!> v_new = v_old + \omega * QAinvxres_old
+! v_new = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres_old, omega, error=error)
        CALL pw_copy(QAinvxres_old, v_new, error=error)
        CALL pw_axpy(v_old, v_new, error=error)
 
-!> res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) )
+! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) )
        CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
        CALL apply_poisson_operator(pw_pool, green, dielectric, QAinvxres_old, res_new, error)
        CALL pw_scale(res_new, - omega , error)
        CALL pw_axpy(res_old, res_new, error=error)
 
-!> compute the error
+! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres_new, &
                                       pres_error, nabs_error, error)
-!> output
+! output
        CALL ps_implicit_output(ps_implicit_env, iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
           CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, ehartree, error)
@@ -278,7 +278,7 @@ CONTAINS
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
-!> v_old = v_new, res_old = res_new
+! v_old = v_new, res_old = res_new
        CALL pw_copy(v_new, v_old, error=error)
        CALL pw_copy(res_new, res_old, error=error)
        CALL pw_copy(QAinvxres_new, QAinvxres_old, error=error)
@@ -290,7 +290,7 @@ CONTAINS
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-!> functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
+! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
     CALL pw_axpy(v_eps, v_new, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
@@ -386,7 +386,7 @@ CONTAINS
        n_tiles_tot = n_tiles_tot + ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
     END DO
 
-!> check if this is the first scf iteration
+! check if this is the first scf iteration
     IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
 
     ALLOCATE(B (n_tiles_tot, ngpts_local))
@@ -441,7 +441,7 @@ CONTAINS
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
 
-!> res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
+! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
     CALL apply_poisson_operator(pw_pool, green, dielectric, v_old, res_old, error)
     CALL pw_scale(res_old, - 1.0_dp, error)
     CALL pw_axpy(g, res_old, error=error)
@@ -449,53 +449,53 @@ CONTAINS
     CALL convert_3dto1d(Btxlambda_old3D, Btxlambda_old, ps_implicit_env%idx_3dto1d, error)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
-!> evaluate \Delta^-1(res_old)
+! evaluate \Delta^-1(res_old)
        CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres_old, error)
 
     iter = 1
     DO
 
-!> v_new (v_bar) = v_old + \omega * QAinvxres_old
+! v_new (v_bar) = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres_old, omega, error=error)
        CALL pw_copy(QAinvxres_old, v_new, error=error)
        CALL pw_axpy(v_old, v_new, error=error)
 
-!> evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
+! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
        CALL apply_poisson_operator(pw_pool, green, dielectric, v_new, Axvbar, error)
        Axvbar_avg = SUM(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
-!> evaluate Q_S * \lambda + v_D - B * \bar{v}
+! evaluate Q_S * \lambda + v_D - B * \bar{v}
        CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
        v_bar1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/ngpts_local/))
        CALL DGEMV('N', n_tiles_tot, ngpts_local, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
        CALL mp_sum(Bxv_bar, pw_grid%para%group)
-!> solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
+! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
        w = 0.0_dp
        w(:) = (/ QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg /)
        CALL DGEMV('N', n_tiles_tot+1, n_tiles_tot+1, 1.0_dp, Rinv, n_tiles_tot+1, w, 1, 0.0_dp, lambda_newNeta, 1)
        lambda_new(:) = lambda_newNeta(1:n_tiles_tot)
        eta = lambda_newNeta(n_tiles_tot+1)
 
-!> v_new = v_bar + 1 * \eta
+! v_new = v_bar + 1 * \eta
        v_new%cr3d = v_new%cr3d + eta / ngpts
 
-!> evaluate B^t * \lambda_new
+! evaluate B^t * \lambda_new
        CALL DGEMV('N', ngpts_local, n_tiles_tot, 1.0_dp, Bt, ngpts_local, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
        CALL convert_3dto1d(Btxlambda_new3D, Btxlambda_new, ps_implicit_env%idx_3dto1d, error)
 
-!> res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_old - \lambda_new )
+! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_old - \lambda_new )
        CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
        CALL apply_poisson_operator(pw_pool, green, dielectric, QAinvxres_old, res_new, error)
        CALL pw_scale(res_new, - omega , error)
        CALL pw_axpy(res_old, res_new, error=error)
        res_new%cr3d = res_new%cr3d + Btxlambda_old3D - Btxlambda_new3D
 
-!> compute the error
+! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres_new, &
                                       pres_error, nabs_error, error)
-!> output
+! output
        CALL ps_implicit_output(ps_implicit_env, iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
           CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
@@ -505,7 +505,7 @@ CONTAINS
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
 
-!> debugging
+! debugging
        IF (debug) THEN
           v_new1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/ngpts_local/))
           CALL DGEMV('N', n_tiles_tot, ngpts_local, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
@@ -516,14 +516,14 @@ CONTAINS
           END IF
        END IF
 
-!> check the convergence
+! check the convergence
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
-!> update
+! update
        CALL pw_copy(v_new, v_old, error=error)
        lambda_old(:) = lambda_new
        CALL pw_copy(res_new, res_old, error=error)
@@ -539,7 +539,7 @@ CONTAINS
        
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-!> functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
+! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
     CALL pw_axpy(v_eps, v_new, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
@@ -639,7 +639,7 @@ CONTAINS
        n_tiles_tot = n_tiles_tot + ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
     END DO
 
-!> check if this is the first scf iteration
+! check if this is the first scf iteration
     IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool, error)
 
     ALLOCATE(B (n_tiles_tot, ngpts_local))
@@ -696,7 +696,7 @@ CONTAINS
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
 
-!> res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
+! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
     CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
                                 adjust_local_bounds, v_old, res_old, error)
     CALL pw_scale(res_old, - 1.0_dp, error)
@@ -705,7 +705,7 @@ CONTAINS
     CALL convert_3dto1d(Btxlambda_old3D, Btxlambda_old, ps_implicit_env%idx_3dto1d, error)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
-!> evaluate \Delta^-1(res_old)
+! evaluate \Delta^-1(res_old)
     CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                                     dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
@@ -716,38 +716,38 @@ CONTAINS
     iter = 1
     DO
 
-!> v_new (v_bar) = v_old + \omega * QAinvxres_old
+! v_new (v_bar) = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres_old, omega, error=error)
        CALL pw_copy(QAinvxres_old, v_new, error=error)
        CALL pw_axpy(v_old, v_new, error=error)
 
-!> evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
+! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
        CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
                                    adjust_local_bounds, v_new, Axvbar, error)
        Axvbar_avg = SUM(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
-!> evaluate Q_S * \lambda + v_D - B * \bar{v}
+! evaluate Q_S * \lambda + v_D - B * \bar{v}
        CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
        v_bar1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/ngpts_local/))
        CALL DGEMV('N', n_tiles_tot, ngpts_local, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
        CALL mp_sum(Bxv_bar, pw_grid%para%group)
-!> solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
+! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
        w = 0.0_dp
        w(:) = (/ QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg /)
        CALL DGEMV('N', n_tiles_tot+1, n_tiles_tot+1, 1.0_dp, Rinv, n_tiles_tot+1, w, 1, 0.0_dp, lambda_newNeta, 1)
        lambda_new(:) = lambda_newNeta(1:n_tiles_tot)
        eta = lambda_newNeta(n_tiles_tot+1)
 
-!> v_new = v_bar + 1 * \eta
+! v_new = v_bar + 1 * \eta
        v_new%cr3d = v_new%cr3d + eta / ngpts
 
-!> evaluate B^t * \lambda_new
+! evaluate B^t * \lambda_new
        CALL DGEMV('N', ngpts_local, n_tiles_tot, 1.0_dp, Bt, ngpts_local, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
        CALL convert_3dto1d(Btxlambda_new3D, Btxlambda_new, ps_implicit_env%idx_3dto1d, error)
 
-!> res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_old - \lambda_new )
+! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_old - \lambda_new )
        CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
        CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
                                    adjust_local_bounds, QAinvxres_old, res_new, error)
@@ -755,10 +755,10 @@ CONTAINS
        CALL pw_axpy(res_old, res_new, error=error)
        res_new%cr3d = res_new%cr3d + Btxlambda_old3D - Btxlambda_new3D
 
-!> compute the error
+! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
                                       v_old, v_new, QAinvxres_new, adjust_local_bounds, pres_error, nabs_error, error)
-!> output
+! output
        CALL ps_implicit_output(ps_implicit_env, iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
           CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
@@ -768,7 +768,7 @@ CONTAINS
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
 
-!> debugging
+! debugging
        IF (debug) THEN
           v_new1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/ngpts_local/))
           CALL DGEMV('N', n_tiles_tot, ngpts_local, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
@@ -779,14 +779,14 @@ CONTAINS
           END IF
        END IF
 
-!> check the convergence
+! check the convergence
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
-!> update
+! update
        CALL pw_copy(v_new, v_old, error=error)
        lambda_old(:) = lambda_new
        CALL pw_copy(res_new, res_old, error=error)
@@ -802,7 +802,7 @@ CONTAINS
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-!> functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
+! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
     CALL pw_axpy(v_eps, v_new, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
@@ -924,7 +924,7 @@ CONTAINS
     bounds = pw_grid_orig%bounds
     dct_env => ps_implicit_env%dct_env
 
-!> evaluate indices for converting 3D arrays into 1D arrays
+! evaluate indices for converting 3D arrays into 1D arrays
     lb1 = bounds_local(1,1);     ub1 = bounds_local(2,1)
     lb2 = bounds_local(1,2);     ub2 = bounds_local(2,2)
     lb3 = bounds_local(1,3);     ub3 = bounds_local(2,3)
@@ -960,14 +960,14 @@ CONTAINS
        ALLOCATE(Bxunit_vec(n_tiles_tot))
        ALLOCATE(test_vec(n_tiles_tot))
        ALLOCATE(R(n_tiles_tot+1, n_tiles_tot+1))
-       ALLOCATE(work_arr(n_tiles_tot+1), ipiv(n_tiles_tot+1)) !> LAPACK work and ipiv arrays
+       ALLOCATE(work_arr(n_tiles_tot+1), ipiv(n_tiles_tot+1)) ! LAPACK work and ipiv arrays
 
        CALL setup_grid_axes(pw_grid_orig, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
-!> prepare pw_pool for evaluating inverse Laplacian of tile_pw's using DCT
+! prepare pw_pool for evaluating inverse Laplacian of tile_pw's using DCT
        CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid, error=error)
        CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=dct_aux_pw_grid, error=error)
 
-!> set up B, B^t, (\Delta^-1)*B^t
+! set up B, B^t, (\Delta^-1)*B^t
        indx1 = 1
        DO j = 1 , n_gates
           n_tiles = ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
@@ -981,7 +981,7 @@ CONTAINS
                 CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
                 smooth_tile_npts = SUM(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
-                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     !> normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/ngpts_local/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
@@ -1002,7 +1002,7 @@ CONTAINS
                 pw_in => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
                 tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     !> normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/ngpts_local/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
@@ -1022,21 +1022,21 @@ CONTAINS
        END DO
        ps_implicit_env%B = TRANSPOSE(ps_implicit_env%Bt)
 
-!> evaluate QS = B*(\Delta^-1)*B^t
+! evaluate QS = B*(\Delta^-1)*B^t
        CALL DGEMM('N', 'N', n_tiles_tot, n_tiles_tot, ngpts_local, &
                   1.0_dp, ps_implicit_env%B, n_tiles_tot, QAinvxBt, &
                   ngpts_local, 0.0_dp, ps_implicit_env%QS, n_tiles_tot)
        CALL mp_sum(ps_implicit_env%QS, pw_grid_orig%para%group)
 
-!> evaluate B*1
+! evaluate B*1
        Bxunit_vec(:) = SUM(ps_implicit_env%B,2) / ngpts
        CALL mp_sum(Bxunit_vec, pw_grid_orig%para%group)
-!> set up R = [QS B*1; (B*1)^t 0]
+! set up R = [QS B*1; (B*1)^t 0]
        R = 0.0_dp
        R(1:n_tiles_tot, 1:n_tiles_tot) = ps_implicit_env%QS
        R(1:n_tiles_tot, n_tiles_tot+1) = Bxunit_vec
        R(n_tiles_tot+1, 1:n_tiles_tot) = Bxunit_vec
-!> evaluate R^(-1)
+! evaluate R^(-1)
        ps_implicit_env%Rinv = R
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
        IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
@@ -1071,7 +1071,7 @@ CONTAINS
 
        CALL setup_grid_axes(pw_grid_orig, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
 
-!> set up B, B^t, (\Delta^-1)*B^t
+! set up B, B^t, (\Delta^-1)*B^t
        indx1 = 1
        DO j = 1 , n_gates
           n_tiles = ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
@@ -1085,7 +1085,7 @@ CONTAINS
                 CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
                 smooth_tile_npts = SUM(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
-                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     !> normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/ngpts_local/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
@@ -1101,7 +1101,7 @@ CONTAINS
                 pw_in => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
                 tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     !> normalize tile_pw
+                CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/ngpts_local/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
@@ -1116,21 +1116,21 @@ CONTAINS
        END DO
        ps_implicit_env%B = TRANSPOSE(ps_implicit_env%Bt)
 
-!> evaluate QS = B*(\Delta^-1)*B^t
+! evaluate QS = B*(\Delta^-1)*B^t
        CALL DGEMM('N', 'N', n_tiles_tot, n_tiles_tot, ngpts_local, &
                   1.0_dp, ps_implicit_env%B, n_tiles_tot, QAinvxBt, &
                   ngpts_local, 0.0_dp, ps_implicit_env%QS, n_tiles_tot)
        CALL mp_sum(ps_implicit_env%QS, pw_grid_orig%para%group)
 
-!> evaluate B*1
+! evaluate B*1
        Bxunit_vec(:) = SUM(ps_implicit_env%B,2) / ngpts
        CALL mp_sum(Bxunit_vec, pw_grid_orig%para%group)
-!> set up R = [QS B*1; (B*1)^t 0]
+! set up R = [QS B*1; (B*1)^t 0]
        R = 0.0_dp
        R(1:n_tiles_tot, 1:n_tiles_tot) = ps_implicit_env%QS
        R(1:n_tiles_tot, n_tiles_tot+1) = Bxunit_vec
        R(n_tiles_tot+1, 1:n_tiles_tot) = Bxunit_vec
-!> evaluate R^(-1)
+! evaluate R^(-1)
        ps_implicit_env%Rinv = R
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
        IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
@@ -1245,7 +1245,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-!> here I devide by fourpi to cancel out the prefactor fourpi in influence_fn
+! here I devide by fourpi to cancel out the prefactor fourpi in influence_fn
     prefactor = 1.0_dp / fourpi
 
     pw_grid => pw_pool%pw_grid
@@ -1321,7 +1321,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-!> here I devide by fourpi to cancel out the prefactor fourpi in influence_fn
+! here I devide by fourpi to cancel out the prefactor fourpi in influence_fn
     prefactor = 1.0_dp / fourpi
 
     pw_grid_orig => pw_in%pw_grid
@@ -1424,7 +1424,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-!> here I multiply by fourpi to cancel out the prefactor fourpi in influence_fn
+! here I multiply by fourpi to cancel out the prefactor fourpi in influence_fn
     prefactor = fourpi
 
     pw_grid => pw_pool%pw_grid
@@ -1504,7 +1504,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-!> here I multiply by fourpi to cancel out the prefactor fourpi in influence_fn
+! here I multiply by fourpi to cancel out the prefactor fourpi in influence_fn
     prefactor = fourpi
 
     pw_grid_orig => pw_in%pw_grid
@@ -1738,7 +1738,7 @@ CONTAINS
 
     CALL derive_fft(v, dv, pw_pool, error)
 
-!> evaluate |\nabla_r(v)|^2
+! evaluate |\nabla_r(v)|^2
     dv2%cr3d = dv(1)%pw%cr3d ** 2 + dv(2)%pw%cr3d ** 2 + dv(3)%pw%cr3d ** 2
 
     v_eps%cr3d = - (1.0_dp / eightpi) * (dv2%cr3d * deps_drho%cr3d)
@@ -1787,13 +1787,13 @@ CONTAINS
     eightpi = 2 * fourpi
     eps => dielectric%eps
 
-!> \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res
+! \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res
     CALL pw_pool_create_pw(pw_pool, edensity, &
                            use_data=REALDATA3D, in_space=REALSPACE, &
                            error=error)
     CALL pw_copy(g, edensity, error=error)
     CALL pw_axpy(res, edensity, - 1.0_dp, error=error)
-!> \rho = \frac{\rho}{\eps} * \eps
+! \rho = \frac{\rho}{\eps} * \eps
     edensity%cr3d = edensity%cr3d * dielectric%eps%cr3d
     ehartree = (1.0_dp / eightpi) * pw_integral_ab(v, edensity, error=error)
     CALL pw_pool_give_back_pw(pw_pool, edensity, error=error)
@@ -1842,14 +1842,14 @@ CONTAINS
     eightpi = 2 * fourpi
     eps => dielectric%eps
 
-!> \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res - B^t \lambda
+! \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res - B^t \lambda
     CALL pw_pool_create_pw(pw_pool, edensity, &
                            use_data=REALDATA3D, in_space=REALSPACE, &
                            error=error)
     CALL pw_copy(g, edensity, error=error)
     CALL pw_axpy(res, edensity, - 1.0_dp, error=error)
     edensity%cr3d = edensity%cr3d - Btxlambda
-!> \rho = \frac{\rho}{\eps} * \eps
+! \rho = \frac{\rho}{\eps} * \eps
     edensity%cr3d = edensity%cr3d * dielectric%eps%cr3d
     ehartree = (1.0_dp / eightpi) * pw_integral_ab(v, edensity, error=error)
     CALL pw_pool_give_back_pw(pw_pool, edensity, error=error)
@@ -1895,15 +1895,15 @@ CONTAINS
 
     vol = pw_pool%pw_grid%vol
 
-!> evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) - Bt \lambda)
+! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) - Bt \lambda)
     CALL apply_inv_laplace_operator(pw_pool, green, res_new, QAinvxres_new, error)
-!> (normalized) preconditioned residual norm error :
+! (normalized) preconditioned residual norm error :
     pres_error = SUM(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
     pres_error = SQRT(pres_error) / vol
 
-!> normalized absolute error :
-!> nabs_error := \frac{\| v_old - v_new \|}{volume}
+! normalized absolute error :
+! nabs_error := \frac{\| v_old - v_new \|}{volume}
     nabs_error = SUM(ABS(v_old%cr3d - v_new%cr3d) ** 2)
     CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
     nabs_error = SQRT(nabs_error) / vol
@@ -1958,20 +1958,20 @@ CONTAINS
 
     vol = pw_pool%pw_grid%vol
 
-!> evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) - Bt \lambda)
+! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) - Bt \lambda)
     CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                                     dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
                                     adjust_local_bounds, res_new, QAinvxres_new, error)
-!> (normalized) preconditioned residual norm error :
+! (normalized) preconditioned residual norm error :
     pres_error = SUM(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
     pres_error = SQRT(pres_error) / vol
 
-!> normalized absolute error :
-!> nabs_error := \frac{\| v_old - v_new \|}{volume}
+! normalized absolute error :
+! nabs_error := \frac{\| v_old - v_new \|}{volume}
     nabs_error = SUM(ABS(v_old%cr3d - v_new%cr3d) ** 2)
     CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
     nabs_error = SQRT(nabs_error) / vol

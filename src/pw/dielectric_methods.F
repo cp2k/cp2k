@@ -149,11 +149,11 @@ CONTAINS
                            use_data=REALDATA3D, in_space=REALSPACE, &
                            error=error) 
 
-!> for evaluating epsilon make sure rho is in the real space
+! for evaluating epsilon make sure rho is in the real space
     CALL pw_transfer(rho, rho_elec_rs, error=error)
 
     IF (PRESENT(rho_core)) THEN
-!> make sure rho_core is in the real space
+! make sure rho_core is in the real space
        CALL pw_pool_create_pw(pw_pool, rho_core_rs, &
                               use_data=REALDATA3D, in_space=REALSPACE, &
                               error=error) 
@@ -164,10 +164,10 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
                       "For dielectric constant larger than 1, rho_core has to be present.", error)
     END IF
-!> calculate the dielectric constant
+! calculate the dielectric constant
     CALL dielectric_constant(rho_elec_rs, dielectric%eps, dielectric%deps_drho, eps0, rho_max, rho_min)
 
-!> derivatives
+! derivatives
     SELECT CASE (derivative_method)
     CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
        NULLIFY(ln_eps)
@@ -199,13 +199,13 @@ CONTAINS
     CASE (derivative_fft)
        CALL derive_fft(ln_eps, dielectric%dln_eps, pw_pool, error)
     CASE (derivative_fft_use_deps)
-!> \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
+! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
        CALL derive_fft(dielectric%eps, deps, pw_pool, error)
 
        lb(1:3) = rho%pw_grid%bounds_local(1,1:3)
        ub(1:3) = rho%pw_grid%bounds_local(2,1:3)
-       !> damp oscillations cuased by fft-based derivative in the region 
-       !> where electron density is zero
+       ! damp oscillations cuased by fft-based derivative in the region 
+       ! where electron density is zero
        DO idir = 1, 3
           DO k = lb(3), ub(3)
              DO j = lb(2), ub(2)
@@ -219,8 +219,8 @@ CONTAINS
           dielectric%dln_eps(idir)%pw%cr3d = deps(idir)%pw%cr3d / dielectric%eps%cr3d
        END DO
     CASE (derivative_fft_use_drho)
-!> \Nabla \eps = \Nabla \rho \cdot \frac{\partial \eps}{\partial \rho}
-!> \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
+! \Nabla \eps = \Nabla \rho \cdot \frac{\partial \eps}{\partial \rho}
+! \Nabla ln(\eps) = \frac{\Nabla \eps}{\eps}
        CALL derive_fft(rho_elec_rs, drho, pw_pool, error)
        DO i = 1, 3
           deps(i)%pw%cr3d = drho(i)%pw%cr3d * dielectric%deps_drho%cr3d

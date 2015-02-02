@@ -131,7 +131,7 @@ CONTAINS
 
     transport_section => section_vals_get_subs_vals(input,"DFT%TRANSPORT",error=error)
     
-!> read from input
+! read from input
     CALL section_vals_val_get(transport_section,"DENSITY_MATRIX_CONSTRUCTION_METHOD",i_val=transport_env%params%method,error=error)
     CALL section_vals_val_get(transport_section,"BANDWIDTH",i_val=transport_env%params%bandwidth,error=error)
     CALL section_vals_val_get(transport_section,"N_CELLS",i_val=transport_env%params%n_cells,error=error)
@@ -291,14 +291,14 @@ CONTAINS
     mepos = logger%para_env%mepos
     num_pe = logger%para_env%num_pe
 
-!> dbcsr to csr
+! dbcsr to csr
     CALL cp_convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error=error)
 
-!> csr to csr_interop
+! csr to csr_interop
     rowptr_local => csr_mat%rowptr_local
     colind_local => csr_mat%colind_local
     nzerow_local => csr_mat%nzerow_local
-    nzvals_local => csr_mat%nzval_local%r_dp !> support real double percision for now
+    nzvals_local => csr_mat%nzval_local%r_dp ! support real double percision for now
 
     IF (SIZE(rowptr_local) .EQ. 0) THEN
        csr_interop_mat%rowptr_local = C_NULL_PTR
@@ -397,7 +397,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-!> csr_interop to csr
+! csr_interop to csr
     CALL csr_interop_matrix_get_info(csr_interop_mat, &
                    nrows_total = nrows_total, ncols_total = ncols_total, nze_local = nze_local, &
                    nze_total = nze_total, nrows_local = nrows_local, data_type = data_type,&
@@ -417,7 +417,7 @@ CONTAINS
     csr_mat%nzerow_local = nzerow_local
     csr_mat%nzval_local%r_dp = nzvals_local
 
-!> csr to dbcsr
+! csr to dbcsr
     CALL cp_convert_csr_to_dbcsr(dbcsr_mat, csr_mat, error=error)
 
     CALL timestop(handle)

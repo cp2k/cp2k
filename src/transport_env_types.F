@@ -37,7 +37,7 @@ MODULE transport_env_types
   PUBLIC :: transport_env_type, cp2k_transport_parameters
   PUBLIC :: cp2k_csr_interop_type
 
-!> DO NOT change the ORDERING or the NAMES in the following data type
+! DO NOT change the ORDERING or the NAMES in the following data type
   TYPE, BIND(C) :: cp2k_transport_parameters
      INTEGER(C_INT)  :: n_occ
      INTEGER(C_INT)  :: n_atoms
@@ -73,7 +73,7 @@ MODULE transport_env_types
      TYPE(csr_type)                   :: p_matrix
   END TYPE transport_env_type
 
-!> DO NOT change the ORDERING or the NAMES in the following data type
+! DO NOT change the ORDERING or the NAMES in the following data type
   TYPE, BIND(C) :: cp2k_csr_interop_type
     INTEGER(C_INT) :: nrows_total
     INTEGER(C_INT) :: ncols_total

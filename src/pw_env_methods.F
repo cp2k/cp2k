@@ -540,13 +540,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                              use_level=pw_env%auxbas_grid,error=error)
      END IF
 
-     !> setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT) 
+     ! setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT) 
      IF (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) THEN
         CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
                             my_cell%hmat, &
                             pw_env%poisson_env%dct_pw_grid, pw_env%poisson_env%dct_aux_pw_grid, error)
      END IF
-     !> setup real space grid for finite difference derivatives of dielectric constant function
+     ! setup real space grid for finite difference derivatives of dielectric constant function
      IF ( poisson_params%has_dielectric .AND. &
         ((poisson_params%dielectric_params%derivative_method .EQ. derivative_cd3) .OR. &
          (poisson_params%dielectric_params%derivative_method .EQ. derivative_cd5) .OR. &

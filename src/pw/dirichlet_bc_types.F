@@ -26,7 +26,7 @@ MODULE dirichlet_bc_types
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dirichlet_bc_types'
 
-!> main types
+! main types
   TYPE :: dirichlet_bc_parameters
      INTEGER                                  :: n_aa_planar
      REAL(KIND=dp), DIMENSION(:,:), POINTER   :: aa_planar_xxtnt => NULL()
@@ -103,7 +103,7 @@ MODULE dirichlet_bc_types
      INTEGER                           :: tag
   END TYPE tile_p_type
 
-!> auxiliary types (3D Cartesian space primitive objects)
+! auxiliary types (3D Cartesian space primitive objects)
   TYPE :: cs_segment
      REAL(dp), DIMENSION(3)            :: A
      REAL(dp), DIMENSION(3)            :: B
@@ -157,7 +157,7 @@ MODULE dirichlet_bc_types
      TYPE(cs_face), DIMENSION(6)       :: faces
   END TYPE cs_box
 
-!>
+!==
   TYPE :: cs_intersection_obj
      REAL(dp), DIMENSION(3)            :: point
      TYPE(cs_segment), POINTER         :: segment => NULL()
@@ -169,7 +169,7 @@ MODULE dirichlet_bc_types
      INTEGER                           :: intxn_type
   END TYPE cs_intersection_obj
 
-!>
+!==
   TYPE :: cs_grid_segment
      REAL(dp), DIMENSION(3)            :: orig
      INTEGER, DIMENSION(3)             :: grid_segment_idx
@@ -196,7 +196,7 @@ MODULE dirichlet_bc_types
      LOGICAL                           :: is_on
   END TYPE cs_voxel
 
-!> publicly accessible entities
+! publicly accessible entities
   PUBLIC dirichlet_bc_type, dirichlet_bc_p_type, tile_type, tile_p_type
   PUBLIC dirichlet_bc_parameters
 
@@ -223,7 +223,7 @@ MODULE dirichlet_bc_types
 
   PUBLIC cast_triangle_to_polygon, cast_rectangle_to_polygon, sort_vertices
 
-!> interface declaration
+! interface declaration
   INTERFACE cs_plane_create
      MODULE PROCEDURE cs_plane_ABC_create, &
                       cs_plane_An_create
@@ -234,7 +234,7 @@ MODULE dirichlet_bc_types
                       cs_rectangle_ABC_create
   END INTERFACE cs_rectangle_create
 
-!> parameters
+! parameters
   INTEGER, PARAMETER, PUBLIC           :: AA_PLANAR   = 100, &
                                           PLANAR      = 200, &
                                           CYLINDRICAL = 300, &
@@ -265,7 +265,7 @@ MODULE dirichlet_bc_types
 
   INTEGER, PARAMETER, PUBLIC           :: FWROT =  1, &
                                           BWROT = -1
-!> private parameters
+! private parameters
   REAL(dp), PARAMETER, PRIVATE         :: small_value = 1.0E-8_dp
   REAL(dp), PARAMETER, PRIVATE         :: huge_value = HUGE(0.0_dp)
 
@@ -573,7 +573,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-!> create the mirror vector
+! create the mirror vector
     IF (ABS(n(1) - 1) .GT. ABS(n(1) + 1)) THEN
        n_prime(1,1) = n(1) - 1
     ELSE
@@ -581,10 +581,10 @@ CONTAINS
     END IF
     n_prime(2,1) = n(2)
     n_prime(3,1) = n(3)
-!> create the Householder matrix
+! create the Householder matrix
     CALL unit_matrix(I)
     H = I - 2 * MATMUL(n_prime,TRANSPOSE(n_prime))/SUM(n_prime**2)
-!> find two more points on the plane
+! find two more points on the plane
     B = A + H(2,:)
     C = A + H(3,:)
 
@@ -601,8 +601,8 @@ CONTAINS
     ALLOCATE(plane%AB, plane%AC)
     CALL cs_segment_create(plane%AB, A, B, error)
     CALL cs_segment_create(plane%AC, A, C, error)
-!> NB: the Housholder procedure is quite stable no need to check if the points are colinear
-!> or any two of them coincide
+! NB: the Housholder procedure is quite stable no need to check if the points are colinear
+! or any two of them coincide
     plane%normal = n
     plane%unit_normal = plane%normal / SQRT(SUM(plane%normal**2))
 !    plane%d = -1.0_dp * DOT_PRODUCT(plane%unit_normal, A)
@@ -807,7 +807,7 @@ CONTAINS
     CALL cs_plane_create(polygon%plane, vertices(:,1), vertices(:,2), vertices(:,3), error)
     polygon%n_vertices = num_vertices
 
-!> assume vertices are already sorted
+! assume vertices are already sorted
     py_vertices = polygon%vertices
     ALLOCATE(polygon%edges(num_vertices))
     ALLOCATE(edge)
@@ -889,7 +889,7 @@ CONTAINS
     ALLOCATE(edge, face)
     box%vertices = vertices
 
-!> faces taged in a way that vertices are counter-clockwise with respect to the outer unit normal to the face
+! faces taged in a way that vertices are counter-clockwise with respect to the outer unit normal to the face
     CALL cs_face_create(face, vertices(:,2), vertices(:,1), vertices(:,4), 1432, error);   box%faces(1) = face
     CALL cs_face_create(face, vertices(:,1), vertices(:,6), vertices(:,5), 1654, error);   box%faces(2) = face
     CALL cs_face_create(face, vertices(:,2), vertices(:,7), vertices(:,6), 2761, error);   box%faces(3) = face
@@ -1380,9 +1380,9 @@ CONTAINS
     IF(ASSOCIATED(intersection)) THEN
        SELECT CASE (intersection%intxn_type)
           CASE(NO_INTXN)
-             !> do nothing
+             ! do nothing
           CASE(PT_INTXN)
-             !> do nothing
+             ! do nothing
           CASE(SEG_INTXN)
              CALL cs_segment_release(intersection%segment, error)
           CASE(TRI_INTXN)

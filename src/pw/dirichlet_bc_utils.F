@@ -102,7 +102,7 @@ CONTAINS
     npts = pw_grid%npts
     npts_local = pw_grid%npts_local
 
-!> local and global lower and upper bounds
+! local and global lower and upper bounds
     glb1 = bounds(1,1);          gub1 = bounds(2,1)
     glb2 = bounds(1,2);          gub2 = bounds(2,2)
     glb3 = bounds(1,3);          gub3 = bounds(2,3)
@@ -126,7 +126,7 @@ CONTAINS
     y_glbl(:) = gindy * dr(2)
     z_glbl(:) = gindz * dr(3)
 
-!> map [0 .. (npts_local-1)] --> [lb .. ub]
+! map [0 .. (npts_local-1)] --> [lb .. ub]
     IF (lb1 .EQ. ub1) THEN 
        lindx = lb1 
     ELSE
@@ -260,7 +260,7 @@ CONTAINS
           EXIT
        END IF
     END DO
-!> if val is larger than the last element in arr return the index of the last element
+! if val is larger than the last element in arr return the index of the last element
     IF (found .EQV. .FALSE.) loc = ub
 
     CALL timestop(handle)
@@ -301,7 +301,7 @@ CONTAINS
           found = .TRUE.
        END IF
     END DO
-!> if val is smaller than the first element in arr return the index of the first element
+! if val is smaller than the first element in arr return the index of the first element
     IF (found .EQV. .FALSE.) loc = lb
 
     CALL timestop(handle)
@@ -609,9 +609,9 @@ CONTAINS
     norm_n2 = SQRT(SUM(n2**2))
    
     n1dotn2 = DOT_PRODUCT(n1, n2)/(norm_n1 * norm_n2)
-!> check if the rectangle is parallel to the plane
+! check if the rectangle is parallel to the plane
     IF (ABS(ABS(n1dotn2) - 1) .LE. small_value) THEN
-!> project it onto the plane if the user wants
+! project it onto the plane if the user wants
        IF (intern_project .EQV. .TRUE.) THEN
           CALL project_rectangle_onto_plane(rectangle, plane, rectangle_rot, error)
        ELSE
@@ -733,16 +733,16 @@ CONTAINS
     CALL timeset(routineN,handle)
     ALLOCATE(plane, rectangle_rot)
 
-!> choose a plane parallel to one of the coordinate planes
+! choose a plane parallel to one of the coordinate planes
     O = 0.0_dp
     l = MAXLOC(ABS(rectangle%plane%unit_normal),1)
     p_normal = 0.0_dp
     p_normal(l) = 1.0_dp
     CALL cs_plane_create(plane, O, p_normal, error)
-!> rotate the rectangle onto the plane
+! rotate the rectangle onto the plane
     CALL rotate_rectangle_onto_plane(rectangle, plane, rectangle_rot, phi1, rot_axis1, .FALSE., error)
 
-!> test if the rotated rectangle is axis-aligned
+! test if the rotated rectangle is axis-aligned
     AB = rectangle_rot%B - rectangle_rot%A
     e1 = (/1.0_dp, 0.0_dp, 0.0_dp/)
     e2 = (/0.0_dp, 1.0_dp, 0.0_dp/)
@@ -891,17 +891,17 @@ CONTAINS
 
     ALLOCATE(xglbl_sym(2*SIZE(x_glbl)-1), yglbl_sym(2*SIZE(y_glbl)-1), zglbl_sym(2*SIZE(z_glbl)-1))
 
-!> extend the global axes and make them symmetric
+! extend the global axes and make them symmetric
     xglbl_sym(:) = (/ (- x_glbl(i), i = UBOUND(x_glbl,1), LBOUND(x_glbl,1)+1, -1), x_glbl /)
     yglbl_sym(:) = (/ (- y_glbl(i), i = UBOUND(y_glbl,1), LBOUND(y_glbl,1)+1, -1), y_glbl /)
     zglbl_sym(:) = (/ (- z_glbl(i), i = UBOUND(z_glbl,1), LBOUND(z_glbl,1)+1, -1), z_glbl /)
 
-!> find the extents of the rectangle in all three directions
+! find the extents of the rectangle in all three directions
     x_xtnt(1) = MINVAL(rectangle%vertices(1,:));    x_xtnt(2) = MAXVAL(rectangle%vertices(1,:))
     y_xtnt(1) = MINVAL(rectangle%vertices(2,:));    y_xtnt(2) = MAXVAL(rectangle%vertices(2,:))
     z_xtnt(1) = MINVAL(rectangle%vertices(3,:));    z_xtnt(2) = MAXVAL(rectangle%vertices(3,:))
 
-!> find the position of the both ends of xtnt in the symmetric global axes
+! find the position of the both ends of xtnt in the symmetric global axes
     xxtnt_fst = find_fst_ge(xglbl_sym, x_xtnt(1))
 !    xxtnt_ult = find_fst_ge(xglbl_sym, x_xtnt(2))
     xxtnt_ult = find_lst_le(xglbl_sym, x_xtnt(2))
@@ -912,17 +912,17 @@ CONTAINS
 !    zxtnt_ult = find_fst_ge(zglbl_sym, z_xtnt(2))
     zxtnt_ult = find_lst_le(zglbl_sym, z_xtnt(2))
 
-!> devide the integer sequence of indices {xtnt_fst .. xtnt_ult} into n_prtn partitions
+! devide the integer sequence of indices {xtnt_fst .. xtnt_ult} into n_prtn partitions
     step = REAL((xxtnt_ult-xxtnt_fst),kind=dp)/REAL(n_prtn(1), kind=dp)
-    xprtn_lbind = xxtnt_fst + NINT( (/(i, i=0, n_prtn(1)-1)/) * step ) + 1   !> lower bounds
-    xprtn_ubind = xxtnt_fst + NINT( ((/(i, i=0, n_prtn(1)-1)/) + 1) * step ) !> upper bounds
+    xprtn_lbind = xxtnt_fst + NINT( (/(i, i=0, n_prtn(1)-1)/) * step ) + 1   ! lower bounds
+    xprtn_ubind = xxtnt_fst + NINT( ((/(i, i=0, n_prtn(1)-1)/) + 1) * step ) ! upper bounds
     IF (step .EQ. 0.0_dp) xprtn_lbind = xprtn_ubind
-!> count the number of grid points
+! count the number of grid points
     xprtn_npts = xprtn_ubind - xprtn_lbind + 1
-!> find the corresponding values on the symmetric axes
+! find the corresponding values on the symmetric axes
     xprtn_lb = xglbl_sym(xprtn_lbind)
     xprtn_ub = xglbl_sym(xprtn_ubind)
-!> make sure that the tiles will cover the whole rectangle
+! make sure that the tiles will cover the whole rectangle
     xprtn_lb(1) = MIN(xprtn_lb(1), x_xtnt(1))
     xprtn_ub(n_prtn(1)) = MIN(xprtn_ub(n_prtn(1)), x_xtnt(2))
 
@@ -947,7 +947,7 @@ CONTAINS
     zprtn_ub(n_prtn(3)) = MIN(zprtn_ub(n_prtn(3)), z_xtnt(2))
 
     IF (ABS(z_xtnt(1)-z_xtnt(2)) .LE. small_value) THEN
-!> the rectangle is parallel to the xy plane
+! the rectangle is parallel to the xy plane
        ALLOCATE(tiles(n_prtn(1)*n_prtn(2)))
        k = 1
        DO i = 1, n_prtn(1)
@@ -967,7 +967,7 @@ CONTAINS
           END DO
        END DO
     ELSE IF (ABS(y_xtnt(1)-y_xtnt(2)) .LE. small_value) THEN
-!> the rectangle is parallel to the xz plane
+! the rectangle is parallel to the xz plane
        ALLOCATE(tiles(n_prtn(1)*n_prtn(3)))
        k = 1
        DO i = 1, n_prtn(1)
@@ -987,7 +987,7 @@ CONTAINS
           END DO
        END DO
     ELSE IF (ABS(x_xtnt(1)-x_xtnt(2)) .LE. small_value) THEN
-!> the rectangle is parallel to the yz plane
+! the rectangle is parallel to the yz plane
        ALLOCATE(tiles(n_prtn(2)*n_prtn(3)))
        k = 1
        DO i = 1, n_prtn(2)
@@ -1062,12 +1062,12 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-!> find the extents of the cuboid in all three directions
+! find the extents of the cuboid in all three directions
     x_xtnt(1) = MINVAL(box%vertices(1,:));    x_xtnt(2) = MAXVAL(box%vertices(1,:))
     y_xtnt(1) = MINVAL(box%vertices(2,:));    y_xtnt(2) = MAXVAL(box%vertices(2,:))
     z_xtnt(1) = MINVAL(box%vertices(3,:));    z_xtnt(2) = MAXVAL(box%vertices(3,:))
 
-!> find the position of the both ends of xtnt in the global axes
+! find the position of the both ends of xtnt in the global axes
     xxtnt_fst = find_fst_ge(x_glbl, x_xtnt(1))
     xxtnt_ult = find_lst_le(x_glbl, x_xtnt(2))
     yxtnt_fst = find_fst_ge(y_glbl, y_xtnt(1))
@@ -1075,17 +1075,17 @@ CONTAINS
     zxtnt_fst = find_fst_ge(z_glbl, z_xtnt(1))
     zxtnt_ult = find_lst_le(z_glbl, z_xtnt(2))
 
-!> devide the integer sequence of indices {xtnt_fst .. xtnt_ult} into n_prtn partitions
+! devide the integer sequence of indices {xtnt_fst .. xtnt_ult} into n_prtn partitions
     step = REAL((xxtnt_ult-xxtnt_fst),kind=dp)/REAL(n_prtn(1), kind=dp)
-    xprtn_lbind = xxtnt_fst + NINT( (/(i, i=0, n_prtn(1)-1)/) * step ) + 1   !> lower bounds
-    xprtn_ubind = xxtnt_fst + NINT( ((/(i, i=0, n_prtn(1)-1)/) + 1) * step ) !> upper bounds
+    xprtn_lbind = xxtnt_fst + NINT( (/(i, i=0, n_prtn(1)-1)/) * step ) + 1   ! lower bounds
+    xprtn_ubind = xxtnt_fst + NINT( ((/(i, i=0, n_prtn(1)-1)/) + 1) * step ) ! upper bounds
     IF (step .EQ. 0.0_dp) xprtn_lbind = xprtn_ubind
-!> count the number of grid points
+! count the number of grid points
     xprtn_npts = xprtn_ubind - xprtn_lbind + 1
-!> find the corresponding values on the axes
+! find the corresponding values on the axes
     xprtn_lb = x_glbl(xprtn_lbind)
     xprtn_ub = x_glbl(xprtn_ubind)
-!> make sure that the tiles will cover the whole box
+! make sure that the tiles will cover the whole box
     xprtn_lb(1) = MIN(xprtn_lb(1), x_xtnt(1))
     xprtn_ub(n_prtn(1)) = MIN(xprtn_ub(n_prtn(1)), x_xtnt(2))
 
@@ -1170,9 +1170,9 @@ CONTAINS
     C = segment2%A;    D = segment2%B
     unit_normal = plane%unit_normal
 
-!> first check if the line segments intersect (4 counter-clockwise orientation test)
-!> does NOT handle the case where the line segments are colinear
-!> here the case is already taken care of using is_inside_polygon and is_inside_rectangle
+! first check if the line segments intersect (4 counter-clockwise orientation test)
+! does NOT handle the case where the line segments are colinear
+! here the case is already taken care of using is_inside_polygon and is_inside_rectangle
     cond1 = ordered_counter_clockwise(A, C, D, unit_normal) .NEQV. &
             ordered_counter_clockwise(B, C, D, unit_normal)
     cond2 = ordered_counter_clockwise(A, B, C, unit_normal) .NEQV. &
@@ -1183,14 +1183,14 @@ CONTAINS
        intersect = .FALSE.
     END IF
 
-!> if they inersect find the intersection point
+! if they inersect find the intersection point
     IF (intersect .EQV. .TRUE.) THEN
        AB = segment1%AB
        CD = segment2%AB
        AC = C - A
        tnum = SQRT(SUM(vector_product(AC, CD)**2))
        tden = SQRT(SUM(vector_product(AB, CD)**2))
-!> I might need to check if tden is non-zero or is less than small_val ????
+! I might need to check if tden is non-zero or is less than small_val ????
        CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
        intersection%point = A + AB * tnum / tden
     ELSE
@@ -1255,26 +1255,26 @@ CONTAINS
     ndotA = DOT_PRODUCT(plane%unit_normal, segment%A)
     ndotAB = DOT_PRODUCT(plane%unit_normal, segment%AB)
 
-!> if AB and the plane are parallel
+! if AB and the plane are parallel
     IF (ABS(ndotAB) .LE. small_value) THEN
-!> AB is entirely on the plane ... return A and B
+! AB is entirely on the plane ... return A and B
        IF ((plane%d - ndotA) .EQ. 0.0_dp) THEN
           CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
           intersection%segment = segment
-!> 0 intersection
+! 0 intersection
        ELSE
           CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
        END IF
-!> if AB and the plane are NOT parallel
+! if AB and the plane are NOT parallel
     ELSE
        t = (plane%d - ndotA) / ndotAB
-!> AB intersects the plane
+! AB intersects the plane
        IF (((0 .LE. t) .AND. (t .LE. 1)) .OR. &
            (ABS(t) .LE. small_value) .OR.     &
            (ABS(t-1) .LE. small_value)) THEN
           CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
           intersection%point = segment%A + (t * segment%AB)
-!> 0 intersection
+! 0 intersection
        ELSE
           CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
        END IF
@@ -1320,13 +1320,13 @@ CONTAINS
     ALLOCATE(seg_pln_intxn)
     plane => rectangle%plane
 
-!> check if the segment crosses the rectangle's plane
+! check if the segment crosses the rectangle's plane
     CALL segment_plane_intersection(segment, plane, seg_pln_intxn, error)
     SELECT CASE (seg_pln_intxn%intxn_type)
-!> the segment does not cross the rectangle's plane
+! the segment does not cross the rectangle's plane
     CASE (NO_INTXN)
        CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
-!> the segment crosses the rectangle's plane at one point
+! the segment crosses the rectangle's plane at one point
     CASE (PT_INTXN)
        IF (is_inside_rectangle(seg_pln_intxn%point, rectangle)) THEN
           CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
@@ -1334,17 +1334,17 @@ CONTAINS
        ELSE
           CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
        END IF
-!> the segment and the rectangle are coplanar
+! the segment and the rectangle are coplanar
     CASE (SEG_INTXN)
        A = seg_pln_intxn%segment%A
        B = seg_pln_intxn%segment%B
 
-       !> the both ends of the segment, A and B, are inside the rectangle
+       ! the both ends of the segment, A and B, are inside the rectangle
        IF (is_inside_rectangle(A, rectangle) .AND. is_inside_rectangle(B, rectangle)) THEN
           CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
           intersection%segment => seg_pln_intxn%segment
 
-       !> A is inside rectangle and B is not inside
+       ! A is inside rectangle and B is not inside
        ELSE IF (is_inside_rectangle(A, rectangle) .AND. .NOT. is_inside_rectangle(B, rectangle)) THEN
           ALLOCATE(seg_seg_intxn)
           crossing_pt = A
@@ -1366,7 +1366,7 @@ CONTAINS
           END IF
           CALL cs_intersection_obj_release(seg_seg_intxn, error)
 
-       !> A is not inside rectangle and B is inside
+       ! A is not inside rectangle and B is inside
        ELSE IF (.NOT. is_inside_rectangle(A, rectangle) .AND. is_inside_rectangle(B, rectangle)) THEN
           ALLOCATE(seg_seg_intxn)
           crossing_pt = B
@@ -1388,9 +1388,9 @@ CONTAINS
           END IF
           CALL cs_intersection_obj_release(seg_seg_intxn, error)
 
-       !> A and B are not inside rectangle
+       ! A and B are not inside rectangle
        ELSE
-       !> find the intersection between the segment and rectangle edges
+       ! find the intersection between the segment and rectangle edges
           ALLOCATE(seg_seg_intxn)
           n_intxn_tot = 0
           j = 1
@@ -1407,7 +1407,7 @@ CONTAINS
           valid_intxn(:,:) = all_intxn(:,1:n_intxn_tot)
 
           IF (n_intxn_tot .NE. 0) THEN
-          !> if there is any intersection remove duplicate points
+          ! if there is any intersection remove duplicate points
              CALL remove_duplicate_vertices(valid_intxn, unique_intxn, error)
              n_intersections = SIZE(unique_intxn)/3
 
@@ -1429,7 +1429,7 @@ CONTAINS
           DEALLOCATE(valid_intxn)
           CALL cs_intersection_obj_release(seg_seg_intxn, error)
        END IF
-    END SELECT !> status of the segment wrt the rectangle's plane
+    END SELECT ! status of the segment wrt the rectangle's plane
 
     CALL cs_intersection_obj_release(seg_pln_intxn, error)
     CALL timestop(handle)
@@ -1472,7 +1472,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(seg_pln_intxn)
-!> find the intersection of the edges of the box with the plane
+! find the intersection of the edges of the box with the plane
     n_intxn_tot = 0
     j = 1
     DO i = 1, 12
@@ -1491,12 +1491,12 @@ CONTAINS
     END DO
     CALL cs_intersection_obj_release(seg_pln_intxn, error)
 
-!> get actual intersection points i.e. remove infinity points
+! get actual intersection points i.e. remove infinity points
     ALLOCATE(valid_intxn(3,n_intxn_tot))
     valid_intxn(:,:) = all_intxn(:,1:n_intxn_tot)
 
     IF (n_intxn_tot .NE. 0) THEN
-!> if there is any intersection remove duplicate points
+! if there is any intersection remove duplicate points
        CALL remove_duplicate_vertices(valid_intxn, unique_intxn, error)
        n_intersections = SIZE(unique_intxn)/3
 
@@ -1522,8 +1522,8 @@ CONTAINS
           ALLOCATE(intersection_points(3,n_intersections))
           intersection_points(:,:) = unique_intxn(:,1:n_intersections)
 
-          !> sort intersection points
-          O = intersection_points(:,1)     !> reference vertex
+          ! sort intersection points
+          O = intersection_points(:,1)     ! reference vertex
           unit_normal = plane%unit_normal
           IF (n_intersections .GT. 3) CALL sort_vertices(intersection_points, O, unit_normal, error)
           polygon_vertices => intersection_points
@@ -1533,7 +1533,7 @@ CONTAINS
        END SELECT
 
     ELSE
-!> if there is no intersection
+! if there is no intersection
        CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
     END IF
 
@@ -1586,15 +1586,15 @@ CONTAINS
     plane => polygon%plane
     py_n_vtx = polygon%n_vertices
 
-!> find internal vertices
+! find internal vertices
     ALLOCATE(internal_pts(3, 4 + py_n_vtx))
     ALLOCATE(crossing_pts(3, 4 * py_n_vtx))
     internal_pts = huge_value
     crossing_pts = 0.0_dp
 
 
-    counter = 0              !> count valid vertices
-    DO i = 1, 4              !> loop over rectangle's vertices
+    counter = 0              ! count valid vertices
+    DO i = 1, 4              ! loop over rectangle's vertices
        vertex = rectangle%vertices(:,i)
        IF (is_inside_polygon(vertex, polygon)) THEN
           internal_pts(:, i) = vertex
@@ -1602,7 +1602,7 @@ CONTAINS
        END IF
     END DO
 
-    DO i = 1, py_n_vtx       !> loop over polygon's vertices
+    DO i = 1, py_n_vtx       ! loop over polygon's vertices
        vertex = polygon%vertices(:,i)
        IF (is_inside_rectangle(vertex, rectangle)) THEN
           internal_pts(:, i+4) = vertex
@@ -1610,10 +1610,10 @@ CONTAINS
        END IF
     END DO
 
-!> find crossing points between the rectangle and the polygon edges
+! find crossing points between the rectangle and the polygon edges
     k = 1
-    DO i = 1, py_n_vtx       !> loop over polygon's edges
-       DO j = 1, 4           !> lopp over rectangle's edges
+    DO i = 1, py_n_vtx       ! loop over polygon's edges
+       DO j = 1, 4           ! lopp over rectangle's edges
           py_edge => polygon%edges(i)
           rect_edge => rectangle%edges(j)
           CALL coplanar_segment_segment_intersection(py_edge%segment, rect_edge%segment, &
@@ -1624,12 +1624,12 @@ CONTAINS
        END DO
      END DO
 
-!> concatenate internal_pts and crossing_pts
+! concatenate internal_pts and crossing_pts
     ALLOCATE(all_pts(3, (4+py_n_vtx) + 4*py_n_vtx))
     all_pts( : , 1:(4+py_n_vtx) ) = internal_pts
     all_pts( : , (4+py_n_vtx)+1:(4+py_n_vtx) + 4*py_n_vtx ) = crossing_pts
 
-!> remove infinity points
+! remove infinity points
     ALLOCATE(valid_vertices(3,counter))
     j = 1
     DO i = 1, (4+py_n_vtx) + 4*py_n_vtx
@@ -1641,7 +1641,7 @@ CONTAINS
     END DO
 
     IF (counter .NE. 0) THEN
-!> if there is any intersection remove duplicate points
+! if there is any intersection remove duplicate points
        CALL remove_duplicate_vertices(valid_vertices, unique_vertices, error)
        ovlp_n_vtx = SIZE(unique_vertices)/3
 
@@ -1660,14 +1660,14 @@ CONTAINS
                                  unique_vertices(:,1), unique_vertices(:,2), unique_vertices(:,3), &
                                  error)
      ! CASE (4)
-          !> consider rectangle as a regular polygon
+          ! consider rectangle as a regular polygon
        CASE DEFAULT
           CALL cs_intersection_obj_create(intersection, PY_INTXN, ovlp_n_vtx, error=error)
 
           ALLOCATE(overlap_vertices(3,ovlp_n_vtx))
           overlap_vertices(:,:) = unique_vertices(:,1:ovlp_n_vtx)
 
-          !> sort intersection points
+          ! sort intersection points
           O = overlap_vertices(:,1)
           unit_normal = plane%unit_normal
           IF (ovlp_n_vtx .GT. 3) CALL sort_vertices(overlap_vertices, O, unit_normal, error)
@@ -1678,7 +1678,7 @@ CONTAINS
        END SELECT
 
     ELSE
-!> if there is no intersection
+! if there is no intersection
        CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
     END IF
 
@@ -1731,24 +1731,24 @@ CONTAINS
     n1 = rectangle1%plane%unit_normal
     n2 = rectangle2%plane%unit_normal
 
-!> rectangles are parallel
+! rectangles are parallel
     IF (SQRT(SUM(vector_product(n1, n2)**2)) .LE. small_value) THEN
        A1A2 = rectangle1%plane%A - rectangle2%plane%A
        n1dotA1A2 = DOT_PRODUCT(rectangle1%plane%unit_normal, A1A2)
-!> rectangles are co-planar
+! rectangles are co-planar
        IF (n1dotA1A2 .EQ. 0.0_dp) THEN
           ALLOCATE(polygon_tmp)
           CALL cast_rectangle_to_polygon(rectangle1, polygon_tmp, error)
           CALL coplanar_polygon_rectangle_intersection(polygon_tmp, rectangle2, &
                                                        intersection, error)
           CALL cs_polygon_release(polygon_tmp, error)
-!> rectangles are parallel but not co-planar
+! rectangles are parallel but not co-planar
        ELSE
           CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
        END IF
-!> rectangles are not parallel
+! rectangles are not parallel
     ELSE
-       !> check the extents of the rectangles
+       ! check the extents of the rectangles
        minx1 = MINVAL(rectangle1%vertices(1,:));    maxx1 = MAXVAL(rectangle1%vertices(1,:))
        miny1 = MINVAL(rectangle1%vertices(2,:));    maxy1 = MAXVAL(rectangle1%vertices(2,:))
        minz1 = MINVAL(rectangle1%vertices(3,:));    maxz1 = MAXVAL(rectangle1%vertices(3,:))
@@ -1762,9 +1762,9 @@ CONTAINS
 
        mask = .TRUE.
        counter = COUNT((/xranges_overlap, yranges_overlap, zranges_overlap/) .EQV. mask)
-!> rectangles might intersect
+! rectangles might intersect
        IF (counter .GT. 2) THEN
-       !> find the intersection of the edges of rectangle1 with rectangle2
+       ! find the intersection of the edges of rectangle1 with rectangle2
           all_intxn = huge_value
           ALLOCATE(seg_rect_intxn)
           n_intxn_tot = 0
@@ -1785,12 +1785,12 @@ CONTAINS
           END DO
           CALL cs_intersection_obj_release(seg_rect_intxn, error)
 
-          !> get actual intersection points i.e. remove infinity points
+          ! get actual intersection points i.e. remove infinity points
           ALLOCATE(valid_intxn(3,n_intxn_tot))
           valid_intxn(:,:) = all_intxn(:,1:n_intxn_tot)
 
           IF (n_intxn_tot .NE. 0) THEN
-          !> if there is any intersection remove duplicate points
+          ! if there is any intersection remove duplicate points
              CALL remove_duplicate_vertices(valid_intxn, unique_intxn, error)
              n_intersections = SIZE(unique_intxn)/3
 
@@ -1806,10 +1806,10 @@ CONTAINS
              END SELECT
 
           ELSE
-          !> if there is no intersection
+          ! if there is no intersection
              CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
           END IF
-!> rectangles are not parallel and do not intersect
+! rectangles are not parallel and do not intersect
        ELSE
           CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
        END IF
@@ -1848,10 +1848,10 @@ CONTAINS
 
     ALLOCATE(pln_box_intxn)
 
-!> first find the intersection of the rectangle's plane with the box
+! first find the intersection of the rectangle's plane with the box
     CALL plane_box_intersection(rectangle%plane, box, pln_box_intxn, error)
 
-!> then find the overlap of the intersection with the rectangle
+! then find the overlap of the intersection with the rectangle
     SELECT CASE (pln_box_intxn%intxn_type)
     CASE (NO_INTXN)
        CALL cs_intersection_obj_create(intersection, NO_INTXN, error=error)
@@ -2258,7 +2258,7 @@ CONTAINS
                   x_locl, y_locl, z_locl, aabb_extents, aabb_extents_local, error)
 
     SELECT CASE (ld_type)
-!> if the current process's local domain is a box:
+! if the current process's local domain is a box:
     CASE (axis_aligned_box)
        DO k = aabb_extents_local(1,3), aabb_extents_local(2,3)-1
           DO j = aabb_extents_local(1,2), aabb_extents_local(2,2)-1
@@ -2273,7 +2273,7 @@ CONTAINS
              END DO
           END DO
        END DO
-!> if the current process's local domain is a rectangle:
+! if the current process's local domain is a rectangle:
     CASE (yz_aligned_rectangle)
 !       DO k = lb3, ub3-1
 !          DO j = lb2, ub2-1
@@ -2316,7 +2316,7 @@ CONTAINS
              CALL cs_grid_tile_release(grid_tile, error)
           END DO
        END DO
-!> if the current process's local domain is a segment:
+! if the current process's local domain is a segment:
     CASE (zaxis_aligned_segment)
 !       DO k = lb3, ub3-1
        DO k = aabb_extents_local(1,3), aabb_extents_local(2,3)-1
@@ -2351,15 +2351,15 @@ CONTAINS
           CALL cs_grid_segment_release(grid_seg, error)
        END DO
     CASE (single_grid_point)
-!> if the current process's local domain is a point:
+! if the current process's local domain is a point:
        P = pw%cr3d(lb1,lb2,lb3)
        IF (is_inside_rectangle(P, rectangle)) pw%cr3d = 1.0_dp
     CASE (no_grid_point)
-!> if the current process does not hold any portion of the grid:
+! if the current process does not hold any portion of the grid:
        ! do nothing
     END SELECT
 
-!> set all nonzero elements equal to 1 (consider every nonzero grid point only once)
+! set all nonzero elements equal to 1 (consider every nonzero grid point only once)
     DO k = lb3, ub3
        DO j = lb2, ub2
           DO i = lb1, ub1
@@ -2431,7 +2431,7 @@ CONTAINS
        END DO
     END DO
 
-!> set all nonzero elements equal to 1 (consider every nonzero grid point only once)
+! set all nonzero elements equal to 1 (consider every nonzero grid point only once)
     DO k = lb3, ub3
        DO j = lb2, ub2
           DO i = lb1, ub1
