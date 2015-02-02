@@ -520,6 +520,7 @@
     INTEGER, INTENT(IN)                      :: rows, columns
     REAL(kind=real_4), DIMENSION(rows*columns), &
       INTENT(INOUT)                          :: extent
+    REAL(kind=real_4), DIMENSION(rows*columns)         :: extent_tr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_inplace_s', &
       routineP = moduleN//':'//routineN
@@ -527,9 +528,16 @@
     INTEGER :: r, c
 !   ---------------------------------------------------------------------------
 
-    FORALL (r = 1:columns, c = 1:rows)
-       extent(r + (c-1)*columns) = extent(c + (r-1)*rows)
-    END FORALL
+    DO r = 1 , columns
+      DO c = 1 , rows
+       extent_tr(r + (c-1)*columns) = extent(c + (r-1)*rows)
+      END DO
+    END DO
+    DO r = 1 , columns
+      DO c = 1 , rows
+       extent(r + (c-1)*columns) = extent_tr(r + (c-1)*columns)
+      END DO
+    END DO
   END SUBROUTINE block_transpose_inplace_s
 
 
