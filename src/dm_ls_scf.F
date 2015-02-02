@@ -327,7 +327,7 @@ CONTAINS
                                                 atomic_guess = 1, &
                                                 restart_guess = 3
 
-    CHARACTER(LEN=default_path_length)       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: handle, iaspc, &
                                                 initial_guess_type, ispin, &
                                                 istore, naspc, unit_nr
@@ -363,8 +363,9 @@ CONTAINS
     CASE(atomic_guess)
        CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init,error)
     CASE(restart_guess)
+       project_name = logger%iter_info%project_name
        DO ispin=1,SIZE(ls_scf_env%matrix_p)
-          WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
+          WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_",ispin,"_RESTART.dm"
           CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(ls_scf_env%matrix_p(1)), &
                                     matrix_new=ls_scf_env%matrix_p(ispin), error=error)
           cs_pos = cp_dbcsr_checksum (ls_scf_env%matrix_p(ispin), pos=.TRUE., error=error)
@@ -449,7 +450,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_store_result', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: handle, ispin, istore, unit_nr
     REAL(KIND=dp)                            :: cs_pos
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
@@ -494,7 +495,8 @@ CONTAINS
           ENDIF
 
           IF (ls_scf_env%restart_write) THEN
-             WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
+             project_name = logger%iter_info%project_name
+             WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_",ispin,"_RESTART.dm"
              cs_pos = cp_dbcsr_checksum (ls_scf_env%scf_history%matrix(ispin,istore), pos=.TRUE., error=error)
              IF (unit_nr>0) THEN
                 WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
