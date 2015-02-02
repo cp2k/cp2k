@@ -32,11 +32,12 @@
         &DIRICHLET_BC
           &AA_PLANAR
             v_D      0.01
-            X_xtnt   7.5 7.5
-            Y_xtnt   0.5 7.5
-            Z_xtnt   0.5 7.5
-            n_prtn   2 2 2
-            smooth  .TRUE.
+            PARALLEL_PLANE YZ
+            INTERCEPT 7.5
+            Y_xtnt    0.5 7.5
+            Z_xtnt    0.5 7.5
+            n_prtn    2 2
+            smooth   .TRUE.
             smoothing_width 0.2
           &END AA_PLANAR
         &END DIRICHLET_BC

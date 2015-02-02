@@ -128,7 +128,9 @@ CONTAINS
          zeta = poisson_params%dbc_params%aa_planar_zeta(j)
 
          IF (unit_nr .GT. 0) THEN
-            WRITE(unit_nr,'(T3,A,I5,T24,A)') "POISSON| DBC", j, "AXIS-ALIGNED PLANAR"
+            WRITE(unit_nr,'(T3,A,I5)') "POISSON| DBC", j
+            WRITE(unit_nr,'(T3,A)') "POISSON|     type : AXIS-ALIGNED PLANAR"
+            WRITE(unit_nr,'(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
          END IF
          CALL create_aa_planar_dbc(pw_pool, x_glbl, y_glbl, z_glbl, &
                                    poisson_params%dbc_params%aa_planar_xxtnt(:,j), &
@@ -150,7 +152,9 @@ CONTAINS
          zeta = poisson_params%dbc_params%aa_cuboidal_zeta(j - l)
 
          IF (unit_nr .GT. 0) THEN
-            WRITE(unit_nr,'(T3,A,I5,T24,A)') "POISSON| DBC", j, "AXIS-ALIGNED CUBOIDAL"
+            WRITE(unit_nr,'(T3,A,I5)') "POISSON| DBC", j
+            WRITE(unit_nr,'(T3,A)') "POISSON|     type : AXIS-ALIGNED CUBOIDAL"
+            WRITE(unit_nr,'(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
          END IF
          CALL create_aa_cuboidal_dbc(pw_pool, x_glbl, y_glbl, z_glbl, &
                                    poisson_params%dbc_params%aa_cuboidal_xxtnt(:,j - l), &
@@ -172,7 +176,9 @@ CONTAINS
          zeta = poisson_params%dbc_params%planar_zeta(j - l)
 
          IF (unit_nr .GT. 0) THEN
-            WRITE(unit_nr,'(T3,A,I5,T24,A)') "POISSON| DBC", j, "PLANAR"
+            WRITE(unit_nr,'(T3,A,I5)') "POISSON| DBC", j
+            WRITE(unit_nr,'(T3,A)') "POISSON|     type : PLANAR"
+            WRITE(unit_nr,'(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
          END IF
          CALL create_arbitrary_planar_dbc(pw_pool, x_glbl, y_glbl, z_glbl, &
                                    poisson_params%dbc_params%planar_Avtx(:,j - l), &
@@ -198,7 +204,9 @@ CONTAINS
          apx_type = poisson_params%dbc_params%xaa_cylindrical_apxtyp(j)
 
          IF (unit_nr .GT. 0) THEN
-            WRITE(unit_nr,'(T3,A,I5,T24,A)') "POISSON| DBC", l + j, "X-AXIS-ALIGNED CYLINDRICAL"
+            WRITE(unit_nr,'(T3,A,I5)') "POISSON| DBC", l + j
+            WRITE(unit_nr,'(T3,A)') "POISSON|     type : X-AXIS-ALIGNED CYLINDRICAL"
+            WRITE(unit_nr,'(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
          END IF
          CALL create_xaa_cylindrical_dbc(pw_pool, x_glbl, y_glbl, z_glbl, &
                                    x_locl, y_locl, z_locl, &

@@ -33,7 +33,10 @@ MODULE input_cp2k_poisson
                                              derivative_fft_use_deps,&
                                              derivative_fft_use_drho
   USE dirichlet_bc_types,              ONLY: CIRCUMSCRIBED,&
-                                             INSCRIBED
+                                             INSCRIBED,&
+                                             xy_aligned_rectangle,&
+                                             xz_aligned_rectangle,&
+                                             yz_aligned_rectangle
   USE input_constants,                 ONLY: do_fist_pol_cg,&
                                              do_fist_pol_none,&
                                              do_fist_pol_sc
@@ -829,8 +832,8 @@ END SUBROUTINE create_ewald_section
     CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="AA_PLANAR", &
-            description="Parameters for creating axis-aligned planar Dirichlet boundary region.",&
-            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary region.",&
+            n_keywords=9, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -838,6 +841,22 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="v_D", &
             description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
             usage="v_D <real>", unit_str="volt", type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="PARALLEL_PLANE", &
+            enum_c_vals=s2a( 'XY', 'YZ' , 'XZ'), &
+            enum_i_vals=(/ xy_aligned_rectangle, yz_aligned_rectangle, xz_aligned_rectangle /), &
+            description="The coordinate plane that the region is parallel to.", &
+            usage="PARALLEL_PLANE <plane>", required=.TRUE., &
+            type_of_var=enum_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="INTERCEPT", &
+            description="The intercept of the rectangle's plane.", &
+            usage="INTERCEPT <real>", unit_str="angstrom", required=.TRUE., &
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -863,9 +882,9 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="N_PRTN", &
-            description="The number of partitions in the x, y and z directions for tiling the plane.", &
-            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
-            type_of_var=integer_t, error=error)
+            description="The number of partitions in xy, yz or xz directions for tiling the plane.", &
+            usage="N_PRTN <integer> <integer>", &
+            n_var=2, default_i_vals=(/1, 1/), error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -942,8 +961,8 @@ END SUBROUTINE create_ewald_section
 
        CALL keyword_create(keyword, name="N_PRTN", &
             description="The number of partitions in the x, y and z directions for tiling the plane.", &
-            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
-            type_of_var=integer_t, error=error)
+            usage="N_PRTN <integer> <integer> <integer>", &
+            n_var=3, default_i_vals=(/1, 1, 1/), error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -1034,8 +1053,8 @@ END SUBROUTINE create_ewald_section
 
        CALL keyword_create(keyword, name="N_PRTN", &
             description="The number of partitions in the x, y and z directions for tiling the plane.", &
-            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
-            type_of_var=integer_t, error=error)
+            usage="N_PRTN <integer> <integer> <integer>", &
+            n_var=3, default_i_vals=(/1, 1, 1/), error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -1112,8 +1131,8 @@ END SUBROUTINE create_ewald_section
 
        CALL keyword_create(keyword, name="N_PRTN", &
             description="The number of partitions in the x, y and z directions for partitioning the cuboid.", &
-            usage="N_PRTN <integer> <integer> <integer>", default_i_vals=(/1, 1, 1/), &
-            type_of_var=integer_t, error=error)
+            usage="N_PRTN <integer> <integer> <integer>", &
+            n_var=3, default_i_vals=(/1, 1, 1/), error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 

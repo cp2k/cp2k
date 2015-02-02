@@ -2017,7 +2017,7 @@ CONTAINS
 
     IF ((outp_unit .GT. 0) .AND. (iter .EQ. 1)) THEN
        WRITE(outp_unit,'(T3,A)') &
-            "POISSON|   iter        pres error      nabs error        e_hartree    delta e"
+            "POISSON|   iter        pres error      nabs error        E_hartree    delta E"
     END IF
 
     IF (outp_unit .GT. 0) THEN

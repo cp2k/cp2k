@@ -676,6 +676,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                   "Invalid boundary conditions for the implicit (iterative) poisson solver.",&
                   para_env)
          END SELECT
+         WRITE (UNIT=iounit,FMT="(T2,A,T51,F30.2)")&
+          "POISSON| Dielectric Constant", poisson_params%dielectric_params%eps0
        CASE(pw_poisson_none)
          WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
           "POISSON| Solver","NONE"
