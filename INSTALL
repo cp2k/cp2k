@@ -178,24 +178,27 @@ For more information visit: http://www.python.org/
 ==== 2n. PEXSI (optional) ====
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library
 and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
-  * Download PEXSI (www.pexsi.org) and install it and its 
-    dependencies by following the instructions in README.md. Tested version 0.7.3.
-  * Building the Fortran interface of PEXSI (provided in the fortran 
+  * Download PEXSI (www.pexsi.org) and install it and its
+    dependencies by following the instructions in their README.md.
+  * The version 0.7.3 has been tested with CP2K.
+  * Building the Fortran interface of PEXSI (provided in the fortran
     subdirectory) is required.
+
 In the arch file of CP2K:
-  * Add "-lpexsi_${SUFFIX} -lsuperlu_dist_3.3 -lparmetis -lmetis", and their paths 
-    (with -L$(LIB_DIR)) to LIBS. It is important that these libraries are placed 
-    before LAPACK and BLAS. Replace "-lparmetis -lmetis" with "-lptscotchparmetis 
-    -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr" in order to link to 
-    PT-Scotch instead of ParMETIS.
-  * Add -I$(PEXSI_DIR)/fortran/ (for f_ppexsi_interface.mod) to FCFLAGS.
+  * Add ''-lpexsi_${SUFFIX} -lsuperlu_dist_3.3 -lparmetis -lmetis'', and their paths
+    (with -L$(LIB_DIR)) to LIBS. It is important that these libraries are placed
+    before LAPACK and BLAS.
+  * in order to link in PT-Scotch instead of ParMETIS replace ''-lparmetis -lmetis'' with:
+      -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr
+  * Add ''-I$(PEXSI_DIR)/fortran/'' (for f_ppexsi_interface.mod) to FCFLAGS.
   * Add -D__LIBPEXSI to DFLAGS.
-Below some additional hints that may help in the compilation process:
-  * For building PT-Scotch, the flag -DSCOTCH_METIS_PREFIX in 
-    Makefile.inc must not be set and the flag -DSCOTCH_PTHREAD must be removed.
-  * For building SuperLU_DIST with PT-Scotch, you must set METISLIB = -lscotchmetis
-    -lscotch -lscotcherr and PARMETISLIB = -lptscotchparmetis -lptscotch 
-    -lptscotcherr in make.inc.
+
+Below are some additional hints that may help in the compilation process:
+  * For building PT-Scotch, the flag ''-DSCOTCH_METIS_PREFIX'' in
+    Makefile.inc must not be set and the flag ''-DSCOTCH_PTHREAD'' must be removed.
+  * For building SuperLU_DIST with PT-Scotch, you must set the following in make.inc.
+      METISLIB = -lscotchmetis -lscotch -lscotcherr
+      PARMETISLIB = -lptscotchparmetis -lptscotch -lptscotcherr
 
 ===== 3. Compile =====
 

@@ -55,6 +55,7 @@ def main():
             got_item = False
 
     text = "\n".join(lines_out)
+    text = text.replace("</code> <code>", "\n")
 
     f = open(out_fn, "w")
     f.write(text)
