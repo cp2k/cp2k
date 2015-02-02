@@ -298,6 +298,11 @@ def parse_regtest_report(report_txt):
     report = dict()
     report['revision'] = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
 
+    if("LOCKFILE" in report_txt):
+        report['status'] = "UNKNOWN"
+        report['summary'] = "Test directory is locked."
+        return(report)
+
     m = re.search("make: .* Error .*", report_txt)
     if(m):
         report['status'] = "FAILED"
