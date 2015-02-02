@@ -62,6 +62,7 @@ MODULE lri_environment_methods
                                              qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -123,7 +124,7 @@ CONTAINS
 
     INTEGER :: handle, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
       nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, stat
-    LOGICAL                                  :: failure, my_calcforces
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     TYPE(cell_type), POINTER                 :: cell
@@ -137,24 +138,27 @@ CONTAINS
       DIMENSION(:), POINTER                  :: soo_list
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, dft_control, fbasa, fbasb, lrii, lri_ints, nl_iterator, &
-            obasa, obasb, particle_set,soo_list)
+            obasa, obasb, particle_set,soo_list, virial)
 
     IF ( ASSOCIATED(lri_env%soo_list) ) THEN
       soo_list => lri_env%soo_list
 
       CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
-                      nkind=nkind,particle_set=particle_set,error=error)
+                      nkind=nkind,particle_set=particle_set,virial=virial,&
+                      error=error)
 
       IF ( ASSOCIATED(lri_env%lri_ints) ) THEN
         CALL deallocate_lri_ints (lri_env%lri_ints,error)
       END IF
 
       ! allocate matrices storing the LRI integrals
-      CALL allocate_lri_ints(lri_env,lri_env%lri_ints,nkind,error)
+      CALL allocate_lri_ints(lri_env,lri_env%lri_ints,nkind,&
+                             calculate_forces,virial,error)
       lri_ints => lri_env%lri_ints
 
       CALL neighbor_list_iterator_create(nl_iterator,soo_list)
@@ -198,16 +202,11 @@ CONTAINS
            lrii%dabdaint = 0.0_dp
            lrii%dabbint  = 0.0_dp
          ELSE
-           IF(iatom == jatom) THEN
-             my_calcforces = .FALSE.
-           ELSE
-             my_calcforces = calculate_forces
-           ENDIF
            CALL lri_int_aba(lrii%abaint,lrii%dabdaint,ra,rb,rab,obasa,obasb,fbasa,&
-                            my_calcforces,lri_env%debug,lrii%dmax_aba,&
+                            lrii%calc_force_pair,lri_env%debug,lrii%dmax_aba,&
                             error=error)
            CALL lri_int_abb(lrii%abbint,lrii%dabbint,ra,rb,rab,obasa,obasb,fbasb,&
-                            my_calcforces,lri_env%debug,lrii%dmax_abb,&
+                            lrii%calc_force_pair,lri_env%debug,lrii%dmax_abb,&
                             error=error)
          ENDIF
 
@@ -216,13 +215,9 @@ CONTAINS
            lrii%sab(1:nfa,1:nfa)=lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
            lrii%dsab = 0._dp
          ELSE
-           IF(iatom == jatom) THEN
-             my_calcforces = .FALSE.
-           ELSE
-             my_calcforces = calculate_forces
-           ENDIF
-           CALL lri_int_ab(lrii%sab,lrii%dsab,ra,rb,rab,fbasa,fbasb,my_calcforces,&
-                           lri_env%debug,lrii%dmax_ab,error)
+           CALL lri_int_ab(lrii%sab,lrii%dsab,ra,rb,rab,fbasa,fbasb,&
+                           lrii%calc_force_pair,lri_env%debug,&
+                           lrii%dmax_ab,error)
          ENDIF
 
          ! construct and invert S matrix
@@ -252,13 +247,9 @@ CONTAINS
            lrii%soo(1:nba,1:nba) = lri_env%bas_ovlp(ikind)%orb_ovlp(1:nba,1:nba)
            lrii%dsoo = 0._dp
          ELSE
-           IF(iatom == jatom) THEN
-             my_calcforces = .FALSE.
-           ELSE
-             my_calcforces = calculate_forces
-           ENDIF
-           CALL lri_int_ab(lrii%soo,lrii%dsoo,ra,rb,rab,obasa,obasb,my_calcforces,&
-                           lri_env%debug,lrii%dmax_oo,error=error)
+           CALL lri_int_ab(lrii%soo,lrii%dsoo,ra,rb,rab,obasa,obasb,&
+                           lrii%calc_force_pair,lri_env%debug,&
+                           lrii%dmax_oo,error=error)
          ENDIF
 
          ! calculate derivative of fit coefficients, needed for update of KS matrix
@@ -641,10 +632,18 @@ CONTAINS
             nfa = lrho%nfa
             nfb = lrho%nfb
             IF(iatom == jatom.AND.dab < lri_env%delta) THEN
+              !self pair aa
               aci(1:nfa) = aci(1:nfa) + lrho%avec(1:nfa)
             ELSE
-              aci(1:nfa) = aci(1:nfa) + 2.0_dp*lrho%avec(1:nfa)
-              acj(1:nfb) = acj(1:nfb) + 2.0_dp*lrho%avec(nfa+1:nfa+nfb)
+              IF(iatom == jatom) THEN
+                !periodic self pair aa' 
+                aci(1:nfa) = aci(1:nfa) + lrho%avec(1:nfa)
+                acj(1:nfb) = acj(1:nfb) + lrho%avec(nfa+1:nfa+nfb)
+              ELSE
+                !pairs ab
+                aci(1:nfa) = aci(1:nfa) + 2.0_dp*lrho%avec(1:nfa)
+                acj(1:nfb) = acj(1:nfb) + 2.0_dp*lrho%avec(nfa+1:nfa+nfb)
+              ENDIF
             ENDIF
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)

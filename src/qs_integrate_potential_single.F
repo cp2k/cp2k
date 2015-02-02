@@ -866,7 +866,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace_one_center(v_rspace,qs_env,int_res,&
                                            calculate_forces,error)
-    TYPE(pw_p_type), INTENT(INOUT)           :: v_rspace
+    TYPE(pw_p_type), INTENT(IN)              :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lri_kind_type), DIMENSION(:), &
       POINTER                                :: int_res
@@ -888,6 +888,7 @@ CONTAINS
                                                 map_it_here, use_virial
     REAL(KIND=dp)                            :: eps_gvg_rspace, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab, rpgfa, sphi_a, &
                                                 work_f, work_i, zeta
@@ -943,11 +944,6 @@ CONTAINS
          virial=virial,error=error)
     
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-    IF (use_virial) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Virial not implemented for LRI method", &
-            error=error, error_level=cp_failure_level)
-    END IF
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent=dft_control%qs_control%map_consistent
@@ -991,6 +987,8 @@ CONTAINS
           ra(:) = pbc(particle_set(atom_a)%r,cell)
           force_a(:) = 0._dp
           force_b(:) = 0._dp
+          my_virial_a(:,:) = 0._dp
+          my_virial_b(:,:) = 0._dp
 
           DO iset = 1,nseta
              sgfa = first_sgfa(1,iset)
@@ -1001,12 +999,12 @@ CONTAINS
 
              ! get fit coefficients for forces
              IF (calculate_forces) THEN
-              m1=sgfa+nsgf_seta(iset)-1
-              CALL reallocate(work_f,1,nsgf_seta(iset),1,1)
-              work_f(1:nsgf_seta(iset),1) = int_res(ikind)%acoef(iatom,sgfa:m1)  
-              CALL dgemm("N","N",ncoa,1,nsgf_seta(iset),1.0_dp,sphi_a(1,sgfa),&
-                   SIZE(sphi_a,1),work_f(1,1),SIZE(work_f,1),0.0_dp,pab(1,1),&
-                   SIZE(pab,1))
+                m1=sgfa+nsgf_seta(iset)-1
+                CALL reallocate(work_f,1,nsgf_seta(iset),1,1)
+                work_f(1:nsgf_seta(iset),1) = int_res(ikind)%acoef(iatom,sgfa:m1)  
+                CALL dgemm("N","N",ncoa,1,nsgf_seta(iset),1.0_dp,sphi_a(1,sgfa),&
+                     SIZE(sphi_a,1),work_f(1,1),SIZE(work_f,1),0.0_dp,pab(1,1),&
+                     SIZE(pab,1))
              ENDIF
              
              DO ipgf = 1,npgfa(iset)
@@ -1061,8 +1059,11 @@ CONTAINS
                            rsgrid=rs_grid ,cell=cell,&
                            cube_info=pw_env%cube_info(igrid_level),&
                            hab=hab,pab=pab,o1=na1,o2=0, eps_gvg_rspace=eps_rho_rspace,&
-                           calculate_forces=calculate_forces,force_a=force_a,&
-                           force_b=force_b,map_consistent=map_consistent,&
+                           calculate_forces=calculate_forces,&
+                           force_a=force_a,force_b=force_b,&
+                           use_virial=use_virial,&
+                           my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
+                           map_consistent=map_consistent,&
                            error=error)
                    ENDIF
                 ENDIF               
@@ -1077,13 +1078,18 @@ CONTAINS
 
           ENDDO
 
-          IF(calculate_forces) int_res(ikind)%v_dfdr(iatom,:)=force_a(:)
+          IF (calculate_forces) THEN
+             int_res(ikind)%v_dfdr(iatom,:)=force_a(:)
+             IF (use_virial) THEN
+                virial%pv_virial = virial%pv_virial + my_virial_a
+             ENDIF
+          ENDIF
 
           DEALLOCATE (work_i, STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF(calculate_forces) THEN
-           DEALLOCATE (work_f, STAT=stat)
-           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (calculate_forces) THEN
+             DEALLOCATE (work_f, STAT=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
        END DO

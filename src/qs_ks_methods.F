@@ -514,7 +514,7 @@ CONTAINS
                                   qmmm_env=qs_env%qmmm_env_qm,qs_env=qs_env,error=error)
                   ENDIF
                ENDIF
-                  CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw,error=error)
+               CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw,error=error)
              END IF
           IF (.NOT.just_energy) THEN
              CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace,&
@@ -766,7 +766,7 @@ CONTAINS
                       energy%efield + energy%efield_core + energy%ee +&
                       energy%ee_core + energy%exc_aux_fit + energy%image_charge +&
                       energy%sccs_pol + energy%sccs_mpc
-       
+
        ! Print detailed energy
        IF (my_print) THEN
           CALL print_detailed_energy(qs_env,dft_control,input,energy,mulliken_order_p,error=error)
@@ -803,8 +803,9 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: failure, just_energy_xc, &
-                                                my_print
+                                                my_print, use_virial
     REAL(KIND=dp)                            :: edisp
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -829,13 +830,15 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dft_control, input,  mo_derivs, my_rho_xc, para_env, pw_env,&
             xc_section, ks_env, ks_matrix, rho, energy, auxbas_pw_pool, matrix_h,&
             matrix_p, poisson_env, pw_pools, v_rspace_new, v_tau_rspace, &
-            atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw)
+            atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw,&
+            virial)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     my_print = .TRUE.
@@ -851,6 +854,7 @@ CONTAINS
                     pw_env=pw_env,&
                     para_env=para_env,&
                     input=input,&
+                    virial=virial,&
                     v_hartree_rspace=v_hartree_rspace%pw,&
                     matrix_ks=ks_matrix,&
                     rho=rho,&
@@ -861,6 +865,8 @@ CONTAINS
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
 
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+
     ! gets the tmp grids
     IF (.NOT. failure) THEN
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -869,7 +875,7 @@ CONTAINS
 
     IF (.NOT. failure) THEN
 
-       ! *** calculate the hartree potential on the LRI pw density ***
+       ! *** calculate the Hartree potential on the LRI pw density ***
        CALL pw_pool_create_pw(auxbas_pw_pool,&
                                  v_hartree_gspace%pw, &
                                  use_data=COMPLEXDATA1D,&
@@ -881,14 +887,24 @@ CONTAINS
                                  in_space=RECIPROCALSPACE,&
                                  error=error)
 
+       ! get the total density in g-space [ions + electrons]
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error=error)
 
        IF(my_print) THEN
          CALL print_densities(qs_env, rho, my_rho_xc, error=error)
        END IF
 
-       CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
-                             v_hartree_gspace%pw,error=error)
+       ! solve Poisson equation to get Hartree energy and potential and the stress
+       ! tensor from the Hartee term if needed
+       IF (use_virial.AND.calculate_forces) THEN
+           h_stress(:,:) = 0.0_dp
+           CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
+                                 v_hartree_gspace%pw,h_stress=h_stress,error=error)
+           virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe,dp)
+       ELSE
+           CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
+                                 v_hartree_gspace%pw,error=error)
+       ENDIF
 
        IF (.NOT. just_energy) THEN
           CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
@@ -898,7 +914,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_tot_gspace%pw,error=error)
 
-       ! core contribution
+       ! *** core contribution
        IF (.NOT. just_energy) THEN
              ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
              DO ispin=1,nspins
@@ -907,7 +923,8 @@ CONTAINS
              END DO
        END IF
 
-      ! exchange-correlation
+      ! *** exchange-correlation
+      IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
       just_energy_xc=just_energy
 
@@ -917,7 +934,11 @@ CONTAINS
            just_energy=just_energy_xc, error=error)
       IF(edisp /= 0.0_dp) energy%dispersion = edisp
 
-      ! sum v_hartree + v_xc
+      IF (use_virial .AND. calculate_forces) THEN           
+         virial%pv_virial = virial%pv_virial - virial%pv_xc 
+      ENDIF                                                 
+
+      ! *** sum v_hartree + v_xc
       IF (ASSOCIATED(v_rspace_new)) THEN
         DO ispin=1,nspins
          v_rspace_new(ispin)%pw%cr3d  =&
@@ -927,30 +948,46 @@ CONTAINS
       ENDIF
       ! NO TAU YET
  
-      !do integration and build matrix
+      ! *** do integration and build matrix
       IF (.NOT. just_energy) THEN
 
        DO ispin=1,nspins
           lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
-          CALL integrate_v_rspace_one_center(v_rspace_new(ispin),qs_env,&
-               lri_v_int,calculate_forces,error)
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
-               error=error)
+          IF(.NOT.ASSOCIATED(v_rspace_new)) THEN
+            CALL integrate_v_rspace_one_center(v_hartree_rspace,qs_env,&
+                 lri_v_int,calculate_forces,error)
+          ELSE
+            CALL integrate_v_rspace_one_center(v_rspace_new(ispin),qs_env,&
+                 lri_v_int,calculate_forces,error)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
+                 error=error)
+          ENDIF
           CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin)%matrix,&
                atomic_kind_set, para_env, error)
        ENDDO
-       DEALLOCATE(v_rspace_new,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       IF(ASSOCIATED(v_rspace_new)) THEN
+          DEALLOCATE(v_rspace_new,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
 
+       ! *** LRIGPW forces
        IF (calculate_forces ) THEN
            ! Getting nuclear force contribution from the core charge density
             CALL integrate_v_core_rspace(v_hartree_rspace, qs_env,error=error)
            ! Getting electronic force contribution from fitted LRI charge density
             CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
-            CALL calculate_lri_forces(lri_env,lri_density,qs_env,matrix_p,atomic_kind_set,error)
+            CALL calculate_lri_forces(lri_env,lri_density,qs_env,matrix_p,atomic_kind_set,&
+                 use_virial,error)
        END IF
 
       ENDIF
+
+       ! At this point the ks matrix should be up to date, filter it if requested
+      DO ispin=1,nspins
+         CALL cp_dbcsr_filter(ks_matrix(ispin)%matrix,&
+              dft_control%qs_control%eps_filter_matrix,&
+              error=error)
+      ENDDO
 
       ! Right now we can compute the orbital derivative here, as it depends currently only on the available
       ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
@@ -972,7 +1009,6 @@ CONTAINS
             energy%ee + energy%ee_core+&
             energy%exc_aux_fit+&
             energy%image_charge
-
 
     END IF ! failure
 

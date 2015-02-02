@@ -11,3 +11,4 @@ H2_tz2p_lri_ot.inp                1     9e-12
 O2_opt_lribas.inp                 46
 O2_opt_lribas_contract.inp        46
 O2_debug_ints.inp                 0
+H2O_lri_stress.inp                1

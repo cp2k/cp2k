@@ -29,6 +29,7 @@ MODULE lri_environment_types
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -59,23 +60,9 @@ MODULE lri_environment_types
 
 ! *****************************************************************************
 
-  TYPE lri_debug_type
-     ! dmax: maximal deviation for integrals of primitive (!) gtos
-     ! dmax for overlap integrals (ai,bi); fit bas 
-     REAL(KIND=dp)                                           :: dmax_ab
-     ! dmax for overlap integrals (a,b); orb bas 
-     REAL(KIND=dp)                                           :: dmax_oo
-     ! dmax for integrals (a,b,ai) 
-     REAL(KIND=dp)                                           :: dmax_aba
-     ! dmax for integrals (a,b,bi) 
-     REAL(KIND=dp)                                           :: dmax_abb
-     ! dmax for (aa,bb) integrals
-     REAL(KIND=dp)                                           :: dmax_aabb
-  END TYPE lri_debug_type
-
-! *****************************************************************************
-
   TYPE lri_int_type
+     ! whether to calculate force for pair 
+     LOGICAL                                                 :: calc_force_pair
      ! number of spherical basis functions (a)
      INTEGER                                                 :: nba
      ! number of spherical basis functions (b)
@@ -278,7 +265,7 @@ CONTAINS
     lri_env%in_use=0
 
     lri_env%debug = .FALSE.
-    lri_env%delta = 1.E-8_dp
+    lri_env%delta = 1.E-6_dp
 
     NULLIFY(lri_env%orb_basis)
     NULLIFY(lri_env%ri_basis)
@@ -700,13 +687,18 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_ints structure storing the LRI integrals
 !> \param nkind number of atom kinds 
+!> \param calculate_forces ...
+!> \param virial ...
 !> \param error variable to control error logging, stopping,...
 ! *****************************************************************************
-  SUBROUTINE allocate_lri_ints(lri_env,lri_ints,nkind,error)
+  SUBROUTINE allocate_lri_ints(lri_env,lri_ints,nkind,calculate_forces,&
+                               virial,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_list_type), POINTER             :: lri_ints
     INTEGER, INTENT(IN)                      :: nkind
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(virial_type), POINTER               :: virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_ints', &
@@ -716,7 +708,7 @@ CONTAINS
                                                 jatom, jkind, jneighbor, nba, &
                                                 nbb, nfa, nfb, nlist, nn, &
                                                 nneighbor, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, use_virial
     REAL(KIND=dp)                            :: dab, rab(3)
     TYPE(gto_basis_set_type), POINTER        :: fbasa, fbasb, obasa, obasb
     TYPE(lri_int_type), POINTER              :: lrii
@@ -725,6 +717,8 @@ CONTAINS
 
     failure =.FALSE.
     NULLIFY(fbasa, fbasb, lrii, nl_iterator, obasa, obasb)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     ALLOCATE(lri_ints,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -833,6 +827,23 @@ CONTAINS
        lrii%dmax_oo   = 0._dp
        lrii%dmax_aba  = 0._dp
        lrii%dmax_abb  = 0._dp
+
+       lrii%calc_force_pair = .FALSE.
+
+       ! forces: not every pair is giving contributions
+       IF(calculate_forces) THEN
+         !no forces for self-pair aa
+         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
+           lrii%calc_force_pair = .FALSE.
+         ELSE
+           !forces for periodic self-pair aa' required for virial 
+           IF(iatom ==  jatom.AND..NOT.use_virial) THEN
+             lrii%calc_force_pair = .FALSE.       
+           ELSE
+             lrii%calc_force_pair = .TRUE.
+           ENDIF 
+         ENDIF
+       ENDIF
 
     ENDDO
 

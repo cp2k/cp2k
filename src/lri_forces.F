@@ -34,6 +34,8 @@ MODULE lri_forces
                                              neighbor_list_set_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -57,11 +59,12 @@ CONTAINS
 !> \param qs_env ...
 !> \param pmatrix density matrix
 !> \param atomic_kind_set ...
+!> \param use_virial ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calculate_lri_forces(lri_env,lri_density,qs_env,pmatrix,&
-             atomic_kind_set,error)
+             atomic_kind_set,use_virial,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -70,6 +73,7 @@ CONTAINS
       POINTER                                :: pmatrix
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    LOGICAL                                  :: use_virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_forces', &
@@ -84,20 +88,22 @@ CONTAINS
       POINTER                                :: lri_coef
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(atomic_kind, force, lri_coef, v_dadr, v_dfdr)
+    NULLIFY(atomic_kind, force, lri_coef, v_dadr, v_dfdr, virial)
 
     IF ( ASSOCIATED(lri_env%soo_list) ) THEN
 
       nkind = lri_env%lri_ints%nkind
       nspin = SIZE(pmatrix)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
-      CALL get_qs_env(qs_env=qs_env,force=force,error=error)
+      CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
  
       !calculate SUM_i integral(V*fbas_i)*davec/dR 
-      CALL calculate_v_dadr(lri_env,lri_density,pmatrix,atomic_kind_set,error)
+      CALL calculate_v_dadr(lri_env,lri_density,pmatrix,atomic_kind_set,&
+                            use_virial,virial,error)
 
       DO ispin = 1, nspin
 
@@ -130,9 +136,12 @@ CONTAINS
 !> \param lri_density ...
 !> \param pmatrix ...
 !> \param atomic_kind_set ...
+!> \param use_virial ...
+!> \param virial ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_v_dadr(lri_env,lri_density,pmatrix,atomic_kind_set,error)
+  SUBROUTINE calculate_v_dadr(lri_env,lri_density,pmatrix,atomic_kind_set,&
+                              use_virial,virial,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -140,6 +149,8 @@ CONTAINS
       POINTER                                :: pmatrix
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    LOGICAL, INTENT(IN)                      :: use_virial
+    TYPE(virial_type), POINTER               :: virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_v_dadr', &
@@ -150,8 +161,9 @@ CONTAINS
       nn, nneighbor, nspin, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure, found, trans
-    REAL(KIND=dp), DIMENSION(3)              :: dcharge, dlambda, nsdssn, &
-                                                nsdsst, nsdt
+    REAL(KIND=dp), DIMENSION(3)              :: dcharge, dlambda, force_a, &
+                                                force_b, nsdssn, nsdsst, &
+                                                nsdt, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: st, v_dadra, v_dadrb, v_inta, &
                                                 v_intb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: davec, dssn, dsst, dtvec, &
@@ -198,17 +210,20 @@ CONTAINS
        CALL neighbor_list_iterator_create(nl_iterator,soo_list)
        DO WHILE (neighbor_list_iterate(nl_iterator)==0)
           CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
+               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
+               r=rab)
 
           iac = ikind + nkind*(jkind - 1)
 
           IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
-          ! zero contribution for pairs aa or bb, derivative is zero
-          IF(iatom == jatom) CYCLE
-
           lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
           lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
+
+          ! zero contribution for pairs aa or bb and periodc pairs aa' or bb'
+          ! calculate forces for periodic pairs aa' and bb' only for virial
+          IF(.NOT.lrii%calc_force_pair) CYCLE
+
           nfa = lrii%nfa
           nfb = lrii%nfb
           nba = lrii%nba
@@ -309,15 +324,25 @@ CONTAINS
  
           ! sum over atom pairs
           DO k=1,3
-           v_dadra(k) = v_dadra(k) &
-                        + 2.0_dp*SUM(davec(1:nfa,k)*v_inta(1:nfa))&
+           force_a(k) =   2.0_dp*SUM(davec(1:nfa,k)*v_inta(1:nfa))&
                         + 2.0_dp*SUM(davec(nfa+1:nn,k)*v_intb(1:nfb))
+           v_dadra(k) = v_dadra(k) + force_a(k) 
            !minus: using that davec/dRa = - davec/dRb
-           v_dadrb(k) = v_dadrb(k) &
-                        - 2.0_dp*SUM(davec(nfa+1:nn,k)*v_intb(1:nfb))&
+           force_b(k) = - 2.0_dp*SUM(davec(nfa+1:nn,k)*v_intb(1:nfb))&
                         - 2.0_dp*SUM(davec(1:nfa,k)*v_inta(1:nfa))
+           v_dadrb(k) = v_dadrb(k) + force_b(k)
           ENDDO
-      
+
+          ! contribution to virial
+          IF(use_virial) THEN
+            !periodic self-pairs aa' contribute only with factor 0.5
+            IF(iatom == jatom) THEN
+              CALL virial_pair_force (virial%pv_virial,0.5_dp,force_a,rab,error)
+            ELSE 
+              CALL virial_pair_force (virial%pv_virial,1.0_dp,force_a,rab,error)
+            ENDIF
+          ENDIF
+
           CALL deallocate_lri_force_components(lri_density%lri_force,error)
 
        END DO
