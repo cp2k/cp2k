@@ -2330,30 +2330,29 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a, a_global, assigned_blocks, b, b_global, best_block_size, &
+    INTEGER :: a, a_global, b, b_global, best_block_size, &
       best_integ_group_size, block_size, comm_exchange, comm_P, end_point, &
-      first_I_block, first_J_block, handle, handle2, handle3, handle4, i, &
-      iiB, ij_block_counter, ij_counter, ij_counter_rec, ij_counter_send, &
-      ij_index, ijk_counter, ijk_counter_send, ijk_index, integ_group_size, &
-      irep, jjB, kkB, kkk, last_I_block, last_J_block, Lend_pos, lll, &
-      Lstart_pos, max_ij_pairs, max_ijk, min_integ_group_size, my_B_size, &
-      my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_block_size
-    INTEGER :: my_group_L_end, my_group_L_size, my_group_L_size_orig, &
-      my_group_L_start, my_homo_beta, my_i, my_ij_pairs, my_ijk, my_j, my_k, &
-      my_new_group_L_size, my_num_dgemm_call, ngroup, num_block_per_group, &
-      num_IJ_blocks, num_integ_group, num_sing_ij, pos_integ_group, &
-      proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
-      rec_B_virtual_start, rec_block_size, rec_i, rec_ij_index, rec_j, &
-      rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
-      send_block_size, send_i, send_ij_index, send_ijk_index, send_j, send_k, &
-      send_L_size, start_point, stat, sub_P_color, sub_sub_color
-    INTEGER :: total_ij_block, total_ij_pairs, total_ij_pairs_blocks, &
-      total_ijk, virtual, virtual_beta
+      handle, handle2, handle3, handle4, i, iiB, ij_counter, ij_counter_rec, &
+      ij_counter_send, ij_index, ijk_counter, ijk_counter_send, ijk_index, &
+      integ_group_size, irep, jjB, kkB, kkk, Lend_pos, lll, Lstart_pos, &
+      max_ij_pairs, max_ijk, min_integ_group_size, my_B_size, my_B_size_beta, &
+      my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
+      my_B_virtual_start_beta, my_block_size, my_group_L_end, &
+      my_group_L_size, my_group_L_size_orig, my_group_L_start, my_homo_beta, &
+      my_i
+    INTEGER :: my_ij_pairs, my_ijk, my_j, my_k, my_new_group_L_size, &
+      my_num_dgemm_call, ngroup, num_IJ_blocks, num_integ_group, num_sing_ij, &
+      pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
+      rec_B_virtual_end, rec_B_virtual_start, rec_block_size, rec_i, &
+      rec_ij_index, rec_j, rec_L_size, send_B_size, send_B_virtual_end, &
+      send_B_virtual_start, send_block_size, send_i, send_ij_index, &
+      send_ijk_index, send_j, send_k, send_L_size, start_point, stat, &
+      sub_P_color, sub_sub_color, total_ij_pairs, total_ijk, virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
       new_sizes_array, num_ij_pairs, num_ijk, proc_map, proc_map_rep, &
       sizes_array_orig, sub_proc_map
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map, ij_marker, ijk_map
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map, ijk_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
     LOGICAL                                  :: failure, my_alpha_beta_case, &
                                                 my_open_shell_SS
@@ -2567,93 +2566,8 @@ MODULE mp2_ri_gpw
 
     ! Calculate the maximum number of ij pairs that have to be computed
     ! among groups
-    IF(.NOT.my_alpha_beta_case) THEN
-      total_ij_pairs=homo*(1+homo)/2
-      num_IJ_blocks=homo/block_size-1
-
-      first_I_block=1
-      last_i_block=block_size*(num_IJ_blocks-1)
-
-      first_J_block=block_size+1
-      last_J_block=block_size*(num_IJ_blocks+1)
-
-      ij_block_counter=0
-      DO iiB=first_I_block, last_i_block, block_size
-        DO jjB=iiB+block_size, last_J_block, block_size
-          ij_block_counter=ij_block_counter+1
-        END DO
-      END DO
-
-      total_ij_block=ij_block_counter
-      num_block_per_group=total_ij_block/ngroup
-      assigned_blocks=num_block_per_group*ngroup
-
-      total_ij_pairs_blocks=assigned_blocks+(total_ij_pairs-assigned_blocks*(block_size**2))
-
-      ALLOCATE(ij_marker(homo,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ij_marker=0
-      ALLOCATE(ij_map(total_ij_pairs_blocks,3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ij_map=0
-      ij_counter=0
-      my_ij_pairs=0
-      DO iiB=first_I_block, last_i_block, block_size
-        DO jjB=iiB+block_size, last_J_block, block_size
-          IF(ij_counter+1>assigned_blocks) EXIT
-          ij_counter=ij_counter+1
-          ij_marker(iiB:iiB+block_size-1,jjB:jjB+block_size-1)=1
-          ij_map(ij_counter,1)=iiB
-          ij_map(ij_counter,2)=jjB
-          ij_map(ij_counter,3)=block_size
-          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
-        END DO
-      END DO
-      DO iiB=1, homo
-        DO jjB=iiB, homo
-          IF(ij_marker(iiB,jjB)==0) THEN
-            ij_counter=ij_counter+1
-            ij_map(ij_counter,1)=iiB
-            ij_map(ij_counter,2)=jjB
-            ij_map(ij_counter,3)=1
-            IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
-          END IF
-        END DO
-      END DO
-      DEALLOCATE(ij_marker)
-
-      IF((.NOT.my_open_shell_SS)) THEN
-        IF (unit_nr>0) THEN
-          IF(block_size==1) THEN
-            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
-                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", 100.0_dp
-          ELSE
-            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
-                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", &
-                        100.0_dp*REAL((total_ij_pairs-assigned_blocks*(block_size**2)),KIND=dp)/REAL(total_ij_pairs,KIND=dp)
-          END IF
-          CALL m_flush(unit_nr)
-        END IF
-      END IF
-
-    ELSE
-      ! alpha-beta case no index symmetry
-      total_ij_pairs=homo*homo_beta
-      ALLOCATE(ij_map(total_ij_pairs,3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ij_map=0
-      ij_counter=0
-      my_ij_pairs=0
-      DO iiB=1, homo 
-        DO jjB=1, homo_beta
-          ij_counter=ij_counter+1
-          ij_map(ij_counter,1)=iiB
-          ij_map(ij_counter,2)=jjB
-          ij_map(ij_counter,3)=1
-          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
-        END DO
-      END DO
-    END IF
+    CALL mp2_ri_communication(my_alpha_beta_case,total_ij_pairs,homo,homo_beta,num_IJ_blocks,&
+               block_size,ngroup,ij_map,color_sub,my_ij_pairs,error_sub,my_open_shell_SS,unit_nr)
     
     ALLOCATE(num_ij_pairs(0:para_env_exchange%num_pe-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
@@ -2664,30 +2578,9 @@ MODULE mp2_ri_gpw
     max_ij_pairs=MAXVAL(num_ij_pairs)
 
     ! start real stuff
-    ALLOCATE(local_i_aL(dimen_RI,my_B_size,block_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    ALLOCATE(local_j_aL(dimen_RI,my_B_size_beta,block_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    ALLOCATE(local_ab(virtual,my_B_size_beta),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-
-    IF(calc_forces) THEN
-      ALLOCATE(mp2_env%ri_grad%P_ij(homo,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(mp2_env%ri_grad%P_ab(my_B_size,virtual),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      mp2_env%ri_grad%P_ij=0.0_dp
-      mp2_env%ri_grad%P_ab=0.0_dp
-      mp2_env%ri_grad%Gamma_P_ia=0.0_dp
-      ALLOCATE(Y_i_aP(my_B_size,dimen_RI,block_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(Y_j_aP(my_B_size,dimen_RI,block_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(t_ab(virtual,my_B_size_beta),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    END IF
+    CALL mp2_ri_allocate(local_ab, t_ab,mp2_env,homo,virtual,dimen_RI,my_B_size,&
+                                block_size,my_B_size_beta,my_group_L_size,Y_i_aP,&
+                                Y_j_aP,local_i_aL, local_j_aL,calc_forces,error_sub)
 
     CALL timeset(routineN//"_RI_loop",handle2)
     null_mat_rec=0.0_dp
@@ -4162,5 +4055,205 @@ MODULE mp2_ri_gpw
       END DO
       WRITE(*,*)
      END SUBROUTINE
+
+! *****************************************************************************
+!> \brief ...
+!> \param local_ab ...
+!> \param t_ab ...
+!> \param mp2_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param my_B_size ...
+!> \param block_size ...
+!> \param my_B_size_beta ...
+!> \param my_group_L_size ...
+!> \param Y_i_aP ...
+!> \param Y_j_aP ...
+!> \param local_i_aL ...
+!> \param local_j_aL ...
+!> \param calc_forces ...
+!> \param error_sub ...
+! *****************************************************************************
+    SUBROUTINE mp2_ri_allocate(local_ab, t_ab,mp2_env,homo,virtual,dimen_RI,my_B_size,&
+                                block_size,my_B_size_beta,my_group_L_size,Y_i_aP,&
+                                Y_j_aP,local_i_aL, local_j_aL,calc_forces,error_sub)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: local_ab, t_ab
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    INTEGER                                  :: homo, virtual, dimen_RI, &
+                                                my_B_size, block_size, &
+                                                my_B_size_beta, &
+                                                my_group_L_size
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: Y_i_aP, Y_j_aP, local_i_aL, &
+                                                local_j_aL
+    LOGICAL                                  :: calc_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error_sub
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_allocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    ALLOCATE(local_i_aL(dimen_RI,my_B_size,block_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    ALLOCATE(local_j_aL(dimen_RI,my_B_size_beta,block_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    ALLOCATE(local_ab(virtual,my_B_size_beta),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
+    IF(calc_forces) THEN
+      ALLOCATE(mp2_env%ri_grad%P_ij(homo,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(mp2_env%ri_grad%P_ab(my_B_size,virtual),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      mp2_env%ri_grad%P_ij=0.0_dp
+      mp2_env%ri_grad%P_ab=0.0_dp
+      mp2_env%ri_grad%Gamma_P_ia=0.0_dp
+      ALLOCATE(Y_i_aP(my_B_size,dimen_RI,block_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(Y_j_aP(my_B_size,dimen_RI,block_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(t_ab(virtual,my_B_size_beta),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    END IF
+
+    END SUBROUTINE mp2_ri_allocate
+
+! *****************************************************************************
+!> \brief ...
+!> \param my_alpha_beta_case ...
+!> \param total_ij_pairs ...
+!> \param homo ...
+!> \param homo_beta ...
+!> \param num_IJ_blocks ...
+!> \param block_size ...
+!> \param ngroup ...
+!> \param ij_map ...
+!> \param color_sub ...
+!> \param my_ij_pairs ...
+!> \param error_sub ...
+!> \param my_open_shell_SS ...
+!> \param unit_nr ...
+! *****************************************************************************
+    SUBROUTINE mp2_ri_communication(my_alpha_beta_case,total_ij_pairs,homo,homo_beta,num_IJ_blocks,&
+               block_size,ngroup,ij_map,color_sub,my_ij_pairs,error_sub,my_open_shell_SS,unit_nr)
+    LOGICAL                                  :: my_alpha_beta_case
+    INTEGER                                  :: total_ij_pairs, homo, &
+                                                homo_beta, num_IJ_blocks, &
+                                                block_size, ngroup
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map
+    INTEGER                                  :: color_sub, my_ij_pairs
+    TYPE(cp_error_type), INTENT(inout)       :: error_sub
+    LOGICAL                                  :: my_open_shell_SS
+    INTEGER                                  :: unit_nr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_communication', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: assigned_blocks, first_I_block, first_J_block, iiB, &
+      ij_block_counter, ij_counter, jjB, last_i_block, last_J_block, &
+      num_block_per_group, stat, total_ij_block, total_ij_pairs_blocks
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_marker
+    LOGICAL                                  :: failure
+
+! Calculate the maximum number of ij pairs that have to be computed
+! among groups
+
+    IF(.NOT.my_alpha_beta_case) THEN
+      total_ij_pairs=homo*(1+homo)/2
+      num_IJ_blocks=homo/block_size-1
+
+      first_I_block=1
+      last_i_block=block_size*(num_IJ_blocks-1)
+
+      first_J_block=block_size+1
+      last_J_block=block_size*(num_IJ_blocks+1)
+
+      ij_block_counter=0
+      DO iiB=first_I_block, last_i_block, block_size
+        DO jjB=iiB+block_size, last_J_block, block_size
+          ij_block_counter=ij_block_counter+1
+        END DO
+      END DO
+
+      total_ij_block=ij_block_counter
+      num_block_per_group=total_ij_block/ngroup
+      assigned_blocks=num_block_per_group*ngroup
+
+      total_ij_pairs_blocks=assigned_blocks+(total_ij_pairs-assigned_blocks*(block_size**2))
+
+      ALLOCATE(ij_marker(homo,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ij_marker=0
+      ALLOCATE(ij_map(total_ij_pairs_blocks,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ij_map=0
+      ij_counter=0
+      my_ij_pairs=0
+      DO iiB=first_I_block, last_i_block, block_size
+        DO jjB=iiB+block_size, last_J_block, block_size
+          IF(ij_counter+1>assigned_blocks) EXIT
+          ij_counter=ij_counter+1
+          ij_marker(iiB:iiB+block_size-1,jjB:jjB+block_size-1)=1
+          ij_map(ij_counter,1)=iiB
+          ij_map(ij_counter,2)=jjB
+          ij_map(ij_counter,3)=block_size
+          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
+        END DO
+      END DO
+      DO iiB=1, homo
+        DO jjB=iiB, homo
+          IF(ij_marker(iiB,jjB)==0) THEN
+            ij_counter=ij_counter+1
+            ij_map(ij_counter,1)=iiB
+            ij_map(ij_counter,2)=jjB
+            ij_map(ij_counter,3)=1
+            IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
+          END IF
+        END DO
+      END DO
+      DEALLOCATE(ij_marker)
+
+      IF((.NOT.my_open_shell_SS)) THEN
+        IF (unit_nr>0) THEN
+          IF(block_size==1) THEN
+            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
+                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", 100.0_dp
+          ELSE
+            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
+                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", &
+                        100.0_dp*REAL((total_ij_pairs-assigned_blocks*(block_size**2)),KIND=dp)/REAL(total_ij_pairs,KIND=dp)
+          END IF
+          CALL m_flush(unit_nr)
+        END IF
+      END IF
+
+    ELSE
+      ! alpha-beta case no index symmetry
+      total_ij_pairs=homo*homo_beta
+      ALLOCATE(ij_map(total_ij_pairs,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ij_map=0
+      ij_counter=0
+      my_ij_pairs=0
+      DO iiB=1, homo 
+        DO jjB=1, homo_beta
+          ij_counter=ij_counter+1
+          ij_map(ij_counter,1)=iiB
+          ij_map(ij_counter,2)=jjB
+          ij_map(ij_counter,3)=1
+          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
+        END DO
+      END DO
+    END IF
+    
+    END SUBROUTINE mp2_ri_communication
+
+
 
 END MODULE mp2_ri_gpw
