@@ -4042,7 +4042,7 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat,handle
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -4103,12 +4103,12 @@ MODULE mp2_ri_gpw
     INTEGER                                  :: color_sub, my_ij_pairs
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
     LOGICAL                                  :: my_open_shell_SS
-    INTEGER                                  :: unit_nr,handle
+    INTEGER                                  :: unit_nr
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_communication', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: assigned_blocks, first_I_block, first_J_block, iiB, &
+    INTEGER :: assigned_blocks, first_I_block, first_J_block, handle, iiB, &
       ij_block_counter, ij_counter, jjB, last_i_block, last_J_block, &
       num_block_per_group, stat, total_ij_block, total_ij_pairs_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_marker
@@ -4116,6 +4116,7 @@ MODULE mp2_ri_gpw
 
 ! Calculate the maximum number of ij pairs that have to be computed
 ! among groups
+
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
