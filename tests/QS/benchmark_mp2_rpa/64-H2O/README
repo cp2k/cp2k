@@ -11,7 +11,7 @@ BASIS_H2O     -> contains the primary and auxiliary(RI) basis sets
 POTENTIAL_H2O -> contains the GTH pseudo potentials
 H2O-64.xyz    -> geometry in xyz format
 
-the additional files t_c_g.dat is needed for the RI-MP2 run, and can be found in the tests/QS directory.
+the additional files t_c_g.dat is needed for the RI-MP2 run, and can be found in the cp2k/data directory.
 
 To run these benchmarks, CP2K needs to be compiled with libint support (-D__LIBINT). Libint library has
 to be compiled such that higher angular momentum can be computed (see: tools/hfx_tools/libint_tools/README_LIBINT),
