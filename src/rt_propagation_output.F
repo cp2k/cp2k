@@ -614,7 +614,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: handle, im, ispin, re, unit_nr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cs_pos
@@ -629,17 +629,17 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    !TODO: maybe name the file something related to the project name
+    project_name = logger%iter_info%project_name
     DO ispin=1,SIZE(rho_new)/2
        re=2*ispin-1
        im=2*ispin
-       WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_RE",ispin,"_RESTART.dm"
+       WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE",ispin,"_RESTART.dm"
        cs_pos = cp_dbcsr_checksum (rho_new(re)%matrix, pos=.TRUE., error=error)
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
        ENDIF
        CALL cp_dbcsr_binary_write(rho_new(re)%matrix,file_name,error)
-       WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_IM",ispin,"_RESTART.dm"
+       WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM",ispin,"_RESTART.dm"
        cs_pos = cp_dbcsr_checksum (rho_new(im)%matrix, pos=.TRUE., error=error)
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos

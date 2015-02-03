@@ -33,3 +33,6 @@ H2O-ls-ortho-emd.inp
 H2O-ls-rtp-bch.inp
 emd-KG.inp
 H2plus-ls-rtp.inp
+#restart from a different input file
+H2O-ls-emd-mcweeny-rt-restart.inp
+

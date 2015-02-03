@@ -244,7 +244,7 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_restart_wfn', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: i, id_nr, im, ispin, ncol, &
                                                 nspin, re, unit_nr
     REAL(KIND=dp)                            :: alpha, cs_pos
@@ -325,17 +325,18 @@ MODULE  rt_propagation_utils
     CASE(use_rt_restart)
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error)
+          project_name = logger%iter_info%project_name
           DO ispin=1,nspin
              re=2*ispin-1
              im=2*ispin
-             WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_RE",ispin,"_RESTART.dm"
+             WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE",ispin,"_RESTART.dm"
              CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(rho_old(re)%matrix), &
                                        matrix_new=rho_old(re)%matrix, error=error)
              cs_pos = cp_dbcsr_checksum (rho_old(re)%matrix, pos=.TRUE., error=error)
              IF (unit_nr>0) THEN
                 WRITE(unit_nr,'(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
              ENDIF
-             WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_IM",ispin,"_RESTART.dm"
+             WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM",ispin,"_RESTART.dm"
              CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(rho_old(im)%matrix), &
                                        matrix_new=rho_old(im)%matrix, error=error)
              cs_pos = cp_dbcsr_checksum (rho_old(im)%matrix, pos=.TRUE., error=error)
