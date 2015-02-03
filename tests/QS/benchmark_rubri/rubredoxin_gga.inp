@@ -61,7 +61,7 @@
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
           CUTOFF_RADIUS 6.0
-          T_C_G_DATA../../../data/t_c_g.dat
+          T_C_G_DATA ../../../data/t_c_g.dat
         &END
         &MEMORY
           MAX_MEMORY  13000
