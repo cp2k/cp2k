@@ -90,8 +90,8 @@ def main():
         if(report['revision'] != None):
             if(report['revision']<threshold_rev):
                 report['status'] = "OUTDATED"
-            else:
-                # store only fresh reports, prevents overwritting archive
+            elif(report['status'] in ("OK", "FAILED")):
+                # store only useful and fresh reports, prevents overwriting archive
                 fn = outdir+"archive/%s/rev_%d.txt.gz"%(s,report['revision'])
                 write_file(fn, report_txt, gz=True)
 
