@@ -18,11 +18,12 @@ MODULE cp_dbcsr_cp2k_link
        cp_dbcsr_get_matrix_type, cp_dbcsr_reserve_blocks, cp_dbcsr_type, &
        dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
+       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
+       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_max_elements_images, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
        dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
        dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
@@ -71,6 +72,7 @@ CONTAINS
 
     INTEGER                                  :: comm_thread_load, &
                                                 error_handle, max_ele_block, &
+                                                max_elements_images, &
                                                 mm_driver, mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_combtypes, &
@@ -99,6 +101,8 @@ CONTAINS
          "mm_driver", i_val=mm_driver, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "MAX_ELEMENTS_PER_BLOCK", i_val=max_ele_block, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "max_elements_images", i_val=max_elements_images, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "n_size_mnk_stacks", i_val=nstacks(1), error=error)
     nstacks(2:3) = nstacks(1)
@@ -138,6 +142,8 @@ CONTAINS
     CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=dbcsr_error)
     IF(mm_ss > 0) &
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
+    IF(max_elements_images>0) &
+    CALL dbcsr_set_conf_max_elements_images(max_elements_images, error=dbcsr_error)
     IF(nstacks(1) > 0) &
     CALL dbcsr_set_conf_nstacks(nstacks, error=dbcsr_error)
 
@@ -185,6 +191,14 @@ CONTAINS
        WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
         "DBCSR| Multiplication stack size", dbcsr_get_conf_mm_stacksize()
 
+       IF (dbcsr_get_conf_max_elements_images()>0) THEN
+          WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+               "DBCSR| Maximum elements for images", dbcsr_get_conf_max_elements_images()
+       ELSE
+          WRITE(UNIT=unit_num, FMT='(1X,A,T72,A)')&
+               "DBCSR| Maximum elements for images","UNLIMITED"
+       ENDIF
+       
        CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
        IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&

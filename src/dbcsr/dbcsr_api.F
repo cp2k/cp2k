@@ -38,12 +38,13 @@ MODULE dbcsr_api
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, &
        dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
-       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
-       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_max_elements_images, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
+       dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
        dbcsr_set_conf_use_comm_thread, dbcsr_set_default_config, has_acc, &
@@ -247,6 +248,7 @@ MODULE dbcsr_api
             dbcsr_get_conf_comm_thread_load,&
             dbcsr_get_conf_max_ele_block,&
             dbcsr_get_conf_mm_driver,&
+            dbcsr_get_conf_max_elements_images,&
             dbcsr_get_conf_mm_stacksize,&
             dbcsr_get_conf_mpi_mem,&
             dbcsr_get_conf_nstacks,&
@@ -328,6 +330,7 @@ MODULE dbcsr_api
             dbcsr_set_conf_mm_driver,&
             dbcsr_set_conf_mm_stacksize,&
             dbcsr_set_conf_mpi_mem,&
+            dbcsr_set_conf_max_elements_images,&
             dbcsr_set_conf_nstacks,&
             dbcsr_set_conf_subcomm,&
             dbcsr_set_conf_use_comm_thread,&

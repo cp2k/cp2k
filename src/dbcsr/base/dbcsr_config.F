@@ -37,9 +37,9 @@ MODULE dbcsr_config
 
   PUBLIC :: dbcsr_set_conf_mpi_mem, dbcsr_get_conf_mpi_mem
 
-  PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver
+  PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver, dbcsr_get_conf_max_elements_images
 
-  PUBLIC :: dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
+  PUBLIC :: dbcsr_set_conf_max_elements_images, dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
 
   PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
@@ -153,6 +153,9 @@ MODULE dbcsr_config
 
   ! Default blocking parameter
   INTEGER, SAVE :: max_elements_per_block = 32
+
+  ! Maximum number of elements for each image
+  INTEGER, SAVE :: max_elements_images = -1
 
   ! Number of stacks to use
   INTEGER, SAVE :: nm_stacks = 3
@@ -415,6 +418,36 @@ CONTAINS
 
     max_ele_block = max_elements_per_block
   END FUNCTION dbcsr_get_conf_max_ele_block
+
+! *****************************************************************************
+!> \brief ...
+!> \param new_max_elements_images ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_set_conf_max_elements_images (new_max_elements_images, error)
+    INTEGER, INTENT(IN)                      :: new_max_elements_images
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_set_conf_max_elements_images', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    max_elements_images = new_max_elements_images
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_max_elements_images
+
+! *****************************************************************************
+!> \brief ...
+!> \retval dbcsr_get_conf_max_elements_images ...
+! *****************************************************************************
+  FUNCTION dbcsr_get_conf_max_elements_images ()
+    INTEGER :: dbcsr_get_conf_max_elements_images
+
+    dbcsr_get_conf_max_elements_images=max_elements_images
+  END FUNCTION dbcsr_get_conf_max_elements_images
 
 ! *****************************************************************************
 !> \brief ...

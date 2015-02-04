@@ -969,8 +969,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size_used', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, col, &
-                                                error_handle, nze, row
+    INTEGER                                  :: blk, col, error_handle, nze, &
+                                                row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
 
 !type(dbcsr_iterator_type) :: iter
@@ -984,7 +984,6 @@ CONTAINS
     DO row = 1, matrix%m%nblkrows_total
        DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
           col = matrix%m%col_i(blk)
-          blk_p = ABS (matrix%m%blk_p(blk))
           IF (matrix%m%blk_p(blk) .NE. 0) THEN
              nze = row_blk_sizes(row) * col_blk_sizes(col)
              data_size = data_size + nze

@@ -712,6 +712,17 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
+    CALL keyword_create(keyword, name="max_elements_images",&
+         description="Maximum number of elements (dense limit)" &
+         // " for each image, which also corresponds to" &
+         // " the number of elements exchanged between MPI processes" &
+         // " during the operations." &
+         // " A negative or zero value means unlimited.",&
+         usage="max_elements_images 10000",&
+         default_i_val=-1,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !    
     CALL keyword_create(keyword, name="n_size_mnk_stacks",&
          description="Number of stacks to use for distinct atomic sizes" &
          // " (e.g., 2 for a system of mostly waters). "&

@@ -25,7 +25,8 @@ MODULE dbcsr_types
        dbcsr_type_complex_8_2d, dbcsr_type_complex_default, dbcsr_type_int_4, &
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
        dbcsr_type_real_8_2d, dbcsr_type_real_default
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             int_8
 
   !$ USE OMP_LIB
 
@@ -103,6 +104,8 @@ MODULE dbcsr_types
             dbcsr_func_asin,&
             dbcsr_func_truncate,&
             dbcsr_func_cos
+
+  PUBLIC :: dbcsr_mpi_statistics_type
 
 ! *****************************************************************************
 !> \brief A processor (process) grid distribution
@@ -589,4 +592,20 @@ MODULE dbcsr_types
      TYPE(dbcsr_imagedistribution_obj) :: image_dist
   END TYPE dbcsr_2d_array_type
 
+! *****************************************************************************
+!> \brief DBCSR MPI statistics
+!> \var ...
+!> \var ...
+! *****************************************************************************
+  TYPE dbcsr_mpi_statistics_type
+     INTEGER                               :: col_nimages, row_nimages
+     INTEGER                               :: nexchanges
+     INTEGER                               :: nprocs
+     ! rank 1: 1=right, 2=left
+     ! rank 2: 1=send, 2=recv
+     ! rank 3: 1=total, 2=min, 3=max
+     INTEGER(KIND=int_8), DIMENSION(2,2,3) :: data_size
+     INTEGER(KIND=int_8), DIMENSION(2,2,3) :: index_size
+  END TYPE dbcsr_mpi_statistics_type
+  
 END MODULE dbcsr_types
