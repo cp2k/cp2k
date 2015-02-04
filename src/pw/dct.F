@@ -133,7 +133,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_dct_pw_grids', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, srcs_shrink
+    INTEGER                                  :: blocked, handle, srcs_shrink
     INTEGER, DIMENSION(2, 3)                 :: bounds_local_new, &
                                                 bounds_local_shftd, &
                                                 bounds_new, bounds_shftd
@@ -157,15 +157,24 @@ CONTAINS
 
     ! uses bounds_local_new that is 2*n-2 in size....this is only rarely fft-able by fftsg, and needs fftw3,
     ! where it might use sizes that are not declared available in fft_get_radix.
+
+    IF (pw_grid%para%blocked) THEN
+       blocked = 1
+    ELSE IF (pw_grid%para%ray_distribution) THEN
+       blocked = 0
+    END IF
+
     CALL pw_grid_setup(hmat2, dct_pw_grid, &
                        bounds=bounds_new, &
+                       rs_dims = pw_grid%para%rs_dims, &
+                       blocked = blocked, &
                        bounds_local=bounds_local_new, &
-                       blocked = 0, &
                        error=error)
 
     CALL pw_grid_setup(hmat2, dct_aux_pw_grid, &
                        bounds=bounds_new, &
-                       blocked = 0, &
+                       rs_dims = pw_grid%para%rs_dims, &
+                       blocked = blocked, &
                        error=error)
 
     CALL timestop(handle)
@@ -1518,7 +1527,7 @@ CONTAINS
     END IF
 
     ! SN , first black processes then red processes
-    IF ((color(1) .EQ. black) .AND. nnbr_exists) THEN 
+    IF ((color(2) .EQ. black) .AND. nnbr_exists) THEN 
        ! black sends to the north
        IF (should_sendn) THEN
           CALL mp_isend(n_smsg, nnbr_pid, mp_group, sn_sreq)
@@ -1530,7 +1539,7 @@ CONTAINS
           CALL mp_irecv(n_rmsg, nnbr_pid, mp_group, ns_rreq)
           CALL mp_wait(ns_rreq)
        END IF
-    ELSE IF ((color(1) .EQ. red) .AND. snbr_exists) THEN
+    ELSE IF ((color(2) .EQ. red) .AND. snbr_exists) THEN
        ! red receives from the south
        IF (should_recvs) THEN
           CALL mp_irecv(s_rmsg, snbr_pid, mp_group, sn_rreq)
@@ -1545,7 +1554,7 @@ CONTAINS
     END IF
 
     ! NS
-    IF ((color(1) .EQ. red) .AND. nnbr_exists) THEN 
+    IF ((color(2) .EQ. red) .AND. nnbr_exists) THEN 
        ! red sends to the north
        IF (should_sendn) THEN
           CALL mp_isend(n_smsg, nnbr_pid, mp_group, sn_sreq)
@@ -1557,7 +1566,7 @@ CONTAINS
           CALL mp_irecv(n_rmsg, nnbr_pid, mp_group, ns_rreq)
           CALL mp_wait(ns_rreq)
        END IF
-    ELSE IF ((color(1) .EQ. black) .AND. snbr_exists) THEN
+    ELSE IF ((color(2) .EQ. black) .AND. snbr_exists) THEN
        ! black receives from the south
        IF (should_recvs) THEN
           CALL mp_irecv(s_rmsg, snbr_pid, mp_group, sn_rreq)

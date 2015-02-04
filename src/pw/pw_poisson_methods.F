@@ -232,7 +232,7 @@ CONTAINS
                       pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool,&
                       poisson_params=poisson_env%parameters,&
                       mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
-                      dct_pw_grid=poisson_env%dct_aux_pw_grid,&
+                      dct_pw_grid=poisson_env%dct_pw_grid,&
                       error=error)
               CALL ps_implicit_create(poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                       poisson_env%parameters, &

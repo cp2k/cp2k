@@ -1040,7 +1040,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        rsd = pw_grid % para % rs_dims
 
        IF (PRESENT(bounds_local)) THEN
-       !> axis_dist tells what portion of 1 .. nx , 1 .. ny , 1 .. nz are in the current process
+       ! axis_dist tells what portion of 1 .. nx , 1 .. ny , 1 .. nz are in the current process
           DO i = 1, 3
              axis_dist(:,i) = bounds_local(:,i) - pw_grid%bounds(1,i) + 1
           END DO
@@ -1057,12 +1057,12 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
              pw_grid % para % bo ( 1:2, 1, ip, 2 ) = axis_dist_all(1:2,1,ip+1)
              pw_grid % para % bo ( 1, 2, ip, 2 ) = 1
              pw_grid % para % bo ( 2, 2, ip, 2 ) = ny
-             pw_grid % para % bo ( 1:2, 3, ip, 2 ) = axis_dist_all(1:2,3,ip+1)
+             pw_grid % para % bo ( 1:2, 3, ip, 2 ) = get_limit (nz,rsd(2),coor(2))
              ! distribution Xyz
              pw_grid % para % bo ( 1, 1, ip, 3 ) = 1
              pw_grid % para % bo ( 2, 1, ip, 3 ) = nx
-             pw_grid % para % bo ( 1:2, 2, ip, 3 ) = axis_dist_all(1:2,2,ip+1)
-             pw_grid % para % bo ( 1:2, 3, ip, 3 ) = axis_dist_all(1:2,3,ip+1)
+             pw_grid % para % bo ( 1:2, 2, ip, 3 ) = get_limit (ny,rsd(1),coor(1))
+             pw_grid % para % bo ( 1:2, 3, ip, 3 ) = get_limit (nz,rsd(2),coor(2))
           END DO
           DEALLOCATE(axis_dist_all)
        ELSE
