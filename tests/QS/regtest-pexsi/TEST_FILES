@@ -1,3 +1,3 @@
 test_pexsi_md.inp            11
 test_pexsi.inp               11
-test_entropic_pexsi.inp      11
+test_entropic_pexsi.inp          11     2e-12
