@@ -96,7 +96,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 20.0 10.0
+      ABC 13.0 43.0 13.0
     &END CELL
     &COORD
      Ar        4.0000000000        4.0000000000        4.0000000000
