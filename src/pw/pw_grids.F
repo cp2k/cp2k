@@ -915,6 +915,8 @@ CONTAINS
 
     IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
 
+       pw_grid % para % ray_distribution = .FALSE.
+
        pw_grid % bounds_local = pw_grid % bounds
        pw_grid % npts_local = pw_grid % npts
 CPPrecondition(pw_grid%ngpts_cut<HUGE(pw_grid%ngpts_cut_local),cp_failure_level,routineP,error,failure)
