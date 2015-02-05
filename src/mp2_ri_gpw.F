@@ -2387,102 +2387,11 @@ MODULE mp2_ri_gpw
     virtual=nmo-homo
     IF(my_alpha_beta_case) virtual_beta=nmo-homo_beta
 
-    ngroup=para_env%num_pe/para_env_sub%num_pe
-
-    ! Calculate available memory and create integral group according to that
-    ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-    mem_for_iaK=REAL(homo,KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
-    mem_for_aK=REAL(virtual,KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
-
-    mem_real=m_memory()
-    mem_real=(mem_real+1024*1024-1)/(1024*1024)
-    ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-    ! has not been given back to the OS yet. 
-    CALL mp_min(mem_real,para_env%group)
-
-    mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
-    mem_min=mem_min+3.0_dp*MAXVAL(sizes_B_virtual)*REAL(dimen_RI,KIND=dp)*8.0_dp/(1024**2)
- 
-    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
-                                                          mem_min, ' MB'
-    END IF
-   
-    mem_real=mp2_env%mp2_memory
-
-    mem_per_group=mem_real*para_env_sub%num_pe
-    
-    ! here we try to find the best block_size and integ_group_size
-    best_integ_group_size=ngroup
-    best_block_size=1
-
-    ! in the open shell case no replication and no block communication is done 
-    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      ! Here we split the memory half for the communication, half for replication
-      IF(mp2_env%ri_mp2%block_size>0) THEN
-        best_block_size=mp2_env%ri_mp2%block_size
-        mem_for_rep=MAX(mem_min,mem_per_group-2.0_dp*mem_for_aK*best_block_size)
-      ELSE
-        mem_for_rep=mem_per_group/2.0_dp
-      END IF
-      ! calculate the minimum replication group size according to the available memory
-      min_integ_group_size=CEILING(2.0_dp*mem_for_iaK/mem_for_rep)
-
-      integ_group_size=MIN(min_integ_group_size,ngroup)-1
-      DO iiB=min_integ_group_size+1, ngroup
-        integ_group_size=integ_group_size+1
-        ! check that the ngroup is a multiple of  integ_group_size
-        IF(MOD(ngroup,integ_group_size)/=0) CYCLE
-        ! check that the integ group size is not too small (10% is empirical for now)
-        IF(REAL(integ_group_size,KIND=dp)/REAL(ngroup,KIND=dp)<0.1_dp) CYCLE
-
-        best_integ_group_size=integ_group_size
-        EXIT
-      END DO
-
-      IF(.NOT.(mp2_env%ri_mp2%block_size>0)) THEN
-        mem_for_comm=mem_per_group-2.0_dp*mem_for_iaK/best_integ_group_size
-        ! calculate the maximum block size and make sure it is not smaller than 1
-        best_block_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
-        DO 
-          num_IJ_blocks=(homo/best_block_size)
-          num_IJ_blocks=(num_IJ_blocks*num_IJ_blocks-num_IJ_blocks)/2
-          IF(num_IJ_blocks>ngroup.OR.best_block_size==1) THEN
-            EXIT
-          ELSE
-            best_block_size=best_block_size-1
-          END IF
-        END DO
-      END IF
- 
-      ! check that best_block_size is not bigger than homo/2-1
-      best_block_size=MIN(MAX(homo/2-1+MOD(homo,2),1),best_block_size)
-    END IF
-
-    integ_group_size=best_integ_group_size
-    block_size=best_block_size
-
-    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      IF (unit_nr>0) THEN
-         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                                 "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
-         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                                 "RI_INFO| Block size:", block_size
-         CALL m_flush(unit_nr)
-      END IF
-    END IF
-    
-    num_integ_group=ngroup/integ_group_size
-
-    pos_integ_group=MOD(color_sub,integ_group_size)
-
-    my_group_L_size=sizes_array(color_sub)
-    my_group_L_start=starts_array(color_sub)
-    my_group_L_end=ends_array(color_sub)
-
-    my_B_virtual_start=starts_B_virtual(para_env_sub%mepos)
-    my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
-    my_B_size=sizes_B_virtual(para_env_sub%mepos)
+    CALL mp2_ri_get_sizes(mp2_env,para_env, para_env_sub,ends_array, ends_B_virtual,sizes_array, sizes_B_virtual,&
+    starts_array, starts_B_virtual,homo, dimen_RI, unit_nr,color_sub,best_block_size,best_integ_group_size, block_size, &
+    integ_group_size,min_integ_group_size, my_B_size,my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
+    my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group,pos_integ_group, virtual,my_alpha_beta_case, &
+    my_open_shell_SS, actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
 
     IF(my_alpha_beta_case) THEN
       my_B_virtual_start_beta=starts_B_virtual_beta(para_env_sub%mepos)
@@ -4343,5 +4252,175 @@ MODULE mp2_ri_gpw
 
     END SUBROUTINE mp2_ri_create_group
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param ends_array ...
+!> \param ends_B_virtual ...
+!> \param sizes_array ...
+!> \param sizes_B_virtual ...
+!> \param starts_array ...
+!> \param starts_B_virtual ...
+!> \param homo ...
+!> \param dimen_RI ...
+!> \param unit_nr ...
+!> \param color_sub ...
+!> \param best_block_size ...
+!> \param best_integ_group_size ...
+!> \param block_size ...
+!> \param integ_group_size ...
+!> \param min_integ_group_size ...
+!> \param my_B_size ...
+!> \param my_B_virtual_end ...
+!> \param my_B_virtual_start ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param ngroup ...
+!> \param num_IJ_blocks ...
+!> \param num_integ_group ...
+!> \param pos_integ_group ...
+!> \param virtual ...
+!> \param my_alpha_beta_case ...
+!> \param my_open_shell_SS ...
+!> \param actual_flop_rate ...
+!> \param mem_for_aK ...
+!> \param mem_for_comm ...
+!> \param mem_for_iaK ...
+!> \param mem_for_rep ...
+!> \param mem_min ...
+!> \param mem_per_group ...
+!> \param mem_real ...
+! *****************************************************************************
+    SUBROUTINE mp2_ri_get_sizes(mp2_env,para_env, para_env_sub,ends_array, ends_B_virtual,sizes_array, sizes_B_virtual,&
+    starts_array, starts_B_virtual,homo, dimen_RI, unit_nr,color_sub,best_block_size,best_integ_group_size, block_size, &
+    integ_group_size,min_integ_group_size, my_B_size,my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
+    my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group,pos_integ_group, virtual,my_alpha_beta_case,&
+    my_open_shell_SS,actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
+      sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
+    INTEGER :: homo, dimen_RI, unit_nr, color_sub, best_block_size, &
+      best_integ_group_size, block_size, integ_group_size, &
+      min_integ_group_size, my_B_size, my_B_virtual_end, my_B_virtual_start, &
+      my_group_L_size, my_group_L_start, my_group_L_end, ngroup, &
+      num_IJ_blocks, num_integ_group, pos_integ_group, virtual
+    LOGICAL                                  :: my_alpha_beta_case, &
+                                                my_open_shell_SS
+    REAL(KIND=dp) :: actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK, &
+      mem_for_rep, mem_min, mem_per_group, mem_real
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_sizes', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iiB
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ngroup=para_env%num_pe/para_env_sub%num_pe
+
+    ! Calculate available memory and create integral group according to that
+    ! mem_for_iaK is the memory needed for storing the 3 centre integrals
+    mem_for_iaK=REAL(homo,KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
+    mem_for_aK=REAL(virtual,KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
+
+    mem_real=m_memory()
+    mem_real=(mem_real+1024*1024-1)/(1024*1024)
+    ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
+    ! has not been given back to the OS yet. 
+    CALL mp_min(mem_real,para_env%group)
+
+    mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
+    mem_min=mem_min+3.0_dp*MAXVAL(sizes_B_virtual)*REAL(dimen_RI,KIND=dp)*8.0_dp/(1024**2)
+ 
+    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
+                                                          mem_min, ' MB'
+    END IF
+   
+    mem_real=mp2_env%mp2_memory
+
+    mem_per_group=mem_real*para_env_sub%num_pe
+    
+    ! here we try to find the best block_size and integ_group_size
+    best_integ_group_size=ngroup
+    best_block_size=1
+
+    ! in the open shell case no replication and no block communication is done 
+    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
+      ! Here we split the memory half for the communication, half for replication
+      IF(mp2_env%ri_mp2%block_size>0) THEN
+        best_block_size=mp2_env%ri_mp2%block_size
+        mem_for_rep=MAX(mem_min,mem_per_group-2.0_dp*mem_for_aK*best_block_size)
+      ELSE
+        mem_for_rep=mem_per_group/2.0_dp
+      END IF
+      ! calculate the minimum replication group size according to the available memory
+      min_integ_group_size=CEILING(2.0_dp*mem_for_iaK/mem_for_rep)
+
+      integ_group_size=MIN(min_integ_group_size,ngroup)-1
+      DO iiB=min_integ_group_size+1, ngroup
+        integ_group_size=integ_group_size+1
+        ! check that the ngroup is a multiple of  integ_group_size
+        IF(MOD(ngroup,integ_group_size)/=0) CYCLE
+        ! check that the integ group size is not too small (10% is empirical for now)
+        IF(REAL(integ_group_size,KIND=dp)/REAL(ngroup,KIND=dp)<0.1_dp) CYCLE
+
+        best_integ_group_size=integ_group_size
+        EXIT
+      END DO
+
+      IF(.NOT.(mp2_env%ri_mp2%block_size>0)) THEN
+        mem_for_comm=mem_per_group-2.0_dp*mem_for_iaK/best_integ_group_size
+        ! calculate the maximum block size and make sure it is not smaller than 1
+        best_block_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
+        DO 
+          num_IJ_blocks=(homo/best_block_size)
+          num_IJ_blocks=(num_IJ_blocks*num_IJ_blocks-num_IJ_blocks)/2
+          IF(num_IJ_blocks>ngroup.OR.best_block_size==1) THEN
+            EXIT
+          ELSE
+            best_block_size=best_block_size-1
+          END IF
+        END DO
+      END IF
+ 
+      ! check that best_block_size is not bigger than homo/2-1
+      best_block_size=MIN(MAX(homo/2-1+MOD(homo,2),1),best_block_size)
+    END IF
+
+    integ_group_size=best_integ_group_size
+    block_size=best_block_size
+
+    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
+      IF (unit_nr>0) THEN
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "RI_INFO| Block size:", block_size
+         CALL m_flush(unit_nr)
+      END IF
+    END IF
+    
+    num_integ_group=ngroup/integ_group_size
+
+    pos_integ_group=MOD(color_sub,integ_group_size)
+
+    my_group_L_size=sizes_array(color_sub)
+    my_group_L_start=starts_array(color_sub)
+    my_group_L_end=ends_array(color_sub)
+
+    my_B_virtual_start=starts_B_virtual(para_env_sub%mepos)
+    my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
+    my_B_size=sizes_B_virtual(para_env_sub%mepos)
+
+    CALL timestop(handle)
+
+    END SUBROUTINE mp2_ri_get_sizes
 
 END MODULE mp2_ri_gpw
