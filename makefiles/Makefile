@@ -193,13 +193,17 @@ clean:
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.dep) 
 OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
 
+execlean:
+	rm -rf $(foreach v, $(VERSION), $(EXEDIR)/*.$(v))
+OTHER_HELP += "execlean : Remove the executables, for given ARCH and VERSION"
+
 #
 # delete the intermediate files, the programs and libraries and anything that might be in the objdir or libdir directory
 # Use this if you want to fully rebuild an executable (for a given compiler and or VERSION)
 #
-realclean: clean
+realclean: clean execlean
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
-	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v) $(EXEDIR)/*.$(v))
+	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
 OTHER_HELP += "realclean : Remove all files for given ARCH and VERSION"
 
 #
