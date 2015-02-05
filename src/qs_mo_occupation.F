@@ -501,7 +501,7 @@ CONTAINS
           lengthscale=10*smear%electronic_temperature
 
           CALL FermiFixedDeriv(dfde,mo_set%occupation_numbers,mo_set%mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
-                               smear%electronic_temperature,mo_set%maxocc,xas_estate,occ_estate,lengthscale)
+                               smear%electronic_temperature,mo_set%maxocc,lengthscale,xas_estate,occ_estate)
 
           ! deriv of E_{KS}-kT*S wrt to f_i
           eval_deriv=eval_deriv - mo_set%eigenvalues + mo_set%mu

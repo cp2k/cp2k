@@ -383,7 +383,7 @@ function next_element_sibling(node) {
 }
 /*****/
 
-/****f* toggle_folding/next_element_sibling
+/****f* toggle_folding/dump
  * PURPOSE
  *   For debugging. Dumps the contents of a HTML element via alert
  * USAGE

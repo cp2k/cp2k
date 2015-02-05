@@ -124,14 +124,11 @@ MODULE qs_scf
                                              qs_scf_loop_print,&
                                              qs_scf_outer_loop_info,&
                                              qs_scf_write_mos
-  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
-                                             block_krylov_diag_method_nr,&
-                                             general_diag_method_nr,&
-                                             ot_diag_method_nr,&
-                                             ot_method_nr,&
-                                             qs_scf_env_type,&
-                                             scf_env_release,&
-                                             special_diag_method_nr
+  USE qs_scf_types,                    ONLY: &
+       block_davidson_diag_method_nr, block_krylov_diag_method_nr, &
+       filter_matrix_diag_method_nr, general_diag_method_nr, &
+       ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_release, &
+       special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program
@@ -579,9 +576,18 @@ CONTAINS
     SELECT CASE (scf_env%method)
     CASE DEFAULT
 
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown scf method method:"//&
-               cp_to_string(scf_env%method),error,failure)
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                      routineP,"unknown scf method method:"//&
+                      cp_to_string(scf_env%method),error,failure)
+
+    CASE (filter_matrix_diag_method_nr)
+       
+       IF(.NOT.scf_env%skip_diis) THEN
+          IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+             CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
+          END IF
+          CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
+       END IF
 
     CASE (general_diag_method_nr,special_diag_method_nr,block_krylov_diag_method_nr)
        IF(.NOT.scf_env%skip_diis) THEN
@@ -589,7 +595,7 @@ CONTAINS
             CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
          END IF
          CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
-       END IF
+      END IF
 
     CASE (ot_diag_method_nr)
        CALL get_qs_env(qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s, error=error)
@@ -826,6 +832,8 @@ CPSourceFileRef)
        CASE(block_krylov_diag_method_nr)
        CASE(block_davidson_diag_method_nr)
            CALL block_davidson_deallocate(scf_env%block_davidson_env,error=error)
+       CASE(filter_matrix_diag_method_nr)
+          !
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&

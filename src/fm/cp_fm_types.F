@@ -1240,7 +1240,7 @@ CPSourceFileRef,&
      IF (ASSOCIATED(matrix)) THEN
         data_unit=unit_nr
         desc_unit=unit_nr
-        IF (.not.loc.and.long_description) THEN
+        IF (.not.loc.and.my_long_description) THEN
            matrix%print_count=matrix%print_count+1
            IF (para_env%mepos==para_env%source) THEN
               filename=TRIM(matrix%name)//'-'//&
@@ -1286,7 +1286,14 @@ CPSourceFileRef,&
            WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " ,"
            IF (my_long_description) THEN
               WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " local_data=("
-              CALL cp_2d_r_write(matrix%local_data,unit_nr=data_unit,error=error)
+!BEG:ORIG:LT:2015/02/03
+              ! CALL cp_2d_r_write(matrix%local_data,unit_nr=data_unit,error=error)
+!END:ORIG:LT:2015/02/03
+!BEG:DEBUG:LT:2015/02/03
+              CALL cp_2d_r_write(matrix%local_data, unit_nr=data_unit, &
+                                 el_format="f9.4", &
+                                 error=error)
+!END:DEBUG:LT:2015/02/03
               IF (desc_unit/=data_unit) THEN
                  WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) &
                       "  written to file "//TRIM(filename)
@@ -1301,7 +1308,7 @@ CPSourceFileRef,&
            WRITE (unit=desc_unit,fmt="(a)",iostat=iostat) " }"
         END IF
 
-        IF (.not.loc.and.long_description) THEN
+        IF (.not.loc.and.my_long_description) THEN
            CALL close_file(desc_unit)
            CALL close_file(data_unit)
         END IF

@@ -70,9 +70,9 @@ MODULE bibliography
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
-       Grimme2011, Fattebert2002, Andreussi2012,                       &
-       Khaliullin2007, Khaliullin2008, Merlot2014,Lin2009,Lin2013,     &
-       QUIP_ref,DelBen2015
+       Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
+       Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
+       QUIP_ref, DelBen2015
 
 CONTAINS
 
@@ -2771,6 +2771,25 @@ CONTAINS
          "UT WOS:000338614300001",&
          "ER"),&
          DOI="10.1016/j.parco.2014.03.012")
+    
+    CALL add_reference(key=Rayson2009, ISI_record=s2a(&
+         "PT J",&
+         "AU Rayson, M. J.",&
+         "   Briddon, P. R.",&
+         "AF Rayson, Mark",&
+         "   Briddon, Patrick",&
+         "TI Highly efficient method for Kohn-Sham density functional",&
+         "   calculations of 500–10 000 atom systems ",&
+         "SO PHYSICAL REVIEW B",&
+         "SN 1098-0121",&
+         "PD NOV",&
+         "PY 2009",&
+         "VL 80",&
+         "IS 20",&
+         "AR 205104",&
+         "DI 10.1103/PhysRevB.80.205104",&
+         "ER"),&
+         DOI="10.1103/PhysRevB.80.205104")
 
     CALL add_reference(key=Merlot2014, ISI_record=s2a(&
          "PT J",&

@@ -426,8 +426,10 @@ MODULE input_constants
                                               ot_precond_solver_update=4
 
   INTEGER, PARAMETER, PUBLIC               :: diag_standard=1,&
-                                              diag_ot=2, diag_block_krylov=3,&
-                                              diag_block_davidson=4
+                                              diag_ot=2,&
+                                              diag_block_krylov=3,&
+                                              diag_block_davidson=4,&
+                                              diag_filter_matrix=5
 
   INTEGER, PUBLIC, PARAMETER               :: default_lbfgs_method_id=1,&
                                               default_bfgs_method_id=2,&

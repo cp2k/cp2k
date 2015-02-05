@@ -20,7 +20,7 @@ MODULE fermi_utils
 
   PRIVATE
 
-  PUBLIC :: FermiFixed, FermiFixedDeriv, Fermikp
+  PUBLIC :: Fermi, FermiFixed, FermiFixedDeriv, Fermikp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
 
@@ -38,6 +38,8 @@ CONTAINS
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
+!> \param   History
+!>          - Made estate and festate optional (LT, 2014/02/26) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    09.2008
 !> \author  Joost VandeVondele
 ! *****************************************************************************
@@ -45,8 +47,8 @@ CONTAINS
 
     REAL(KIND=dp), INTENT(out)               :: f(:), N, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), mu, T, maxocc
-    INTEGER, INTENT(IN)                      :: estate
-    REAL(KIND=dp), INTENT(IN)                :: festate
+    INTEGER, INTENT(IN), OPTIONAL            :: estate
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Fermi', &
       routineP = moduleN//':'//routineN
@@ -61,12 +63,16 @@ CONTAINS
    ! kTS is the entropic contribution to the energy i.e. -TS
    ! kTS= kT*[f ln f + (1-f) ln (1-f)]
 
-   DO I=1,Nstate
-       IF(i==estate) THEN
-         occupation = festate
-       ELSE
+   DO i = 1, Nstate
+      IF (PRESENT(estate) .AND. PRESENT(festate)) THEN
+         IF (i == estate) THEN
+            occupation = festate
+         ELSE
+            occupation = maxocc
+         END IF
+      ELSE
          occupation = maxocc
-       END IF
+      END IF
       ! have the result of exp go to zero instead of overflowing
       IF (e(i) > mu) THEN
          arg  = -(e(i)-mu)/T
@@ -198,21 +204,32 @@ CONTAINS
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
+!> \param   History
+!>          - Made estate and festate optional (LT, 2014/02/26) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    09.2008
 !> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
     REAL(KIND=dp), INTENT(OUT)               :: f(:), mu, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
-    INTEGER, INTENT(IN)                      :: estate
-    REAL(KIND=dp), INTENT(IN)                :: festate
+    INTEGER, INTENT(IN), OPTIONAL            :: estate
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixed', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iter
+    INTEGER                                  :: iter, my_estate
     REAL(KIND=dp)                            :: mu_max, mu_min, mu_now, &
-                                                N_max, N_min, N_now
+                                                my_festate, N_max, N_min, &
+                                                N_now
+
+    IF (PRESENT(estate) .AND. PRESENT(festate)) THEN
+       my_estate = estate
+       my_festate = festate
+    ELSE
+       my_estate = maxocc
+       my_festate = maxocc
+    END IF
 
 ! bisection search to find N
 ! first bracket
@@ -221,7 +238,7 @@ CONTAINS
     iter=0
     DO
       iter=iter+1
-      CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc,estate,festate)
+      CALL Fermi(f, N_min, kTS, e, mu_min, T, maxocc, my_estate, my_festate)
       IF (N_min>N .OR. iter>20) THEN
          mu_min=mu_min-T
       ELSE
@@ -233,7 +250,7 @@ CONTAINS
     iter=0
     DO
       iter=iter+1
-      CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc,estate,festate)
+      CALL Fermi(f, N_max, kTS, e, mu_max, T, maxocc, my_estate, my_festate)
       IF (N_max<N .OR. iter>20) THEN
          mu_max=mu_max+T
       ELSE
@@ -246,7 +263,7 @@ CONTAINS
     DO WHILE( mu_max-mu_min > EPSILON(mu)*MAX(1.0_dp,ABS(mu_max),ABS(mu_min)) )
        iter=iter+1
        mu_now = (mu_max+mu_min)/2.0_dp
-       CALL Fermi(f,N_now,kTS,e,mu_now,T, maxocc,estate,festate)
+       CALL Fermi(f, N_now, kTS, e, mu_now, T, maxocc, my_estate, my_festate)
        iter = iter + 1
        IF (N_now<=N) THEN
           mu_min = mu_now
@@ -259,7 +276,7 @@ CONTAINS
     ENDDO
 
     mu=(mu_max+mu_min)/2.0_dp
-    CALL Fermi(f,N_now,kTS,e,mu,T, maxocc,estate,festate)
+    CALL Fermi(f, N_now, kTS, e, mu, T, maxocc, my_estate, my_festate)
 
  END SUBROUTINE FermiFixed
 
@@ -332,29 +349,41 @@ CONTAINS
 !> \param   N total number of electrons (output)
 !> \param   T  electronic temperature
 !> \param maxocc ...
+!> \param   l  typical lenght scale (~ 10 * T)
 !> \param estate ...
 !> \param festate ...
-!> \param   l  typical lenght scale (~ 10 * T)
+!> \param   History
+!>          - Made estate and festate optional (LT, 2014/02/26)
+!>          - Changed order of input, so l is before the two optional varaibles
+!>            (LT, 2014/02/26) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    09.2008
 !> \author  Joost VandeVondele
 ! *****************************************************************************
- SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,estate,festate,l)
+ SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,l,estate,festate)
     REAL(KIND=dp), INTENT(OUT)               :: dfde(:,:), f(:), mu, kTS
-    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
-    INTEGER, INTENT(IN)                      :: estate
-    REAL(KIND=dp), INTENT(IN)                :: festate, l
+    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc, l
+    INTEGER, INTENT(IN), OPTIONAL            :: estate
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixedDeriv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, I, Nstate
-    REAL(KIND=dp)                            :: h, mux
+    INTEGER                                  :: handle, I, my_estate, Nstate
+    REAL(KIND=dp)                            :: h, mux, my_festate
     REAL(KIND=dp), ALLOCATABLE               :: ex(:), fx(:)
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN, handle)
 
     Nstate=SIZE(e)
-    ALLOCATE(ex(Nstate),fx(Nstate))
+    ALLOCATE(ex(Nstate), fx(Nstate))
+
+    IF (PRESENT(estate) .AND. PRESENT(festate)) THEN
+       my_estate = estate
+       my_festate = festate
+    ELSE
+       my_estate = maxocc
+       my_festate = maxocc
+    END IF
 
     DO I=1,Nstate
        ! NR 5.7.8
@@ -368,15 +397,15 @@ CONTAINS
        ! and the symmetric finite difference
        ex(:)=e
        ex(i)=e(i)+h
-       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc,estate,festate)
+       CALL FermiFixed(fx, mux, kTS, ex, N, T, maxocc, my_estate, my_festate)
        dfde(:,I)=fx
        ex(i)=e(i)-h
-       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc,estate,festate)
+       CALL FermiFixed(fx, mux, kTS, ex, N, T, maxocc, my_estate, my_festate)
        dfde(:,I)=(dfde(:,I)-fx)/(2.0_dp*h)
     ENDDO
-    DEALLOCATE(ex,fx)
+    DEALLOCATE(ex, fx)
 
-    CALL FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
+    CALL FermiFixed(f, mu, kTS, e, N, T, maxocc, my_estate, my_festate)
 
     CALL timestop(handle)
 

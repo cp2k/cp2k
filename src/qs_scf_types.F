@@ -32,6 +32,9 @@ MODULE qs_scf_types
                                              mixing_storage_type
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_buffer_type
+  USE qs_fb_env_types,                 ONLY: fb_env_nullify,&
+                                             fb_env_obj,&
+                                             fb_env_release
   USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                              qs_ot_type
   USE timings,                         ONLY: timeset,&
@@ -51,7 +54,10 @@ MODULE qs_scf_types
                                 ot_diag_method_nr=3,&
                                 block_krylov_diag_method_nr=4,&
                                 block_davidson_diag_method_nr=5,&
-                                ot_method_nr=10
+                                ot_method_nr=10, &
+!BEG:DEBUG:LT:2014/12/03
+                                filter_matrix_diag_method_nr=20
+!END:DEBUG:LT:2014/12/03
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
@@ -124,6 +130,7 @@ TYPE qs_scf_env_type
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
    TYPE(subspace_env_type), POINTER :: subspace_env
    TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env
+   TYPE(fb_env_obj) :: filter_matrix_env
 END TYPE qs_scf_env_type
 
 CONTAINS
@@ -196,6 +203,7 @@ CONTAINS
        NULLIFY (scf_env%krylov_space)
        NULLIFY (scf_env%subspace_env)
        NULLIFY (scf_env%block_davidson_env)
+       CALL fb_env_nullify(scf_env%filter_matrix_env)
     END IF
 
     CALL timestop(handle)
@@ -382,6 +390,7 @@ CONTAINS
           IF (ASSOCIATED(scf_env%block_davidson_env)) THEN
              CALL block_davidson_release(scf_env%block_davidson_env,error=error)
           END IF
+          CALL fb_env_release(scf_env%filter_matrix_env, error=error)
           DEALLOCATE(scf_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
