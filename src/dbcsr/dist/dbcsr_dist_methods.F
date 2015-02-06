@@ -365,20 +365,20 @@ CONTAINS
 !> \retval data_size          Max data size used by matrix  for all processors
 ! *****************************************************************************
   FUNCTION dbcsr_distribution_data_max_size_allproc (matrix) RESULT (data_size)
-    TYPE(dbcsr_obj), INTENT(IN)         :: matrix
-    INTEGER                             :: data_size
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: data_size
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_distribution_data_max_size_allproc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                             :: col, error_handler, row
-    INTEGER, ALLOCATABLE, DIMENSION(:)  :: counts_rows, counts_cols
-    INTEGER, DIMENSION(:), POINTER      :: col_blk_sizes, pcol_blk, &
-                                           prow_blk, row_blk_sizes
-    TYPE(dbcsr_distribution_obj)        :: dist
-    TYPE(dbcsr_error_type)              :: error
-    TYPE(dbcsr_mp_obj)                  :: mp_env
+    INTEGER                                  :: col, error_handler, row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: counts_cols, counts_rows
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, pcol_blk, &
+                                                prow_blk, row_blk_sizes
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_error_type)                   :: error
+    TYPE(dbcsr_mp_obj)                       :: mp_env
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
