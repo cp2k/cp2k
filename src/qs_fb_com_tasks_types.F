@@ -156,8 +156,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_retain(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: com_tasks
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_retain', &
       routineP = moduleN//':'//routineN
@@ -181,8 +181,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_retain(atom_pairs, error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_retain', &
       routineP = moduleN//':'//routineN
@@ -207,8 +207,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_release(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(inout)    :: com_tasks
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_release', &
       routineP = moduleN//':'//routineN
@@ -245,8 +245,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_release(atom_pairs, error)
     TYPE(fb_com_atom_pairs_obj), &
-      INTENT(inout)                          :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(INOUT)                          :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_release', &
       routineP = moduleN//':'//routineN
@@ -282,7 +282,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_nullify(com_tasks)
-    TYPE(fb_com_tasks_obj), INTENT(inout)    :: com_tasks
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_nullify', &
       routineP = moduleN//':'//routineN
@@ -301,7 +301,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_nullify(atom_pairs)
     TYPE(fb_com_atom_pairs_obj), &
-      INTENT(inout)                          :: atom_pairs
+      INTENT(INOUT)                          :: atom_pairs
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_nullify', &
       routineP = moduleN//':'//routineN
@@ -317,8 +317,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_associate(a, b)
-    TYPE(fb_com_tasks_obj), INTENT(out)      :: a
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: b
+    TYPE(fb_com_tasks_obj), INTENT(OUT)      :: a
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_associate', &
       routineP = moduleN//':'//routineN
@@ -334,8 +334,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_associate(a, b)
-    TYPE(fb_com_atom_pairs_obj), INTENT(out) :: a
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: b
+    TYPE(fb_com_atom_pairs_obj), INTENT(OUT) :: a
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_associate', &
       routineP = moduleN//':'//routineN
@@ -352,7 +352,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_com_tasks_has_data(com_tasks) RESULT(res)
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: com_tasks
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_has_data', &
@@ -370,7 +370,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_com_atom_pairs_has_data(atom_pairs) RESULT(res)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: atom_pairs
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_has_data', &
@@ -388,8 +388,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_create(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(inout)    :: com_tasks
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_create', &
       routineP = moduleN//':'//routineN
@@ -422,8 +422,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_create(atom_pairs, error)
     TYPE(fb_com_atom_pairs_obj), &
-      INTENT(inout)                          :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(INOUT)                          :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_create', &
       routineP = moduleN//':'//routineN
@@ -454,8 +454,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_init(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: com_tasks
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_init', &
       routineP = moduleN//':'//routineN
@@ -486,8 +486,9 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_init(atom_pairs, error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_init', &
       routineP = moduleN//':'//routineN
@@ -528,11 +529,11 @@ CONTAINS
                               nencode, &
                               tasks, &
                               error)
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: com_tasks
-    INTEGER, INTENT(out), OPTIONAL           :: task_dim, ntasks, nencode
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
+    INTEGER, INTENT(OUT), OPTIONAL           :: task_dim, ntasks, nencode
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: tasks
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_get', &
       routineP = moduleN//':'//routineN
@@ -567,11 +568,11 @@ CONTAINS
                                    natoms_encode, &
                                    pairs, &
                                    error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: atom_pairs
-    INTEGER, INTENT(out), OPTIONAL           :: npairs, natoms_encode
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
+    INTEGER, INTENT(OUT), OPTIONAL           :: npairs, natoms_encode
     INTEGER(KIND=int_8), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pairs
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_get', &
       routineP = moduleN//':'//routineN
@@ -607,11 +608,11 @@ CONTAINS
                               nencode, &
                               tasks, &
                               error)
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: com_tasks
-    INTEGER, INTENT(in), OPTIONAL            :: task_dim, ntasks, nencode
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    INTEGER, INTENT(IN), OPTIONAL            :: task_dim, ntasks, nencode
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: tasks
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_set', &
       routineP = moduleN//':'//routineN
@@ -653,11 +654,12 @@ CONTAINS
                                    natoms_encode, &
                                    pairs, &
                                    error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: atom_pairs
-    INTEGER, INTENT(in), OPTIONAL            :: npairs, natoms_encode
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    INTEGER, INTENT(IN), OPTIONAL            :: npairs, natoms_encode
     INTEGER(KIND=int_8), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pairs
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_set', &
       routineP = moduleN//':'//routineN
@@ -703,11 +705,11 @@ CONTAINS
                                              tasks_src_is_me, &
                                              para_env, &
                                              error)
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: tasks_dest_is_me
-    CHARACTER, INTENT(in)                    :: direction
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: tasks_src_is_me
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: tasks_dest_is_me
+    CHARACTER, INTENT(IN)                    :: direction
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: tasks_src_is_me
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_com_tasks_transpose_dest_src', &
@@ -927,12 +929,13 @@ CONTAINS
                                            send_or_recv, &
                                            symmetric, &
                                            error)
-    TYPE(fb_com_tasks_obj), INTENT(in)       :: com_tasks
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: atom_pairs
-    INTEGER, INTENT(in)                      :: natoms_encode
-    CHARACTER(len=*), INTENT(in)             :: send_or_recv
-    LOGICAL, INTENT(in), OPTIONAL            :: symmetric
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    INTEGER, INTENT(IN)                      :: natoms_encode
+    CHARACTER(len=*), INTENT(IN)             :: send_or_recv
+    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_com_tasks_build_atom_pairs', &
@@ -1095,8 +1098,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_encode_pair(ind, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out)         :: ind
-    INTEGER, INTENT(in)                      :: iatom, jatom, natoms
+    INTEGER(KIND=int_8), INTENT(OUT)         :: ind
+    INTEGER, INTENT(IN)                      :: iatom, jatom, natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_encode_pair', &
       routineP = moduleN//':'//routineN
@@ -1121,9 +1124,9 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_decode_pair(ind, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in)          :: ind
-    INTEGER, INTENT(out)                     :: iatom, jatom
-    INTEGER, INTENT(in)                      :: natoms
+    INTEGER(KIND=int_8), INTENT(IN)          :: ind
+    INTEGER, INTENT(OUT)                     :: iatom, jatom
+    INTEGER, INTENT(IN)                      :: natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_decode_pair', &
       routineP = moduleN//':'//routineN
@@ -1150,8 +1153,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_encode(ind, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out)         :: ind
-    INTEGER, INTENT(in)                      :: pe, iatom, jatom, natoms
+    INTEGER(KIND=int_8), INTENT(OUT)         :: ind
+    INTEGER, INTENT(IN)                      :: pe, iatom, jatom, natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_encode', &
       routineP = moduleN//':'//routineN
@@ -1179,9 +1182,9 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_decode(ind, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in)          :: ind
-    INTEGER, INTENT(out)                     :: pe, iatom, jatom
-    INTEGER, INTENT(in)                      :: natoms
+    INTEGER(KIND=int_8), INTENT(IN)          :: ind
+    INTEGER, INTENT(OUT)                     :: pe, iatom, jatom
+    INTEGER, INTENT(IN)                      :: natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_decode', &
       routineP = moduleN//':'//routineN
@@ -1242,16 +1245,16 @@ CONTAINS
                                                  error, &
                                                  row_map, &
                                                  col_map)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in)  :: atom_pairs
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_matrix
-    INTEGER, INTENT(in)                      :: nprocs
-    INTEGER, DIMENSION(:), INTENT(in)        :: row_blk_sizes, col_blk_sizes
-    INTEGER, DIMENSION(:), INTENT(out)       :: sendrecv_sizes, &
+    INTEGER, INTENT(IN)                      :: nprocs
+    INTEGER, DIMENSION(:), INTENT(IN)        :: row_blk_sizes, col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: sendrecv_sizes, &
                                                 sendrecv_disps, &
                                                 sendrecv_pair_counts, &
                                                 sendrecv_pair_disps
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    INTEGER, DIMENSION(:), INTENT(in), &
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: row_map, col_map
 
     CHARACTER(LEN=*), PARAMETER :: &

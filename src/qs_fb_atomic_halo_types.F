@@ -209,7 +209,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_associate(a, b)
-    TYPE(fb_atomic_halo_obj), INTENT(out)    :: a
+    TYPE(fb_atomic_halo_obj), INTENT(OUT)    :: a
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_associate', &
@@ -281,7 +281,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_init(atomic_halo, error)
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
@@ -333,10 +333,10 @@ CONTAINS
                                 sorted, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    INTEGER, INTENT(out), OPTIONAL           :: owner_atom, owner_id_in_halo, &
+    INTEGER, INTENT(OUT), OPTIONAL           :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
-    LOGICAL, INTENT(out), OPTIONAL           :: sorted
+    LOGICAL, INTENT(OUT), OPTIONAL           :: sorted
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
@@ -383,7 +383,7 @@ CONTAINS
                                 halo_atoms, &
                                 sorted, &
                                 error)
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
     INTEGER, INTENT(IN), OPTIONAL            :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
@@ -464,8 +464,8 @@ CONTAINS
                                              error)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     INTEGER, INTENT(IN)                      :: iatom_global
-    INTEGER, INTENT(out)                     :: iatom_halo
-    LOGICAL, INTENT(out)                     :: found
+    INTEGER, INTENT(OUT)                     :: iatom_halo
+    LOGICAL, INTENT(OUT)                     :: found
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -635,7 +635,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_associate(a, b)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(out)                            :: a
+      INTENT(OUT)                            :: a
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: b
 
@@ -731,7 +731,7 @@ CONTAINS
   SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos, error)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
-    INTEGER, INTENT(out), OPTIONAL           :: nhalos, max_nhalos
+    INTEGER, INTENT(OUT), OPTIONAL           :: nhalos, max_nhalos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       OPTIONAL, POINTER                      :: halos
     TYPE(cp_error_type), INTENT(INOUT)       :: error

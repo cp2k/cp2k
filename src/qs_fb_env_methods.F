@@ -7,7 +7,6 @@ MODULE qs_fb_env_methods
                                              gto_basis_set_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-! USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_nullify, cp_dbcsr_allocate_matrix_set, &
        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
@@ -124,13 +123,13 @@ CONTAINS
                             scf_section, &
                             diis_step, &
                             error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_env_do_diag', &
       routineP = moduleN//':'//routineN
@@ -830,9 +829,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_env_read_input(fb_env, scf_section, error)
 
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_read_input', &
       routineP = moduleN//':'//routineN
@@ -880,7 +879,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_build_rcut_auto(fb_env, qs_env, error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -966,7 +965,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_build_atomic_halos(fb_env, qs_env, error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1166,9 +1165,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_env_build_trial_fns_auto(fb_env, qs_env, maxocc, error)
 
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), INTENT(in)                :: maxocc
+    REAL(KIND=dp), INTENT(IN)                :: maxocc
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_trial_fns_auto', &
@@ -1388,8 +1387,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_dbcsr_copy_sparse_struct(matrix_out, matrix_in, error)
 
-    TYPE(cp_dbcsr_type), INTENT(inout)       :: matrix_out
-    TYPE(cp_dbcsr_type), INTENT(in)          :: matrix_in
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_out
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_in
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_dbcsr_copy_sparse_struct', &
@@ -1469,7 +1468,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_write_info(fb_env, qs_env, scf_section, error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(IN)             :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error

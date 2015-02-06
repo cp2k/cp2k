@@ -145,7 +145,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_trial_fns_associate(a, b)
-    TYPE(fb_trial_fns_obj), INTENT(out)      :: a
+    TYPE(fb_trial_fns_obj), INTENT(OUT)      :: a
     TYPE(fb_trial_fns_obj), INTENT(IN)       :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_associate', &

@@ -69,10 +69,10 @@ CONTAINS
                                    blk_col_start, &
                                    error)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
-    INTEGER, INTENT(out)                     :: nrows, ncols
-    INTEGER, DIMENSION(:), INTENT(out)       :: blk_row_start, blk_col_start
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    INTEGER, INTENT(OUT)                     :: nrows, ncols
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_row_start, blk_col_start
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size', &
       routineP = moduleN//':'//routineN
@@ -141,12 +141,12 @@ CONTAINS
                                    blk_col_start, &
                                    error)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(out)                            :: atomic_matrix
-    INTEGER, DIMENSION(:), INTENT(in)        :: blk_row_start, blk_col_start
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(OUT)                            :: atomic_matrix
+    INTEGER, DIMENSION(:), INTENT(IN)        :: blk_row_start, blk_col_start
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
       routineP = moduleN//':'//routineN
@@ -427,11 +427,11 @@ CONTAINS
                                             atom_pairs_recv, &
                                             error)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(fb_com_atom_pairs_obj), INTENT(out) :: atom_pairs_send, &
+    TYPE(fb_com_atom_pairs_obj), INTENT(OUT) :: atom_pairs_send, &
                                                 atom_pairs_recv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_atmatrix_generate_com_pairs', &

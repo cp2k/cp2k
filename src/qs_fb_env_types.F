@@ -89,8 +89,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_retain(fb_env, error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_env_obj), INTENT(IN)             :: fb_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_retain', &
       routineP = moduleN//':'//routineN
@@ -115,8 +115,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_release(fb_env, error)
-    TYPE(fb_env_obj), INTENT(inout)          :: fb_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_release', &
       routineP = moduleN//':'//routineN
@@ -155,7 +155,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_nullify(fb_env)
-    TYPE(fb_env_obj), INTENT(inout)          :: fb_env
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_nullify', &
       routineP = moduleN//':'//routineN
@@ -171,8 +171,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_associate(a, b)
-    TYPE(fb_env_obj), INTENT(out)            :: a
-    TYPE(fb_env_obj), INTENT(in)             :: b
+    TYPE(fb_env_obj), INTENT(OUT)            :: a
+    TYPE(fb_env_obj), INTENT(IN)             :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_associate', &
       routineP = moduleN//':'//routineN
@@ -189,7 +189,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_env_has_data(fb_env) RESULT(res)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(IN)             :: fb_env
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_has_data', &
@@ -208,8 +208,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_create(fb_env, error)
-    TYPE(fb_env_obj), INTENT(inout)          :: fb_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_create', &
       routineP = moduleN//':'//routineN
@@ -244,8 +244,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_init(fb_env, error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_init', &
       routineP = moduleN//':'//routineN
@@ -293,16 +293,16 @@ CONTAINS
                         atomic_halos, &
                         trial_fns, &
                         error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(IN)             :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rcut
-    REAL(KIND=dp), INTENT(out), OPTIONAL     :: filter_temperature, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: filter_temperature, &
                                                 auto_cutoff_scale
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(out), OPTIONAL                  :: atomic_halos
-    TYPE(fb_trial_fns_obj), INTENT(out), &
+      INTENT(OUT), OPTIONAL                  :: atomic_halos
+    TYPE(fb_trial_fns_obj), INTENT(OUT), &
       OPTIONAL                               :: trial_fns
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &
       routineP = moduleN//':'//routineN
@@ -344,16 +344,16 @@ CONTAINS
                         atomic_halos, &
                         trial_fns, &
                         error)
-    TYPE(fb_env_obj), INTENT(in)             :: fb_env
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rcut
-    REAL(KIND=dp), INTENT(in), OPTIONAL      :: filter_temperature, &
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: filter_temperature, &
                                                 auto_cutoff_scale
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in), OPTIONAL                   :: atomic_halos
-    TYPE(fb_trial_fns_obj), INTENT(in), &
+      INTENT(IN), OPTIONAL                   :: atomic_halos
+    TYPE(fb_trial_fns_obj), INTENT(IN), &
       OPTIONAL                               :: trial_fns
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', &
       routineP = moduleN//':'//routineN

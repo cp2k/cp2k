@@ -90,15 +90,15 @@ CONTAINS
                               error)
     TYPE(cp_dbcsr_type), POINTER             :: H_mat, S_mat
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halos
-    TYPE(fb_trial_fns_obj), INTENT(in)       :: trial_fns
+      INTENT(IN)                             :: atomic_halos
+    TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), INTENT(in)                :: fermi_level, filter_temp
-    CHARACTER(LEN=*), INTENT(in)             :: name
+    REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
+    CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_dbcsr_type), POINTER             :: filter_mat
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build', &
       routineP = moduleN//':'//routineN
@@ -298,14 +298,14 @@ CONTAINS
                                    filter_mat, &
                                    error)
     TYPE(cp_dbcsr_type), POINTER             :: H_mat, S_mat
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
-    TYPE(fb_trial_fns_obj), INTENT(in)       :: trial_fns
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), INTENT(in)                :: fermi_level, filter_temp
+    REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
     TYPE(cp_dbcsr_type), POINTER             :: filter_mat
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol', &
       routineP = moduleN//':'//routineN
@@ -805,11 +805,11 @@ CONTAINS
                                            atom_pairs_recv, &
                                            error)
     TYPE(cp_dbcsr_type), POINTER             :: filter_mat
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(fb_com_atom_pairs_obj), INTENT(out) :: atom_pairs_send, &
+    TYPE(fb_com_atom_pairs_obj), INTENT(OUT) :: atom_pairs_send, &
                                                 atom_pairs_recv
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_fltrmat_generate_com_pairs', &
@@ -963,11 +963,11 @@ CONTAINS
                                              atomic_filter_mat, &
                                              error)
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(in)                             :: atomic_H, atomic_S
-    REAL(KIND=dp), INTENT(in)                :: fermi_level, filter_temp
+      INTENT(IN)                             :: atomic_H, atomic_S
+    REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(out)                            :: atomic_filter_mat
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(OUT)                            :: atomic_filter_mat
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_fltrmat_build_atomic_fltrmat', &
@@ -1202,9 +1202,9 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_fermi_dirac_mu(f, eigenvals, T, mu)
-    REAL(KIND=dp), DIMENSION(:), INTENT(out) :: f
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: eigenvals
-    REAL(KIND=dp), INTENT(in)                :: T, mu
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: f
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eigenvals
+    REAL(KIND=dp), INTENT(IN)                :: T, mu
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_mu', &
       routineP = moduleN//':'//routineN
@@ -1228,9 +1228,9 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_fermi_dirac_ne(f, eigenvals, T, ne, maxocc)
-    REAL(KIND=dp), DIMENSION(:), INTENT(out) :: f
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: eigenvals
-    REAL(KIND=dp), INTENT(in)                :: T, ne, maxocc
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: f
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eigenvals
+    REAL(KIND=dp), INTENT(IN)                :: T, ne, maxocc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_ne', &
       routineP = moduleN//':'//routineN
