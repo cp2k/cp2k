@@ -365,43 +365,47 @@ CONTAINS
 !> \retval data_size          Max data size used by matrix  for all processors
 ! *****************************************************************************
   FUNCTION dbcsr_distribution_data_max_size_allproc (matrix) RESULT (data_size)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER                                  :: data_size
+    TYPE(dbcsr_obj), INTENT(IN)         :: matrix
+    INTEGER                             :: data_size
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_distribution_data_max_size_allproc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, error_handler, row
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: counts
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, pcol_blk, &
-                                                prow_blk, row_blk_sizes
-    TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(dbcsr_error_type)                   :: error
-    TYPE(dbcsr_mp_obj)                       :: mp_env
+    INTEGER                             :: col, error_handler, row
+    INTEGER, ALLOCATABLE, DIMENSION(:)  :: counts_rows, counts_cols
+    INTEGER, DIMENSION(:), POINTER      :: col_blk_sizes, pcol_blk, &
+                                           prow_blk, row_blk_sizes
+    TYPE(dbcsr_distribution_obj)        :: dist
+    TYPE(dbcsr_error_type)              :: error
+    TYPE(dbcsr_mp_obj)                  :: mp_env
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     dist = dbcsr_distribution(matrix)
     mp_env = dbcsr_distribution_mp(dist)
-    ALLOCATE(counts(0:dbcsr_mp_nprows(mp_env)-1,0:dbcsr_mp_npcols(mp_env)-1))
-    counts = 0
+    ALLOCATE(counts_rows(0:dbcsr_mp_nprows(mp_env)-1),&
+             counts_cols(0:dbcsr_mp_npcols(mp_env)-1))
+    counts_rows = 0
+    counts_cols = 0
     prow_blk => array_data (dbcsr_distribution_row_dist (dist))
     pcol_blk => array_data (dbcsr_distribution_col_dist (dist))
     row_blk_sizes => array_data (dbcsr_row_block_sizes (matrix))
     col_blk_sizes => array_data (dbcsr_col_block_sizes (matrix))
 
-!$OMP DO
     DO row = 1, dbcsr_nblkrows_total(matrix)
-       DO col = 1, dbcsr_nblkcols_total(matrix)
-          counts(prow_blk(row),pcol_blk(col)) = & 
-               counts(prow_blk(row),pcol_blk(col)) + row_blk_sizes(row) * col_blk_sizes(col)
-       ENDDO
+       counts_rows(prow_blk(row)) = & 
+            counts_rows(prow_blk(row)) + row_blk_sizes(row)
     ENDDO
-!$OMP END DO
 
-    data_size = MAXVAL(counts)
-    DEALLOCATE(counts)
+    DO col = 1, dbcsr_nblkcols_total(matrix)
+       counts_cols(pcol_blk(col)) = & 
+            counts_cols(pcol_blk(col)) + col_blk_sizes(col)
+    ENDDO
+
+    data_size = MAXVAL(counts_rows)*MAXVAL(counts_cols)
+
+    DEALLOCATE(counts_rows,counts_cols)
     CALL dbcsr_error_stop(error_handler, error)
   END FUNCTION dbcsr_distribution_data_max_size_allproc
 
