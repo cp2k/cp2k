@@ -6,7 +6,7 @@
 import sys
 import re
 
-BANNED_STM  = ('GOTO', 'WHERE', 'FORALL', 'OPEN', 'CLOSE', )
+BANNED_STM  = ('GOTO', 'FORALL', 'OPEN', 'CLOSE', )
 BANNED_CALL = ('CP_FM_GEMM', )
 USE_EXCEPTIONS = ("OMP_LIB", "OMP_LIB_KINDS", "LAPACK",)
 
@@ -44,7 +44,7 @@ UNDEF_EXCEPTIONS += ('SGEEV', 'SLARNV', 'SPOTRF', 'SPOTRI',
                      'CPOTRF', 'CPOTRI', 'CGEEV', 'CLARNV',
                      'ZGEEV', 'ZGETRF', 'ZGETRS', 'ZHEEVD', 'ZLARNV', 'ZPOTRF', 'ZPOTRI', 'ZTRTRI',
                      'CGEQRF', 'CGEQRF', 'CUNGQR', 'CUNGQR', 'ZGEQRF', 'ZGEQRF', 'ZUNGQR','ZUNGQR',
-                     'DHSEQR', 'DSTEV', 'DTREVC', 'SHSEQR', 'SSTEV', 'SSYEVD', 'STREVC')
+                     'DHSEQR', 'DSTEV', 'DTREVC', 'SHSEQR', 'SSTEV', 'SSYEVD', 'STREVC', 'DSYGV')
 
 # precompile regex
 re_symbol    = re.compile(r"^\s*symtree.* symbol: '([^']+)'.*$")

@@ -28,7 +28,6 @@ graph_methods.F.ast: Found OPEN statement in procedure "fes_cube_write"
 graphcon.F.ast: Found GOTO statement in procedure "all_permutations"
 k290.F.ast: Found GOTO statement in procedure "mesh"
 k290.F.ast: Found GOTO statement in procedure "sppt2"
-k290.F.ast: Found WHERE statement in procedure "kp_sym_gen"
 machine.F.ast: Found OPEN statement in procedure "read_energy"
 machine.F.ast: Symbol "date_and_time" in "m_datum" not defined
 machine.F.ast: Symbol "system_clock" in "m_walltime" not defined
@@ -44,7 +43,6 @@ mm_collocate_potential.F.ast: Symbol "collocate_gf_npbc" in "collocate_gf_rspace
 mm_collocate_potential.F.ast: Symbol "integrate_gf_npbc" in "integrate_gf_rspace_nopbc" not defined
 pilaenv_hack.F.ast: Symbol "nag_dummy" in "nag_dummy" not defined
 powell.F.ast: Found GOTO statement in procedure "newuob"
-qmmm_init.F.ast: Found WHERE statement in procedure "setup_qmmm_links"
 qs_collocate_density.F.ast: Symbol "collocate_core_0" in "collocate_ortho" not defined
 qs_collocate_density.F.ast: Symbol "collocate_core_1" in "collocate_ortho" not defined
 qs_collocate_density.F.ast: Symbol "collocate_core_2" in "collocate_ortho" not defined
@@ -73,11 +71,6 @@ qs_integrate_potential_low.F.ast: Symbol "integrate_core_9" in "call_integrate" 
 qs_integrate_potential_low.F.ast: Symbol "integrate_core_default" in "call_integrate" not defined
 swarm_mpi.F.ast: Found CLOSE statement in procedure "logger_init_master"
 swarm_mpi.F.ast: Found OPEN statement in procedure "logger_finalize"
-tmc_move_handle.F.ast: Found WHERE statement in procedure "add_mv_prob"
-tmc_move_handle.F.ast: Found WHERE statement in procedure "prob_update"
-topology_constraint_util.F.ast: Found WHERE statement in procedure "topology_constraint_pack"
-topology_generate_util.F.ast: Found WHERE statement in procedure "generate_molname_low"
-topology_generate_util.F.ast: Found WHERE statement in procedure "topology_generate_molecule"
 xas_methods.F.ast: Found GOTO statement in procedure "xas"
 xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F.ast: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
