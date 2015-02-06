@@ -72,6 +72,7 @@ MODULE dbcsr_test_methods
                                              dbcsr_work_create
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
+                                             int_8,&
                                              real_8
   USE message_passing,                 ONLY: mp_comm_null,&
                                              mp_environ
@@ -389,10 +390,11 @@ CONTAINS
 
     CHARACTER                                :: my_symmetry
     INTEGER                                  :: col, error_handle, max_nze, &
-                                                my_data_type, my_proc, &
-                                                numproc, nze, p, row, s_col, &
-                                                s_row
-    INTEGER, DIMENSION(4)                    :: iseed
+                                                my_data_type, my_proc, ncol, &
+                                                nrow, numproc, nze, p, row, &
+                                                s_col, s_row
+    INTEGER(KIND=int_8)                      :: counter, ele, increment, nmax
+    INTEGER, DIMENSION(4)                    :: iseed, jseed
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     INTEGER, SAVE                            :: imat_counter = 12341313
     LOGICAL                                  :: tr
@@ -428,13 +430,13 @@ CONTAINS
     rbs => array_data (row_blk_sizes)
     cbs => array_data (col_blk_sizes)
     numproc = dbcsr_mp_numnodes (dbcsr_distribution_mp (new_dist))
+    my_proc = dbcsr_mp_mynode (dbcsr_distribution_mp (new_dist))
     !
     IF (sparsity .GT. 1) THEN
        my_sparsity = sparsity / 100.0
     ELSE
        my_sparsity = sparsity
     ENDIF
-    max_nze = dbcsr_max_row_size (matrix) * dbcsr_max_col_size (matrix)
     CALL dbcsr_work_create (matrix,&
          nblks_guess=INT(REAL(dbcsr_nblkrows_total(matrix),KIND=dp)&
                         *REAL(dbcsr_nblkcols_total(matrix),KIND=dp)&
@@ -444,14 +446,34 @@ CONTAINS
                            *(1.0_dp-sparsity)*1.1_dp/numproc),&
          work_mutable = .TRUE.,error=error)
 
+    max_nze = dbcsr_max_row_size (matrix) * dbcsr_max_col_size (matrix)
     CALL dbcsr_data_init (data_values)
     CALL dbcsr_data_new (data_values, my_data_type, data_size=max_nze)
     CALL dbcsr_data_init (data_values_tr)
     CALL dbcsr_data_new (data_values_tr, my_data_type, data_size=max_nze)
-    my_proc = dbcsr_mp_mynode (dbcsr_distribution_mp (new_dist))
-    DO row = 1, dbcsr_nblkrows_total (matrix)
-       DO col = 1, dbcsr_nblkcols_total (matrix)
-          ! build the upper matrix if some symmetry.
+
+    nrow = dbcsr_nblkrows_total (matrix)
+    ncol = dbcsr_nblkcols_total (matrix)
+    nmax = INT(nrow,KIND=int_8)*INT(ncol,KIND=int_8)
+    ele = -1
+    counter = 0
+    jseed=(/imat_counter,7,42,3/)
+    DO 
+          ! find the next block to add, this is given by a geometrically distributed variable
+          ! we number the blocks of the matrix and jump to the next one
+          CALL dlarnv( 1, jseed, 1, value )
+          IF (my_sparsity>0) THEN
+             increment=1+FLOOR(LOG(value(1))/LOG(my_sparsity),KIND=int_8)
+          ELSE
+             increment=1
+          ENDIF
+          ele = ele + increment
+          IF (ele>=nmax) EXIT
+          counter = counter + 1
+          row = INT(ele/ncol)+1
+          col = INT(MOD(ele,INT(ncol,KIND=KIND(ele))))+1
+
+          ! build the upper matrix if some symmetry, and only deal with the local blocks.
           s_row=row ; s_col=col
           IF (PRESENT (dist)) THEN
              tr = .FALSE.
@@ -462,9 +484,9 @@ CONTAINS
              IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.LT.s_row) CYCLE
           ENDIF
           IF (.NOT. PRESENT (dist) .AND. my_proc .NE. 0) CYCLE
+
+          ! fill based on a block based seed, makes this the same values in parallel
           iseed=(/imat_counter,row,42,col/)
-          CALL dlarnv( 1, iseed, 1, value )
-          IF (value(1) .LT. my_sparsity) CYCLE
           nze = rbs(s_row) * cbs(s_col)
           CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
           CALL dbcsr_put_block (matrix, s_row, s_col, data_values)
@@ -499,7 +521,6 @@ CONTAINS
              END SELECT
              CALL dbcsr_put_block (matrix, s_row, s_col, data_values_tr, summation=.TRUE.)
           ENDIF
-       ENDDO
     ENDDO
 
     CALL dbcsr_data_release (data_values)
