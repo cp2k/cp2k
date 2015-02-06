@@ -331,9 +331,7 @@ else
   tar -xzf scotch_${scotch_ver}.tar.gz
   cd scotch_${scotch_ver}/src
   cat Make.inc/Makefile.inc.x86-64_pc_linux2 | \
-  sed "s|\(^CFLAGS\).*|\1 =  $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64|" |\
-  sed 's|\(^LDFLAGS\).*|\1 = |' > Makefile.inc
-
+  sed "s|\(^CFLAGS\).*|\1 =  $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64|" > Makefile.inc
 
   make scotch -j $nprocs >& make.log
   make ptscotch -j $nrocs >& make.log
