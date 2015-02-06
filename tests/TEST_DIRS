@@ -180,3 +180,4 @@ FE/regtest-2
 TMC/regtest_ana_on_the_fly
 optimize_input/regtest-1
 NEB/regtest-3
+QS/regtest-dft-filtermat

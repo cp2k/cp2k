@@ -56,40 +56,26 @@ MODULE qs_fb_filter_matrix_methods
 CONTAINS
 
 
-  ! **********************************************************************
-  !> \brief Build the filter matrix
-  !> \param H_mat : DBCSR system KS matrix
-  !> \param S_mat : DBCSR system overlap matrix
-  !> \param atomic_halos : list of all local atomic halos, each halo gives
-  !>                       one atomic matrix and contributes to one blk
-  !>                       col to the filter matrix
-  !> \param trial_funs : the trial functions to be used to shrink the
-  !>                     size of the new "filtered" basis
-  !> \param para_env : cp2k parallel environment
-  !> \param particle_set : set of all particles in the system
-  !> \param fermi_level : the fermi level used for defining the filter
-  !>                      function, which is a Fermi-Dirac distribution
-  !>                      function
-  !> \param filter_temp : the filter temperature used for defining the
-  !>                      filter function
-  !> \param name        : name given to the filter matrix
-  !> \param filter_mat  : DBCSR format filter matrix
-  !> \prarm error       : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param H_mat ...
-!> \param S_mat ...
-!> \param atomic_halos ...
-!> \param trial_fns ...
-!> \param para_env ...
-!> \param particle_set ...
-!> \param fermi_level ...
-!> \param filter_temp ...
-!> \param name ...
-!> \param filter_mat ...
-!> \param error ...
+! **********************************************************************
+!> \brief Build the filter matrix
+!> \param H_mat : DBCSR system KS matrix
+!> \param S_mat : DBCSR system overlap matrix
+!> \param atomic_halos : list of all local atomic halos, each halo gives
+!>                       one atomic matrix and contributes to one blk
+!>                       col to the filter matrix
+!> \param trial_fns : the trial functions to be used to shrink the
+!>                     size of the new "filtered" basis 
+!> \param para_env : cp2k parallel environment
+!> \param particle_set : set of all particles in the system
+!> \param fermi_level : the fermi level used for defining the filter
+!>                      function, which is a Fermi-Dirac distribution
+!>                      function
+!> \param filter_temp : the filter temperature used for defining the
+!>                      filter function
+!> \param name        : name given to the filter matrix
+!> \param filter_mat  : DBCSR format filter matrix
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_build(H_mat, &
                               S_mat, &
@@ -123,8 +109,7 @@ CONTAINS
                                                 ikind, LT_UNIT, max_nhalos, &
                                                 nblkcols_total, nhalos, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size_data, &
-                                                dummy_halo_atoms, halo_atoms, &
-                                                ntfns
+                                                dummy_halo_atoms, ntfns
     LOGICAL                                  :: failure, send_data_only
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -282,38 +267,25 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_build
 
 
-  ! **********************************************************************
-  !> \brief Add a computed blocks in one column to the filter matrix.
-  !>        It does not finalise the filter matrix
-  !> \param H_mat : DBCSR system KS matrix
-  !> \param S_mat : DBCSR system overlap matrix
-  !> \param atomic_halo :  the halo that contributes to the blk
-  !>                       col of the filter matrix
-  !> \param trial_funs : the trial functions to be used to shrink the
-  !>                     size of the new "filtered" basis
-  !> \param para_env : cp2k parallel environment
-  !> \param particle_set : set of all particles in the system
-  !> \param fermi_level : the fermi level used for defining the filter
-  !>                      function, which is a Fermi-Dirac distribution
-  !>                      function
-  !> \param filter_temp : the filter temperature used for defining the
-  !>                      filter function
-  !> \param filter_mat  : DBCSR format filter matrix
-  !> \prarm error       : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
+! **********************************************************************
+!> \brief Add a computed blocks in one column to the filter matrix.
+!>        It does not finalise the filter matrix
 !> \brief ...
-!> \param H_mat ...
-!> \param S_mat ...
-!> \param atomic_halo ...
+!> \param H_mat : DBCSR system KS matrix
+!> \param S_mat : DBCSR system overlap matrix
+!> \param atomic_halo :  the halo that contributes to the blk
+!>                       col of the filter matrix
 !> \param trial_fns ...
-!> \param para_env ...
-!> \param particle_set ...
-!> \param fermi_level ...
-!> \param filter_temp ...
-!> \param filter_mat ...
-!> \param error ...
+!> \param para_env : cp2k parallel environment
+!> \param particle_set : set of all particles in the system
+!> \param fermi_level : the fermi level used for defining the filter
+!>                      function, which is a Fermi-Dirac distribution
+!>                      function
+!> \param filter_temp : the filter temperature used for defining the
+!>                      filter function
+!> \param filter_mat  : DBCSR format filter matrix
+!> \param error       : cp2k error container 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_add_blkcol(H_mat, &
                                    S_mat, &
@@ -813,26 +785,18 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_add_blkcol
 
 
-  ! **********************************************************************
-  !> \brief generate the list of blocks (atom pairs) to be sent and received
-  !>        in order to construct the filter matrix for each atomic halo
-  !> \param filter_mat : DBCSR formated filter matrix
-  !> \param atomic_halo :  the halo that contributes to a blk
-  !>                       col of the filter matrix
-  !> \param para_env : cp2k parallel environment
-  !> \param atom_pairs_send : list of blocks to be sent
-  !> \param atom_pairs_recv : list of blocks to be received
-  !> \prarm error       : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
+! **********************************************************************
+!> \brief generate the list of blocks (atom pairs) to be sent and received
+!>        in order to construct the filter matrix for each atomic halo
 !> \brief ...
-!> \param filter_mat ...
-!> \param atomic_halo ...
-!> \param para_env ...
-!> \param atom_pairs_send ...
-!> \param atom_pairs_recv ...
-!> \param error ...
+!> \param filter_mat : DBCSR formated filter matrix
+!> \param atomic_halo :  the halo that contributes to a blk
+!>                       col of the filter matrix
+!> \param para_env : cp2k parallel environment
+!> \param atom_pairs_send : list of blocks to be sent
+!> \param atom_pairs_recv : list of blocks to be received
+!> \param error       : cp2k error container 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_generate_com_pairs(filter_mat, &
                                            atomic_halo, &
@@ -979,26 +943,18 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_generate_com_pairs
 
 
-  ! **********************************************************************
-  !> \brief Build the atomic filter matrix for each atomic halo
-  !> \param atomic_H : atomic KS matrix
-  !> \param atomic_S : atomic overlap matrix
-  !> \param fermi_level : fermi level used to construct the Fermi-Dirac
-  !>                      filter function
-  !> \param filter_temp : temperature used to construct the Fermi-Dirac
-  !>                      filter function
-  !> \param atomic_filter_mat : the atomic filter matrix
-  !> \prarm error       : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
+! **********************************************************************
+!> \brief Build the atomic filter matrix for each atomic halo
 !> \brief ...
-!> \param atomic_H ...
-!> \param atomic_S ...
-!> \param fermi_level ...
-!> \param filter_temp ...
-!> \param atomic_filter_mat ...
-!> \param error ...
+!> \param atomic_H : atomic KS matrix
+!> \param atomic_S : atomic overlap matrix
+!> \param fermi_level : fermi level used to construct the Fermi-Dirac
+!>                      filter function
+!> \param filter_temp : temperature used to construct the Fermi-Dirac
+!>                      filter function
+!> \param atomic_filter_mat : the atomic filter matrix
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_build_atomic_fltrmat(atomic_H, &
                                              atomic_S, &
@@ -1064,10 +1020,10 @@ CONTAINS
     ! dsygv will overwrite part of atomic_H and atomic_S, thus need to copy them
     ALLOCATE(atomic_S_copy(SIZE(atomic_S,1),SIZE(atomic_S,2)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    atomic_S_copy = atomic_S
+    atomic_S_copy(:,:) = atomic_S(:,:)
     ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    eigenvectors = atomic_H
+    eigenvectors(:,:) = atomic_H(:,:)
     CALL dsygv(1,             &
                'V',           &
                'U',           &
@@ -1080,7 +1036,7 @@ CONTAINS
                work,          &
                -1,            &
                info)
-    work_array_size = work(1)
+    work_array_size = INT(work(1))
     ! now allocate work array
     DEALLOCATE(work, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -1088,8 +1044,8 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     work = 0.0_dp
     ! do calculation
-    atomic_S_copy = atomic_S
-    eigenvectors = atomic_H
+    atomic_S_copy(:,:) = atomic_S(:,:)
+    eigenvectors(:,:) = atomic_H(:,:)
     CALL dsygv(1,               &
                'V',             &
                'U',             &
@@ -1236,21 +1192,14 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_build_atomic_fltrmat
 
 
-  ! **********************************************************************
-  !> \brief get values of Fermi-Dirac distribution based on a given fermi
-  !>        level at a given set of energy eigenvalues
-  !> \param f : the Fermi-Dirac distribution function values
-  !> \param eigenvals : set of energy eigenvalues
-  !> \param T : temperature
-  !> \param mu : the fermi level
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param f ...
-!> \param eigenvals ...
-!> \param T ...
-!> \param mu ...
+! **********************************************************************
+!> \brief get values of Fermi-Dirac distribution based on a given fermi
+!>        level at a given set of energy eigenvalues
+!> \param f : the Fermi-Dirac distribution function values
+!> \param eigenvals : set of energy eigenvalues
+!> \param T : temperature
+!> \param mu : the fermi level
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_fermi_dirac_mu(f, eigenvals, T, mu)
     REAL(KIND=dp), DIMENSION(:), INTENT(out) :: f
@@ -1268,23 +1217,15 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_fermi_dirac_mu
 
 
-  ! **********************************************************************
-  !> \brief get values of Fermi-Dirac distribution based on a given electron
-  !>        number at a given set of energy eigenvales
-  !> \param f : the Fermi-Dirac distribution function values
-  !> \param eigenvals : set of energy eigenvalues
-  !> \param T : temperature
-  !> \param ne : number of electrons
-  !> \param maxocc : maximum occupancy per orbital
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param f ...
-!> \param eigenvals ...
-!> \param T ...
-!> \param ne ...
-!> \param maxocc ...
+! **********************************************************************
+!> \brief get values of Fermi-Dirac distribution based on a given electron
+!>        number at a given set of energy eigenvales
+!> \param f : the Fermi-Dirac distribution function values
+!> \param eigenvals : set of energy eigenvalues
+!> \param T : temperature
+!> \param ne : number of electrons
+!> \param maxocc : maximum occupancy per orbital
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_fermi_dirac_ne(f, eigenvals, T, ne, maxocc)
     REAL(KIND=dp), DIMENSION(:), INTENT(out) :: f

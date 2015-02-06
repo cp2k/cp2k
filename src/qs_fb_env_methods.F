@@ -106,26 +106,16 @@ MODULE qs_fb_env_methods
 CONTAINS
 
 
-  ! **********************************************************************
-  !> \brief Do filtered matrix method diagonalisation
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param matrix_ks : DBCSR system (unfiltered) input KS matrix
-  !> \param matrix_s  : DBCSR system (unfiltered) input overlap matrix
-  !> \param scf_section : SCF input section
-  !> \param diis_step : whether we are doing a DIIS step
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param fb_env ...
-!> \param qs_env ...
-!> \param matrix_ks ...
-!> \param matrix_s ...
-!> \param scf_section ...
-!> \param diis_step ...
-!> \param error ...
+! **********************************************************************
+!> \brief Do filtered matrix method diagonalisation
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param matrix_ks : DBCSR system (unfiltered) input KS matrix
+!> \param matrix_s  : DBCSR system (unfiltered) input overlap matrix
+!> \param scf_section : SCF input section
+!> \param diis_step : whether we are doing a DIIS step
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_do_diag(fb_env, &
                             qs_env, &
@@ -831,18 +821,12 @@ CONTAINS
   END SUBROUTINE fb_env_do_diag
 
 
-  ! **********************************************************************
-  !> \brief Read input sections for filter matrix method
-  !> \param fb_env : the filter matrix environment
-  !> \param scf_section : SCF input section
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param fb_env ...
-!> \param scf_section ...
-!> \param error ...
+! **********************************************************************
+!> \brief Read input sections for filter matrix method
+!> \param fb_env : the filter matrix environment
+!> \param scf_section : SCF input section
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_read_input(fb_env, scf_section, error)
 
@@ -886,20 +870,14 @@ CONTAINS
   END SUBROUTINE fb_env_read_input
 
 
-  ! **********************************************************************
-  !> \brief Automatically generate the cutoff radii of atoms used for
-  !>        constructing the atomic halos, based on basis set cutoff
-  !>        ranges for each kind
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param fb_env ...
-!> \param qs_env ...
-!> \param error ...
+! **********************************************************************
+!> \brief Automatically generate the cutoff radii of atoms used for
+!>        constructing the atomic halos, based on basis set cutoff
+!>        ranges for each kind
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_build_rcut_auto(fb_env, qs_env, error)
     TYPE(fb_env_obj), INTENT(in)             :: fb_env
@@ -977,21 +955,15 @@ CONTAINS
   END SUBROUTINE fb_env_build_rcut_auto
 
 
-  ! **********************************************************************
-  !> \brief Builds an fb_atomic_halo_list object using information
-  !>        from fb_env
-  !> \param fb_env: the fb_env object
-  !> \param qs_env : quickstep environment (need this to access particle)
-  !>                 positions and their kinds as well as which particles
-  !>                 are local to this process
-  !> \param error: cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param fb_env ...
-!> \param qs_env ...
+! **********************************************************************
+!> \brief Builds an fb_atomic_halo_list object using information
+!>        from fb_env
+!> \param fb_env the fb_env object
+!> \param qs_env : quickstep environment (need this to access particle)
+!>                 positions and their kinds as well as which particles
+!>                 are local to this process
 !> \param error ...
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_build_atomic_halos(fb_env, qs_env, error)
     TYPE(fb_env_obj), INTENT(in)             :: fb_env
@@ -1182,22 +1154,15 @@ CONTAINS
   END SUBROUTINE fb_env_build_atomic_halos
 
 
-  ! **********************************************************************
-  !> \brief Autoatically construct the trial functiosn used for generating
-  !>        the filter matrix. It tries to use the single zeta subset from
-  !>        the system GTO basis set as the trial functions
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param maxocc : maximum occupancy for an orbital
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param fb_env ...
-!> \param qs_env ...
-!> \param maxocc ...
-!> \param error ...
+! **********************************************************************
+!> \brief Automatically construct the trial functiosn used for generating
+!>        the filter matrix. It tries to use the single zeta subset from
+!>        the system GTO basis set as the trial functions
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param maxocc : maximum occupancy for an orbital
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_build_trial_fns_auto(fb_env, qs_env, maxocc, error)
 
@@ -1410,22 +1375,16 @@ CONTAINS
   END SUBROUTINE fb_env_build_trial_fns_auto
 
 
-  ! **********************************************************************
-  !> \brief Copy the sparse structure of a DBCSR matrix to another, this
-  !>        means the other matrix will have the same number of blocks
-  !>        and their corresponding logical locations allocated, although
-  !>        the blocks does not have to be the same size as the original
-  !> \param matrix_out : DBCSR matrix whose blocks are to be allocated
-  !> \param matrix_in  : DBCSR matrix with exising sparse structure that
-  !>                     is to be copied
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param matrix_out ...
-!> \param matrix_in ...
-!> \param error ...
+! **********************************************************************
+!> \brief Copy the sparse structure of a DBCSR matrix to another, this
+!>        means the other matrix will have the same number of blocks
+!>        and their corresponding logical locations allocated, although
+!>        the blocks does not have to be the same size as the original
+!> \param matrix_out : DBCSR matrix whose blocks are to be allocated
+!> \param matrix_in  : DBCSR matrix with exising sparse structure that
+!>                     is to be copied
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_dbcsr_copy_sparse_struct(matrix_out, matrix_in, error)
 
@@ -1500,21 +1459,14 @@ CONTAINS
   END SUBROUTINE fb_dbcsr_copy_sparse_struct
 
 
-  ! **********************************************************************
-  !> \brief Write out parameters used for the filter matrix method to
-  !>        output
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param scf_section : SCF input section
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param fb_env ...
-!> \param qs_env ...
-!> \param scf_section ...
-!> \param error ...
+! **********************************************************************
+!> \brief Write out parameters used for the filter matrix method to
+!>        output
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param scf_section : SCF input section
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_write_info(fb_env, qs_env, scf_section, error)
     TYPE(fb_env_obj), INTENT(in)             :: fb_env

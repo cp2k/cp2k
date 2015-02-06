@@ -38,9 +38,9 @@ CONTAINS
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
-!> \param   History
-!>          - Made estate and festate optional (LT, 2014/02/26) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    09.2008
+!> \par History
+!>          - Made estate and festate optional (LT, 2014/02/26)
 !> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE Fermi(f,N,kTS,e,mu,T,maxocc,estate,festate)
@@ -204,9 +204,9 @@ CONTAINS
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
-!> \param   History
-!>          - Made estate and festate optional (LT, 2014/02/26) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \date    09.2008
+!> \par History
+!>          - Made estate and festate optional (LT, 2014/02/26)
 !> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
@@ -227,8 +227,8 @@ CONTAINS
        my_estate = estate
        my_festate = festate
     ELSE
-       my_estate = maxocc
-       my_festate = maxocc
+       my_estate = INT(maxocc)
+       my_festate = my_estate
     END IF
 
 ! bisection search to find N
@@ -352,11 +352,11 @@ CONTAINS
 !> \param   l  typical lenght scale (~ 10 * T)
 !> \param estate ...
 !> \param festate ...
-!> \param   History
+!> \date    09.2008
+!> \par   History
 !>          - Made estate and festate optional (LT, 2014/02/26)
 !>          - Changed order of input, so l is before the two optional varaibles
-!>            (LT, 2014/02/26) UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \date    09.2008
+!>            (LT, 2014/02/26)
 !> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,l,estate,festate)
@@ -381,8 +381,8 @@ CONTAINS
        my_estate = estate
        my_festate = festate
     ELSE
-       my_estate = maxocc
-       my_festate = maxocc
+       my_estate = INT(maxocc)
+       my_festate = my_estate
     END IF
 
     DO I=1,Nstate

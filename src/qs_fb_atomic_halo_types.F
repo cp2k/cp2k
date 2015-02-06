@@ -8,8 +8,7 @@ MODULE qs_fb_atomic_halo_types
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: default_string_length
   USE particle_types,                  ONLY: particle_type
   USE string_utilities,                ONLY: compress
   USE util,                            ONLY: locate,&
@@ -20,11 +19,11 @@ MODULE qs_fb_atomic_halo_types
 
   PRIVATE
 
-  ! public types
+! public types
   PUBLIC :: fb_atomic_halo_obj, &
             fb_atomic_halo_list_obj
 
-  ! public methods
+! public methods
   PUBLIC :: fb_atomic_halo_retain, &
             fb_atomic_halo_release, &
             fb_atomic_halo_nullify, &
@@ -54,19 +53,19 @@ MODULE qs_fb_atomic_halo_types
   INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_list_id = 0
 
 
-  !**********************************************************************
-  !> \brief derived type containing the list of atoms in an atomic halo,
-  !>        used by filtered-basis diagonalisation method
-  !> \param id_nr            : unique id for the object
-  !> \param ref_count        : reference count on the object
-  !> \param owner_atom       : global atomic id of the atom this halo belongs to
-  !> \param owner_id_in_halo : index of the owner_atom in the halo_atoms array
-  !> \param natoms           : number of atoms in the halo
-  !> \param nelectrons       : estimate of total number of electrons in halo
-  !> \param halo_atoms       : the list of global id of atoms in the halo
-  !> \param sorted           : whether the halo_atoms list is sorted or not
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  !**********************************************************************
+!**********************************************************************
+!> \brief derived type containing the list of atoms in an atomic halo,
+!>        used by filtered-basis diagonalisation method
+!> \param id_nr            : unique id for the object
+!> \param ref_count        : reference count on the object
+!> \param owner_atom       : global atomic id of the atom this halo belongs to
+!> \param owner_id_in_halo : index of the owner_atom in the halo_atoms array
+!> \param natoms           : number of atoms in the halo
+!> \param nelectrons       : estimate of total number of electrons in halo
+!> \param halo_atoms       : the list of global id of atoms in the halo
+!> \param sorted           : whether the halo_atoms list is sorted or not
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+!**********************************************************************
   TYPE fb_atomic_halo_data
      INTEGER :: id_nr, ref_count
      INTEGER :: owner_atom
@@ -78,25 +77,25 @@ MODULE qs_fb_atomic_halo_types
   END TYPE fb_atomic_halo_data
 
 
-  !**********************************************************************
-  !> \brief defines a fb_atomic_halo object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  !**********************************************************************
+!**********************************************************************
+!> \brief defines a fb_atomic_halo object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+!**********************************************************************
   TYPE fb_atomic_halo_obj
      TYPE(fb_atomic_halo_data), POINTER, PRIVATE :: obj
   END TYPE fb_atomic_halo_obj
 
 
-  !**********************************************************************
-  !> \brief derived type describing an atomic halo list used by
-  !>        filtered-basis diagonalisation method
-  !> \param id_nr     : unique id for the object
-  !> \param ref_count : reference count on the object
-  !> \param nhalos  : number of halos in the list
-  !> \param max_nhalos : maximum of the number of halos amongst all of the procs
-  !> \param halos   : halos(ihalo) gives the ihalo-th fb_atomic_halo object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  !**********************************************************************
+!**********************************************************************
+!> \brief derived type describing an atomic halo list used by
+!>        filtered-basis diagonalisation method
+!> \param id_nr     : unique id for the object
+!> \param ref_count : reference count on the object
+!> \param nhalos  : number of halos in the list
+!> \param max_nhalos : maximum of the number of halos amongst all of the procs
+!> \param halos   : halos(ihalo) gives the ihalo-th fb_atomic_halo object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+!**********************************************************************
   TYPE fb_atomic_halo_list_data
      INTEGER :: id_nr, ref_count
      INTEGER :: nhalos
@@ -105,10 +104,10 @@ MODULE qs_fb_atomic_halo_types
   END TYPE fb_atomic_halo_list_data
 
 
-  !**********************************************************************
-  !> \brief defines a fb_atomic_halo_list object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  !**********************************************************************
+!**********************************************************************
+!> \brief defines a fb_atomic_halo_list object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+!**********************************************************************
   TYPE fb_atomic_halo_list_obj
      TYPE(fb_atomic_halo_list_data), POINTER, PRIVATE :: obj
   END TYPE fb_atomic_halo_list_obj
@@ -117,23 +116,18 @@ MODULE qs_fb_atomic_halo_types
 CONTAINS
 
 
-  ! **********************************************************************
-  !> \brief Retains an fb_atomic_halo object
-  !> \param atomic_halo: the fb_atomic_halo object, its content must
-  !>                     not be NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param error ...
+! **********************************************************************
+!> \brief Retains an fb_atomic_halo object
+!> \param atomic_halo the fb_atomic_halo object, its content must
+!>                     not be NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_retain(atomic_halo, error)
-    ! note INTENT(in) is okay because the obj pointer contained in the
+    ! note INTENT(IN) is okay because the obj pointer contained in the
     ! obj type will not be changed
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain', &
       routineP = moduleN//':'//routineN
@@ -149,22 +143,17 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_retain
 
 
-  ! **********************************************************************
-  !> \brief Releases an fb_atomic_halo object
-  !> \param atomic_halo: the fb_atomic_halo object, its content must
-  !>                     not be UNDEFINED, and the subroutine does nothing
-  !>                     if the content points to NULL
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param error ...
+! **********************************************************************
+!> \brief Releases an fb_atomic_halo object
+!> \param atomic_halo the fb_atomic_halo object, its content must
+!>                     not be UNDEFINED, and the subroutine does nothing
+!>                     if the content points to NULL
+!> \param error CP2K data container for error logging 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_release(atomic_halo, error)
-    TYPE(fb_atomic_halo_obj), INTENT(inout)  :: atomic_halo
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
       routineP = moduleN//':'//routineN
@@ -195,20 +184,16 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_release
 
 
-  ! **********************************************************************
-  !> \brief Nullifies a fb_atomic_halo object, note that it does not
-  !>        release the original object. This procedure is used to nullify
-  !>        the pointer contained in the object which is used to associate
-  !>        to the actual object content
-  !> \param atomic_halo: the fb_atomic_halo object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
+! **********************************************************************
+!> \brief Nullifies a fb_atomic_halo object, note that it does not
+!>        release the original object. This procedure is used to nullify
+!>        the pointer contained in the object which is used to associate
+!>        to the actual object content
+!> \param atomic_halo the fb_atomic_halo object 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_nullify(atomic_halo)
-    TYPE(fb_atomic_halo_obj), INTENT(inout)  :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nullify', &
       routineP = moduleN//':'//routineN
@@ -217,20 +202,15 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_nullify
 
 
-  ! **********************************************************************
-  !> \brief Associates one fb_atomic_halo object to another
-  !> \param a: the fb_atomic_halo object to be associated
-  !> \param b: the fb_atomic_halo object that a is to be associated to
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param a ...
-!> \param b ...
+! **********************************************************************
+!> \brief Associates one fb_atomic_halo object to another
+!> \param a the fb_atomic_halo object to be associated 
+!> \param b the fb_atomic_halo object that a is to be associated to 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_associate(a, b)
     TYPE(fb_atomic_halo_obj), INTENT(out)    :: a
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: b
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_associate', &
       routineP = moduleN//':'//routineN
@@ -239,20 +219,16 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_associate
 
 
-  ! **********************************************************************
-  !> \brief Checks if a fb_atomic_halo object is associated with an actual
-  !>        data content or not
-  !> \param atomic_halos: the fb_atomic_halo object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
+! **********************************************************************
+!> \brief Checks if a fb_atomic_halo object is associated with an actual
+!>        data content or not
+!> \param atomic_halo the fb_atomic_halo object 
 !> \retval res ...
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_atomic_halo_has_data(atomic_halo) RESULT(res)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halo
+      INTENT(IN)                             :: atomic_halo
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_has_data', &
@@ -262,21 +238,16 @@ CONTAINS
   END FUNCTION fb_atomic_halo_has_data
 
 
-  ! **********************************************************************
-  !> \brief Creates and initialises an empty fb_atomic_halo object
-  !> \param atomic_halo: the fb_atomic_halo object, its content must
-  !>                     be NULL and cannot be UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param error ...
+! **********************************************************************
+!> \brief Creates and initialises an empty fb_atomic_halo object
+!> \param atomic_halo the fb_atomic_halo object, its content must
+!>                     be NULL and cannot be UNDEFINED 
+!> \param error CP2K data container for error logging 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_create(atomic_halo, error)
-    TYPE(fb_atomic_halo_obj), INTENT(inout)  :: atomic_halo
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
       routineP = moduleN//':'//routineN
@@ -302,21 +273,16 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_create
 
 
-  ! **********************************************************************
-  !> \brief Initialises an fb_atomic_halo object, and makes it empty
-  !> \param atomic_halo: the fb_atomic_halo object, its content must
-  !>                     not be NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param error ...
+! **********************************************************************
+!> \brief Initialises an fb_atomic_halo object, and makes it empty
+!> \param atomic_halo the fb_atomic_halo object, its content must
+!>                     not be NULL or UNDEFINED 
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_init(atomic_halo, error)
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
       routineP = moduleN//':'//routineN
@@ -342,31 +308,21 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_init
 
 
-  ! **********************************************************************
-  !> \brief Gets attributes from a fb_atomic_halo object, one should
-  !>        only access the data content in a fb_atomic_halo outside
-  !>        this module via this procedure.
-  !> \param atomic_halo: the fb_atomic_halo object, its content must
-  !>                     not be NULL or UNDEFINED
-  !> \param owner_atom [OPTIONAL]: if present, outputs atmic_halo%obj%owner_atom
-  !> \param natoms [OPTIONAL]: if present, outputs atomic_halo%obj%natoms
-  !> \param nelectrons [OPTIONAL]: if present, outputs atomic_halo%obj%nelectrons
-  !> \param halo_atoms [OPTIONAL]: if present, outputs pointer
-  !>                               atomic_halo%obj%halo_atoms
-  !> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param owner_atom ...
+! **********************************************************************
+!> \brief Gets attributes from a fb_atomic_halo object, one should
+!>        only access the data content in a fb_atomic_halo outside
+!>        this module via this procedure.
+!> \param atomic_halo the fb_atomic_halo object, its content must
+!>                     not be NULL or UNDEFINED 
+!> \param owner_atom [OPTIONAL]: if present, outputs atmic_halo%obj%owner_atom
 !> \param owner_id_in_halo ...
-!> \param natoms ...
-!> \param nelectrons ...
-!> \param halo_atoms ...
-!> \param sorted ...
-!> \param error ...
+!> \param natoms [OPTIONAL]: if present, outputs atomic_halo%obj%natoms
+!> \param nelectrons [OPTIONAL]: if present, outputs atomic_halo%obj%nelectrons
+!> \param halo_atoms [OPTIONAL]: if present, outputs pointer
+!>                               atomic_halo%obj%halo_atoms
+!> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_get(atomic_halo, &
                                 owner_atom, &
@@ -376,12 +332,12 @@ CONTAINS
                                 halo_atoms, &
                                 sorted, &
                                 error)
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     INTEGER, INTENT(out), OPTIONAL           :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(out), OPTIONAL           :: sorted
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
       routineP = moduleN//':'//routineN
@@ -401,33 +357,23 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_get
 
 
-  ! **********************************************************************
-  !> \brief Sets attributes in a fb_atomic_halo object, one should
-  !>        only set the data content in a fb_atomic_halo from outside
-  !>        this module via this procedure.
-  !> \param atomic_halo: the fb_atomic_halo object, its content must
-  !>                     not be NULL or UNDEFINED
-  !> \param owner_atom [OPTIONAL]: if present, sets
-  !>                               atmic_halo%obj%owner_atom = owner_atom
-  !> \param natoms [OPTIONAL]: if present, sets atomic_halo%obj%natoms = natoms
-  !> \param nelectrons [OPTIONAL]: if present, sets atomic_halo%obj%nelectrons = nelectrons
-  !> \param halo_atoms [OPTIONAL]: if present, reallocates atomic_halo%obj%halo_atoms
-  !>                               to the size of halo_atoms, and copies
-  !>                               contents of halo_atoms to atomic_halo%obj%halo_atoms
-  !> \param sorted [OPTIONAL]: if present, sets atomic_halo%obj%sorted = sorted
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param owner_atom ...
+! **********************************************************************
+!> \brief Sets attributes in a fb_atomic_halo object, one should
+!>        only set the data content in a fb_atomic_halo from outside
+!>        this module via this procedure.
+!> \param atomic_halo the fb_atomic_halo object, its content must
+!>                     not be NULL or UNDEFINED
+!> \param owner_atom [OPTIONAL]: if present, sets
+!>                               atmic_halo%obj%owner_atom = owner_atom
 !> \param owner_id_in_halo ...
-!> \param natoms ...
-!> \param nelectrons ...
-!> \param halo_atoms ...
-!> \param sorted ...
-!> \param error ...
+!> \param natoms [OPTIONAL]: if present, sets atomic_halo%obj%natoms = natoms
+!> \param nelectrons [OPTIONAL]: if present, sets atomic_halo%obj%nelectrons = nelectrons
+!> \param halo_atoms [OPTIONAL]: if present, reallocates atomic_halo%obj%halo_atoms
+!>                               to the size of halo_atoms, and copies
+!>                               contents of halo_atoms to atomic_halo%obj%halo_atoms
+!> \param sorted [OPTIONAL]: if present, sets atomic_halo%obj%sorted = sorted
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_set(atomic_halo, &
                                 owner_atom, &
@@ -437,12 +383,12 @@ CONTAINS
                                 halo_atoms, &
                                 sorted, &
                                 error)
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
-    INTEGER, INTENT(in), OPTIONAL            :: owner_atom, owner_id_in_halo, &
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    INTEGER, INTENT(IN), OPTIONAL            :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
-    LOGICAL, INTENT(in), OPTIONAL            :: sorted
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: sorted
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
       routineP = moduleN//':'//routineN
@@ -470,21 +416,16 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_set
 
 
-  ! **********************************************************************
-  !> \brief Sort the list of atomic indices in the halo in accending order.
-  !>        The atomic_halo must not be empty
-  !> \param atomic_halo:  the atomic_halo object
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param error ...
+! **********************************************************************
+!> \brief Sort the list of atomic indices in the halo in accending order.
+!>        The atomic_halo must not be empty
+!> \param atomic_halo  the atomic_halo object
+!> \param error CP2K data container for error logging 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_sort(atomic_halo, error)
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
       routineP = moduleN//':'//routineN
@@ -504,36 +445,28 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_sort
 
 
-  ! **********************************************************************
-  !> \brief Given a global atomic index, convert it to its index in a
-  !>        given atomic halo, if found.
-  !>        The atomic_halo object must already have been sorted
-  !> \param atomic_halo:  the atomic_halo object
-  !> \param iatom_global:  the global atomic index
-  !> \param iatom_halo:  the atomic index inside the halo
-  !> \param found:  returns true if given atom is in the halo, otherwise
-  !>                false
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param iatom_global ...
-!> \param iatom_halo ...
-!> \param found ...
-!> \param error ...
+! **********************************************************************
+!> \brief Given a global atomic index, convert it to its index in a
+!>        given atomic halo, if found.
+!>        The atomic_halo object must already have been sorted
+!> \param atomic_halo  the atomic_halo object
+!> \param iatom_global  the global atomic index
+!> \param iatom_halo  the atomic index inside the halo
+!> \param found  returns true if given atom is in the halo, otherwise
+!>                false
+!> \param error CP2K data container for error logging 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_atom_global2halo(atomic_halo, &
                                              iatom_global, &
                                              iatom_halo, &
                                              found, &
                                              error)
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
-    INTEGER, INTENT(in)                      :: iatom_global
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    INTEGER, INTENT(IN)                      :: iatom_global
     INTEGER, INTENT(out)                     :: iatom_halo
     LOGICAL, INTENT(out)                     :: found
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'fb_atomic_halo_atom_global2halo', &
@@ -553,27 +486,20 @@ CONTAINS
 
 
 
-  ! **********************************************************************
-  !> \brief Estimates the total number of electrons in a halo using atomic
-  !>        numbers
-  !> \param atomic_halo:  the atomic_halo object
-  !> \param particle_set:  an array of cp2k particle set objects (this
-  !>                       gives atomic information)
-  !> \param RESULT: estimate of electron number (real)
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halo ...
-!> \param particle_set ...
-!> \retval nelectrons ...
+! **********************************************************************
+!> \brief Estimates the total number of electrons in a halo using atomic
+!>        numbers
+!> \param atomic_halo the atomic_halo object
+!> \param particle_set an array of cp2k particle set objects (this
+!>                       gives atomic information)
+!> \retval nelectrons estimate of electron number
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_atomic_halo_nelectrons_estimate_Z(atomic_halo, particle_set) RESULT(nelectrons)
-    TYPE(fb_atomic_halo_obj), INTENT(in)     :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(particle_type), DIMENSION(:), &
-      INTENT(in)                             :: particle_set
-    REAL(KIND=dp)                            :: nelectrons
+      INTENT(IN)                             :: particle_set
+    INTEGER                                  :: nelectrons
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'fb_atomic_halo_nelectrons_estimate_Z', &
@@ -591,28 +517,23 @@ CONTAINS
           atomic_kind => particle_set(iatom_global)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                z=z)
-          nelectrons = nelectrons + REAL(z, KIND=dp)
+          nelectrons = nelectrons + z
        END DO
     END IF
   END FUNCTION fb_atomic_halo_nelectrons_estimate_Z
 
 
-  ! **********************************************************************
-  !> \brief Retains an fb_atomic_halo_list object
-  !> \param atomic_halos: the fb_atomic_halo object, its content must
-  !>                      not be NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
-!> \param error ...
+! **********************************************************************
+!> \brief Retains an fb_atomic_halo_list object
+!> \param atomic_halos the fb_atomic_halo object, its content must
+!>                      not be NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_retain(atomic_halos, error)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halos
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(IN)                             :: atomic_halos
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain', &
       routineP = moduleN//':'//routineN
@@ -628,22 +549,17 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_retain
 
 
-  ! **********************************************************************
-  !> \brief Releases an fb_atomic_halo_list object
-  !> \param atomic_halos: the fb_atomic_halo object, its content must
-  !>                      not be UNDEFINED, and does nothing if it is NULL
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
-!> \param error ...
+! **********************************************************************
+!> \brief Releases an fb_atomic_halo_list object
+!> \param atomic_halos the fb_atomic_halo object, its content must
+!>                      not be UNDEFINED, and does nothing if it is NULL
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_release(atomic_halos, error)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(inout)                          :: atomic_halos
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(INOUT)                          :: atomic_halos
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_release', &
       routineP = moduleN//':'//routineN
@@ -673,21 +589,17 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_release
 
 
-  ! **********************************************************************
-  !> \brief Nullifies a fb_atomic_halo_list object, note that it does
-  !>        not release the original object. This procedure is used to
-  !>        nullify the pointer contained in the object which is used to
-  !>        associate to the actual object content
-  !> \param atomic_halos: the fb_atomic_halo_list object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
+! **********************************************************************
+!> \brief Nullifies a fb_atomic_halo_list object, note that it does
+!>        not release the original object. This procedure is used to
+!>        nullify the pointer contained in the object which is used to
+!>        associate to the actual object content
+!> \param atomic_halos the fb_atomic_halo_list object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_nullify(atomic_halos)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(inout)                          :: atomic_halos
+      INTENT(INOUT)                          :: atomic_halos
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_nullify', &
       routineP = moduleN//':'//routineN
@@ -696,20 +608,16 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_nullify
 
 
-  ! **********************************************************************
-  !> \brief Checks if a fb_atomic_halo_list object is associated with
-  !>        an actual data content or not
-  !> \param atomic_halos: the fb_atomic_halo_list object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
+! **********************************************************************
+!> \brief Checks if a fb_atomic_halo_list object is associated with
+!>        an actual data content or not
+!> \param atomic_halos the fb_atomic_halo_list object
 !> \retval res ...
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_atomic_halo_list_has_data(atomic_halos) RESULT(res)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halos
+      INTENT(IN)                             :: atomic_halos
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_has_data', &
@@ -719,22 +627,17 @@ CONTAINS
   END FUNCTION fb_atomic_halo_list_has_data
 
 
-  ! **********************************************************************
-  !> \brief Associates one fb_atomic_halo_list object to another
-  !> \param a: the fb_atomic_halo_list object to be associated
-  !> \param b: the fb_atomic_halo_list object that a is to be associated to
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param a ...
-!> \param b ...
+! **********************************************************************
+!> \brief Associates one fb_atomic_halo_list object to another
+!> \param a the fb_atomic_halo_list object to be associated
+!> \param b the fb_atomic_halo_list object that a is to be associated to
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_associate(a, b)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(out)                            :: a
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: b
+      INTENT(IN)                             :: b
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'fb_atomic_halo_list_associate', &
@@ -744,22 +647,17 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_associate
 
 
-  ! **********************************************************************
-  !> \brief Creates and initialises an empty fb_atomic_halo_list object
-  !> \param atomic_halos: the fb_atomic_halo object, its content must
-  !>                      not be NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
-!> \param error ...
+! **********************************************************************
+!> \brief Creates and initialises an empty fb_atomic_halo_list object
+!> \param atomic_halos the fb_atomic_halo object, its content must
+!>                      not be NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_create(atomic_halos, error)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(inout)                          :: atomic_halos
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(INOUT)                          :: atomic_halos
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
       routineP = moduleN//':'//routineN
@@ -782,22 +680,17 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_create
 
 
-  ! **********************************************************************
-  !> \brief Initialises an fb_atomic_halo_list object and make it empty
-  !> \param atomic_halos: the fb_atomic_halo object, its content must
-  !>                      not be NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
-!> \param error ...
+! **********************************************************************
+!> \brief Initialises an fb_atomic_halo_list object and make it empty
+!> \param atomic_halos the fb_atomic_halo object, its content must
+!>                      not be NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_init(atomic_halos, error)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halos
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      INTENT(INOUT)                          :: atomic_halos
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_init', &
       routineP = moduleN//':'//routineN
@@ -823,33 +716,25 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_init
 
 
-  ! **********************************************************************
-  !> \brief Gets attributes from an fb_atomic_halo_list object, one should
-  !>        only access the data content in a fb_atomic_halo_list outside
-  !>        this module via this procedure.
-  !> \param atomic_halos: the fb_atomic_halo object, its content must
-  !>                      not be NULL or UNDEFINED
-  !> \param nhalos [OPTIONAL]: if present, gives nhalos = atomic_halos%obj%nhalos
-  !> \param max_nhalos [OPTIONAL]: if present, gives max_nhalos = atomic_halos%obj%max_nhalos
-  !> \param halos [OPTIONAL]: if present, gives halos => atomic_halos%obj%halos
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
-!> \param nhalos ...
-!> \param max_nhalos ...
-!> \param halos ...
-!> \param error ...
+! **********************************************************************
+!> \brief Gets attributes from an fb_atomic_halo_list object, one should
+!>        only access the data content in a fb_atomic_halo_list outside
+!>        this module via this procedure.
+!> \param atomic_halos the fb_atomic_halo object, its content must
+!>                      not be NULL or UNDEFINED
+!> \param nhalos [OPTIONAL]: if present, gives nhalos = atomic_halos%obj%nhalos
+!> \param max_nhalos [OPTIONAL]: if present, gives max_nhalos = atomic_halos%obj%max_nhalos
+!> \param halos [OPTIONAL]: if present, gives halos => atomic_halos%obj%halos
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos, error)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halos
+      INTENT(IN)                             :: atomic_halos
     INTEGER, INTENT(out), OPTIONAL           :: nhalos, max_nhalos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       OPTIONAL, POINTER                      :: halos
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get', &
       routineP = moduleN//':'//routineN
@@ -866,34 +751,26 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_get
 
 
-  ! **********************************************************************
-  !> \brief Sets attributes from an fb_atomic_halo_list object, one should
-  !>        only set the data content in a fb_atomic_halo_list outside
-  !>        this module via this procedure.
-  !> \param atomic_halos: the fb_atomic_halo object, its content must
-  !>                      not be NULL or UNDEFINED
-  !> \param nhalos [OPTIONAL]: if present, sets atomic_halos%obj%nhalos = nhalos
-  !> \param max_nhalos [OPTIONAL]: if present, sets atomic_halos%obj%max_nhalos = max_nhalos
-  !> \param halos [OPTIONAL]: if present, reallocates atomic_halos%obj%halos
-  !>                          to the size of halos
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
-!> \param nhalos ...
-!> \param max_nhalos ...
-!> \param halos ...
-!> \param error ...
+! **********************************************************************
+!> \brief Sets attributes from an fb_atomic_halo_list object, one should
+!>        only set the data content in a fb_atomic_halo_list outside
+!>        this module via this procedure.
+!> \param atomic_halos the fb_atomic_halo object, its content must
+!>                      not be NULL or UNDEFINED
+!> \param nhalos [OPTIONAL]: if present, sets atomic_halos%obj%nhalos = nhalos
+!> \param max_nhalos [OPTIONAL]: if present, sets atomic_halos%obj%max_nhalos = max_nhalos
+!> \param halos [OPTIONAL]: if present, reallocates atomic_halos%obj%halos
+!>                          to the size of halos
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_set(atomic_halos, nhalos, max_nhalos, halos, error)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halos
-    INTEGER, INTENT(in), OPTIONAL            :: nhalos, max_nhalos
+      INTENT(INOUT)                          :: atomic_halos
+    INTEGER, INTENT(IN), OPTIONAL            :: nhalos, max_nhalos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       OPTIONAL, POINTER                      :: halos
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_set', &
       routineP = moduleN//':'//routineN
@@ -925,28 +802,21 @@ CONTAINS
   END SUBROUTINE fb_atomic_halo_list_set
 
 
-  ! **********************************************************************
-  !> \brief Writes out the atomic halo list from an fb_atomic_halo_list
-  !>        object using information
-  !> \param atomic_halos: the fb_atomic_halo object
-  !> \param para_env: pointer to a para_env_type object containing MPI info
-  !> \param fb_section: pointer to the input section to filtered basis method
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param atomic_halos ...
-!> \param para_env ...
-!> \param fb_section ...
-!> \param error ...
+! **********************************************************************
+!> \brief Writes out the atomic halo list from an fb_atomic_halo_list
+!>        object using information
+!> \param atomic_halos the fb_atomic_halo object
+!> \param para_env pointer to a para_env_type object containing MPI info
+!> \param fb_section pointer to the input section to filtered basis method
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atomic_halo_list_write(atomic_halos, para_env, fb_section, error)
     TYPE(fb_atomic_halo_list_obj), &
-      INTENT(in)                             :: atomic_halos
+      INTENT(IN)                             :: atomic_halos
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: fb_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write', &
       routineP = moduleN//':'//routineN

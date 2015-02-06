@@ -44,32 +44,22 @@ MODULE qs_fb_atomic_matrix_methods
 CONTAINS
 
 
-  ! **********************************************************************
-  !> \brief Calculates the atomic matrix size from a given DBCSR matrix
-  !>        and atomic halo. It also calculates the first row (col) or the
-  !>        row (col) atomic blocks in the atomic matrix
-  !> \param dbcsr_mat : pointer to the DBCSR matrix the atomic matrix is
-  !>                    to be constructed from
-  !> \param atomic_halo : the atomic halo used for defining the atomic
-  !>                      matrix from the DBCSR matrix
-  !> \param nrows : outputs total number of rows in the atomic matrix
-  !> \param ncols : outputs total number of cols in the atomic matrix
-  !> \param blk_row_start : first row in each atomic blk row in the
-  !>                        atomic matrix
-  !> \param blk_col_start : first col in each atomic blk col in the
-  !>                        atomic matrix
-  !> \param error : the data container for CP2K error logs
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param dbcsr_mat ...
-!> \param atomic_halo ...
-!> \param nrows ...
-!> \param ncols ...
-!> \param blk_row_start ...
-!> \param blk_col_start ...
-!> \param error ...
+! **********************************************************************
+!> \brief Calculates the atomic matrix size from a given DBCSR matrix
+!>        and atomic halo. It also calculates the first row (col) or the
+!>        row (col) atomic blocks in the atomic matrix
+!> \param dbcsr_mat : pointer to the DBCSR matrix the atomic matrix is
+!>                    to be constructed from
+!> \param atomic_halo : the atomic halo used for defining the atomic
+!>                      matrix from the DBCSR matrix
+!> \param nrows : outputs total number of rows in the atomic matrix
+!> \param ncols : outputs total number of cols in the atomic matrix
+!> \param blk_row_start : first row in each atomic blk row in the
+!>                        atomic matrix
+!> \param blk_col_start : first col in each atomic blk col in the
+!>                        atomic matrix
+!> \param error : the data container for CP2K error logs
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_calc_size(dbcsr_mat, &
                                    atomic_halo, &
@@ -122,36 +112,26 @@ CONTAINS
   END SUBROUTINE fb_atmatrix_calc_size
 
 
-  ! **********************************************************************
-  !> \brief Constructs atomic matrix for filter basis method from a given
-  !>        DBCSR matrix and a set of atomic send and recv pairs
-  !>        corresponding to the matrix blocks that nees to be included
-  !>        in the atomic matrix. The atomic matrix upon input should be
-  !>        a null pointer
-  !> \param dbcsr_mat : the DBCSR matrix the atomic matrix is to be
-  !>                    constructed from
-  !> \param atomic_halo : the atomic halo conrresponding to this atomic
-  !>                      matrix
-  !> \param para_env : cp2k parallel environment
-  !> \param atomic_matrix : the atomic matrix to be constructed, it should
-  !>                        have already been allocated prior entering
-  !>                        this subroutine
-  !> \param blk_row_start : first row in each atomic blk row in the
-  !>                        atomic matrix
-  !> \param blk_col_start : first col in each atomic blk col in the
-  !>                        atomic matrix
-  !> \param error : the data container for CP2K error logs
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param dbcsr_mat ...
-!> \param atomic_halo ...
-!> \param para_env ...
-!> \param atomic_matrix ...
-!> \param blk_row_start ...
-!> \param blk_col_start ...
-!> \param error ...
+! **********************************************************************
+!> \brief Constructs atomic matrix for filter basis method from a given
+!>        DBCSR matrix and a set of atomic send and recv pairs
+!>        corresponding to the matrix blocks that nees to be included
+!>        in the atomic matrix. The atomic matrix upon input should be
+!>        a null pointer
+!> \param dbcsr_mat : the DBCSR matrix the atomic matrix is to be
+!>                    constructed from
+!> \param atomic_halo : the atomic halo conrresponding to this atomic
+!>                      matrix
+!> \param para_env : cp2k parallel environment
+!> \param atomic_matrix : the atomic matrix to be constructed, it should
+!>                        have already been allocated prior entering
+!>                        this subroutine
+!> \param blk_row_start : first row in each atomic blk row in the
+!>                        atomic matrix
+!> \param blk_col_start : first col in each atomic blk col in the
+!>                        atomic matrix
+!> \param error : the data container for CP2K error logs
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_construct(dbcsr_mat, &
                                    atomic_halo, &
@@ -425,29 +405,20 @@ CONTAINS
 
 
 
-  ! **********************************************************************
-  !> \brief generate list of blocks (atom pairs) of a DBCSR matrix to be
-  !>        sent and recived in order to construct an atomic matrix
-  !>        corresponding to a given atomic halo
-  !> \param dbcsr_mat : The DBCSR matrix the atom blocks come from
-  !> \param atomic_halo : the atomic halo used to construct the atomic
-  !>                      matrix
-  !> \param para_env : cp2k parallel environment
-  !> \param atom_pairs_send : list of atom blocks from local DBCSR matrix
-  !>                          data to be sent
-  !> \param atom_pairs_recv : list of atom blocks from remote DBCSR matrix
-  !>                          data to be recveived
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-! *****************************************************************************
-!> \brief ...
-!> \param dbcsr_mat ...
-!> \param atomic_halo ...
-!> \param para_env ...
-!> \param atom_pairs_send ...
-!> \param atom_pairs_recv ...
-!> \param error ...
+! **********************************************************************
+!> \brief generate list of blocks (atom pairs) of a DBCSR matrix to be
+!>        sent and recived in order to construct an atomic matrix
+!>        corresponding to a given atomic halo
+!> \param dbcsr_mat : The DBCSR matrix the atom blocks come from
+!> \param atomic_halo : the atomic halo used to construct the atomic
+!>                      matrix
+!> \param para_env : cp2k parallel environment
+!> \param atom_pairs_send : list of atom blocks from local DBCSR matrix
+!>                          data to be sent
+!> \param atom_pairs_recv : list of atom blocks from remote DBCSR matrix
+!>                          data to be recveived
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_generate_com_pairs(dbcsr_mat, &
                                             atomic_halo, &
