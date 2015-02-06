@@ -329,7 +329,7 @@ CONTAINS
        ! ----------------------------------------------------------------------
 
        ! get filter matrix name
-       WRITE (spin_string, FMT="(I1)"), ispin
+       WRITE (spin_string, FMT="(I1)") ispin
        name = TRIM("FILTER MATRIX SPIN "//spin_string)
        CALL compress(name)
        CALL uppercase(name)
