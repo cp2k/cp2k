@@ -55,7 +55,9 @@ def check_warnings(fn):
         # we ignore these warnings
         if("Creating array temporary" in line): continue
         if("quality comparison" in line): continue
-        if("Unused" in line): continue
+        if("Unused" in line): 
+		if("error" in line or "routinep" in line):
+			continue
         if("defined but not used" in line): continue
         if("Removing call to function" in line): continue
         if("Conversion from" in line): continue
