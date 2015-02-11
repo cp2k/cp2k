@@ -1,4 +1,15 @@
 {
 "description": "Full Matrices",
-"requires": ["../common", "../base", "../mpiwrap" ]
+"requires": ["../common", "../base", "../mpiwrap" ],
+
+
+"implicit": "BLACS_.*|IGSUM2D" # blacs
+             #Lapack
+           +"|DESCINIT|NUMROC|INFOG2L|INDXG2L|INDXG2P|INDXL2G|PILAENV|ICEIL|"
+           +"(P[SDCZ]"+"(ROT|COPY|LACPY|"
+           +"(DB|DT|GB|GE|GG|HE|OR|PB|PO|PT|ST|SY|TR|TZ|UN)"
+           +"(MR2D|MM|TRI|LS|EV|EVD|EVX|GVX|SVD|BRD|CON|EBZ|EDC|EIN|EQU"
+           +"|EVC|GBR|GHR|GLQ|GQL|GQR|GRQ|GST|HRD|LQF|MBR|MHR|MLQ|MQL"
+           +"|MQR|MRQ|MRZ|MTR|QLF|QPF|QRF|RFS|RQF|RZF|TRD|TRF|TRI|TRS"
+           +"|SM|AN|RK)))",
 }

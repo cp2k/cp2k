@@ -1,0 +1,58 @@
+CC = cc
+CPP =
+FC = mpif90
+LD = mpif90
+AR = ar -r
+
+CPPFLAGS =
+DFLAGS = -D__FFTSG -D__LIBINT -D__FFTW3 -D__parallel -D__SCALAPACK -D__BLACS -D__LIBXC2 \
+         -D__NO_MPI_THREAD_SUPPORT_CHECK -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5
+
+#https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
+
+WFLAGS     = -pedantic\
+             -Wall\
+             -Waliasing\
+             -Wampersand\
+             -Warray-temporaries\
+             -Wc-binding-type\
+             -Wcharacter-truncation\
+             -Wline-truncation\
+             -Wconversion\
+             -Wconversion-extra\
+             -Wextra\
+             -Wimplicit-interface\
+             -Wimplicit-procedure\
+             -Wintrinsics-std\
+             -Wreal-q-constant\
+             -Wsurprising\
+             -Wtabs\
+             -Wunderflow\
+             -Wintrinsic-shadow\
+             -Wunused-dummy-argument\
+             -Wunused-parameter\
+             -Walign-commons\
+             -Wfunction-elimination\
+             -Wrealloc-lhs\
+             -Wrealloc-lhs-all\
+             -Wcompare-reals\
+             -Wtarget-lifetime\
+             -Wzerotrip
+
+# not supported by gfortran 4.9.2
+#            -Wuse-without-only
+
+
+FCFLAGS    = $(DFLAGS) -O3 -fcheck=bounds,do,recursion,pointer -ffree-form\
+             -I$(CP2KINSTALLDIR)/include\
+             -ffree-line-length-none -fimplicit-none -fno-omit-frame-pointer\
+             -g -mtune=generic -std=f2003\
+              $(WFLAGS)
+
+LDFLAGS = $(FCFLAGS) -L$(CP2KINSTALLDIR)/lib/
+LIBS = -lderiv -lint -lstdc++ -lfftw3 -lscalapack -lreflapack -lrefblas -lxc
+
+FCLOGPIPE =  2> $(notdir $<).warn
+
+#EOF
+

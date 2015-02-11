@@ -1,4 +1,5 @@
 {
 "description": "Fast Fourier transform",
-"requires": ["../../common"]
+"requires": ["../../common"],
+"implicit": "DFFTW_.*",
 }
