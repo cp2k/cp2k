@@ -240,7 +240,7 @@ CONTAINS
        atom_of_kind, kind_of, natom_of_kind,&
        maxatom,&
        natom,&
-       nset,nshell,&
+       nshell,&
        fist_potential_present,&
        shell_present, shell_adiabatic,&
        shell_check_distance,&
@@ -251,7 +251,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
-    INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nset, nshell
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nshell
     LOGICAL, INTENT(OUT), OPTIONAL :: fist_potential_present, shell_present, &
       shell_adiabatic, shell_check_distance, damping_present
 

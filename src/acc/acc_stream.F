@@ -190,6 +190,7 @@ SUBROUTINE acc_stream_priority_range(least, greatest)
     INTEGER, INTENT(OUT)                     :: least, greatest
 
 #if ! defined (__ACC)
+    least=-1; greatest=-1 ! assign intent-out arguments to silence compiler warnings
     STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat

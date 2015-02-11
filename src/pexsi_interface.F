@@ -37,13 +37,13 @@ MODULE pexsi_interface
             cp_pexsi_load_real_symmetric_hs_matrix, cp_pexsi_dft_driver, &
             cp_pexsi_retrieve_real_symmetric_dft_matrix, cp_pexsi_plan_finalize,&
             cp_pexsi_set_options, cp_pexsi_get_options, cp_pexsi_set_default_options
-            
+
   TYPE cp_pexsi_options
       PRIVATE
 #ifdef __LIBPEXSI
       TYPE(f_ppexsi_options) :: options
 #else
-      INTEGER :: unused
+      INTEGER :: unused = -1
 #endif
   END TYPE cp_pexsi_options
 
@@ -196,6 +196,25 @@ CONTAINS
     IF(PRESENT(npSymbFact)) npSymbFact = pexsi_options%options%npSymbFact
     IF(PRESENT(verbosity)) verbosity = pexsi_options%options%verbosity
 #else
+   ! assign intent-out arguments to silence compiler warnings
+   IF(PRESENT(temperature)) temperature = 0.0_real_8
+   IF(PRESENT(gap)) gap = 0.0_real_8
+   IF(PRESENT(deltaE)) deltaE = 0.0_real_8
+   IF(PRESENT(numPole)) numPole = -1
+   IF(PRESENT(isInertiaCount)) isInertiaCount = -1
+   IF(PRESENT(maxPEXSIIter)) maxPEXSIIter = -1
+   IF(PRESENT(muMin0)) muMin0 = 0.0_real_8
+   IF(PRESENT(muMax0)) muMax0 = 0.0_real_8
+   IF(PRESENT(mu0)) mu0 = 0.0_real_8
+   IF(PRESENT(muInertiaTolerance)) muInertiaTolerance = 0.0_real_8
+   IF(PRESENT(muInertiaExpansion)) muInertiaExpansion = 0.0_real_8
+   IF(PRESENT(muPEXSISafeGuard)) muPEXSISafeGuard = 0.0_real_8
+   IF(PRESENT(numElectronPEXSITolerance)) numElectronPEXSITolerance = 0.0_real_8
+   IF(PRESENT(matrixType)) matrixType = -1
+   IF(PRESENT(isSymbolicFactorize)) isSymbolicFactorize = -1
+   IF(PRESENT(ordering)) ordering = -1
+   IF(PRESENT(npSymbFact)) npSymbFact = -1
+   IF(PRESENT(verbosity)) verbosity = -1
    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
                     only_ionode = .TRUE., error=error)
@@ -349,6 +368,13 @@ CONTAINS
                    only_ionode = .TRUE., error=error)
     CALL timestop(handle)
 #else
+    ! assign intent-out arguments to silence compiler warnings
+    muPEXSI = 0.0_real_8
+    numElectronPEXSI = 0.0_real_8
+    muMinInertia = 0.0_real_8
+    muMaxInertia = 0.0_real_8
+    numTotalInertiaIter = -1
+    numTotalPEXSIIter = -1
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
                     only_ionode = .TRUE., error=error)
@@ -391,6 +417,14 @@ CONTAINS
                    only_ionode = .TRUE., error=error)
     CALL timestop(handle)
 #else
+    ! assign intent-out arguments to silence compiler warnings
+    DMnzvalLocal(0) = 0.0_real_8
+    EDMnzvalLocal(0) = 0.0_real_8
+    FDMnzvalLocal(0) = 0.0_real_8
+    totalEnergyH = 0.0_real_8
+    totalEnergyS = 0.0_real_8
+    totalFreeEnergy = 0.0_real_8
+
     CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
                     "Requires linking to the PEXSI library.",&
                     only_ionode = .TRUE., error=error)

@@ -295,6 +295,7 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: free, avail
 
 #if ! defined (__ACC)
+    avail=-1; free=-1 ! assign intent-out arguments to silence compiler warnings
     STOP "__ACC not compiled in."
 #else
     INTEGER                                  :: istat
