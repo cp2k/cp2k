@@ -1,0 +1,129 @@
+&GLOBAL
+  PROJECT_NAME fayalite_pedone_md
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+         ATOM Fe
+         CHARGE 1.2
+      &END CHARGE 
+      &CHARGE
+         ATOM Si 
+         CHARGE 2.4
+      &END CHARGE
+      &CHARGE
+         ATOM O 
+         CHARGE -1.2
+      &END CHARGE
+      IGNORE_MISSING_CRITICAL_PARAMS
+      &NONBONDED
+         &GENPOT
+            ATOMS Fe O
+            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12) 
+            PARAMETERS D A R C
+            RCUT 5.5
+            VALUES 0.078171 1.822638 2.658163 2.0
+            UNITS eV angstrom^-1 angstrom eV*angstrom^12
+            VARIABLES X
+         &END GENPOT
+         &GENPOT
+            ATOMS Si O
+            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12) 
+            PARAMETERS D A R C
+            RCUT 5.5
+            VALUES 0.340554 2.006700 2.100000 1.0
+            UNITS eV angstrom^-1 angstrom eV*angstrom^12
+            VARIABLES X
+         &END GENPOT
+         &GENPOT
+            ATOMS O O
+            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12) 
+            PARAMETERS D A R C
+            RCUT 5.5
+            VALUES 0.042395 1.379316 3.618701 22.0
+            UNITS eV angstrom^-1 angstrom eV*angstrom^12
+            VARIABLES X
+         &END GENPOT
+      &END NONBONDED
+      &SPLINE
+         EMAX_SPLINE [eV] 100
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+       &EWALD
+          EWALD_TYPE SPME
+          GMAX 15 33 19 
+       &END EWALD
+    &END POISSON
+  &END MM
+
+  &SUBSYS
+    &CELL
+      ABC 4.8195 10.4788 6.0873
+       MULTIPLE_UNIT_CELL 10 10 10 
+    &END CELL
+    &TOPOLOGY
+       MULTIPLE_UNIT_CELL 10 10 10
+    &END TOPOLOGY
+    &COORD
+       SCALED
+       ! Fe1 and symmetric images
+       Fe 0.0 0.0 0.0
+       Fe 0.5 0.5 0.5
+       Fe 0.0 0.0 0.5
+       Fe 0.5 0.5 0.0
+       ! Fe2
+       Fe 0.98598 0.28026 0.25
+       Fe 0.51402 0.78026 0.25
+       Fe 0.01402 0.71974 0.75
+       Fe 0.48698 0.21974 0.75
+       ! Si
+       Si 0.43122 0.09765 0.25
+       Si 0.06878 0.59765 0.25
+       Si 0.56878 0.90235 0.75
+       Si 0.93122 0.40235 0.75
+       ! O1
+       O 0.76814 0.09217 0.25
+       O 0.73186 0.59217 0.25
+       O 0.23186 0.90783 0.75
+       O 0.26814 0.40783 0.75
+       ! O2
+       O 0.20895 0.45365 0.25
+       O 0.29015 0.95365 0.25
+       O 0.79105 0.54635 0.75
+       O 0.70895 0.04635 0.75
+       ! O3 (8 symmetric images)
+       O 0.28897 0.16563 0.03643
+       O 0.21103 0.66563 0.46357
+       O 0.71103 0.83437 0.53643
+       O 0.78897 0.33437 0.96357
+       O 0.71103 0.83437 0.96357
+       O 0.78897 0.33437 0.53643
+       O 0.28897 0.16563 0.46357
+       O 0.21103 0.66563 0.03643
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 1000
+    TEMPERATURE 300
+    TIMESTEP 2.0
+    &BAROSTAT
+       PRESSURE 1.0
+    &END BAROSTAT
+    &THERMOSTAT
+      &NOSE
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
