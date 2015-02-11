@@ -327,8 +327,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_fit_mo_coeffs_none', &
       routineP = moduleN//':'//routineN
-    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
-                                                zero = (0.0_dp,0.0_dp)
 
     INTEGER                                  :: handle, ispin, nao_aux_fit, &
                                                 nao_orb, natoms, nmo, &
@@ -433,8 +431,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     re=2*ispin-1 ; im =2*ispin
-    alpha=3.0_dp-REAL(SIZE(rtp_coeff_aux_fit)/2,dp)
-    CALL cp_dbcsr_set(density_matrix_aux,0.0_dp,error=error)
+    alpha=3*one-REAL(SIZE(rtp_coeff_aux_fit)/2,dp)
+    CALL cp_dbcsr_set(density_matrix_aux,zero,error=error)
     CALL cp_fm_get_info(rtp_coeff_aux_fit(re)%matrix,ncol_global=ncol,error=error)
     CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux,&
                                matrix_v=rtp_coeff_aux_fit(re)%matrix,&
@@ -450,7 +448,7 @@ CONTAINS
                                alpha=alpha,error=error)
 
 !   compute the imaginary part of the dm
-    CALL cp_dbcsr_set(density_matrix_aux_im,0.0_dp,error=error)
+    CALL cp_dbcsr_set(density_matrix_aux_im,zero,error=error)
     CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im,&
                                matrix_v=rtp_coeff_aux_fit(im)%matrix,&
                                matrix_g=rtp_coeff_aux_fit(re)%matrix,&

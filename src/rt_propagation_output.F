@@ -344,7 +344,7 @@ CONTAINS
    max_alpha=0.0_dp
 
    DO i=1,SIZE(mos_new)
-      CALL cp_fm_scale_and_add(-1.0_dp,delta_mos(i)%matrix,1.0_dp,mos_new(i)%matrix,error)
+      CALL cp_fm_scale_and_add(-one,delta_mos(i)%matrix,one,mos_new(i)%matrix,error)
    END DO
 
    DO ispin=1,nspin
@@ -367,7 +367,7 @@ CONTAINS
            nrow_global=nao,error=error)
       CALL cp_fm_get_info(work,ncol_global=newdim,error=error)
 
-      CALL cp_fm_set_all(work,0.0_dp,0.0_dp,error)
+      CALL cp_fm_set_all(work,zero,zero,error)
 
       DO icol=1,lcol
          work%local_data(:,icol)=delta_mos(re)%matrix%local_data(:,icol)
@@ -393,11 +393,11 @@ CONTAINS
       CALL cp_fm_create(work2,matrix_struct=newstruct1,error=error)
 
 
-      CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re)%matrix,&
-           work1,0.0_dp,work,error=error)
+      CALL cp_gemm("T","N",nmo,newdim,nao,one,delta_mos(re)%matrix,&
+           work1,zero,work,error=error)
 
-      CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im)%matrix,&
-           work1,0.0_dp,work2,error=error)
+      CALL cp_gemm("T","N",nmo,newdim,nao,one,delta_mos(im)%matrix,&
+           work1,zero,work2,error=error)
 
       CALL cp_fm_get_info(work,nrow_local=lrow,error=error)
       DO i=1,lrow

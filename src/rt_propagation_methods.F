@@ -226,7 +226,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'step_finalize', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, ihist
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -809,8 +808,8 @@ CONTAINS
     CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
     DO i=1,SIZE(mos)/2
        re=2*i-1 ; im =2*i
-       alpha=3.0_dp-REAL(SIZE(mos)/2,dp)
-       CALL cp_dbcsr_set(rho_ao(i)%matrix,0.0_dp,error=error)
+       alpha=3*one-REAL(SIZE(mos)/2,dp)
+       CALL cp_dbcsr_set(rho_ao(i)%matrix,zero,error=error)
        CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
                                matrix_v=mos(re)%matrix,&

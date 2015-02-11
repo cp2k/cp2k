@@ -226,7 +226,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'propagate_arnoldi', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, im, ispin, nspin, &
                                                 re
@@ -303,7 +302,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'propagate_bch', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, im, ispin, re
     LOGICAL                                  :: failure

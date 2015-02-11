@@ -183,7 +183,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: i
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -251,7 +251,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: i
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -443,7 +443,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_initial_guess', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: homo, ispin
     LOGICAL                                  :: energy_consistency, failure

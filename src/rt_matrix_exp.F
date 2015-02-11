@@ -550,8 +550,8 @@ CONTAINS
     CALL cp_cfm_set_all(Dpq,zero,one,error)
 
     DO i=1,ldim
-       Npq%local_data(:,i)= Npq%local_data(:,i)+CMPLX(0.0_dp,0.5_dp*square_fac*local_data_im(:,i),dp)
-       Dpq%local_data(:,i)= Dpq%local_data(:,i)-CMPLX(0.0_dp,0.5_dp*square_fac*local_data_im(:,i),dp)
+       Npq%local_data(:,i)= Npq%local_data(:,i)+CMPLX(rzero,0.5_dp*square_fac*local_data_im(:,i),dp)
+       Dpq%local_data(:,i)= Dpq%local_data(:,i)-CMPLX(rzero,0.5_dp*square_fac*local_data_im(:,i),dp)
     END DO
 
 
@@ -560,7 +560,7 @@ CONTAINS
     IF(npade.GT.2)THEN
        DO j=1,FLOOR(npade/2.0_dp)
           i=2*j
-          my_fac=(-1.0_dp)**j
+          my_fac=(-rone)**j
           IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,dp)
           scaleD=CMPLX(my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,dp)
           CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,T2,rzero,Tres,error)
@@ -572,13 +572,13 @@ CONTAINS
 
           IF(2*j+1.le.q)THEN
           i=2*j+1
-          IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,dp)
-          scaleD=CMPLX(-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,dp)
+          IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),rzero,dp)
+          scaleD=CMPLX(-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),rzero,dp)
           CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,Tres,rzero,T2,error)
 
           DO k=1,ldim
-             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(0.0_dp, T2%local_data(:,k),dp)
-             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX(0.0_dp, T2%local_data(:,k),dp)
+             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX(rzero, T2%local_data(:,k),dp)
+             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX(rzero, T2%local_data(:,k),dp)
           END DO
           ENDIF
        END DO
