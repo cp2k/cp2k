@@ -418,9 +418,9 @@ CONTAINS
     CALL timestop(handle)
 #else
     ! assign intent-out arguments to silence compiler warnings
-    DMnzvalLocal(0) = 0.0_real_8
-    EDMnzvalLocal(0) = 0.0_real_8
-    FDMnzvalLocal(0) = 0.0_real_8
+    DMnzvalLocal(1) = 0.0_real_8
+    EDMnzvalLocal(1) = 0.0_real_8
+    FDMnzvalLocal(1) = 0.0_real_8
     totalEnergyH = 0.0_real_8
     totalEnergyS = 0.0_real_8
     totalFreeEnergy = 0.0_real_8

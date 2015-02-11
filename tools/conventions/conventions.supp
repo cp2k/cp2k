@@ -162,8 +162,6 @@ Flag cl_khr_int64_base_atomics not mentioned in cp2k_flags()
 Flag cl_nv_compiler_options not mentioned in INSTALL
 Flag cl_nv_compiler_options not mentioned in cp2k_flags()
 acc_device.F: Warning: Unused dummy argument 'dev_id' at (1)
-acc_devmem.F: Warning: Dummy argument 'avail' at (1) was declared INTENT(OUT) but was not set
-acc_devmem.F: Warning: Dummy argument 'free' at (1) was declared INTENT(OUT) but was not set
 acc_devmem.F: Warning: Unused dummy argument 'first_byte' at (1)
 acc_devmem.F: Warning: Unused dummy argument 'last_byte' at (1)
 acc_devmem.F: Warning: Unused dummy argument 'nocopy' at (1)
@@ -171,6 +169,7 @@ acc_devmem.F: Warning: Unused dummy argument 'requested_size_in_bytes' at (1)
 acc_devmem.F: Warning: Unused dummy argument 'size_in_bytes' at (1)
 acc_devmem.F: Warning: Unused dummy argument 'stream' at (1)
 acc_devmem.F: Warning: Unused dummy argument 'this' at (1)
+acc_devmem.F: Warning: Unused dummy argument 'zero_pad' at (1)
 acc_devmem_c4.f90: Warning: Unused dummy argument 'hostmem' at (1)
 acc_devmem_c4.f90: Warning: Unused dummy argument 'stream' at (1)
 acc_devmem_c4.f90: Warning: Unused dummy argument 'this' at (1)
@@ -234,8 +233,6 @@ acc_hostmem_z.f90: Warning: Unused dummy argument 'n2' at (1)
 acc_hostmem_z.f90: Warning: Unused dummy argument 'n3' at (1)
 acc_hostmem_z.f90: Warning: Unused dummy argument 'n4' at (1)
 acc_hostmem_z.f90: Warning: Unused dummy argument 'stream' at (1)
-acc_stream.F: Warning: Dummy argument 'greatest' at (1) was declared INTENT(OUT) but was not set
-acc_stream.F: Warning: Dummy argument 'least' at (1) was declared INTENT(OUT) but was not set
 acc_stream.F: Warning: Unused dummy argument 'name' at (1)
 acc_stream.F: Warning: Unused dummy argument 'other' at (1)
 acc_stream.F: Warning: Unused dummy argument 'priority' at (1)
@@ -259,13 +256,14 @@ atom_fit.F: Warning: Unused dummy argument 'iw' at (1)
 atom_fit.F: Warning: Unused dummy argument 'pseudo_section' at (1)
 atom_output.F: Routine XC_F90_VERSION called with an implicit interface.
 atomic_charges.F: Warning: Unused dummy argument 'title' at (1)
-atomic_kind_types.F: Warning: Dummy argument 'nset' at (1) was declared INTENT(OUT) but was not set
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 beta_gamma_psi.F: Found GOTO statement in procedure "brcomp"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
 bfgs_optimizer.F: Warning: Unused dummy argument 'ndf' at (1)
 bfgs_optimizer.F: Warning: Unused dummy argument 'nfree' at (1)
 bfgs_optimizer.F: Warning: Unused parameter 'limit' declared at (1)
+bfgs_optimizer.F: Warning: Unused parameter 'one' declared at (1)
+bfgs_optimizer.F: Warning: Unused parameter 'zero' declared at (1)
 bsse.F: Warning: Unused dummy argument 'num_of_conf' at (1)
 c_int_low.F: Warning: Unused parameter 'dp' which has been explicitly imported at (1)
 call_collocate.f90: Routine COLLOCATE_CORE_0 called with an implicit interface.
@@ -296,6 +294,8 @@ cg_utils.F: Warning: Unused dummy argument 'gopt_param' at (1)
 colvar_methods.F: Warning: Unused dummy argument 'subsys' at (1)
 cp2k_shell.F: Found GOTO statement in procedure "cp2k_shell"
 cp2k_shell.F: Found OPEN statement in procedure "get_eof_stat"
+cp_cfm_basic_linalg.F: Warning: Unused parameter 'one' declared at (1)
+cp_cfm_basic_linalg.F: Warning: Unused parameter 'zero' declared at (1)
 cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRI called with an implicit interface.
@@ -318,9 +318,14 @@ cp_ddapc_forces.F: Warning: Unused dummy argument 'cell' at (1)
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Warning: Unused dummy argument 'correct_sign' at (1)
+cp_fm_basic_linalg.F: Warning: Unused parameter 'one' declared at (1)
+cp_fm_basic_linalg.F: Warning: Unused parameter 'rone' declared at (1)
+cp_fm_basic_linalg.F: Warning: Unused parameter 'rzero' declared at (1)
+cp_fm_basic_linalg.F: Warning: Unused parameter 'zero' declared at (1)
 cp_fm_diag.F: Warning: Unused parameter 'orfac' declared at (1)
 cp_fm_diag.F: Warning: Unused parameter 'vl' declared at (1)
 cp_fm_diag.F: Warning: Unused parameter 'vu' declared at (1)
+cp_lbfgs.F: Warning: Unused parameter 'one' declared at (1)
 cp_lbfgs_optimizer_gopt.F: Warning: Unused dummy argument 'input' at (1)
 cp_lbfgs_optimizer_gopt.F: Warning: Unused dummy argument 'max_f_per_iter' at (1)
 cp_ma_interface.F: Warning: Unused dummy argument 'para_env' at (1)
@@ -716,41 +721,11 @@ mp2_ri_libint.F: Warning: Unused dummy argument 'hfx_section' at (1)
 mp2_ri_libint.F: Warning: Unused dummy argument 'particle_set' at (1)
 mp2_ri_libint.F: Warning: Unused dummy argument 'unit_nr' at (1)
 mp2_ri_libint.F: Warning: Unused parameter 'due' declared at (1)
+mp2_ri_libint.F: Warning: Unused parameter 'zero' declared at (1)
 neb_opt_utils.F: Warning: Unused dummy argument 'output_unit' at (1)
 optbas_fenv_manipulation.F: Warning: Unused dummy argument 'set_id' at (1)
 optimize_basis_utils.F: Warning: Unused dummy argument 'output_file' at (1)
 optimize_basis_utils.F: Warning: Unused dummy argument 'write_it' at (1)
-pexsi_interface.F: Warning: Derived-type dummy argument 'pexsi_options' at (1) was declared INTENT(OUT) but was not set and does not have a default initializer
-pexsi_interface.F: Warning: Dummy argument 'deltae' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'dmnzvallocal' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'edmnzvallocal' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'fdmnzvallocal' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'gap' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'isinertiacount' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'issymbolicfactorize' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'matrixtype' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'maxpexsiiter' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'mu0' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'muinertiaexpansion' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'muinertiatolerance' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'mumax0' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'mumaxinertia' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'mumin0' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'mumininertia' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'mupexsi' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'mupexsisafeguard' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'npsymbfact' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'numelectronpexsi' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'numelectronpexsitolerance' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'numpole' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'numtotalinertiaiter' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'numtotalpexsiiter' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'ordering' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'temperature' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'totalenergyh' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'totalenergys' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'totalfreeenergy' at (1) was declared INTENT(OUT) but was not set
-pexsi_interface.F: Warning: Dummy argument 'verbosity' at (1) was declared INTENT(OUT) but was not set
 pexsi_interface.F: Warning: Return value of function 'cp_pexsi_plan_initialize' at (1) not set
 pexsi_interface.F: Warning: Unused dummy argument 'colptrlocal' at (1)
 pexsi_interface.F: Warning: Unused dummy argument 'comm' at (1)
@@ -773,6 +748,7 @@ pexsi_interface.F: Warning: Unused dummy argument 'nnzlocal' at (1)
 pexsi_interface.F: Warning: Unused dummy argument 'npsymbfact' at (1)
 pexsi_interface.F: Warning: Unused dummy argument 'nrows' at (1)
 pexsi_interface.F: Warning: Unused dummy argument 'numcollocal' at (1)
+pexsi_interface.F: Warning: Unused dummy argument 'numelectronexact' at (1)
 pexsi_interface.F: Warning: Unused dummy argument 'numelectronpexsitolerance' at (1)
 pexsi_interface.F: Warning: Unused dummy argument 'numpole' at (1)
 pexsi_interface.F: Warning: Unused dummy argument 'numproccol' at (1)
@@ -904,11 +880,15 @@ qs_mo_io.F: Warning: Unused dummy argument 'atomic_kind_set' at (1)
 qs_oce_types.F: Warning: Unused dummy argument 'natom' at (1)
 qs_oce_types.F: Warning: Unused dummy argument 'ndim' at (1)
 qs_ot.F: Warning: Unused parameter 'ci' declared at (1)
+qs_ot.F: Warning: Unused parameter 'rone' declared at (1)
+qs_ot.F: Warning: Unused parameter 'rzero' declared at (1)
 qs_resp.F: Warning: Unused dummy argument 'input' at (1)
 qs_resp.F: Warning: Unused dummy argument 'particle_set' at (1)
 qs_sccs.F: Warning: Unused dummy argument 'drho_elec' at (1)
 qs_scf_block_davidson.F: Warning: Unused dummy argument 'matrix_sc' at (1)
 qs_scf_diagonalization.F: Warning: Unused dummy argument 'scf_section' at (1)
+qs_scf_diagonalization.F: Warning: Unused parameter 'rone' declared at (1)
+qs_scf_diagonalization.F: Warning: Unused parameter 'rzero' declared at (1)
 qs_scf_initialization.F: Warning: Unused dummy argument 'dft_control' at (1)
 qs_scf_loop_utils.F: Warning: Unused dummy argument 'do_kpoints' at (1)
 qs_scf_loop_utils.F: Warning: Unused dummy argument 'energy_only' at (1)
@@ -936,6 +916,17 @@ rpa_ri_gpw.F: Warning: Unused dummy argument 'starts_array' at (1)
 rpa_ri_gpw.F: Warning: Unused dummy argument 'starts_ia' at (1)
 rpa_ri_gpw.F: Warning: Unused dummy argument 'virtual' at (1)
 rpa_ri_gpw.F: Warning: Unused parameter 'use_gemm' declared at (1)
+rt_make_propagators.F: Warning: Unused parameter 'one' declared at (1)
+rt_make_propagators.F: Warning: Unused parameter 'zero' declared at (1)
+rt_matrix_exp.F: Warning: Unused parameter 'rone' declared at (1)
+rt_propagation.F: Warning: Unused parameter 'one' declared at (1)
+rt_propagation.F: Warning: Unused parameter 'zero' declared at (1)
+rt_propagation_methods.F: Warning: Unused parameter 'one' declared at (1)
+rt_propagation_methods.F: Warning: Unused parameter 'zero' declared at (1)
+rt_propagation_output.F: Warning: Unused parameter 'one' declared at (1)
+rt_propagation_output.F: Warning: Unused parameter 'zero' declared at (1)
+rtp_admm_methods.F: Warning: Unused parameter 'one' declared at (1)
+rtp_admm_methods.F: Warning: Unused parameter 'zero' declared at (1)
 scptb_ks_matrix.F: Warning: Unused dummy argument 'dmcharge' at (1)
 se_core_matrix.F: Warning: Unused parameter 'ix' declared at (1)
 se_fock_matrix_coulomb_ga.F: Warning: Unused dummy argument 'g_a' at (1)
@@ -955,6 +946,7 @@ se_ga_tools.F: Warning: Unused dummy argument 'joff' at (1)
 se_ga_tools.F: Warning: Unused dummy argument 'jsize' at (1)
 se_ga_tools.F: Warning: Unused dummy argument 'ks_i' at (1)
 se_ga_tools.F: Warning: Unused dummy argument 'ks_j' at (1)
+se_ga_tools.F: Warning: Unused dummy argument 'lzero' at (1)
 se_ga_tools.F: Warning: Unused dummy argument 'matrix' at (1)
 se_ga_tools.F: Warning: Unused dummy argument 'max_rows' at (1)
 se_ga_tools.F: Warning: Unused dummy argument 'qs_env' at (1)
