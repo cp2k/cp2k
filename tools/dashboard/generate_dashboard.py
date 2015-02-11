@@ -278,16 +278,19 @@ def ticket_cell(label):
     new_url = base_url+"/new/?" + urlencode({'labels':label})
     query = urlencode({'q':'!status:wont-fix && !status:closed && labels:"%s"'%label})
     feed_url = base_url+"/search_feed/?limit=25&sort=ticket_num_i+asc&" + query
-    tickets_xml = urlopen(feed_url, timeout=5).read()
-    dom = minidom.parseString(tickets_xml)
-
     output = '<td  align="right">'
-    for entry in dom.getElementsByTagName("item"):
-        title = entry.getElementsByTagName('title')[0].firstChild.nodeValue
-        link = entry.getElementsByTagName('link')[0].firstChild.nodeValue
-        tid = int(link.strip("/ ").split("/")[-1])
-        output += '<a href="%s" title="%s">#%d</a>, '%(link, title, tid)
-
+    try:
+        # sometime the http-request to sourceforge times out
+        tickets_xml = urlopen(feed_url, timeout=5).read()
+        dom = minidom.parseString(tickets_xml)
+        for entry in dom.getElementsByTagName("item"):
+            title = entry.getElementsByTagName('title')[0].firstChild.nodeValue
+            link = entry.getElementsByTagName('link')[0].firstChild.nodeValue
+            tid = int(link.strip("/ ").split("/")[-1])
+            output += '<a href="%s" title="%s">#%d</a>, '%(link, title, tid)
+    except:
+        print traceback.print_exc()
+        output += "??? "
     output += '<a href="%s"'%new_url
     output += ' style="text-decoration:none;font-weight:bold;font-size:larger;"'
     output += ' title="Create a new Ticket">+</a></td>'
