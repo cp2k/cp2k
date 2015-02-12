@@ -1,5 +1,5 @@
-#ifndef __MA_TOPOLOGY_H
-#define __MA_TOPOLOGY_H
+#ifndef MA_TOPOLOGY_CRAY_H
+#define MA_TOPOLOGY_CRAY_H
 
 #include <stdlib.h>
 #include <stdio.h>

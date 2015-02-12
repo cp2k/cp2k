@@ -8,6 +8,11 @@ import os
 import sys
 from os import path
 
+exceptions_re = re.compile("__COMPILE_.*|__SHORT_FILE__|__INTEL_COMPILER|"
+                          +"__cplusplus|_OPENMP|_GNU_SOURCE|__CUDA_ARCH__|"
+                          +"cl_.*|CL_VERSION_.*|__OPENCL_VERSION__|__OPENCL")
+
+
 #===============================================================================
 def main():
     if(len(sys.argv) < 2):
@@ -36,6 +41,8 @@ def main():
                     if m.isdigit(): continue
                     if(fn_ext=="h" and fn.upper().replace(".", "_") == m): continue
                     flags.add(m)
+
+    flags = [f for f in flags if not exceptions_re.match(f)]
 
     #print("Found %d flags."%len(flags))
     #print flags

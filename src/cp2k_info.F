@@ -117,6 +117,9 @@ CONTAINS
 #if defined(__SCALAPACK)
     flags=TRIM(flags)//" scalapack"
 #endif
+#if defined(__SCALAPACK2)
+    flags=TRIM(flags)//" scalapack2"
+#endif
 
 #if defined(__QUIP)
     flags=TRIM(flags)//" quip"

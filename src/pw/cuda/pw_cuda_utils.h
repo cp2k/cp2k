@@ -1,5 +1,5 @@
-#ifndef FFT_CUDA_UTILS_H
-#define FFT_CUDA_UTILS_H
+#ifndef PW_CUDA_UTILS_H
+#define PW_CUDA_UTILS_H
 
 extern void pw_cuda_error_check (cudaError_t cudaError, int line);
 

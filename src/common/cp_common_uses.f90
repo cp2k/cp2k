@@ -4,9 +4,6 @@
   USE cp_log_handling
   USE cp_error_handling
 
-#ifndef CP_PREP_GLOBALS_H
-#define CP_PREP_GLOBALS_H
-
 ! The following macros are here to facilitate the use of error handling
 ! proposed in cp_error_handling.
 ! they assume at least
@@ -132,4 +129,3 @@ IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__)
 
 #define CPAAssert(condition) \
 CALL cp_simple_assert(condition, routineP, __LINE__)
-#endif

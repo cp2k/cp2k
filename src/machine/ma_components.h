@@ -3,8 +3,8 @@
 *   Copyright (C) 2000 * 2011 Christiane Ribeiro and the CP2K developers group
 ******************************************************************************/
 #ifdef __HWLOC
-#ifndef __MA_COMPONENTS_H
-#define __MA_COMPONENTS_H
+#ifndef MA_COMPONENTS_H
+#define MA_COMPONENTS_H
 
 #define ALL 999
 #define OS  0
