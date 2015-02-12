@@ -22,6 +22,7 @@ MODULE cp2k_info
                                              m_getlog,&
                                              m_getpid,&
                                              m_hostnm
+  USE string_utilities,                ONLY: integer_to_string
 
   IMPLICIT NONE
   PRIVATE
@@ -83,7 +84,9 @@ CONTAINS
 !> \retval flags ...
 ! *****************************************************************************
   FUNCTION cp2k_flags() RESULT(flags)
-    CHARACTER(len=default_string_length)     :: flags
+    CHARACTER(len=10*default_string_length)  :: flags
+
+    CHARACTER(len=default_string_length)     :: tmp_str
 
     flags="cp2kflags:"
 !$  flags=TRIM(flags)//" omp"
@@ -123,12 +126,135 @@ CONTAINS
 #if defined(__PW_CUDA)
     flags=TRIM(flags)//" pw_cuda"
 #endif
-#if defined __HAS_smm_dnn || __HAS_smm_snn || __HAS_smm_dnn || __HAS_smm_dnn
-    flags=TRIM(flags)//" smm"
-#endif
 
 #if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET || __HWLOC || __LIBNUMA
     flags=TRIM(flags)//" macharch"
+#endif
+
+
+#if defined __HAS_smm_vec
+   flags=TRIM(flags)//" smm_vec"
+#endif
+#if defined __HAS_smm_snn
+   flags=TRIM(flags)//" smm_snn"
+#endif
+#if defined __HAS_smm_snt
+   flags=TRIM(flags)//" smm_snt"
+#endif
+#if defined __HAS_smm_stn
+   flags=TRIM(flags)//" smm_stn"
+#endif
+#if defined __HAS_smm_stt
+   flags=TRIM(flags)//" smm_stt"
+#endif
+#if defined __HAS_smm_znn
+   flags=TRIM(flags)//" smm_znn"
+#endif
+#if defined __HAS_smm_znt
+   flags=TRIM(flags)//" smm_znt"
+#endif
+#if defined __HAS_smm_ztn
+   flags=TRIM(flags)//" smm_ztn"
+#endif
+#if defined __HAS_smm_ztt
+   flags=TRIM(flags)//" smm_ztt"
+#endif
+#if defined __HAS_smm_cnn
+   flags=TRIM(flags)//" smm_cnn"
+#endif
+#if defined __HAS_smm_cnt
+   flags=TRIM(flags)//" smm_cnt"
+#endif
+#if defined __HAS_smm_ctn
+   flags=TRIM(flags)//" smm_ctn"
+#endif
+#if defined __HAS_smm_ctt
+   flags=TRIM(flags)//" smm_ctt"
+#endif
+#if defined __HAS_smm_dnn
+   flags=TRIM(flags)//" smm_dnn"
+#endif
+#if defined __HAS_smm_dnt
+   flags=TRIM(flags)//" smm_dnt"
+#endif
+#if defined __HAS_smm_dtn
+   flags=TRIM(flags)//" smm_dtn"
+#endif
+#if defined __HAS_smm_dtt
+   flags=TRIM(flags)//" smm_dtt"
+#endif
+IF(INDEX(flags, " smm_") > 0) THEN
+   flags=TRIM(flags)//" smm"
+ENDIF
+
+#if defined __CRAY_PM_ACCEL_ENERGY
+   flags=TRIM(flags)//" cray_pm_accel_energy"
+#endif
+#if defined __CRAY_PM_ENERGY
+   flags=TRIM(flags)//" cray_pm_energy"
+#endif
+#if defined __CRAY_PM_FAKE_ENERGY
+   flags=TRIM(flags)//" cray_pm_fake_energy"
+#endif
+#if defined __CUBLASDP
+   flags=TRIM(flags)//" cublasdp"
+#endif
+#if defined __CUDA_PROFILING
+   flags=TRIM(flags)//" cuda_profiling"
+#endif
+#if defined __DBCSR_ACC
+   flags=TRIM(flags)//" dbcsr_acc"
+#endif
+#if defined __DEBUG_HWTOPO
+   flags=TRIM(flags)//" debug_hwtopo"
+#endif
+#if defined __HAS_LIBGRID
+   flags=TRIM(flags)//" libgrid"
+#endif
+#if defined __HAS_NO_CUDA_STREAM_PRIORITIES
+   flags=TRIM(flags)//" has_no_cuda_stream_priorities"
+#endif
+#if defined __HAS_NO_MPI_MOD
+   flags=TRIM(flags)//" has_no_mpi_mod"
+#endif
+#if defined __HAS_NO_SHARED_GLIBC
+   flags=TRIM(flags)//" has_no_shared_glibc"
+#endif
+#if defined __LIBDERIV_MAX_AM1
+   CALL integer_to_string(__LIBDERIV_MAX_AM1, tmp_str)
+   flags=TRIM(flags)//" libderiv_max_am1="//TRIM(tmp_str)
+#endif
+#if defined __LIBINT_MAX_AM
+   CALL integer_to_string(__LIBINT_MAX_AM, tmp_str)
+   flags=TRIM(flags)//" libint_max_am="//TRIM(tmp_str)
+#endif
+#if defined __LINUMA
+   flags=TRIM(flags)//" linuma"
+#endif
+#if defined __MAX_CONTR
+   CALL integer_to_string(__MAX_CONTR, tmp_str)
+   flags=TRIM(flags)//" max_contr="//TRIM(tmp_str)
+#endif
+#if defined __NO_IPI_DRIVER
+   flags=TRIM(flags)//" no_ipi_driver"
+#endif
+#if defined __NO_MPI_THREAD_SUPPORT_CHECK
+   flags=TRIM(flags)//" no_mpi_thread_support_check"
+#endif
+#if defined __NO_STATM_ACCESS
+   flags=TRIM(flags)//" no_statm_access"
+#endif
+#if defined __PW_CUDA_NO_HOSTALLOC
+   flags=TRIM(flags)//" pw_cuda_no_hostalloc"
+#endif
+#if defined __STATM_RESIDENT
+   flags=TRIM(flags)//" statm_resident"
+#endif
+#if defined __STATM_TOTAL
+   flags=TRIM(flags)//" statm_total"
+#endif
+#if defined __USE_LEGACY_WEIGHTS
+   flags=TRIM(flags)//" use_legacy_weights"
 #endif
 
   END FUNCTION cp2k_flags
