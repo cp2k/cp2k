@@ -314,7 +314,7 @@ CONTAINS
        END IF
 
        ! Atomic Charges that require further computation
-       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, error=error)
+       CALL qs_scf_post_charges(input, logger, qs_env, error=error)
 
        ! Moments of charge distribution
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error=error)
@@ -942,18 +942,13 @@ CONTAINS
 !> \param input ...
 !> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
-!> \param rho ...
-!> \param matrix_s ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, error)
+  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &

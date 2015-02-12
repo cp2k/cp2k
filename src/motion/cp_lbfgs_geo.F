@@ -122,7 +122,7 @@ CONTAINS
        CALL gopt_f_ii(its, output_unit)
 
        ! Real optimization step..
-       IF (.NOT.cp_opt_gopt_next(optimizer,geo_section=geo_section, input=root_section,&
+       IF (.NOT.cp_opt_gopt_next(optimizer,geo_section=geo_section,&
             force_env=force_env,gopt_param=gopt_param, converged=converged,error=error)) EXIT
 
        ! Check for an external exit command

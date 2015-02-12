@@ -465,7 +465,7 @@ CONTAINS
             fung = fung - dg(indf)**2 /(ln-eigval(indf)**2)
          END DO
          fun = fun - ln
-         fung = fung - 1.0_dp
+         fung = fung - one
          step = fun/fung
          ln = ln - step
          IF(ABS(step) < stol )GOTO 200
@@ -546,18 +546,17 @@ CONTAINS
         DO indf = 1, ndf
            eigval(indf) = eigval(indf) * work(indf)
         END DO
-        GOTO 400
+        CYCLE
      END IF
 
      IF(.NOT. set) THEN
-        work(1:ndf)=1.0_dp
+        work(1:ndf)=one
      ENDIF
 
      DO indf = 1, ndf
        eigval(indf) = eigval(indf) - ln
      END DO
      EXIT
-400  CONTINUE
      END DO
 
      CALL timestop(handle)
@@ -598,7 +597,7 @@ CONTAINS
     CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
          local_data=local_hes,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
 
-    work=0.0_dp
+    work=zero
     DO i=1,nrow_local
        j=row_indices(i)
        DO k=1,ncol_local
@@ -768,7 +767,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: scal
@@ -817,8 +816,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_predict', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: limit = 1.0E-9_dp , &
-                                                one = 1.0_dp, zero = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: handle, i, j, k, l, &
                                                 ncol_local, nrow_local
@@ -833,7 +831,7 @@ CONTAINS
     CALL cp_fm_get_info(hess_mat,row_indices=row_indices,col_indices=col_indices, &
          local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local,error=error)
 
-    work=0.0_dp
+    work=zero
     DO i=1,nrow_local
        j=row_indices(i)
        DO k=1,ncol_local
