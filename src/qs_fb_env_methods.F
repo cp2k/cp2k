@@ -9,6 +9,7 @@ MODULE qs_fb_env_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_nullify, cp_dbcsr_allocate_matrix_set, &
+       cp_dbcsr_deallocate_matrix_set, array_release, &
        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
        cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_info, &
        cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
@@ -53,13 +54,14 @@ MODULE qs_fb_env_methods
        fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
        fb_atomic_halo_list_set, fb_atomic_halo_nelectrons_estimate_Z, &
        fb_atomic_halo_nullify, fb_atomic_halo_obj, fb_atomic_halo_set, &
-       fb_atomic_halo_sort
+       fb_atomic_halo_sort, fb_atomic_halo_list_release
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
                                              fb_env_has_data,&
                                              fb_env_obj,&
                                              fb_env_set
   USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
+                                             fb_trial_fns_release,&
                                              fb_trial_fns_nullify,&
                                              fb_trial_fns_obj,&
                                              fb_trial_fns_set
@@ -370,6 +372,7 @@ CONTAINS
        ! ----------------------------------------------------------------------
 
     END DO ! ispin
+    CALL fb_atomic_halo_list_release(atomic_halos, error)
 
     ! ----------------------------------------------------------------------
     ! Do Filtered Diagonalisation
@@ -812,8 +815,8 @@ CONTAINS
     END DO
     DEALLOCATE(mos_filtered, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(matrix_filter, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL array_release(filtered_rowORcol_block_sizes)
+    CALL cp_dbcsr_deallocate_matrix_set(matrix_filter, error)
 
     CALL timestop(handle)
 
@@ -1368,6 +1371,7 @@ CONTAINS
     ! cleanup
     DEALLOCATE(basis_set_list, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL fb_trial_fns_release(trial_fns,error)
 
     CALL timestop(handle)
 

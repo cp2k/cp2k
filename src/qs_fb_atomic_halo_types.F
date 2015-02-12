@@ -164,21 +164,16 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(atomic_halo%obj)) THEN
        CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP, error)
-       atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
-       IF (atomic_halo%obj%ref_count == 0) THEN
-          atomic_halo%obj%ref_count = 1
-          IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
-             ! note that if there are other pointers associated to the memory pointed
-             ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
-             ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
-             ! after the following DEALLOCATE
-             DEALLOCATE(atomic_halo%obj%halo_atoms)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          END IF
-          atomic_halo%obj%ref_count = 0
-          DEALLOCATE(atomic_halo%obj, stat=stat)
+       IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
+          ! note that if there are other pointers associated to the memory pointed
+          ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
+          ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
+          ! after the following DEALLOCATE
+          DEALLOCATE(atomic_halo%obj%halo_atoms)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+       DEALLOCATE(atomic_halo%obj, stat=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     END IF
     NULLIFY(atomic_halo%obj)
   END SUBROUTINE fb_atomic_halo_release
