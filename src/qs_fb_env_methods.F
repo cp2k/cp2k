@@ -8,16 +8,17 @@ MODULE qs_fb_env_methods
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_nullify, cp_dbcsr_allocate_matrix_set, &
-       cp_dbcsr_deallocate_matrix_set, array_release, &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_info, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_nfullcols_total, cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+       array_i1d_obj, array_nullify, array_release, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
+       cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullcols_total, &
+       cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_triangular_invert
@@ -52,18 +53,18 @@ MODULE qs_fb_env_methods
   USE qs_fb_atomic_halo_types,         ONLY: &
        fb_atomic_halo_create, fb_atomic_halo_list_create, &
        fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
-       fb_atomic_halo_list_set, fb_atomic_halo_nelectrons_estimate_Z, &
-       fb_atomic_halo_nullify, fb_atomic_halo_obj, fb_atomic_halo_set, &
-       fb_atomic_halo_sort, fb_atomic_halo_list_release
+       fb_atomic_halo_list_release, fb_atomic_halo_list_set, &
+       fb_atomic_halo_nelectrons_estimate_Z, fb_atomic_halo_nullify, &
+       fb_atomic_halo_obj, fb_atomic_halo_set, fb_atomic_halo_sort
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
                                              fb_env_has_data,&
                                              fb_env_obj,&
                                              fb_env_set
   USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
-                                             fb_trial_fns_release,&
                                              fb_trial_fns_nullify,&
                                              fb_trial_fns_obj,&
+                                             fb_trial_fns_release,&
                                              fb_trial_fns_set
   USE qs_integral_utils,               ONLY: basis_set_list_setup
   USE qs_kind_types,                   ONLY: get_qs_kind,&
