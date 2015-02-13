@@ -1662,7 +1662,7 @@ CONTAINS
     CHARACTER(LEN=60)                        :: task
     INTEGER                                  :: info, k
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: i
 

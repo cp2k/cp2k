@@ -1373,7 +1373,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: local
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_verify_matrix', &
-      r = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 

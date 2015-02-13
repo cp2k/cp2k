@@ -851,7 +851,7 @@ CONTAINS
     CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control, error=error )
 
     IF (dft_control%qs_control%semi_empirical) THEN
-       CALL scf_post_calculation_se (dft_section, qs_env, error)
+       CALL scf_post_calculation_se (qs_env, error)
     ELSEIF (dft_control%qs_control%dftb) THEN
        CALL scf_post_calculation_dftb (dft_section, scf_env, qs_env, error)
     ELSEIF (dft_control%qs_control%scptb) THEN

@@ -353,8 +353,8 @@ CONTAINS
                  IF(iatom <= jatom) THEN
                     CALL add_vhxca_forces(mat_p,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
                          rho_at,force_tmp,nspins,iatom,jatom,nsoctot,&
-                         list_a,n_cont_a,list_b,n_cont_b,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
-                         dista,distb,coc,error)
+                         list_a,n_cont_a,list_b,n_cont_b,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,p_matrix,&
+                         dista,distb,error)
 
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                       force(kkind)%vhxc_atom(1:3,ka_kind) + &
@@ -374,8 +374,8 @@ CONTAINS
                  ELSE
                     CALL add_vhxca_forces(mat_p,C_coeff_hh_b,C_coeff_hh_a,C_coeff_ss_b,C_coeff_ss_a,&
                          rho_at,force_tmp,nspins,jatom,iatom,nsoctot,&
-                         list_b,n_cont_b,list_a,n_cont_a,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
-                         distb,dista,coc,error)
+                         list_b,n_cont_b,list_a,n_cont_a,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,p_matrix,&
+                         distb,dista,error)
 
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                       force(kkind)%vhxc_atom(1:3,ka_kind) + &
@@ -601,16 +601,14 @@ CONTAINS
 !> \param ldCPC ...
 !> \param PC_h ...
 !> \param PC_s ...
-!> \param lPC ...
 !> \param p_matrix ...
 !> \param dista ...
 !> \param distb ...
-!> \param coc ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE add_vhxca_forces(mat_p,C_hh_a,C_hh_b,C_ss_a,C_ss_b,&
              rho_atom,force,nspins,ia,ja,nsp,lista,nconta,listb,ncontb,&
-             dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,dista,distb,coc,error)
+             dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,p_matrix,dista,distb,error)
 
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_p
@@ -625,10 +623,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :)           :: dCPC_h, dCPC_s
     INTEGER, INTENT(IN)                      :: ldCPC
     REAL(KIND=dp), DIMENSION(:, :, :)        :: PC_h, PC_s
-    INTEGER, INTENT(IN)                      :: lPC
     REAL(KIND=dp), DIMENSION(:, :)           :: p_matrix
     LOGICAL, INTENT(IN)                      :: dista, distb
-    REAL(dp), DIMENSION(:)                   :: coc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_forces', &

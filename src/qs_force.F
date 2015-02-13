@@ -31,7 +31,6 @@ MODULE qs_force
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: calculate_ecore_efield
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_admm_purify_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -99,16 +98,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculate the Quickstep forces.
 !> \param qs_env ...
-!> \param globenv ...
 !> \param error ...
 !> \date    29.10.2002
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE qs_forces(qs_env,globenv,error)
+  SUBROUTINE qs_forces(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &

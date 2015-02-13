@@ -1262,7 +1262,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_qr_factorization', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, i, icol, info, irow, &
                                                 istat, j, lda, lwork, ncol, &
@@ -1351,7 +1350,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_solve', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: handle, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot

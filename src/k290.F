@@ -2376,7 +2376,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sppt2', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: no = 0, nrsdir = 100, yes = 1
+    INTEGER, PARAMETER                       :: no = 0, nrsdir = 100
 
     INTEGER                                  :: i, i1, i2, i3, ibsign, &
                                                 igarb0, igarbage, igarbg, &

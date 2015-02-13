@@ -396,7 +396,7 @@ CONTAINS
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
        IF (my_print) THEN
-          CALL print_densities(qs_env, rho, rho_xc, error=error)
+          CALL print_densities(qs_env, rho, error=error)
        END IF
 
        IF (dft_control%do_sccs) THEN
@@ -650,7 +650,7 @@ CONTAINS
           ! sum up potentials and integrate
           ! Pointing my_rho to the density matrix rho_ao
           my_rho => rho_ao
-          CALL  sum_up_and_integrate(ks_env,qs_env,ks_matrix,rho,my_rho,vppl_rspace,&
+          CALL  sum_up_and_integrate(qs_env,ks_matrix,rho,my_rho,vppl_rspace,&
                 v_rspace_new,v_rspace_new_aux_fit,v_tau_rspace,v_tau_rspace_aux_fit,&
                 v_efield_rspace,v_sic_rspace,v_spin_ddapc_rest_r,v_sccs_rspace,becke,&
                 calculate_forces,error=error)
@@ -828,13 +828,13 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(virial_type), POINTER               :: virial
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control, input,  mo_derivs, my_rho_xc, para_env, pw_env,&
+    NULLIFY(dft_control, input,  mo_derivs, para_env, pw_env,&
             xc_section, ks_env, ks_matrix, rho, energy, auxbas_pw_pool, matrix_h,&
             matrix_p, poisson_env, pw_pools, v_rspace_new, v_tau_rspace, &
             atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw,&
@@ -891,7 +891,7 @@ CONTAINS
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error=error)
 
        IF(my_print) THEN
-         CALL print_densities(qs_env, rho, my_rho_xc, error=error)
+         CALL print_densities(qs_env, rho, error=error)
        END IF
 
        ! solve Poisson equation to get Hartree energy and potential and the stress

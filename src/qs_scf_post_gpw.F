@@ -1700,8 +1700,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_elf_calc', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER :: ELFCUT = 0.0001_dp, ELFEPS = 2.87E-05_dp, &
-      f18 = (1.0_dp/8.0_dp), f23 = (2.0_dp/3.0_dp), f53 = (5.0_dp/3.0_dp)
+    REAL(KIND=dp), PARAMETER :: ELFCUT = 0.0001_dp, f18 = (1.0_dp/8.0_dp), &
+      f23 = (2.0_dp/3.0_dp), f53 = (5.0_dp/3.0_dp)
 
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
                                                 nspin, stat

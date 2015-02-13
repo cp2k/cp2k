@@ -72,7 +72,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
 !>        specific for Semi-empirical calculations
-!> \param dft_section ...
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -86,9 +85,8 @@ CONTAINS
 !>      change afterwards slightly the forces (hence small numerical differences between MD
 !>      with and without the debug print level). Ideally this should not happen...
 ! *****************************************************************************
-  SUBROUTINE scf_post_calculation_se(dft_section,qs_env,error)
+  SUBROUTINE scf_post_calculation_se(qs_env,error)
 
-    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -98,8 +96,6 @@ CONTAINS
     INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: explicit, failure, &
                                                 my_localized_wfn
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -118,7 +114,7 @@ CONTAINS
 
     failure=.FALSE.
     my_localized_wfn = .FALSE.
-    NULLIFY(dft_control, mos, rho, matrix_s,&
+    NULLIFY(dft_control, mos, rho, &
          subsys, particles, input, print_key, para_env)
 
     logger => cp_error_get_logger(error)
@@ -131,7 +127,6 @@ CONTAINS
                        dft_control=dft_control,&
                        mos=mos,&
                        rho=rho,&
-                       matrix_s=matrix_s,&
                        input=input,&
                        subsys=subsys,&
                        para_env=para_env,&
@@ -139,7 +134,7 @@ CONTAINS
        CALL qs_subsys_get(subsys,particles=particles,error=error)
 
        ! Compute Atomic Charges
-       CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, para_env, error)
+       CALL qs_scf_post_charges(input, logger, qs_env, rho, para_env, error)
 
        ! Moments of charge distribution
        CALL qs_scf_post_moments(input, logger, qs_env, error)
@@ -502,19 +497,16 @@ CONTAINS
 !> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param rho ...
-!> \param matrix_s ...
 !> \param para_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, &
+  SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, &
                                  para_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

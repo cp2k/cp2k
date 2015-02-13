@@ -1615,7 +1615,6 @@ END SUBROUTINE diag_subspace_allocate
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, ispin, nspins, &
                                                 output_unit

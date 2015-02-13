@@ -124,9 +124,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: add_tasks = 1000, &
-                                                max_tasks = 2000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
+    INTEGER, PARAMETER                       :: max_tasks = 2000
 
     INTEGER :: curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
       igrid_level_old, ikind, inode, ipair, ipgf, iset, jatom, jatom_old, &

@@ -854,12 +854,11 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param rho ...
-!> \param rho_xc ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE print_densities(qs_env, rho, rho_xc, error)
+  SUBROUTINE print_densities(qs_env, rho, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: ispin, n_electrons, &
@@ -1164,7 +1163,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sum up all potentials defined  on the grid and integrate
 !>
-!> \param ks_env ...
 !> \param qs_env ...
 !> \param ks_matrix ...
 !> \param rho ...
@@ -1186,14 +1184,13 @@ CONTAINS
 !>      - SCCS implementation (16.10.2013,MK)
 !> \author
 ! *****************************************************************************
-  SUBROUTINE sum_up_and_integrate(ks_env,qs_env,ks_matrix,rho,my_rho,&
+  SUBROUTINE sum_up_and_integrate(qs_env,ks_matrix,rho,my_rho,&
                                   vppl_rspace,v_rspace_new,&
                                   v_rspace_new_aux_fit,v_tau_rspace,&
                                   v_tau_rspace_aux_fit,v_efield_rspace,&
                                   v_sic_rspace,v_spin_ddapc_rest_r,&
                                   v_sccs_rspace,becke,calculate_forces,error)
 
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix

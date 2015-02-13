@@ -143,9 +143,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: add_tasks = 1000, &
-                                                max_tasks = 3000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, igrid_level, &
       ikind, ikind_old, ilevel, ipair, ipgf, ipgf_new, iset, iset_new, &

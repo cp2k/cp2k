@@ -626,9 +626,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: add_tasks = 1000, &
-                                                max_tasks = 2000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
+    INTEGER, PARAMETER                       :: max_tasks = 2000
 
     INTEGER :: bcol, brow, curr_tasks, handle, i, iatom, iatom_old, idir2, &
       igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, istat, &

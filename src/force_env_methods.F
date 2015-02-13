@@ -247,7 +247,7 @@ CONTAINS
                 CALL qs_energies(qs_env=force_env%qs_env, consistent_energies=energy_consistency, &
                      calc_forces=calculate_forces, error=error)
              ELSE
-                CALL qs_forces(force_env%qs_env, force_env%globenv, error=error)
+                CALL qs_forces(force_env%qs_env, error=error)
              END IF
 ! GA option
              CALL se_ga_release ( force_env%qs_env, error )

@@ -98,11 +98,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'approx_l1_norm_sd', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: taylor_order = 100
-    REAL(KIND=dp), DIMENSION(4), PARAMETER :: &
-      thresh = (/1e-3_dp,1e-5_dp,1e-7_dp,1e-9_dp/)
     REAL(KIND=dp), PARAMETER                 :: alpha = 0.1_dp, &
-                                                f2_eps = 0.01_dp, &
-                                                grad_thresh = 1.0E-1_dp
+                                                f2_eps = 0.01_dp
 
     INTEGER                                  :: handle, i, istep, k, n, &
                                                 ncol_local, nrow_local, &

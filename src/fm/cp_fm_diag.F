@@ -753,8 +753,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr",&
                                    routineP = moduleN//":"//routineN
-    REAL(KIND = dp), PARAMETER  :: orfac = -1.0_dp,&
-                                   vl = 0.0_dp,&
+    REAL(KIND = dp), PARAMETER  :: vl = 0.0_dp,&
                                    vu = 0.0_dp
 
     CHARACTER(LEN=1)                           :: job_type

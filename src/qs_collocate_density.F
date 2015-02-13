@@ -1696,9 +1696,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: add_tasks = 1000, &
-                                                max_tasks = 2000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, &
       igrid_level, igrid_level_dummy, ikind, ikind_old, ipair, ipgf, iset, &
@@ -2242,9 +2239,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_elec', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: add_tasks = 1000, &
-                                                max_tasks = 2000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: bcol, brow, handle, i, iatom, iatom_old, idir, igrid_level, &
       ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, &

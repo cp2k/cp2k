@@ -1518,8 +1518,7 @@ CONTAINS
     TYPE(tmc_analysis_env), POINTER          :: ana_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', &
-      plabel = "TMC_ANA", routineN = 'print_act_dipole_analysis', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_act_dipole_analysis', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp

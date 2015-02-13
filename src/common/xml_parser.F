@@ -643,8 +643,6 @@ SUBROUTINE xml_put(info, tag, attribs, no_attribs, &
     INTEGER, INTENT(in)                      :: no_data
     CHARACTER(len=*)                         :: TYPE
 
-    CHARACTER(len=300), PARAMETER            :: indent = ' '
-
    SELECT CASE(TYPE)
       CASE('open')
          CALL xml_put_open_tag_(info, tag, attribs, no_attribs, &

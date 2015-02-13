@@ -524,8 +524,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_solve', &
       routineP = moduleN//':'//routineN
-    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
-                                                zero = (0.0_dp,0.0_dp)
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, a_general
