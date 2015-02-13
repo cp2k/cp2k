@@ -305,7 +305,6 @@ END SUBROUTINE cp_get_force
 !> \param ierr ...
 ! *****************************************************************************
 RECURSIVE SUBROUTINE cp_get_energy(env_id, e_pot, ierr) BIND(C,name="cp_c_get_energy")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: ge => get_energy
   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: c_int, c_double
 
@@ -485,7 +484,6 @@ END SUBROUTINE cp_run_input_comm
 !> \param ierr ...
 ! *****************************************************************************
 SUBROUTINE cp_do_shake(f_env_id,dt,shake_tol,ierr) BIND(C,name="cp_c_do_shake")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: do_shake
   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: c_int, c_double
 

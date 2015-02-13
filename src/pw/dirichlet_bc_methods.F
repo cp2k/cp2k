@@ -132,7 +132,7 @@ CONTAINS
             WRITE(unit_nr,'(T3,A)') "POISSON|     type : AXIS-ALIGNED PLANAR"
             WRITE(unit_nr,'(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
          END IF
-         CALL create_aa_planar_dbc(pw_pool, x_glbl, y_glbl, z_glbl, &
+         CALL create_aa_planar_dbc(x_glbl, y_glbl, z_glbl, &
                                    poisson_params%dbc_params%aa_planar_xxtnt(:,j), &
                                    poisson_params%dbc_params%aa_planar_yxtnt(:,j), &
                                    poisson_params%dbc_params%aa_planar_zxtnt(:,j), &
@@ -156,7 +156,7 @@ CONTAINS
             WRITE(unit_nr,'(T3,A)') "POISSON|     type : AXIS-ALIGNED CUBOIDAL"
             WRITE(unit_nr,'(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
          END IF
-         CALL create_aa_cuboidal_dbc(pw_pool, x_glbl, y_glbl, z_glbl, &
+         CALL create_aa_cuboidal_dbc(x_glbl, y_glbl, z_glbl, &
                                    poisson_params%dbc_params%aa_cuboidal_xxtnt(:,j - l), &
                                    poisson_params%dbc_params%aa_cuboidal_yxtnt(:,j - l), &
                                    poisson_params%dbc_params%aa_cuboidal_zxtnt(:,j - l), &
@@ -180,7 +180,7 @@ CONTAINS
             WRITE(unit_nr,'(T3,A)') "POISSON|     type : PLANAR"
             WRITE(unit_nr,'(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
          END IF
-         CALL create_arbitrary_planar_dbc(pw_pool, x_glbl, y_glbl, z_glbl, &
+         CALL create_arbitrary_planar_dbc(x_glbl, y_glbl, z_glbl, &
                                    poisson_params%dbc_params%planar_Avtx(:,j - l), &
                                    poisson_params%dbc_params%planar_Bvtx(:,j - l), &
                                    poisson_params%dbc_params%planar_Cvtx(:,j - l), &
@@ -568,7 +568,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Creates an axis-aligned planar gate region.
-!> \param pw_pool pool of plane wave grid 
 !> \param x_glbl x grid vetor of the simulation box  
 !> \param y_glbl y grid vetor of the simulation box  
 !> \param z_glbl z grid vetor of the simulation box  
@@ -585,11 +584,9 @@ CONTAINS
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE create_aa_planar_dbc(pw_pool, &
-                       x_glbl, y_glbl, z_glbl, x_xtnt, y_xtnt, z_xtnt, &
+  SUBROUTINE create_aa_planar_dbc(x_glbl, y_glbl, z_glbl, x_xtnt, y_xtnt, z_xtnt, &
                        v_D, smooth, zeta, dbc_id, dirichlet_bc, error)
 
-    TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
     REAL(dp), DIMENSION(2), INTENT(IN)       :: x_xtnt, y_xtnt, z_xtnt
@@ -705,7 +702,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Creates an arbitrary planar gate given the coordinates of its rectangular shape.
-!> \param pw_pool pool of plane wave grid 
 !> \param x_glbl x grid vetor of the simulation box  
 !> \param y_glbl y grid vetor of the simulation box  
 !> \param z_glbl z grid vetor of the simulation box  
@@ -722,11 +718,9 @@ CONTAINS
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE create_arbitrary_planar_dbc(pw_pool, &
-                       x_glbl, y_glbl, z_glbl, A, B, C, v_D, smooth, zeta, &
-                       dbc_id, dirichlet_bc, error)
+  SUBROUTINE create_arbitrary_planar_dbc(x_glbl, y_glbl, z_glbl, A, B, C, v_D, &
+                       smooth, zeta, dbc_id, dirichlet_bc, error)
 
-    TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
     REAL(dp), DIMENSION(3), INTENT(IN)       :: A, B, C
@@ -835,7 +829,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Creates an axis-aligned planar gate region.
-!> \param pw_pool pool of plane wave grid 
 !> \param x_glbl x grid vetor of the simulation box  
 !> \param y_glbl y grid vetor of the simulation box  
 !> \param z_glbl z grid vetor of the simulation box  
@@ -852,11 +845,9 @@ CONTAINS
 !>       12.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE create_aa_cuboidal_dbc(pw_pool, &
-                       x_glbl, y_glbl, z_glbl, x_xtnt, y_xtnt, z_xtnt, v_D, &
-                       smooth, zeta, dbc_id, dirichlet_bc, error)
+  SUBROUTINE create_aa_cuboidal_dbc(x_glbl, y_glbl, z_glbl, x_xtnt, y_xtnt, z_xtnt, &
+                       v_D, smooth, zeta, dbc_id, dirichlet_bc, error)
 
-    TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
     REAL(dp), DIMENSION(2), INTENT(IN)       :: x_xtnt, y_xtnt, z_xtnt

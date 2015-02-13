@@ -100,7 +100,7 @@ CONTAINS
               dct_env%dests_expand, dct_env%srcs_expand, dct_env%flipg_stat, &
               dct_env%dests_shrink, dct_env%srcs_shrink, error)
     CALL expansion_bounds(pw_grid, &
-              dct_env%dests_expand, dct_env%srcs_expand, dct_env%flipg_stat, &
+              dct_env%srcs_expand, dct_env%flipg_stat, &
               dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
               dct_env%recv_msgs_bnds, dct_env%dct_bounds, &
               dct_env%dct_bounds_local, error)
@@ -145,7 +145,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_dests_srcs_pid(pw_grid, dests_expand, srcs_expand, flipg_stat, dests_shrink, srcs_shrink, error)
-    CALL expansion_bounds(pw_grid, dests_expand, srcs_expand, flipg_stat, bounds_shftd, bounds_local_shftd, &
+    CALL expansion_bounds(pw_grid, srcs_expand, flipg_stat, bounds_shftd, bounds_local_shftd, &
                           recv_msgs_bnds, bounds_new, bounds_local_new, error)
     CALL pw_grid_create(dct_pw_grid, pw_grid%para%rs_group, local=.FALSE., error=error)
     CALL pw_grid_create(dct_aux_pw_grid, pw_grid%para%rs_group, local=.FALSE., error=error)
@@ -870,7 +870,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   calculates the global and local bounds of the expanded data 
 !> \param pw_grid original plane-wave grid
-!> \param dests_expand list of the destination processes (pw_expand) 
 !> \param srcs_expand list of the source processes (pw_expand) 
 !> \param flipg_stat flipping status for the received data chunks (pw_expand) 
 !> \param bounds_shftd bounds of the original grid shifted to have g0 in the middle of the cell
@@ -883,13 +882,12 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE expansion_bounds(pw_grid, dests_expand, srcs_expand, flipg_stat, &
+  SUBROUTINE expansion_bounds(pw_grid, srcs_expand, flipg_stat, &
                               bounds_shftd, bounds_local_shftd, &
                               recv_msgs_bnds, bounds_new, bounds_local_new, error)
 
     TYPE(pw_grid_type), INTENT(IN), POINTER  :: pw_grid
-    INTEGER, DIMENSION(4), INTENT(IN)        :: dests_expand, srcs_expand, &
-                                                flipg_stat
+    INTEGER, DIMENSION(4), INTENT(IN)        :: srcs_expand, flipg_stat
     INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds_shftd, &
                                                 bounds_local_shftd
     INTEGER, DIMENSION(2, 3, 4), INTENT(OUT) :: recv_msgs_bnds

@@ -263,7 +263,7 @@ CONTAINS
        CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres_new, &
                                       pres_error, nabs_error, error)
 ! output
-       CALL ps_implicit_output(ps_implicit_env, iter, pres_error, nabs_error, outp_unit, error)
+       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
           CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, ehartree, error)
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
@@ -508,7 +508,7 @@ CONTAINS
        CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres_new, &
                                       pres_error, nabs_error, error)
 ! output
-       CALL ps_implicit_output(ps_implicit_env, iter, pres_error, nabs_error, outp_unit, error)
+       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
           CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
@@ -783,7 +783,7 @@ CONTAINS
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
                                       v_old, v_new, QAinvxres_new, adjust_local_bounds, pres_error, nabs_error, error)
 ! output
-       CALL ps_implicit_output(ps_implicit_env, iter, pres_error, nabs_error, outp_unit, error)
+       CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
           CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
@@ -2034,7 +2034,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  output of the implicit (iterative) Poisson solver
-!> \param ps_implicit_env the implicit poisson solver environment
 !> \param iter current iteration
 !> \param pres_error preconditioned residual norm error
 !> \param nabs_error normalized absolute error
@@ -2044,9 +2043,8 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_output(ps_implicit_env, iter, pres_error, nabs_error, outp_unit, error)
+  SUBROUTINE ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
 
-    TYPE(ps_implicit_type)                   :: ps_implicit_env
     INTEGER, INTENT(IN)                      :: iter
     REAL(dp), INTENT(IN)                     :: pres_error, nabs_error
     INTEGER, INTENT(OUT)                     :: outp_unit

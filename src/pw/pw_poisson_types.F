@@ -203,7 +203,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nr = 250
 
     INTEGER                                  :: dim, i, ig, iz, n, nz, stat
     LOGICAL                                  :: failure

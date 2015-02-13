@@ -169,7 +169,6 @@ END SUBROUTINE cp_get_result_r1
 !> \param ierr ...
 ! *****************************************************************************
 SUBROUTINE cp_get_natom(env_id, natom, ierr)
-  USE kinds, ONLY: dp
   USE f77_interface, ONLY: gna => get_natom
   IMPLICIT NONE
   INTEGER :: natom, env_id, ierr
@@ -184,7 +183,6 @@ END SUBROUTINE cp_get_natom
 !> \param ierr ...
 ! *****************************************************************************
 SUBROUTINE cp_get_nparticle(env_id, nparticle, ierr)
-  USE kinds, ONLY: dp
   USE f77_interface, ONLY: gnp => get_nparticle
   IMPLICIT NONE
   INTEGER :: nparticle, env_id, ierr
