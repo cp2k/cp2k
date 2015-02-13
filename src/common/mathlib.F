@@ -36,6 +36,8 @@ MODULE mathlib
             diamat_all,&
             invmat,&
             invert_matrix,&
+            get_pseudo_inverse_svd,&
+            get_pseudo_inverse_diag,&
             symmetrize_matrix,&
             unit_matrix, diag
 
@@ -836,6 +838,159 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE invert_matrix_z
+
+! *****************************************************************************
+!> \brief returns the pseudoinverse of a real, square matrix using singular 
+!>         value decomposition
+!> \param a matrix a
+!> \param a_pinverse pseudoinverse of matrix a
+!> \param rskip parameter for setting small singular values to zero
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze [02.2015]
+! *****************************************************************************
+  SUBROUTINE get_pseudo_inverse_svd(a,a_pinverse,rskip,error)
+    
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, a_pinverse
+    REAL(KIND=dp), INTENT(IN)                :: rskip
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, info, lwork, n, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: sig, work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: sig_plus, temp_mat, u, vt
+
+    failure = .FALSE. 
+    n=SIZE(a,1)
+    ALLOCATE(u(n,n),vt(n,n),sig(n),sig_plus(n,n),iwork(8*n),work(1),temp_mat(n,n))
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    u(:,:)   = 0.0_dp
+    vt(:,:)  = 0.0_dp
+    sig(:) = 0.0_dp
+    sig_plus = 0.0_dp
+    work     = 0.0_dp
+    iwork = 0
+    
+    ! work size query
+    lwork = -1
+    CALL dgesdd('A',n,n,a(1,1),n,sig(1),u(1,1),n,vt(1,1),n,work(1),&
+                lwork,iwork(1),info)
+
+    IF (info /= 0) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "ERROR in DGESDD: Could not retrieve work array sizes")
+    END IF
+    lwork = INT(work(1))
+    DEALLOCATE(work,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(lwork),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! do SVD
+    CALL dgesdd('A',n,n,a(1,1),n,sig(1),u(1,1),n,vt(1,1),n,work(1),&
+                lwork,iwork(1),info)
+
+    IF (info /= 0) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "SVD failed")
+    END IF
+
+    ! set singular values that are too small to zero
+    DO i=1,n
+      IF(sig(i) > rskip*MAXVAL(sig))  THEN
+        sig_plus(i,i) = 1._dp/sig(i)
+      ELSE
+        sig_plus(i,i) = 0.0_dp 
+      ENDIF
+    ENDDO
+
+    ! build pseudoinverse: V*sig_plus*UT 
+    CALL dgemm("N","T",n,n,n,1._dp,sig_plus,n,u,n,0._dp,temp_mat,n)
+    CALL dgemm("T","N",n,n,n,1._dp,vt,n,temp_mat,n,0._dp,a_pinverse,n)
+
+    DEALLOCATE( u,vt,sig,iwork,work,sig_plus,temp_mat,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE get_pseudo_inverse_svd
+
+! *****************************************************************************
+!> \brief returns the pseudoinverse of a real, symmetric and positive definite
+!>        matrix using diagonalization.
+!> \param a matrix a
+!> \param a_pinverse pseudoinverse of matrix a
+!> \param rskip parameter for setting small eigenvalues to zero
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze [02.2015]
+! *****************************************************************************
+  SUBROUTINE get_pseudo_inverse_diag(a,a_pinverse,rskip,error)
+
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, a_pinverse
+    REAL(KIND=dp), INTENT(IN)                :: rskip
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, info, lwork, n, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig, work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: dinv, temp_mat
+
+    failure = .FALSE.
+
+    n=SIZE(a,1)
+    ALLOCATE(dinv(n,n),eig(n),work(1),temp_mat(n,n),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    dinv(:,:) = 0.0_dp
+    eig(:)    = 0.0_dp
+    work(:)   = 0.0_dp
+    temp_mat  = 0.0_dp 
+ 
+    ! work size query
+    lwork = -1
+    CALL dsyev('V','U',n,a(1,1),n,eig(1),work(1),lwork,info)
+    IF (info /= 0) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "ERROR in DSYEV: Could not retrieve work array sizes")
+    END IF
+    lwork = INT(work(1))
+    DEALLOCATE(work,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(lwork),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! get eigenvalues and eigenvectors
+    CALL dsyev('V','U',n,a(1,1),n,eig(1),work(1),lwork,info)
+
+    IF (info /= 0) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                        "Matrix diagonalization failed")
+    END IF
+
+    ! set eigenvalues that are too small to zero
+    DO i=1,n
+      IF(eig(i) > rskip*MAXVAL(eig)) THEN
+        dinv(i,i) = 1.0_dp/eig(i)
+      ELSE
+        dinv(i,i) = 0._dp
+      ENDIF
+    ENDDO
+
+    ! build pseudoinverse: U*dinv*UT
+    CALL dgemm("N","T",n,n,n,1._dp,dinv,n,a,n,0._dp,temp_mat,n)
+    CALL dgemm("N","N",n,n,n,1._dp,a,n,temp_mat,n,0._dp,a_pinverse,n)
+
+    DEALLOCATE(eig,work,dinv,temp_mat,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE get_pseudo_inverse_diag
 
 ! *****************************************************************************
 !> \brief  Reflection of the vector a through a mirror plane defined by the

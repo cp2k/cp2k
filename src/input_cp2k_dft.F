@@ -47,7 +47,8 @@ MODULE input_cp2k_dft
        do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
        do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
        do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
-       do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps, do_method_am1, &
+       do_lri_inv, do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps, &
+       do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, &
        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
@@ -2652,13 +2653,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DEBUG_LRI_INTEGRALS",&
-            description="Debug the integrals needed for LRIGPW.",&
-            usage="DEBUG_LRI_INTEGRALS TRUE",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        ! Integers
        CALL keyword_create(keyword, name="LMAXN1",&
             variants=(/"LMAXRHO1"/),&
@@ -2780,7 +2774,7 @@ CONTAINS
             enum_desc=s2a("Gaussian and augmented plane waves method",&
                           "Gaussian and augmented plane waves method only for XC",&
                           "Gaussian and plane waves method",&
-                          "Local resolution of identity projector augmented wave method",&
+                          "Local resolution of identity method",&
                           "MNDO semiempirical","MNDO-d semiempirical","AM1 semiempirical",&
                           "PM3 semiempirical","PM6 semiempirical","PDG semiempirical",&
                           "RM1 semiempirical",&
@@ -2839,6 +2833,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_s2_restraint_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_lrigpw_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -5154,6 +5152,64 @@ CONTAINS
     END IF
   END SUBROUTINE create_gspace_interp_section
 
+! *****************************************************************************
+!> \brief input section for optional parameters for LRIGPW
+!>        LRI: local resolution of identity
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze [02.2015]
+! *****************************************************************************
+  SUBROUTINE create_lrigpw_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_lrigpw_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="LRIGPW",&
+            description="This section specifies optional parameters for LRIGPW.",& 
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="LRI_OVERLAP_MATRIX",&
+            description="Specifies whether to calculate the inverse or the "//&
+                        "pseudoinverse of the overlap matrix of the auxiliary "//&
+                        "basis set. Calculating the pseudoinverse is necessary "//&
+                        "for very large auxiliary basis sets. Using the "//&
+                        "pseudoinverse, consistent forces are not guaranteed yet.",&
+            usage="LRI_OVERLAP_MATRIX INVERSE", &
+            enum_c_vals=s2a( "INVERSE", "PSEUDO_INVERSE_SVD","PSEUDO_INVERSE_DIAG"),&
+            enum_desc=s2a("Calculate inverse of the overlap matrix.",&
+                          "Calculate the pseuodinverse of the overlap matrix "//&
+                          "using singular value decomposition.",&
+                          "Calculate the pseudoinverse of the overlap matrix "//&
+                          "by prior diagonalization."),&
+            enum_i_vals=(/do_lri_inv, do_lri_pseudoinv_svd,&
+                          do_lri_pseudoinv_diag/),&
+            default_i_val=do_lri_inv,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DEBUG_LRI_INTEGRALS",&
+            description="Debug the integrals needed for LRIGPW.",&
+            usage="DEBUG_LRI_INTEGRALS TRUE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_lrigpw_section
+ 
 ! *****************************************************************************
 !> \brief input section for optimization of the auxililary basis for LRIGPW
 !> \param section the section to create

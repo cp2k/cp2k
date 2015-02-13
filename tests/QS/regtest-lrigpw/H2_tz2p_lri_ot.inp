@@ -19,6 +19,9 @@
     &END
     &QS
       METHOD LRIGPW
+      &LRIGPW
+         LRI_OVERLAP_MATRIX PSEUDO_INVERSE_DIAG
+      &END
     &END QS
     &SCF
       SCF_GUESS atomic

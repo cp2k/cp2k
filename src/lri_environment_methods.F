@@ -31,6 +31,9 @@ MODULE lri_environment_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: do_lri_inv,&
+                                             do_lri_pseudoinv_diag,&
+                                             do_lri_pseudoinv_svd
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE lri_debug_integrals,             ONLY: overlap_aabb_test,&
@@ -42,7 +45,9 @@ MODULE lri_environment_methods
        lri_density_create, lri_density_release, lri_density_type, &
        lri_environment_type, lri_int_rho_type, lri_int_type, lri_kind_type, &
        lri_list_type, lri_rhoab_type
-  USE mathlib,                         ONLY: invmat
+  USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
+                                             get_pseudo_inverse_svd,&
+                                             invmat
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE orbital_pointers,                ONLY: ncoset
@@ -123,7 +128,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
-      nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, stat
+      nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
@@ -228,8 +233,7 @@ CONTAINS
            lrii%sinv(nfa+1:nn,1:nfa) = TRANSPOSE(lrii%sab(1:nfa,1:nfb))
            lrii%sinv(nfa+1:nn,nfa+1:nn) = lri_env%bas_ovlp(jkind)%ri_ovlp(1:nfb,1:nfb)
          ENDIF
-         CALL invmat(lrii%sinv,stat,error)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         CALL inverse_lri_overlap(lri_env,lrii%sinv,error)
 
          ! calculate Sinv*n and n*Sinv*n
          lrii%n(1:nfa) = lri_env%bas_int(ikind)%int_fbas(1:nfa)
@@ -1577,7 +1581,7 @@ CONTAINS
 !> \param nbb number of primary basis functions on b
 !> \param nfa number of ri basis functions on a
 !> \param nfb number of ri basis functions on b
-!> \param dab ...
+!> \param dab distance between center a and b
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE lri_calculate_derivative_acoef(lri_env,lrii,iatom,jatom,nba,nbb,&
@@ -1649,6 +1653,58 @@ CONTAINS
     CALL timestop(handle)
   
   END SUBROUTINE lri_calculate_derivative_acoef
+
+! *****************************************************************************
+!> \brief get inverse or pseudoinverse of lri overlap matrix for aux basis set
+!> \param lri_env ...
+!> \param sinv on entry overlap matrix, on exit its inverse
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE inverse_lri_overlap(lri_env,sinv,error)
+
+    TYPE(lri_environment_type)               :: lri_env
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sinv
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'inverse_lri_overlap', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: n, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: rskip
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s
+
+    failure = .FALSE.
+    NULLIFY(s)
+
+    rskip = 1.E-8_dp ! parameter for pseudo inverse 
+    n=SIZE(sinv,1)
+
+    SELECT CASE(lri_env%lri_overlap_inv)
+    CASE(do_lri_inv)
+       CALL invmat(sinv,stat,error)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE(do_lri_pseudoinv_svd)
+       ALLOCATE(s(n,n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       s(:,:) = sinv
+       CALL get_pseudo_inverse_svd(s,sinv,rskip,error)
+       DEALLOCATE(s,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE(do_lri_pseudoinv_diag)
+       ALLOCATE(s(n,n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       s(:,:) = sinv
+       CALL get_pseudo_inverse_diag(s,sinv,rskip,error)
+       DEALLOCATE(s,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE DEFAULT
+       CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
+                 routineP,"No initialization available?????",&
+                 only_ionode=.TRUE.)
+    END SELECT
+
+  END SUBROUTINE inverse_lri_overlap
 
 ! *****************************************************************************
 !> \brief debug output 
@@ -1747,77 +1803,5 @@ CONTAINS
     CALL timestop(handle)
   
   END SUBROUTINE output_debug_info
-
-! *****************************************************************************
-!> \brief SVD of auxiliary overlap matrix
-!> \param lri_env ...
-!> \param qs_env ...
-!> \param error ...
-!> \note not called, routine for TESTING, to be deleted soon
-! *****************************************************************************
-  SUBROUTINE svd_of_s(lri_env,qs_env,error) 
-    TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'svd_of_s', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iac, iatom, ikind, ilist, &
-                                                info, jatom, jkind, &
-                                                jneighbor, lwork, m, n, &
-                                                nkind, nlist, nneighbor, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: sig, work
-    REAL(KIND=dp), DIMENSION(3)              :: rab
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s_temp, u, vt
-    TYPE(lri_int_type), POINTER              :: lrii
-    TYPE(lri_list_type), POINTER             :: lri_ints
-    TYPE(neighbor_list_iterator_p_type), &
-      DIMENSION(:), POINTER                  :: nl_iterator
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: soo_list
-
-    NULLIFY(soo_list, lrii, lri_ints, nl_iterator, s_temp, u , vt)
-    soo_list => lri_env%soo_list
-    lri_ints => lri_env%lri_ints
-    CALL neighbor_list_iterator_create(nl_iterator,soo_list)
-    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-
-       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
-            nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
-            iatom=iatom,jatom=jatom,r=rab)
-      
-       iac = ikind + nkind*(jkind - 1)
-       lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
-      
-       ! re-inverse sinv to get S 
-       CALL invmat(lrii%sinv,stat,error)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       m=SIZE(lrii%sinv,1)
-       n=m
-       lwork = m*(6+4*m)+m 
-       !mxm matrix
-      
-       ALLOCATE(s_temp(m,m),u(m,m),vt(m,m),sig(m),iwork(8*m),work(lwork))
-       s_temp(:,:) = lrii%sinv 
-      
-       ! and change this back 
-       CALL invmat(lrii%sinv,stat,error)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       ! do SVD
-       CALL DGESDD('A',m,m,s_temp,m,sig,u,m,vt,m,work,lwork,iwork,info)
-       WRITE(*,*) "iatom, jatom", iatom, jatom
-       DO i=1,m
-        WRITE(*,*) i, sig(i)
-       ENDDO
-       DEALLOCATE(s_temp, u, vt, sig, iwork, work)
-    END DO
-
-    CALL neighbor_list_iterator_release(nl_iterator)
-
-  END SUBROUTINE
 
 END MODULE lri_environment_methods

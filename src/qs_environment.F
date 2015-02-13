@@ -407,8 +407,11 @@ CONTAINS
        CALL lri_basis_init(lri_env,atomic_kind_set,error)
        !
        ! check for debug
-       CALL section_vals_val_get(force_env_section,"DFT%QS%DEBUG_LRI_INTEGRALS",&
+       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%DEBUG_LRI_INTEGRALS",&
                                  l_val=lri_env%debug,error=error)
+       ! how to calculate inverse/pseuodinverse of overlap
+       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%LRI_OVERLAP_MATRIX",&
+                                 i_val=lri_env%lri_overlap_inv,error=error)
        !
        CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
     END IF

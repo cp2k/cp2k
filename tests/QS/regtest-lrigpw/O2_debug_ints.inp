@@ -21,12 +21,14 @@
     &END
     &QS
       METHOD GPW
+      &LRIGPW
+        DEBUG_LRI_INTEGRALS
+      &END
       &OPTIMIZE_LRI_BASIS
         ACCURACY 1.0E-10
         STEP_SIZE 0.0005
         MAX_FUN 1
       &END
-      DEBUG_LRI_INTEGRALS
     &END QS
     &SCF
       SCF_GUESS atomic

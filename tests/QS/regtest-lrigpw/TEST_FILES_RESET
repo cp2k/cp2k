@@ -12,3 +12,6 @@ H2He_tz2p_lri.inp
 H2_tz2p_lri_ot.inp
 #
 H2_tz2p_lri_diag.inp
+#
+# employ routine for pseudoinverse
+H2_tz2p_lri_ot.inp

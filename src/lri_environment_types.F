@@ -153,7 +153,9 @@ MODULE lri_environment_types
 ! *****************************************************************************
 
   TYPE lri_environment_type
-     INTEGER :: id_nr, ref_count, in_use
+     INTEGER                                                 :: id_nr, ref_count, in_use
+     ! parameter for (pseudo)inverse of overlap
+     INTEGER                                                 :: lri_overlap_inv
      ! flag for debugging lri integrals
      LOGICAL                                                 :: debug
      ! parameter for checking distance between atom pairs
