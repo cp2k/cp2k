@@ -690,7 +690,6 @@ CONTAINS
 !> \param[in] csize Column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
-!> \param[in] buffer_tr        Whether buffer should be transposed
 !> \param[in] read_only        (optional) User promise not to change data
 !> \param[in,out] error        error
 ! *****************************************************************************
