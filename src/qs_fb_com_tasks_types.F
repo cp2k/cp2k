@@ -261,7 +261,7 @@ CONTAINS
        IF (atom_pairs%obj%ref_count == 0) THEN
           atom_pairs%obj%ref_count = 1
           IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-             DEALLOCATE(atom_pairs%obj%pairs)
+             DEALLOCATE(atom_pairs%obj%pairs, stat=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           atom_pairs%obj%ref_count = 0

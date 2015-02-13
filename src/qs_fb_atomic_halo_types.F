@@ -169,7 +169,7 @@ CONTAINS
           ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
           ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
           ! after the following DEALLOCATE
-          DEALLOCATE(atomic_halo%obj%halo_atoms)
+          DEALLOCATE(atomic_halo%obj%halo_atoms, stat=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
        DEALLOCATE(atomic_halo%obj, stat=stat)
