@@ -288,7 +288,7 @@ CONTAINS
 
             !Possibly dump the Hessian file
             IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
-               CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
+               CALL write_bfgs_hessian(geo_section,hess_mat,logger,error)
             ENDIF
           ENDIF
        END IF
@@ -317,7 +317,7 @@ CONTAINS
           CALL rat_fun_opt(ndf,dg,eigval,work,eigvec_mat,g,para_env,error)
        END IF
        CALL geoopt_get_step(ndf,eigval,eigvec_mat,hess_tmp,dr,g,para_env,use_rfo,error)
-       CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
+       CALL trust_radius(ndf,step,rad,rat,dr,output_unit)
 
        ! Update the atomic positions
        x0 = x0 + dr
@@ -353,7 +353,7 @@ CONTAINS
 
     ! Write final  information, if converged
     CALL cp_iterate(logger%iter_info,last=.TRUE.,increment=0,error=error)
-    CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
+    CALL write_bfgs_hessian(geo_section,hess_mat,logger,error)
     CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit, error)
 
@@ -753,15 +753,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param ndf ...
-!> \param nfree ...
 !> \param step ...
 !> \param rad ...
 !> \param rat ...
 !> \param dr ...
 !> \param output_unit ...
 ! *****************************************************************************
-  SUBROUTINE trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
-    INTEGER, INTENT(IN)                      :: ndf, nfree
+  SUBROUTINE trust_radius(ndf,step,rad,rat,dr,output_unit)
+    INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: step, rad, rat, dr(ndf)
     INTEGER, INTENT(IN)                      :: output_unit
 
@@ -933,15 +932,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param geo_section ...
-!> \param ndf ...
 !> \param hess_mat ...
 !> \param logger ...
 !> \param error ...
 ! *****************************************************************************
-   SUBROUTINE write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
+   SUBROUTINE write_bfgs_hessian(geo_section,hess_mat,logger,error)
 
     TYPE(section_vals_type), POINTER         :: geo_section
-    INTEGER                                  :: ndf
     TYPE(cp_fm_type), POINTER                :: hess_mat
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error

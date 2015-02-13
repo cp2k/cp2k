@@ -107,7 +107,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(Em(num_of_conf), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL gen_Nbody_conf(Num_of_frag, num_of_conf, conf)
+       CALL gen_Nbody_conf(Num_of_frag, conf)
 
        should_stop = .FALSE.
        istart      = 0
@@ -206,7 +206,7 @@ CONTAINS
           ALLOCATE(Em_loc(Num_of_sub_conf), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Em_loc = 0.0_dp
-          CALL gen_Nbody_conf(Num_of_sub_frag, Num_of_sub_conf, conf_loc)
+          CALL gen_Nbody_conf(Num_of_sub_frag, conf_loc)
           CALL make_plan_conf(conf, conf_loc)
           DO i = 1, Num_of_sub_conf
              CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc(i,:), n_frags,&
@@ -566,14 +566,13 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief generate the N-body configuration for the N-body BSSE evaluation
 !> \param Num_of_frag ...
-!> \param num_of_conf ...
 !> \param conf ...
 !> \par History
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE gen_Nbody_conf(Num_of_frag, num_of_conf, conf)
-    INTEGER, INTENT(IN)                      :: Num_of_frag, num_of_conf
+  SUBROUTINE gen_Nbody_conf(Num_of_frag, conf)
+    INTEGER, INTENT(IN)                      :: Num_of_frag
     INTEGER, DIMENSION(:, :), POINTER        :: conf
 
     INTEGER                                  :: k, my_ind

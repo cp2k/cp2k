@@ -680,7 +680,7 @@ SUBROUTINE poly_mult3ab(p1,size_p1,grad1,p2,pRes,size_pRes,np1,sumUp)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_mult3ab', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: grad2 = 1, size_p2 = 4
+    INTEGER, PARAMETER                       :: grad2 = 1
 
     INTEGER :: g1, g2, i, i1, i2, ipoly, iShift, j1, j2, msize_p1, &
       my_size_p1, newSize, shift1, shift1I, shift1J, shift2, shift2I, &

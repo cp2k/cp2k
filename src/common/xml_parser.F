@@ -605,30 +605,18 @@ SUBROUTINE xml_get( info, tag, endtag, attribs, no_attribs, &
 
 END SUBROUTINE xml_get
 
-! xml_put --
-!    Routine to write a tag with the associated data to an XML file
-! Arguments:
-!    info        Structure holding information on the XML-file
-!    tag         Tag that was encountered
-!    endtag      Whether the end of the element was encountered
-!    attribs     List of attribute-value pairs
-!    no_attribs  Number of pairs in the list
-!    data        Lines of character data found
-!    no_data     Number of lines of character data
-!    type        Type of action:
-!                open - just the opening tag with attributes
-!                elem - complete element
-!                close - just the closing tag
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \param tag ...
-!> \param attribs ...
-!> \param no_attribs ...
-!> \param DATA ...
-!> \param no_data ...
-!> \param TYPE ...
+!> \brief Routine to write a tag with the associated data to an XML file
+!> \param info Structure holding information on the XML-file
+!> \param tag Tag that was encountered
+!> \param attribs List of attribute-value pairs
+!> \param no_attribs Number of pairs in the list
+!> \param DATA Lines of character data found
+!> \param no_data Number of lines of character data
+!> \param TYPE ype of action:
+!>                open - just the opening tag with attributes
+!>                elem - complete element
+!>                close - just the closing tag
 ! *****************************************************************************
 SUBROUTINE xml_put(info, tag, attribs, no_attribs, &
                    DATA, no_data, TYPE)
@@ -651,31 +639,19 @@ SUBROUTINE xml_put(info, tag, attribs, no_attribs, &
          CALL xml_put_element_(info, tag, attribs, no_attribs, &
                   DATA, no_data)
       CASE('close')
-         CALL xml_put_close_tag_(info, tag, attribs, no_attribs, &
-                  DATA, no_data)
+         CALL xml_put_close_tag_(info, tag)
    END SELECT
 
 END SUBROUTINE xml_put
 
-! xml_put_open_tag_ --
-!    Routine to write the opening tag with the attributes
-! Arguments:
-!    info        Structure holding information on the XML-file
-!    tag         Tag that was encountered
-!    endtag      Whether the end of the element was encountered
-!    attribs     List of attribute-value pairs
-!    no_attribs  Number of pairs in the list
-!    data        Lines of character data found
-!    no_data     Number of lines of character data
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \param tag ...
-!> \param attribs ...
-!> \param no_attribs ...
-!> \param DATA ...
-!> \param no_data ...
+!> \brief Routine to write the opening tag with the attributes
+!> \param info Structure holding information on the XML-file
+!> \param tag Tag that was encountered
+!> \param attribs List of attribute-value pairs
+!> \param no_attribs Number of pairs in the list
+!> \param DATA Lines of character data found
+!> \param no_data Number of lines of character data
 ! *****************************************************************************
 SUBROUTINE xml_put_open_tag_(info, tag, attribs, no_attribs, &
                              DATA, no_data)
@@ -706,25 +682,14 @@ SUBROUTINE xml_put_open_tag_(info, tag, attribs, no_attribs, &
 
 END SUBROUTINE xml_put_open_tag_
 
-! xml_put_element_ --
-!    Routine to write the complete element
-! Arguments:
-!    info        Structure holding information on the XML-file
-!    tag         Tag that was encountered
-!    endtag      Whether the end of the element was encountered
-!    attribs     List of attribute-value pairs
-!    no_attribs  Number of pairs in the list
-!    data        Lines of character data found
-!    no_data     Number of lines of character data
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \param tag ...
-!> \param attribs ...
-!> \param no_attribs ...
-!> \param DATA ...
-!> \param no_data ...
+!> \brief Routine to write the complete element
+!> \param info Structure holding information on the XML-file
+!> \param tag Tag that was encountered
+!> \param attribs List of attribute-value pairs
+!> \param no_attribs Number of pairs in the list
+!> \param DATA Lines of character data found
+!> \param no_data Number of lines of character data
 ! *****************************************************************************
 SUBROUTINE xml_put_element_(info, tag, attribs, no_attribs, &
                             DATA, no_data)
@@ -788,37 +753,15 @@ SUBROUTINE xml_put_element_(info, tag, attribs, no_attribs, &
 
 END SUBROUTINE xml_put_element_
 
-! xml_put_close_tag_ --
-!    Routine to write the closing tag
-! Arguments:
-!    info        Structure holding information on the XML-file
-!    tag         Tag that was encountered
-!    endtag      Whether the end of the element was encountered
-!    attribs     List of attribute-value pairs
-!    no_attribs  Number of pairs in the list
-!    data        Lines of character data found
-!    no_data     Number of lines of character data
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \param tag ...
-!> \param attribs ...
-!> \param no_attribs ...
-!> \param DATA ...
-!> \param no_data ...
+!> \brief Routine to write the closing tag
+!> \param info Structure holding information on the XML-file
+!> \param tag Tag that was encountered
 ! *****************************************************************************
-SUBROUTINE xml_put_close_tag_(info, tag, attribs, no_attribs, &
-                     DATA, no_data)
+SUBROUTINE xml_put_close_tag_(info, tag)
 
     TYPE(XML_PARSE), INTENT(inout)           :: info
     CHARACTER(len=*), INTENT(in)             :: tag
-    CHARACTER(len=*), DIMENSION(:, :), &
-      INTENT(in)                             :: attribs
-    INTEGER, INTENT(in)                      :: no_attribs
-    CHARACTER(len=*), DIMENSION(:), &
-      INTENT(in)                             :: DATA
-    INTEGER, INTENT(in)                      :: no_data
 
     CHARACTER(len=300), PARAMETER            :: indent = ' '
 
@@ -828,16 +771,10 @@ SUBROUTINE xml_put_close_tag_(info, tag, attribs, no_attribs, &
 
 END SUBROUTINE xml_put_close_tag_
 
-! xml_compress_ --
-!    Routine to remove empty lines from the character data
-! Arguments:
-!    data        Lines of character data found
-!    no_data     (Nett) number of lines of character data
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param DATA ...
-!> \param no_data ...
+!> \brief Routine to remove empty lines from the character data
+!> \param DATA Lines of character data found
+!> \param no_data (Nett) number of lines of character data
 ! *****************************************************************************
 SUBROUTINE xml_compress_( DATA, no_data )
     CHARACTER(len=*), DIMENSION(:), &
@@ -869,17 +806,11 @@ SUBROUTINE xml_compress_( DATA, no_data )
 
 END SUBROUTINE xml_compress_
 
-! xml_replace_entities_ --
-!    Routine to replace entities such as &gt; by their
-!    proper character representation
-! Arguments:
-!    data        Lines of character data found
-!    no_data     (Nett) number of lines of character data
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param DATA ...
-!> \param no_data ...
+!> \brief Routine to replace entities such as &gt; by their
+!>        proper character representation
+!> \param DATA Lines of character data found
+!> \param no_data (Nett) number of lines of character data
 ! *****************************************************************************
 SUBROUTINE xml_replace_entities_( DATA, no_data )
     CHARACTER(len=*), DIMENSION(:), &
@@ -909,24 +840,14 @@ SUBROUTINE xml_replace_entities_( DATA, no_data )
 
 END SUBROUTINE xml_replace_entities_
 
-! xml_options --
-!    Routine to handle the parser options
-! Arguments:
-!    info                Structure holding information on the XML-file
-!    ignore_whitespace   Ignore whitespace (leading blanks, empty lines) or not
-!    no_data_truncation  Consider truncation of strings an error or not
-!    report_lun          LU-number for reporting information
-!    report_errors       Write messages about errors or not
-!    report_details      Write messages about all kinds of actions or not
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \param ignore_whitespace ...
-!> \param no_data_truncation ...
-!> \param report_lun ...
-!> \param report_errors ...
-!> \param report_details ...
+!> \brief Routine to handle the parser options
+!> \param info Structure holding information on the XML-file
+!> \param ignore_whitespace Ignore whitespace (leading blanks, empty lines) or not
+!> \param no_data_truncation Consider truncation of strings an error or not
+!> \param report_lun LU-number for reporting information
+!> \param report_errors Write messages about errors or not
+!> \param report_details Write messages about all kinds of actions or not
 ! *****************************************************************************
 SUBROUTINE xml_options( info, ignore_whitespace, no_data_truncation, &
                         report_lun, report_errors, &
@@ -954,17 +875,10 @@ SUBROUTINE xml_options( info, ignore_whitespace, no_data_truncation, &
    ENDIF
 END SUBROUTINE xml_options
 
-! xml_ok --
-!    Function that returns whether all was okay or not
-! Arguments:
-!    info                Structure holding information on the XML-file
-! Returns:
-!    .true. if there was no error, .false. otherwise
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \retval xml_ok ...
+!> \brief Function that returns whether all was okay or not
+!> \param info Structure holding information on the XML-file
+!> \retval xml_ok .true. if there was no error, .false. otherwise
 ! *****************************************************************************
 LOGICAL FUNCTION xml_ok( info )
    TYPE(XML_PARSE),  INTENT(in)               :: info
@@ -975,17 +889,11 @@ LOGICAL FUNCTION xml_ok( info )
    xml_ok = .NOT. xml_ok
 END FUNCTION xml_ok
 
-! xml_error --
-!    Function that returns whether there was an error
-! Arguments:
-!    info                Structure holding information on the XML-file
-! Returns:
-!    .true. if there was an error, .false. if there was none
-!
+
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \retval xml_error ...
+!> \brief Function that returns whether there was an error
+!> \param info Structure holding information on the XML-file
+!> \retval xml_error .true. if there was an error, .false. if there was none
 ! *****************************************************************************
 LOGICAL FUNCTION xml_error( info )
    TYPE(XML_PARSE),  INTENT(in)               :: info
@@ -995,17 +903,10 @@ LOGICAL FUNCTION xml_error( info )
                  ( info%too_many_attribs .OR. info%too_many_data ) )
 END FUNCTION xml_error
 
-! xml_data_trunc --
-!    Function that returns whether data were truncated or not
-! Arguments:
-!    info                Structure holding information on the XML-file
-! Returns:
-!    .true. if data were truncated, .false. otherwise
-!
 ! *****************************************************************************
-!> \brief ...
-!> \param info ...
-!> \retval xml_data_trunc ...
+!> \brief Function that returns whether data were truncated or not
+!> \param info Structure holding information on the XML-file
+!> \retval xml_data_trunc .true. if data were truncated, .false. otherwise
 ! *****************************************************************************
 LOGICAL FUNCTION xml_data_trunc( info )
    TYPE(XML_PARSE),  INTENT(in)               :: info
@@ -1040,32 +941,18 @@ INTEGER FUNCTION xml_find_attrib( attribs, no_attribs, name, value )
 
 END FUNCTION xml_find_attrib
 
-! xml_process --
-!    Routine to read the XML file as a whole and distribute processing
-!    the contents over three user-defined subroutines
-! Arguments:
-!    filename            Name of the file to process
-!    attribs             Array for holding the attributes
-!    data                Array for holding the character data
-!    startfunc           Subroutine to handle the start of elements
-!    datafunc            Subroutine to handle the character data
-!    endfunc             Subroutine to handle the end of elements
-!    error               Indicates if there was an error or not
-! Note:
-!    The routine is declared recursive to allow inclusion of XML files
-!    (common with XSD schemas). This extends to the auxiliary routines.
-!
 RECURSIVE &
 ! *****************************************************************************
-!> \brief ...
-!> \param filename ...
-!> \param attribs ...
-!> \param DATA ...
-!> \param startfunc ...
-!> \param datafunc ...
-!> \param endfunc ...
+!> \brief Routine to read the XML file as a whole and distribute processing
+!>        the contents over three user-defined subroutines
+!> \param filename Name of the file to process
+!> \param attribs Array for holding the attributes
+!> \param DATA Array for holding the character data
+!> \param startfunc Subroutine to handle the start of elements
+!> \param datafunc Subroutine to handle the character data
+!> \param endfunc Subroutine to handle the end of elements
 !> \param lunrep ...
-!> \param error ...
+!> \param error Indicates if there was an error or not
 ! *****************************************************************************
 SUBROUTINE xml_process( filename, attribs, DATA, startfunc, datafunc, endfunc, lunrep, error )
     CHARACTER(len=*)                         :: filename

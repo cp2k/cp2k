@@ -64,7 +64,7 @@
           block_1d => pointer_view (dbcsr_get_data_p (&
                matrix%m%data_area, 0.0_real_8), offset, offset+nze-1)
           CALL dbcsr_set_block_pointer (matrix, block, stored_row, stored_col,&
-               rsize, csize, stored_tr, offset, &
+               rsize, csize, offset, &
                error=error)
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
@@ -488,18 +488,16 @@
 !> \param col Column of block to point to
 !> \param rsize Row size of block to point to
 !> \param csize Column size of block to point to
-!> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
 !> \param[in,out] error        error
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_2d_d (&
        matrix, pointer_any, row, col,&
-       rsize, csize, main_tr, base_offset, &
+       rsize, csize, base_offset, &
        error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     REAL(kind=real_8), DIMENSION(:,:), POINTER         :: pointer_any
     INTEGER, INTENT(IN)                      :: row, col, rsize, csize
-    LOGICAL, INTENT(IN)                      :: main_tr
     INTEGER, INTENT(IN)                      :: base_offset
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 

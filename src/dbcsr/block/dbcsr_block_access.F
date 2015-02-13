@@ -690,18 +690,16 @@ CONTAINS
 !> \param[in] csize Column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
-!> \param[in] read_only        (optional) User promise not to change data
 !> \param[in,out] error        error
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_any (matrix, pointer_any, row, col,&
        rsize, csize, main_tr, base_offset, &
-       read_only, error)
+       error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: pointer_any
     INTEGER, INTENT(IN)                      :: row, col, rsize, csize
     LOGICAL, INTENT(IN)                      :: main_tr
     INTEGER, INTENT(IN)                      :: base_offset
-    LOGICAL, INTENT(IN), OPTIONAL            :: read_only
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_block_pointer_any', &
