@@ -5661,7 +5661,10 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="EXTERNAL_POTENTIAL",&
             description="Section controlling the presence of an electrostatic "//&
-            "external potential dependent on the atomic positions (X,Y,Z)",&
+            "external potential dependent on the atomic positions (X,Y,Z). "//&
+            "As the external potential is currently applied via a grid, "//&
+            "it only works with DFT based methods (GPW/GAPW) that already use "//&
+            "a grid based approach to solve the Poisson equation.",&
             n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
