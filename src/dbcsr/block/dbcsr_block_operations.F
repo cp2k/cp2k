@@ -85,27 +85,6 @@ MODULE dbcsr_block_operations
                       block_copy_2d2d_c, block_copy_2d2d_z
   END INTERFACE
 
-
-  INTERFACE dbcsr_block_partial_copy
-     MODULE PROCEDURE block_partial_copy_a
-     MODULE PROCEDURE block_partial_copy_d,&
-                      block_partial_copy_s,&
-                      block_partial_copy_z,&
-                      block_partial_copy_c
-     MODULE PROCEDURE block_partial_copy_1d2d_d,&
-                      block_partial_copy_1d2d_s,&
-                      block_partial_copy_1d2d_z,&
-                      block_partial_copy_1d2d_c
-     MODULE PROCEDURE block_partial_copy_2d1d_d,&
-                      block_partial_copy_2d1d_s,&
-                      block_partial_copy_2d1d_z,&
-                      block_partial_copy_2d1d_c
-     MODULE PROCEDURE block_partial_copy_2d2d_d,&
-                      block_partial_copy_2d2d_s,&
-                      block_partial_copy_2d2d_z,&
-                      block_partial_copy_2d2d_c
-  END INTERFACE
-
   INTERFACE dbcsr_data_clear
      MODULE PROCEDURE dbcsr_data_clear_nt
      MODULE PROCEDURE dbcsr_data_clear0
@@ -1442,7 +1421,7 @@ CONTAINS
 !> \param[in] dst_offset offset in target
 !> \param[in] src_offset offset in source
 ! *****************************************************************************
-  SUBROUTINE block_partial_copy_a(dst, dst_rs, dst_cs, dst_tr,&
+  SUBROUTINE dbcsr_block_partial_copy(dst, dst_rs, dst_cs, dst_tr,&
        src, src_rs, src_cs, src_tr,&
        dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
        dst_offset, src_offset)
@@ -1456,7 +1435,7 @@ CONTAINS
                                                 src_c_lb, nrow, ncol
     INTEGER, INTENT(IN), OPTIONAL            :: dst_offset, src_offset
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_a', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_partial_copy', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: verification = careful_mod
 
@@ -1489,92 +1468,92 @@ CONTAINS
     SELECT CASE (dbcsr_data_get_type (dst))
     CASE (dbcsr_type_real_4)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
-               src%d%r2_sp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_1d2d_s(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%r2_sp,  src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_s(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
                src%d%r_sp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o, src_offset=src_o)
        ENDIF
     CASE (dbcsr_type_real_8)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
-               src%d%r2_dp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_1d2d_d(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%r2_dp, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_d(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
                src%d%r_dp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o, src_offset=src_o)
        ENDIF
     CASE (dbcsr_type_complex_4)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
-               src%d%c2_sp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_1d2d_c(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%c2_sp, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_c(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
                src%d%c_sp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o, src_offset=src_o)
        ENDIF
     CASE (dbcsr_type_complex_8)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
-               src%d%c2_dp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_1d2d_z(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%c2_dp, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_z(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
                src%d%c_dp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                dst_offset=dst_o, src_offset=src_o)
        ENDIF
     CASE (dbcsr_type_real_4_2d)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%r2_sp, dst_rs, dst_cs, dst_tr,&
-               src%d%r2_sp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_2d2d_s(dst%d%r2_sp, dst_tr,&
+               src%d%r2_sp, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%r2_sp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_2d1d_s(dst%d%r2_sp, dst_tr,&
                src%d%r_sp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                src_offset=src_o)
        ENDIF
     CASE (dbcsr_type_real_8_2d)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%r2_dp, dst_rs, dst_cs, dst_tr,&
-               src%d%r2_dp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_2d2d_d(dst%d%r2_dp, dst_tr,&
+               src%d%r2_dp, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%r2_dp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_2d1d_d(dst%d%r2_dp, dst_tr,&
                src%d%r_dp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                src_offset=src_o)
        ENDIF
     CASE (dbcsr_type_complex_4_2d)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%c2_sp, dst_rs, dst_cs, dst_tr,&
-               src%d%c2_sp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_2d2d_c(dst%d%c2_sp, dst_tr,&
+               src%d%c2_sp, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%c2_sp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_2d1d_c(dst%d%c2_sp, dst_tr,&
                src%d%c_sp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                src_offset=src_o)
        ENDIF
     CASE (dbcsr_type_complex_8_2d)
        IF (src_is_2d) THEN
-          CALL dbcsr_block_partial_copy(dst%d%c2_dp, dst_rs, dst_cs, dst_tr,&
-               src%d%c2_dp, src_rs, src_cs, src_tr,&
+          CALL block_partial_copy_2d2d_z(dst%d%c2_dp, dst_tr,&
+               src%d%c2_dp, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
        ELSE
-          CALL dbcsr_block_partial_copy(dst%d%c2_dp, dst_rs, dst_cs, dst_tr,&
+          CALL block_partial_copy_2d1d_z(dst%d%c2_dp, dst_tr,&
                src%d%c_dp, src_rs, src_cs, src_tr,&
                dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
                src_offset=src_o)
@@ -1583,7 +1562,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type.",__LINE__,error)
     END SELECT
-  END SUBROUTINE block_partial_copy_a
+  END SUBROUTINE dbcsr_block_partial_copy
 
 
 ! *****************************************************************************
