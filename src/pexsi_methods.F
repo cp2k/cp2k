@@ -238,6 +238,7 @@ CONTAINS
                                  pexsi_env%csr_mat_ks,error=error)
 
     ! Get PEXSI input delta_E (upper bound for largest eigenvalue) using Arnoldi
+    NULLIFY(arnoldi_matrices)
     CALL cp_dbcsr_allocate_matrix_set(arnoldi_matrices, 2, error)
     arnoldi_matrices(1)%matrix => matrix_s 
     arnoldi_matrices(2)%matrix => matrix_ks
