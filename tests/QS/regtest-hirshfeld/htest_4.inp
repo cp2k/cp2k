@@ -7,7 +7,6 @@
       CUTOFF 100
     &END MGRID
     &QS
-      METHOD GAPW
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
@@ -19,10 +18,10 @@
       &END XC_FUNCTIONAL
     &END XC
     &PRINT
-      &HIRSCHFELD
+      &HIRSHFELD
         REFERENCE_CHARGE ATOMIC
         SHAPE_FUNCTION GAUSSIAN
-        SELF_CONSISTENT F
+        SELF_CONSISTENT T
       &END
     &END PRINT
   &END DFT

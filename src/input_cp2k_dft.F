@@ -1774,9 +1774,9 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       ! Hirschfeld population analysis
-       CALL cp_print_key_section_create(print_key,"HIRSCHFELD",&
-            description="Controls the printing of the Hirschfeld (spin) population analysis", &
+       ! Hirshfeld population analysis
+       CALL cp_print_key_section_create(print_key,"HIRSHFELD",&
+            description="Controls the printing of the Hirshfeld (spin) population analysis", &
             print_level=medium_print_level,filename="__STD_OUT__",&
             common_iter_levels=1, error=error)
        CALL keyword_create(keyword=keyword,name="SELF_CONSISTENT",&
@@ -1788,7 +1788,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword=keyword,name="SHAPE_FUNCTION",&
-            description="Type of shape function used for Hirschfeld partitioning.",&
+            description="Type of shape function used for Hirshfeld partitioning.",&
             usage="SHAPE_FUNCTION {Gaussian,Density}",repeats=.FALSE.,required=.FALSE.,n_var=1,&
             default_i_val=shape_function_gaussian,&
             enum_c_vals=s2a("GAUSSIAN","DENSITY"),&
@@ -1799,7 +1799,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword=keyword,name="REFERENCE_CHARGE",&
-            description="Charge of atomic partitioning function for Hirschfeld method.",&
+            description="Charge of atomic partitioning function for Hirshfeld method.",&
             usage="REFERENCE_CHARGE {Atomic,Mulliken}",repeats=.FALSE.,required=.FALSE.,n_var=1,&
             default_i_val=ref_charge_atomic,&
             enum_c_vals=s2a("ATOMIC","MULLIKEN"),&

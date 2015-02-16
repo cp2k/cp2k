@@ -635,11 +635,11 @@ CONTAINS
             error=error, error_level=cp_warning_level)
     END IF
 
-    ! Hirschfeld charges
-    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOWDIN", error=error)
+    ! Hirshfeld charges
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSHFELD", error=error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Hirschfeld charges not available for semi-empirical calculations!", &
+            message="Hirshfeld charges not available for semi-empirical calculations!", &
             error=error, error_level=cp_warning_level)
     END IF
 

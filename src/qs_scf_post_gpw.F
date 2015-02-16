@@ -51,14 +51,14 @@ MODULE qs_scf_post_gpw
                                              put_results
   USE cp_result_types,                 ONLY: cp_result_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
-  USE hirschfeld_methods,              ONLY: comp_hirschfeld_charges,&
-                                             comp_hirschfeld_i_charges,&
+  USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
+                                             comp_hirshfeld_i_charges,&
                                              create_shape_function,&
-                                             write_hirschfeld_charges
-  USE hirschfeld_types,                ONLY: create_hirschfeld_type,&
-                                             hirschfeld_type,&
-                                             release_hirschfeld_type,&
-                                             set_hirschfeld_info
+                                             write_hirshfeld_charges
+  USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
+                                             hirshfeld_type,&
+                                             release_hirshfeld_type,&
+                                             set_hirshfeld_info
   USE input_constants,                 ONLY: do_loc_both,&
                                              do_loc_homo,&
                                              do_loc_lumo,&
@@ -2869,18 +2869,18 @@ CONTAINS
           CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
        END IF
 
-       ! Compute the Hirschfeld charges
-       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSCHFELD", error=error)
+       ! Compute the Hirshfeld charges
+       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSHFELD", error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
           ! we check if real space density is available
           NULLIFY(rho)
           CALL get_qs_env(qs_env=qs_env,rho=rho,error=error)
           CALL qs_rho_get(rho,rho_r_valid=rho_r_valid,error=error)
           IF(rho_r_valid) THEN
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%HIRSCHFELD",extension=".hirschfeld",&
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%HIRSHFELD",extension=".hirshfeld",&
                                           middle_name="",log_filename=.FALSE.,error=error)
-             CALL hirschfeld_charges(qs_env,print_key,unit_nr,error)
-             CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%HIRSCHFELD",error=error)
+             CALL hirshfeld_charges(qs_env,print_key,unit_nr,error)
+             CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%HIRSHFELD",error=error)
           END IF
        END IF
 
@@ -2897,13 +2897,13 @@ CONTAINS
 !> \param unit_nr ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE hirschfeld_charges(qs_env,input_section,unit_nr,error)
+  SUBROUTINE hirshfeld_charges(qs_env,input_section,unit_nr,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: input_section
     INTEGER, INTENT(IN)                      :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'hirschfeld_charges', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_charges', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, ikind, istat, natom, &
@@ -2919,7 +2919,7 @@ CONTAINS
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     TYPE(mpole_rho_atom), DIMENSION(:), &
       POINTER                                :: mp_rho
     TYPE(particle_type), DIMENSION(:), &
@@ -2931,21 +2931,21 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(hirschfeld_env)
-    CALL create_hirschfeld_type(hirschfeld_env,error)
+    NULLIFY(hirshfeld_env)
+    CALL create_hirshfeld_type(hirshfeld_env,error)
     !
     CALL get_qs_env(qs_env,nkind=nkind,natom=natom,error=error)
-    ALLOCATE(hirschfeld_env%charges(natom),stat=istat)
+    ALLOCATE(hirshfeld_env%charges(natom),stat=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ! input options
     CALL section_vals_val_get(input_section,"SELF_CONSISTENT",l_val=do_sc,error=error)
     CALL section_vals_val_get(input_section,"SHAPE_FUNCTION",i_val=shapef,error=error)
     CALL section_vals_val_get(input_section,"REFERENCE_CHARGE",i_val=refc,error=error)
-    CALL set_hirschfeld_info(hirschfeld_env,shape_function_type=shapef,&
+    CALL set_hirshfeld_info(hirshfeld_env,shape_function_type=shapef,&
          iterative=do_sc,ref_charge=refc,error=error)
     ! shape function
     CALL get_qs_env(qs_env,qs_kind_set=qs_kind_set,atomic_kind_set=atomic_kind_set,error=error)
-    CALL create_shape_function(hirschfeld_env,qs_kind_set,atomic_kind_set,error)
+    CALL create_shape_function(hirshfeld_env,qs_kind_set,atomic_kind_set,error)
     ! reference charges
     CALL get_qs_env(qs_env,rho=rho,error=error)
     CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
@@ -2960,7 +2960,7 @@ CONTAINS
              CALL get_atomic_kind(atomic_kind,atom_list=atom_list)
              DO iat=1,SIZE(atom_list)
                 i=atom_list(iat)
-                hirschfeld_env%charges(i) = zeff
+                hirshfeld_env%charges(i) = zeff
              END DO
           END DO
        CASE (ref_charge_mulliken)
@@ -2968,21 +2968,21 @@ CONTAINS
           CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,&
                                 charges,error)
           DO iat=1,natom
-             hirschfeld_env%charges(iat) = SUM(charges(iat,:))
+             hirshfeld_env%charges(iat) = SUM(charges(iat,:))
           END DO
        CASE DEFAULT
          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Unknown type of reference charge for Hirschfeld partitioning.", &
+            message="Unknown type of reference charge for Hirshfeld partitioning.", &
             error=error, error_level=cp_failure_level)
     END SELECT
     !
     charges = 0.0_dp
-    IF(hirschfeld_env%iterative) THEN
-       ! Hirschfeld-I charges
-       CALL comp_hirschfeld_i_charges(qs_env,hirschfeld_env,charges,unit_nr,error)
+    IF(hirshfeld_env%iterative) THEN
+       ! Hirshfeld-I charges
+       CALL comp_hirshfeld_i_charges(qs_env,hirshfeld_env,charges,unit_nr,error)
     ELSE
-       ! Hirschfeld charges
-       CALL comp_hirschfeld_charges(qs_env,hirschfeld_env,charges,error)
+       ! Hirshfeld charges
+       CALL comp_hirshfeld_charges(qs_env,hirshfeld_env,charges,error)
     END IF
     CALL get_qs_env(qs_env,particle_set=particle_set,dft_control=dft_control,error=error)
     IF(dft_control%qs_control%gapw) THEN
@@ -3000,15 +3000,15 @@ CONTAINS
     END IF
     !
     IF(unit_nr > 0) THEN
-       CALL write_hirschfeld_charges(charges,hirschfeld_env,particle_set,&
+       CALL write_hirshfeld_charges(charges,hirshfeld_env,particle_set,&
             qs_kind_set,unit_nr,error)
     END IF
     !
-    CALL release_hirschfeld_type(hirschfeld_env,error)
+    CALL release_hirshfeld_type(hirshfeld_env,error)
     DEALLOCATE(charges,stat=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE hirschfeld_charges
+  END SUBROUTINE hirshfeld_charges
 
 ! *****************************************************************************
 !> \brief ...

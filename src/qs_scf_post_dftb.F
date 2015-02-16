@@ -206,11 +206,11 @@ CONTAINS
             error=error, error_level=cp_warning_level)
        END IF
 
-       ! Hirschfeld
-       print_key => section_vals_get_subs_vals(print_section,"HIRSCHFELD", error=error)
+       ! Hirshfeld
+       print_key => section_vals_get_subs_vals(print_section,"HIRSHFELD", error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Hirschfeld charges not available for DFTB method.", &
+            message="Hirshfeld charges not available for DFTB method.", &
             error=error, error_level=cp_warning_level)
        END IF
 

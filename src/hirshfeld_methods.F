@@ -4,12 +4,12 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Calculate Hirschfeld charges and related functions
+!> \brief Calculate Hirshfeld charges and related functions
 !> \par History
 !>      11.2014 created [JGH]
 !> \author JGH
 ! *****************************************************************************
-MODULE hirschfeld_methods
+MODULE hirshfeld_methods
   USE atom_kind_orbitals,              ONLY: calculate_atomic_density
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -19,9 +19,9 @@ MODULE hirschfeld_methods
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE hirschfeld_types,                ONLY: get_hirschfeld_info,&
-                                             hirschfeld_type,&
-                                             set_hirschfeld_info
+  USE hirshfeld_types,                ONLY: get_hirshfeld_info,&
+                                             hirshfeld_type,&
+                                             set_hirshfeld_info
   USE input_constants,                 ONLY: shape_function_density,&
                                              shape_function_gaussian
   USE kinds,                           ONLY: dp,&
@@ -64,11 +64,11 @@ MODULE hirschfeld_methods
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirschfeld_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirshfeld_methods'
 
-   PUBLIC :: create_shape_function, comp_hirschfeld_charges, &
-             comp_hirschfeld_i_charges, write_hirschfeld_charges, &
-             hirschfeld_integration
+   PUBLIC :: create_shape_function, comp_hirshfeld_charges, &
+             comp_hirshfeld_i_charges, write_hirshfeld_charges, &
+             hirshfeld_integration
 
 ! *****************************************************************************
 
@@ -77,17 +77,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param charges ...
-!> \param hirschfeld_env ...
+!> \param hirshfeld_env ...
 !> \param particle_set ...
 !> \param qs_kind_set ...
 !> \param unit_nr ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE write_hirschfeld_charges(charges,hirschfeld_env,particle_set,&
+  SUBROUTINE write_hirshfeld_charges(charges,hirshfeld_env,particle_set,&
              qs_kind_set,unit_nr,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: charges
-    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -95,7 +95,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_hirschfeld_charges', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_hirshfeld_charges', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=2)                         :: element_symbol
@@ -105,7 +105,7 @@ CONTAINS
     natom = SIZE(charges,1)
     nspin = SIZE(charges,2)
     WRITE(unit_nr,'(/,T2,A)') '!-----------------------------------------------------------------------------!'
-    WRITE (UNIT=unit_nr,FMT="(T28,A)") "Hirschfeld Charges"
+    WRITE (UNIT=unit_nr,FMT="(T28,A)") "Hirshfeld Charges"
     IF (nspin == 1) THEN
        WRITE (UNIT=unit_nr,FMT="(/,T3,A,A)")&
           "#Atom  Element  Kind "," Ref Charge     Population                     Net charge"
@@ -117,7 +117,7 @@ CONTAINS
     DO iatom=1,natom
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                             element_symbol=element_symbol,kind_number=ikind)
-       refc = hirschfeld_env%charges(iatom)
+       refc = hirshfeld_env%charges(iatom)
        CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
        IF (nspin == 1) THEN
           WRITE (UNIT=unit_nr,FMT="(i7,T15,A2,T20,i3,T27,F8.3,T42,F8.3,T73,F8.3)") &
@@ -132,17 +132,17 @@ CONTAINS
     WRITE (UNIT=unit_nr,FMT="(/,T3,A,T73,F8.3)") "Total Charge ",tc1
     WRITE(unit_nr,'(T2,A)') '!-----------------------------------------------------------------------------!'
 
-  END SUBROUTINE write_hirschfeld_charges
+  END SUBROUTINE write_hirshfeld_charges
 
 ! *****************************************************************************
 !> \brief ...
-!> \param hirschfeld_env ...
+!> \param hirshfeld_env ...
 !> \param qs_kind_set ...
 !> \param atomic_kind_set ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_shape_function(hirschfeld_env,qs_kind_set,atomic_kind_set,error)
-    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+  SUBROUTINE create_shape_function(hirshfeld_env,qs_kind_set,atomic_kind_set,error)
+    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -162,27 +162,27 @@ CONTAINS
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(hirschfeld_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,error,failure)
 
     nkind = SIZE(qs_kind_set)
-    ALLOCATE(hirschfeld_env%kind_shape_fn(nkind), stat=stat)
+    ALLOCATE(hirshfeld_env%kind_shape_fn(nkind), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    SELECT CASE(hirschfeld_env%shape_function_type)
+    SELECT CASE(hirshfeld_env%shape_function_type)
        CASE (shape_function_gaussian)
           DO ikind=1,nkind
-             hirschfeld_env%kind_shape_fn(ikind)%numexp = 1
-             ALLOCATE(hirschfeld_env%kind_shape_fn(ikind)%zet(1), stat=stat)
+             hirshfeld_env%kind_shape_fn(ikind)%numexp = 1
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(1), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(hirschfeld_env%kind_shape_fn(ikind)%coef(1), stat=stat)
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(1), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              CALL get_qs_kind(qs_kind_set(ikind),element_symbol=esym)
              rco = 2.0_dp
              CALL get_ptable_info(symbol=esym,covalent_radius=rco,found=found)
              rco = MAX(rco,1.0_dp)
              al = 0.5_dp/rco**2
-             hirschfeld_env%kind_shape_fn(ikind)%zet(1) = al
-             hirschfeld_env%kind_shape_fn(ikind)%coef(1) = (al/pi)**1.5_dp
+             hirshfeld_env%kind_shape_fn(ikind)%zet(1) = al
+             hirshfeld_env%kind_shape_fn(ikind)%coef(1) = (al/pi)**1.5_dp
           END DO
        CASE (shape_function_density)
           ! calculate atomic density
@@ -191,14 +191,14 @@ CONTAINS
              qs_kind     => qs_kind_set(ikind)
              CALL calculate_atomic_density(ppdens(:,:),atomic_kind,qs_kind,ngto,&
                                            confine=.FALSE.,error=error)
-             hirschfeld_env%kind_shape_fn(ikind)%numexp = ngto
-             ALLOCATE(hirschfeld_env%kind_shape_fn(ikind)%zet(ngto), stat=stat)
+             hirshfeld_env%kind_shape_fn(ikind)%numexp = ngto
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(ngto), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(hirschfeld_env%kind_shape_fn(ikind)%coef(ngto), stat=stat)
+             ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(ngto), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             hirschfeld_env%kind_shape_fn(ikind)%zet(:) = ppdens(:,1)
+             hirshfeld_env%kind_shape_fn(ikind)%zet(:) = ppdens(:,1)
              CALL get_qs_kind(qs_kind,zeff=zeff)
-             hirschfeld_env%kind_shape_fn(ikind)%coef(:) = ppdens(:,2)/zeff
+             hirshfeld_env%kind_shape_fn(ikind)%coef(:) = ppdens(:,2)/zeff
           END DO
 
        CASE DEFAULT
@@ -212,18 +212,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param hirschfeld_env ...
+!> \param hirshfeld_env ...
 !> \param charges ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE comp_hirschfeld_charges(qs_env,hirschfeld_env,charges,error)
+  SUBROUTINE comp_hirshfeld_charges(qs_env,hirshfeld_env,charges,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: charges
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'comp_hirschfeld_charges', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'comp_hirshfeld_charges', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: is, stat
@@ -240,10 +240,10 @@ CONTAINS
     NULLIFY(rho_ao, rho_r)
     failure = .FALSE.
     ! normalization function on grid
-    CALL calculate_hirschfeld_normalization(qs_env,hirschfeld_env,error)
+    CALL calculate_hirshfeld_normalization(qs_env,hirshfeld_env,error)
     ! check normalization
-    tnfun = pw_integrate_function(hirschfeld_env%fnorm%pw,error=error)
-    tnfun = ABS(tnfun - SUM(hirschfeld_env%charges))
+    tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw,error=error)
+    tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
     ! 
     ALLOCATE(rhonorm, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -256,20 +256,20 @@ CONTAINS
     DO is=1,SIZE(rho_ao)
       IF(rho_r_valid) THEN
         CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
-                        hirschfeld_env%fnorm%pw%cr3d,error)
+                        hirshfeld_env%fnorm%pw%cr3d,error)
       ELSE
         CALL cp_unimplemented_error(fromWhere=routineP, &
              message="We need rho in real space",error=error,error_level=cp_failure_level)
       END IF
-      CALL hirschfeld_integration(qs_env,hirschfeld_env,rhonorm,charges(:,is),error=error)
-      charges(:,is) = charges(:,is)*hirschfeld_env%charges(:)
+      CALL hirshfeld_integration(qs_env,hirshfeld_env,rhonorm,charges(:,is),error=error)
+      charges(:,is) = charges(:,is)*hirshfeld_env%charges(:)
     END DO
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhonorm%pw,error=error)
     !
     DEALLOCATE(rhonorm, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE comp_hirschfeld_charges
+  END SUBROUTINE comp_hirshfeld_charges
 ! *****************************************************************************
 !> \brief Calculate fout = fun1/fun2
 !> \param fout ...
@@ -319,20 +319,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param hirschfeld_env ...
+!> \param hirshfeld_env ...
 !> \param charges ...
 !> \param ounit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE comp_hirschfeld_i_charges(qs_env,hirschfeld_env,charges,ounit,error)
+  SUBROUTINE comp_hirshfeld_i_charges(qs_env,hirshfeld_env,charges,ounit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: charges
     INTEGER, INTENT(IN)                      :: ounit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'comp_hirschfeld_i_charges', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'comp_hirshfeld_i_charges', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: maxloop = 100
     REAL(KIND=dp), PARAMETER                 :: maxres = 1.0e-2_dp
@@ -354,7 +354,7 @@ CONTAINS
 
     natom = SIZE(charges,1)
 
-    IF(ounit>0) WRITE(ounit,"(/,T2,A)") "Hirschfeld charge iterations: Residuals ..."
+    IF(ounit>0) WRITE(ounit,"(/,T2,A)") "Hirshfeld charge iterations: Residuals ..."
     !
     ALLOCATE(rhonorm, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -367,26 +367,26 @@ CONTAINS
     DO iloop=1,maxloop
 
        ! normalization function on grid
-       CALL calculate_hirschfeld_normalization(qs_env,hirschfeld_env,error)
+       CALL calculate_hirshfeld_normalization(qs_env,hirshfeld_env,error)
        ! check normalization
-       tnfun = pw_integrate_function(hirschfeld_env%fnorm%pw,error=error)
-       tnfun = ABS(tnfun - SUM(hirschfeld_env%charges))
+       tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw,error=error)
+       tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
        ! loop over spins
        DO is=1,SIZE(rho_ao)
          IF(rho_r_valid) THEN
            CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
-                           hirschfeld_env%fnorm%pw%cr3d,error)
+                           hirshfeld_env%fnorm%pw%cr3d,error)
          ELSE
            CALL cp_unimplemented_error(fromWhere=routineP, &
                 message="We need rho in real space",error=error,error_level=cp_failure_level)
          END IF
-         CALL hirschfeld_integration(qs_env,hirschfeld_env,rhonorm,charges(:,is),error=error)
-         charges(:,is) = charges(:,is)*hirschfeld_env%charges(:)
+         CALL hirshfeld_integration(qs_env,hirshfeld_env,rhonorm,charges(:,is),error=error)
+         charges(:,is) = charges(:,is)*hirshfeld_env%charges(:)
        END DO
        ! residual
        res=0.0_dp
        DO iat=1,natom
-          res = res + (SUM(charges(iat,:)) - hirschfeld_env%charges(iat))**2
+          res = res + (SUM(charges(iat,:)) - hirshfeld_env%charges(iat))**2
        END DO
        res = SQRT(res/REAL(natom,KIND=dp))
        IF(ounit>0) THEN
@@ -396,7 +396,7 @@ CONTAINS
        END IF
        ! update
        DO iat=1,natom
-          hirschfeld_env%charges(iat) = SUM(charges(iat,:))
+          hirshfeld_env%charges(iat) = SUM(charges(iat,:))
        END DO
        IF(res<maxres) EXIT
 
@@ -407,22 +407,22 @@ CONTAINS
     DEALLOCATE(rhonorm, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE comp_hirschfeld_i_charges
+  END SUBROUTINE comp_hirshfeld_i_charges
 
 ! *****************************************************************************
 !> \brief 
 !> \param qs_env ...
-!> \param hirschfeld_env ...
+!> \param hirshfeld_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_hirschfeld_normalization(qs_env,hirschfeld_env,error)
+  SUBROUTINE calculate_hirshfeld_normalization(qs_env,hirshfeld_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'calculate_hirschfeld_normalization', &
+      routineN = 'calculate_hirshfeld_normalization', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ierr, &
@@ -466,15 +466,15 @@ CONTAINS
     ithread = 0
 
     DO ikind=1,SIZE(atomic_kind_set)
-      numexp = hirschfeld_env%kind_shape_fn(ikind)%numexp
+      numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
       IF ( numexp <= 0 ) CYCLE
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
       ALLOCATE(cores(natom),STAT=ierr)
       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
       DO iex=1,numexp
-         alpha=hirschfeld_env%kind_shape_fn(ikind)%zet(iex)
-         coef =hirschfeld_env%kind_shape_fn(ikind)%coef(iex)
+         alpha=hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
+         coef =hirshfeld_env%kind_shape_fn(ikind)%coef(iex)
          npme = 0
          cores = 0
          DO iatom = 1, natom
@@ -494,7 +494,7 @@ CONTAINS
          DO j=1,npme
             iatom = cores(j)
             atom_a = atom_list(iatom)
-            pab(1,1) = hirschfeld_env%charges(atom_a) * coef
+            pab(1,1) = hirshfeld_env%charges(atom_a) * coef
             ra(:) = pbc(particle_set(atom_a)%r,cell)
             subpatch_pattern=0
             CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
@@ -511,7 +511,7 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY(fnorm)
-    CALL get_hirschfeld_info(hirschfeld_env,fnorm=fnorm,error=error)
+    CALL get_hirshfeld_info(hirshfeld_env,fnorm=fnorm,error=error)
     IF (ASSOCIATED(fnorm)) THEN
        CALL pw_release(fnorm%pw,error=error)
        DEALLOCATE(fnorm,stat=ierr)
@@ -521,28 +521,28 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     CALL pw_pool_create_pw(auxbas_pw_pool,fnorm%pw,use_data=REALDATA3D,error=error)
     fnorm%pw%in_space=REALSPACE
-    CALL set_hirschfeld_info(hirschfeld_env,fnorm=fnorm,error=error)
+    CALL set_hirshfeld_info(hirshfeld_env,fnorm=fnorm,error=error)
 
     CALL rs_pw_transfer(rs_rho,fnorm%pw,rs2pw,error=error)
     CALL rs_grid_release(rs_rho,error=error)
 
     CALL timestop(handle)
 
-  END SUBROUTINE calculate_hirschfeld_normalization
+  END SUBROUTINE calculate_hirshfeld_normalization
 
 ! *****************************************************************************
 !> \brief 
 !> \param qs_env ...
-!> \param hirschfeld_env ...
+!> \param hirshfeld_env ...
 !> \param rfun ...
 !> \param fval ...
 !> \param fderiv ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE hirschfeld_integration(qs_env,hirschfeld_env,rfun,fval,fderiv,error)
+  SUBROUTINE hirshfeld_integration(qs_env,hirshfeld_env,rfun,fval,fderiv,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirschfeld_type), POINTER           :: hirschfeld_env
+    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
     TYPE(pw_p_type), POINTER                 :: rfun
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(inout)                          :: fval
@@ -550,7 +550,7 @@ CONTAINS
       INTENT(inout), OPTIONAL                :: fderiv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'hirschfeld_integration', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_integration', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, iex, &
@@ -598,15 +598,15 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO ikind=1,SIZE(atomic_kind_set)
-      numexp = hirschfeld_env%kind_shape_fn(ikind)%numexp
+      numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
       IF ( numexp <= 0 ) CYCLE
       CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom,atom_list=atom_list)
       ALLOCATE(cores(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       DO iex=1,numexp
-         alpha=hirschfeld_env%kind_shape_fn(ikind)%zet(iex)
-         coef =hirschfeld_env%kind_shape_fn(ikind)%coef(iex)
+         alpha=hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
+         coef =hirshfeld_env%kind_shape_fn(ikind)%coef(iex)
          npme = 0
          cores = 0
          DO iatom = 1, natom
@@ -660,6 +660,6 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE hirschfeld_integration
+  END SUBROUTINE hirshfeld_integration
 
-END MODULE hirschfeld_methods
+END MODULE hirshfeld_methods

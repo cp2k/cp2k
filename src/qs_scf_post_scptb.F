@@ -204,11 +204,11 @@ CONTAINS
           CALL cp_print_key_finished_output(unit_nr, logger,print_section,"MULLIKEN",error=error)
        END IF
 
-       ! Hirschfeld charges
-       print_key => section_vals_get_subs_vals(print_section,"HIRSCHFELD",error=error)
+       ! Hirshfeld charges
+       print_key => section_vals_get_subs_vals(print_section,"HIRSHFELD",error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Hirschfeld charges not available for SCPTB method.", &
+            message="Hirshfeld charges not available for SCPTB method.", &
             error=error, error_level=cp_warning_level)
        END IF
 
