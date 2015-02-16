@@ -32,6 +32,7 @@ MODULE pw_poisson_types
                                              MT2D,&
                                              MTin_create_screen_fn
   USE ps_implicit_types,               ONLY: MIXED_BC,&
+                                             NEUMANN_BC,&
                                              ps_implicit_parameters,&
                                              ps_implicit_release,&
                                              ps_implicit_type
@@ -352,7 +353,8 @@ CONTAINS
                   special_dimension=green%special_dimension, slab_size=green%slab_size, &
                   super_ref_pw_grid=mt_super_ref_pw_grid, error=error)
           CASE(PS_IMPLICIT)
-             IF (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) THEN
+             IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
+                 (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
                 CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid, error=error)
                 CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)

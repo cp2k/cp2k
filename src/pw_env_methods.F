@@ -46,6 +46,7 @@ MODULE pw_env_methods
                                              lgrid_release
   USE ps_implicit_types,               ONLY: MIXED_BC,&
                                              MIXED_PERIODIC_BC,&
+                                             NEUMANN_BC,&
                                              PERIODIC_BC
   USE ps_wavelet_types,                ONLY: WAVELET0D,&
                                              WAVELET2D,&
@@ -541,7 +542,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      END IF
 
      ! setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT) 
-     IF (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) THEN
+     IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
+         (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
         CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
                             my_cell%hmat, &
                             pw_env%poisson_env%dct_pw_grid, pw_env%poisson_env%dct_aux_pw_grid, error)
@@ -671,6 +673,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
          CASE (MIXED_PERIODIC_BC)
            WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
             "POISSON| Boundary Condition","PERIODIC & DIRICHLET"
+         CASE (NEUMANN_BC)
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Boundary Condition","NEUMANN"
          CASE DEFAULT
            CALL stop_program(routineN,moduleN,__LINE__,&
                   "Invalid boundary conditions for the implicit (iterative) poisson solver.",&

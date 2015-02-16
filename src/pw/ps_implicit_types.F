@@ -65,7 +65,8 @@ MODULE ps_implicit_types
  
   INTEGER, PARAMETER, PUBLIC           :: PERIODIC_BC       = 0,   &
                                           MIXED_BC          = 1,   &
-                                          MIXED_PERIODIC_BC = 2
+                                          MIXED_PERIODIC_BC = 2,   &
+                                          NEUMANN_BC        = 3
 CONTAINS
 
 ! *****************************************************************************

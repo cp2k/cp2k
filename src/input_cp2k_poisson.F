@@ -59,6 +59,7 @@ MODULE input_cp2k_poisson
                                              do_multipole_quadrupole
   USE ps_implicit_types,               ONLY: MIXED_BC,&
                                              MIXED_PERIODIC_BC,&
+                                             NEUMANN_BC,&
                                              PERIODIC_BC
   USE pw_poisson_types,                ONLY: &
        do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, &
@@ -661,9 +662,10 @@ END SUBROUTINE create_ewald_section
        CALL section_release(subsection, error=error)
 
        CALL keyword_create(keyword, name="BOUNDARY_CONDITIONS", &
-            enum_c_vals=s2a( 'PERIODIC', 'MIXED', 'MIXED_PERIODIC' ), &
-            enum_desc=s2a( 'PERIODIC', 'MIXED (Dirichlet + Neumann)', 'MIXED_PERIODIC (Dirichlet + Periodic)' ), &
-            enum_i_vals=(/ PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC /), &
+            enum_c_vals=s2a( 'PERIODIC', 'MIXED', 'MIXED_PERIODIC', 'NEUMANN' ), &
+            enum_desc=s2a( 'periodic boundary conditions', 'Dirichlet + homogeneous Neumann boundary conditions', & 
+                           'Dirichlet + periodic boundary conditions', 'homogeneous Neumann BC (zero-average solution)' ), &
+            enum_i_vals=(/ PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC, NEUMANN_BC /), &
             description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv. "//&
                         "Mixed boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
             usage="BOUNDARY_CONDITIONS <bc_type>", default_i_val=PERIODIC_BC, error=error)
