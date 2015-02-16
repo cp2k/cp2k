@@ -94,6 +94,7 @@ def main():
                 # store only useful and fresh reports, prevents overwriting archive
                 fn = outdir+"archive/%s/rev_%d.txt.gz"%(s,report['revision'])
                 write_file(fn, report_txt, gz=True)
+                check_output("cd %s/archive; tar -cf %s/%s_reports.tar %s/*.txt.gz"%(outdir,s,s,s), shell=True)
 
         output += '<tr align="center">'
         output += '<td align="left"><a href="archive/%s/index.html">%s</a></td>'%(s, name)
@@ -121,6 +122,7 @@ def main():
         archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>'
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
+        archive_output += '<p>Download <a href="%s_reports.tar">all reports</a></p>'%s
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
 
@@ -347,8 +349,8 @@ def parse_generic_report(report_txt):
     return(report)
 
 #===============================================================================
-def check_output(command):
-    p = subprocess.Popen(command, stdout=subprocess.PIPE)
+def check_output(command, **kwargs):
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, **kwargs)
     output = p.communicate()[0]
     assert(p.wait() == 0)
     return(output)
