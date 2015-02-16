@@ -19,7 +19,7 @@ MODULE hirshfeld_methods
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE hirshfeld_types,                ONLY: get_hirshfeld_info,&
+  USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
                                              hirshfeld_type,&
                                              set_hirshfeld_info
   USE input_constants,                 ONLY: shape_function_density,&
@@ -87,7 +87,7 @@ CONTAINS
              qs_kind_set,unit_nr,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: charges
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -142,7 +142,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_shape_function(hirshfeld_env,qs_kind_set,atomic_kind_set,error)
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -218,7 +218,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE comp_hirshfeld_charges(qs_env,hirshfeld_env,charges,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: charges
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -326,7 +326,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE comp_hirshfeld_i_charges(qs_env,hirshfeld_env,charges,ounit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: charges
     INTEGER, INTENT(IN)                      :: ounit
@@ -418,7 +418,7 @@ CONTAINS
   SUBROUTINE calculate_hirshfeld_normalization(qs_env,hirshfeld_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -542,7 +542,7 @@ CONTAINS
   SUBROUTINE hirshfeld_integration(qs_env,hirshfeld_env,rfun,fval,fderiv,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     TYPE(pw_p_type), POINTER                 :: rfun
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(inout)                          :: fval

@@ -60,7 +60,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_hirshfeld_type(hirshfeld_env,error)
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hirshfeld_type', &
@@ -92,7 +92,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE release_hirshfeld_type(hirshfeld_env,error)
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_hirshfeld_type', &
@@ -151,7 +151,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_hirshfeld_info(hirshfeld_env,shape_function_type,iterative,&
              ref_charge,fnorm,error)
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     INTEGER, INTENT(OUT), OPTIONAL           :: shape_function_type
     LOGICAL, INTENT(OUT), OPTIONAL           :: iterative
     INTEGER, INTENT(OUT), OPTIONAL           :: ref_charge
@@ -192,7 +192,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_hirshfeld_info(hirshfeld_env,shape_function_type,iterative,&
              ref_charge,fnorm,error)
-    TYPE(hirshfeld_type), POINTER           :: hirshfeld_env
+    TYPE(hirshfeld_type), POINTER            :: hirshfeld_env
     INTEGER, INTENT(IN), OPTIONAL            :: shape_function_type
     LOGICAL, INTENT(IN), OPTIONAL            :: iterative
     INTEGER, INTENT(IN), OPTIONAL            :: ref_charge
