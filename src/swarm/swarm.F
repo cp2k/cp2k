@@ -172,7 +172,7 @@ MODULE swarm
      CALL swarm_mpi_init(swarm_mpi, para_env, root_section, n_workers, worker_id, iw, error=error)
 
      IF(ASSOCIATED(swarm_mpi%worker)) THEN
-        CALL swarm_parallel_worker_driver(swarm_mpi, input_declaration, n_workers, worker_id, root_section, input_path, error)
+        CALL swarm_parallel_worker_driver(swarm_mpi, input_declaration, worker_id, root_section, input_path, error)
      ELSE
         CALL swarm_parallel_master_driver(swarm_mpi, n_workers, root_section, input_path, globenv, error)
      END IF
@@ -186,17 +186,16 @@ MODULE swarm
 !> \brief Worker's driver routine for parallelized runs.
 !> \param swarm_mpi ...
 !> \param input_declaration ...
-!> \param n_workers ...
 !> \param worker_id ...
 !> \param root_section ...
 !> \param input_path ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE swarm_parallel_worker_driver(swarm_mpi, input_declaration, n_workers, worker_id, root_section, input_path, error)
+   SUBROUTINE swarm_parallel_worker_driver(swarm_mpi, input_declaration, worker_id, root_section, input_path, error)
     TYPE(swarm_mpi_type), INTENT(IN)         :: swarm_mpi
     TYPE(section_type), POINTER              :: input_declaration
-    INTEGER, INTENT(IN)                      :: n_workers, worker_id
+    INTEGER, INTENT(IN)                      :: worker_id
     TYPE(section_vals_type), POINTER         :: root_section
     CHARACTER(LEN=*), INTENT(IN)             :: input_path
     TYPE(cp_error_type), INTENT(inout)       :: error

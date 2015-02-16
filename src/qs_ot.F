@@ -131,8 +131,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: taylor_order = 50
     REAL(KIND=dp), PARAMETER                 :: alpha = 0.1_dp, &
-                                                f2_eps = 0.01_dp, &
-                                                rone = 1.0_dp, rzero = 0.0_dp
+                                                f2_eps = 0.01_dp
 
     INTEGER                                  :: blk, col, col_size, handle, &
                                                 i, k, n, output_unit, p, row, &
@@ -584,7 +583,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_ref', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     CHARACTER(LEN=4)                         :: ortho_irac
     INTEGER                                  :: handle, k, n
@@ -705,7 +703,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_refine', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, k
     REAL(dp)                                 :: occ_in, occ_out, r
@@ -810,7 +807,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
     LOGICAL                                  :: mixed_precision
@@ -831,7 +827,7 @@ CONTAINS
 
     IF(mixed_precision) THEN
        ! C'*(H*C)
-       CALL cp_dbcsr_multiply('T','N',1.0_dp,C,HC,rzero,CHC,error=error)
+       CALL cp_dbcsr_multiply('T','N',1.0_dp,C,HC,0.0_dp,CHC,error=error)
        IF (qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) THEN
           occ_in = cp_dbcsr_get_occupation(chc)
           CALL cp_dbcsr_filter(chc,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
@@ -1367,7 +1363,7 @@ CONTAINS
 
     ! add the two bs and compute b+b^T
     CALL cp_dbcsr_add(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf4,&
-         alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+         alpha_scalar=rone,beta_scalar=rone,error=error)
 
     ! get the b in the eigenvector basis
     CALL cp_dbcsr_multiply('N','T',rone,qs_ot_env%matrix_buf3,qs_ot_env%matrix_r, &
@@ -1378,7 +1374,7 @@ CONTAINS
          shallow_data_copy=.FALSE., use_distribution=cp_dbcsr_distribution(qs_ot_env%matrix_buf3), &
          transpose_distribution=.FALSE.,error=error)
     CALL cp_dbcsr_add(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1,&
-         alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+         alpha_scalar=rone,beta_scalar=rone,error=error)
 
     ! and add to the derivative
     CALL cp_dbcsr_multiply('N','N',rone,matrix_sx,qs_ot_env%matrix_buf3, &

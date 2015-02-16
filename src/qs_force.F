@@ -339,7 +339,7 @@ CONTAINS
           IF (admm_env%purification_method==do_admm_purify_none) THEN
              CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
              CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
-                  mo_coeff, mo_coeff_aux_fit, matrix_ks_aux_fit, error=error)
+                  mo_coeff_aux_fit, matrix_ks_aux_fit, error=error)
              IF(.FALSE.) CALL cp_fm_write(admm_env%H(ispin)%matrix, handle, .TRUE., .FALSE., error)
           END IF
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)

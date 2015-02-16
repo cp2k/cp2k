@@ -160,8 +160,7 @@ MODULE admm_methods
     ENDDO
 
     ! fit mo coeffcients
-    CALL admm_fit_mo_coeffs(admm_env, para_env, &
-                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
+    CALL admm_fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb,&
                             mos, mos_aux_fit, s_mstruct_changed, error=error)
 
     DO ispin=1,dft_control%nspins
@@ -296,8 +295,7 @@ MODULE admm_methods
                                   mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit, error)
 
       CASE(do_admm_purify_mo_no_diag)
-        CALL merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit,&
-                                     mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+        CALL merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit, error)
 
       CASE(do_admm_purify_none, do_admm_purify_cauchy,do_admm_purify_cauchy_subspace)
           !do nothing
@@ -313,7 +311,6 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param admm_env ...
-!> \param para_env ...
 !> \param matrix_s_aux_fit ...
 !> \param matrix_s_mixed ...
 !> \param mos ...
@@ -321,11 +318,10 @@ MODULE admm_methods
 !> \param geometry_did_change ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE admm_fit_mo_coeffs(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE admm_fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_mixed, &
                                 mos, mos_aux_fit, geometry_did_change, error)
 
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
@@ -338,6 +334,7 @@ MODULE admm_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
@@ -347,16 +344,13 @@ MODULE admm_methods
 
     SELECT CASE(admm_env%purification_method)
        CASE(do_admm_purify_mo_no_diag, do_admm_purify_cauchy_subspace)
-         CALL purify_mo_cholesky(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                 mos, mos_aux_fit, error)
+         CALL purify_mo_cholesky(admm_env, mos, mos_aux_fit, error)
 
        CASE(do_admm_purify_mo_diag)
-         CALL purify_mo_diag(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                             mos, mos_aux_fit, error)
+         CALL purify_mo_diag(admm_env, mos, mos_aux_fit, error)
 
        CASE DEFAULT
-         CALL purify_mo_none(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                             mos, mos_aux_fit, error)
+         CALL purify_mo_none(admm_env, mos, mos_aux_fit, error)
     END SELECT
 
     CALL timestop(handle)
@@ -473,10 +467,6 @@ MODULE admm_methods
 !>        by minimizing int (psi_i - psi_aux_i)^2 using Lagrangian Multipliers
 !>
 !> \param admm_env The ADMM env
-!> \param para_env The parallel env
-!> \param matrix_s_aux_fit the overlap matrix of the auxiliary fitting basis set
-!> \param matrix_s_mixed the mixed overlap matrix of the auxiliary fitting basis
-!>        set and the orbital basis set
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
 !> \param error ...
@@ -484,14 +474,9 @@ MODULE admm_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE purify_mo_cholesky(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                mos, mos_aux_fit, error)
+  SUBROUTINE purify_mo_cholesky(admm_env, mos, mos_aux_fit, error)
 
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit, &
-                                                matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -551,10 +536,6 @@ MODULE admm_methods
 !>        by minimizing int (psi_i - psi_aux_i)^2 using Lagrangian Multipliers
 !>
 !> \param admm_env The ADMM env
-!> \param para_env The parallel env
-!> \param matrix_s_aux_fit the overlap matrix of the auxiliary fitting basis set
-!> \param matrix_s_mixed the mixed overlap matrix of the auxiliary fitting basis
-!>        set and the orbital basis set
 !> \param mos the MO's of the orbital basis set
 !> \param mos_aux_fit the MO's of the auxiliary fitting basis set
 !> \param error ...
@@ -562,14 +543,9 @@ MODULE admm_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE purify_mo_diag(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                mos, mos_aux_fit, error)
+  SUBROUTINE purify_mo_diag(admm_env, mos, mos_aux_fit, error)
 
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit, &
-                                                matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -636,20 +612,12 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param admm_env ...
-!> \param para_env ...
-!> \param matrix_s_aux_fit ...
-!> \param matrix_s_mixed ...
 !> \param mos ...
 !> \param mos_aux_fit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE purify_mo_none(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                mos, mos_aux_fit, error)
+  SUBROUTINE purify_mo_none(admm_env, mos, mos_aux_fit, error)
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit, &
-                                                matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1710,17 +1678,16 @@ MODULE admm_methods
 !> \param ispin ...
 !> \param admm_env ...
 !> \param mo_set ...
-!> \param mo_coeff ...
 !> \param mo_coeff_aux_fit ...
 !> \param matrix_ks_aux_fit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calc_aux_mo_derivs_none(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit,  &
+  SUBROUTINE calc_aux_mo_derivs_none(ispin, admm_env, mo_set, mo_coeff_aux_fit,  &
                                   matrix_ks_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(cp_fm_type), POINTER                :: mo_coeff_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1771,19 +1738,16 @@ MODULE admm_methods
 !> \param ispin ...
 !> \param admm_env ...
 !> \param mo_set ...
-!> \param mo_coeff ...
-!> \param mo_coeff_aux_fit ...
 !> \param mo_derivs ...
 !> \param mo_derivs_aux_fit ...
 !> \param matrix_ks_aux_fit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+  SUBROUTINE merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, &
                                   mo_derivs_aux_fit, matrix_ks_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

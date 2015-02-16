@@ -633,8 +633,7 @@ SUBROUTINE xml_put(info, tag, attribs, no_attribs, &
 
    SELECT CASE(TYPE)
       CASE('open')
-         CALL xml_put_open_tag_(info, tag, attribs, no_attribs, &
-                  DATA, no_data)
+         CALL xml_put_open_tag_(info, tag, attribs, no_attribs)
       CASE('elem')
          CALL xml_put_element_(info, tag, attribs, no_attribs, &
                   DATA, no_data)
@@ -650,20 +649,14 @@ END SUBROUTINE xml_put
 !> \param tag Tag that was encountered
 !> \param attribs List of attribute-value pairs
 !> \param no_attribs Number of pairs in the list
-!> \param DATA Lines of character data found
-!> \param no_data Number of lines of character data
 ! *****************************************************************************
-SUBROUTINE xml_put_open_tag_(info, tag, attribs, no_attribs, &
-                             DATA, no_data)
+SUBROUTINE xml_put_open_tag_(info, tag, attribs, no_attribs)
 
     TYPE(XML_PARSE), INTENT(inout)           :: info
     CHARACTER(len=*), INTENT(in)             :: tag
     CHARACTER(len=*), DIMENSION(:, :), &
       INTENT(in)                             :: attribs
     INTEGER, INTENT(in)                      :: no_attribs
-    CHARACTER(len=*), DIMENSION(:), &
-      INTENT(in)                             :: DATA
-    INTEGER, INTENT(in)                      :: no_data
 
     CHARACTER(len=300), PARAMETER            :: indent = ' '
 
