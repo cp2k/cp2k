@@ -15,11 +15,9 @@ FC       = mpifrtpx -c
 FC_fixed = mpifrtpx -FI -c
 LD       = mpifrtpx
 AR       = /usr/bin/ar -r
-DFLAGS   = -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -C $(DFLAGS) -P -traditional
-FCFLAGS  = -Kvisimpact,array_private,auto,ilfunc,ocl,NOFLTLD \
-           -Kopenmp -Am -X9 -V -Ec -Qa,d,i,p,t,x -Koptmsg=2 -V \
-           -Cpp -Ccpp
+FCFLAGS  = -Aw -O3 -Kfast,openmp -Kopenmp -Ksimd -Kparallel -X03 -Free -Cpp -Ccpp
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib 
 LIBS     = $(FCFLAGS) -SSL2BLAMP -SCALAPACK -Ntl_trt
 
