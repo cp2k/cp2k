@@ -1749,7 +1749,7 @@ CONTAINS
     ! actual number of groups
 
     IF (.NOT. PRESENT(subgroup_min_size) .AND. .NOT. PRESENT(n_subgroups)) THEN
-       CALL p_abort(routineP//" missing arguments ")
+       CALL mp_abort(routineP//" missing arguments ")
     ENDIF
     IF (PRESENT(subgroup_min_size) .AND. PRESENT(n_subgroups)) THEN
        CALL mp_abort(routineP//" too many arguments ")
