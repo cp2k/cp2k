@@ -11,13 +11,118 @@
 #include <cuda.h>
 #include "cusmm_common.h"
 
-namespace{
+
+
+
+namespace ns_cusmm_dnt_largeDB {
+//**************************************************************************//
+__device__ static inline void load_gmem_into_smem(double *from, double *dest,
+                                           const int length, const int blockdim)
+{
+    if (length < blockdim) { // are there enough threads to load in one step?
+        if (threadIdx.x < length)
+            dest[threadIdx.x] = __ldg(from + threadIdx.x);
+    } else {
+        for (int i = threadIdx.x; i < length; i += blockdim)
+            dest[i] = __ldg(from + i);
+    }
+}
+
+
+//**************************************************************************//
+__device__ static inline void load_gmem_into_regs(double *from, double *dest,
+                                           const int length, const int blockdim)
+{
+    const int NR = (length + blockdim - 1) / blockdim;
+
+    if (length < blockdim) { // are there enough threads to load in one step?
+        if (threadIdx.x < length)
+            dest[0] = __ldg(from + threadIdx.x);
+    } else {
+        int i = threadIdx.x;
+        for (int ri = 0; ri < NR; ri++) {  //loop with fixed bounds
+            if (i < length)
+                dest[ri] = __ldg(from + i);
+            i += blockdim;
+        }
+    }
+}
+
+
+//**************************************************************************//
+__device__ static inline void load_regs_into_smem(double *from, double *dest,
+                                           const int length, const int blockdim)
+{
+   const int NR = (length + blockdim - 1) / blockdim;
+
+   if (length < blockdim) { // are there enough threads to load in one step?
+       if (threadIdx.x < length)
+           dest[threadIdx.x] = from[0];
+   } else {
+        int i = threadIdx.x;
+        for (int ri = 0; ri < NR; ri++) {  //loop with fixed bounds
+            if (i < length)
+                dest[i] = from[ri];
+            i += blockdim;
+        }
+    }
+}
+
+
+//**************************************************************************//
+__device__ static inline void multiply(double *buff_a, double *buff_b, double *buff_c,
+                                const int w, const int m, const int n,
+                                const int M, const int N, const int blockdim)
+{
+    // There might be more threads than needed for the calculation.
+    // Only the first cmax*rmax threads participate in the calculation.
+
+    const int cmax = (n + N - 1) / N; // max tile-column
+    const int rmax = (m + M - 1) / M; //  max tile-row
+    const int c = threadIdx.x / rmax; // this thread's tile-column
+    const int r = threadIdx.x - c * rmax; // this thread's tile-row
+
+    if (c < cmax && r < rmax) // is this thread participating?
+        for (int l = 0; l < w; l++)
+            for (int i = 0; i < N; i++)
+                for (int j = 0; j < M; j++)
+                    buff_c[M * i + j] +=
+                        buff_a[l * m + M * r + j] * buff_b[l * n + N * c + i];
+}
+
+
+//**************************************************************************//
+__device__ static inline void store_results_into_smem(double *from, double *dest,
+                                               const int t, const int v,
+                                               const int m, const int n,
+                                               const int M, const int N,
+                                               const int blockdim)
+{
+    const int rmax = (m + M - 1) / M; //  max tile-row
+    const int c = threadIdx.x / rmax; // this thread's tile-column
+    const int r = threadIdx.x - c * rmax; // this thread's tile-row
+
+    int ctmp = c * N - t;
+    if (ctmp >= -(N - 1) && ctmp < v)
+        for (int i = 0; i < N; i++)
+            if (ctmp + i >= 0 && ctmp + i < v)
+                for (int j = 0; j < M; j++)
+                    if (M * r + j < m) {
+                        dest[(ctmp + i) * m + M * r + j] = from[M * i + j];
+                        from[M * i + j] = 0.0; // reset result tile
+                    }
+
+}
+
+} //end of namespace
 
 //**************************************************************************//
 template < int m, int n, int k, int M, int N, int w, int v, int blockdim, int grouping, int minblocks >
 __global__
 __launch_bounds__(blockdim,minblocks)
 void cusmm_dnt_largeDB(const int *__restrict__ param_stack, int careful, int nruns, double *a_data, double *b_data, double *c_data){
+
+	using namespace ns_cusmm_dnt_largeDB;
 
     // registers to store thread's result tile
     double myc[N * M];
@@ -158,105 +263,4 @@ void cusmm_dnt_largeDB(const int *__restrict__ param_stack, int careful, int nru
     }
 }
 
-
-//**************************************************************************//
-__device__ static inline void load_gmem_into_smem(double *from, double *dest,
-                                           const int length, const int blockdim)
-{
-    if (length < blockdim) { // are there enough threads to load in one step?
-        if (threadIdx.x < length)
-            dest[threadIdx.x] = __ldg(from + threadIdx.x);
-    } else {
-        for (int i = threadIdx.x; i < length; i += blockdim)
-            dest[i] = __ldg(from + i);
-    }
-}
-
-
-//**************************************************************************//
-__device__ static inline void load_gmem_into_regs(double *from, double *dest,
-                                           const int length, const int blockdim)
-{
-    const int NR = (length + blockdim - 1) / blockdim;
-
-    if (length < blockdim) { // are there enough threads to load in one step?
-        if (threadIdx.x < length)
-            dest[0] = __ldg(from + threadIdx.x);
-    } else {
-        int i = threadIdx.x;
-        for (int ri = 0; ri < NR; ri++) {  //loop with fixed bounds
-            if (i < length)
-                dest[ri] = __ldg(from + i);
-            i += blockdim;
-        }
-    }
-}
-
-
-//**************************************************************************//
-__device__ static inline void load_regs_into_smem(double *from, double *dest,
-                                           const int length, const int blockdim)
-{
-   const int NR = (length + blockdim - 1) / blockdim;
-
-   if (length < blockdim) { // are there enough threads to load in one step?
-       if (threadIdx.x < length)
-           dest[threadIdx.x] = from[0];
-   } else {
-        int i = threadIdx.x;
-        for (int ri = 0; ri < NR; ri++) {  //loop with fixed bounds
-            if (i < length)
-                dest[i] = from[ri];
-            i += blockdim;
-        }
-    }
-}
-
-
-//**************************************************************************//
-__device__ static inline void multiply(double *buff_a, double *buff_b, double *buff_c,
-                                const int w, const int m, const int n,
-                                const int M, const int N, const int blockdim)
-{
-    // There might be more threads than needed for the calculation.
-    // Only the first cmax*rmax threads participate in the calculation.
-
-    const int cmax = (n + N - 1) / N; // max tile-column
-    const int rmax = (m + M - 1) / M; //  max tile-row
-    const int c = threadIdx.x / rmax; // this thread's tile-column
-    const int r = threadIdx.x - c * rmax; // this thread's tile-row
-
-    if (c < cmax && r < rmax) // is this thread participating?
-        for (int l = 0; l < w; l++)
-            for (int i = 0; i < N; i++)
-                for (int j = 0; j < M; j++)
-                    buff_c[M * i + j] +=
-                        buff_a[l * m + M * r + j] * buff_b[l * n + N * c + i];
-}
-
-
-//**************************************************************************//
-__device__ static inline void store_results_into_smem(double *from, double *dest,
-                                               const int t, const int v,
-                                               const int m, const int n,
-                                               const int M, const int N,
-                                               const int blockdim)
-{
-    const int rmax = (m + M - 1) / M; //  max tile-row
-    const int c = threadIdx.x / rmax; // this thread's tile-column
-    const int r = threadIdx.x - c * rmax; // this thread's tile-row
-
-    int ctmp = c * N - t;
-    if (ctmp >= -(N - 1) && ctmp < v)
-        for (int i = 0; i < N; i++)
-            if (ctmp + i >= 0 && ctmp + i < v)
-                for (int j = 0; j < M; j++)
-                    if (M * r + j < m) {
-                        dest[(ctmp + i) * m + M * r + j] = from[M * i + j];
-                        from[M * i + j] = 0.0; // reset result tile
-                    }
-
-}
-
-} //end of namespace
 //EOF
