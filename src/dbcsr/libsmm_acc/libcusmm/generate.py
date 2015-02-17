@@ -8,10 +8,11 @@ from glob import glob
 from itertools import product, chain
 from optparse import OptionParser
 
-from kernels.cusmm_dnt_largeDB import Kernel_dnt_largeDB
-from kernels.cusmm_dnt_medium  import Kernel_dnt_medium
-from kernels.cusmm_dnt_small   import Kernel_dnt_small
-from kernels.cusmm_dnt_tiny    import Kernel_dnt_tiny
+from kernels.cusmm_dnt_largeDB  import Kernel_dnt_largeDB
+from kernels.cusmm_dnt_largeDB2 import Kernel_dnt_largeDB2
+from kernels.cusmm_dnt_medium   import Kernel_dnt_medium
+from kernels.cusmm_dnt_small    import Kernel_dnt_small
+from kernels.cusmm_dnt_tiny     import Kernel_dnt_tiny
 
 #===============================================================================
 def main():
@@ -172,7 +173,7 @@ def gen_process(plan):
 def gen_list(plan):
     output  = "void libcusmm_list_blocksizes_d(const int **list, int *length) {\n"
     output += "static const int blocksizes_d[] = { \n"
-    for mnk in plan.keys():
+    for mnk in sorted(plan.keys()):
         output += " %d, %d, %d,\n"%mnk
     output += "};\n\n"
 
