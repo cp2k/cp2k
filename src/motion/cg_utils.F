@@ -83,8 +83,7 @@ CONTAINS
           CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=gopt_param%cg_ls%grad_only, &
                output_unit=output_unit, error=error)
        CASE(ls_fit)
-          CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
-               gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
+          CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brack_limit, &
                gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv, error)
        CASE(ls_gold)
           CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
@@ -99,8 +98,7 @@ CONTAINS
        SELECT CASE(gopt_param%cg_ls%type_id)
        CASE(ls_2pnt)
           IF (gopt_env%dimer_rotation) THEN
-             CALL rotmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy, gopt_param,&
-                  error)
+             CALL rotmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy,error)
           ELSE
              CALL tslmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy, gopt_param,&
                   output_unit, error)
@@ -355,17 +353,15 @@ CONTAINS
 !> \param x0 ...
 !> \param theta ...
 !> \param opt_energy ...
-!> \param gopt_param ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE rotmin_2pnt(gopt_env, dimer_env, x0, theta, opt_energy, gopt_param, error)
+  SUBROUTINE rotmin_2pnt(gopt_env, dimer_env, x0, theta, opt_energy, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, theta
     REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
-    TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmin_2pnt', &
@@ -435,8 +431,6 @@ CONTAINS
 !> \param xvec ...
 !> \param xi ...
 !> \param opt_energy ...
-!> \param brent_tol ...
-!> \param brent_max_iter ...
 !> \param brack_limit ...
 !> \param step ...
 !> \param output_unit ...
@@ -452,13 +446,11 @@ CONTAINS
 !>      xmin that minimizes the energy XVEC+xmin*XI. Replace step
 !>      with the optimal value. Enhanced Version
 ! *****************************************************************************
-  SUBROUTINE linmin_fit(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
+  SUBROUTINE linmin_fit(gopt_env, xvec, xi, opt_energy, &
        brack_limit, step, output_unit, gopt_param, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
-    REAL(KIND=dp)                            :: opt_energy, brent_tol
-    INTEGER                                  :: brent_max_iter
-    REAL(KIND=dp)                            :: brack_limit, step
+    REAL(KIND=dp)                            :: opt_energy, brack_limit, step
     INTEGER                                  :: output_unit
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv

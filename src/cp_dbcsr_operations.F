@@ -676,17 +676,15 @@ CONTAINS
 !> \brief Converts a cp2k full matrix into a DBCSR matrix.
 !> \param[out] matrix         the created BCSR matrix
 !> \param[in] fm              the cpk full matrix
-!> \param[in] threshold       the threshold for determining sparsity
 !> \param[in] distribution    the distribution to use for the new matrix
 !> \param[in] row_blk_size sizes of row blocks
 !> \param[in] col_blk_size sizes of column blocks
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_from_fm(matrix, fm, threshold, distribution, row_blk_size,&
+  SUBROUTINE cp_dbcsr_from_fm(matrix, fm, distribution, row_blk_size,&
        col_blk_size, error)
     TYPE(cp_dbcsr_type), INTENT(OUT)         :: matrix
     TYPE(cp_fm_type), POINTER                :: fm
-    REAL(KIND=dp), INTENT(IN)                :: threshold
     TYPE(dbcsr_distribution_obj)             :: distribution
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -908,16 +906,13 @@ CONTAINS
 !> \brief ...
 !> \param fm ...
 !> \param bc_mat ...
-!> \param alpha ...
 !> \param beta ...
-!> \param keep_sparsity ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE copy_fm_to_dbcsr_bc(fm,bc_mat,alpha,beta,keep_sparsity,error)
+  SUBROUTINE copy_fm_to_dbcsr_bc(fm,bc_mat,beta,error)
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(cp_dbcsr_type)                      :: bc_mat
-    REAL(kind=dp), INTENT(IN), OPTIONAL      :: alpha, beta
-    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
+    REAL(kind=dp), INTENT(IN), OPTIONAL      :: beta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_dbcsr_bc', &

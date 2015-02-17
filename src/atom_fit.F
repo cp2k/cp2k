@@ -168,17 +168,16 @@ CONTAINS
 !> \param basis ...
 !> \param pptype ...
 !> \param iunit ...
-!> \param iw ...
 !> \param powell_section ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_fit_basis (atom_info,basis,pptype,iunit,iw,powell_section,&
+  SUBROUTINE atom_fit_basis (atom_info,basis,pptype,iunit,powell_section,&
                              error)
     TYPE(atom_p_type), DIMENSION(:, :), &
       POINTER                                :: atom_info
     TYPE(atom_basis_type), POINTER           :: basis
     LOGICAL, INTENT(IN)                      :: pptype
-    INTEGER, INTENT(IN)                      :: iunit, iw
+    INTEGER, INTENT(IN)                      :: iunit
     TYPE(section_vals_type), POINTER         :: powell_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -474,17 +473,15 @@ CONTAINS
 !> \param atom_refs ...
 !> \param ppot ...
 !> \param iunit ...
-!> \param pseudo_section ...
 !> \param powell_section ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_fit_pseudo (atom_info,atom_refs,ppot,iunit,&
-                              pseudo_section,powell_section,error)
+  SUBROUTINE atom_fit_pseudo (atom_info,atom_refs,ppot,iunit,powell_section,error)
     TYPE(atom_p_type), DIMENSION(:, :), &
       POINTER                                :: atom_info, atom_refs
     TYPE(atom_potential_type), POINTER       :: ppot
     INTEGER, INTENT(IN)                      :: iunit
-    TYPE(section_vals_type), POINTER         :: pseudo_section, powell_section
+    TYPE(section_vals_type), POINTER         :: powell_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pseudo', &

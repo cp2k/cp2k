@@ -250,9 +250,7 @@ CONTAINS
 
     CALL dbcsr_data_clear_pointer (block)
     IF(found) THEN
-       CALL dbcsr_set_block_pointer (matrix, block, stored_row, stored_col,&
-            rsize, csize, stored_tr, offset,&
-            error=error)
+       CALL dbcsr_set_block_pointer (matrix, block,rsize, csize, stored_tr, offset,error=error)
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        iw = 1
 !$     iw = omp_get_thread_num()+1
@@ -684,20 +682,18 @@ CONTAINS
 !> \brief Sets a pointer, possibly using the buffers.
 !> \param[in] matrix           Matrix to use
 !> \param[in,out] pointer_any The pointer to set
-!> \param[in] row Row of block to point to
-!> \param[in] col Column of block to point to
 !> \param[in] rsize Row sizes of block to point to
 !> \param[in] csize Column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
 !> \param[in,out] error        error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_set_block_pointer_any (matrix, pointer_any, row, col,&
+  SUBROUTINE dbcsr_set_block_pointer_any (matrix, pointer_any,&
        rsize, csize, main_tr, base_offset, &
        error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: pointer_any
-    INTEGER, INTENT(IN)                      :: row, col, rsize, csize
+    INTEGER, INTENT(IN)                      :: rsize, csize
     LOGICAL, INTENT(IN)                      :: main_tr
     INTEGER, INTENT(IN)                      :: base_offset
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error

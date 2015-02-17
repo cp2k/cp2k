@@ -253,11 +253,11 @@ CONTAINS
     iunit = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_BASIS",extension=".log",error=error)
     IF ( had_ae ) THEN
       pp_calc = .FALSE.
-      CALL atom_fit_basis(atom_info,ae_basis,pp_calc,iunit,iw,powell_section,error)
+      CALL atom_fit_basis(atom_info,ae_basis,pp_calc,iunit,powell_section,error)
     END IF
     IF ( had_pp ) THEN
       pp_calc = .TRUE.
-      CALL atom_fit_basis(atom_info,pp_basis,pp_calc,iunit,iw,powell_section,error)
+      CALL atom_fit_basis(atom_info,pp_basis,pp_calc,iunit,powell_section,error)
     END IF
     CALL cp_print_key_finished_output(iunit,logger,atom_section,"PRINT%FIT_BASIS",error=error)
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)

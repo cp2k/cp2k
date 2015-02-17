@@ -1757,7 +1757,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: col, head
     INTEGER, INTENT(out)                     :: info
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: col2, dbegin, dend, i, ipntr, &
                                                 is, is1, iy, jpntr, js, js1, &
@@ -2774,7 +2774,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(in)                :: x(n), g(n)
     REAL(KIND=dp)                            :: g_inf_norm
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: gi

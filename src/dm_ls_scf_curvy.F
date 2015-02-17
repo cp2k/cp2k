@@ -442,7 +442,7 @@ CONTAINS
          CALL cp_dbcsr_add(matrix_Ax,matrix_cg,1.0_dp,shift,error=error)
               
          CALL compute_cg_matrices(matrix_Ax,matrix_res,matrix_cg,matrix_dp(ispin),&
-              matrix_tmp,eps_filter,at_limit,unit_nr,error)
+              matrix_tmp,eps_filter,at_limit,error)
          CALL cp_dbcsr_filter(matrix_cg,eps_filter,error=error)
 
 ! check for convergence of the newton step
@@ -501,18 +501,16 @@ CONTAINS
 !> \param tmp ...
 !> \param eps_filter ...
 !> \param at_limit ...
-!> \param unit_nr ...
 !> \param error ...
 !> \par History
 !>       2012.05 created [Florian Schiffmann]
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE compute_cg_matrices(Ax,res,cg,deltp,tmp,eps_filter,at_limit,unit_nr,error)          
+  SUBROUTINE compute_cg_matrices(Ax,res,cg,deltp,tmp,eps_filter,at_limit,error)          
     TYPE(cp_dbcsr_type)                      :: Ax, res, cg, deltp, tmp
     REAL(KIND=dp)                            :: eps_filter
     LOGICAL                                  :: at_limit
-    INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cg_matrices', &

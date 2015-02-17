@@ -340,7 +340,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_PSEUDO",extension=".log",error=error)
     IF (iw>0) THEN
         powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-        CALL atom_fit_pseudo (atom_info,atom_refs,p_pot,iw,potential_section,powell_section,error)
+        CALL atom_fit_pseudo (atom_info,atom_refs,p_pot,iw,powell_section,error)
     END IF
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_PSEUDO",error=error)
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%POTENTIAL",extension=".log",error=error)

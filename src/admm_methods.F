@@ -295,7 +295,7 @@ MODULE admm_methods
                                   mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit, error)
 
       CASE(do_admm_purify_mo_no_diag)
-        CALL merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+        CALL merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, matrix_ks_aux_fit, error)
 
       CASE(do_admm_purify_none, do_admm_purify_cauchy,do_admm_purify_cauchy_subspace)
           !do nothing
@@ -334,12 +334,11 @@ MODULE admm_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
-    CALL fit_mo_coeffs(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                 mos, mos_aux_fit, geometry_did_change,&
+    CALL fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_mixed, &
+                                 mos, geometry_did_change,&
                                  blocked=admm_env%block_fit, error=error)
 
     SELECT CASE(admm_env%purification_method)
@@ -361,24 +360,21 @@ MODULE admm_methods
 ! *****************************************************************************
 !> \brief ...
 !> \param admm_env ...
-!> \param para_env ...
 !> \param matrix_s_aux_fit ...
 !> \param matrix_s_mixed ...
 !> \param mos ...
-!> \param mos_aux_fit ...
 !> \param geometry_did_change ...
 !> \param blocked ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE fit_mo_coeffs(admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                                   mos, mos_aux_fit, geometry_did_change, blocked, error)
+  SUBROUTINE fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_mixed, &
+                                   mos,  geometry_did_change, blocked, error)
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos, mos_aux_fit
+      POINTER                                :: mos
     LOGICAL, INTENT(IN)                      :: geometry_did_change, blocked
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1739,17 +1735,15 @@ MODULE admm_methods
 !> \param admm_env ...
 !> \param mo_set ...
 !> \param mo_derivs ...
-!> \param mo_derivs_aux_fit ...
 !> \param matrix_ks_aux_fit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, &
-                                  mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+  SUBROUTINE merge_mo_derivs_no_diag(ispin, admm_env, mo_set, mo_derivs, matrix_ks_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs, mo_derivs_aux_fit
+      POINTER                                :: mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error

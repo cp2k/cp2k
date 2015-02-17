@@ -2483,16 +2483,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief various methods for calculating the Harris-Foulkes correction
-!> \param qs_env ...
 !> \param almo_scf_env ...
 !> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE harris_foulkes_correction(qs_env,almo_scf_env,error)
+  SUBROUTINE harris_foulkes_correction(almo_scf_env,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type)                  :: almo_scf_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

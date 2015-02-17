@@ -64,7 +64,7 @@ CONTAINS
     CALL atom_header(iw)
     CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%PROGRAM_BANNER",error=error)
 
-    CALL atom_test(atom_section,iw,error)
+    CALL atom_test(atom_section,error)
 
     CALL section_vals_val_get(atom_section,"RUN_TYPE",i_val=run_type_id,error=error)
     SELECT CASE (run_type_id)
@@ -91,12 +91,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param atom_section ...
-!> \param iw ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE atom_test(atom_section,iw,error)
+  SUBROUTINE atom_test(atom_section,error)
     TYPE(section_vals_type), POINTER         :: atom_section
-    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_test', &

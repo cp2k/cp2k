@@ -1451,13 +1451,34 @@ IF (ABS(z) > 3.0e0_dp*eps) THEN
 ENDIF
 
 ierr = 0
-IF (x == 0.0e0_dp) GO TO 200
-IF (y == 0.0e0_dp) GO TO 210
-IF (a == 0.0e0_dp) GO TO 211
-IF (b == 0.0e0_dp) GO TO 201
+
+IF (x == 0.0e0_dp .OR. a == 0.0e0_dp) THEN
+   IF (x == 0.0e0_dp .AND. a == 0.0e0_dp) THEN
+      ierr = 6
+   ELSE
+      w = 0.0e0_dp
+      w1 = 1.0e0_dp
+   ENDIF
+   RETURN
+ENDIF
+
+IF (y == 0.0e0_dp .OR. b == 0.0e0_dp) THEN
+   IF (y == 0.0e0_dp .AND. b == 0.0e0_dp) THEN
+      ierr = 7
+   ELSE
+      w = 1.0e0_dp
+      w1 = 0.0e0_dp
+   ENDIF
+   RETURN
+ENDIF
 
 eps = MAX(eps, 1.e-15_dp)
-IF (MAX(a,b) < 1.e-3_dp*eps) GO TO 230
+IF (MAX(a,b) < 1.e-3_dp*eps) THEN
+!           PROCEDURE FOR A AND B .LT. 1.E-3*EPS
+   w = b/(a + b)
+   w1 = a/(a + b)
+   RETURN
+ENDIF
 
 ind = 0
 a0 = a
@@ -1494,19 +1515,22 @@ GO TO 130
 
 !             PROCEDURE FOR A0 .GT. 1 AND B0 .GT. 1
 
-30 IF (a > b) GO TO 31
-lambda = a - (a + b)*x
-GO TO 32
-31 lambda = (a + b)*y - b
-32 IF (lambda >= 0.0e0_dp) GO TO 40
-ind = 1
-a0 = b
-b0 = a
-x0 = y
-y0 = x
-lambda = ABS(lambda)
+30 IF (a > b) THEN
+   lambda = (a + b)*y - b
+ELSE
+   lambda = a - (a + b)*x
+ENDIF
 
-40 IF (b0 < 40.0e0_dp .AND. b0*x0 <= 0.7e0_dp) GO TO 100
+IF (lambda < 0.0e0_dp) THEN
+   ind = 1
+   a0 = b
+   b0 = a
+   x0 = y
+   y0 = x
+   lambda = ABS(lambda)
+ENDIF
+
+IF (b0 < 40.0e0_dp .AND. b0*x0 <= 0.7e0_dp) GO TO 100
 IF (b0 < 40.0e0_dp) GO TO 140
 IF (a0 > b0) GO TO 50
 IF (a0 <= 100.0e0_dp) GO TO 120
@@ -1570,33 +1594,10 @@ GO TO 220
 
 !               TERMINATION OF THE PROCEDURE
 
-200 IF (a == 0.0e0_dp) THEN
-  ierr = 6
-  RETURN
-ENDIF
-201 w = 0.0e0_dp
-w1 = 1.0e0_dp
-RETURN
-
-210 IF (b == 0.0e0_dp) THEN
-  ierr = 7
-  RETURN
-ENDIF
-211 w = 1.0e0_dp
-w1 = 0.0e0_dp
-RETURN
-
 220 IF (ind == 0) RETURN
 t = w
 w = w1
 w1 = t
-RETURN
-
-!           PROCEDURE FOR A AND B .LT. 1.E-3*EPS
-
-230 w = b/(a + b)
-w1 = a/(a + b)
-RETURN
 
 END SUBROUTINE bratio
 
@@ -2008,7 +2009,40 @@ FUNCTION brcomp (a, b, x, y) RESULT(fn_val)
 fn_val = 0.0e0_dp
 IF (x == 0.0e0_dp .OR. y == 0.0e0_dp) RETURN
 a0 = MIN(a,b)
-IF (a0 >= 8.0e0_dp) GO TO 100
+IF (a0 >= 8.0e0_dp) THEN
+!-----------------------------------------------------------------------
+!              PROCEDURE FOR A .GE. 8 AND B .GE. 8
+!-----------------------------------------------------------------------
+   IF (a > b) THEN
+      h = b/a
+      x0 = 1.0e0_dp/(1.0e0_dp + h)
+      y0 = h/(1.0e0_dp + h)
+      lambda = (a + b)*y - b
+   ELSE
+      h = a/b
+      x0 = h/(1.0e0_dp + h)
+      y0 = 1.0e0_dp/(1.0e0_dp + h)
+      lambda = a - (a + b)*x
+   ENDIF
+
+   e = -lambda/a
+   IF (ABS(e) > 0.6e0_dp) THEN
+      u = e - LOG(x/x0)
+   ELSE
+      u = rlog1(e)
+   ENDIF
+
+   e = lambda/b
+   IF (ABS(e) > 0.6e0_dp) THEN
+      v = e - LOG(y/y0)
+   ELSE
+      v = rlog1(e)
+   ENDIF
+
+   z = EXP(-(a*u + b*v))
+   fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
+   RETURN
+ENDIF
 
 IF (x > 0.375e0_dp) THEN
   IF (y > 0.375e0_dp) THEN
@@ -2032,8 +2066,12 @@ ENDIF
 !-----------------------------------------------------------------------
 !              PROCEDURE FOR A .LT. 1 OR B .LT. 1
 !-----------------------------------------------------------------------
-30 b0 = MAX(a,b)
-IF (b0 >= 8.0e0_dp) GO TO 80
+b0 = MAX(a,b)
+IF (b0 >= 8.0e0_dp) THEN
+!                   ALGORITHM FOR B0 .GE. 8
+   u = gamln1(a0) + algdiv(a0,b0)
+   fn_val = a0*EXP(z - u)
+ENDIF
 IF (b0 <= 1.0e0_dp) THEN
 
 !                   ALGORITHM FOR B0 .LE. 1
@@ -2056,60 +2094,29 @@ ENDIF
 
 !                ALGORITHM FOR 1 .LT. B0 .LT. 8
 
-60 u = gamln1(a0)
+u = gamln1(a0)
 n = INT(b0 - 1.0e0_dp)
-IF (n < 1) GO TO 70
-c = 1.0e0_dp
-DO i = 1, n
-  b0 = b0 - 1.0e0_dp
-  c = c*(b0/(a0 + b0))
-END DO
-u = LOG(c) + u
+IF (n >= 1) THEN
+   c = 1.0e0_dp
+   DO i = 1, n
+      b0 = b0 - 1.0e0_dp
+      c = c*(b0/(a0 + b0))
+   END DO
+   u = LOG(c) + u
+ENDIF
 
-70 z = z - u
+z = z - u
 b0 = b0 - 1.0e0_dp
 apb = a0 + b0
-IF (apb > 1.0e0_dp) GO TO 71
-t = 1.0e0_dp + gam1(apb)
-GO TO 72
-71 u = a0 + b0 - 1.e0_dp
-t = (1.0e0_dp + gam1(u))/apb
-72 fn_val = a0*EXP(z)*(1.0e0_dp + gam1(b0))/t
-RETURN
+IF (apb > 1.0e0_dp) THEN
+   u = a0 + b0 - 1.e0_dp
+   t = (1.0e0_dp + gam1(u))/apb
+ELSE
+   t = 1.0e0_dp + gam1(apb)
+ENDIF
+fn_val = a0*EXP(z)*(1.0e0_dp + gam1(b0))/t
 
-!                   ALGORITHM FOR B0 .GE. 8
 
-80 u = gamln1(a0) + algdiv(a0,b0)
-fn_val = a0*EXP(z - u)
-RETURN
-!-----------------------------------------------------------------------
-!              PROCEDURE FOR A .GE. 8 AND B .GE. 8
-!-----------------------------------------------------------------------
-100 IF (a > b) GO TO 101
-h = a/b
-x0 = h/(1.0e0_dp + h)
-y0 = 1.0e0_dp/(1.0e0_dp + h)
-lambda = a - (a + b)*x
-GO TO 110
-101 h = b/a
-x0 = 1.0e0_dp/(1.0e0_dp + h)
-y0 = h/(1.0e0_dp + h)
-lambda = (a + b)*y - b
-
-110 e = -lambda/a
-IF (ABS(e) > 0.6e0_dp) GO TO 111
-u = rlog1(e)
-GO TO 120
-111 u = e - LOG(x/x0)
-
-120 e = lambda/b
-IF (ABS(e) > 0.6e0_dp) GO TO 121
-v = rlog1(e)
-GO TO 130
-121 v = e - LOG(y/y0)
-
-130 z = EXP(-(a*u + b*v))
-fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
 
 END FUNCTION brcomp
 

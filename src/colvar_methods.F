@@ -1642,7 +1642,7 @@ CPSourceFileRef)
        CASE (xyz_outerdiag_colvar_id)
           CALL xyz_outerdiag_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (u_colvar_id)
-          CALL u_colvar(colvar,force_env=force_env,subsys=subsys,error=error)
+          CALL u_colvar(colvar,force_env=force_env,error=error)
        CASE (Wc_colvar_id)
           CALL Wc_colvar(colvar,cell,subsys=subsys, qs_env=qs_env, error=error)
        CASE (HBP_colvar_id)
@@ -2011,16 +2011,14 @@ CPSourceFileRef)
 !> \brief evaluates the force due (and on) the energy as collective variable
 !> \param colvar ...
 !> \param force_env ...
-!> \param subsys ...
 !> \param error ...
 !> \par History Modified to allow functions of energy in a mixed_env environment
 !>              Teodoro Laino [tlaino] - 02.2011
 !> \author Sebastiano Caravati
 ! *****************************************************************************
-  SUBROUTINE u_colvar(colvar,force_env,subsys,error)
+  SUBROUTINE u_colvar(colvar,force_env,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'u_colvar', &

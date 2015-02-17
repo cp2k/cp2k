@@ -247,6 +247,7 @@ CONTAINS
        optimizer%obj_funct => obj_funct
        CALL gopt_f_retain(obj_funct, error=error)
        optimizer%max_f_per_iter=20
+       IF(PRESENT(max_f_per_iter)) optimizer%max_f_per_iter=max_f_per_iter
        optimizer%print_every=-1
        optimizer%n_iter=0
        optimizer%f=-1.0_dp

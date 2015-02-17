@@ -176,7 +176,6 @@ CONTAINS
                                 cts_env%matrix_p,&
                                 cts_env%matrix_t,&
                                 cts_env%matrix_v,&
-                                cts_env%p_index_down,&
                                 cts_env%q_index_down,&
                                 cts_env%p_index_up,&
                                 cts_env%q_index_up,&
@@ -568,7 +567,6 @@ CONTAINS
 !> \param p ...
 !> \param t ...
 !> \param v ...
-!> \param p_index_down ...
 !> \param q_index_down ...
 !> \param p_index_up ...
 !> \param q_index_up ...
@@ -584,12 +582,11 @@ CONTAINS
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE assemble_ks_qp_blocks(ks,p,t,v,p_index_down,q_index_down,&
+  SUBROUTINE assemble_ks_qp_blocks(ks,p,t,v,q_index_down,&
     p_index_up,q_index_up,pp,qq,qp,pq,tensor_type,use_virt_orbs,eps_filter,error)
 
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: ks, p, t, v, p_index_down, &
-                                                q_index_down, p_index_up, &
-                                                q_index_up
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: ks, p, t, v, q_index_down, &
+                                                p_index_up, q_index_up
     TYPE(cp_dbcsr_type), INTENT(OUT)         :: pp, qq, qp, pq
     INTEGER, INTENT(IN)                      :: tensor_type
     LOGICAL, INTENT(IN)                      :: use_virt_orbs
@@ -1047,7 +1044,7 @@ CONTAINS
           ! compute preconditioner
           !IF (iteration.eq.0.OR.(mod(iteration,update_prec_freq).eq.0)) THEN
           IF (iteration.eq.0) THEN
-             CALL create_preconditioner(prec,aux1,aux2,qp,res,tensor_type,eps_filter,error)
+             CALL create_preconditioner(prec,aux1,aux2,eps_filter,error)
              !restart_conjugator=.TRUE.
 !CALL cp_dbcsr_set(prec,1.0_dp,error)
 !CALL cp_dbcsr_print(prec,error=error)
@@ -1291,20 +1288,16 @@ CONTAINS
 !> \param prec ...
 !> \param pp ...
 !> \param qq ...
-!> \param qp ...
-!> \param res ...
-!> \param tensor_type ...
 !> \param eps_filter ...
 !> \param error ...
 !> \par History
 !>       2011.07 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE create_preconditioner(prec,pp,qq,qp,res,tensor_type,eps_filter,error)
+  SUBROUTINE create_preconditioner(prec,pp,qq,eps_filter,error)
 
     TYPE(cp_dbcsr_type), INTENT(OUT)         :: prec
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: pp, qq, qp, res
-    INTEGER, INTENT(IN)                      :: tensor_type
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: pp, qq
     REAL(KIND=dp), INTENT(IN)                :: eps_filter
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

@@ -1501,7 +1501,7 @@ CONTAINS
             description="Maximum number of force evaluations per iteration"// &
             "(used for the line search)",&
             usage="MAX_F_PER_ITER {integer}",&
-            default_i_val=3,error=error)
+            default_i_val=20,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -785,7 +785,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                   dbcsr_distribution_row_dist(cp_dbcsr_distribution( s_sparse(1)%matrix )), col_dist)
              !
              CALL cp_dbcsr_init(mo_dbcsr, error=error)
-             CALL cp_dbcsr_from_fm(mo_dbcsr, mo_coeff, 0.0_dp, dist,&
+             CALL cp_dbcsr_from_fm(mo_dbcsr, mo_coeff, dist,&
                                 row_blk_size=cp_dbcsr_row_block_sizes (s_sparse(1)%matrix),&
                                 col_blk_size=col_blk_size,&
                                 error=error)
