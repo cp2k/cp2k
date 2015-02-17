@@ -2649,9 +2649,10 @@ CONTAINS
                                nze_local, nrows_local, mp_group, data_type, error)
 
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
-    INTEGER, INTENT(IN)                      :: nrows_total, ncols_total, mp_group
+    INTEGER, INTENT(IN)                      :: nrows_total, ncols_total
     INTEGER(KIND=int_8)                      :: nze_total
-    INTEGER, INTENT(IN)                      :: nze_local, nrows_local
+    INTEGER, INTENT(IN)                      :: nze_local, nrows_local, &
+                                                mp_group
     INTEGER, INTENT(IN), OPTIONAL            :: data_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

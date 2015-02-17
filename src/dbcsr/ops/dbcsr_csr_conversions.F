@@ -208,7 +208,8 @@ CONTAINS
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER, INTENT(IN)                      :: nrows_total, ncols_total
     INTEGER(KIND=int_8)                      :: nze_total
-    INTEGER, INTENT(IN)                      :: nze_local, nrows_local, mp_group
+    INTEGER, INTENT(IN)                      :: nze_local, nrows_local, &
+                                                mp_group
     INTEGER, INTENT(IN), OPTIONAL            :: data_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -531,10 +532,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_brd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_type, error_handler, &
-                                                nfullcols_total, nfullrows, &
-                                                nfullrows_total, nze_local, &
-                                                mp_group
+    INTEGER :: data_type, error_handler, mp_group, nfullcols_total, &
+      nfullrows, nfullrows_total, nze_local
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: zero_ind
     INTEGER, DIMENSION(:), POINTER           :: cdist, csr_index, dbcsr_index
