@@ -70,10 +70,11 @@ MODULE dm_ls_scf
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
   USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
+                                             pexsi_finalize_scf,&
                                              pexsi_init_read_input,&
+                                             pexsi_init_scf,&
                                              pexsi_to_qs
-  USE pexsi_types,                     ONLY: lib_pexsi_finalize,&
-                                             lib_pexsi_init
+  USE pexsi_types,                     ONLY: lib_pexsi_init
   USE qs_diis,                         ONLY: qs_diis_b_clear_sparse,&
                                              qs_diis_b_create_sparse,&
                                              qs_diis_b_step_4lscf
@@ -214,6 +215,11 @@ CONTAINS
     ls_scf_env%scf_history%istore=0
     ALLOCATE(ls_scf_env%scf_history%matrix(ls_scf_env%nspins,ls_scf_env%scf_history%nstore))
 
+    ! initialize PEXSI
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+       CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins, error)
+    ENDIF
+ 
     ! put the ls_scf_env in qs_env
     CALL set_qs_env(qs_env,ls_scf_env=ls_scf_env,error=error)
 
@@ -294,9 +300,9 @@ CONTAINS
 
     ! get the initial guess for the SCF
     CALL ls_scf_initial_guess(qs_env,ls_scf_env,error)
-  
+
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
-       CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%matrix_s, nspin, error)
+       CALL pexsi_init_scf(ls_scf_env%pexsi, ls_scf_env%matrix_s, error)
     ENDIF
 
     IF (qs_env%do_transport) THEN
@@ -1234,7 +1240,7 @@ CONTAINS
     DEALLOCATE(ls_scf_env%matrix_ks)
 
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) &
-      CALL lib_pexsi_finalize(ls_scf_env%pexsi, error)
+      CALL pexsi_finalize_scf(ls_scf_env%pexsi, error)
 
     CALL timestop(handle)
 

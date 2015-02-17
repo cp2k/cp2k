@@ -17,14 +17,10 @@ MODULE pexsi_types
   USE bibliography,                    ONLY: Lin2009,&
                                              Lin2013,&
                                              cite_reference
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_convert_dbcsr_to_csr, cp_csr_create, cp_csr_create_from_dbcsr, &
-       cp_csr_destroy, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_has_symmetry, &
-       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
-       cp_dbcsr_type, csr_eqrow_floor_dist, csr_type, dbcsr_distribution_mp, &
-       dbcsr_mp_group, dbcsr_type_no_symmetry
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_scale,&
+                                             cp_dbcsr_type,&
+                                             csr_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE message_passing,                 ONLY: mp_dims_create,&
@@ -55,6 +51,7 @@ MODULE pexsi_types
 !> \brief All PEXSI related data
 !> \param options                       PEXSI options
 !> \param plan                          PEXSI plan
+!> \param mp_group                      message-passing group ID
 !> \param mp_dims                       dimensions of the MPI cartesian grid used 
 !>                                      for PEXSI
 !> \param num_ranks_per_pole            number of MPI ranks per pole in PEXSI
@@ -71,7 +68,6 @@ MODULE pexsi_types
 !>                                      returned by the Arnoldi method used to 
 !>                                      determine the spectral radius deltaE
 !> \param nspin                         number of spins
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
@@ -88,7 +84,7 @@ MODULE pexsi_types
       POINTER                                :: matrix_w => NULL()
 
     INTEGER(kind=int_8)                      :: plan
-    INTEGER                                  :: nspin, num_ranks_per_pole 
+    INTEGER                                  :: nspin, num_ranks_per_pole, mp_group
 
     TYPE(cp_dbcsr_type), DIMENSION(:), &
       POINTER                                :: max_ev_vector
@@ -98,29 +94,25 @@ MODULE pexsi_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Initialize PEXSI and prepare the conversions of the matrices from 
-!>        DBCSR to CSR format
+!> \brief Initialize PEXSI
 !> \param pexsi_env All data needed by PEXSI 
-!> \param template_matrix DBCSR matrix that defines the block structure and
-!>        sparsity pattern of all matrices that are sent to PEXSI
+!> \param mp_group message-passing group ID
 !> \param nspin number of spins
 !> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE lib_pexsi_init(pexsi_env, template_matrix, nspin, error)
+  SUBROUTINE lib_pexsi_init(pexsi_env, mp_group, nspin, error)
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: template_matrix
-    INTEGER, INTENT(IN)                      :: nspin
+    INTEGER, INTENT(IN)                      :: mp_group, nspin
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lib_pexsi_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, mp_group, &
-                                                mynode, npSymbFact, numnodes, &
-                                                unit_nr
+    INTEGER                                  :: handle, ispin, mynode, &
+                                                npSymbFact, numnodes, unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
@@ -135,8 +127,8 @@ CONTAINS
     CALL cite_reference(Lin2009)
     CALL cite_reference(Lin2013)
 
-    mp_group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(template_matrix)))
-    CALL mp_environ(numnodes, mynode, mp_group)
+    pexsi_env%mp_group = mp_group
+    CALL mp_environ(numnodes, mynode, pexsi_env%mp_group)
 
     ! Use all nodes available per pole by default or if the user tries to use 
     ! more nodes than MPI size
@@ -163,46 +155,17 @@ CONTAINS
     pexsi_env%mp_dims=0
     CALL mp_dims_create(pexsi_env%num_ranks_per_pole, pexsi_env%mp_dims)
 
-    ! Create template matrices fixing sparsity pattern for PEXSI
-    CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_sym, error)
-    CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_nonsym, error)
-    SELECT CASE (cp_dbcsr_has_symmetry (template_matrix))
-    CASE (.TRUE.)
-      CALL cp_dbcsr_copy(pexsi_env%dbcsr_template_matrix_sym, template_matrix,&
-                         "symmetric template matrix for CSR conversion", error=error)
-      CALL cp_dbcsr_desymmetrize(pexsi_env%dbcsr_template_matrix_sym, &
-                                 pexsi_env%dbcsr_template_matrix_nonsym, error)
-    CASE (.FALSE.)
-      CALL cp_dbcsr_copy(pexsi_env%dbcsr_template_matrix_nonsym, template_matrix,& 
-                         "non-symmetric template matrix for CSR conversion", error=error)
-      CALL cp_dbcsr_copy(pexsi_env%dbcsr_template_matrix_sym, template_matrix,&
-                         "symmetric template matrix for CSR conversion", error=error)
-    END SELECT
-
-    ! Create CSR matrices used for conversion to matrix format of PEXSI
-    CALL cp_csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s, &
-                      csr_eqrow_floor_dist, numnodes = pexsi_env%num_ranks_per_pole, error=error)
-    CALL cp_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s, error=error)
-
-    CALL cp_csr_create(pexsi_env%csr_mat_ks, pexsi_env%csr_mat_s, error = error)
-    CALL cp_csr_create(pexsi_env%csr_mat_p, pexsi_env%csr_mat_s, error = error)
-    CALL cp_csr_create(pexsi_env%csr_mat_E, pexsi_env%csr_mat_s, error = error)
-    CALL cp_csr_create(pexsi_env%csr_mat_F, pexsi_env%csr_mat_s, error = error)
-
-    ! Prepare matrix_w and kTS
+    ! allocations with nspin
     pexsi_env%nspin=nspin
     ALLOCATE(pexsi_env%kTS(nspin))
     ALLOCATE(pexsi_env%max_ev_vector(nspin))
-    CALL cp_dbcsr_allocate_matrix_set(pexsi_env%matrix_w, nspin, error)
-    DO ispin=1, nspin
+    ALLOCATE(pexsi_env%matrix_w(nspin))
+    DO ispin = 1, pexsi_env%nspin 
       ALLOCATE(pexsi_env%matrix_w(ispin)%matrix)
-      CALL cp_dbcsr_init(pexsi_env%matrix_w(ispin)%matrix, error)
-      CALL cp_dbcsr_create(pexsi_env%matrix_w(ispin)%matrix, "W matrix",&
-        template = template_matrix, matrix_type=dbcsr_type_no_symmetry, error = error)
     ENDDO
-   
+
     ! Initialize PEXSI
-    pexsi_env%plan = cp_pexsi_plan_initialize(mp_group,pexsi_env%mp_dims(1),&
+    pexsi_env%plan = cp_pexsi_plan_initialize(pexsi_env%mp_group,pexsi_env%mp_dims(1),&
                                               pexsi_env%mp_dims(2),mynode,error)
 
     ! Print PEXSI infos
@@ -229,25 +192,17 @@ CONTAINS
     INTEGER                                  :: handle, ispin
 
     CALL timeset(routineN,handle)
-
     CALL cp_pexsi_plan_finalize(pexsi_env%plan, error)
-
-    CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_sym, error)
-    CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_nonsym, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_p, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_ks, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_s, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_E, error)
-    CALL cp_csr_destroy(pexsi_env%csr_mat_F, error)
-    CALL cp_dbcsr_deallocate_matrix_set(pexsi_env%matrix_w, error)
     DEALLOCATE(pexsi_env%kTS)
+    DEALLOCATE(pexsi_env%max_ev_vector)
     DO ispin = 1, pexsi_env%nspin
-      CALL cp_dbcsr_release(pexsi_env%max_ev_vector(ispin), error)
+      DEALLOCATE(pexsi_env%matrix_w(ispin)%matrix)
     ENDDO
-    DEALLOCATE(pexsi_env%max_ev_vector) 
-
+    DEALLOCATE(pexsi_env%matrix_w) 
     CALL timestop(handle)
   END SUBROUTINE lib_pexsi_finalize
+
+
 
 ! *****************************************************************************
 !> \brief Scale various quantities with factors of 2. This converts spin restricted
@@ -313,7 +268,7 @@ CONTAINS
     REAL(KIND=dp) :: gap, muInertiaExpansion, muInertiaTolerance, muMax0, &
       muMin0, muPEXSISafeGuard, numElectronPEXSITolerance, temperature
 
-    CALL mp_environ(numnodes, mynode, pexsi_env%csr_mat_s%mp_group)
+    CALL mp_environ(numnodes, mynode, pexsi_env%mp_group)
 
     CALL cp_pexsi_get_options(pexsi_env%options, temperature=temperature, gap=gap, &
            numPole=numPole, muMin0=muMin0, muMax0=muMax0, muInertiaTolerance=&

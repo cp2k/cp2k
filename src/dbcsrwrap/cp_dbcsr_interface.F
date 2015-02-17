@@ -2641,14 +2641,15 @@ CONTAINS
 !> \param nze_total ...
 !> \param nze_local ...
 !> \param nrows_local ...
+!> \param mp_group ...
 !> \param data_type ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_csr_create_new(csr_mat, nrows_total, ncols_total, nze_total,&
-                            nze_local, nrows_local, data_type, error)
+                               nze_local, nrows_local, mp_group, data_type, error)
 
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
-    INTEGER, INTENT(IN)                      :: nrows_total, ncols_total
+    INTEGER, INTENT(IN)                      :: nrows_total, ncols_total, mp_group
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, INTENT(IN)                      :: nze_local, nrows_local
     INTEGER, INTENT(IN), OPTIONAL            :: data_type
@@ -2660,7 +2661,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL csr_create_new(csr_mat, nrows_total, ncols_total, nze_total,&
-                            nze_local, nrows_local, data_type, dbcsr_error)
+                        nze_local, nrows_local, mp_group, data_type, dbcsr_error)
   END SUBROUTINE
 
 ! *****************************************************************************

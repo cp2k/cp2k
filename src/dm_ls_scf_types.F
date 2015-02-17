@@ -16,11 +16,13 @@ MODULE dm_ls_scf_types
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ls_cluster_atomic,&
-                                             ls_cluster_molecular
+                                             ls_cluster_molecular,&
+                                             ls_scf_pexsi
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE pexsi_types,                     ONLY: lib_pexsi_env
+  USE pexsi_types,                     ONLY: lib_pexsi_env,&
+                                             lib_pexsi_finalize
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -182,6 +184,10 @@ CONTAINS
     IF (ASSOCIATED(ls_scf_env%chebyshev%max_energy)) THEN
        DEALLOCATE(ls_scf_env%chebyshev%max_energy,stat=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+       CALL lib_pexsi_finalize(ls_scf_env%pexsi, error)
     ENDIF
 
     DEALLOCATE(ls_scf_env,stat=istat)

@@ -196,6 +196,7 @@ CONTAINS
 !> \param[in] nze_total      total number of non-zero elements
 !> \param[in] nze_local      local number of non-zero elements
 !> \param[in] nrows_local    local number of rows
+!> \param mp_group ...
 !> \param[in] data_type      data type of the CSR matrix (default real double prec.)
 !> \param error ...
 !> \par History
@@ -203,11 +204,11 @@ CONTAINS
 !> \author Patrick Seewald
 ! *****************************************************************************
   SUBROUTINE csr_create_new(csr_mat, nrows_total, ncols_total, nze_total,&
-                            nze_local, nrows_local, data_type, error) 
+                            nze_local, nrows_local, mp_group, data_type, error) 
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER, INTENT(IN)                      :: nrows_total, ncols_total
     INTEGER(KIND=int_8)                      :: nze_total
-    INTEGER, INTENT(IN)                      :: nze_local, nrows_local
+    INTEGER, INTENT(IN)                      :: nze_local, nrows_local, mp_group
     INTEGER, INTENT(IN), OPTIONAL            :: data_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -267,7 +268,12 @@ CONTAINS
                           routineN, "Invalid matrix type",__LINE__,error)
     END SELECT
 
+    csr_mat%mp_group = mp_group
+
     csr_mat%valid = .TRUE.
+    csr_mat%has_mapping = .FALSE.
+    csr_mat%has_indices = .FALSE.
+
     CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE csr_create_new
@@ -300,7 +306,7 @@ CONTAINS
 
     CALL csr_create_new(matrix_b, matrix_a%nrows_total, matrix_a%ncols_total,&
       matrix_a%nze_total, matrix_a%nze_local, matrix_a%nrows_local,&
-      matrix_a%nzval_local%data_type, error)
+      matrix_a%mp_group, matrix_a%nzval_local%data_type, error)
 
     matrix_b%mp_group = matrix_a%mp_group
     matrix_b%has_mapping = matrix_a%has_mapping
@@ -527,7 +533,8 @@ CONTAINS
 
     INTEGER                                  :: data_type, error_handler, &
                                                 nfullcols_total, nfullrows, &
-                                                nfullrows_total, nze_local
+                                                nfullrows_total, nze_local, &
+                                                mp_group
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: zero_ind
     INTEGER, DIMENSION(:), POINTER           :: cdist, csr_index, dbcsr_index
@@ -546,8 +553,7 @@ CONTAINS
       
     dist_current = dbcsr_distribution(brd_mat)
 
-    csr_mat%mp_group = dbcsr_mp_group(dbcsr_distribution_mp(dist_current))
- 
+    mp_group = dbcsr_mp_group(dbcsr_distribution_mp(dist_current))
     col_dist = dbcsr_distribution_col_dist(dist_current)
     cdist => array_data(col_dist)
 
@@ -563,15 +569,14 @@ CONTAINS
 
     ! Sum up local number of non-zero elements to get total number
     nze_total = nze_local
-    CALL mp_sum(nze_total,csr_mat%mp_group) 
+    CALL mp_sum(nze_total,mp_group) 
 
     nfullrows = dbcsr_nfullrows_local(brd_mat)
     data_type = dbcsr_get_data_type(brd_mat)
 
     ! Allocate CSR matrix
-    CALL csr_create_new(csr_mat, nrows_total = nfullrows_total,&
-      ncols_total = nfullcols_total, nze_local = nze_local, nze_total = nze_total,&
-      nrows_local = nfullrows, data_type = data_type, error=error)
+    CALL csr_create_new(csr_mat, nfullrows_total, nfullcols_total, nze_total,&
+                        nze_local, nfullrows, mp_group, data_type, error)
 
     csr_mat%dbcsr_mapping%brd_to_csr_ind => csr_index
     csr_mat%dbcsr_mapping%csr_to_brd_ind => dbcsr_index
