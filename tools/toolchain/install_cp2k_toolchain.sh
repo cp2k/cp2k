@@ -165,8 +165,8 @@ fi
 cat << EOF > ${INSTALLDIR}/lsan.supp
 # known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
-# leak in SuperLU_DIST_3.3
-leak:symbfact_dist
+# leaks related to PEXSI
+leak:PPEXSIDFTDriver
 EOF
 
 # now we need these tools and compiler to be in the path
