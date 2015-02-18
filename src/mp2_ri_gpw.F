@@ -4328,7 +4328,7 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: homo, dimen_RI
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
-    INTEGER :: b_global, handle, iiB, jjB, my_B_size, my_B_virtual_end, &
+    INTEGER :: b_global, iiB, jjB, my_B_size, my_B_virtual_end, &
       my_B_virtual_start, my_i, my_j, proc_receive, proc_send, proc_shift, &
       rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, &
       send_B_virtual_end, send_B_virtual_start, virtual
@@ -4344,7 +4344,7 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_update_P_gamma', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: a, b, stat
+    INTEGER                                  :: a, b, handle, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: P_ij_diag
 
