@@ -2733,7 +2733,7 @@ MODULE mp2_ri_gpw
               Eigenval, homo, dimen_RI, error_sub, b_global, iiB, jjB, my_B_size, &
               my_B_virtual_end, my_B_virtual_start, my_i, my_j, proc_receive, proc_send,proc_shift, &
               rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, & 
-              send_B_virtual_start, virtual, proc_map, sizes_array_orig, sub_proc_map,external_ab, local_ab,&
+              send_B_virtual_start, virtual, proc_map, sub_proc_map,external_ab, local_ab,&
               send_ab, t_ab,local_i_aL, local_j_aL, Y_i_aP, Y_j_aP)
 
             END IF
@@ -4302,7 +4302,6 @@ MODULE mp2_ri_gpw
 !> \param send_B_virtual_start ...
 !> \param virtual ...
 !> \param proc_map ...
-!> \param sizes_array_orig ...
 !> \param sub_proc_map ...
 !> \param external_ab ...
 !> \param local_ab ...
@@ -4317,7 +4316,7 @@ MODULE mp2_ri_gpw
                Eigenval, homo, dimen_RI, error_sub, b_global, iiB, jjB, my_B_size, &
                my_B_virtual_end, my_B_virtual_start, my_i, my_j, proc_receive, proc_send,proc_shift, &
                rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, & 
-               send_B_virtual_start, virtual, proc_map, sizes_array_orig, sub_proc_map,external_ab, local_ab,&
+               send_B_virtual_start, virtual, proc_map, sub_proc_map,external_ab, local_ab,&
                send_ab, t_ab,local_i_aL, local_j_aL, Y_i_aP, Y_j_aP)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
@@ -4331,8 +4330,7 @@ MODULE mp2_ri_gpw
       my_B_virtual_start, my_i, my_j, proc_receive, proc_send, proc_shift, &
       rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, &
       send_B_virtual_end, send_B_virtual_start, virtual
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, sizes_array_orig, &
-                                                sub_proc_map
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, sub_proc_map
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: external_ab, local_ab, &
                                                 send_ab, t_ab
