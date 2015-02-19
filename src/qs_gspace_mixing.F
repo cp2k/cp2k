@@ -49,7 +49,6 @@ MODULE qs_gspace_mixing
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -125,21 +124,25 @@ CONTAINS
 !> \brief  Driver for the g-space mixing, calls the proper routine given the
 !>requested method
 !> \param qs_env ...
-!> \param scf_env ...
+!> \param mixing_method ...
 !> \param mixing_store ...
 !> \param rho ...
 !> \param para_env ...
+!> \param iter_count ...
 !> \param error ...
 !> \par History
 !>      05.2009
+!>      02.2015 changed input to make g-space mixing available in linear scaling 
+!>              SCF [Patrick Seewald]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE gspace_mixing(qs_env, scf_env, mixing_store, rho, para_env, error)
+  SUBROUTINE gspace_mixing(qs_env, mixing_method, mixing_store, rho, para_env, iter_count, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    INTEGER                                  :: mixing_method
     TYPE(mixing_storage_type), POINTER       :: mixing_store
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iter_count
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gspace_mixing', &
@@ -161,7 +164,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
     NULLIFY(auxbas_pw_pool, dft_control, pw_env, rho_atom, rho_g, rho_r, tot_rho_r)
 
@@ -188,7 +190,7 @@ CONTAINS
       CALL pw_scale(rho_g(2)%pw, -1.0_dp, error=error)
     END IF
 
-    IF(scf_env%iter_count+1 <= mixing_store%nskip_mixing) THEN
+    IF(iter_count+1 <= mixing_store%nskip_mixing) THEN
       ! skip mixing
       DO ispin = 1,nspin
         DO ig = 1,ng
@@ -221,26 +223,26 @@ CONTAINS
       RETURN
     END IF
 
-    IF((scf_env%iter_count+1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) THEN
+    IF((iter_count+1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) THEN
        CALL gmix_potential_only(qs_env,mixing_store, rho, error)
        mixing_store%iter_method= "Kerker"
     ELSE
 
-       IF(scf_env%mixing_method==gspace_mixing_nr) THEN
+       IF(mixing_method==gspace_mixing_nr) THEN
           CALL gmix_potential_only(qs_env,mixing_store, rho, error)
           mixing_store%iter_method= "Kerker"
-       ELSEIF(scf_env%mixing_method==pulay_mixing_nr) THEN
+       ELSEIF(mixing_method==pulay_mixing_nr) THEN
           CPPrecondition(.NOT. gapw,cp_failure_level,routineP,error,failure)
           CALL pulay_mixing(mixing_store, rho, para_env, error)
           mixing_store%iter_method= "Pulay"
-       ELSEIF(scf_env%mixing_method==broyden_mixing_nr) THEN
+       ELSEIF(mixing_method==broyden_mixing_nr) THEN
           CALL broyden_mixing(qs_env,mixing_store, rho, para_env, error)
           mixing_store%iter_method= "Broy."
-       ELSEIF(scf_env%mixing_method==broyden_mixing_new_nr) THEN
+       ELSEIF(mixing_method==broyden_mixing_new_nr) THEN
           CPPrecondition(.NOT. gapw,cp_failure_level,routineP,error,failure)
           CALL broyden_mixing_new(mixing_store, rho, para_env, error)
           mixing_store%iter_method= "Broy."
-       ELSEIF(scf_env%mixing_method==multisecant_mixing_nr) THEN
+       ELSEIF(mixing_method==multisecant_mixing_nr) THEN
           CPPrecondition(.NOT. gapw,cp_failure_level,routineP,error,failure)
           CALL multisecant_mixing(mixing_store, rho, para_env, error)
           mixing_store%iter_method= "MSec."
@@ -1658,38 +1660,39 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  allocation needed when density mixing is used
 !> \param qs_env ...
-!> \param scf_env ...
-!> \param nspins ...
 !> \param mixing_method ...
+!> \param p_mix_new ...
+!> \param p_delta ...
+!> \param nspins ...
 !> \param mixing_store ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      05.2009 created [MI]
 !>      08.2014 kpoints [JGH]
+!>      02.2015 changed input to make g-space mixing available in linear scaling 
+!>              SCF [Patrick Seewald]
 !> \author fawzi
 ! *****************************************************************************
- SUBROUTINE mixing_allocate(qs_env,scf_env, nspins, mixing_method, mixing_store,error)
+ SUBROUTINE mixing_allocate(qs_env, mixing_method, p_mix_new, p_delta, nspins, mixing_store, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    INTEGER                                  :: mixing_method
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: p_mix_new, p_delta
     INTEGER, INTENT(IN)                      :: nspins
-    INTEGER, OPTIONAL                        :: mixing_method
-    TYPE(mixing_storage_type), OPTIONAL, &
-      POINTER                                :: mixing_store
+    TYPE(mixing_storage_type), POINTER       :: mixing_store
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mixing_allocate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iat, ic, ispin, &
-                                                my_mixing_method, natom, &
-                                                nbuffer, nimg, stat
+                                                natom, nbuffer, nimg, stat
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: refmatrix
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(mixing_storage_type), POINTER       :: my_mixing_store
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -1699,88 +1702,87 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY( matrix_s, dft_control, my_mixing_store, sab_orb, refmatrix, rho_atom)
+    NULLIFY( matrix_s, dft_control, sab_orb, refmatrix, rho_atom)
     CALL get_qs_env(qs_env,&
                     sab_orb=sab_orb, &
                     matrix_s_kp=matrix_s, &
                     dft_control=dft_control,&
                     error=error)
 
-    my_mixing_method = scf_env%mixing_method
-    IF(PRESENT(mixing_method)) my_mixing_method = mixing_method
-    my_mixing_store => scf_env%mixing_store
-    IF(PRESENT(mixing_store)) my_mixing_store => mixing_store
-
     refmatrix => matrix_s(1,1)%matrix
     nimg = dft_control%nimages
 
 !   *** allocate p_mix_new ***
-    IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(scf_env%p_mix_new,nspins,nimg,error=error)
-       DO i=1,nspins
-          DO ic=1,nimg
-             ALLOCATE(scf_env%p_mix_new(i,ic)%matrix)
-             CALL cp_dbcsr_init(scf_env%p_mix_new(i,ic)%matrix, error=error)
-             CALL cp_dbcsr_create(matrix=scf_env%p_mix_new(i,ic)%matrix, &
-                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
-                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
-                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
-                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
-                  nblks=0, nze=0, error=error)
-             CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i,ic)%matrix,sab_orb,error=error)
-             CALL cp_dbcsr_set(scf_env%p_mix_new(i,ic)%matrix,0.0_dp,error=error)
-          ENDDO
-       ENDDO
+    IF (PRESENT(p_mix_new)) THEN
+      IF (.NOT.ASSOCIATED(p_mix_new)) THEN
+         CALL cp_dbcsr_allocate_matrix_set(p_mix_new,nspins,nimg,error=error)
+         DO i=1,nspins
+            DO ic=1,nimg
+               ALLOCATE(p_mix_new(i,ic)%matrix)
+               CALL cp_dbcsr_init(p_mix_new(i,ic)%matrix, error=error)
+               CALL cp_dbcsr_create(matrix=p_mix_new(i,ic)%matrix, &
+                    name="SCF DENSITY", &
+                    dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                    row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+                    col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
+                    nblks=0, nze=0, error=error)
+               CALL cp_dbcsr_alloc_block_from_nbl(p_mix_new(i,ic)%matrix,sab_orb,error=error)
+               CALL cp_dbcsr_set(p_mix_new(i,ic)%matrix,0.0_dp,error=error)
+            ENDDO
+         ENDDO
+      END IF
     END IF
 
 !   *** allocate p_delta ***
-    IF (my_mixing_method>=gspace_mixing_nr) THEN
-       IF(.NOT.ASSOCIATED(scf_env%p_delta)) THEN
-          CALL cp_dbcsr_allocate_matrix_set(scf_env%p_delta,nspins,nimg,error=error)
-          DO i=1,nspins
-             DO ic=1,nimg
-                ALLOCATE(scf_env%p_delta(i,ic)%matrix)
-                CALL cp_dbcsr_init(scf_env%p_delta(i,ic)%matrix, error=error)
-                CALL cp_dbcsr_create(matrix=scf_env%p_delta(i,ic)%matrix, &
-                     name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
-                     dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
-                     row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
-                     col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
-                     nblks=0, nze=0, error=error)
-                CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_delta(i,ic)%matrix,sab_orb,error=error)
-                CALL cp_dbcsr_set(scf_env%p_delta(i,ic)%matrix,0.0_dp,error=error)
-             ENDDO
-          ENDDO
-       END IF
-       CPPrecondition(ASSOCIATED(my_mixing_store),cp_failure_level,routineP,error,failure)
+    IF (PRESENT(p_delta)) THEN
+      IF (mixing_method>=gspace_mixing_nr) THEN
+         IF(.NOT.ASSOCIATED(p_delta)) THEN
+            CALL cp_dbcsr_allocate_matrix_set(p_delta,nspins,nimg,error=error)
+            DO i=1,nspins
+               DO ic=1,nimg
+                  ALLOCATE(p_delta(i,ic)%matrix)
+                  CALL cp_dbcsr_init(p_delta(i,ic)%matrix, error=error)
+                  CALL cp_dbcsr_create(matrix=p_delta(i,ic)%matrix, &
+                       name="SCF DENSITY", &
+                       dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                       row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+                       col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
+                       nblks=0, nze=0, error=error)
+                  CALL cp_dbcsr_alloc_block_from_nbl(p_delta(i,ic)%matrix,sab_orb,error=error)
+                  CALL cp_dbcsr_set(p_delta(i,ic)%matrix,0.0_dp,error=error)
+               ENDDO
+            ENDDO
+         END IF
+         CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
+      END IF
     END IF
 
 !   *** allocate  buffer for gspace mixing ***
-    IF (my_mixing_method>=gspace_mixing_nr) THEN
-      nbuffer = my_mixing_store%nbuffer
-      my_mixing_store%ncall = 0
-      IF(.NOT. ASSOCIATED(my_mixing_store%rhoin)) THEN
-        ALLOCATE(my_mixing_store%rhoin(nspins), STAT=stat)
+    IF (mixing_method>=gspace_mixing_nr) THEN
+      nbuffer = mixing_store%nbuffer
+      mixing_store%ncall = 0
+      IF(.NOT. ASSOCIATED(mixing_store%rhoin)) THEN
+        ALLOCATE(mixing_store%rhoin(nspins), STAT=stat)
         DO ispin = 1,nspins
-          NULLIFY(my_mixing_store%rhoin(ispin)%cc)
+          NULLIFY(mixing_store%rhoin(ispin)%cc)
         END DO
       END IF
       IF(dft_control%qs_control%gapw) THEN
         CALL get_qs_env(qs_env=qs_env,&
                rho_atom_set=rho_atom,error=error)
         natom = SIZE(rho_atom)
-        IF(.NOT. ASSOCIATED(my_mixing_store%paw)) THEN
-          ALLOCATE(my_mixing_store%paw(natom),STAT=stat)
+        IF(.NOT. ASSOCIATED(mixing_store%paw)) THEN
+          ALLOCATE(mixing_store%paw(natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          my_mixing_store%paw = .FALSE.
-          ALLOCATE(my_mixing_store%cpc_h_in(natom,nspins),STAT=stat)
+          mixing_store%paw = .FALSE.
+          ALLOCATE(mixing_store%cpc_h_in(natom,nspins),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(my_mixing_store%cpc_s_in(natom,nspins),STAT=stat)
+          ALLOCATE(mixing_store%cpc_s_in(natom,nspins),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ispin = 1,nspins
             DO iat = 1,natom
-               NULLIFY(my_mixing_store%cpc_h_in(iat,ispin)%r_coef)
-               NULLIFY(my_mixing_store%cpc_s_in(iat,ispin)%r_coef)
+               NULLIFY(mixing_store%cpc_h_in(iat,ispin)%r_coef)
+               NULLIFY(mixing_store%cpc_s_in(iat,ispin)%r_coef)
             END DO
           END DO
         END IF
@@ -1788,125 +1790,125 @@ CONTAINS
     END IF
 
 !   *** allocate rhoin_buffer if needed
-    IF (my_mixing_method==pulay_mixing_nr .OR.my_mixing_method==broyden_mixing_new_nr&
-           .OR. my_mixing_method==multisecant_mixing_nr ) THEN
-      IF(.NOT. ASSOCIATED(my_mixing_store%rhoin_buffer)) THEN
-        ALLOCATE(my_mixing_store%rhoin_buffer(nbuffer,nspins), STAT=stat)
+    IF (mixing_method==pulay_mixing_nr .OR.mixing_method==broyden_mixing_new_nr&
+           .OR. mixing_method==multisecant_mixing_nr ) THEN
+      IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
+        ALLOCATE(mixing_store%rhoin_buffer(nbuffer,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ispin = 1,nspins
           DO i = 1,nbuffer
-            NULLIFY(my_mixing_store%rhoin_buffer(i,ispin)%cc)
+            NULLIFY(mixing_store%rhoin_buffer(i,ispin)%cc)
           END DO
         END DO
       END IF
     END IF
 
 !   *** allocare res_buffer if needed
-    IF (my_mixing_method>=pulay_mixing_nr) THEN
-      IF(.NOT. ASSOCIATED(my_mixing_store%res_buffer)) THEN
-        ALLOCATE(my_mixing_store%res_buffer(nbuffer,nspins), STAT=stat)
+    IF (mixing_method>=pulay_mixing_nr) THEN
+      IF(.NOT. ASSOCIATED(mixing_store%res_buffer)) THEN
+        ALLOCATE(mixing_store%res_buffer(nbuffer,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ispin = 1,nspins
           DO i = 1,nbuffer
-            NULLIFY(my_mixing_store%res_buffer(i,ispin)%cc)
+            NULLIFY(mixing_store%res_buffer(i,ispin)%cc)
           END DO
         END DO
       END IF
     END IF
 
 !   *** allocate pulay buffer ***
-    IF (my_mixing_method==pulay_mixing_nr) THEN
-      IF(.NOT. ASSOCIATED(my_mixing_store%pulay_matrix)) THEN
-        ALLOCATE(my_mixing_store%pulay_matrix(nbuffer,nbuffer),STAT=stat)
+    IF (mixing_method==pulay_mixing_nr) THEN
+      IF(.NOT. ASSOCIATED(mixing_store%pulay_matrix)) THEN
+        ALLOCATE(mixing_store%pulay_matrix(nbuffer,nbuffer),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
 
     END IF
 !   *** allocate broyden buffer ***
-    IF (my_mixing_method==broyden_mixing_nr) THEN
-      IF(.NOT. ASSOCIATED(my_mixing_store%rhoin_old)) THEN
-        ALLOCATE(my_mixing_store%rhoin_old(nspins), STAT=stat)
+    IF (mixing_method==broyden_mixing_nr) THEN
+      IF(.NOT. ASSOCIATED(mixing_store%rhoin_old)) THEN
+        ALLOCATE(mixing_store%rhoin_old(nspins), STAT=stat)
         DO ispin = 1,nspins
-          NULLIFY(my_mixing_store%rhoin_old(ispin)%cc)
+          NULLIFY(mixing_store%rhoin_old(ispin)%cc)
         END DO
       END IF
-      IF(.NOT. ASSOCIATED(my_mixing_store%drho_buffer)) THEN
-        ALLOCATE(my_mixing_store%drho_buffer(nbuffer,nspins), STAT=stat)
+      IF(.NOT. ASSOCIATED(mixing_store%drho_buffer)) THEN
+        ALLOCATE(mixing_store%drho_buffer(nbuffer,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(my_mixing_store%last_res(nspins), STAT=stat)
+        ALLOCATE(mixing_store%last_res(nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ispin = 1,nspins
           DO i = 1,nbuffer
-           NULLIFY(my_mixing_store%drho_buffer(i,ispin)%cc)
+           NULLIFY(mixing_store%drho_buffer(i,ispin)%cc)
           END DO
-          NULLIFY(my_mixing_store%last_res(ispin)%cc)
+          NULLIFY(mixing_store%last_res(ispin)%cc)
         END DO
       END IF
       IF(dft_control%qs_control%gapw) THEN
-        IF(.NOT. ASSOCIATED(my_mixing_store%cpc_h_old)) THEN
-          ALLOCATE(my_mixing_store%cpc_h_old(natom,nspins),STAT=stat)
+        IF(.NOT. ASSOCIATED(mixing_store%cpc_h_old)) THEN
+          ALLOCATE(mixing_store%cpc_h_old(natom,nspins),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(my_mixing_store%cpc_s_old(natom,nspins),STAT=stat)
+          ALLOCATE(mixing_store%cpc_s_old(natom,nspins),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ispin = 1,nspins
             DO iat = 1,natom
-               NULLIFY(my_mixing_store%cpc_h_old(iat,ispin)%r_coef)
-               NULLIFY(my_mixing_store%cpc_s_old(iat,ispin)%r_coef)
+               NULLIFY(mixing_store%cpc_h_old(iat,ispin)%r_coef)
+               NULLIFY(mixing_store%cpc_s_old(iat,ispin)%r_coef)
             END DO
           END DO
         END IF
-        IF(.NOT. ASSOCIATED(my_mixing_store%dcpc_h_in)) THEN
-          ALLOCATE(my_mixing_store%dcpc_h_in(nbuffer,natom,nspins),STAT=stat)
+        IF(.NOT. ASSOCIATED(mixing_store%dcpc_h_in)) THEN
+          ALLOCATE(mixing_store%dcpc_h_in(nbuffer,natom,nspins),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(my_mixing_store%dcpc_s_in(nbuffer,natom,nspins),STAT=stat)
+          ALLOCATE(mixing_store%dcpc_s_in(nbuffer,natom,nspins),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(my_mixing_store%cpc_h_lastres(natom,nspins),STAT=stat)
+          ALLOCATE(mixing_store%cpc_h_lastres(natom,nspins),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(my_mixing_store%cpc_s_lastres(natom,nspins),STAT=stat)
+          ALLOCATE(mixing_store%cpc_s_lastres(natom,nspins),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ispin = 1,nspins
             DO iat = 1,natom
               DO i = 1,nbuffer
-                NULLIFY(my_mixing_store%dcpc_h_in(i,iat,ispin)%r_coef)
-                NULLIFY(my_mixing_store%dcpc_s_in(i,iat,ispin)%r_coef)
+                NULLIFY(mixing_store%dcpc_h_in(i,iat,ispin)%r_coef)
+                NULLIFY(mixing_store%dcpc_s_in(i,iat,ispin)%r_coef)
               END DO
-              NULLIFY(my_mixing_store%cpc_h_lastres(iat,ispin)%r_coef)
-              NULLIFY(my_mixing_store%cpc_s_lastres(iat,ispin)%r_coef)
+              NULLIFY(mixing_store%cpc_h_lastres(iat,ispin)%r_coef)
+              NULLIFY(mixing_store%cpc_s_lastres(iat,ispin)%r_coef)
             END DO
           END DO
         END IF
       END IF
     END IF
 !   *** allocate broyden buffer ***
-    IF (my_mixing_method==broyden_mixing_new_nr) THEN
-      IF(.NOT. ASSOCIATED(my_mixing_store%u_vec)) THEN
-        ALLOCATE(my_mixing_store%last_res(nspins), STAT=stat)
+    IF (mixing_method==broyden_mixing_new_nr) THEN
+      IF(.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
+        ALLOCATE(mixing_store%last_res(nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(my_mixing_store%delta_res(nbuffer-1,nspins), STAT=stat)
+        ALLOCATE(mixing_store%delta_res(nbuffer-1,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(my_mixing_store%u_vec(nbuffer-1,nspins), STAT=stat)
+        ALLOCATE(mixing_store%u_vec(nbuffer-1,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(my_mixing_store%z_vec(nbuffer-1,nspins), STAT=stat)
+        ALLOCATE(mixing_store%z_vec(nbuffer-1,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(my_mixing_store%weight(nbuffer,nspins), STAT=stat)
+        ALLOCATE(mixing_store%weight(nbuffer,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(my_mixing_store%fmat(nbuffer-1,nbuffer-1,nspins), STAT=stat)
+        ALLOCATE(mixing_store%fmat(nbuffer-1,nbuffer-1,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ispin = 1,nspins
         DO i = 1,nbuffer-1
-           NULLIFY(my_mixing_store%delta_res(i,ispin)%cc)
-           NULLIFY(my_mixing_store%u_vec(i,ispin)%cc)
-           NULLIFY(my_mixing_store%z_vec(i,ispin)%cc)
+           NULLIFY(mixing_store%delta_res(i,ispin)%cc)
+           NULLIFY(mixing_store%u_vec(i,ispin)%cc)
+           NULLIFY(mixing_store%z_vec(i,ispin)%cc)
         END DO
-        NULLIFY(my_mixing_store%last_res(ispin)%cc)
+        NULLIFY(mixing_store%last_res(ispin)%cc)
         END DO
       END IF
     END IF
 
 !   *** allocate multisecant buffer ***
-    IF (my_mixing_method==multisecant_mixing_nr) THEN
-      IF(.NOT. ASSOCIATED(my_mixing_store%norm_res_buffer)) THEN
-        ALLOCATE(my_mixing_store%norm_res_buffer(nbuffer,nspins), STAT=stat)
+    IF (mixing_method==multisecant_mixing_nr) THEN
+      IF(.NOT. ASSOCIATED(mixing_store%norm_res_buffer)) THEN
+        ALLOCATE(mixing_store%norm_res_buffer(nbuffer,nspins), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
     END IF

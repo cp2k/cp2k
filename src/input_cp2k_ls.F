@@ -33,6 +33,7 @@ MODULE input_cp2k_ls
   USE input_val_types,                 ONLY: integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE qs_density_mixing_types,         ONLY: create_mixing_section
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
 
@@ -274,6 +275,10 @@ CONTAINS
 
        CALL create_chebyshev_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_mixing_section(subsection,ls_scf=.TRUE.,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
        CALL create_pexsi_section(subsection,error)

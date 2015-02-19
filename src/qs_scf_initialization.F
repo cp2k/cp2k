@@ -289,7 +289,9 @@ CONTAINS
                     error=error)
  
     IF (scf_env%mixing_method>0) THEN
-      CALL mixing_allocate(qs_env,scf_env,dft_control%nspins,error=error)
+      CALL mixing_allocate(qs_env,scf_env%mixing_method,scf_env%p_mix_new, &
+                           scf_env%p_delta, dft_control%nspins,&
+                           scf_env%mixing_store, error)
     ELSE
        NULLIFY(scf_env%p_mix_new)
     END IF

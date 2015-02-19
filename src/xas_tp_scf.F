@@ -349,7 +349,8 @@ CONTAINS
        ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        IF(scf_env%mixing_method>=gspace_mixing_nr) THEN
-          CALL gspace_mixing(qs_env, scf_env, scf_env%mixing_store, rho, para_env, error=error)
+          CALL gspace_mixing(qs_env, scf_env%mixing_method, scf_env%mixing_store, rho, para_env, &
+                             scf_env%iter_count, error=error)
        END IF
 
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)

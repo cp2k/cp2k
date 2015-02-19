@@ -652,8 +652,8 @@ CONTAINS
 
     ! mixing storage allocation
     IF (subspace_env%mixing_method>=gspace_mixing_nr) THEN
-         CALL mixing_allocate(qs_env,scf_env,nspins=nspin,mixing_method=subspace_env%mixing_method,&
-                mixing_store=subspace_env%mixing_store, error=error)
+         CALL mixing_allocate(qs_env,subspace_env%mixing_method,scf_env%p_mix_new, &
+                              scf_env%p_delta,nspin,subspace_env%mixing_store,error)
          IF(dft_control%qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env,&
                  rho_atom_set=rho_atom,error=error)
@@ -744,8 +744,8 @@ CONTAINS
       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
       ! Mixing in reciprocal space
       IF(subspace_env%mixing_method>=gspace_mixing_nr) THEN
-         CALL gspace_mixing(qs_env, scf_env, subspace_env%mixing_store, &
-            rho, para_env, error=error)
+         CALL gspace_mixing(qs_env, scf_env%mixing_method, subspace_env%mixing_store, &
+            rho, para_env, scf_env%iter_count, error=error)
       END IF
 
       ene_diff =  energy%total-ene_old

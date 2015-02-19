@@ -49,9 +49,12 @@ MODULE dm_ls_scf_qs
                                              RECIPROCALSPACE,&
                                              pw_p_type
   USE qs_collocate_density,            ONLY: calculate_rho_elec
+  USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
+                                             gspace_mixing_nr
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_gspace_mixing,                ONLY: gspace_mixing
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -481,31 +484,43 @@ CONTAINS
 !> \param qs_env ...
 !> \param ls_scf_env ...
 !> \param energy_new ...
+!> \param iscf ...
 !> \param error ...
 !> \par History
 !>       2011.04 created [Joost VandeVondele]
+!>       2015.02 added gspace density mixing [Patrick Seewald]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,error)
+  SUBROUTINE ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,iscf,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     REAL(KIND=dp)                            :: energy_new
+    INTEGER, INTENT(IN)                      :: iscf
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_dm_to_ks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspin
+    INTEGER                                  :: handle, ispin, nspin, unit_nr
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
     NULLIFY(energy, rho, rho_ao)
     CALL timeset(routineN,handle)
 
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
     nspin=ls_scf_env%nspins
-    CALL get_qs_env(qs_env, energy=energy, rho=rho, error=error)
+    CALL get_qs_env(qs_env, para_env=para_env, energy=energy, rho=rho, error=error) 
     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     ! set the new density matrix
@@ -513,8 +528,34 @@ CONTAINS
          CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct, error=error)
     END DO
 
-    ! compute the corresponding KS matrix and new energy
+    ! compute the corresponding KS matrix and new energy, mix density if requested
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
+    IF(ls_scf_env%do_rho_mixing) THEN
+      CALL cp_assert(ls_scf_env%density_mixing_method .NE. direct_mixing_nr, & 
+                     cp_failure_level,cp_assertion_failed, routineP, &
+                     "Direct P mixing not implemented in linear scaling SCF. ", &
+                     only_ionode=.TRUE., error=error) 
+      IF (ls_scf_env%density_mixing_method>=gspace_mixing_nr) THEN
+        IF(iscf .GT. MAX(ls_scf_env%mixing_store%nskip_mixing,1)) THEN
+         CALL gspace_mixing(qs_env, ls_scf_env%density_mixing_method, &
+                             ls_scf_env%mixing_store, rho, para_env, &
+                             iscf-1, error)
+          IF(unit_nr>0) THEN
+             WRITE(unit_nr,'(A57)') &
+                   "*********************************************************"
+             WRITE(unit_nr,'(A13,F5.3,A20,A6,A7,I3)') &
+                   " Using ALPHA=",ls_scf_env%mixing_store%alpha, &
+                   " to mix rho: method=",ls_scf_env%mixing_store%iter_method,", iscf=",iscf
+             WRITE(unit_nr,'(A8,F5.3,A6,F5.3,A8)') &
+                   " rho_nw=",ls_scf_env%mixing_store%alpha,"*rho + ", &
+                   1.0_dp-ls_scf_env%mixing_store%alpha,"*rho_old"
+             WRITE(unit_nr,'(A57)') &
+                   "*********************************************************"
+          ENDIF
+        ENDIF
+      ENDIF
+    ENDIF
+
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
                              just_energy=.FALSE., print_active=.TRUE., error=error)

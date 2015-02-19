@@ -23,6 +23,7 @@ MODULE dm_ls_scf_types
   USE kinds,                           ONLY: dp
   USE pexsi_types,                     ONLY: lib_pexsi_env,&
                                              lib_pexsi_finalize
+  USE qs_density_mixing_types,         ONLY: mixing_storage_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -128,6 +129,10 @@ MODULE dm_ls_scf_types
      TYPE(ls_scf_curvy_type) :: curvy_data
 
      TYPE(chebyshev_type) :: chebyshev
+
+     LOGICAL :: do_rho_mixing
+     INTEGER :: density_mixing_method
+     TYPE(mixing_storage_type), POINTER :: mixing_store
 
      TYPE(lib_pexsi_env) :: pexsi
 
