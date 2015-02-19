@@ -197,7 +197,7 @@ CONTAINS
     ALLOCATE(eigenvalues(ncol))
     CALL choose_eigv_solver(o2,o3,eigenvalues,error=error)
     CALL cp_fm_to_fm(o3,o4,error=error)
-    eigenvalues=1.0_dp/SQRT(eigenvalues)
+    eigenvalues(:) = 1.0_dp/SQRT(eigenvalues(:))
     CALL cp_fm_column_scale(o4,eigenvalues)
     CALL cp_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o4,0.0_dp,o2,error=error)
 

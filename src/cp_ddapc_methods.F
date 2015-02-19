@@ -669,7 +669,7 @@ CONTAINS
        CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
        CALL build_A_matrix(Am, gfunc, w, particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
        CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)
-       Am = Am / (Vol*Vol)
+       Am(:,:) = Am(:,:) / (Vol*Vol)
        CALL mp_sum(Am,rho_tot_g%pw_grid%para%group)
        IF (iw>0) THEN
           ! Checking conditions numbers and eigenvalues

@@ -32,7 +32,8 @@ MODULE qs_scf_types
                                              mixing_storage_type
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_buffer_type
-  USE qs_fb_env_types,                 ONLY: fb_env_nullify,&
+  USE qs_fb_env_types,                 ONLY: fb_env_has_data,&
+                                             fb_env_nullify,&
                                              fb_env_obj,&
                                              fb_env_release
   USE qs_ot_types,                     ONLY: qs_ot_destroy,&
@@ -48,16 +49,13 @@ MODULE qs_scf_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_types'
 
-  INTEGER, PARAMETER, PUBLIC :: &
-                                general_diag_method_nr=1,&
+  INTEGER, PARAMETER, PUBLIC :: general_diag_method_nr=1,&
                                 special_diag_method_nr=2,&
                                 ot_diag_method_nr=3,&
                                 block_krylov_diag_method_nr=4,&
                                 block_davidson_diag_method_nr=5,&
                                 ot_method_nr=10, &
-!BEG:DEBUG:LT:2014/12/03
                                 filter_matrix_diag_method_nr=20
-!END:DEBUG:LT:2014/12/03
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
@@ -73,18 +71,17 @@ MODULE qs_scf_types
 !> \author fawzi
 ! *****************************************************************************
   TYPE qs_outer_scf_type
-    INTEGER :: iter_count
+     INTEGER :: iter_count
 
-    ! these are the variable of outer loop.
-    ! right now, we assume that they can be easily written as
-    ! small arrays, but we might want to go the cp_fm_types
-    ! at a later stage
-    ! also, we just store the full iteration history
-    REAL(KIND=dp), DIMENSION(:), POINTER :: energy
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
-    INTEGER, DIMENSION(:), POINTER :: count
-
+     ! these are the variable of outer loop.
+     ! right now, we assume that they can be easily written as
+     ! small arrays, but we might want to go the cp_fm_types
+     ! at a later stage
+     ! also, we just store the full iteration history
+     REAL(KIND=dp), DIMENSION(:), POINTER :: energy
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
+     INTEGER, DIMENSION(:), POINTER :: count
   END TYPE qs_outer_scf_type
 
   TYPE krylov_space_type
@@ -97,7 +94,7 @@ MODULE qs_scf_types
 !NOTE: the following matrices are small and could be used as standard array rather than distributed fm
      TYPE(cp_fm_type),  POINTER :: block1_mat, block2_mat, block3_mat, block4_mat, block5_mat
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER ::  c_vec, chc_mat
-  END TYPE
+  END TYPE krylov_space_type
 
   TYPE subspace_env_type
       INTEGER :: max_iter, mixing_method
@@ -106,32 +103,31 @@ MODULE qs_scf_types
       TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: p_matrix_mix
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: chc_mat, c_vec, c0
       TYPE(mixing_storage_type), POINTER :: mixing_store
-  END TYPE
+   END TYPE subspace_env_type
 
+   ! *****************************************************************************
+   TYPE qs_scf_env_type
+      TYPE(qs_outer_scf_type) :: outer_scf
+      INTEGER :: ref_count, id_nr, print_count, iter_count
+      INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
+      REAL(KIND = dp) :: iter_param, iter_delta, p_mix_alpha
+      CHARACTER (len=15) :: iter_method
+      COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
+      LOGICAL :: print_iter_line, skip_mixing, skip_diis, needs_ortho
+      TYPE(mixing_storage_type), POINTER :: mixing_store
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
+      TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
+      TYPE(krylov_space_type), POINTER :: krylov_space
+      TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: p_delta, p_mix_new
+      TYPE(cp_dbcsr_type),  POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
+      TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
+      TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
+      TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
+      TYPE(subspace_env_type), POINTER :: subspace_env
+      TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env
+      TYPE(fb_env_obj) :: filter_matrix_env
+   END TYPE qs_scf_env_type
 
-
-! *****************************************************************************
-TYPE qs_scf_env_type
-   TYPE(qs_outer_scf_type) :: outer_scf
-   INTEGER :: ref_count, id_nr, print_count, iter_count
-   INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
-   REAL(KIND = dp) :: iter_param, iter_delta, p_mix_alpha
-   CHARACTER (len=15) :: iter_method
-   COMPLEX(KIND=dp), DIMENSION(:,:,:), POINTER :: cc_buffer
-   LOGICAL :: print_iter_line, skip_mixing, skip_diis, needs_ortho
-   TYPE(mixing_storage_type), POINTER :: mixing_store
-   TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
-   TYPE(krylov_space_type), POINTER :: krylov_space
-   TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: p_delta, p_mix_new
-   TYPE(cp_dbcsr_type),  POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
-   TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
-   TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
-   TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
-   TYPE(subspace_env_type), POINTER :: subspace_env
-   TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env
-   TYPE(fb_env_obj) :: filter_matrix_env
-END TYPE qs_scf_env_type
 
 CONTAINS
 
@@ -317,7 +313,7 @@ CONTAINS
           CALL cp_fm_release(scf_env%ortho_m1,error=error)
           IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
              ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) 
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
              CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr,error=error)
           END IF
           IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
@@ -334,7 +330,7 @@ CONTAINS
           CALL cp_fm_release(scf_env%s_minus_one,error=error)
           IF (ASSOCIATED(scf_env%p_mix_new)) THEN
              ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) 
+             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error)
              CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
           END IF
           IF (ASSOCIATED(scf_env%p_delta)) THEN
@@ -390,7 +386,9 @@ CONTAINS
           IF (ASSOCIATED(scf_env%block_davidson_env)) THEN
              CALL block_davidson_release(scf_env%block_davidson_env,error=error)
           END IF
-          CALL fb_env_release(scf_env%filter_matrix_env, error=error)
+          IF (fb_env_has_data(scf_env%filter_matrix_env)) THEN
+             CALL fb_env_release(scf_env%filter_matrix_env, error=error)
+          END IF
           DEALLOCATE(scf_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

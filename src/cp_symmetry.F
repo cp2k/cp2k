@@ -119,7 +119,7 @@ CONTAINS
                   kind_number=atype(i),element_symbol=element(i),mass=weight(i))
           coord(1:3,i) = particle_set(i)%r(1:3)
         END DO
-        weight = weight/massunit
+        weight(:) = weight(:)/massunit
 
         CALL molecular_symmetry(mol_sym,eps_geo,coord,atype,weight,error)
 
@@ -169,7 +169,7 @@ CONTAINS
                   kind_number=atype(i),element_symbol=element(i),mass=weight(i))
           coord(1:3,i) = particle_set(i)%r(1:3)
         END DO
-        weight = weight/massunit
+        weight(:) = weight(:)/massunit
 
         CALL kp_sym_gen(crys_sym,coord,atype,cell%hmat,delta=eps_geo,iounit=iw,error=error)
 

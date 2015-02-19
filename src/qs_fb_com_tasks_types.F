@@ -230,8 +230,9 @@ CONTAINS
           DEALLOCATE(com_tasks%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+    ELSE
+       NULLIFY(com_tasks%obj)
     END IF
-    NULLIFY(com_tasks%obj)
   END SUBROUTINE fb_com_tasks_release
 
 
@@ -261,15 +262,16 @@ CONTAINS
        IF (atom_pairs%obj%ref_count == 0) THEN
           atom_pairs%obj%ref_count = 1
           IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-             DEALLOCATE(atom_pairs%obj%pairs, stat=stat)
+             DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           atom_pairs%obj%ref_count = 0
           DEALLOCATE(atom_pairs%obj, stat=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+    ELSE
+       NULLIFY(atom_pairs%obj)
     END IF
-    NULLIFY(atom_pairs%obj)
   END SUBROUTINE fb_com_atom_pairs_release
 
 
@@ -689,15 +691,15 @@ CONTAINS
 !>        that a new local set of tasks is constructed with src/desc
 !>        process equal to the local MPI rank
 !> \param tasks_dest_is_me the local com_task object with all tasks
-!>                          having the desc process id equal to my_id 
+!>                          having the desc process id equal to my_id
 !> \param direction direction of operation:
 !>                   ">" means from tasks_dest_is_me construct tasks_src_is_me
-!>                   "<" means from tasks_src_is_me construct tasks_dest_is_me 
+!>                   "<" means from tasks_src_is_me construct tasks_dest_is_me
 !> \param tasks_src_is_me the local com_task object with all tasks
-!>                          having the src process id equal to my_id 
+!>                          having the src process id equal to my_id
 !> \param para_env CP2K parallel environment object that stores MPI related
-!>                  information of the current run 
-!> \param error CP2K data container for error logging 
+!>                  information of the current run
+!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_transpose_dest_src(tasks_dest_is_me, &
@@ -907,20 +909,20 @@ CONTAINS
 !> \brief Generate send or receive atom_pair lists from a com_tasks
 !>        object. atom_pair list is used as a condensed index for the
 !>        local/remote matrix blocks to be sent/received.
-!> \param com_tasks the com_tasks object 
+!> \param com_tasks the com_tasks object
 !> \param atom_pairs fb_com_atom_pairs_obj containing  list of encoded
 !>                    atomic pair indices and the dest/src proc id for
-!>                    the matrix block to be sent/received. 
+!>                    the matrix block to be sent/received.
 !> \param natoms_encode the total number of atoms the atomic pair indices
 !>                       corresponds to, and it is used for encode the
-!>                       atom_pairs values 
+!>                       atom_pairs values
 !> \param send_or_recv whether the atom_pair to be generated is for
 !>                      the local matrix blocks to be sent or the
 !>                      remote matrix blocks to be received for this MPI
-!>                      process 
+!>                      process
 !> \param symmetric whether the matrix the blocks are to be taken from
-!>                   is symmetric 
-!> \param error CP2K data container for error logging 
+!>                   is symmetric
+!> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_build_atom_pairs(com_tasks, &
@@ -1091,9 +1093,9 @@ CONTAINS
 ! **********************************************************************
 !> \brief Encodes (iatom, jatom) pair index of a block into a single
 !>        integer
-!> \param ind encoded integer 
-!> \param iatom the first index of the (iatom, jatom) block index 
-!> \param jatom the second index of the (iatom, jatom) block index 
+!> \param ind encoded integer
+!> \param iatom the first index of the (iatom, jatom) block index
+!> \param jatom the second index of the (iatom, jatom) block index
 !> \param natoms the total number of atoms iatom and jatom indexes
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -1117,9 +1119,9 @@ CONTAINS
 ! **********************************************************************
 !> \brief Dncodes a single integer into (iatom, jatom) pair index of
 !>        a block into a single
-!> \param ind encoded integer 
-!> \param iatom the first index of the (iatom, jatom) block index 
-!> \param jatom the second index of the (iatom, jatom) block index 
+!> \param ind encoded integer
+!> \param iatom the first index of the (iatom, jatom) block index
+!> \param jatom the second index of the (iatom, jatom) block index
 !> \param natoms the total number of atoms iatom and jatom indexes
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -1144,11 +1146,11 @@ CONTAINS
 ! **********************************************************************
 !> \brief Encodes (rank, iatom, jatom) index of a communication task---to
 !>         send/receive a block to/from a process---into a single integer
-!> \param ind encoded integer 
+!> \param ind encoded integer
 !> \param pe the rank of the process the block to be send to or receive
-!>            from 
-!> \param iatom the first index of the (iatom, jatom) block index 
-!> \param jatom the second index of the (iatom, jatom) block index 
+!>            from
+!> \param iatom the first index of the (iatom, jatom) block index
+!> \param jatom the second index of the (iatom, jatom) block index
 !> \param natoms the total number of atoms iatom and jatom indexes
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -1173,12 +1175,12 @@ CONTAINS
 !> \brief Decodes a single integer into the (rank, iatom, jatom) index
 !>        of a communication task to send/receive a block to/from a
 !>        process
-!> \param ind    : encoded integer 
+!> \param ind    : encoded integer
 !> \param pe     : the rank of the process the block to be send to or receive
-!>            from 
-!> \param iatom  : the first index of the (iatom, jatom) block index 
+!>            from
+!> \param iatom  : the first index of the (iatom, jatom) block index
 !> \param jatom  : the second index of the (iatom, jatom) block index
-!> \param natoms : the total number of atoms iatom and jatom indexes 
+!> \param natoms : the total number of atoms iatom and jatom indexes
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_decode(ind, pe, iatom, jatom, natoms)

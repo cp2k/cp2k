@@ -386,10 +386,10 @@ CONTAINS
        ALLOCATE(cv(ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL timeset(routineN//"-charges",handle2)
-       bv  = 0.0_dp
-       cv  = 1.0_dp/Vol
+       bv(:)  = 0.0_dp
+       cv(:)  = 1.0_dp/Vol
        CALL build_b_vector(bv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-            particle_set, radii, rho_tot_g, gcut, error);  bv = bv / Vol
+            particle_set, radii, rho_tot_g, gcut, error);  bv(:) = bv(:) / Vol
        CALL mp_sum(bv,rho_tot_g%pw_grid%para%group)
        c1 = DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,bv))-ch_dens
        c1 = c1 / cp_ddapc_env%c0
@@ -479,9 +479,10 @@ CONTAINS
                      gcut, iparticle, Vol, qs_env, error)
                 cp_ddapc_env => qs_env%cp_ddapc_env
              END IF
-                dbv = 0.0_dp
+                dbv(:,:) = 0.0_dp
                 CALL build_der_b_vector(dbv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-                     particle_set, radii, rho_tot_g, gcut, iparticle, error);  dbv = dbv / Vol
+                     particle_set, radii, rho_tot_g, gcut, iparticle, error)
+                dbv(:,:) = dbv(:,:) / Vol
                 IF (debug_this_module) THEN
                    CALL debug_der_b_vector(dbv, particle_set, radii, rho_tot_g,&
                         gcut, iparticle, Vol, qs_env, error)
@@ -506,10 +507,10 @@ CONTAINS
                      dAmj_qv(pmax+1:)      = MATMUL(TRANSPOSE(dAm(pmin:pmax,pmax+1:,j)),qv(pmin:pmax))
                      cvT_AmI_dAmj(pmax+1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax,pmax+1:,j)),cvT_AmI(pmin:pmax))
                 ENDIF
-                dAmj_qv      = dAmj_qv / (Vol*Vol)
-                cvT_AmI_dAmj = cvT_AmI_dAmj / (Vol*Vol)
+                dAmj_qv(:)      = dAmj_qv(:) / (Vol*Vol)
+                cvT_AmI_dAmj(:) = cvT_AmI_dAmj(:) / (Vol*Vol)
                 c3 = DOT_PRODUCT(cvT_AmI_dAmj,AmI_bv) - DOT_PRODUCT(cvT_AmI, dbv(:,j)) - c1*DOT_PRODUCT(cvT_AmI_dAmj,AmI_cv)
-                tv(:,iparticle,j) = -(dAmj_qv + dbv(:,j) + c3/cp_ddapc_env%c0*cv)
+                tv(:,iparticle,j) = -(dAmj_qv(:) + dbv(:,j) + c3/cp_ddapc_env%c0*cv)
              END DO ! j
              !NB zero relevant parts of dAm here
              dAm((iparticle-1)*SIZE(radii)+1:iparticle*SIZE(radii),:,:) = 0.0_dp
@@ -812,17 +813,17 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        rvec = particle_set(iparticle)%r
        cp_ddapc_env => qs_env%cp_ddapc_env
        DO i = 1, 3
-          bv1 = 0.0_dp
-          bv2 = 0.0_dp
+          bv1(:) = 0.0_dp
+          bv2(:) = 0.0_dp
           particle_set(iparticle)%r(i) = rvec(i) + dx
           CALL build_b_vector(bv1, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  bv1 = bv1 / Vol
+               particle_set, radii, rho_tot_g, gcut, error);  bv1(:) = bv1(:) / Vol
           CALL mp_sum(bv1,rho_tot_g%pw_grid%para%group)
           particle_set(iparticle)%r(i) = rvec(i) - dx
           CALL build_b_vector(bv2, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
-               particle_set, radii, rho_tot_g, gcut, error);  bv2 = bv2 / Vol
+               particle_set, radii, rho_tot_g, gcut, error);  bv2(:) = bv2(:) / Vol
           CALL mp_sum(bv2,rho_tot_g%pw_grid%para%group)
-          ddbv(:) = (bv1 - bv2)/(2.0_dp*dx)
+          ddbv(:) = (bv1(:) - bv2(:))/(2.0_dp*dx)
           DO kk = 1, SIZE(ddbv)
              IF (ddbv(kk).GT.1.0E-8_dp) THEN
                 v0 = ABS(dbv(kk,i)-ddbv(kk))/ddbv(kk)*100.0_dp
@@ -910,12 +911,12 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
           particle_set(iparticle)%r(i) = rvec(i) + dx
           CALL build_A_matrix(Am1, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
                particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, &
-               error);  Am1 = Am1 /(Vol*Vol)
+               error);  Am1(:,:) = Am1(:,:) / (Vol*Vol)
           CALL mp_sum(Am1,rho_tot_g%pw_grid%para%group)
           particle_set(iparticle)%r(i) = rvec(i) - dx
           CALL build_A_matrix(Am2, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
                particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, &
-               error);  Am2 = Am2 /(Vol*Vol)
+               error);  Am2(:,:) = Am2(:,:) / (Vol*Vol)
           CALL mp_sum(Am2,rho_tot_g%pw_grid%para%group)
           ddAm(:,:) = (Am1 - Am2)/(2.0_dp*dx)
           DO kk = 1, SIZE(ddAm,1)

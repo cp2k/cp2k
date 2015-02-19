@@ -140,8 +140,9 @@ CONTAINS
           DEALLOCATE(fb_env%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+    ELSE
+       NULLIFY(fb_env%obj)
     END IF
-    NULLIFY(fb_env%obj)
   END SUBROUTINE fb_env_release
 
 

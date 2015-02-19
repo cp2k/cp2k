@@ -937,11 +937,11 @@ CONTAINS
     co(1:n) = tval(1:n,1)
 
     ! calculate density
-    den = 0._dp
+    den(:) = 0._dp
     DO i=1,n
       den(:) = den(:) + co(i)*bf(:,i)
     END DO
-    den = den * fourpi
+    den(:) = den(:) * fourpi
     den(:) = (den(:)-density%op(:))**2
     aerr = SQRT(integrate_grid(den,atom%basis%grid))
 

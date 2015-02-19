@@ -128,19 +128,19 @@ CONTAINS
 
 ! map [0 .. (npts_local-1)] --> [lb .. ub]
     IF (lb1 .EQ. ub1) THEN 
-       lindx = lb1 
+       lindx(:) = lb1 
     ELSE
-       lindx = lindx * ((ub1 - lb1) / (npts_local(1) - 1)) + lb1
+       lindx(:) = lindx(:) * ((ub1 - lb1) / (npts_local(1) - 1)) + lb1
     END IF 
     IF (lb2 .EQ. ub2) THEN 
-       lindy = lb2
+       lindy(:) = lb2
     ELSE
-       lindy = lindy * ((ub2 - lb2) / (npts_local(2) - 1)) + lb2
+       lindy(:) = lindy(:) * ((ub2 - lb2) / (npts_local(2) - 1)) + lb2
     END IF 
     IF (lb3 .EQ. ub3) THEN 
-       lindz = lb3 
+       lindz(:) = lb3 
     ELSE
-       lindz = lindz * ((ub3 - lb3) / (npts_local(3) - 1)) + lb3
+       lindz(:) = lindz(:) * ((ub3 - lb3) / (npts_local(3) - 1)) + lb3
     END IF 
 
     x_locl(:) = x_glbl(lindx)

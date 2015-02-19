@@ -310,7 +310,7 @@ PROGRAM cp2k_shell
            END IF
            READ (*,*,iostat=iostat) pos
            IF (iostat/=0) CALL mp_abort('setpos read coord')
-           pos=pos/pos_fact
+           pos(:) = pos(:)/pos_fact
            READ(*,'(a)',iostat=iostat) cmdStr
            CALL compress(cmdStr,full=.TRUE.)
            CALL uppercase(cmdStr)
@@ -373,7 +373,7 @@ PROGRAM cp2k_shell
         IF (stat/=0) CALL mp_abort(cmd//' failed alloc')
         CALL get_pos(env_id, pos=pos, n_el=3*n_atom, ierr=ierr)
         CALL my_assert(ierr==0,'get_pos error',failure)
-        pos=pos*pos_fact
+        pos(:) = pos(:)*pos_fact
         IF (.not.failure.and.para_env%mepos==para_env%source) THEN
            WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
            IF (iostat/=0) CALL mp_abort(cmd//' write ncoord')
@@ -430,7 +430,7 @@ PROGRAM cp2k_shell
         IF (stat/=0) CALL mp_abort(cmd//' failed alloc')
         CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
         CALL my_assert(ierr==0,'get_force error',failure)
-        pos=pos*(e_fact/pos_fact)
+        pos(:) = pos(:)*(e_fact/pos_fact)
         IF (.not.failure.and.para_env%mepos==para_env%source) THEN
            WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
            IF (iostat/=0) CALL mp_abort(cmd//' write nforce')
@@ -460,7 +460,7 @@ PROGRAM cp2k_shell
         IF (stat/=0) CALL mp_abort(cmd//' failed alloc')
         CALL get_force(env_id, frc=pos, n_el=3*n_atom, ierr=ierr)
         CALL my_assert(ierr==0,'get_force error',failure)
-        pos=pos*(e_fact/pos_fact)
+        pos(:) = pos(:)*(e_fact/pos_fact)
         IF (.not.failure.and.para_env%mepos==para_env%source) THEN
            WRITE (sout,'(ES22.13)',iostat=iostat) e_pot
            IF (iostat/=0) CALL mp_abort(cmd//' write e_pot')

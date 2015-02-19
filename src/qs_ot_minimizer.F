@@ -1552,7 +1552,7 @@ SUBROUTINE hess_G(G, S, H, n)
 
     Q(:,1) = 1.0_dp
     tmp = SQRT(DOT_PRODUCT(Q(:,1), MATMUL(S, Q(:,1))))
-    Q = Q/tmp
+    Q(:,:) = Q(:,:)/tmp
 
 
     DO i=1,k

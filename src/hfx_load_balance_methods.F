@@ -365,7 +365,7 @@ MODULE hfx_load_balance_methods
       ! ** calculate offsets
       ALLOCATE(rdispl(ncpu), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      rcount = rcount * 3
+      rcount(:) = rcount(:) * 3
       rdispl(1) = 0
       DO i = 2,ncpu
         rdispl(i) = rdispl(i-1) + rcount(i-1)
@@ -2585,7 +2585,7 @@ END SUBROUTINE hfx_permute_binning
     ! ** calculate offsets
     ALLOCATE(rdispl(nranks), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    bins_per_rank = bins_per_rank * 2
+    bins_per_rank(:) = bins_per_rank(:) * 2
     rdispl(1) = 0
     DO i = 2,nranks
       rdispl(i) = rdispl(i-1) + bins_per_rank(i-1)

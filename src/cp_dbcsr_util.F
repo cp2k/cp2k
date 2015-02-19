@@ -158,7 +158,7 @@ CONTAINS
     CALL delete_rng_stream(rng_stream,error=error)
     CALL mp_sum(v, mp_group)
     nrm_v = DDOT(n,v, 1, v, 1)
-    v = v/SQRT(nrm_v)
+    v(:,:) = v(:,:)/SQRT(nrm_v)
 
     u(:,:) = 0.0_dp
     IF(svd) THEN
@@ -304,7 +304,7 @@ CONTAINS
     CALL delete_rng_stream(rng_stream,error=error)
     CALL mp_sum(v, mp_group)
     nrm_v = SDOT(n,v, 1, v, 1)
-    v = v/SQRT(nrm_v)
+    v(:,:) = v(:,:)/SQRT(nrm_v)
 
     u(:,:) = 0.0
     IF(svd) THEN

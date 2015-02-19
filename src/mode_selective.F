@@ -547,7 +547,7 @@ CONTAINS
 
 
        CALL diamat_all(ms_vib%hes_bfgs,ms_vib%eig_bfgs,error=error)
-       tmp=0._dp
+       tmp(:) = 0._dp
        IF(ms_vib%select_id==1) my_val=(ms_vib%sel_freq/vibfac)**2/massunit
        IF(ms_vib%select_id==2) my_val=(((ms_vib%f_range(2)+ms_vib%f_range(1))*0.5_dp)/vibfac)**2/massunit
        IF(ms_vib%select_id==1.OR.ms_vib%select_id==2)THEN
@@ -564,7 +564,7 @@ CONTAINS
              END DO
              IF((SIGN(1._dp,ms_vib%eig_bfgs(i))*SQRT(ABS(ms_vib%eig_bfgs(i))*massunit)*vibfac).LE.400._dp)tmp(i)=0._dp
           END DO
-          tmp=-tmp
+          tmp(:) = -tmp(:)
        END IF
        CALL sort(tmp,ncoord,tmplist)
        DO i=1,nrep
@@ -833,7 +833,7 @@ CONTAINS
        !!!!!!!    select modes     !!!!!!
        ALLOCATE(tmp(nvibs),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       tmp = 0.0_dp
+       tmp(:) = 0.0_dp
        ALLOCATE(tmplist(nvibs),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF(ms_vib%select_id==1) my_val=ms_vib%sel_freq
@@ -852,7 +852,7 @@ CONTAINS
              END DO
              IF(freq(i).LE.400._dp)tmp(i)=0._dp
           END DO
-          tmp=-tmp
+          tmp(:) = -tmp(:)
        END IF
        CALL sort(tmp,nvibs,tmplist)
        DO i=1,nrep
@@ -1180,9 +1180,9 @@ CONTAINS
              IF((SIGN(1._dp,eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac).GE.ms_vib%inv_range(2))tmp(i)=0._dp
           END IF
        END DO
-       tmp=-tmp
+       tmp(:) = -tmp(:)
        CALL sort(tmp,(ms_vib%mat_size),ind)
-       residuum=0._dp
+       residuum(:,:) = 0._dp
 
        DO j=1,nrep
           DO i=1,ms_vib%mat_size

@@ -319,7 +319,7 @@ MODULE glbopt_worker
     IF(all_connected) RETURN
 
     ! make sure we keep the larger chunk
-    IF(COUNT(marked) < n_particles/2) marked = .NOT.(marked)
+    IF(COUNT(marked) < n_particles/2) marked(:) = .NOT.(marked(:))
 
     min_dist = HUGE(1.0)
     cluster_edge = -1

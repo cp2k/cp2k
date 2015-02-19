@@ -356,7 +356,7 @@ CONTAINS
          extension=".MolDip",middle_name="MOLECULAR_DIPOLES",error=error)
     IF (output_unit>0) THEN
        WRITE(UNIT=output_unit,FMT='(A80)') "# molecule nr, charge, dipole vector, dipole (Debye) "
-       dipole_set=dipole_set*debye ! Debye
+       dipole_set(:,:) = dipole_set(:,:)*debye ! Debye
        DO I=1,SIZE(dipole_set,2)
           WRITE(UNIT=output_unit,FMT='(I6,5F12.6)') I,charge_set(I),dipole_set(1:3,I), &
                SQRT(DOT_PRODUCT(dipole_set(1:3,I),dipole_set(1:3,I)))

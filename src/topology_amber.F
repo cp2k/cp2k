@@ -641,44 +641,44 @@ CPSourceFileRef,&
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ibh, jbh, icbh, nbonh, error)
              ! Conver to an atomic index
-             ibh = ibh/3+1
-             jbh = jbh/3+1
+             ibh(:) = ibh(:)/3+1
+             jbh(:) = jbh(:)/3+1
           CASE("BONDS_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ib, jb, icb, nbona, error)
              ! Conver to an atomic index
-             ib  =  ib/3+1
-             jb  =  jb/3+1
+             ib(:)  =  ib(:)/3+1
+             jb(:)  =  jb(:)/3+1
           CASE("ANGLES_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ith, jth, kth, icth, ntheth, error)
              ! Conver to an atomic index
-             ith = ith/3+1
-             jth = jth/3+1
-             kth = kth/3+1
+             ith(:) = ith(:)/3+1
+             jth(:) = jth(:)/3+1
+             kth(:) = kth(:)/3+1
           CASE("ANGLES_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, it, jt, kt, ict, ntheta, error)
              ! Conver to an atomic index
-             it  =  it/3+1
-             jt  =  jt/3+1
-             kt  =  kt/3+1
+             it(:)  =  it(:)/3+1
+             jt(:)  =  jt(:)/3+1
+             kt(:)  =  kt(:)/3+1
           CASE("DIHEDRALS_INC_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, iph, jph, kph, lph, icph, nphih, error)
              ! Conver to an atomic index
-             iph = iph/3+1
-             jph = jph/3+1
-             kph = ABS(kph)/3+1
-             lph = ABS(lph)/3+1
+             iph(:) = iph(:)/3+1
+             jph(:) = jph(:)/3+1
+             kph(:) = ABS(kph(:))/3+1
+             lph(:) = ABS(lph(:))/3+1
           CASE("DIHEDRALS_WITHOUT_HYDROGEN")
              ! We always need to parse this information both for connectivity and forcefields
              CALL rd_amber_section(parser, section, ip, jp, kp, lp, icp, nphia, error)
              ! Conver to an atomic index
-             ip  = ip/3+1
-             jp  = jp/3+1
-             kp  = ABS(kp)/3+1
-             lp  = ABS(lp)/3+1
+             ip(:)  = ip(:)/3+1
+             jp(:)  = jp(:)/3+1
+             kp(:)  = ABS(kp(:))/3+1
+             lp(:)  = ABS(lp(:))/3+1
           CASE DEFAULT
              ! Just Ignore other sections...
           END SELECT

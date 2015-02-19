@@ -894,12 +894,14 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        dtmp1(:)        = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = dtmp1
-       dtmp1 = dtmp1 / SQRT(DOT_PRODUCT(dtmp1,dtmp1))
+       tmp = SQRT(DOT_PRODUCT(dtmp1,dtmp1))
+       dtmp1(:) = dtmp1(:) / tmp
        ! Project out only the spring component interfering with the
        ! orthogonal gradient of the band
        wrk(:)   = (coords%wrk(:,i+1)-2.0_dp*coords%wrk(:,i)+coords%wrk(:,i-1))
-       dtmp1(:) = neb_env%k * (wrk - DOT_PRODUCT(wrk,dtmp1)*dtmp1)
-       forces%wrk(:,i) = forces%wrk(:,i) + dtmp1
+       tmp = DOT_PRODUCT(wrk,dtmp1)
+       dtmp1(:) = neb_env%k*(wrk(:) - tmp*dtmp1(:))
+       forces%wrk(:,i) = forces%wrk(:,i) + dtmp1(:)
        DEALLOCATE(dtmp1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END SELECT

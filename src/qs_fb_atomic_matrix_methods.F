@@ -152,8 +152,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iatom, iatom_in_halo, ii, ind, ipair, ipe, jatom, &
-      jatom_in_halo, jj, LT_UNIT, ncols_blk, npairs_recv, npairs_send, &
-      nrows_blk, numprocs, pe, recv_encode, send_encode, stat
+      jatom_in_halo, jj, ncols_blk, npairs_recv, npairs_send, nrows_blk, &
+      numprocs, pe, recv_encode, send_encode, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_disps, recv_pair_count, &
@@ -166,13 +166,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
     TYPE(fb_com_atom_pairs_obj)              :: atom_pairs_recv, &
                                                 atom_pairs_send
-
-!BEG:DEBUG:LT:2015/01/29
-!END:DEBUG:LT:2015/01/29
-!BEG:DEBUG:LT:2015/01/30
-
-    LT_UNIT = 100 + para_env%mepos
-!END:DEBUG:LT:2015/01/30
 
     CALL timeset(routineN, handle)
 
@@ -266,12 +259,6 @@ CONTAINS
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_send = ", npairs_send
-    ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_recv = ", npairs_recv
-!END:DEBUG:LT:2015/01/25
-
     ! do packing
     DO ipe = 1, numprocs
        ! need to reuse send_sizes as an accumulative displacement, so recalculate
@@ -281,22 +268,10 @@ CONTAINS
                                         pe, iatom, jatom, send_encode)
           nrows_blk = row_block_size_data(iatom)
           ncols_blk = col_block_size_data(jatom)
-          ! nrows_blk = last_row(iatom) - first_row(iatom) + 1
-          ! ncols_blk = last_col(jatom) - first_col(jatom) + 1
           CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
                                     row=iatom, col=jatom, block=mat_block, &
                                     found=found)
           IF (.NOT. found) THEN
-!TODO:LT:2014/08/07: This is not quite right here. What if the
-!                    rcut-neighbor list is larger than the CP2K
-!                    default neighbour_list for the matrices? Then
-!                    (iatom, jatom) pair will be included in
-!                    atom_pairs_send and atom_pairs_recv, but the
-!                    corresponding matrix block will not be present in
-!                    the DBCSR matrix.
-!TODO:LT:2014/08/26: This should be corrected in the new algorithm for
-!                    generating the send_pairs, which removes the pairs
-!                    that does not have a corresponding DBCSR block
              CALL stop_program(routineN, moduleN, __LINE__, "Matrix block not found")
           ELSE
              ! we have found the matrix block
@@ -356,14 +331,6 @@ CONTAINS
              DO ii = 1, nrows_blk
                 ! column major format in blocks
                 ind = recv_disps(ipe) + recv_sizes(ipe) + ii + (jj-1)*nrows_blk
-
-!BEG:DEBUG:LT:2015/01/25
-                ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: ind = ", ind
-                ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: atomic_matrix(", &
-                !       blk_row_start(iatom_in_halo) + ii - 1, ",", &
-                !       blk_col_start(jatom_in_halo) + jj - 1, ") = ", recv_buf(ind)
-!END:DEBUG:LT:2015/01/25
-
                 atomic_matrix(blk_row_start(iatom_in_halo) + ii - 1, &
                               blk_col_start(jatom_in_halo) + jj - 1) = recv_buf(ind)
 
@@ -372,18 +339,6 @@ CONTAINS
           recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
        END DO ! ipair
     END DO ! ipe
-
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) &
-    !      "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
-    ! IF (SIZE(atomic_matrix,1) > 0 .AND. SIZE(atomic_matrix,2) > 0) THEN
-    !    DO ii = 1, SIZE(atomic_matrix,1)
-    !       write (LT_UNIT,"(9f9.4)") atomic_matrix(ii,:)
-    !    END DO
-    ! ELSE
-    !    write (LT_UNIT,*) "**EMPTY** (DUMMY)"
-    ! END IF
-!END:DEBUG:LT:2015/01/25
 
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
@@ -438,8 +393,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, dest, handle, iatom, iatom_global, itask, jatom, &
-      jatom_global, LT_UNIT, natoms_in_halo, nblkrows_total, nencode, &
-      ntasks_recv, ntasks_send, src, stat
+      jatom_global, natoms_in_halo, nblkrows_total, nencode, ntasks_recv, &
+      ntasks_send, src, stat
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
@@ -447,13 +402,6 @@ CONTAINS
     LOGICAL                                  :: failure, found, transpose
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
     TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
-
-!BEG:DEBUG:LT:2015/01/29
-!END:DEBUG:LT:2015/01/29
-!BEG:DEBUG:LT:2015/01/30
-
-    LT_UNIT = 100 + para_env%mepos
-!END:DEBUG:LT:2015/01/30
 
     CALL timeset(routineN, handle)
 
@@ -497,11 +445,6 @@ CONTAINS
     ! corresponding to the given atomic halo. As an upper-bound, the
     ! number of matrix blocks requred do not exceed natoms_in_halo**2
     ntasks_recv = natoms_in_halo*natoms_in_halo
-
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) &
-    !   "|LT| fb_atmatrix_generate_com_pairs: first ntasks_recv = ", ntasks_recv
-!END:DEBUG:LT:2015/01/25
 
     ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -549,11 +492,6 @@ CONTAINS
                           tasks=tasks_recv, &
                           error=error)
 
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) &
-    !   "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
-!END:DEBUG:LT:2015/01/25
-
     ! genearte the send task list (tasks_send) from the recv task list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, ">", com_tasks_send, &
                                          para_env, error)
@@ -564,11 +502,6 @@ CONTAINS
                           tasks=tasks_send, &
                           nencode=nencode, &
                           error=error)
-
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) &
-    !   "|LT| fb_atmatrix_generate_com_pairs: ntasks_send = ", ntasks_send
-!END:DEBUG:LT:2015/01/25
 
     ! because the atomic_halos and the neighbor_list_set used to
     ! generate the sparse structure of the DBCSR matrix do not
@@ -611,15 +544,6 @@ CONTAINS
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, "<", com_tasks_send, &
                                          para_env, error)
 
-
-!BEG:DEBUG:LT:2015/01/25
-    ! CALL fb_com_tasks_get(com_tasks=com_tasks_recv, &
-    !                       ntasks=ntasks_recv, &
-    !                       error=error)
-    ! write (LT_UNIT,*) &
-    !   "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
-!END:DEBUG:LT:2015/01/25
-
     ! task lists are now complete, now construct the atom_pairs_send
     ! and atom_pairs_recv from the tasks lists
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
@@ -638,10 +562,6 @@ CONTAINS
     ! cleanup
     CALL fb_com_tasks_release(com_tasks_recv, error)
     CALL fb_com_tasks_release(com_tasks_send, error)
-
-!BEG:DEBUG:LT:2015/01/20
-    ! write (LT_UNIT,*) "|LT| fb_atmatrix_generate_com_pairs END"
-!END:DEBUG:LT:2015/01/20
 
     CALL timestop(handle)
 

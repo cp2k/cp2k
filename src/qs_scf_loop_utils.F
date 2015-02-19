@@ -77,8 +77,9 @@ MODULE qs_scf_loop_utils
 
 CONTAINS
 
+
 ! *****************************************************************************
-!> \brief computes properties for a given hamilonian using the current wfn 
+!> \brief computes properties for a given hamiltonian using the current wfn
 !> \param scf_control ...
 !> \param scf_env ...
 !> \param diis_step ...
@@ -87,7 +88,6 @@ CONTAINS
 !> \param exit_inner_loop ...
 !> \param error ...
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_set_loop_flags(scf_control,scf_env,diis_step,&
                       energy_only,just_energy,exit_inner_loop,error)
 
@@ -114,6 +114,7 @@ CONTAINS
 
    END SUBROUTINE qs_scf_set_loop_flags
 
+
 ! *****************************************************************************
 !> \brief takes known energy and derivatives and produces new wfns
 !>        and or density matrix
@@ -125,7 +126,6 @@ CONTAINS
 !> \param energy_only ...
 !> \param error ...
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_new_mos(qs_env,scf_env,scf_control,scf_section,diis_step,&
                             energy_only,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -169,9 +169,9 @@ CONTAINS
             routineP,"unknown scf method: "//&
             cp_to_string(scf_env%method),error,failure)
 
-    ! ************************************************************************
+    ! *************************************************************************
     ! Filter matrix diagonalisation: ugly implementation at this point of time
-    ! ************************************************************************
+    ! *************************************************************************
     CASE(filter_matrix_diag_method_nr)
 
        CALL fb_env_do_diag(scf_env%filter_matrix_env, qs_env, &
@@ -253,8 +253,8 @@ CONTAINS
     ENDDO
     energy%efermi = energy%efermi /REAL(SIZE(mos),KIND=dp)
 
- 
-  END SUBROUTINE qs_scf_new_mos 
+
+  END SUBROUTINE qs_scf_new_mos
 
 
 ! *****************************************************************************
@@ -268,7 +268,6 @@ CONTAINS
 !> \param energy_only ...
 !> \param error ...
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_new_mos_kp(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -327,6 +326,7 @@ CONTAINS
 
   END SUBROUTINE qs_scf_new_mos_kp
 
+
 ! *****************************************************************************
 !> \brief the inner loop of scf, specific to using to the orbital transformation method
 !>       basically, in goes the ks matrix out goes a new p matrix
@@ -345,7 +345,6 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 !>      2013    moved from qs_scf [Florian Schiffmann]
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_loop_do_ot(qs_env,scf_env,smear,mos,rho,mo_derivs,total_energy,&
                                matrix_s,energy_only,has_unit_metric,error)
 
@@ -414,6 +413,7 @@ CONTAINS
 
   END SUBROUTINE qs_scf_loop_do_ot
 
+
 ! *****************************************************************************
 !> \brief Performs the requested density mixing if any needed
 !> \param scf_env   Holds SCF environment information
@@ -423,7 +423,6 @@ CONTAINS
 !> \param do_kpoints Is this a kpoint run?
 !> \param error     CP2K error handling variable
 ! *****************************************************************************
-
  SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_rho_type), POINTER               :: rho
@@ -463,6 +462,7 @@ CONTAINS
 
   END SUBROUTINE qs_scf_density_mixing
 
+
 ! *****************************************************************************
 !> \brief checks whether exit conditions for outer loop are satisfied
 !> \param qs_env ...
@@ -473,7 +473,6 @@ CONTAINS
 !> \param exit_outer_loop ...
 !> \param error ...
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_check_outer_exit(qs_env,scf_env,scf_control,should_stop,&
                                 outer_loop_converged,exit_outer_loop,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -518,7 +517,6 @@ CONTAINS
 !> \param output_unit ...
 !> \param error ...
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_check_inner_exit(qs_env,scf_env,scf_control,should_stop,&
                                exit_inner_loop,inner_loop_converged,output_unit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -538,19 +536,12 @@ CONTAINS
      CALL external_control(should_stop,"SCF",target_time=qs_env%target_time, &
           start_time=qs_env%start_time,error=error)
      IF (scf_env%iter_delta < scf_control%eps_scf) THEN
-!BEG:ORIG:LT:2015/02/02
         IF (output_unit>0) THEN
            WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                 "*** SCF run converged in ",scf_env%iter_count," steps ***"
         END IF
         inner_loop_converged=.TRUE.
         exit_inner_loop = .TRUE.
-!END:ORIG:LT:2015/02/02
-!BEG:DEBUG:LT:2015/02/02
-        ! IF (output_unit > 0) THEN
-        !    WRITE (UNIT=output_unit,FMT=*) "|LT| qs_scf_check_inner_exit SKIP"
-        ! END IF
-!END:DEBUG:LT:2015/02/02
      ELSE IF (should_stop .OR.  scf_env%iter_count >= scf_control%max_scf) THEN
         IF (output_unit>0) THEN
            WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
@@ -561,6 +552,8 @@ CONTAINS
      END IF
 
   END SUBROUTINE qs_scf_check_inner_exit
+
+
 ! *****************************************************************************
 !> \brief undoing density mixing. Important upon convergence
 !> \param scf_env ...
@@ -652,6 +645,8 @@ CONTAINS
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
   END SUBROUTINE qs_scf_rho_update
+
+
 ! *****************************************************************************
 !> \brief Performes the necessary steps before leaving innner scf loop
 !> \param scf_env ...
@@ -700,6 +695,7 @@ CONTAINS
     CALL qs_scf_rho_update(rho,qs_env,scf_env,ks_env,mix_rho=.FALSE.,error=error)
 
   END SUBROUTINE qs_scf_inner_finalize
+
 
 ! *****************************************************************************
 !> \brief perform cleanup operations at the end of an scf loop

@@ -541,16 +541,16 @@ CONTAINS
          t_min(nrep), t(nrep), load_imb(nrep), STAT=istat)
     CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
          routineN, "allocattion problem",__LINE__,error)
-    times = 0.0_real_8
-    t_max = 0.0_real_8
-    t_min = 0.0_real_8
-    t = 0.0_real_8
-    flops_node = 0.0_real_8
-    flops_thread = 0.0_real_8
-    flops_all = 0.0_real_8
-    flops = 0
-    flop_sum = 0
-    load_imb = 0.0_real_8
+    times(:,:) = 0.0_real_8
+    t_max(:) = 0.0_real_8
+    t_min(:) = 0.0_real_8
+    t(:) = 0.0_real_8
+    flops_node(:) = 0.0_real_8
+    flops_thread(:) = 0.0_real_8
+    flops_all(:) = 0.0_real_8
+    flops(:,:) = 0
+    flop_sum(:) = 0
+    load_imb(:) = 0.0_real_8
 
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)
@@ -670,11 +670,11 @@ CONTAINS
     t_min(:) = MINVAL(times, DIM=1)
     t(:) = SUM(times, DIM=1) / REAL(numnodes, real_8)
     flop_sum(:) = SUM(flops, DIM=1)
-    t_max = MAX (t_max, 0.001_real_8)
-    flops_all(:) = REAL(flop_sum, KIND=real_8) / t_max !* 1.0e-9_real_8
-    flops_node(:) = flops_all / REAL(numnodes, real_8)
-    flops_thread(:) = flops_node / REAL(nthreads, real_8)
-    load_imb(:) = t_max - t / REAL(numnodes, real_8)
+    t_max(:) = MAX (t_max(:), 0.001_real_8)
+    flops_all(:) = REAL(flop_sum(:), KIND=real_8) / t_max(:) !* 1.0e-9_real_8
+    flops_node(:) = flops_all(:) / REAL(numnodes, real_8)
+    flops_thread(:) = flops_node(:) / REAL(nthreads, real_8)
+    load_imb(:) = t_max(:) - t(:) / REAL(numnodes, real_8)
 
     std_t = 1.0_real_8
     std_all = 1.0_real_8

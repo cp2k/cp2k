@@ -1829,10 +1829,10 @@ CONTAINS
     ! send rvals (to be removed :-)
 
     ! take care of the new task_dim in the send_sizes
-    send_sizes=(send_sizes/task_dim)*SIZE(rval,1)
-    recv_sizes=(recv_sizes/task_dim)*SIZE(rval,1)
-    send_disps=(send_disps/task_dim)*SIZE(rval,1)
-    recv_disps=(recv_disps/task_dim)*SIZE(rval,1)
+    send_sizes(:) = (send_sizes(:)/task_dim)*SIZE(rval,1)
+    recv_sizes(:) = (recv_sizes(:)/task_dim)*SIZE(rval,1)
+    send_disps(:) = (send_disps(:)/task_dim)*SIZE(rval,1)
+    recv_disps(:) = (recv_disps(:)/task_dim)*SIZE(rval,1)
     task_dim=SIZE(rval,1)
 
     ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)

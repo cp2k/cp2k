@@ -168,8 +168,8 @@ MODULE mp2_laplace
     END IF
 
     ! scale the minimax parameters
-    aj=aj/Emin
-    wj=wj/Emin
+    aj(:) = aj(:)/Emin
+    wj(:) = wj(:)/Emin
 
     ! initialize buffer for matrix redistribution
     CALL initialize_buffer(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&

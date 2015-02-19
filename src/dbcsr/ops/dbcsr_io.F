@@ -793,7 +793,7 @@ CONTAINS
                               row_blk_size, col_blk_size/))             
     END IF
 !> write sub-header2 
-    subh2_disps = subh2_disps+ginfo_size
+    subh2_disps(:) = subh2_disps(:) + ginfo_size
     subh2_offsets(:) = BOF + (subh2_disps-char_count)*mpi_integer_size +&
                     char_count*mpi_character_size
     CALL mp_file_write_at_all(thefile, subh2_offsets(mynode+1), (/nblks, data_area_size/))

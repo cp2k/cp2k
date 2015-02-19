@@ -631,7 +631,7 @@ CONTAINS
        ! calculate function on small boxes
        CALL get_patch ( particle_set, box, green, npts, p1, rhos, is_core=.FALSE.,&
             is_shell=.FALSE., unit_charge=.TRUE.)
-       rhos = rhos * mcharge(p1)
+       rhos(:,:,:) = rhos(:,:,:) * mcharge(p1)
 
        ! add boxes to real space grid (big box)
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )

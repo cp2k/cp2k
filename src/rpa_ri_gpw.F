@@ -1488,8 +1488,8 @@ MODULE rpa_ri_gpw
       END IF
 
       ! scale the minimax parameters
-      tj=tj*Emin
-      wj=wj*Emin
+      tj(:) = tj(:)*Emin
+      wj(:) = wj(:)*Emin
 
     ELSE
       ! Clenshaw-Curtius quadrature
@@ -1514,7 +1514,7 @@ MODULE rpa_ri_gpw
 
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
 
-      wj=wj*a_scaling
+      wj(:) = wj(:)*a_scaling
 
     END IF
 

@@ -93,7 +93,7 @@ CONTAINS
              w(i) = particle_set(i)%atomic_kind%mass
           END DO
           mtot = MINVAL(w)
-          IF (mtot /= 0.0_dp) w = w/mtot
+          IF (mtot /= 0.0_dp) w(:) = w(:)/mtot
        END IF
        ALLOCATE(rp(3,natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

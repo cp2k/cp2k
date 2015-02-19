@@ -419,8 +419,8 @@ CONTAINS
        END IF
        SELECT CASE (dispersion_env%nl_type)
           CASE (vdw_nl_RVV10)
-             potential = 0.5_dp*potential + beta
-             hpot = 0.5_dp*hpot
+             potential(:) = 0.5_dp*potential(:) + beta
+             hpot(:) = 0.5_dp*hpot(:)
        END SELECT
        CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE, error=error)
        vxc_r%cr3d = RESHAPE(potential,(/n1,n2,n3/))

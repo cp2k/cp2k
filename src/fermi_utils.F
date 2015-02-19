@@ -227,7 +227,7 @@ CONTAINS
        my_estate = estate
        my_festate = festate
     ELSE
-       my_estate = INT(maxocc)
+       my_estate = NINT(maxocc)
        my_festate = my_estate
     END IF
 
@@ -381,7 +381,7 @@ CONTAINS
        my_estate = estate
        my_festate = festate
     ELSE
-       my_estate = INT(maxocc)
+       my_estate = NINT(maxocc)
        my_festate = my_estate
     END IF
 

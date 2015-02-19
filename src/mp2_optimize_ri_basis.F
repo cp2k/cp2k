@@ -1476,7 +1476,7 @@ MODULE mp2_optimize_ri_basis
             END DO
           END IF
         END DO
-        max_rel_dev=max_rel_dev*0.9_dp
+        max_rel_dev(:) = max_rel_dev(:)*0.9_dp
         DEALLOCATE(RI_num_sgf_per_l)
 
         ! deallocate the old basis before moving on

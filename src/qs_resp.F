@@ -816,7 +816,7 @@ CPSourceFileRef,&
        ELSE                                                                                       
           vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol
        END IF
-       dist=1.0_dp/dist
+       dist(:) = 1.0_dp/dist(:)
 
        DO i=1,natom
         DO m=1,natom

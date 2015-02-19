@@ -3151,7 +3151,7 @@ MODULE mp2_ri_gpw
   
     IF(calc_forces) THEN
       ! sum P_ab
-      mp2_env%ri_grad%P_ab=mp2_env%ri_grad%P_ab*2.0_dp
+      mp2_env%ri_grad%P_ab(:,:) = mp2_env%ri_grad%P_ab(:,:)*2.0_dp
       sub_P_color=para_env_sub%mepos
       CALL mp_comm_split_direct(para_env%group,comm_P,sub_P_color)
       NULLIFY(para_env_P)

@@ -22,7 +22,7 @@ MODULE qs_fb_trial_fns_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
   INTEGER, PRIVATE, SAVE :: last_fb_trial_fns_id = 0
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief data containing information on trial functions used by filter
 !>        matrix diagonalisation method
 !> \param nfunctions : nfunctions(ikind) = number of trial functions for
@@ -33,7 +33,7 @@ MODULE qs_fb_trial_fns_types
 !> \param id_nr      : unique id for the object
 !> \param ref_count  : reference counter for the object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **********************************************************************
+! *****************************************************************************
   TYPE fb_trial_fns_data
      INTEGER :: id_nr, ref_count
      INTEGER, DIMENSION(:), POINTER :: nfunctions
@@ -41,12 +41,12 @@ MODULE qs_fb_trial_fns_types
   END TYPE fb_trial_fns_data
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief the object container which allows for the creation of an array
 !>        of pointers to fb_trial_fns objects
 !> \param obj : pointer to the fb_trial_fns object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **********************************************************************
+! *****************************************************************************
   TYPE fb_trial_fns_obj
      TYPE(fb_trial_fns_data), POINTER, PRIVATE :: obj
   END TYPE fb_trial_fns_obj
@@ -55,7 +55,7 @@ MODULE qs_fb_trial_fns_types
 CONTAINS
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief retains given object
 !> \brief ...
 !> \param trial_fns : the fb_trial_fns object in question
@@ -82,7 +82,7 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_retain
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief releases given object
 !> \brief ...
 !> \param trial_fns : the fb_trial_fns object in question
@@ -106,23 +106,24 @@ CONTAINS
        IF (trial_fns%obj%ref_count == 0) THEN
           trial_fns%obj%ref_count = 1
           IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
-             DEALLOCATE(trial_fns%obj%nfunctions, stat=stat)
+             DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           IF (ASSOCIATED(trial_fns%obj%functions)) THEN
-             DEALLOCATE(trial_fns%obj%functions, stat=stat)
+             DEALLOCATE(trial_fns%obj%functions, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           trial_fns%obj%ref_count = 0
-          DEALLOCATE(trial_fns%obj, stat=stat)
+          DEALLOCATE(trial_fns%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+    ELSE
+       NULLIFY(trial_fns%obj)
     END IF
-    NULLIFY(trial_fns%obj)
   END SUBROUTINE fb_trial_fns_release
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief nullifies the content of given object
 !> \param trial_fns : the fb_trial_fns object in question
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -137,7 +138,7 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_nullify
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief associates the content of an object to that of another object
 !>        of the same type
 !> \param a : the output object
@@ -155,10 +156,10 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_associate
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief check if the object has data associated to it
 !> \param trial_fns : the fb_trial_fns object in question
-!> \retval res ...
+!> \retval res : true if trial_fns%obj is associated, false otherwise
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_trial_fns_has_data(trial_fns) RESULT(res)
@@ -172,7 +173,7 @@ CONTAINS
   END FUNCTION fb_trial_fns_has_data
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief creates an fb_trial_fns object and initialises it
 !> \param trial_fns : the fb_trial_fns object in question
 !> \param error : cp2k error container
@@ -202,7 +203,7 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_create
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief initialises an fb_trial_fns object
 !> \param trial_fns : the fb_trial_fns object in question
 !> \param error : cp2k error container
@@ -236,7 +237,7 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_init
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief get values of the attributes of a fb_trial_fns object
 !> \param trial_fns  : the fb_trial_fns object in question
 !> \param nfunctions : outputs pointer to trial_fns%obj%nfunctions
@@ -268,7 +269,7 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_get
 
 
-! **********************************************************************
+! *****************************************************************************
 !> \brief sets the attributes of a fb_trial_fns object
 !> \param trial_fns  : the fb_trial_fns object in question
 !> \param nfunctions : associates trial_fns%obj%nfunctions to this pointer
