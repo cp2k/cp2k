@@ -776,6 +776,7 @@ END SUBROUTINE create_ewald_section
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
@@ -786,6 +787,15 @@ END SUBROUTINE create_ewald_section
             description="Parameters for creating Dirichlet type boundary conditions.",&
             n_keywords=1, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
             error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="DEBUG", &
+            description="Whether or not to print out the values of the electrostatic potential "// &
+            "at Dirichlet regions.", &
+            usage="DEBUG <logical>", default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
        NULLIFY(subsection)
 

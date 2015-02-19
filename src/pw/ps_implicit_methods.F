@@ -90,7 +90,6 @@ MODULE ps_implicit_methods
                       compute_error_mixed_bc
   END INTERFACE ps_implicit_compute_error
 
-  LOGICAL, PRIVATE, PARAMETER          :: debug = .FALSE.
   LOGICAL, PRIVATE, PARAMETER          :: adjust_local_bounds = .FALSE.
 
 CONTAINS
@@ -499,7 +498,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, n_gates, &
-      n_tiles_tot, ngpts_local, outp_unit, times_called, ub1, ub2, ub3
+      n_tiles_tot, ng, ngpts_local, nt, nt_tot, outp_unit, times_called, ub1, &
+      ub2, ub3
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, DIMENSION(2, 3)                 :: bounds_local
     INTEGER, DIMENSION(3)                    :: npts_local
@@ -683,13 +683,22 @@ CONTAINS
        END IF
 
 ! debugging
-       IF (debug) THEN
+       IF (poisson_params%dbc_params%debug) THEN
           v_new1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
-             WRITE(outp_unit, '(T8,A)') 'vhartree at DB regions : '
-             WRITE(outp_unit, '(T8,E10.2)') Bxv_new
+             WRITE(outp_unit, '(T3,A,A)') "======== debug ", REPEAT('=', 63)
+             WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
+             WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
+             nt_tot = 1
+             DO ng = 1, n_gates
+                DO nt = 1, ps_implicit_env%gates(ng)%dirichlet_bc%n_tiles
+                   WRITE(outp_unit, '(T22,I6,5X,I6,3X,E13.4)') ng, nt, Bxv_new(nt_tot)
+                   nt_tot = nt_tot + 1
+                END DO
+             END DO 
+             WRITE(outp_unit, '(T3,A)') REPEAT('=', 78)
           END IF
        END IF
 
@@ -761,7 +770,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, n_gates, &
-      n_tiles_tot, ngpts_local, outp_unit, times_called, ub1, ub2, ub3
+      n_tiles_tot, ng, ngpts_local, nt, nt_tot, outp_unit, times_called, ub1, &
+      ub2, ub3
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, DIMENSION(2, 3)                 :: bounds_local
     INTEGER, DIMENSION(3)                    :: npts_local
@@ -958,13 +968,22 @@ CONTAINS
        END IF
 
 ! debugging
-       IF (debug) THEN
+       IF (poisson_params%dbc_params%debug) THEN
           v_new1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
-             WRITE(outp_unit, '(T8,A)') 'vhartree at DB regions : '
-             WRITE(outp_unit, '(T8,E10.2)') Bxv_new
+             WRITE(outp_unit, '(T3,A)') "======== debug "//REPEAT('=', 63)
+             WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
+             WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
+             nt_tot = 1
+             DO ng = 1, n_gates
+                DO nt = 1, ps_implicit_env%gates(ng)%dirichlet_bc%n_tiles
+                   WRITE(outp_unit, '(T22,I6,5X,I6,3X,E13.4)') ng, nt, Bxv_new(nt_tot)
+                   nt_tot = nt_tot + 1
+                END DO
+             END DO 
+             WRITE(outp_unit, '(T3,A)') REPEAT('=', 78)
           END IF
        END IF
 
