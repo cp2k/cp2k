@@ -71,7 +71,8 @@ MODULE dm_ls_scf
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE mathlib,                         ONLY: binomial
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
@@ -924,6 +925,7 @@ CONTAINS
 
        WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
        WRITE(unit_nr,'()')
+       CALL m_flush(unit_nr)
     ENDIF
 
     CALL timestop(handle)
@@ -1184,6 +1186,7 @@ CONTAINS
          WRITE(unit_nr,*)
          WRITE(unit_nr,'(T2,A,I6,F20.9,F20.9,F12.6)') "SCF",iscf, energy_new,energy_diff, t2-t1
          WRITE(unit_nr,*)
+         CALL m_flush(unit_nr)
       ENDIF
 
       ! exit criterium on the energy only for the time being
