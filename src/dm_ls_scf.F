@@ -45,7 +45,8 @@ MODULE dm_ls_scf
                                              ls_scf_qs_atomic_guess,&
                                              matrix_ls_create,&
                                              matrix_ls_to_qs,&
-                                             matrix_qs_to_ls
+                                             matrix_qs_to_ls,&
+                                             rho_mixing_ls_init
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE input_constants,                 ONLY: &
        ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
@@ -84,9 +85,7 @@ MODULE dm_ls_scf
                                              pexsi_to_qs
   USE pexsi_types,                     ONLY: lib_pexsi_init
   USE qs_density_mixing_types,         ONLY: create_mixing_section,&
-                                             gspace_mixing_nr,&
-                                             mixing_storage_create,&
-                                             mixing_storage_release
+                                             mixing_storage_create
   USE qs_diis,                         ONLY: qs_diis_b_clear_sparse,&
                                              qs_diis_b_create_sparse,&
                                              qs_diis_b_step_4lscf
@@ -95,10 +94,6 @@ MODULE dm_ls_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_gspace_mixing,                ONLY: mixing_allocate,&
-                                             mixing_init
-  USE qs_rho_atom_types,               ONLY: rho_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_mo_free_results
   USE timings,                         ONLY: timeset,&
@@ -181,7 +176,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: input
+    TYPE(section_vals_type), POINTER         :: input, mixing_section
 
     CALL timeset(routineN,handle)
 
@@ -232,6 +227,10 @@ CONTAINS
     ALLOCATE(ls_scf_env%scf_history%matrix(ls_scf_env%nspins,ls_scf_env%scf_history%nstore))
 
     NULLIFY(ls_scf_env%mixing_store)
+    mixing_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%RHO_MIXING",error=error)
+    CALL mixing_storage_create(ls_scf_env%mixing_store, mixing_section, &
+                               ls_scf_env%density_mixing_method, &
+                               dft_control%qs_control%cutoff, error)
 
     ! initialize PEXSI
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
@@ -269,10 +268,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(rho_atom_type), DIMENSION(:), &
-      POINTER                                :: rho_atom
-    TYPE(section_vals_type), POINTER         :: input, mixing_section
+    TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
 
@@ -292,9 +288,7 @@ CONTAINS
                            input=input,&
                            has_unit_metric=ls_scf_env%has_unit_metric,&
                            para_env=ls_scf_env%para_env,&
-                           nelectron_spin=ls_scf_env%nelectron_spin,&
-                           rho=rho,&
-                           error=error)
+                           nelectron_spin=ls_scf_env%nelectron_spin,error=error)
 
     ! some basic initialization of the QS side of things
     CALL ls_scf_init_qs(qs_env,error)
@@ -325,22 +319,7 @@ CONTAINS
     CALL ls_scf_initial_guess(qs_env,ls_scf_env,error)
 
     IF (ls_scf_env%do_rho_mixing) THEN
-      mixing_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%RHO_MIXING",error=error)
-      CALL mixing_storage_create(ls_scf_env%mixing_store, mixing_section, &
-                                 ls_scf_env%density_mixing_method, &
-                                 dft_control%qs_control%cutoff, error)
-      CALL mixing_allocate(qs_env, ls_scf_env%density_mixing_method, nspins=nspin, &
-                           mixing_store=ls_scf_env%mixing_store,error=error)
-      IF(ls_scf_env%density_mixing_method>=gspace_mixing_nr) THEN
-        IF(dft_control%qs_control%gapw) THEN 
-          CALL get_qs_env(qs_env, rho_atom_set=rho_atom,error=error)
-          CALL mixing_init(ls_scf_env%density_mixing_method, rho,ls_scf_env%mixing_store, &
-                           ls_scf_env%para_env, rho_atom=rho_atom,error=error)
-        ELSE
-          CALL mixing_init(ls_scf_env%density_mixing_method, rho,ls_scf_env%mixing_store, &
-                           ls_scf_env%para_env,error=error)
-        ENDIF
-      ENDIF
+      CALL rho_mixing_ls_init(qs_env, ls_scf_env, error)
     ENDIF
  
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
@@ -1311,10 +1290,6 @@ CONTAINS
        CALL cp_dbcsr_release(ls_scf_env%matrix_ks(ispin),error=error)
     ENDDO
     DEALLOCATE(ls_scf_env%matrix_ks)
-
-    IF (ASSOCIATED(ls_scf_env%mixing_store)) THEN
-      CALL mixing_storage_release(ls_scf_env%mixing_store,error)
-    ENDIF
 
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) &
       CALL pexsi_finalize_scf(ls_scf_env%pexsi, error)

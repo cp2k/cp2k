@@ -33,6 +33,8 @@ MODULE dm_ls_scf_qs
                                              ls_cluster_molecular,&
                                              ls_mstruct_type,&
                                              ls_scf_env_type
+  USE input_constants,                 ONLY: ls_cluster_atomic,&
+                                             ls_cluster_molecular
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -54,7 +56,9 @@ MODULE dm_ls_scf_qs
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_gspace_mixing,                ONLY: gspace_mixing
+  USE qs_gspace_mixing,                ONLY: gspace_mixing,&
+                                             mixing_allocate,&
+                                             mixing_init
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -63,6 +67,7 @@ MODULE dm_ls_scf_qs
                                              qs_ks_env_type,&
                                              set_ks_env
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
@@ -79,7 +84,7 @@ MODULE dm_ls_scf_qs
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_qs'
 
   PUBLIC :: matrix_ls_create, matrix_qs_to_ls, matrix_ls_to_qs, ls_scf_init_qs,&
-           ls_scf_dm_to_ks, ls_scf_qs_atomic_guess, write_matrix_to_cube
+           ls_scf_dm_to_ks, ls_scf_qs_atomic_guess, write_matrix_to_cube, rho_mixing_ls_init
 
 CONTAINS
 
@@ -659,5 +664,46 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_matrix_to_cube
+
+! *****************************************************************************
+!> \brief Initialize g-space density mixing
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE rho_mixing_ls_init(qs_env, ls_scf_env, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ls_scf_env_type)                    :: ls_scf_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rho_mixing_ls_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom
+
+    CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env,dft_control=dft_control,&
+                           rho=rho,&
+                           error=error)
+
+    CALL mixing_allocate(qs_env, ls_scf_env%density_mixing_method, nspins=ls_scf_env%nspins, &
+                         mixing_store=ls_scf_env%mixing_store,error=error)
+    IF(ls_scf_env%density_mixing_method>=gspace_mixing_nr) THEN
+      IF(dft_control%qs_control%gapw) THEN 
+        CALL get_qs_env(qs_env, rho_atom_set=rho_atom,error=error)
+        CALL mixing_init(ls_scf_env%density_mixing_method, rho,ls_scf_env%mixing_store, &
+                         ls_scf_env%para_env, rho_atom=rho_atom,error=error)
+      ELSE
+        CALL mixing_init(ls_scf_env%density_mixing_method, rho,ls_scf_env%mixing_store, &
+                         ls_scf_env%para_env,error=error)
+      ENDIF
+    ENDIF
+    CALL timestop(handle)
+  END SUBROUTINE rho_mixing_ls_init
 
 END MODULE dm_ls_scf_qs

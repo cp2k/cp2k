@@ -23,7 +23,8 @@ MODULE dm_ls_scf_types
   USE kinds,                           ONLY: dp
   USE pexsi_types,                     ONLY: lib_pexsi_env,&
                                              lib_pexsi_finalize
-  USE qs_density_mixing_types,         ONLY: mixing_storage_type
+  USE qs_density_mixing_types,         ONLY: mixing_storage_release,&
+                                             mixing_storage_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -189,6 +190,10 @@ CONTAINS
     IF (ASSOCIATED(ls_scf_env%chebyshev%max_energy)) THEN
        DEALLOCATE(ls_scf_env%chebyshev%max_energy,stat=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    IF (ASSOCIATED(ls_scf_env%mixing_store)) THEN
+      CALL mixing_storage_release(ls_scf_env%mixing_store,error)
     ENDIF
 
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
