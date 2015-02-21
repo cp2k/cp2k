@@ -401,7 +401,7 @@ CONTAINS
 
           IF(do_kpoints) THEN
              ! kpoints
-             CALL qs_scf_new_mos_kp(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error=error)
+             CALL qs_scf_new_mos_kp(qs_env,scf_env,scf_control,diis_step,energy_only,error=error)
           ELSE
              ! Gamma points only
              CALL qs_scf_new_mos(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error=error)
