@@ -29,7 +29,6 @@ MODULE wannier_states
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE molecule_types_new,              ONLY: molecule_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
@@ -56,7 +55,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief constructs wannier states. mo_localized should not be overwritten!
-!> \param molecule_set ...
 !> \param mo_localized ...
 !> \param Hks ...
 !> \param qs_env ...
@@ -66,11 +64,9 @@ CONTAINS
 !> \param states ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE construct_wannier_states(molecule_set, mo_localized, &
+  SUBROUTINE construct_wannier_states(mo_localized, &
        Hks, qs_env,loc_print_section,WannierCentres,ns,states,error)
 
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
     TYPE(cp_fm_type), INTENT(in), POINTER    :: mo_localized
     TYPE(cp_dbcsr_type), POINTER             :: Hks
     TYPE(qs_environment_type), POINTER       :: qs_env

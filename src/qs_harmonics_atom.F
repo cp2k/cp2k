@@ -191,22 +191,19 @@ CONTAINS
 !> \param max_s_harm ...
 !> \param ll ...
 !> \param wa ...
-!> \param azi ...
-!> \param cos_azi ...
 !> \param pol ...
 !> \param cos_pol ...
 !> \param cotan_azi ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_harmonics_atom(harmonics,my_CG,na,&
-       llmax,maxs,max_s_harm,ll,wa,azi,cos_azi,pol,cos_pol,cotan_azi,error)
+       llmax,maxs,max_s_harm,ll,wa,pol,cos_pol,cotan_azi,error)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     INTEGER, INTENT(IN)                      :: na, llmax, maxs, max_s_harm, &
                                                 ll
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: wa, azi, cos_azi, pol, &
-                                                cos_pol, cotan_azi
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: wa, pol, cos_pol, cotan_azi
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
@@ -521,8 +518,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE  create_harmonics_atom
-
-! *****************************************************************************
 
 ! *****************************************************************************
 !> \brief ...

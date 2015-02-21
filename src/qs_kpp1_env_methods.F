@@ -523,7 +523,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calcualtes the k_p_p1 kernel of the pertubation theory with finite
 !>      differences
-!> \param kpp1_env the kpp1 environement in which perform the calculation
 !> \param qs_env kpp1's qs_env
 !> \param k_p_p1 the sparse matrix that will contain the kernel k_p_p1
 !> \param rho the density where to evaluate the derivatives (i.e. p along
@@ -540,9 +539,8 @@ CONTAINS
 !>      useful for testing purposes.
 !>      rescale my_diff depending on the norm of rho1?
 ! *****************************************************************************
-  SUBROUTINE kpp1_calc_k_p_p1_fdiff(kpp1_env,qs_env,k_p_p1,rho,rho1,&
+  SUBROUTINE kpp1_calc_k_p_p1_fdiff(qs_env,k_p_p1,rho,rho1,&
        diff, error)
-    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1

@@ -1171,15 +1171,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Constructs an empty 1-el DFTB hamiltonian
 !> \param qs_env ...
-!> \param qmmm_env ...
 !> \param para_env ...
 !> \param error ...
 !> \author JGH 10.2014 [created]
 ! *****************************************************************************
-  SUBROUTINE build_dftb_qmmm_matrix_zero(qs_env,qmmm_env,para_env,error)
+  SUBROUTINE build_dftb_qmmm_matrix_zero(qs_env,para_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

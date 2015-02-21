@@ -902,7 +902,7 @@ CONTAINS
       ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
         NULLIFY(nl_section)
         nl_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%NON_LOCAL",error=error)
-        CALL qs_dispersion_nonloc_init(dispersion_env,nl_section,para_env,error)
+        CALL qs_dispersion_nonloc_init(dispersion_env,para_env,error)
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
     ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN

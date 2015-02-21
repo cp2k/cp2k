@@ -473,7 +473,6 @@ CONTAINS
 !> \param elem actual tree element to be printed out
 !> \param tmc_params TMC environment parameters
 !> \param temp_index ...
-!> \param accepted ...
 !> \param file_name file name will be extended by type of file (pos, cell,...)
 !> \param conf_nr Markov chain element number
 !> \param conf_info whole header line
@@ -481,12 +480,11 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE write_element_in_file(elem, tmc_params, temp_index, accepted, file_name, conf_nr, &
+  SUBROUTINE write_element_in_file(elem, tmc_params, temp_index, file_name, conf_nr, &
                                    conf_info, error)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(tmc_param_type), POINTER            :: tmc_params
     INTEGER, OPTIONAL                        :: temp_index
-    LOGICAL, OPTIONAL                        :: accepted
     CHARACTER(LEN=*), OPTIONAL               :: file_name
     INTEGER, OPTIONAL                        :: conf_nr
     CHARACTER(LEN=*), OPTIONAL               :: conf_info

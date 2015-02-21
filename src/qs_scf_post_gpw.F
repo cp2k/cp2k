@@ -785,7 +785,7 @@ CONTAINS
 
              wc(ispin)%centres(:,:)=scenter(1+(ispin-1)*3:ispin*3,:)
              lstates => qs_loc_env%localized_wfn_control%loc_states(:,ispin)
-             CALL construct_wannier_states(molecule_set, mo_local(ispin)%matrix,&
+             CALL construct_wannier_states(mo_local(ispin)%matrix,&
               ks_rmpv(ispin)%matrix, qs_env, loc_print_section=loc_print_section,&
               WannierCentres=wc(ispin),ns=ns,states=lstates, error=error)
           ENDIF

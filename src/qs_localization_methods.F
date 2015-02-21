@@ -319,10 +319,8 @@ CONTAINS
   END SUBROUTINE jacobi_rotations
 
 ! *****************************************************************************
-! this routine, private to the module is a serial backup, till we have jacobi_rot_para to work in serial
-! while the routine below works in parallel, it is too slow to be useful
-! *****************************************************************************
-!> \brief ...
+!> \brief this routine, private to the module is a serial backup, till we have jacobi_rot_para to work in serial
+!>        while the routine below works in parallel, it is too slow to be useful
 !> \param weights ...
 !> \param zij ...
 !> \param vectors ...
@@ -753,10 +751,11 @@ CONTAINS
     DEALLOCATE(diag)
 
   END SUBROUTINE check_tolerance_new
-! yet another crazy try, computes the angles needed to rotate the orbitals first
-! and rotates them all at the same time (hoping for the best of course)
+
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief yet another crazy try, computes the angles needed to rotate the orbitals first
+!>        and rotates them all at the same time (hoping for the best of course)
 !> \param weights ...
 !> \param zij ...
 !> \param vectors ...
@@ -966,35 +965,29 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE crazy_rotations
-!
-! use the exponential parametrization as described in to perform a direct mini
-!
-! Gerd Berghold et al. PRB 61 (15), pag. 10040 (2000)
-!
-! none of the input is modified for the time being, just finds the rotations
-! that minimizes, and throws it away afterwards :-)
-! apart from being expensive and not cleaned, this works fine
-! useful to try different spread functionals
-!
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief use the exponential parametrization as described in to perform a direct mini
+!>        Gerd Berghold et al. PRB 61 (15), pag. 10040 (2000)
+!> none of the input is modified for the time being, just finds the rotations
+!> that minimizes, and throws it away afterwards :-)
+!> apart from being expensive and not cleaned, this works fine
+!> useful to try different spread functionals
 !> \param weights ...
 !> \param zij ...
 !> \param vectors ...
 !> \param max_iter ...
 !> \param eps_localization ...
 !> \param iterations ...
-!> \param out_each ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE direct_mini( weights, zij, vectors, max_iter ,eps_localization, iterations , out_each, error)
+  SUBROUTINE direct_mini( weights, zij, vectors, max_iter ,eps_localization, iterations , error)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
     INTEGER, INTENT(IN)                      :: max_iter
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
-    INTEGER, INTENT(IN)                      :: out_each
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'direct_mini', &

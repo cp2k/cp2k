@@ -502,6 +502,7 @@ CONTAINS
 
     IF(PRESENT(kp_env)) kpoint%kp_env => kp_env
     IF(PRESENT(mpools)) kpoint%mpools => mpools
+    IF(PRESENT(sab_nl)) kpoint%sab_nl => sab_nl
 
     IF(PRESENT(cell_to_index)) THEN
        IF(ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE(kpoint%cell_to_index)

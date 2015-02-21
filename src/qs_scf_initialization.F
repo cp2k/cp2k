@@ -184,7 +184,7 @@ CONTAINS
 
     CALL qs_scf_ensure_mixing_store(qs_env,scf_env,error=error)
 
-    CALL qs_scf_ensure_outer_loop_vars(scf_env,my_scf_control,dft_control,error=error)
+    CALL qs_scf_ensure_outer_loop_vars(scf_env,my_scf_control,error=error)
 
     CALL init_scf_run(scf_env, qs_env, my_scf_section, my_scf_control, error=error)
 
@@ -238,13 +238,11 @@ CONTAINS
 !> \brief performs allocation of outer SCF variables
 !> \param scf_env ...
 !> \param scf_control ...
-!> \param dft_control ...
 !> \param error ...
 ! *****************************************************************************
-   SUBROUTINE qs_scf_ensure_outer_loop_vars(scf_env,scf_control,dft_control,error)
+   SUBROUTINE qs_scf_ensure_outer_loop_vars(scf_env,scf_control,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &

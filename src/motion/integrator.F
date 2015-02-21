@@ -1250,7 +1250,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'npt_i', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
                                                 e4 = e2/20.0_dp, &
                                                 e6 = e4/42.0_dp, &
@@ -1755,7 +1754,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
                                                 e4 = e2/20._dp, &
                                                 e6 = e4/42._dp, e8 = e6/72._dp
@@ -2015,7 +2013,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial_damped', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
                                                 e4 = e2/20._dp, &
                                                 e6 = e4/42._dp, e8 = e6/72._dp
@@ -2285,7 +2282,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'npt_f', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: box_change = .TRUE.
     REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
                                                 e4 = e2/20.0_dp, &
                                                 e6 = e4/42.0_dp, &

@@ -921,7 +921,6 @@ MODULE qs_rho_atom_methods
       maxs=nsoset(maxl)
       CALL create_harmonics_atom(harmonics,&
                    my_CG,na,llmax,maxs,max_s_harm,ll,grid_atom%wa,&
-                   grid_atom%azi,grid_atom%cos_azi,&
                    grid_atom%pol,grid_atom%cos_pol,&
                    grid_atom%cotan_azi,error)
       CALL get_maxl_CG(harmonics,orb_basis_set,my_CG,llmax,max_s_harm,error)

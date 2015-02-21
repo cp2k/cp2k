@@ -464,7 +464,7 @@ CONTAINS
        END IF
 
        IF(dft_control%correct_surf_dip) THEN
-         CALL calc_dipsurf_potential(qs_env,ks_env,energy,error=error)
+         CALL calc_dipsurf_potential(qs_env,energy,error=error)
          energy%hartree = energy%hartree + energy%surf_dipole
        END IF
 

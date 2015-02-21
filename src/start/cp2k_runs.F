@@ -400,7 +400,7 @@ CONTAINS
           CASE (mon_car_run)
              CALL do_mon_car(force_env, globenv, input_declaration, input_file_name, error=suberror)
           CASE (do_tamc)
-             CALL qs_tamc ( force_env, globenv, input_file_name, error=suberror )
+             CALL qs_tamc ( force_env, globenv, error=suberror )
           CASE (electronic_spectra_run)
              IF(method_name_id /= do_qs) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

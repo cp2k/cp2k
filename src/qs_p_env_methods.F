@@ -886,7 +886,7 @@ END SUBROUTINE p_env_did_change
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, error=error)
 
        IF (fdiff) THEN
-          CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+          CALL kpp1_calc_k_p_p1_fdiff(qs_env=qs_env,&
                                       k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
                                       error=error)
        ELSE

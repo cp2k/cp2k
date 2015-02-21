@@ -343,10 +343,10 @@ CONTAINS
              CALL pw_env_get(pw_env,vdw_pw_pool=vdw_pw_pool,error=error)
              IF(my_just_energy) THEN
                 CALL calculate_dispersion_nonloc(my_vxc_rho,rho_r,rho_g,edisp,dispersion_env,&
-                     my_just_energy,cell,vdw_pw_pool,xc_pw_pool,para_env,error=error)
+                     my_just_energy,vdw_pw_pool,xc_pw_pool,para_env,error=error)
              ELSE
                 CALL calculate_dispersion_nonloc(my_vxc_rho,rho_r,rho_g,edisp,dispersion_env,&
-                     my_just_energy,cell,vdw_pw_pool,xc_pw_pool,para_env,virial=virial,error=error)
+                     my_just_energy,vdw_pw_pool,xc_pw_pool,para_env,virial=virial,error=error)
              END IF
           END IF
 

@@ -841,15 +841,15 @@ CONTAINS
                 END IF
                 IF(ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
                    CALL contract_all(cblock,sblock,&
-                        iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
-                        jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
+                        ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
+                        ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
                         cosab,sinab,ldab,work,ldwork)
                 ENDIF
                 IF(calculate_forces)THEN
                    DO m=1,3
                       CALL contract_all(cost(m)%block,sint(m)%block,&
-                           iatom,ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
-                           jatom,ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
+                           ncoa,nsgfa(iset),sgfa,sphi_a,ldsa,&
+                           ncob,nsgfb(jset),sgfb,sphi_b,ldsb,&
                            dcosab(:,:,m),dsinab(:,:,m),ldab,work,ldwork)
 
                    END DO
@@ -889,13 +889,11 @@ CONTAINS
 !> \brief ...
 !> \param cos_block ...
 !> \param sin_block ...
-!> \param iatom ...
 !> \param ncoa ...
 !> \param nsgfa ...
 !> \param sgfa ...
 !> \param sphi_a ...
 !> \param ldsa ...
-!> \param jatom ...
 !> \param ncob ...
 !> \param nsgfb ...
 !> \param sgfb ...
@@ -908,14 +906,14 @@ CONTAINS
 !> \param ldwork ...
 ! *****************************************************************************
   SUBROUTINE contract_all(cos_block, sin_block,&
-       iatom,ncoa,nsgfa,sgfa,sphi_a,ldsa,&
-       jatom,ncob,nsgfb,sgfb,sphi_b,ldsb,&
+       ncoa,nsgfa,sgfa,sphi_a,ldsa,&
+       ncob,nsgfb,sgfb,sphi_b,ldsb,&
        cosab,sinab,ldab,work,ldwork)
 
     REAL(dp), DIMENSION(:, :), POINTER       :: cos_block, sin_block
-    INTEGER, INTENT(IN)                      :: iatom, ncoa, nsgfa, sgfa
+    INTEGER, INTENT(IN)                      :: ncoa, nsgfa, sgfa
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: sphi_a
-    INTEGER, INTENT(IN)                      :: ldsa, jatom, ncob, nsgfb, sgfb
+    INTEGER, INTENT(IN)                      :: ldsa, ncob, nsgfb, sgfb
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: sphi_b
     INTEGER, INTENT(IN)                      :: ldsb
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: cosab, sinab

@@ -233,7 +233,7 @@ CONTAINS
        END IF
     CASE ( do_loc_direct )
        CALL direct_mini( weights, zij_fm_set, vectors, max_iter=max_iter,&
-            eps_localization=eps_localization, iterations=sweeps,  out_each=out_each, error=error  )
+            eps_localization=eps_localization, iterations=sweeps, error=error  )
     CASE( do_loc_l1_norm_sd )
        IF(.NOT. cell%orthorhombic ) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&

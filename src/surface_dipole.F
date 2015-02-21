@@ -29,7 +29,6 @@ MODULE surface_dipole
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_type
@@ -51,7 +50,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compute the surface dipole and the correction to the hartree potential
 !> \param qs_env the qs environment
-!> \param ks_env ...
 !> \param energy ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -61,10 +59,9 @@ CONTAINS
 ! *****************************************************************************
 
 
-  SUBROUTINE calc_dipsurf_potential(qs_env,ks_env,energy,error)
+  SUBROUTINE calc_dipsurf_potential(qs_env,energy,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -171,7 +171,7 @@ CONTAINS
           CASE(do_qmmm_none)
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                   "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
-             CALL build_dftb_qmmm_matrix_zero(qs_env,qmmm_env,para_env,error)
+             CALL build_dftb_qmmm_matrix_zero(qs_env,para_env,error)
           CASE(do_qmmm_coulomb)
              CALL build_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
           CASE(do_qmmm_pcharge)

@@ -66,20 +66,18 @@ CONTAINS
 !> \param move_rejected return flag if during configurational change 
 !>        configuration should still be accepted (not if e.g. atom/molecule 
 !>        leave the sub box
-!> \param last_acc_elem last accepted configuration for Gaussian Adaptation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
   SUBROUTINE change_pos(tmc_params, move_types, rng_stream, elem, mv_conf, &
-                        new_subbox, move_rejected, last_acc_elem, error)
+                        new_subbox, move_rejected, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tree_type), POINTER                 :: elem
     INTEGER                                  :: mv_conf
     LOGICAL                                  :: new_subbox, move_rejected
-    TYPE(tree_type), OPTIONAL, POINTER       :: last_acc_elem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_pos', &

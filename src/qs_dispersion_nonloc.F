@@ -20,7 +20,6 @@ MODULE qs_dispersion_nonloc
                                              Romanperez2009,&
                                              Sabatini2013,&
                                              cite_reference
-  USE cell_types,                      ONLY: cell_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -28,7 +27,6 @@ MODULE qs_dispersion_nonloc
                                              vdw_nl_LMKLL,&
                                              vdw_nl_RVV10,&
                                              xc_vdw_fun_nonloc
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
@@ -71,14 +69,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dispersion_env ...
-!> \param nl_section ...
 !> \param para_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_dispersion_nonloc_init(dispersion_env,nl_section,para_env,error)
+  SUBROUTINE qs_dispersion_nonloc_init(dispersion_env,para_env,error)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: nl_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -169,8 +164,6 @@ CONTAINS
   END SUBROUTINE qs_dispersion_nonloc_init
 
 ! *****************************************************************************
-
-! *****************************************************************************
 !> \brief Calculates the non-local vdW functional using the method of Soler
 !>        For spin polarized cases we use E(a,b) = E(a+b), i.e. total density
 !> \param vxc_rho ...
@@ -179,7 +172,6 @@ CONTAINS
 !> \param edispersion ...
 !> \param dispersion_env ...
 !> \param energy_only ...
-!> \param cell ...
 !> \param pw_pool ...
 !> \param xc_pw_pool ...
 !> \param para_env ...
@@ -187,12 +179,11 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_dispersion_nonloc(vxc_rho,rho_r,rho_g,edispersion,&
-             dispersion_env,energy_only,cell,pw_pool,xc_pw_pool,para_env,virial,error)
+             dispersion_env,energy_only,pw_pool,xc_pw_pool,para_env,virial,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, rho_r, rho_g
     REAL(KIND=dp), INTENT(OUT)               :: edispersion
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     LOGICAL, INTENT(IN)                      :: energy_only
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool, xc_pw_pool
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
@@ -475,14 +466,11 @@ CONTAINS
 
   END SUBROUTINE calculate_dispersion_nonloc
 
-!! #############################################################################################
-!! This routine carries out the integration of equation 8 of SOLER.  It returns the non-local 
-!! exchange-correlation energy and the u_alpha(k) arrays used to find the u_alpha(r) arrays via 
-!! equations 11 and 12 in SOLER.
-!! energy contribution to stress is added in qs_force
-
 ! *****************************************************************************
-!> \brief ...
+!> \brief This routine carries out the integration of equation 8 of SOLER.  It returns the non-local 
+!> exchange-correlation energy and the u_alpha(k) arrays used to find the u_alpha(r) arrays via 
+!> equations 11 and 12 in SOLER.
+!> energy contribution to stress is added in qs_force
 !> \param thetas_g ...
 !> \param dispersion_env ...
 !> \param vdW_xc_energy ...

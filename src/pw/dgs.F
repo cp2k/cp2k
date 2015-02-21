@@ -390,7 +390,7 @@ SUBROUTINE dg_get_strucfac (cell_hmat, r, npts_s, npts_b, centre, lb, ex, ey, ez
 
   CALL dg_get_delta (cell_hmat, r, npts_s, npts_b, centre, delta)
 
-  CALL structure_factor_evaluate ( delta, npts_s, lb, ex, ey, ez )
+  CALL structure_factor_evaluate ( delta, lb, ex, ey, ez )
 
 END SUBROUTINE dg_get_strucfac
 

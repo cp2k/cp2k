@@ -150,17 +150,15 @@ CONTAINS
 !> \brief Driver routine for TAHMC
 !> \param force_env ...
 !> \param globenv ...
-!> \param input_file_name ...
 !> \param averages ...
 !> \param error ...
 !> \author Alin M Elena
 !> \note it computes the forces using QuickStep.
 ! *****************************************************************************
-SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
+SUBROUTINE qs_tamc(force_env, globenv,averages,error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    CHARACTER(LEN=*), OPTIONAL               :: input_file_name
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -577,8 +575,8 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
           END IF
       ENDDO
 
-      CALL HMCsampler(globenv,force_env,MCaverages,r,mc_par,simpar,moves,gmoves,rng_stream_mc,output_unit,&
-          fz,zbuff,nskip=rand2skip,logger=logger,iter=0,mcsec=mc_section,mdenv=md_env,error=error)
+      CALL HMCsampler(globenv,force_env,MCaverages,r,mc_par,moves,gmoves,rng_stream_mc,output_unit,&
+          fz,zbuff,nskip=rand2skip,error=error)
       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)
       CALL section_vals_val_set(mc_section,"RANDOMTOSKIP",i_val=rand2skip+nmccycles,error=error)
       CALL write_restart(md_env=md_env,root_section=force_env%root_section, error=error)
@@ -1063,7 +1061,7 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
 !    *** Velocity Verlet for Langevin S(t)->S(t+1)
       CALL tamc_position_colvar(force_env,xieta,error)
 !!!!! start zHMC sampler
-      CALL HMCsampler(globenv,force_env,averages,r,mc_par,simpar,moves,gmoves,rng_stream_mc,output_unit,fz,zbuff,error=error)
+      CALL HMCsampler(globenv,force_env,averages,r,mc_par,moves,gmoves,rng_stream_mc,output_unit,fz,zbuff,error=error)
 
 !     CALL final_mc_write(mc_par,tmp_moves,&
 !                output_unit,energy_check,&
@@ -1086,7 +1084,6 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
 !> \param averages ...
 !> \param r ...
 !> \param mc_par ...
-!> \param simpar ...
 !> \param moves ...
 !> \param gmoves ...
 !> \param rng_stream_mc ...
@@ -1094,36 +1091,25 @@ SUBROUTINE qs_tamc(force_env, globenv,input_file_name,averages,error)
 !> \param fz ...
 !> \param zbuff ...
 !> \param nskip ...
-!> \param logger ...
-!> \param mcsec ...
-!> \param mdenv ...
-!> \param iter ...
 !> \param error ...
 !> \author Alin M Elena
 !> \note at the end of this routine %ff_s will contain mean force 
 ! *****************************************************************************
 
-   SUBROUTINE HMCsampler(globenv,force_env,averages,r,mc_par,simpar,moves,gmoves,rng_stream_mc,output_unit,&
-                    fz,zbuff,nskip,logger,mcsec,mdenv,iter,error)
+   SUBROUTINE HMCsampler(globenv,force_env,averages,r,mc_par,moves,gmoves,rng_stream_mc,output_unit,&
+                    fz,zbuff,nskip,error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_averages_type), POINTER          :: averages
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r
     TYPE(mc_simpar_type), POINTER            :: mc_par
-    TYPE(simpar_type), POINTER               :: simpar
     TYPE(mc_moves_type), POINTER             :: moves, gmoves
     TYPE(rng_stream_type), POINTER           :: rng_stream_mc
     INTEGER, INTENT(IN)                      :: output_unit
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: fz, zbuff
     INTEGER, INTENT(IN), OPTIONAL            :: nskip
-    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: mcsec
-    TYPE(md_environment_type), OPTIONAL, &
-      POINTER                                :: mdenv
-    INTEGER, INTENT(IN), OPTIONAL            :: iter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i, iprint, ishift, it1, j, &

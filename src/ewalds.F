@@ -172,7 +172,7 @@ CONTAINS
              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
              charge(node) = charges(iparticle)
              CALL matvec_3x3 (vec, cell % h_inv, particle_set ( iparticle ) % r )
-             CALL structure_factor_evaluate ( vec, pw_grid % npts, exp_igr % lb, &
+             CALL structure_factor_evaluate ( vec, exp_igr % lb, &
                   exp_igr % ex(:,node), exp_igr % ey(:,node), exp_igr % ez(:,node) )
           END DO
        ELSE
@@ -183,7 +183,7 @@ CONTAINS
              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
              charge(node) = q
              CALL matvec_3x3 (vec, cell % h_inv, particle_set ( iparticle ) % r )
-             CALL structure_factor_evaluate ( vec, pw_grid % npts, exp_igr % lb, &
+             CALL structure_factor_evaluate ( vec,exp_igr % lb, &
                   exp_igr % ex(:,node), exp_igr % ey(:,node), exp_igr % ez(:,node) )
           END DO
        END IF
