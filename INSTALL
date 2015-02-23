@@ -315,8 +315,9 @@ architecture.  You can set the ''$FORT_C_NAME'' to indicate the compiler
 part of the architecture string.
   > export FORT_C_NAME=gfortran
 
-==== 3f. Plumed support ====
-CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMEd 2.x (-D__PLUMED2).  Note that the code can only be buit for one of these libraries at a time.
+==== 3f. PLUMED support ====
+CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMED 2.x (-D__PLUMED2). 
+Note that the code can only be built for one of these libraries at a time.
 
 See http://cp2k.org/howto:install_with_plumed for full instructions.
 
