@@ -15,10 +15,9 @@ MODULE md_run
   USE barostat_types,                  ONLY: barostat_type,&
                                              create_barostat_type,&
                                              release_barostat_type
-#ifdef __PLUMED_CP2K
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
   USE cell_types,                    ONLY: cell_type,&
-                                             pbc_cp2k_plumed_getset_cell,&
-                                             pbc_cp2k_plumed
+                                             pbc_cp2k_plumed_getset_cell
 #else
   USE cell_types,                    ONLY: cell_type
 #endif
@@ -228,11 +227,16 @@ CONTAINS
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(virial_type), POINTER               :: virial
-#ifdef __PLUMED_CP2K
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
     INTEGER                                  :: natom_plumed, nsp_plumed, i_kinds
     INTEGER, DIMENSION(90)                   :: na_plumed
     REAL(KIND=dp)                            :: timestep_plumed
     REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
+#endif
+
+#if defined (__PLUMED2)
+    INTEGER :: plumedavailable
+    REAL(KIND=dp)  :: energyUnits, lengthUnits, timeUnits
 #endif
 
     CALL timeset(routineN,handle)
@@ -362,6 +366,7 @@ CONTAINS
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you are using can compute the virial! "//&
  CPSourceFileRef,&
+                 
             error,failure)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
@@ -412,7 +417,7 @@ CONTAINS
        IF (ASSOCIATED(force_env%meta_env)) THEN
            ! Setup stuff for plumed if needed
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-#ifdef __PLUMED_CP2K
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
                natom_plumed=subsys%particles%n_els
                nsp_plumed=subsys%atomic_kinds%n_els
                timestep_plumed=simpar%dt
@@ -421,22 +426,49 @@ CONTAINS
                    pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
                END DO
                CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
-
+#endif
+#if defined (__PLUMED_CP2K)
                !in a parallel run plumed only needs to be initialized on the
                !master node.
                IF (para_env%ionode .EQV. .TRUE.) THEN
                    CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
                        timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
                END IF
-#else
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
-                " not compiled with plumed support."//&
-                CPSourceFileRef,&
-                error,failure)
+#endif
+#if defined (__PLUMED2)
+               CALL plumed_f_installed(plumedavailable)
+               
+               IF(plumedavailable<=0)THEN
+                  WRITE(*,*)"NO PLUMED IN YOUR LD_LIBRARY_PATH?"
+                  STOP
+               ELSE
+                  IF (para_env%ionode .EQV. .TRUE.) THEN           
+                     CALL plumed_f_gcreate()
+                     CALL plumed_f_gcmd("setRealPrecision"//CHAR(0),8)
+                     energyUnits=2.6254996251d+3 ! Hartree to kjoule/mol 
+                     lengthUnits=0.5291772086d-1 ! Bohr to nm
+                     timeUnits=0.02418884326505d-3 !  atomic units to ps
+                     CALL plumed_f_gcmd("setMDEnergyUnits"//CHAR(0),energyUnits)
+                     CALL plumed_f_gcmd("setMDLengthUnits"//CHAR(0),lengthUnits)
+                     CALL plumed_f_gcmd("setMDTimeUnits"//CHAR(0),timeUnits)
+                     CALL plumed_f_gcmd("setPlumedDat"//CHAR(0),force_env%meta_env%plumed_input_file//CHAR(0))
+                     CALL plumed_f_gcmd("setLogFile"//CHAR(0),"PLUMED.OUT"//CHAR(0))
+                     CALL plumed_f_gcmd("setNatoms"//CHAR(0),natom_plumed)
+                     CALL plumed_f_gcmd("setMDEngine"//CHAR(0),"cp2k");
+                     CALL plumed_f_gcmd("setTimestep"//CHAR(0),timestep_plumed);
+                     CALL plumed_f_gcmd("init"//CHAR(0),0);
+                  END IF    
+               END IF
+#endif
+#if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
+               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                   routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
+                   " not compiled with plumed support."//&
+                   CPSourceFileRef,&
+                   error,failure)
 #endif
            ELSE
-            IF(force_env%meta_env%langevin) THEN
+               IF(force_env%meta_env%langevin) THEN
                  CALL create_wiener_process_cv(force_env%meta_env, error=error)
                 ENDIF
                 IF (force_env%meta_env%well_tempered) THEN
@@ -485,9 +517,9 @@ CONTAINS
        CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
        itimes = reftraj%info%first_snapshot -1
        md_stride = reftraj%info%stride
-#ifdef __PLUMED_CP2K
        IF (ASSOCIATED(force_env%meta_env)) THEN
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
                natom_plumed=subsys%particles%n_els
                nsp_plumed=subsys%atomic_kinds%n_els
                timestep_plumed=simpar%dt
@@ -496,16 +528,50 @@ CONTAINS
                    pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
                END DO
                CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
-
+#endif
+#if defined (__PLUMED_CP2K)
                !in a parallel run plumed only needs to be initialized on the
                !master node.
                IF (para_env%ionode .EQV. .TRUE.) THEN
                    CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
                        timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
                END IF
+#endif
+#if defined (__PLUMED2)
+               CALL plumed_f_installed(plumedavailable)
+               
+               IF(plumedavailable<=0)THEN
+                  WRITE(*,*)"NO PLUMED IN YOUR LD_LIBRARY_PATH?"
+                  STOP
+               ELSE
+                  IF (para_env%ionode .EQV. .TRUE.) THEN
+                      CALL plumed_f_gcreate()
+                      CALL plumed_f_gcmd("setRealPrecision"//CHAR(0),8)
+                      energyUnits=2.6254996251d+3 ! Hartree to kjoule/mol 
+                      lengthUnits=0.5291772086d-1 ! Bohr to nm
+                      timeUnits=0.02418884326505d-3 !  atomic units to ps
+                      CALL plumed_f_gcmd("setMDEnergyUnits"//CHAR(0),energyUnits)
+                      CALL plumed_f_gcmd("setMDLengthUnits"//CHAR(0),lengthUnits)
+                      CALL plumed_f_gcmd("setMDTimeUnits"//CHAR(0),timeUnits)
+                      CALL plumed_f_gcmd("setPlumedDat"//CHAR(0),force_env%meta_env%plumed_input_file//CHAR(0))
+                      CALL plumed_f_gcmd("setLogFile"//CHAR(0),"PLUMED.OUT"//CHAR(0))
+                      CALL plumed_f_gcmd("setNatoms"//CHAR(0),natom_plumed)
+                      CALL plumed_f_gcmd("setMDEngine"//CHAR(0),"cp2k");
+                      CALL plumed_f_gcmd("setTimestep"//CHAR(0),timestep_plumed);
+                      CALL plumed_f_gcmd("init"//CHAR(0),0);
+                   END IF   
+                END IF
+#endif
+#if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                   routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
+                   " not compiled with plumed support."//&
+                   CPSourceFileRef,&
+                   error,failure)
+#endif
+
             END IF
         END IF
-#endif
     END IF
 
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&

@@ -74,8 +74,15 @@ MODULE cell_types
   ! Public subroutines
   PUBLIC :: get_cell, get_cell_param, init_cell,&
             cell_create, cell_retain, cell_release,&
-            cell_clone, cell_copy, parse_cell_line, set_cell_param,&
-            pbc_cp2k_plumed_getset_cell, pbc_cp2k_plumed  !for plumed
+            cell_clone, cell_copy, parse_cell_line, set_cell_param
+
+#if defined (__PLUMED_CP2K)
+  PUBLIC :: pbc_cp2k_plumed
+#endif
+
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+  PUBLIC :: pbc_cp2k_plumed_getset_cell 
+#endif
 
   ! Public functions
   PUBLIC :: plane_distance, pbc, real_to_scaled, scaled_to_real
@@ -883,6 +890,7 @@ CONTAINS
 
   END SUBROUTINE cell_release
 
+#if defined (__PLUMED_CP2K)
 ! *****************************************************************************
 !> \brief   Interface with plumed, get a coordinate 3-tuple, return the minimum 
 !>          image.
@@ -912,7 +920,9 @@ CONTAINS
     z=r2(3)
 
   END SUBROUTINE pbc_cp2k_plumed
+#endif
 
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
 ! *****************************************************************************
 !> \brief   For the interface with plumed, pass a cell pointer and retrieve it 
 !>          later. It's a hack, but avoids passing the cell back and forth
@@ -936,5 +946,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE pbc_cp2k_plumed_getset_cell
+#endif
 
 END MODULE cell_types

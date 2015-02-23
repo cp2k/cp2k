@@ -316,19 +316,9 @@ part of the architecture string.
   > export FORT_C_NAME=gfortran
 
 ==== 3f. Plumed support ====
-Compiling together with plumed v1.3
+CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMEd 2.x (-D__PLUMED2).  Note that the code can only be buit for one of these libraries at a time.
 
-  - get the 1.3 version of plumed from their svn repository
-  - unpack the plumed-1.3 archive somewhere
-  - set the environment variable $plumedir to the root directory of the plumed distribution
-      export plumedir=/users/xyz/plumed-1.3
-  - symlink the plumed/patches/plumedpatch_cp2k.sh into the cp2k src directory
-      ln -s $plumedir/patches/plumedpatch_cp2k.sh cp2k/src/
-  - run the plumedpatch_cp2k script with parameter -patch,
-    it should create a subdirectory src-plumed containing a number of cpp files and a plumed.inc
-      ./plumedpatch.sh -patch
-  - compile cp2k and plumed together with (it is safer to run a distclean before compiling)
-      make plumed -j ARCH=... VERSION=popt    PLUMED=yes
+See http://cp2k.org/howto:install_with_plumed for full instructions.
 
 ===== 4. If it doesn't work? =====
 If things fail, take a break... have a look at section 3c and go back

@@ -264,6 +264,12 @@ ENDIF
 #if defined __USE_LEGACY_WEIGHTS
    flags=TRIM(flags)//" use_legacy_weights"
 #endif
+#if defined __CP2K_PLUMED
+   flags=TRIM(flags)//" plumed"
+#endif
+#if defined __PLUMED2
+   flags=TRIM(flags)//" plumed2"
+#endif
 
   END FUNCTION cp2k_flags
 
