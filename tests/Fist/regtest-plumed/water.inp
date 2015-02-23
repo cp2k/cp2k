@@ -1,0 +1,101 @@
+&GLOBAL
+    PROJECT water
+    RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+    !&FREE_ENERGY
+    !    &METADYN
+    !        USE_PLUMED .TRUE.
+    !        PLUMED_INPUT_FILE ./water.plumedinp
+    !    &END METADYN
+    !&END FREE_ENERGY
+
+    &MD
+        ENSEMBLE NVT
+        STEPS 20
+        TIMESTEP 2.5
+        TEMPERATURE 298
+
+        &THERMOSTAT
+            REGION MOLECULE
+            &NOSE
+                LENGTH 3
+                YOSHIDA 3
+                TIMECON 1000
+                MTS 2
+            &END NOSE
+        &END
+    &END MD
+&END MOTION
+
+&FORCE_EVAL
+    METHOD FIST
+
+    &MM
+        &FORCEFIELD
+            &BEND
+                ATOMS H O H
+                K 0.
+                THETA0 1.8
+            &END BEND
+            &BOND
+                ATOMS O H
+                K 0.
+                R0 1.8
+            &END BOND
+            &CHARGE
+                ATOM O
+                CHARGE -0.8476
+            &END CHARGE
+            &CHARGE
+                ATOM H
+                CHARGE 0.4238
+            &END CHARGE
+            &NONBONDED
+                &LENNARD-JONES
+                    atoms O O
+                    EPSILON 78.198
+                    SIGMA 3.166
+                    RCUT 11.4
+                &END LENNARD-JONES
+                &LENNARD-JONES
+                    atoms O H
+                    EPSILON 0.0
+                    SIGMA 3.6705
+                    RCUT 11.4
+                &END LENNARD-JONES
+                &LENNARD-JONES
+                    atoms H H
+                    EPSILON 0.0
+                    SIGMA 3.30523
+                    RCUT 11.4
+                &END LENNARD-JONES
+            &END NONBONDED
+        &END FORCEFIELD
+        &POISSON
+            &EWALD
+                EWALD_TYPE ewald
+                ALPHA .44
+                GMAX 21
+            &END EWALD
+        &END POISSON
+    &END MM
+
+    &SUBSYS
+        &CELL
+            ABC 24.955 24.955 24.955
+        &END CELL
+        &COORD
+             O  22.9836691917178939 6.93183557997552668 0.754607553842305823  H2O
+             H  23.1493887587765457 6.38145839360815526 1.57291188465716791   H2O
+             H  23.8522379765498265 7.11351376960166615 0.293542155628028989  H2O
+             O  9.55748115579216773 10.1625527712466361 -12.8321807856825103  H2O
+             H  9.48825863164111638 10.8031673228011336 -13.5969168437373611  H2O
+             H  8.66207900403075648 9.75244702889359871 -12.6587787478834102  H2O
+             O  19.8436465738885985 10.0378451904347870 9.93036518412813862   H2O
+             H  19.1357369126550836 9.37699136789161081 9.68109397285001450   H2O
+             H  19.9908902622388958 10.0115791753817565 10.9191166153261410   H2O
+        &END COORD
+    &END SUBSYS
+&END FORCE_EVAL

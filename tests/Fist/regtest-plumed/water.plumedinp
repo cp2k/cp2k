@@ -1,0 +1,8 @@
+#Units for cp2k: Energy=hartrees, distance=bohr, time=0.024 fs
+HILLS HEIGHT 0.002 W_STRIDE  5
+PRINT W_STRIDE 1
+
+DISTANCE LIST 1   2   SIGMA 0.35   NOPBC
+DISTANCE LIST 1   4   SIGMA 0.35
+
+ENDMETA
