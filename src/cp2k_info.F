@@ -265,7 +265,7 @@ ENDIF
    flags=TRIM(flags)//" use_legacy_weights"
 #endif
 #if defined __PLUMED_CP2K
-   flags=TRIM(flags)//" plumed"
+   flags=TRIM(flags)//" plumed1.3"
 #endif
 #if defined __PLUMED2
    flags=TRIM(flags)//" plumed2"

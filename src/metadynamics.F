@@ -66,6 +66,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  General driver for applying metadynamics
 !> \param force_env ...
+!> \param itimes ...
 !> \param vel ...
 !> \param rand ...
 !> \param error ...
@@ -74,8 +75,9 @@ CONTAINS
 !>      01.2009 created
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE metadyn_integrator(force_env, vel, rand, error)
+  SUBROUTINE metadyn_integrator(force_env, itimes, vel, rand, error)
     TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(IN)                      :: itimes
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: vel
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -98,7 +100,7 @@ CONTAINS
 #endif
 #if defined (__PLUMED2)
     TYPE(meta_env_type), POINTER             :: meta_env
-    INTEGER                                  :: i_kinds, nsp_plumed, n_step_plumed
+    INTEGER                                  :: i_kinds, nsp_plumed
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pma0_plumed
     REAL(KIND=dp), DIMENSION(3,3)            :: plu_vir, celltbt
     REAL(KIND=dp)                            :: stpcfg
@@ -188,11 +190,9 @@ CONTAINS
                ! virial
                plu_vir(:,:)=0.0d0
      
-               n_step_plumed=force_env%qs_env%sim_step 
-               
                CALL force_env_get(force_env, potential_energy=stpcfg, error=error)
      
-               CALL plumed_f_gcmd("setStep"//CHAR(0),n_step_plumed)      
+               CALL plumed_f_gcmd("setStep"//CHAR(0),itimes)      
                CALL plumed_f_gcmd("setPositionsX"//CHAR(0),pos_plumed_x(:)) ! PluMed Output !
                CALL plumed_f_gcmd("setPositionsY"//CHAR(0),pos_plumed_y(:)) ! PluMed Output !
                CALL plumed_f_gcmd("setPositionsZ"//CHAR(0),pos_plumed_z(:)) ! PluMed Output !

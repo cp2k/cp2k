@@ -181,4 +181,5 @@ TMC/regtest_ana_on_the_fly
 optimize_input/regtest-1
 NEB/regtest-3
 QS/regtest-dft-filtermat
-Fist/regtest-plumed                                         plumed
+Fist/regtest-plumed                                         plumed1.3
+Fist/regtest-plumed2                                        plumed2

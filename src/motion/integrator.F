@@ -134,6 +134,7 @@ CONTAINS
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, &
       ireg, nparticle, nparticle_kind, nparticle_local, nshell, stat
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: do_langevin
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
@@ -172,10 +173,11 @@ CONTAINS
     NULLIFY(cell, para_env, gci, force_env)
     NULLIFY(atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
     NULLIFY(molecule_kind_set,molecule_set,particles,particle_set,rng_stream,simpar,virial)
-    NULLIFY(thermal_region, thermal_regions)
+    NULLIFY(thermal_region, thermal_regions, itimes)
 
     CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env,&
-         para_env=para_env, thermal_regions=thermal_regions, error=error)
+         para_env=para_env, thermal_regions=thermal_regions, &
+         itimes=itimes, error=error)
 
     dt = simpar%dt
     gam = simpar%gamma+simpar%shadow_gamma
@@ -331,7 +333,7 @@ CONTAINS
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, vel, error=error)
+    CALL metadyn_integrator(force_env, itimes, vel, error=error)
 
     ! Update Verlet (second part)
     DO iparticle_kind=1,nparticle_kind
@@ -406,6 +408,7 @@ CONTAINS
 
     INTEGER                                  :: i_iter, n_iter, nparticle, &
                                                 nparticle_kind, nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL :: deallocate_vel, ehrenfest_md, failure, shell_adiabatic, &
       shell_check_distance, shell_present
     REAL(KIND=dp)                            :: dt
@@ -446,10 +449,10 @@ CONTAINS
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
     NULLIFY (atomic_kinds, local_particles, molecules, molecule_kind_set, molecule_set, particle_set)
     NULLIFY (shell_particles, shell_particle_set, core_particles, &
-            core_particle_set, thermostat_shell, dft_control)
+            core_particle_set, thermostat_shell, dft_control, itimes)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
-         para_env=para_env, ehrenfest_md=ehrenfest_md, error=error)
+         para_env=para_env, ehrenfest_md=ehrenfest_md, itimes=itimes, error=error)
     dt = simpar%dt
     CALL force_env_get(force_env=force_env, subsys=subsys,cell=cell, error=error)
 
@@ -553,7 +556,7 @@ CONTAINS
        CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.,error=error)
 
        ! Metadynamics
-       CALL metadyn_integrator(force_env, tmp%vel, error=error)
+       CALL metadyn_integrator(force_env, itimes, tmp%vel, error=error)
 
        ! Velocity Verlet (second part)
        CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -632,6 +635,7 @@ CONTAINS
 
     INTEGER                                  :: nparticle, nparticle_kind, &
                                                 nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt
@@ -653,13 +657,13 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(force_env, tmp, simpar)
+    NULLIFY(force_env, tmp, simpar, itimes)
     NULLIFY(atomic_kinds,para_env,subsys,local_particles)
     NULLIFY(core_particles,particles,shell_particles)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
-         para_env=para_env, error=error)
+         para_env=para_env, itimes=itimes, error=error)
 
     dt = simpar%dt
 
@@ -721,7 +725,7 @@ CONTAINS
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, error=error)
+    CALL metadyn_integrator(force_env, itimes, tmp%vel, error=error)
 
     ! compute s,ds
     CALL get_s_ds(tmp, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
@@ -762,6 +766,7 @@ CONTAINS
 
     INTEGER                                  :: istat, ivar, nparticle, &
                                                 nparticle_kind, nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
@@ -806,12 +811,12 @@ CONTAINS
          shell_particle_set, core_particles, core_particle_set, rand)
     NULLIFY(para_env, subsys, local_molecules, local_particles, molecule_kinds,&
          molecules, molecule_kind_set, molecule_set, atomic_kinds,particles)
-    NULLIFY(simpar)
+    NULLIFY(simpar,itimes)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_fast=thermostat_fast, thermostat_slow=thermostat_slow,&
          thermostat_coeff=thermostat_coeff, thermostat_shell=thermostat_shell, &
-         para_env=para_env, error=error)
+         para_env=para_env, itimes=itimes, error=error)
     dt = simpar%dt
 
     CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
@@ -922,7 +927,7 @@ CONTAINS
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, rand=rand, error=error)
+    CALL metadyn_integrator(force_env, itimes, tmp%vel, rand=rand, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -993,6 +998,7 @@ CONTAINS
 
     INTEGER                                  :: istat, ivar, nparticle, &
                                                 nparticle_kind, nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
@@ -1035,12 +1041,12 @@ CONTAINS
          shell_particle_set, core_particles, core_particle_set, rand)
     NULLIFY(para_env, subsys, local_molecules, local_particles, molecule_kinds,&
          molecules, molecule_kind_set, molecule_set, atomic_kinds,particles)
-    NULLIFY(simpar, thermostat_coeff, thermostat_part, thermostat_shell)
+    NULLIFY(simpar, thermostat_coeff, thermostat_part, thermostat_shell, itimes)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_part=thermostat_part, thermostat_coeff=thermostat_coeff,&
          thermostat_shell=thermostat_shell,para_env=para_env,&
-         error=error)
+         itimes=itimes, error=error)
     dt = simpar%dt
 
     CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
@@ -1186,7 +1192,7 @@ CONTAINS
     CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.,error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, rand=rand, error=error)
+    CALL metadyn_integrator(force_env, itimes, tmp%vel, rand=rand, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -1258,6 +1264,7 @@ CONTAINS
     INTEGER                                  :: iroll, istat, ivar, &
                                                 nparticle, nparticle_kind, &
                                                 nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, &
                                                 shell_check_distance, &
@@ -1307,12 +1314,12 @@ CONTAINS
     NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt)
     NULLIFY(core_particles,particles,shell_particles, tmp, old)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
-    NULLIFY(simpar,virial,rand)
+    NULLIFY(simpar,virial,rand,itimes)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_part=thermostat_part, thermostat_baro=thermostat_baro,&
          thermostat_shell=thermostat_shell, npt=npt, first_time=first_time,&
-         para_env=para_env, error=error)
+         para_env=para_env, itimes=itimes, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
@@ -1491,7 +1498,7 @@ CONTAINS
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, rand=rand, error=error)
+    CALL metadyn_integrator(force_env, itimes, tmp%vel, rand=rand, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -1721,7 +1728,7 @@ CPSourceFileRef,&
          require_consistent_energy_force=.FALSE., error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, error=error)
+    CALL metadyn_integrator(force_env, trj_itimes, error=error)
 
     ! Compute MSD with respect to a reference configuration
     IF(reftraj_env%info%msd) THEN
@@ -1760,6 +1767,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: iroll, nparticle, &
                                                 nparticle_kind, nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
@@ -1801,10 +1809,10 @@ CPSourceFileRef,&
     NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt)
     NULLIFY(core_particles,particles,shell_particles, tmp, old)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
-    NULLIFY(simpar,virial)
+    NULLIFY(simpar,virial,itimes)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
-         first_time=first_time, para_env=para_env, error=error)
+         first_time=first_time, para_env=para_env, itimes=itimes, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree, dp )
 
@@ -1940,7 +1948,7 @@ CPSourceFileRef,&
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, error=error)
+    CALL metadyn_integrator(force_env, itimes, tmp%vel, error=error)
 
     ! Velocity Verlet (second part)
      CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -2019,6 +2027,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: iroll, nparticle, &
                                                 nparticle_kind, nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: aa, aax, dt, gamma1, infree, &
@@ -2060,10 +2069,10 @@ CPSourceFileRef,&
     NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt)
     NULLIFY(core_particles,particles,shell_particles,tmp,old)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
-    NULLIFY(simpar,virial)
+    NULLIFY(simpar,virial,itimes)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,npt = npt,&
-         first_time=first_time, para_env=para_env, error=error)
+         first_time=first_time, para_env=para_env, itimes=itimes, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree, dp )
     gamma1 = simpar%gamma_nph
@@ -2202,7 +2211,7 @@ CPSourceFileRef,&
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, error=error)
+    CALL metadyn_integrator(force_env, itimes, tmp%vel, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -2289,6 +2298,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, iroll, j, nparticle, &
                                                 nparticle_kind, nshell
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, first, first_time, &
                                                 shell_adiabatic, &
                                                 shell_check_distance, &
@@ -2335,12 +2345,12 @@ CPSourceFileRef,&
     NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt,barostat)
     NULLIFY(core_particles,particles,shell_particles,tmp,old)
     NULLIFY(core_particle_set,particle_set,shell_particle_set)
-    NULLIFY(simpar,virial)
+    NULLIFY(simpar,virial,itimes)
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_part=thermostat_part, thermostat_baro=thermostat_baro,&
          thermostat_shell=thermostat_shell, npt=npt, first_time=first_time,&
-         para_env=para_env, barostat=barostat, error=error)
+         para_env=para_env, barostat=barostat, itimes=itimes, error=error)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
@@ -2501,7 +2511,7 @@ CPSourceFileRef,&
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, tmp%vel, error=error)
+    CALL metadyn_integrator(force_env, itimes, tmp%vel, error=error)
 
     ! Velocity Verlet (second part)
     CALL vv_second (tmp, atomic_kind_set, local_particles, particle_set,&
@@ -2606,6 +2616,7 @@ CPSourceFileRef,&
 
     INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, &
       n_time_steps, nparticle, nparticle_kind, nparticle_local, stat
+    INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -2637,8 +2648,9 @@ CPSourceFileRef,&
 
     NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa, gci, force_env, atomic_kinds)
     NULLIFY (atomic_kind_set,simpar,subsys,particles,particle_set)
-    NULLIFY (local_molecules,molecule_kinds, molecules,molecule_kind_set, local_particles)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, para_env=para_env, error=error)
+    NULLIFY (local_molecules,molecule_kinds, molecules,molecule_kind_set, local_particles,itimes)
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, &
+                    para_env=para_env, itimes=itimes, error=error)
     dt = simpar%dt
 
     n_time_steps=simpar%n_time_steps
@@ -2726,7 +2738,7 @@ CPSourceFileRef,&
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
 
        ! Metadynamics
-       CALL metadyn_integrator(force_env, vel, error=error)
+       CALL metadyn_integrator(force_env, itimes, vel, error=error)
 
        ! Velocity Verlet (second part)
        DO iparticle_kind=1,nparticle_kind
@@ -2757,7 +2769,7 @@ CPSourceFileRef,&
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
-    CALL metadyn_integrator(force_env, vel, error=error)
+    CALL metadyn_integrator(force_env, itimes, vel, error=error)
 
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
