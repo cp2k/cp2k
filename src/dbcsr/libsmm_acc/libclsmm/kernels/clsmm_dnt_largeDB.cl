@@ -1,8 +1,9 @@
 /*****************************************************************************
  *  CP2K: A general program to perform molecular dynamics simulations        *
- *  Copyright (C) 2000 - 2015 the CP2K developers group                      *
- *  Authors: Andreas Gloess <andreas.gloess@chem.uzh.ch>                     *
+ *  Copyright (C) 2000 - 2015  CP2K developers group                         *
  *****************************************************************************/
+
+//  Authors: Andreas Gloess <andreas.gloess@chem.uzh.ch>
 
 #if defined (__ACC)
 

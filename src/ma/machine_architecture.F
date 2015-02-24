@@ -1,7 +1,9 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2015  CP2K developers group group!
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
+! *****************************************************************************
 !> \brief   Machine Hardware support for cp2k
 !           Interface to the HWLOC/LIBNUMA library
 !> \author  Christiane Pousa Ribeiro
@@ -11,6 +13,7 @@
 !> <b>Modification history:</b>
 !> - Created 2011-08-08
 !> - Modified 2011-08-09 - Adding interfaces to C functions
+! *****************************************************************************
 MODULE machine_architecture
 
   USE ISO_C_BINDING

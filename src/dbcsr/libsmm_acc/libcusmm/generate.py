@@ -68,10 +68,10 @@ def make_plan(triples, param_fn):
 
 #===============================================================================
 def gen_library(plan):
-    output  = "/******************************************************************************\n"
-    output += "*  CP2K: A general program to perform molecular dynamics simulations\n"
-    output += "*  Copyright (C) 2000 - 2013 the CP2K developers group\n"
-    output += "*****************************************************************************/\n"
+    output  = "/*****************************************************************************\n"
+    output += " *  CP2K: A general program to perform molecular dynamics simulations        *\n"
+    output += " *  Copyright (C) 2000 - 2015  CP2K developers group                         *\n"
+    output += " *****************************************************************************/\n"
 
     for i in get_includes(plan):
         output += '#include "%s"\n'%i

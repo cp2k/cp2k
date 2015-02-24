@@ -1,7 +1,12 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
-!> \\brief provides specific implementations for common cases of xyz_to_vab routine.
-!> 
-!> \\note
+!> \brief provides specific implementations for common cases of xyz_to_vab routine.
+!>
+!> \note
 !>      Specific implementations for la_max_local,lb_max_local <=4 are contained
 !>      in the this file, tuned for AMD Interlagos processor using the
 !>      gfortran compiler
@@ -10,7 +15,7 @@
 !>      version of these kernels for their own system.
 !>      Instructions on building an optimised 'libgrid' library can be found in cp2k/tools/autotune_grid
 !>
-!> \\author Ruyman Reyes
+!> \author Ruyman Reyes
 ! *****************************************************************************
 ! We use the caller routine in libgrid.a (which may have a different range of la/lb_max_local implemented
 

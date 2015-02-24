@@ -1,7 +1,7 @@
-/******************************************************************************
-*  *  CP2K: A general program to perform molecular dynamics simulations
-*   *  Copyright (C) 2000 - 2013  Christiane Pousa and the CP2K developers group
-*    *****************************************************************************/
+/*****************************************************************************
+ *  CP2K: A general program to perform molecular dynamics simulations        *
+ *  Copyright (C) 2000 - 2015  CP2K developers group                         *
+ *****************************************************************************/
 
 #include <cuda_runtime.h>
 #include <stdio.h>

@@ -35,8 +35,9 @@ def main():
     for i in issues_supp:
         print i+" (suppressed)"
 
-    for i in unused_supp:
-        print i+" (unused suppression)"
+    #for i in unused_supp:
+    #    print i+" (unused suppression)"
+    print "There are %d unused suppressions.\n"%len(unused_supp)
 
     for i in issues_shown:
         print i

@@ -1,7 +1,7 @@
 /*****************************************************************************
-*   CP2K: A general program to perform molecular dynamics simulations         
-*   Copyright (C) 2000 * 2011 Christiane Ribeiro and the CP2K developers group
-******************************************************************************/
+ *  CP2K: A general program to perform molecular dynamics simulations        *
+ *  Copyright (C) 2000 - 2015  CP2K developers group                         *
+ *****************************************************************************/
 
 #include "ma_topology_cray.h"  
 

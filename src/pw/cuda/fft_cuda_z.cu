@@ -1,13 +1,15 @@
+/*****************************************************************************
+ *  CP2K: A general program to perform molecular dynamics simulations        *
+ *  Copyright (C) 2000 - 2015  CP2K developers group                         *
+ *****************************************************************************/
+
 /******************************************************************************
- *  CP2K: A general program to perform molecular dynamics simulations
- *  Copyright (C) 2000 - 2013  CP2K developers group
- *
  *  Authors: Benjamin G Levine, Andreas Gloess
  *
  *  2012/05/18                 Refacturing - original files:
  *                              - cuda_tools/cufft.h
  *                              - cuda_tools/cufft.cu
- *  
+ *
  *****************************************************************************/
 #if defined ( __PW_CUDA )
 

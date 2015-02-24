@@ -1,7 +1,8 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2014  CP2K developers group   !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
 !> \brief   This is the start of a dbcsr_api, all publically needed functions
 !>          are exported here. The others remain private to the library.

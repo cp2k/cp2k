@@ -1,7 +1,9 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulationsi        !
-!   Copyright (C) 2000 - 2015  CP2K developers group group!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
+! *****************************************************************************
 !> \brief   Process mapping support for cp2k
 !> \author  Christiane Pousa Ribeiro
 !> \date    2012-01-17
@@ -9,6 +11,7 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2012-01-17
+! *****************************************************************************
 MODULE ma_process_mapping
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_stop

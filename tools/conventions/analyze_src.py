@@ -7,11 +7,23 @@ import re
 import os
 import sys
 from os import path
+from datetime import datetime
 
-exceptions_re = re.compile("__COMPILE_.*|__SHORT_FILE__|__INTEL_COMPILER|"
+flag_exceptions_re = re.compile("__COMPILE_.*|__SHORT_FILE__|__INTEL_COMPILER|"
                           +"__cplusplus|_OPENMP|_GNU_SOURCE|__CUDA_ARCH__|"
                           +"cl_.*|CL_VERSION_.*|__OPENCL_VERSION__|__OPENCL")
 
+year = datetime.utcnow().year
+
+BANNER_F = "!-----------------------------------------------------------------------------!\n" \
+          +"!   CP2K: A general program to perform molecular dynamics simulations         !\n" \
+          +"!   Copyright (C) 2000 - %d  CP2K developers group                          !\n"%year \
+          +"!-----------------------------------------------------------------------------!\n"
+
+BANNER_C = "/*****************************************************************************\n" \
+          +" *  CP2K: A general program to perform molecular dynamics simulations        *\n" \
+          +" *  Copyright (C) 2000 - %d  CP2K developers group                         *\n"%year \
+          +" *****************************************************************************/\n"
 
 #===============================================================================
 def main():
@@ -30,6 +42,14 @@ def main():
             fn_ext = fn.rsplit(".",1)[-1]
             if(fn_ext in ("template", "instantiate")): continue
             content = open(path.join(root, fn)).read()
+
+            # check banner
+            if((fn_ext in ("F", ) and not content.startswith(BANNER_F)) or
+               (fn_ext in ("c", "cu", "h") and not content.startswith(BANNER_C))):
+                    print fn+": Copyright banner malformed"
+                    #print '"'+ '"\n"'.join(content.split("\n")[:4]) + '"'
+
+            # find all flags
             for line in content.split("\n"):
                 if(len(line) == 0): continue
                 if(line[0] != "#"): continue
@@ -42,7 +62,7 @@ def main():
                     if(fn_ext=="h" and fn.upper().replace(".", "_") == m): continue
                     flags.add(m)
 
-    flags = [f for f in flags if not exceptions_re.match(f)]
+    flags = [f for f in flags if not flag_exceptions_re.match(f)]
 
     #print("Found %d flags."%len(flags))
     #print flags

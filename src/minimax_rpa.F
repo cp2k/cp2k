@@ -1,14 +1,14 @@
- !-----------------------------------------------------------------------------!
- !   CP2K: A general program to perform molecular dynamics simulations         !
- !   Copyright (C) 2000 - 2015  CP2K developers group                          !
- !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
 
- ! *****************************************************************************
- !> \brief Routines to calculate the minimax coefficients for approximating 1/x as 
- !>        1/x ~ 1/pi SUM_{i}^{K} w_i x^2/(x^2+a_i^2)^2  for x belonging to [1:Rc].
- !> \par History
- !>      06.2014 created [Mauro Del Ben]
- ! *****************************************************************************
+! *****************************************************************************
+!> \brief Routines to calculate the minimax coefficients for approximating 1/x as
+!>        1/x ~ 1/pi SUM_{i}^{K} w_i x^2/(x^2+a_i^2)^2  for x belonging to [1:Rc].
+!> \par History
+!>      06.2014 created [Mauro Del Ben]
+! *****************************************************************************
  MODULE minimax_rpa
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&

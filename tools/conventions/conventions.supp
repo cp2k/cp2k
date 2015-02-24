@@ -1,3 +1,19 @@
+sockets.c: Copyright banner malformed
+ewalds_multipole_debug.h: Copyright banner malformed
+t_c_g0.F: Copyright banner malformed
+t_sh_p_s_c.F: Copyright banner malformed
+semi_empirical_int_args.h: Copyright banner malformed
+semi_empirical_int_debug.h: Copyright banner malformed
+f77_int.h: Copyright banner malformed
+fparser.F: Copyright banner malformed
+glob_matching.F: Copyright banner malformed
+xml_parser.F: Copyright banner malformed
+graph_utils.F: Copyright banner malformed
+graph.F: Copyright banner malformed
+graph_methods.F: Copyright banner malformed
+gopt_f77_methods.h: Copyright banner malformed
+xc_f90_lib_m.F: Copyright banner malformed
+xc_f90_types_m.F: Copyright banner malformed
 Flag ACCURATE_SUMS not mentioned in INSTALL
 Flag ACCURATE_SUMS not mentioned in cp2k_flags()
 Flag CL_VERSION_1_1 not mentioned in INSTALL

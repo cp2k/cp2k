@@ -1,17 +1,18 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations
-!   !
-!   Copyright (C) 2000 - 2015  CP2K developers group
-!   group!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
+! *****************************************************************************
 !> \brief   Affinity support for cp2k
-!           Interface to the HWLOC library
+!>          Interface to the HWLOC library
 !> \author  Christiane Pousa Ribeiro
 !> \date    2011-11-08
 !> \version 1.0
 !>
 !> <b>Modification history:</b>
 !> - Created 2011-11-08
+! *****************************************************************************
 MODULE ma_affinity
   USE ISO_C_BINDING
   USE ma_config,                       ONLY: &

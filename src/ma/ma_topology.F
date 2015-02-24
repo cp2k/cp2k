@@ -1,7 +1,9 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulationsi        !
-!   Copyright (C) 2000 - 2015  CP2K developers group group!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
+! *****************************************************************************
 !> \brief   network topology support for cp2k
 !> \author  Christiane Pousa Ribeiro
 !> \date    2012-05-02
@@ -9,8 +11,7 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2012-05-02
-
-
+! *****************************************************************************
 MODULE ma_topology
 
   USE ISO_C_BINDING
