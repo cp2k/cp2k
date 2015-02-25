@@ -1598,8 +1598,10 @@ CONTAINS
       routineN = 'lri_calculate_derivative_acoef', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, nn, stat
+    INTEGER                                  :: handle, nn, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: dlambdadp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: abxint_work, Q, R
 
@@ -1610,42 +1612,51 @@ CONTAINS
  
     ALLOCATE(R(nba,nbb,nn),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(dlambdadp(nba,nbb),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(Q(nba,nbb,nn),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(abxint_work(nba,nbb,nn),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    R(:,:,:) = 0._dp
-    Q(:,:,:) = 0._dp
+    R(:,:,:)  = 0._dp
+    dlambdadp = 0._dp
+    Q(:,:,:)  = 0._dp
     abxint_work(:,:,:) = 0._dp
 
     abxint_work(1:nba,1:nbb,1:nfa)=lrii%abaint(1:nba,1:nbb,1:nfa)    !abaint
     abxint_work(1:nba,1:nbb,nfa+1:nn)=lrii%abbint(1:nba,1:nbb,1:nfb) !abbint
     IF(iatom == jatom.AND.dab < lri_env%delta) THEN
-      DO i=1,nba
-        DO j=1,nbb
-          R(i,j,1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),abxint_work(i,j,1:nfa))
-          Q(i,j,1:nfa) = lrii%soo(i,j)/lrii%nsn*lrii%sn(1:nfa) - &
-                         DOT_PRODUCT(lrii%sn(1:nfa),abxint_work(i,j,1:nfa))/lrii%nsn&
-                         *lrii%sn(1:nfa)
-        ENDDO
-      ENDDO
+      ! R = Sinv*abx_int 
+      CALL dgemm("N","N",nba*nbb,nfa,nfa,1.0_dp,abxint_work,nba*nbb,&
+                 lrii%sinv,nfa,0.0_dp,R,nba*nbb)
+      ! dlambda = soo/nsn - sn*abx_int/nsn
+      dlambdadp(1:nba,1:nbb) = lrii%soo(1:nba,1:nbb)
+      CALL dgemm("N","N",nba*nbb,1,nfa,-1.0_dp/lrii%nsn,abxint_work,nba*nbb,&
+                 lrii%sn,nfa,1.0_dp/lrii%nsn,dlambdadp,nba*nbb)
+      ! Q = dlambdadp * sn
+      CALL dgemm("N","T",nba*nbb,nfa,1,1.0_dp,dlambdadp,nba*nbb,&
+                 lrii%sn,nfa,0.0_dp,Q,nba*nbb)
       lrii%dacoef(1:nba,1:nbb,1:nfa)= R(1:nba,1:nbb,1:nfa)+Q(1:nba,1:nbb,1:nfa)
     ELSE
-      DO i=1,nba
-        DO j=1,nbb
-          R(i,j,1:nn) =  MATMUL(lrii%sinv(1:nn,1:nn),abxint_work(i,j,1:nn))
-          Q(i,j,1:nn) =  lrii%soo(i,j)/lrii%nsn*lrii%sn(1:nn) - &
-                         DOT_PRODUCT(lrii%sn(1:nn),abxint_work(i,j,1:nn))/lrii%nsn&
-                         *lrii%sn(1:nn)
-        ENDDO
-      ENDDO
+      ! R = Sinv*abx_int 
+      CALL dgemm("N","N",nba*nbb,nn,nn,1.0_dp,abxint_work,nba*nbb,&
+                 lrii%sinv,nn,0.0_dp,R,nba*nbb)
+      ! dlambda = soo/nsn - sn*abx_int/nsn
+      dlambdadp(1:nba,1:nbb) = lrii%soo(1:nba,1:nbb)
+      CALL dgemm("N","N",nba*nbb,1,nn,-1.0_dp/lrii%nsn,abxint_work,nba*nbb,&
+                 lrii%sn,nn,1.0_dp/lrii%nsn,dlambdadp,nba*nbb)
+      ! Q = dlambdadp * sn
+      CALL dgemm("N","T",nba*nbb,nn,1,1.0_dp,dlambdadp,nba*nbb,&
+                 lrii%sn,nn,0.0_dp,Q,nba*nbb)
       lrii%dacoef(1:nba,1:nbb,1:nn)= R(1:nba,1:nbb,1:nn)+Q(1:nba,1:nbb,1:nn)
     ENDIF
     
     DEALLOCATE(abxint_work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(R,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(dlambdadp,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(Q,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
