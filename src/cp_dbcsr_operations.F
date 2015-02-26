@@ -378,6 +378,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a fm matrix
+!>
+!> For backwards compatibility with BLAS XGEMM, this routine supports
+!> the multiplication of matrices with incompatible dimensions.
+!>
 !> \param[in]  matrix         DBCSR matrix
 !> \param fm_in full matrix
 !> \param fm_out full matrix
@@ -457,8 +461,8 @@ CONTAINS
             CALL copy_fm_to_dbcsr(fm_out, out, error=error)
 
        CALL timeset(routineN//'_core', timing_handle_mult)
-       CALL cp_dbcsr_multiply("N", "N", my_alpha, matrix, in,&
-            my_beta, out, last_column=ncol, error=error)
+       CALL cp_dbcsr_multiply("N", "N", my_alpha, matrix, in, my_beta, out,&
+            last_column=ncol, match_matrix_sizes=.TRUE., error=error)
        CALL timestop(timing_handle_mult)
 
        CALL copy_dbcsr_to_fm(out, fm_out,error)

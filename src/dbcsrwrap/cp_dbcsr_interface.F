@@ -2101,6 +2101,8 @@ CONTAINS
 !> <li> The rows of matrix_a are adjusted to fit the rows of matrix_c.
 !> </ul>
 !> Transformations are skipped if the sizes are already compatible.
+!> However, in any case a copy of matrix_a and matrix_b is made.
+!> It is the responsibility of the caller to release these new matrices.
 !>
 !> Some copies could be avoided with more code.
 !> \param matrix_c ...
@@ -2110,19 +2112,15 @@ CONTAINS
 !> \param tr_b ...
 !> \param new_a ...
 !> \param new_b ...
-!> \param new_a_is_new ...
-!> \param new_b_is_new ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE matrix_match_sizes (matrix_c, matrix_a, tr_a, matrix_b, tr_b,&
-       new_a, new_b, new_a_is_new, new_b_is_new,&
-       error)
+       new_a, new_b, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_c, matrix_a
     CHARACTER, INTENT(IN)                    :: tr_a
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
     CHARACTER, INTENT(IN)                    :: tr_b
     TYPE(cp_dbcsr_type), INTENT(OUT)         :: new_a, new_b
-    LOGICAL, INTENT(OUT)                     :: new_a_is_new, new_b_is_new
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_match_sizes', &
@@ -2169,7 +2167,6 @@ CONTAINS
     b_dist = cp_dbcsr_distribution (matrix_b)
     c_dist = cp_dbcsr_distribution (matrix_c)
     IF (new_b_rows .OR. new_b_cols) THEN
-       new_b_is_new = .TRUE.
        CALL cp_dbcsr_init (new_b, error=error)
        IF (.NOT. btr) THEN
           IF (new_b_cols) THEN
@@ -2239,9 +2236,6 @@ CONTAINS
        CALL dbcsr_distribution_release (new_dist)
        CALL cp_dbcsr_complete_redistribute (matrix_b, new_b, error=error)
     ELSE
-       !new_b_is_new = .FALSE.
-       !new_b = matrix_b
-       new_b_is_new = .TRUE.
        CALL cp_dbcsr_init (new_b, error=error)
        CALL cp_dbcsr_copy (new_b, matrix_b, shallow_data=.TRUE., error=error)
     ENDIF
@@ -2280,9 +2274,6 @@ CONTAINS
        CALL dbcsr_distribution_release (new_dist)
        CALL cp_dbcsr_complete_redistribute (matrix_a, new_a, error=error)
     ELSE
-       !new_a_is_new = .FALSE.
-       !new_a = matrix_a
-       new_a_is_new = .TRUE.
        CALL cp_dbcsr_init (new_a, error=error)
        CALL cp_dbcsr_copy (new_a, matrix_a, shallow_data=.TRUE., error=error)
     ENDIF

@@ -323,6 +323,8 @@
 !> \param first_k ...
 !> \param last_k ...
 !> \param retain_sparsity ...
+!> \param match_matrix_sizes Enables BLAS XGEMM-style multiplication
+!>        of matrices with incompatible dimensions. By default it's disabled.
 !> \param filter_eps ...
 !> \param error ...
 !> \param flop ...
@@ -330,7 +332,7 @@
   SUBROUTINE cp_dbcsr_multiply_d (transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, &
+       retain_sparsity, match_matrix_sizes, &
        filter_eps,&
        error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
@@ -341,7 +343,7 @@
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_column, last_column, &
                                                 first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity, match_matrix_sizes
     REAL(kind=real_8), INTENT(IN), OPTIONAL :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
@@ -351,7 +353,7 @@
 
     CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
                                                 trans_b
-    LOGICAL                                  :: new_a_is_new, new_b_is_new
+    LOGICAL                                  :: my_match_matrix_sizes
     TYPE(cp_dbcsr_type)                      :: new_a, new_b
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
@@ -363,20 +365,28 @@
     IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
     IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb,&
-         new_a, new_b, new_a_is_new, new_b_is_new, error)
+
+    my_match_matrix_sizes=.FALSE.
+    IF(PRESENT(match_matrix_sizes)) my_match_matrix_sizes=match_matrix_sizes
+    IF(my_match_matrix_sizes)THEN
+       CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb, new_a, new_b, error)
+    ELSE
+       CALL cp_dbcsr_init(new_a,error=error)
+       CALL cp_dbcsr_init(new_b,error=error)
+       CALL cp_dbcsr_copy (new_a, matrix_a, shallow_data=.TRUE., error=error)
+       CALL cp_dbcsr_copy (new_b, matrix_b, shallow_data=.TRUE., error=error)
+    END IF
+
     CALL dbcsr_multiply(transa, transb,&
          alpha, new_a%matrix, new_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, &
          filter_eps=filter_eps,&
          error=dbcsr_error, flop=flop)
-    IF (new_a_is_new) THEN
-       CALL cp_dbcsr_release (new_a, error=error)
-    ENDIF
-    IF (new_b_is_new) THEN
-       CALL cp_dbcsr_release (new_b, error=error)
-    ENDIF
+
+    CALL cp_dbcsr_release (new_a, error=error)
+    CALL cp_dbcsr_release (new_b, error=error)
+
   END SUBROUTINE cp_dbcsr_multiply_d
 
 

@@ -1175,7 +1175,7 @@ CONTAINS
 
            CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
            CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
-                      1.0_dp, mo_derivs(1)%matrix, error=error)
+                      1.0_dp, mo_derivs(1)%matrix, match_matrix_sizes=.TRUE., error=error)
        ENDIF
 
     ENDDO
