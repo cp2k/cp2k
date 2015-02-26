@@ -530,10 +530,12 @@ CONTAINS
             m = 0._dp
             IF(iatom == jatom.AND.dab < lri_env%delta) THEN
               m(1:nfa) = lrho%tvec(1:nfa) + lrho%lambda * lrii%n(1:nfa)
-              lrho%avec(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),m(1:nfa))
+              CALL dgemv("N",nfa,nfa,1.0_dp,lrii%sinv(1,1),nfa,&
+                         m(1),1,0.0_dp,lrho%avec,1)
             ELSE
               m(1:nn) = lrho%tvec(1:nn) + lrho%lambda * lrii%n(1:nn)
-              lrho%avec(1:nn)  = MATMUL(lrii%sinv(1:nn,1:nn),m(1:nn))
+              CALL dgemv("N",nn,nn,1.0_dp,lrii%sinv(1,1),nn,&
+                         m(1),1,0.0_dp,lrho%avec,1)
             ENDIF
             DEALLOCATE(m,STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
