@@ -47,7 +47,7 @@ MODULE lri_environment_methods
        lri_list_type, lri_rhoab_type
   USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
                                              get_pseudo_inverse_svd,&
-                                             invmat
+                                             invmat_symm
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE orbital_pointers,                ONLY: ncoset
@@ -1682,12 +1682,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'inverse_lri_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, stat
+    INTEGER                                  :: handle, n, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rskip
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s
 
     failure = .FALSE.
+    CALL timeset(routineN,handle)
+
     NULLIFY(s)
 
     rskip = 1.E-8_dp ! parameter for pseudo inverse 
@@ -1695,8 +1697,7 @@ CONTAINS
 
     SELECT CASE(lri_env%lri_overlap_inv)
     CASE(do_lri_inv)
-       CALL invmat(sinv,stat,error)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL invmat_symm(sinv,error=error)
     CASE(do_lri_pseudoinv_svd)
        ALLOCATE(s(n,n),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1716,6 +1717,8 @@ CONTAINS
                  routineP,"No initialization available?????",&
                  only_ionode=.TRUE.)
     END SELECT
+
+    CALL timestop(handle)
 
   END SUBROUTINE inverse_lri_overlap
 

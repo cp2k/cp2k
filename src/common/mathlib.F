@@ -35,6 +35,7 @@ MODULE mathlib
             jacobi,&
             diamat_all,&
             invmat,&
+            invmat_symm,&
             invert_matrix,&
             get_pseudo_inverse_svd,&
             get_pseudo_inverse_diag,&
@@ -455,6 +456,69 @@ CONTAINS
   END SUBROUTINE invmat
 
 ! *****************************************************************************
+!> \brief returns inverse of real symmetric, positive definite matrix
+!> \param a matrix
+!> \param cholesky_triangle if cholesky decomposition of a was already done
+!>        using dpotrf, indicating if the upper or lower triangle of a is 
+!>        stored. If not given, cholesky decomposition of a will be done
+!>        before inversion.
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze [02.2015]
+! *****************************************************************************
+  SUBROUTINE invmat_symm(a,cholesky_triangle,error)
+    REAL(KIND=dp), INTENT(INOUT)             :: a(:,:)
+    CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: cholesky_triangle
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'invmat_symm', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: my_triangle
+    INTEGER                                  :: handle, i, info, n
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+
+    n = SIZE(a,1)
+    info = 0
+
+    IF(PRESENT(cholesky_triangle)) THEN
+      my_triangle = cholesky_triangle
+    ELSE 
+      my_triangle = "U" 
+    ENDIF
+
+    ! do cholesky decomposition
+    IF(.NOT.PRESENT(cholesky_triangle)) THEN
+      CALL dpotrf(my_triangle,n,a,n,info)
+      IF (info /= 0) THEN
+         CALL stop_program(routineN,moduleN,__LINE__,"DPOTRF failed")
+      END IF
+    ENDIF
+
+    ! do inversion using the cholesky decomposition
+    CALL dpotri(my_triangle,n,a,n,info)
+    IF (info /= 0) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,"Matrix inversion failed")
+    END IF
+    
+    IF(my_triangle == "U") THEN
+      DO i=1,n-1
+         a(i+1:n,i) = a(i,i+1:n)
+      ENDDO
+    ELSE
+      DO i=1,n-1
+         a(i,i+1:n) = a(i+1:n,i)
+      ENDDO
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE invmat_symm
+
+! *****************************************************************************
 !> \brief  Compute the inverse of the n by n real matrix a using the LAPACK
 !>         library
 !> \param a ...
@@ -858,7 +922,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, info, lwork, n, stat
+    INTEGER                                  :: handle, i, info, lwork, n, &
+                                                stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: sig, work
@@ -866,6 +931,8 @@ CONTAINS
       DIMENSION(:, :)                        :: sig_plus, temp_mat, u, vt
 
     failure = .FALSE. 
+    CALL timeset(routineN,handle)
+
     n=SIZE(a,1)
     ALLOCATE(u(n,n),vt(n,n),sig(n),sig_plus(n,n),iwork(8*n),work(1),temp_mat(n,n))
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -916,6 +983,8 @@ CONTAINS
     DEALLOCATE( u,vt,sig,iwork,work,sig_plus,temp_mat,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    CALL timestop(handle)
+
   END SUBROUTINE get_pseudo_inverse_svd
 
 ! *****************************************************************************
@@ -937,13 +1006,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, info, lwork, n, stat
+    INTEGER                                  :: handle, i, info, lwork, n, &
+                                                stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dinv, temp_mat
 
     failure = .FALSE.
+    CALL timeset(routineN,handle)
 
     n=SIZE(a,1)
     ALLOCATE(dinv(n,n),eig(n),work(1),temp_mat(n,n),STAT=stat)
@@ -989,6 +1060,8 @@ CONTAINS
 
     DEALLOCATE(eig,work,dinv,temp_mat,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
 
   END SUBROUTINE get_pseudo_inverse_diag
 
