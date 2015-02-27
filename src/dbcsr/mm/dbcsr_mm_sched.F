@@ -482,8 +482,8 @@ MODULE dbcsr_mm_sched
     IF(PRESENT(stacksize_cpu)) my_stacksize_cpu = stacksize_cpu
     IF(PRESENT(stacksize_acc)) my_stacksize_acc = stacksize_acc
 
-    my_nstacks_cpu = MERGE(1, 0, my_nstacks_cpu>0)
-    my_nstacks_acc = MERGE(1, 0, my_nstacks_acc>0)
+    my_nstacks_cpu = MERGE(1, 0, my_stacksize_cpu>0)
+    my_nstacks_acc = MERGE(1, 0, my_stacksize_acc>0)
     IF(PRESENT(nstacks_cpu)) my_nstacks_cpu = nstacks_cpu
     IF(PRESENT(nstacks_acc)) my_nstacks_acc = nstacks_acc
 
