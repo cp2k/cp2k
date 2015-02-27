@@ -77,7 +77,7 @@ MODULE thermostat_methods
                                              get_thermostat_energies,&
                                              setup_adiabatic_thermostat_info,&
                                              setup_thermostat_info
-#include "../common/cp_common_uses.f90"
+#include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

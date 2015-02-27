@@ -23,7 +23,7 @@ MODULE al_system_init
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
-#include "../common/cp_common_uses.f90"
+#include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
