@@ -119,7 +119,7 @@ MODULE dbcsr_mm_sched
   SUBROUTINE stats_init(stats)
     TYPE(stats_type), INTENT(INOUT)          :: stats
 
-    ALLOCATE(stats%num_mnk_stacks(1,5))
+    ALLOCATE(stats%num_mnk_stacks(1,7))
     stats%num_mnk_stacks(1,:) = 0 ! entry for the default stack
   END SUBROUTINE stats_init
 
@@ -459,44 +459,60 @@ MODULE dbcsr_mm_sched
 !> \param k ...
 !> \param stacksize_cpu ...
 !> \param stacksize_acc ...
+!> \param nstacks_cpu ...
+!> \param nstacks_acc ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE stats_add(stats, m,n,k, stacksize_cpu, stacksize_acc)
+ SUBROUTINE stats_add(stats, m,n,k, stacksize_cpu, stacksize_acc, nstacks_cpu, nstacks_acc)
     TYPE(stats_type), INTENT(INOUT)          :: stats
     INTEGER, INTENT(IN)                      :: m, n, k
-    INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_acc
+    INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_acc, &
+                                                nstacks_cpu, nstacks_acc
 
     INTEGER                                  :: i, s
+    INTEGER(kind=int_8)                      :: my_nstacks_acc, &
+                                                my_nstacks_cpu, &
+                                                my_stacksize_acc, &
+                                                my_stacksize_cpu
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tmp
+
+    my_stacksize_cpu = 0
+    my_stacksize_acc = 0
+    IF(PRESENT(stacksize_cpu)) my_stacksize_cpu = stacksize_cpu
+    IF(PRESENT(stacksize_acc)) my_stacksize_acc = stacksize_acc
+
+    my_nstacks_cpu = MERGE(1, 0, my_nstacks_cpu>0)
+    my_nstacks_acc = MERGE(1, 0, my_nstacks_acc>0)
+    IF(PRESENT(nstacks_cpu)) my_nstacks_cpu = nstacks_cpu
+    IF(PRESENT(nstacks_acc)) my_nstacks_acc = nstacks_acc
 
     DO i=1, SIZE(stats%num_mnk_stacks, 1)
         IF(stats%num_mnk_stacks(i,1)==m .AND. &
            stats%num_mnk_stacks(i,2)==n .AND. &
            stats%num_mnk_stacks(i,3)==k) THEN
-             IF(PRESENT(stacksize_cpu))&
-               stats%num_mnk_stacks(i,4) = stats%num_mnk_stacks(i,4) + stacksize_cpu
-             IF(PRESENT(stacksize_acc))&
-               stats%num_mnk_stacks(i,5) = stats%num_mnk_stacks(i,5) + stacksize_acc
-             RETURN
+              stats%num_mnk_stacks(i,4) = stats%num_mnk_stacks(i,4) + my_stacksize_cpu
+              stats%num_mnk_stacks(i,5) = stats%num_mnk_stacks(i,5) + my_stacksize_acc
+              stats%num_mnk_stacks(i,6) = stats%num_mnk_stacks(i,6) + my_nstacks_cpu
+              stats%num_mnk_stacks(i,7) = stats%num_mnk_stacks(i,7) + my_nstacks_acc
+              RETURN
         ENDIF
     END DO
 
     !not found, ok lets grow the list
     s = SIZE(stats%num_mnk_stacks, 1)
-    ALLOCATE(tmp(s,5))
+    ALLOCATE(tmp(s,7))
     tmp(:,:) = stats%num_mnk_stacks(:,:)
     DEALLOCATE(stats%num_mnk_stacks)
-    ALLOCATE(stats%num_mnk_stacks(s+1, 5))
+    ALLOCATE(stats%num_mnk_stacks(s+1, 7))
     stats%num_mnk_stacks(1:s,:) = tmp(:,:)
     stats%num_mnk_stacks(s+1,1) = m
     stats%num_mnk_stacks(s+1,2) = n
     stats%num_mnk_stacks(s+1,3) = k
-    stats%num_mnk_stacks(s+1,4:5) = 0
-    IF(PRESENT(stacksize_cpu))&
-      stats%num_mnk_stacks(s+1,4) = stacksize_cpu
-    IF(PRESENT(stacksize_acc))&
-      stats%num_mnk_stacks(s+1,5) = stacksize_acc
+    stats%num_mnk_stacks(s+1,4) = my_stacksize_cpu
+    stats%num_mnk_stacks(s+1,5) = my_stacksize_acc
+    stats%num_mnk_stacks(s+1,6) = my_nstacks_cpu
+    stats%num_mnk_stacks(s+1,7) = my_nstacks_acc
     DEALLOCATE(tmp)
  END SUBROUTINE stats_add
 
@@ -532,7 +548,9 @@ MODULE dbcsr_mm_sched
                         n=INT(istats%num_mnk_stacks(j,2), kind=int_4),&
                         k=INT(istats%num_mnk_stacks(j,3), kind=int_4),&
                         stacksize_cpu=istats%num_mnk_stacks(j,4),&
-                        stacksize_acc=istats%num_mnk_stacks(j,5))
+                        stacksize_acc=istats%num_mnk_stacks(j,5),&
+                        nstacks_cpu  =istats%num_mnk_stacks(j,6),&
+                        nstacks_acc  =istats%num_mnk_stacks(j,7))
        END DO
     END DO
     !$OMP END MASTER
@@ -587,7 +605,7 @@ MODULE dbcsr_mm_sched
       DO i=1, SIZE(report%num_mnk_stacks, 1)
          IF(ALL(report%num_mnk_stacks(i,1:3)==mnk)) THEN
             IF(i<=SIZE(mnk_collected)) mnk_collected(i) = 1
-            CALL mp_sum(report%num_mnk_stacks(i,4:5), group)
+            CALL mp_sum(report%num_mnk_stacks(i,4:7), group)
          END IF
       END DO
     END DO
@@ -617,18 +635,6 @@ MODULE dbcsr_mm_sched
 
     WRITE (output_unit,"(1X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "ACC", "ACC%"
 
-    percent = 100*REAL(report%acc_num_stacks)/REAL(MAX(INT(1,KIND=int_8),report%cpu_num_stacks+report%acc_num_stacks))
-    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " number of processed stacks",&
-       report%cpu_num_stacks, report%acc_num_stacks, percent
-
-    percent = 100*REAL(report%num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(1,4:5))))
-    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls inhomo. stacks",&
-       report%num_mnk_stacks(1,4:5), percent
-
-    percent = 100*REAL(SUM(report%num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,4:5))))
-    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls total",&
-       SUM(report%num_mnk_stacks(:,4)), SUM(report%num_mnk_stacks(:,5)), percent
-
     !sorting stat entries by flops per multiplication
     ALLOCATE(sort_key(SIZE(report%num_mnk_stacks,1)-1))
     sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)*(report%num_mnk_stacks(2:,4)+report%num_mnk_stacks(2:,5))
@@ -645,6 +651,23 @@ MODULE dbcsr_mm_sched
     percent = 100*REAL(report%acc_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%acc_flop))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " flops total",&
        report%cpu_flop, report%acc_flop, percent
+
+    percent = 100*REAL(report%num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(1,4:5))))
+    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls inhomo. stacks",&
+       report%num_mnk_stacks(1,4:5), percent
+
+    percent = 100*REAL(SUM(report%num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,4:5))))
+    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls total",&
+       SUM(report%num_mnk_stacks(:,4)), SUM(report%num_mnk_stacks(:,5)), percent
+
+    percent = 100*REAL(report%acc_num_stacks)/REAL(MAX(INT(1,KIND=int_8),report%cpu_num_stacks+report%acc_num_stacks))
+    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " number of processed stacks",&
+       report%cpu_num_stacks, report%acc_num_stacks, percent
+
+
+    WRITE (output_unit,'(A,T40,F10.1,11X,F10.1)') " avgerage stack size",&
+       REAL(SUM(report%num_mnk_stacks(:,4))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,6)))),&
+       REAL(SUM(report%num_mnk_stacks(:,5))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,7))))
 
   END SUBROUTINE stats_print_report
 
