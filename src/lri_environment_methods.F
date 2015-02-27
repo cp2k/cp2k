@@ -32,6 +32,7 @@ MODULE lri_environment_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_lri_inv,&
+                                             do_lri_inv_auto,&
                                              do_lri_pseudoinv_diag,&
                                              do_lri_pseudoinv_svd
   USE input_section_types,             ONLY: section_vals_type
@@ -65,6 +66,7 @@ MODULE lri_environment_methods
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -667,7 +669,8 @@ CONTAINS
       END DO
 
       !distribute fitted density on the grid
-      CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r, error=error)
+      CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g,&
+                      tot_rho_r=tot_rho_r, error=error)
       DO ispin=1,nspin
        CALL calculate_lri_rho_elec(rho_g(ispin),&
                                    rho_r(ispin), qs_env, lri_env,&
@@ -1669,7 +1672,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief get inverse or pseudoinverse of lri overlap matrix for aux basis set
-!> \param lri_env ...
+!> \param lri_env lri environment
 !> \param sinv on entry overlap matrix, on exit its inverse
 !> \param error ...
 ! *****************************************************************************
@@ -1682,17 +1685,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'inverse_lri_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, n, stat
+    INTEGER                                  :: handle, info, n, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: rskip
+    REAL(KIND=dp)                            :: anorm, rcond, rskip
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s
+    REAL(KIND=dp), EXTERNAL                  :: dlange
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(s)
 
-    rskip = 1.E-8_dp ! parameter for pseudo inverse 
+    rskip = 1.E-8_dp ! parameter for pseudo inverse
     n=SIZE(sinv,1)
 
     SELECT CASE(lri_env%lri_overlap_inv)
@@ -1712,9 +1718,36 @@ CONTAINS
        CALL get_pseudo_inverse_diag(s,sinv,rskip,error)
        DEALLOCATE(s,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE(do_lri_inv_auto)
+       ! decide whether to calculate inverse or pseudoinverse
+       ALLOCATE(s(n,n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       s(:,:) = sinv
+       ALLOCATE(work(3*n),iwork(n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! norm of matrix
+       anorm = dlange('1',n,n,sinv,n,work)
+       ! Cholesky factorization (fails if matrix not positive definite)
+       CALL dpotrf('U',n,sinv,n,info)
+       IF (info == 0) THEN
+           ! condition number
+           CALL dpocon('U',n,sinv,n,anorm,rcond,work,iwork,info)
+           IF (info /= 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,"DPOCON failed")
+           ENDIF
+           IF(LOG(1._dp/rcond) > lri_env%cond_max) THEN
+             CALL get_pseudo_inverse_svd(s,sinv,rskip,error)
+           ELSE
+             CALL invmat_symm(sinv,"U",error)
+           ENDIF
+       ELSE
+           CALL get_pseudo_inverse_svd(s,sinv,rskip,error)
+       END IF
+       DEALLOCATE(s,work,iwork,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                 routineP,"No initialization available?????",&
+                 routineP,"No initialization for LRI overlap available?",&
                  only_ionode=.TRUE.)
     END SELECT
 

@@ -158,6 +158,9 @@ MODULE lri_environment_types
      INTEGER                                                 :: lri_overlap_inv
      ! flag for debugging lri integrals
      LOGICAL                                                 :: debug
+     ! parameter for inversion (autoselect); maximal condition 
+     ! number up to where inversion is legal
+     REAL(KIND=dp)                                           :: cond_max
      ! parameter for checking distance between atom pairs
      REAL(KIND=dp)                                           :: delta
      ! orbital basis set

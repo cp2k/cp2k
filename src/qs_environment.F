@@ -412,6 +412,8 @@ CONTAINS
        ! how to calculate inverse/pseuodinverse of overlap
        CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%LRI_OVERLAP_MATRIX",&
                                  i_val=lri_env%lri_overlap_inv,error=error)
+       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%MAX_CONDITION_NUM",&
+                                 r_val=lri_env%cond_max,error=error)
        !
        CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
     END IF

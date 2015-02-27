@@ -827,7 +827,8 @@ MODULE input_constants
   ! LRI paramters for inverse of overlap
   INTEGER, PARAMETER, PUBLIC               :: do_lri_inv=0,&
                                               do_lri_pseudoinv_svd=1,&
-                                              do_lri_pseudoinv_diag=2
+                                              do_lri_pseudoinv_diag=2,&
+                                              do_lri_inv_auto=3
 
   ! LRI basis optimization parameters
   INTEGER, PARAMETER, PUBLIC               :: do_lri_opt_all=0,&
