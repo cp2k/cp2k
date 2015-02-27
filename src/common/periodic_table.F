@@ -16,7 +16,6 @@
 ! *****************************************************************************
 MODULE periodic_table
 
-  
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
@@ -54,7 +53,6 @@ MODULE periodic_table
   TYPE(atom) :: ptable(0:nelem)
 
 CONTAINS
-
 
 ! *****************************************************************************
 !> \brief Pass information about the kind given the element symbol
@@ -1316,115 +1314,6 @@ CONTAINS
     ptable(118) % vdw_radius = 2.00_dp
     ptable(118) % e_conv(0:3) = (/ 14, 36, 40, 28 /)
     ptable(118) % eht_param(0:3) = (/ z, z, z, z/)
-
-#if defined(__USE_LEGACY_WEIGHTS)
-    ptable(1) % amass = 1.00797_dp
-    ptable(2) % amass = 4.00260_dp
-    ptable(3) % amass = 6.93900_dp
-    ptable(4) % amass = 9.01220_dp
-    ptable(5) % amass = 10.81100_dp
-    ptable(6) % amass = 12.01115_dp
-    ptable(7) % amass = 14.00670_dp
-    ptable(8) % amass = 15.99940_dp
-    ptable(9) % amass = 18.99840_dp
-    ptable(10) % amass = 20.18300_dp
-    ptable(11) % amass = 22.98980_dp
-    ptable(12) % amass = 24.31200_dp
-    ptable(13) % amass = 26.98153_dp
-    ptable(14) % amass = 28.08600_dp
-    ptable(15) % amass = 30.97380_dp
-    ptable(16) % amass = 32.06400_dp
-    ptable(17) % amass = 35.45300_dp
-    ptable(18) % amass = 39.94800_dp
-    ptable(19) % amass = 39.10200_dp
-    ptable(20) % amass = 40.08000_dp
-    ptable(21) % amass = 44.95600_dp
-    ptable(22) % amass = 47.90000_dp
-    ptable(23) % amass = 50.94200_dp
-    ptable(24) % amass = 51.99600_dp
-    ptable(25) % amass = 54.93800_dp
-    ptable(26) % amass = 55.84700_dp
-    ptable(27) % amass = 58.93300_dp
-    ptable(28) % amass = 58.71000_dp
-    ptable(29) % amass = 63.54000_dp
-    ptable(30) % amass = 65.37000_dp
-    ptable(31) % amass = 69.72000_dp
-    ptable(32) % amass = 72.59000_dp
-    ptable(33) % amass = 74.92200_dp
-    ptable(34) % amass = 78.96000_dp
-    ptable(35) % amass = 79.90900_dp
-    ptable(36) % amass = 83.80000_dp
-    ptable(37) % amass = 85.47000_dp
-    ptable(38) % amass = 87.62000_dp
-    ptable(39) % amass = 88.90500_dp
-    ptable(40) % amass = 91.22000_dp
-    ptable(41) % amass = 92.90600_dp
-    ptable(42) % amass = 95.94000_dp
-    ptable(43) % amass = 98.90600_dp
-    ptable(44) % amass = 101.07000_dp
-    ptable(45) % amass = 102.90500_dp
-    ptable(46) % amass = 106.40000_dp
-    ptable(47) % amass = 107.87000_dp
-    ptable(48) % amass = 112.40000_dp
-    ptable(49) % amass = 114.82000_dp
-    ptable(50) % amass = 118.69000_dp
-    ptable(51) % amass = 121.75000_dp
-    ptable(52) % amass = 127.60000_dp
-    ptable(53) % amass = 126.90440_dp
-    ptable(54) % amass = 131.30000_dp
-    ptable(55) % amass = 132.90500_dp
-    ptable(56) % amass = 137.34000_dp
-    ptable(57) % amass = 138.91000_dp
-    ptable(58) % amass = 140.12000_dp
-    ptable(59) % amass = 140.90700_dp
-    ptable(60) % amass = 144.24000_dp
-    ptable(61) % amass = 144.91300_dp
-    ptable(62) % amass = 150.35000_dp
-    ptable(63) % amass = 151.96000_dp
-    ptable(64) % amass = 157.25000_dp
-    ptable(65) % amass = 158.92400_dp
-    ptable(66) % amass = 162.50000_dp
-    ptable(67) % amass = 164.93000_dp
-    ptable(68) % amass = 167.26000_dp
-    ptable(69) % amass = 168.93400_dp
-    ptable(70) % amass = 173.04000_dp
-    ptable(71) % amass = 174.97000_dp
-    ptable(72) % amass = 178.49000_dp
-    ptable(73) % amass = 180.94800_dp
-    ptable(74) % amass = 183.85000_dp
-    ptable(75) % amass = 186.20000_dp
-    ptable(76) % amass = 190.20000_dp
-    ptable(77) % amass = 192.20000_dp
-    ptable(78) % amass = 195.09000_dp
-    ptable(79) % amass = 196.96700_dp
-    ptable(80) % amass = 200.59000_dp
-    ptable(81) % amass = 204.37000_dp
-    ptable(82) % amass = 207.19000_dp
-    ptable(83) % amass = 208.98000_dp
-    ptable(84) % amass = 209.98290_dp
-    ptable(85) % amass = 209.98700_dp
-    ptable(86) % amass = 222.01750_dp
-    ptable(87) % amass = 223.01980_dp
-    ptable(88) % amass = 226.02540_dp
-    ptable(89) % amass = 227.02780_dp
-    ptable(90) % amass = 232.03810_dp
-    ptable(91) % amass = 231.03590_dp
-    ptable(92) % amass = 238.05080_dp
-    ptable(93) % amass = 237.04820_dp
-    ptable(94) % amass = 244.0640_dp
-    ptable(95) % amass = 243.0614_dp
-    ptable(96) % amass = 247.0700_dp
-    ptable(97) % amass = 251.0800_dp
-    ptable(98) % amass = 252.0820_dp
-    ptable(99) % amass = 252.0829_dp
-    ptable(100) % amass = 257.0950_dp
-    ptable(101) % amass = 256.0000_dp
-    ptable(102) % amass = 254.0000_dp
-    ptable(103) % amass = 257.0000_dp
-    ptable(104) % amass = 261.0000_dp
-    ptable(105) % amass = 262.0000_dp
-    ptable(106:nelem) % amass = 263.0000_dp
-#endif
 
     ! Initialize heat of formation
     CALL init_eheat

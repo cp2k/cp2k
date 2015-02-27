@@ -261,9 +261,6 @@ ENDIF
 #if defined __STATM_TOTAL
    flags=TRIM(flags)//" statm_total"
 #endif
-#if defined __USE_LEGACY_WEIGHTS
-   flags=TRIM(flags)//" use_legacy_weights"
-#endif
 #if defined __PLUMED_CP2K
    flags=TRIM(flags)//" plumed1.3"
 #endif
