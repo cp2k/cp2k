@@ -87,8 +87,6 @@ CONTAINS
 !> \param cell ...
 !> \param simpar ...
 !> \param molecule_kind_set ...
-!> \param local_molecules ...
-!> \param molecules ...
 !> \param print_section ...
 !> \param particles ...
 !> \param gci ...
@@ -96,13 +94,11 @@ CONTAINS
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
   SUBROUTINE compute_nfree (  cell, simpar, molecule_kind_set,&
-       local_molecules, molecules, print_section,particles, gci, error)
+        print_section,particles, gci, error)
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(global_constraint_type), POINTER    :: gci
@@ -291,7 +287,7 @@ CONTAINS
 
     CALL get_adiabatic_region_info(region_sections, sum_of_thermostats,&
          thermolist=thermolist,&
-         local_molecules=local_molecules, molecule_kind_set=molecule_kind_set,&
+         molecule_kind_set=molecule_kind_set,&
          molecules=molecules, particles=particles, qmmm_env=qmmm_env, error=error)
 
 !    map_loc_thermo_gen=>thermostat_info%map_loc_thermo_gen
@@ -438,7 +434,6 @@ CONTAINS
 !> \param region_sections ...
 !> \param sum_of_thermostats ...
 !> \param thermolist ...
-!> \param local_molecules ...
 !> \param molecule_kind_set ...
 !> \param molecules ...
 !> \param particles ...
@@ -447,12 +442,11 @@ CONTAINS
 !> \author 10.2011 CJM -PNNL
 ! *****************************************************************************
   SUBROUTINE get_adiabatic_region_info(region_sections, sum_of_thermostats,&
-       thermolist, local_molecules, molecule_kind_set, molecules, particles,&
+       thermolist, molecule_kind_set, molecules, particles,&
        qmmm_env, error)
     TYPE(section_vals_type), POINTER         :: region_sections
     INTEGER, INTENT(INOUT), OPTIONAL         :: sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: thermolist( : )
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
@@ -1924,16 +1918,16 @@ CONTAINS
 
     IF (ASSOCIATED(thermostats)) THEN
        IF (ASSOCIATED(thermostats%thermostat_part)) THEN
-          CALL print_thermostat_status(thermostats%thermostat_part, para_env, my_pos, my_act, cell, itimes, time, error)
+          CALL print_thermostat_status(thermostats%thermostat_part, para_env, my_pos, my_act, itimes, time, error)
        END IF
        IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
-          CALL print_thermostat_status(thermostats%thermostat_shell, para_env, my_pos, my_act, cell, itimes, time, error)
+          CALL print_thermostat_status(thermostats%thermostat_shell, para_env, my_pos, my_act, itimes, time, error)
        END IF
        IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
-          CALL print_thermostat_status(thermostats%thermostat_coef, para_env, my_pos, my_act, cell, itimes, time, error)
+          CALL print_thermostat_status(thermostats%thermostat_coef, para_env, my_pos, my_act, itimes, time, error)
        END IF
        IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
-          CALL print_thermostat_status(thermostats%thermostat_baro, para_env, my_pos, my_act, cell, itimes, time, error)
+          CALL print_thermostat_status(thermostats%thermostat_baro, para_env, my_pos, my_act, itimes, time, error)
        END IF
     END IF
   END SUBROUTINE print_thermostats_status
@@ -1944,17 +1938,15 @@ CONTAINS
 !> \param para_env ...
 !> \param my_pos ...
 !> \param my_act ...
-!> \param cell ...
 !> \param itimes ...
 !> \param time ...
 !> \param error ...
 !> \author Teodoro Laino [tlaino] - 02.2008 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE print_thermostat_status ( thermostat, para_env, my_pos, my_act, cell, itimes, time, error )
+  SUBROUTINE print_thermostat_status ( thermostat, para_env, my_pos, my_act, itimes, time, error )
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=default_string_length)     :: my_pos, my_act
-    TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: itimes
     REAL(KIND=dp), INTENT(IN)                :: time
     TYPE(cp_error_type), INTENT(inout)       :: error

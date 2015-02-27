@@ -736,8 +736,7 @@ CONTAINS
         CALL read_element_from_file(elem=elem, tmc_ana=ana_env, conf_nr=conf_nr, &
                                     stat=stat, error=error)
         IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
-          CALL deallocate_sub_tree_node(tmc_params=tmc_params, tree_elem=elem,&
-                                        error=error)
+          CALL deallocate_sub_tree_node(tree_elem=elem,error=error)
           EXIT conf_loop
         END IF
         ! if we want just a certain part of the trajectory
@@ -750,8 +749,7 @@ CONTAINS
   
         ! clean temporary element (already analyzed)
         IF(ASSOCIATED(elem)) THEN
-          CALL deallocate_sub_tree_node(tmc_params=tmc_params, tree_elem=elem, &
-                 error=error)
+          CALL deallocate_sub_tree_node(tree_elem=elem,error=error)
         END IF
         ! if there was no previous element, create a new temp element to write in
         IF(.NOT.ASSOCIATED(elem)) &
@@ -763,8 +761,7 @@ CONTAINS
     CALL analyse_files_close(tmc_ana=ana_env, error=error)
 
     IF(ASSOCIATED(elem)) &
-      CALL deallocate_sub_tree_node(tmc_params=tmc_params, tree_elem=elem, &
-             error=error)
+      CALL deallocate_sub_tree_node(tree_elem=elem, error=error)
 
     ! end the timing
     CALL timestop(handle)

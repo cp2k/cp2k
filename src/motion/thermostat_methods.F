@@ -194,8 +194,7 @@ CONTAINS
       CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules,&
               molecules_new=molecules_new, gci=gci, particles=particles, error=error)
       CALL compute_nfree( cell, simpar, molecule_kinds_new%els,&
-           local_molecules, molecules_new, print_section, particles, &
-           gci, error)
+           print_section, particles, gci, error)
       IF (explicit_adiabatic_fast.AND.explicit_adiabatic_slow) THEN
          IF (apply_thermo_adiabatic) THEN
             CALL create_thermostat_type(thermostats%thermostat_fast, simpar, adiabatic_fast_section,&

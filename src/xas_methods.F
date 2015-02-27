@@ -368,7 +368,34 @@ CONTAINS
       ELSE IF(.NOT. converged .OR. should_stop) THEN
           IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo NOT converged"
-          GOTO 1000
+          ! Release what has to be released
+          IF(ASSOCIATED(vecbuffer)) THEN
+             DEALLOCATE(vecbuffer,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE(op_sm,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          END IF
+
+          DO ispin = 1,dft_control%nspins
+             CALL set_mo_set(mos(ispin)%mo_set, homo=my_homo(ispin),&
+                  uniform_occupation=my_uocc(ispin), nelectron= my_nelectron(ispin), error=error)
+             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+             CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mos(ispin)%mo_set%mo_coeff,nmo,1,1)
+          END DO
+
+          IF (output_unit>0) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
+                   REPEAT("=",77),&
+                   "END CORE LEVEL SPECTROSCOPY CALCULATION",&
+                   REPEAT("=",77)
+          END IF
+
+          CALL xas_env_release(qs_env%xas_env, error=error)
+
+          CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
+              "PRINT%PROGRAM_RUN_INFO",error=error)
+          CALL timestop(handle)
+          RETURN
       END IF
     END IF
 
@@ -526,7 +553,7 @@ CONTAINS
 
     END DO  ! iat = 1,nexc_atoms
 
-1000  CONTINUE  ! END of Calculation
+    ! END of Calculation
 
   ! Release what has to be released
     IF(ASSOCIATED(vecbuffer)) THEN

@@ -591,7 +591,6 @@ CONTAINS
 !>        new configuration
 !> \param rnd_nr random number acceptance check will be done with
 !> \param beta 1/(kB*T) can differ for different acceptance checks
-!> \param N the numbers of steps of the integration
 !> \param tmc_params TMC environment parameters
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -599,10 +598,9 @@ CONTAINS
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_estimated_prob(elem_old, elem_new, E_classical_diff, &
-                rnd_nr, beta, N, tmc_params, error) RESULT(prob)
+                rnd_nr, beta, tmc_params, error) RESULT(prob)
     TYPE(tree_type), POINTER                 :: elem_old, elem_new
     REAL(KIND=dp)                            :: E_classical_diff, rnd_nr, beta
-    INTEGER                                  :: N
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: prob

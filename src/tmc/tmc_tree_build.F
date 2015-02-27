@@ -240,14 +240,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deallocates an elements of the subtree element structure 
-!> \param tmc_params structure for storing all (global) parameters
 !> \param tree_elem ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 11.2012
 ! *****************************************************************************
-  SUBROUTINE deallocate_sub_tree_node(tmc_params, tree_elem, error)
-    TYPE(tmc_param_type), POINTER            :: tmc_params
+  SUBROUTINE deallocate_sub_tree_node(tree_elem, error)
     TYPE(tree_type), POINTER                 :: tree_elem
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1203,8 +1201,7 @@ CONTAINS
         IF(ASSOCIATED(ptr%nacc)) ptr%nacc%parent => NULL()
         
         ! deallocate
-        CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                                      tree_elem=ptr, error=error)
+        CALL deallocate_sub_tree_node(tree_elem=ptr, error=error)
       END IF
     END IF
     ! end the timing
@@ -1712,8 +1709,7 @@ CONTAINS
     !-- deallocate node if no child node exist
     IF(acc_removed.AND.nacc_removed)THEN
       tmp_ptr => begin_ptr
-      CALL deallocate_sub_tree_node(tmc_params=tmc_params, &
-                                    tree_elem=begin_ptr, error=error)
+      CALL deallocate_sub_tree_node(tree_elem=begin_ptr, error=error)
       removed = .TRUE.
     END IF
   END SUBROUTINE dealloc_whole_subtree

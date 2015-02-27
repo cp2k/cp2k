@@ -1100,7 +1100,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
                                               rnd_nr=tmp_pt_ptr%gt_elem%rnd_nr, &
                                               beta=1.0_dp/(kB*(tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf)-&
                                                                tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf+1))), &
-                                              N=integration_steps, tmc_params=tmc_env%params,error=error)
+                                              tmc_params=tmc_env%params,error=error)
           ELSE
             tmp_pt_ptr => tmp_pt_ptr%next
             CYCLE reference_loop
@@ -1113,7 +1113,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,error,failure)
                                               E_classical_diff=act_elem%e_pot_approx-parent_elem%e_pot_approx, &
                                               rnd_nr=tmp_pt_ptr%gt_elem%rnd_nr, &
                                               beta=1.0_dp/(kB*tmc_env%params%Temp(tmp_pt_ptr%gt_elem%mv_conf)), &
-                                              N=integration_steps, tmc_params=tmc_env%params,error=error)
+                                              tmc_params=tmc_env%params,error=error)
           END IF
         END IF
         !successfull probability update

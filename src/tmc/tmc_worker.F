@@ -487,8 +487,7 @@ CONTAINS
               tmc_env%tmc_comp_set%group_nr, &
               "send back status:", work_stat
           IF(ASSOCIATED(conf)) &
-            CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                                          tree_elem=conf, error=error)
+            CALL deallocate_sub_tree_node(tree_elem=conf, error=error)
         END DO master_work_time
       !-- every other group paricipants----------------------------------------
       ELSE
@@ -574,8 +573,7 @@ CONTAINS
                        cp_to_string(work_stat),error)
           END SELECT
           IF(ASSOCIATED(conf)) &
-            CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                                          tree_elem=conf, error=error)
+            CALL deallocate_sub_tree_node(tree_elem=conf, error=error)
         END DO worker_work_time
       END IF
       ! --------------------------------------------------------------------
@@ -585,8 +583,7 @@ CONTAINS
           CALL analysis_restart_print(ana_env=ana_list(itmp)%temp, &
                                       error=error)
           IF(ASSOCIATED(conf)) &
-            CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                                          tree_elem=ana_list(itmp)%temp%last_elem, error=error)
+            CALL deallocate_sub_tree_node(tree_elem=ana_list(itmp)%temp%last_elem, error=error)
           CALL finalize_tmc_analysis(ana_list(itmp)%temp, error)
         END DO
       END IF
@@ -635,8 +632,7 @@ CONTAINS
       END DO
     END IF
     IF(ASSOCIATED(conf)) &
-      CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                                    tree_elem=conf, error=error)
+      CALL deallocate_sub_tree_node(tree_elem=conf, error=error)
 
     ! end the timing
     CALL timestop(handle)
@@ -816,8 +812,7 @@ CONTAINS
     conf%ekin           = last_acc_conf%ekin
     conf%ekin_before_md = last_acc_conf%ekin_before_md
 
-    CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-           tree_elem=last_acc_conf, error=error)
+    CALL deallocate_sub_tree_node(tree_elem=last_acc_conf, error=error)
 
     ! end the timing 
     CALL timestop(handle)

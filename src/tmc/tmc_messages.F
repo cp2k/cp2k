@@ -189,15 +189,15 @@ CONTAINS
            TMC_STAT_ANALYSIS_RESULT)
         CALL create_status_message(msg_type, m_send, error)
       CASE(TMC_STATUS_WORKER_INIT)
-        CALL create_worker_init_message(msg_type, tmc_params, m_send, error)
+        CALL create_worker_init_message(tmc_params, m_send, error)
       CASE(TMC_STAT_START_CONF_RESULT, TMC_STAT_INIT_ANALYSIS)
         CALL create_start_conf_message(msg_type, elem, result_count, tmc_params, m_send, error)
       CASE(TMC_STAT_ENERGY_REQUEST, TMC_STAT_APPROX_ENERGY_REQUEST)
-        CALL create_energy_request_message(msg_type, elem, m_send, tmc_params, error)
+        CALL create_energy_request_message(elem, m_send, tmc_params, error)
       CASE(TMC_STAT_APPROX_ENERGY_RESULT)
-        CALL create_approx_energy_result_message(msg_type, elem, m_send, tmc_params, error)
+        CALL create_approx_energy_result_message(elem, m_send, tmc_params, error)
       CASE(TMC_STAT_ENERGY_RESULT)
-        CALL create_energy_result_message(msg_type, elem, m_send, tmc_params, error)
+        CALL create_energy_result_message(elem, m_send, tmc_params, error)
       CASE(TMC_STAT_NMC_REQUEST, TMC_STAT_NMC_BROADCAST, &
            TMC_STAT_MD_REQUEST, TMC_STAT_MD_BROADCAST)
         CALL create_NMC_request_massage(msg_type, elem, m_send, tmc_params, error)
@@ -358,7 +358,7 @@ CONTAINS
            TMC_STATUS_CALCULATING, TMC_STAT_ANALYSIS_RESULT)
         ! nothing to do here
       CASE(TMC_STATUS_WORKER_INIT)
-        CALL read_worker_init_message(msg_type, tmc_params, m_send, error)
+        CALL read_worker_init_message(tmc_params, m_send, error)
       CASE(TMC_STAT_START_CONF_RESULT, TMC_STAT_INIT_ANALYSIS)
         IF(PRESENT(elem_array)) THEN
           CALL read_start_conf_message(msg_type, elem_array(dest)%elem, &
@@ -519,15 +519,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
-!> \param msg_type the status tag 
 !> \param tmc_params to send the cell properties
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 07.2013
 ! *****************************************************************************
-  SUBROUTINE create_worker_init_message(msg_type, tmc_params, m_send, error)
-    INTEGER                                  :: msg_type
+  SUBROUTINE create_worker_init_message(tmc_params, m_send, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(message_send), POINTER              :: m_send
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -578,15 +576,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief the message for the initial values (cell size) to the workers
-!> \param msg_type the status tag 
 !> \param tmc_params to send the cell properties
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 07.2013
 ! *****************************************************************************
-  SUBROUTINE read_worker_init_message(msg_type, tmc_params, m_send, error)
-    INTEGER                                  :: msg_type
+  SUBROUTINE read_worker_init_message(tmc_params, m_send, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(message_send), POINTER              :: m_send
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -807,7 +803,6 @@ CONTAINS
   !============================================================================
 ! *****************************************************************************
 !> \brief creating message for requesting exact energy of new configuration
-!> \param msg_type the status tag 
 !> \param elem tree element with new coordinates 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
@@ -815,9 +810,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_energy_request_message(msg_type, elem, m_send, &
+  SUBROUTINE create_energy_request_message(elem, m_send, &
                                            tmc_params, error)
-    INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
@@ -928,7 +922,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creating message for sending back the exact energy of new conf
-!> \param msg_type the status tag
 !> \param elem tree element  with calculated energy
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
@@ -936,8 +929,7 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_energy_result_message(msg_type, elem, m_send, tmc_params, error)
-    INTEGER                                  :: msg_type
+  SUBROUTINE create_energy_result_message(elem, m_send, tmc_params, error)
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params
@@ -1060,7 +1052,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create message for sending back the approximate energy of new conf
-!> \param msg_type ...
 !> \param elem tree element with calculated approx energy 
 !> \param m_send the message structure
 !> \param tmc_params stuct with parameters (global settings)
@@ -1068,9 +1059,8 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
-  SUBROUTINE create_approx_energy_result_message(msg_type, elem, m_send, &
+  SUBROUTINE create_approx_energy_result_message(elem, m_send, &
                                                  tmc_params, error)
-    INTEGER                                  :: msg_type
     TYPE(tree_type), POINTER                 :: elem
     TYPE(message_send), POINTER              :: m_send
     TYPE(tmc_param_type), POINTER            :: tmc_params

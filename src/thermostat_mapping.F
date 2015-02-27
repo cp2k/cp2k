@@ -119,7 +119,7 @@ CONTAINS
     nkind = SIZE(molecule_kind_set)
     CALL adiabatic_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
          const_mol, tot_const, point, local_molecules, molecule_kind_set, molecule_set,&
-         region, simpar, shell, sum_of_thermostats, para_env, error)
+         simpar, shell, error)
 
     ! Now we can allocate the target array s_kin and p_kin..
     SELECT CASE(region)
@@ -412,17 +412,13 @@ CONTAINS
 !> \param local_molecules ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
-!> \param region ...
 !> \param simpar ...
 !> \param shell ...
-!> \param sum_of_thermostats ...
-!> \param para_env ...
 !> \param error ...
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE adiabatic_region_evaluate(dis_type, natoms_local, nmol_local, const_mol,&
-       tot_const, point, local_molecules, molecule_kind_set, molecule_set, region,&
-       simpar, shell, sum_of_thermostats, para_env, error)
+       tot_const, point, local_molecules, molecule_kind_set, molecule_set, simpar, shell, error)
     INTEGER, INTENT(IN)                      :: dis_type
     INTEGER, INTENT(OUT)                     :: natoms_local, nmol_local
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
@@ -430,11 +426,8 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(molecule_type), POINTER             :: molecule_set(:)
-    INTEGER, INTENT(IN)                      :: region
     TYPE(simpar_type), POINTER               :: simpar
     LOGICAL, INTENT(IN)                      :: shell
-    INTEGER, INTENT(IN)                      :: sum_of_thermostats
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_region_evaluate', &

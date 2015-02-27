@@ -389,8 +389,7 @@ CONTAINS
            error=error)
     END IF
 
-    CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-           tree_elem=init_conf, error=error)
+    CALL deallocate_sub_tree_node(tree_elem=init_conf, error=error)
 
     ! regtest output
     IF(tmc_env%params%print_test_output.OR.DEBUG.GT.0)&
