@@ -76,6 +76,9 @@ MODULE dbcsr_types
             dbcsr_slot_home_vprow,&
             dbcsr_slot_home_vpcol,&
             dbcsr_num_slots
+
+  PUBLIC :: dbcsr_mpi_size_limits
+
   PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
             dbcsr_type_complex_4, dbcsr_type_complex_8,&
             dbcsr_type_real_default, dbcsr_type_complex_default,&
@@ -526,6 +529,10 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_slot_thr_c = dbcsr_meta_size+8
   INTEGER, PARAMETER          :: dbcsr_slot_coo_l = dbcsr_meta_size+10
   INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+11 ! previous + 1
+  
+  ! MPI message size limits (in bytes): 0, 128, 8192, 32KB, 128KB, 4MB, 16MB 
+  INTEGER(KIND=int_8), DIMENSION(7), PARAMETER :: dbcsr_mpi_size_limits = & 
+       (/ 0, 2**7, 2**13, 2**15, 2**17, 2**22, 2**24 /)
 
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix object.
@@ -602,10 +609,11 @@ MODULE dbcsr_types
      INTEGER                               :: nexchanges
      INTEGER                               :: nprocs
      ! rank 1: 1=right, 2=left
-     ! rank 2: 1=send, 2=recv
-     ! rank 3: 1=total, 2=min, 3=max
-     INTEGER(KIND=int_8), DIMENSION(2,2,3) :: data_size
-     INTEGER(KIND=int_8), DIMENSION(2,2,3) :: index_size
+     ! rank 2: 1=total, 2=min, 3=max
+     INTEGER(KIND=int_8), DIMENSION(2,3) :: data_size
+     INTEGER(KIND=int_8), DIMENSION(2,3) :: index_size
+     ! message size breakdown
+     INTEGER(KIND=int_8), DIMENSION(2,SIZE(dbcsr_mpi_size_limits)+1) :: data_size_breakdown
   END TYPE dbcsr_mpi_statistics_type
   
 END MODULE dbcsr_types

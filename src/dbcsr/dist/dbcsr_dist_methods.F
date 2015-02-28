@@ -40,7 +40,8 @@ MODULE dbcsr_dist_methods
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_obj
-  USE kinds,                           ONLY: sp
+  USE kinds,                           ONLY: int_8,&
+                                             sp
   USE min_heap,                        ONLY: heap_fill,&
                                              heap_get_first,&
                                              heap_new,&
@@ -366,7 +367,7 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION dbcsr_distribution_data_max_size_allproc (matrix) RESULT (data_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER                                  :: data_size
+    INTEGER(KIND=int_8)                      :: data_size
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_distribution_data_max_size_allproc', &
@@ -405,7 +406,8 @@ CONTAINS
 
     data_size = MAXVAL(counts_rows)*MAXVAL(counts_cols)
 
-    DEALLOCATE(counts_rows,counts_cols)
+    DEALLOCATE(counts_rows)
+    DEALLOCATE(counts_cols)
     CALL dbcsr_error_stop(error_handler, error)
   END FUNCTION dbcsr_distribution_data_max_size_allproc
 
