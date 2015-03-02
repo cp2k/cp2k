@@ -1891,8 +1891,7 @@ MODULE dbcsr_mm_cannon
       right_src_p, right_src_pcol, right_src_prow, right_src_vcol, &
       right_src_vrow, row, size_guess, stat, threads_finished, &
       threads_finished_read, v_k, v_ki
-    INTEGER(KIND=int_8)                      :: flop_metronome, flop_single, &
-                                                flop_total
+    INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
                                                 right_sizes
@@ -1967,7 +1966,6 @@ MODULE dbcsr_mm_cannon
 
     output_unit = default_output_unit
     flop_total = 0
-    flop_metronome=0
     ! Set up variables
     data_type = dbcsr_get_data_type (product_matrix)
     data_type_byte = dbcsr_datatype_sizeof(data_type)
@@ -2697,58 +2695,57 @@ MODULE dbcsr_mm_cannon
        ENDIF xfer_left
        !
        ! Repoint indices of left matrices and do the multiplications.
-       calc_case_left: IF (metronome .GT. 0) THEN
-          IF (metronome .GT. 1) THEN
-             DO v_ki = 0, left_col_nimages-1
-                CALL dbcsr_repoint_index (left_buffer_calc%mats(1,v_ki+1)%m)
-                left_buffer_calc%mats(1, v_ki+1)%m%valid=.TRUE.
-             ENDDO
+       calc_case_left:  IF (metronome .GT. 1) THEN
+          DO v_ki = 0, left_col_nimages-1
+             CALL dbcsr_repoint_index (left_buffer_calc%mats(1,v_ki+1)%m)
+             left_buffer_calc%mats(1, v_ki+1)%m%valid=.TRUE.
+          ENDDO
+       ENDIF calc_case_left
+        
+       DO v_ki = 0, min_nimages-1
+          IF (debug_mod) THEN
+             CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE., error=error)
+             CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
           ENDIF
-          DO v_ki = 0, min_nimages-1
-             IF (debug_mod) THEN
-                CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE., error=error)
-                CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
-             ENDIF
-             !
-             ! form here the code for dbcsr_mm_driver_inner_init was taken 
-             !
-             IF (.FALSE.) WRITE(*,*)routineN//" TICK", v_ki
-             IF (.TRUE. .OR. right_buffer_calc%mats(v_ki+1, 1)%m%local_indexing) THEN
-                ! Since the right matrix is shifted vertically, the
-                ! received data always has different notions of "local
-                ! rows".  Thus the local_rows and global_rows must be
-                ! recalculated.
-                CALL dbcsr_reset_vlocals (right_buffer_calc%mats(v_ki+1, 1),&
-                     right_set%image_dist, error=error)
-             ENDIF
-             IF (.TRUE. .OR. left_buffer_calc%mats(1, v_ki+1)%m%local_indexing) THEN
-                ! Since the right matrix is shifted vertically, the
-                ! received data always has different notions of "local
-                ! rows".  Thus the local_rows and global_rows must be
-                ! recalculated.
-                CALL dbcsr_reset_vlocals (left_buffer_calc%mats(1, v_ki+1),&
-                     left_set%image_dist, error=error)
-             ENDIF
+          !
+          ! form here the code for dbcsr_mm_driver_inner_init was taken 
+          !
+          IF (.FALSE.) WRITE(*,*)routineN//" TICK", v_ki
+          IF (.TRUE. .OR. right_buffer_calc%mats(v_ki+1, 1)%m%local_indexing) THEN
+             ! Since the right matrix is shifted vertically, the
+             ! received data always has different notions of "local
+             ! rows".  Thus the local_rows and global_rows must be
+             ! recalculated.
+             CALL dbcsr_reset_vlocals (right_buffer_calc%mats(v_ki+1, 1),&
+                  right_set%image_dist, error=error)
+          ENDIF
+          IF (.TRUE. .OR. left_buffer_calc%mats(1, v_ki+1)%m%local_indexing) THEN
+             ! Since the right matrix is shifted vertically, the
+             ! received data always has different notions of "local
+             ! rows".  Thus the local_rows and global_rows must be
+             ! recalculated.
+             CALL dbcsr_reset_vlocals (left_buffer_calc%mats(1, v_ki+1),&
+                  left_set%image_dist, error=error)
+          ENDIF
 
-             IF (mm_driver==mm_driver_acc) THEN
-               CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
-               CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
-               CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
-             END IF
-
-             ! Sets the local right-matrix columns
-             IF (otf_filtering) THEN
-                left_norms(:) = HUGE(left_norms(1))
-                right_norms(:) = HUGE(right_norms(1))
-                CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1),&
-                     right_norms, error=error)
-                CALL calculate_norms(left_buffer_calc%mats(1, v_ki+1),&
-                     left_norms, error=error)
-             ENDIF
-             !
-             flop_single = 0
-             threads_finished = 0
-
+          IF (mm_driver==mm_driver_acc) THEN
+             CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
+             CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
+             CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
+          END IF
+          
+          ! Sets the local right-matrix columns
+          IF (otf_filtering) THEN
+             left_norms(:) = HUGE(left_norms(1))
+             right_norms(:) = HUGE(right_norms(1))
+             CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1),&
+                  right_norms, error=error)
+             CALL calculate_norms(left_buffer_calc%mats(1, v_ki+1),&
+                  left_norms, error=error)
+          ENDIF
+          !
+          flop_single = 0
+          threads_finished = 0
 
 !$omp parallel default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, &
@@ -2762,61 +2759,57 @@ MODULE dbcsr_mm_cannon
 !$omp private (ithread,nthreads, t_error, threads_finished_read) &
 !$omp firstprivate (metronome, nsteps_k, min_nimages) &
 !$omp reduction (+: flop_single)
-             ithread = 0; nthreads = 1
-!$           ithread = omp_get_thread_num(); nthreads = omp_get_num_threads()
+          ithread = 0; nthreads = 1
+!$        ithread = omp_get_thread_num(); nthreads = omp_get_num_threads()
 
-             t_error=error
-             CALL dbcsr_error_set(routineN//"_multrec", error_handler2, t_error)
-             IF(ithread==0)&
+          t_error=error
+          CALL dbcsr_error_set(routineN//"_multrec", error_handler2, t_error)
+          IF(ithread==0)&
                CALL dbcsr_error_set(routineN//"_multrec_master", error_handler4, t_error)
+          
+          IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) &
+               CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p, t_error)
 
-             IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) &
-                CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p, t_error)
+          CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p,&
+               left=left_buffer_calc%mats(1, v_ki+1)%m,&
+               right=right_buffer_calc%mats(v_ki+1, 1)%m,&
+               flop=flop_single,&
+               a_norms=left_norms, b_norms=right_norms,&
+               error=t_error)
 
-             CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p,&
-                  left=left_buffer_calc%mats(1, v_ki+1)%m,&
-                  right=right_buffer_calc%mats(v_ki+1, 1)%m,&
-                  flop=flop_single,&
-                  a_norms=left_norms, b_norms=right_norms,&
-                  error=t_error)
-
-             IF(ithread==0) CALL dbcsr_error_stop(error_handler4, t_error)
-
-             IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) THEN
-                CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p, t_error)
-                DEALLOCATE(multrec(ithread)%p)
-             ENDIF
+          IF(ithread==0) CALL dbcsr_error_stop(error_handler4, t_error)
+          
+          IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) THEN
+             CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p, t_error)
+             DEALLOCATE(multrec(ithread)%p)
+          ENDIF
 
 !$omp atomic
-             threads_finished = threads_finished + 1
-             IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
-               DO 
+          threads_finished = threads_finished + 1
+          IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
+             DO 
 ! requires OMP 3.1 (e.g. gcc >=4.7), for correctness, otherwise we keep fingers crossed
 #if defined _OPENMP && _OPENMP >= 200711
-               !$OMP ATOMIC READ
+                !$OMP ATOMIC READ
 #endif
-               threads_finished_read=threads_finished
-                  IF (threads_finished_read .EQ. nthreads) EXIT
-                  CALL mp_testany(right_data_sr)
-                  CALL mp_testany(right_data_rr)
-                  CALL mp_testany(left_data_sr)
-                  CALL mp_testany(left_data_rr)
-                  CALL mp_testany(right_index_sr)
-                  CALL mp_testany(right_index_rr)
-                  CALL mp_testany(left_index_sr)
-                  CALL mp_testany(left_index_rr)
-               END DO
-             END IF
-             !$OMP BARRIER
-             CALL dbcsr_error_stop(error_handler2, t_error)
+                threads_finished_read=threads_finished
+                IF (threads_finished_read .EQ. nthreads) EXIT
+                CALL mp_testany(right_data_sr)
+                CALL mp_testany(right_data_rr)
+                CALL mp_testany(left_data_sr)
+                CALL mp_testany(left_data_rr)
+                CALL mp_testany(right_index_sr)
+                CALL mp_testany(right_index_rr)
+                CALL mp_testany(left_index_sr)
+                CALL mp_testany(left_index_rr)
+             END DO
+          END IF
+          !$OMP BARRIER
+          CALL dbcsr_error_stop(error_handler2, t_error)
 !$omp end parallel
-             flop_total = flop_total + flop_single
-             flop_metronome=flop_metronome+flop_single
-          ENDDO
+          flop_total = flop_total + flop_single
+       ENDDO
 
-          flop_metronome=0
-
-       ENDIF calc_case_left
        CALL dbcsr_switch_sets (left_buffer_calc, left_buffer_comm)
        CALL dbcsr_switch_sets (right_buffer_calc, right_buffer_comm)
        CALL dbcsr_switch_d_ptrs(trs_stackbuf_calc, trs_stackbuf_comm)

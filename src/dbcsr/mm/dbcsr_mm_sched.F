@@ -665,7 +665,7 @@ MODULE dbcsr_mm_sched
        report%cpu_num_stacks, report%acc_num_stacks, percent
 
 
-    WRITE (output_unit,'(A,T40,F10.1,11X,F10.1)') " avgerage stack size",&
+    WRITE (output_unit,'(A,T40,F10.1,11X,F10.1)') " average stack size",&
        REAL(SUM(report%num_mnk_stacks(:,4))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,6)))),&
        REAL(SUM(report%num_mnk_stacks(:,5))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,7))))
 

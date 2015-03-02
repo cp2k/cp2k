@@ -294,7 +294,11 @@ CONTAINS
     current_size = dbcsr_data_get_size (area)
 
     ! allocate some more as padding for libsmm kernels which read over the end.
-    wanted_size = data_size + 10
+    IF (data_size.gt.0)  THEN
+       wanted_size = data_size + 10
+    ELSE
+       wanted_size = data_size
+    ENDIF
 
     !IF(area%d%memory_type%acc_devalloc) THEN
     !    IF(current_size==acc_devmem_size(area%d%acc_devmem)) &
