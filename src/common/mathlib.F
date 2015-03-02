@@ -934,7 +934,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     n=SIZE(a,1)
-    ALLOCATE(u(n,n),vt(n,n),sig(n),sig_plus(n,n),iwork(8*n),work(1),temp_mat(n,n))
+    ALLOCATE(u(n,n),vt(n,n),sig(n),sig_plus(n,n),iwork(8*n),work(1),temp_mat(n,n),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     u(:,:)   = 0.0_dp
     vt(:,:)  = 0.0_dp
