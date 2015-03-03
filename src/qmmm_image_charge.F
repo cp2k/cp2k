@@ -371,26 +371,29 @@ CONTAINS
 !> \param qs_env qs environment
 !> \param int_res result of the integration
 !> \param atom_num atom index, needed when calculating image_matrix 
+!> \param atom_num_ref index of reference atom, needed when calculating 
+!>        image_matrix 
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE integrate_potential_ga_rspace(potential,qmmm_env,qs_env,int_res,&
-                                         atom_num,error)
+                                           atom_num,atom_num_ref,error)
 
 
     TYPE(pw_p_type), INTENT(IN)              :: potential
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
-    INTEGER, INTENT(IN), OPTIONAL            :: atom_num
+    INTEGER, INTENT(IN), OPTIONAL            :: atom_num, atom_num_ref
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'integrate_potential_ga_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, j, k, &
-                                                natom, npme, stat
+    INTEGER                                  :: atom_a, atom_b, atom_ref, &
+                                                handle, iatom, j, k, natom, &
+                                                npme, stat
     INTEGER, DIMENSION(:), POINTER           :: cores
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eps_rho_rspace
@@ -452,7 +455,19 @@ CONTAINS
 
      iatom = cores(j)
      atom_a = qmmm_env%image_charge_pot%image_mm_list(iatom)
-     ra(:) = pbc(qmmm_env%image_charge_pot%particles_all(atom_a)%r,cell)
+
+     IF(PRESENT(atom_num).AND.PRESENT(atom_num_ref)) THEN
+       ! shift the function since potential only calculate for ref atom
+       atom_b = qmmm_env%image_charge_pot%image_mm_list(k)
+       atom_ref = qmmm_env%image_charge_pot%image_mm_list(atom_num_ref)
+       ra(:) = pbc(qmmm_env%image_charge_pot%particles_all(atom_a)%r,cell)&
+              -pbc(qmmm_env%image_charge_pot%particles_all(atom_b)%r,cell)&
+              +pbc(qmmm_env%image_charge_pot%particles_all(atom_ref)%r,cell)
+       
+     ELSE
+       ra(:) = pbc(qmmm_env%image_charge_pot%particles_all(atom_a)%r,cell)
+     ENDIF
+
      hab(1,1) = 0.0_dp
 
      CALL integrate_pgf_product_rspace(0,qmmm_env%image_charge_pot%eta,0,&
@@ -635,8 +650,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, j, k, natom, &
-                                                output_unit, stat
+    INTEGER                                  :: handle, iatom, iatom_ref, j, &
+                                                k, natom, output_unit, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
     TYPE(cp_logger_type), POINTER            :: logger
@@ -709,23 +724,24 @@ CONTAINS
                                use_data=REALDATA3D,&
                                in_space=REALSPACE,&
                                error=error)
-   
+        ! calculate vb only once for one reference atom 
+        iatom_ref = 1 !
+        !collocate gaussian of reference MM atom on grid
+        CALL pw_zero(rho_gb%pw, error=error)
+        CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom_ref,error)
+        !calculate potential vb like hartree potential
+        CALL pw_zero(vb_gspace%pw, error=error)
+        CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw,&
+                              error=error)
+        CALL pw_zero(vb_rspace%pw, error=error)
+        CALL pw_transfer(vb_gspace%pw,vb_rspace%pw,error=error)
+        CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol,error=error)
         DO iatom=1,natom
-          !collocate gaussian of MM atom iatom on grid
-          CALL pw_zero(rho_gb%pw, error=error)
-          CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom,error)
-          !calculate potential vb like hartree potential
-          CALL pw_zero(vb_gspace%pw, error=error)
-          CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw,&
-                                error=error)
-          CALL pw_zero(vb_rspace%pw, error=error)
-          CALL pw_transfer(vb_gspace%pw,vb_rspace%pw,error=error)
-          CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol,error=error)
           !calculate integral vb_rspace*ga
           int_res=0.0_dp
           CALL integrate_potential_ga_rspace(vb_rspace,qs_env%qmmm_env_qm,&
                                              qs_env,int_res,atom_num=iatom,&
-                                             error=error)
+                                             atom_num_ref=iatom_ref,error=error)
           image_matrix(iatom,iatom:natom)=int_res(iatom:natom)
           image_matrix(iatom+1:natom,iatom)=int_res(iatom+1:natom)
         END DO
