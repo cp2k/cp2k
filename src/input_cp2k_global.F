@@ -21,8 +21,7 @@ MODULE input_cp2k_global
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
        mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
@@ -667,22 +666,6 @@ CONTAINS
          "that are limited to process grid rows and columns.",&
          usage="subcommunicators T",&
          default_l_val=dbcsr_get_conf_subcomm(),error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
-    CALL keyword_create(keyword, name="combined_types",&
-         description="Combine matrix index and data into "// &
-         "a single MPI derived data type for communication (avoid using).",&
-         usage="combined_types T",&
-         default_l_val=dbcsr_get_conf_combtypes(),error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !
-    CALL keyword_create(keyword, name="use_MPI_allocation",&
-         description="Allow use of MPI-allocated memory "//&
-         "for potentially faster network communication.",&
-         usage="use_MPI_allocation T",&
-         default_l_val=dbcsr_get_conf_mpi_mem(),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !

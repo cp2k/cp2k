@@ -40,7 +40,6 @@ MODULE dbcsr_mm_cannon
                                              mm_async,&
                                              mm_driver,&
                                              mm_driver_acc,&
-                                             use_combined_types,&
                                              use_comm_thread
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
@@ -112,7 +111,6 @@ MODULE dbcsr_mm_cannon
        dbcsr_mp_numnodes, dbcsr_mp_pgrid
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
-                                             dbcsr_mp_type_from_anytype,&
                                              hybrid_alltoall_any,&
                                              hybrid_alltoall_i1
   USE dbcsr_operations,                ONLY: dbcsr_conjg,&
@@ -158,7 +156,7 @@ MODULE dbcsr_mm_cannon
   USE message_passing,                 ONLY: &
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_max, mp_min, &
        mp_request_null, mp_sum, mp_testany, mp_type_descriptor_type, &
-       mp_type_free, mp_type_make, mp_waitall
+       mp_waitall
 
   !$ USE OMP_LIB
 
@@ -1928,11 +1926,6 @@ MODULE dbcsr_mm_cannon
                                                 left_send_type, &
                                                 right_recv_type, &
                                                 right_send_type
-    TYPE(mp_type_descriptor_type), &
-      DIMENSION(2)                           :: left_recv_subtypes, &
-                                                left_send_subtypes, &
-                                                right_recv_subtypes, &
-                                                right_send_subtypes
 
 !   ---------------------------------------------------------------------------
 
@@ -2414,15 +2407,8 @@ MODULE dbcsr_mm_cannon
           !
           CALL mp_waitall (right_data_sr)
           CALL mp_waitall (right_data_rr)
-          IF (use_combined_types) THEN
-             DO v_ki = 1, right_row_nimages
-                CALL mp_type_free (right_recv_type(v_ki, 1))
-                CALL mp_type_free (right_send_type(v_ki, 1))
-             ENDDO
-          ELSE
-             CALL mp_waitall (right_index_sr)
-             CALL mp_waitall (right_index_rr)
-          ENDIF
+          CALL mp_waitall (right_index_sr)
+          CALL mp_waitall (right_index_rr)
        ENDIF wait_right
        CALL dbcsr_error_stop(error_handler2, error)
        ! Right matrix transfer. Transfer in all but the last loop
@@ -2516,29 +2502,16 @@ MODULE dbcsr_mm_cannon
              ENDIF
              !
              CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2, error)
-             IF (use_combined_types) THEN
-                right_send_subtypes(1) = dbcsr_mp_type_from_anytype (right_data_sp)
-                right_send_subtypes(2) = mp_type_make (right_index_sp)
-                right_recv_subtypes(1) = dbcsr_mp_type_from_anytype (right_data_rp)
-                right_recv_subtypes(2) = mp_type_make (right_index_rp)
-                right_send_type(v_ki+1, 1) = mp_type_make (right_send_subtypes)
-                right_recv_type(v_ki+1, 1) = mp_type_make (right_recv_subtypes)
-                CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
-                     grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow)
-                CALL mp_isend (right_send_type(v_ki+1, 1), right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow)
-             ELSE
-                CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
-                     grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow,&
-                     error=error)
-                CALL mp_irecv (right_index_rp, right_recv_p,&
-                     grp, right_index_rr(v_ki+1, 1), tag=right_src_vrow)
-                CALL dbcsr_isend_any (right_data_sp, right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow,&
-                     error=error)
-                CALL mp_isend (right_index_sp, right_send_p,&
-                     grp, right_index_sr(v_ki+1, 1), tag=right_dst_vrow)
-             ENDIF
+             CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
+                  grp, right_data_rr(v_ki+1, 1), tag=right_src_vrow,&
+                  error=error)
+             CALL mp_irecv (right_index_rp, right_recv_p,&
+                  grp, right_index_rr(v_ki+1, 1), tag=right_src_vrow)
+             CALL dbcsr_isend_any (right_data_sp, right_send_p,&
+                  grp, right_data_sr(v_ki+1, 1), tag=right_dst_vrow,&
+                  error=error)
+             CALL mp_isend (right_index_sp, right_send_p,&
+                  grp, right_index_sr(v_ki+1, 1), tag=right_dst_vrow)
              dbcsr_mpi_statistics%nexchanges = dbcsr_mpi_statistics%nexchanges+1
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),dbcsr_data_get_size(right_data_rp),&
                   dbcsr_mpi_statistics%data_size_breakdown(1,:),data_type_byte)
@@ -2562,15 +2535,8 @@ MODULE dbcsr_mm_cannon
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
           CALL mp_waitall (left_data_rr)
-          IF (use_combined_types) THEN
-             DO v_ki = 1, left_col_nimages
-                CALL mp_type_free (left_send_type(1, v_ki))
-                CALL mp_type_free (left_recv_type(1, v_ki))
-             ENDDO
-          ELSE
-             CALL mp_waitall (left_index_sr)
-             CALL mp_waitall (left_index_rr)
-          ENDIF
+          CALL mp_waitall (left_index_sr)
+          CALL mp_waitall (left_index_rr)
        ENDIF wait_left
        CALL dbcsr_error_stop(error_handler2, error)
        ! Left matrix transfer. Transfer in all but the last loop
@@ -2663,29 +2629,16 @@ MODULE dbcsr_mm_cannon
              ENDIF
              !
              CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2, error)
-             IF (use_combined_types) THEN
-                left_send_subtypes(1) = dbcsr_mp_type_from_anytype (left_data_sp)
-                left_send_subtypes(2) = mp_type_make (left_index_sp)
-                left_recv_subtypes(1) = dbcsr_mp_type_from_anytype (left_data_rp)
-                left_recv_subtypes(2) = mp_type_make (left_index_rp)
-                left_send_type(1, v_ki+1) = mp_type_make (left_send_subtypes)
-                left_recv_type(1, v_ki+1) = mp_type_make (left_recv_subtypes)
-                CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
-                     grp, left_data_rr(1, v_ki+1), tag=left_src_vcol)
-                CALL mp_isend (left_send_type(1, v_ki+1), left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol)
-             ELSE
-                CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
-                     grp, left_data_rr(1, v_ki+1), tag=left_src_vcol,&
-                     error=error)
-                CALL mp_irecv (left_index_rp, left_recv_p,&
-                     grp, left_index_rr(1, v_ki+1), tag=left_src_vcol)
-                CALL dbcsr_isend_any (left_data_sp, left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol,&
-                     error=error)
-                CALL mp_isend (left_index_sp, left_send_p,&
-                     grp, left_index_sr(1, v_ki+1), tag=left_dst_vcol)
-             ENDIF
+             CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
+                  grp, left_data_rr(1, v_ki+1), tag=left_src_vcol,&
+                  error=error)
+             CALL mp_irecv (left_index_rp, left_recv_p,&
+                  grp, left_index_rr(1, v_ki+1), tag=left_src_vcol)
+             CALL dbcsr_isend_any (left_data_sp, left_send_p,&
+                  grp, left_data_sr(1, v_ki+1), tag=left_dst_vcol,&
+                  error=error)
+             CALL mp_isend (left_index_sp, left_send_p,&
+                  grp, left_index_sr(1, v_ki+1), tag=left_dst_vcol)
              dbcsr_mpi_statistics%nexchanges = dbcsr_mpi_statistics%nexchanges+1
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),dbcsr_data_get_size(left_data_rp),&
                   dbcsr_mpi_statistics%data_size_breakdown(2,:),data_type_byte)

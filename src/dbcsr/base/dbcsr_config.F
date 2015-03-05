@@ -32,7 +32,6 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_default_config
 
   PUBLIC :: dbcsr_set_conf_subcomm, dbcsr_get_conf_subcomm
-  PUBLIC :: dbcsr_set_conf_combtypes, dbcsr_get_conf_combtypes
   PUBLIC :: dbcsr_set_conf_mm_stacksize, dbcsr_get_conf_mm_stacksize
 
   PUBLIC :: dbcsr_set_conf_mpi_mem, dbcsr_get_conf_mpi_mem
@@ -52,7 +51,6 @@ MODULE dbcsr_config
   PUBLIC :: has_MPI
   PUBLIC :: has_acc
   PUBLIC :: use_subcommunicators
-  PUBLIC :: use_combined_types
   PUBLIC :: mm_stack_size
   PUBLIC :: mm_driver, mm_host_driver,&
             mm_driver_blas,&
@@ -128,9 +126,6 @@ MODULE dbcsr_config
 
   ! Allocates subcommunicators for process rows and columns.
   LOGICAL, SAVE :: use_subcommunicators = .TRUE.
-
-  ! Use combined data types for MPI transfers.
-  LOGICAL, SAVE :: use_combined_types = .FALSE.
 
   ! Use MPI-allocated memory.
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
@@ -288,39 +283,6 @@ CONTAINS
 
     use_subcomms = use_subcommunicators
   END FUNCTION dbcsr_get_conf_subcomm
-
-
-! *****************************************************************************
-!> \brief ...
-!> \param use_combtypes ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_set_conf_combtypes (use_combtypes, error)
-    LOGICAL, INTENT(IN)                      :: use_combtypes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_combtypes', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-
-    CALL dbcsr_error_set(routineN, error_handle, error)
-    use_combined_types = use_combtypes
-    CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_set_conf_combtypes
-
-! *****************************************************************************
-!> \brief ...
-!> \retval use_combtypes ...
-! *****************************************************************************
-  FUNCTION dbcsr_get_conf_combtypes () RESULT (use_combtypes)
-    LOGICAL                                  :: use_combtypes
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_combtypes', &
-      routineP = moduleN//':'//routineN
-
-    use_combtypes = use_combined_types
-  END FUNCTION dbcsr_get_conf_combtypes
 
 
 ! *****************************************************************************
@@ -628,14 +590,12 @@ CONTAINS
                                                 error_handler, max_ele_block, &
                                                 mm_driver, mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, use_mpi_mem, &
+    LOGICAL                                  :: use_comm_thread, use_mpi_mem, &
                                                 use_subcomms
 
     CALL dbcsr_error_set (routineN, error_handler, error=error)
 
     use_subcomms = dbcsr_get_conf_subcomm()
-    use_combtypes = dbcsr_get_conf_combtypes()
     use_mpi_mem = dbcsr_get_conf_mpi_mem()
     mm_ss = -1
     mm_driver = dbcsr_get_conf_mm_driver()
@@ -646,7 +606,6 @@ CONTAINS
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=error)
-    CALL dbcsr_set_conf_combtypes (use_combtypes, error=error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=error)
     CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=error)
     IF (mm_ss > 0) CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=error)

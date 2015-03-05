@@ -23,20 +23,18 @@ MODULE cp_dbcsr_cp2k_link
        accdrv_priority_buffers, accdrv_priority_streams, cp_dbcsr_finalize, &
        cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
        cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_error_type, dbcsr_get_conf_combtypes, &
-       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_elements_images, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_error_stop, dbcsr_error_type, dbcsr_get_conf_comm_thread_load, &
+       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_type_no_symmetry, has_acc, &
-       has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
-       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
-       multrec_limit
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
   USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -92,9 +90,7 @@ CONTAINS
                                                 max_elements_images, &
                                                 mm_driver, mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, use_mpi_mem, &
-                                                use_subcomms
+    LOGICAL                                  :: use_comm_thread, use_subcomms
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
@@ -108,10 +104,6 @@ CONTAINS
       "GLOBAL%DBCSR",error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "subcommunicators", l_val=use_subcomms, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "combined_types", l_val=use_combtypes, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
-         "use_mpi_allocation", l_val=use_mpi_mem, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "mm_stack_size", i_val=mm_ss, error=error)
     CALL section_vals_val_get(dbcsr_section,&
@@ -154,8 +146,6 @@ CONTAINS
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
-    CALL dbcsr_set_conf_combtypes (use_combtypes, error=dbcsr_error)
-    CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=dbcsr_error)
     CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=dbcsr_error)
     IF(mm_ss > 0) &
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
@@ -232,8 +222,6 @@ CONTAINS
        IF (has_mpi) THEN
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
             "DBCSR| Use subcommunicators",  dbcsr_get_conf_subcomm ()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| Use MPI combined types" ,  dbcsr_get_conf_combtypes ()
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
             "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem ()
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&

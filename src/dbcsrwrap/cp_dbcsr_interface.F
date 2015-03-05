@@ -48,14 +48,13 @@ MODULE cp_dbcsr_interface
        dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
        dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_max_elements_images, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_get_num_blocks, dbcsr_get_occupation, &
+       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
+       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
        dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
        dbcsr_has_symmetry, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
        dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -74,24 +73,24 @@ MODULE cp_dbcsr_interface
        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
        dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, &
        dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_set_diag, dbcsr_setname, &
-       dbcsr_sum_replicated, dbcsr_test_arnoldi, dbcsr_test_binary_io, &
-       dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
-       dbcsr_work_create, dbcsr_work_type, deallocate_arnoldi_data, &
-       get_selected_ritz_val, get_selected_ritz_vector, has_acc, has_mpi, &
-       heap_fill, heap_get_first, heap_new, heap_release, heap_reset_first, &
-       heap_t, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
-       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
-       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap
+       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_max_elements_images, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
+       dbcsr_test_arnoldi, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, &
+       dbcsr_triu, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_complex_default, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, &
+       dbcsr_verify_matrix, dbcsr_wm_use_mutable, dbcsr_work_create, &
+       dbcsr_work_type, deallocate_arnoldi_data, get_selected_ritz_val, &
+       get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, &
+       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, &
+       set_arnoldi_initial_vector, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -111,7 +110,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_get_conf_comm_thread_load,&
             dbcsr_get_conf_max_elements_images, &
             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
-            dbcsr_set_conf_combtypes, dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem
+            dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver,&
             dbcsr_set_conf_max_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread,&
             has_mpi, add_work_coordinate, create_bl_distribution
@@ -214,7 +213,7 @@ MODULE cp_dbcsr_interface
             accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort,&
             accdrv_posterior_buffers, accdrv_posterior_streams,&
             accdrv_priority_buffers, accdrv_priority_streams,&
-            dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block,&
+            dbcsr_get_conf_max_ele_block,&
             dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem,&
             dbcsr_get_conf_subcomm, mm_driver_acc,&
             mm_driver_blas, mm_driver_matmul, mm_driver_smm,&

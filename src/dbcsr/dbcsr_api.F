@@ -38,12 +38,11 @@ MODULE dbcsr_api
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_max_elements_images, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
+       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
@@ -245,7 +244,6 @@ MODULE dbcsr_api
             dbcsr_gershgorin_norm,&
             dbcsr_get_block_diag,&
             dbcsr_get_block_p,&
-            dbcsr_get_conf_combtypes,&
             dbcsr_get_conf_comm_thread_load,&
             dbcsr_get_conf_max_ele_block,&
             dbcsr_get_conf_mm_driver,&
@@ -324,7 +322,6 @@ MODULE dbcsr_api
             dbcsr_scale,&
             dbcsr_scale_by_vector,&
             dbcsr_set,&
-            dbcsr_set_conf_combtypes,&
             dbcsr_set_conf_comm_thread_load,&
             dbcsr_set_conf_external_timing,&
             dbcsr_set_conf_max_ele_block,&
