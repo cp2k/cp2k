@@ -100,7 +100,7 @@ static int launch_clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (void *param_sta
     size_t  *lengths = (size_t *) malloc(sizeof(size_t) * 2); // 2 - two files, each with different size
     char   **strings = (char **) malloc(sizeof(char *) * 2);  // 2 - two files, each with different lenght
     read_file_at_path(&(strings[0]), &(lengths[0]), "LIBSMM_CL_KERNEL_PATH", "clsmm_common.cl");
-    read_file_at_path(&(strings[1]), &(lengths[1]), "LIBSMM_CL_KERNEL_PATH", "clsmm_dnt_largeDB.cl");
+    read_file_at_path(&(strings[1]), &(lengths[1]), "LIBSMM_CL_KERNEL_PATH", "clsmm_dnt_largeDB2.cl");
 
     // get kernel code, build program and kernel
     if (verbose_print) fprintf(stdout,"building multiplication kernel ...\n");
@@ -165,7 +165,7 @@ static int launch_clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10 (void *param_sta
   
     opencl_kernel = clCreateKernel(                                    // cl_kernel
                       opencl_program,                                  // cl_program program
-                      "clsmm_dnt_largeDB_16_23_23_12_23_96_2_3_12_10", // const char *kernel_name
+                      "clsmm_dnt_largeDB2_16_23_23_12_23_96_3_2_12_8", // const char *kernel_name
                       &cl_error);                                      // cl_int     *errcode_ret
     if (cl_error != CL_SUCCESS) fprintf(stdout,"Error in: clCreateKernel %d\n", (int) cl_error);
 
