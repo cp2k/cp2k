@@ -1287,7 +1287,7 @@ CONTAINS
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: blkcol, blkrow, col_blk_size, &
-                                                row_blk_size, data_type
+                                                data_type, row_blk_size
     LOGICAL                                  :: tr
     REAL(kind=real_4), ALLOCATABLE, &
       DIMENSION(:)                           :: csr_sparsity_blk
