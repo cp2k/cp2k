@@ -59,10 +59,13 @@ MODULE pexsi_types
 !> \param matrix_w                      energy-weighted density matrix as needed 
 !>                                      for the forces
 !> \param csr_mat*                      intermediate matrices in CSR format
-!> \param dbcsr_template_matrix_sym     Symmetric DBCSR template matrix fixing 
+!> \param dbcsr_template_matrix_sym     Symmetric template matrix fixing DBCSR
 !>                                      sparsity pattern
-!> \param dbcsr_template_matrix_nonsym  Nonsymmetric DBCSR template matrix 
-!>                                      fixing sparsity pattern
+!> \param dbcsr_template_matrix_nonsym  Nonsymmetric template matrix fixing
+!>                                      DBCSR sparsity pattern
+!> \param csr_sparsity                  DBCSR matrix defining CSR sparsity
+!> \param csr_screening                 whether distance screening should be
+!>                                      applied to CSR matrices
 !> \param max_ev_vector                 eigenvector corresponding to the largest 
 !>                                      energy eigenvalue,
 !>                                      returned by the Arnoldi method used to 
@@ -88,7 +91,10 @@ MODULE pexsi_types
 
     TYPE(cp_dbcsr_type), DIMENSION(:), &
       POINTER                                :: max_ev_vector
+    TYPE(cp_dbcsr_type)                      :: csr_sparsity
     INTEGER, DIMENSION(2)                    :: mp_dims
+
+    LOGICAL                                  :: csr_screening
   END TYPE lib_pexsi_env
 
 CONTAINS
@@ -201,8 +207,6 @@ CONTAINS
     DEALLOCATE(pexsi_env%matrix_w) 
     CALL timestop(handle)
   END SUBROUTINE lib_pexsi_finalize
-
-
 
 ! *****************************************************************************
 !> \brief Scale various quantities with factors of 2. This converts spin restricted

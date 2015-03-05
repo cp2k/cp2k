@@ -56,7 +56,7 @@ MODULE dbcsr_api
        convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, &
        csr_create_from_dbcsr, csr_create_new, csr_create_template, &
        csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
-       csr_eqrow_floor_dist, csr_type, csr_write
+       csr_eqrow_floor_dist, csr_print_sparsity, csr_type, csr_write
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_get_data_p, dbcsr_scalar, &
@@ -383,5 +383,6 @@ MODULE dbcsr_api
             csr_dbcsr_blkrow_dist,& 
             csr_eqrow_ceil_dist,&
             csr_eqrow_floor_dist,&
+            csr_print_sparsity,&
             dbcsr_get_nze
 END MODULE dbcsr_api

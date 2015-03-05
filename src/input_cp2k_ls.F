@@ -487,7 +487,9 @@ CONTAINS
       CALL section_create(section,"PEXSI",&
            description="Specifies the parameters required by PEXSI library. Provided "//&
            "parameters, their defaults and their documentation is nearly identical to "//& 
-           "the options of the PEXSI library.",&
+           "the options of the PEXSI library. For CP2K-PEXSI calculations, the value of "//& 
+           "EPS_PGF_ORB (in QS input section) defines the sparsity of the matrices sent to "//&
+           "PEXSI and EPS_FILTER is always set to 0.",&
            n_keywords=15, repeats=.FALSE.,required=.FALSE.,citations=(/Lin2009,Lin2013/),error=error)
        NULLIFY (keyword)
 
@@ -597,6 +599,12 @@ CONTAINS
             "of processors per pole will be set equal to MPI size. For efficiency, MIN_RANKS_PER_POLE "//&
             "should be a small numbers (limited by the available memory).", &
             default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CSR_SCREENING",&
+            description="Whether distance screening should be applied to improve sparsity of CSR matrices.",&
+            default_l_val=.TRUE., lone_keyword_l_val = .TRUE. ,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -11,21 +11,21 @@
 !>       2014.11 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-!TODO: calculate spectral gap for pexsi?
 
 MODULE pexsi_methods
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
   USE cp_dbcsr_interface,              ONLY: &
        cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, &
-       cp_csr_create_from_dbcsr, cp_csr_destroy, &
+       cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_print_sparsity, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_arnoldi_ev, cp_dbcsr_copy, &
        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
        cp_dbcsr_distribution, cp_dbcsr_has_symmetry, cp_dbcsr_init, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
        cp_dbcsr_setup_arnoldi_data, cp_dbcsr_type, &
        cp_set_arnoldi_initial_vector, csr_eqrow_floor_dist, &
        dbcsr_arnoldi_data, dbcsr_distribution_mp, dbcsr_mp_mynode, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_8, deallocate_arnoldi_data, &
-       get_selected_ritz_val, get_selected_ritz_vec
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       deallocate_arnoldi_data, get_selected_ritz_val, get_selected_ritz_vec
   USE dm_ls_scf_qs,                    ONLY: matrix_ls_to_qs
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE input_section_types,             ONLY: section_vals_type,&
@@ -47,6 +47,7 @@ MODULE pexsi_methods
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -83,7 +84,7 @@ CONTAINS
 
     INTEGER :: isInertiaCount_int, maxPEXSIIter, min_ranks_per_pole, &
       npSymbFact, numPole, ordering, verbosity
-    LOGICAL                                  :: isInertiaCount
+    LOGICAL                                  :: csr_screening, isInertiaCount
     REAL(KIND=dp) :: gap, mu0, muInertiaExpansion, muInertiaTolerance, &
       muMax0, muMin0, muPEXSISafeGuard, numElectronPEXSITolerance, temperature
 
@@ -122,6 +123,8 @@ CONTAINS
       i_val=verbosity,error=error)
     CALL section_vals_val_get(pexsi_section,"MIN_RANKS_PER_POLE",&
       i_val=min_ranks_per_pole,error=error)
+    CALL section_vals_val_get(pexsi_section,"CSR_SCREENING",&
+      l_val=csr_screening,error=error)
 
     isInertiaCount_int = MERGE(1,0,isInertiaCount) ! is integer in PEXSI
 
@@ -137,17 +140,20 @@ CONTAINS
       npSymbFact = npSymbFact, verbosity = verbosity, error = error)
 
     pexsi_env%num_ranks_per_pole = min_ranks_per_pole ! not a PEXSI option
+    pexsi_env%csr_screening = csr_screening
 
   END SUBROUTINE pexsi_init_read_input
 
 ! *****************************************************************************
 !> \brief Initializations needed before SCF
+!> \param ks_env ...
 !> \param pexsi_env ...
 !> \param template_matrix DBCSR matrix that defines the block structure and
 !>        sparsity pattern of all matrices that are sent to PEXSI
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pexsi_init_scf(pexsi_env, template_matrix, error)
+  SUBROUTINE pexsi_init_scf(ks_env, pexsi_env, template_matrix, error)
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: template_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -155,13 +161,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_init_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
+    INTEGER                                  :: handle, ispin, unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     ! Create template matrices fixing sparsity pattern for PEXSI
     CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_sym, error)
     CALL cp_dbcsr_init(pexsi_env%dbcsr_template_matrix_nonsym, error)
+    CALL cp_dbcsr_init(pexsi_env%csr_sparsity, error)
 
     IF (cp_dbcsr_has_symmetry (template_matrix)) THEN
       CALL cp_dbcsr_copy(pexsi_env%dbcsr_template_matrix_sym, template_matrix,&
@@ -175,9 +190,23 @@ CONTAINS
                          "symmetric template matrix for CSR conversion", error=error)
     ENDIF
 
-   CALL cp_csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s, &
-                      csr_eqrow_floor_dist, &
-                      numnodes = pexsi_env%num_ranks_per_pole, error=error)
+    CALL cp_dbcsr_create(pexsi_env%csr_sparsity, "CSR sparsity", &
+                         template = pexsi_env%dbcsr_template_matrix_sym, &
+                         data_type=dbcsr_type_real_4, error=error)
+    CALL cp_dbcsr_copy(pexsi_env%csr_sparsity, pexsi_env%dbcsr_template_matrix_sym, error=error)
+
+    CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity, error)
+
+    IF (.NOT. pexsi_env%csr_screening) CALL cp_dbcsr_set (pexsi_env%csr_sparsity, 1.0, error)
+    CALL cp_csr_create_from_dbcsr(pexsi_env%dbcsr_template_matrix_nonsym, &
+                                  pexsi_env%csr_mat_s, &
+                                  csr_eqrow_floor_dist, &
+                                  csr_sparsity = pexsi_env%csr_sparsity, &
+                                  numnodes = pexsi_env%num_ranks_per_pole, &
+                                  error = error)
+
+    IF (unit_nr>0) WRITE(unit_nr,"(/T2,A)") "SPARSITY OF THE OVERLAP MATRIX IN CSR FORMAT"
+    CALL cp_csr_print_sparsity(pexsi_env%csr_mat_s, unit_nr, error)
 
     CALL cp_convert_dbcsr_to_csr(pexsi_env%dbcsr_template_matrix_nonsym, pexsi_env%csr_mat_s, error=error)
 
@@ -228,6 +257,7 @@ CONTAINS
 
     CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_sym, error)
     CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_nonsym, error)
+    CALL cp_dbcsr_release(pexsi_env%csr_sparsity,error)
     CALL cp_csr_destroy(pexsi_env%csr_mat_p, error)
     CALL cp_csr_destroy(pexsi_env%csr_mat_ks, error)
     CALL cp_csr_destroy(pexsi_env%csr_mat_s, error)

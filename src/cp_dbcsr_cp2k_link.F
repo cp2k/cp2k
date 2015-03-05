@@ -10,31 +10,47 @@
 !>         01.2014 created
 ! *****************************************************************************
 MODULE cp_dbcsr_cp2k_link
+  USE ao_util,                         ONLY: exp_radius
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                             gto_basis_set_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, cp_dbcsr_finalize, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_reserve_blocks, cp_dbcsr_type, &
-       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_comm_thread_load, &
-       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_combtypes, &
-       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
-       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_max_elements_images, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
-       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+       cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
+       cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_error_set, &
+       dbcsr_error_stop, dbcsr_error_type, dbcsr_get_conf_combtypes, &
+       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_elements_images, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
+       dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread, dbcsr_type_no_symmetry, has_acc, &
+       has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
+       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
+       multrec_limit
+  USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             real_4
+  USE orbital_pointers,                ONLY: nso
+  USE qs_integral_utils,               ONLY: basis_set_list_setup
+  USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             get_neighbor_list_set_p,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
                                              neighbor_list_iterator_p_type,&
@@ -52,6 +68,7 @@ MODULE cp_dbcsr_cp2k_link
   PUBLIC :: cp_dbcsr_config
   PUBLIC :: cp_dbcsr_print_config
   PUBLIC :: cp_dbcsr_alloc_block_from_nbl
+  PUBLIC :: cp_dbcsr_to_csr_screening
 
   PRIVATE
 
@@ -348,5 +365,189 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_alloc_block_from_nbl
+
+! *****************************************************************************
+!> \brief Apply distance screening to refine sparsity pattern of matrices in CSR
+!>        format (using eps_pgf_orb). Currently this is used for the external 
+!>        library PEXSI.
+!> \param ks_env ...
+!> \param[in, out] csr_sparsity DBCSR matrix defining CSR sparsity pattern. 
+!>                              This matrix must be initialized and allocated
+!>                              with exactly the same DBCSR sparsity pattern as 
+!>                              the DBCSR matrix that is used to create the CSR
+!>                              matrix. It must have symmetric DBCSR format and 
+!>                              must not be filtered.
+!> \param error ...
+!> \par History
+!>      02.2015 created [Patrick Seewald]
+!> \author Patrick Seewald
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_to_csr_screening(ks_env, csr_sparsity, error)
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: csr_sparsity
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_to_csr_screening', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, ipgf, irow, iset, &
+      isgf, ishell, jatom, jkind, jpgf, jset, jsgf, jshell, natom, nkind, &
+      nset_a, nset_b
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: npgf_a, npgf_b, nshell_a, &
+                                                nshell_b
+    INTEGER, DIMENSION(:, :), POINTER        :: l_a, l_b
+    LOGICAL                                  :: do_symmetric, failure, found
+    REAL(KIND=dp)                            :: dab, eps_pgf_orb, r_a, r_b
+    REAL(KIND=dp), DIMENSION(3)              :: rab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zet_a, zet_b
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcc_a, gcc_b
+    REAL(KIND=real_4), DIMENSION(:, :), &
+      POINTER                                :: screen_blk
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list_a, &
+                                                basis_set_list_b
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: neighbour_list
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+
+    NULLIFY(screen_blk, atomic_kind_set, basis_set_list_a, &
+            basis_set_list_b, basis_set_a, basis_set_b, nl_iterator, &
+            qs_kind_set, dft_control)
+
+    CALL timeset(routineN,handle)
+
+    CPPrecondition(cp_dbcsr_has_symmetry(csr_sparsity),cp_failure_level,routineP,error,failure)
+
+    CALL get_ks_env(ks_env,&
+                    sab_orb=neighbour_list,&
+                    atomic_kind_set=atomic_kind_set,&
+                    natom=natom,&
+                    qs_kind_set=qs_kind_set,&
+                    dft_control=dft_control,&
+                    error=error)
+ 
+    eps_pgf_orb = dft_control%qs_control%eps_pgf_orb
+
+    nkind = SIZE(qs_kind_set)
+    ALLOCATE (atom_of_kind(natom))
+    CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
+    CPPrecondition(SIZE(neighbour_list) > 0,cp_failure_level,routineP,error,failure)
+    CALL get_neighbor_list_set_p(neighbor_list_sets=neighbour_list,symmetric=do_symmetric)
+    CPPrecondition(do_symmetric,cp_failure_level,routineP,error,failure)
+    ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind))
+    CALL basis_set_list_setup(basis_set_list_a,use_orb_basis_set,qs_kind_set)
+    CALL basis_set_list_setup(basis_set_list_b,use_orb_basis_set,qs_kind_set)
+
+    ! csr_sparsity can obtain values 0 (if zero element) or 1 (if non-zero element)
+    CALL cp_dbcsr_set (csr_sparsity, 0.0, error)
+
+    CALL neighbor_list_iterator_create(nl_iterator, neighbour_list)
+
+    ! Iterate over interacting pairs of atoms corresponding to non-zero
+    ! DBCSR blocks
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+      CALL get_iterator_info(nl_iterator, &
+                             ikind=ikind, jkind=jkind,&
+                             iatom=iatom, jatom=jatom, &
+                             r=rab)
+
+      basis_set_a => basis_set_list_a(ikind)%gto_basis_set
+      IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+      basis_set_b => basis_set_list_b(jkind)%gto_basis_set
+      IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+
+      atom_a = atom_of_kind(iatom)
+      atom_b = atom_of_kind(jatom)
+
+      nset_a = basis_set_a%nset
+      nset_b = basis_set_b%nset
+      npgf_a => basis_set_a%npgf
+      npgf_b => basis_set_b%npgf
+      nshell_a => basis_set_a%nshell
+      nshell_b => basis_set_b%nshell
+
+      l_a => basis_set_a%l
+      l_b => basis_set_b%l
+      gcc_a => basis_set_a%gcc
+      gcc_b => basis_set_b%gcc
+      zet_a => basis_set_a%zet
+      zet_b => basis_set_b%zet
+
+      rpgfa =>  basis_set_a%pgf_radius
+      rpgfb =>  basis_set_b%pgf_radius
+
+      IF (iatom <= jatom) THEN
+        irow = iatom
+        icol = jatom
+      ELSE
+        irow = jatom
+        icol = iatom
+      END IF
+
+      CALL cp_dbcsr_get_block_p(matrix=csr_sparsity,row=irow,col=icol, &
+                                block=screen_blk,found=found)
+
+      CPPostcondition(found,cp_failure_level,routineP,error,failure)
+
+      ! Distance between atoms a and b
+      dab = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
+  
+      ! iterate over pairs of primitive GTOs i,j, get their radii r_i, r_j according 
+      ! to eps_pgf_orb. Define all matrix elements as non-zero to which a 
+      ! contribution from two Gaussians i,j exists with r_i + r_j >= dab.
+  
+      isgf=0
+      DO iset=1,nset_a
+        DO ishell=1,nshell_a(iset)
+          jsgf=0
+          DO jset=1,nset_b
+            DO jshell=1,nshell_b(jset)
+              gto_loop: DO ipgf=1,npgf_a(iset)
+                DO jpgf=1,npgf_b(jset)
+                  IF (rpgfa(ipgf,iset)+rpgfb(jpgf,jset) .GE. dab) THEN
+                    ! more selective screening with radius calculated for each primitive GTO
+                    r_a = exp_radius(l_a(ishell,iset), &
+                                     zet_a(ipgf,iset), &
+                                     eps_pgf_orb, &
+                                     gcc_a(ipgf,ishell,iset))
+                    r_b = exp_radius(l_b(jshell,jset), &
+                                     zet_b(jpgf,jset), &
+                                     eps_pgf_orb, &
+                                     gcc_b(jpgf,jshell,jset))
+                    IF(r_a+r_b .GE. dab) THEN
+                      IF(irow .EQ. iatom) THEN 
+                        screen_blk(isgf+1:isgf+nso(l_a(ishell,iset)), &
+                                   jsgf+1:jsgf+nso(l_b(jshell,jset))) = 1.0_dp
+                      ELSE
+                        screen_blk(jsgf+1:jsgf+nso(l_b(jshell,jset)), &
+                                   isgf+1:isgf+nso(l_a(ishell,iset))) = 1.0_dp
+                      ENDIF
+                      EXIT gto_loop
+                    ENDIF
+                  ENDIF
+                ENDDO
+              ENDDO gto_loop
+              jsgf=jsgf+nso(l_b(jshell,jset))
+            ENDDO
+          ENDDO
+          isgf=isgf+nso(l_a(ishell,iset))
+        ENDDO
+      ENDDO
+    ENDDO
+
+    CALL neighbor_list_iterator_release(nl_iterator)
+    DEALLOCATE (basis_set_list_a,basis_set_list_b)
+
+    CALL timestop(handle)
+  END SUBROUTINE cp_dbcsr_to_csr_screening
 
 END MODULE cp_dbcsr_cp2k_link

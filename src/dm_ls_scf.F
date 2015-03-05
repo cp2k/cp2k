@@ -94,6 +94,7 @@ MODULE dm_ls_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_mo_free_results
   USE timings,                         ONLY: timeset,&
@@ -234,6 +235,10 @@ CONTAINS
 
     ! initialize PEXSI
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+      CALL cp_assert(dft_control%qs_control%eps_filter_matrix .EQ. 0.0_dp, &
+                     cp_failure_level, cp_assertion_failed, routineP, &
+                     "EPS_FILTER_MATRIX must be set to 0 for PEXSI.", &
+                     only_ionode=.TRUE., error = error)
        CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins, error)
     ENDIF
  
@@ -268,6 +273,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
@@ -283,6 +289,7 @@ CONTAINS
     ! get basic quantities from the qs_env
     CALL get_qs_env(qs_env,nelectron_total=ls_scf_env%nelectron_total, &
                            matrix_s=matrix_s,&
+                           ks_env=ks_env,&
                            dft_control=dft_control,&
                            molecule_set=molecule_set,&
                            input=input,&
@@ -321,9 +328,9 @@ CONTAINS
     IF (ls_scf_env%do_rho_mixing) THEN
       CALL rho_mixing_ls_init(qs_env, ls_scf_env, error)
     ENDIF
- 
+
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
-       CALL pexsi_init_scf(ls_scf_env%pexsi, ls_scf_env%matrix_s, error)
+       CALL pexsi_init_scf(ks_env, ls_scf_env%pexsi, matrix_s(1)%matrix, error)
     ENDIF
 
     IF (qs_env%do_transport) THEN
@@ -780,7 +787,8 @@ CONTAINS
       ! Turn off S inversion (not used for PEXSI).
       ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
       ! a finite temperature one, and thus not idempotent
-      ls_scf_env%s_inversion_type=ls_s_inversion_none 
+      ls_scf_env%s_inversion_type=ls_s_inversion_none
+      ls_scf_env%eps_filter = 0.0_dp
     ENDIF
 
     SELECT CASE(ls_scf_env%s_inversion_type)
