@@ -155,8 +155,7 @@ MODULE dbcsr_mm_cannon
   USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: &
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_max, mp_min, &
-       mp_request_null, mp_sum, mp_testany, mp_type_descriptor_type, &
-       mp_waitall
+       mp_request_null, mp_sum, mp_testany, mp_waitall
 
   !$ USE OMP_LIB
 
@@ -1921,11 +1920,6 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_mm_multrec_type_p), DIMENSION(:), ALLOCATABLE :: multrec
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
-    TYPE(mp_type_descriptor_type), &
-      ALLOCATABLE, DIMENSION(:, :)           :: left_recv_type, &
-                                                left_send_type, &
-                                                right_recv_type, &
-                                                right_send_type
 
 !   ---------------------------------------------------------------------------
 
@@ -2308,7 +2302,6 @@ MODULE dbcsr_mm_cannon
     ALLOCATE (left_data_rr  (left_row_mult, left_col_nimages))
     ALLOCATE (left_index_rr (left_row_mult, left_col_nimages))
     ALLOCATE (left_send_type (left_row_nimages, left_col_nimages))
-    ALLOCATE (left_recv_type (left_row_nimages, left_col_nimages))
     left_data_sr = mp_request_null
     left_data_rr = mp_request_null
     left_index_sr = mp_request_null
@@ -2812,7 +2805,6 @@ MODULE dbcsr_mm_cannon
     !
     DEALLOCATE(left_data_rr, left_data_sr, left_index_rr, left_index_sr, &
                right_data_rr, right_data_sr, right_index_rr, right_index_sr)
-    DEALLOCATE(left_send_type, left_recv_type, right_send_type, right_recv_type)
     !
     t_error = error
     !
