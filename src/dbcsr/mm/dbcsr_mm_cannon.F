@@ -2301,7 +2301,6 @@ MODULE dbcsr_mm_cannon
     ALLOCATE (left_index_sr (left_row_nimages, left_col_nimages))
     ALLOCATE (left_data_rr  (left_row_mult, left_col_nimages))
     ALLOCATE (left_index_rr (left_row_mult, left_col_nimages))
-    ALLOCATE (left_send_type (left_row_nimages, left_col_nimages))
     left_data_sr = mp_request_null
     left_data_rr = mp_request_null
     left_index_sr = mp_request_null
@@ -2328,8 +2327,6 @@ MODULE dbcsr_mm_cannon
     ALLOCATE (right_index_sr (right_row_nimages, right_col_nimages))
     ALLOCATE (right_data_rr  (right_row_nimages, right_col_mult))
     ALLOCATE (right_index_rr (right_row_nimages, right_col_mult))
-    ALLOCATE (right_send_type (right_row_nimages, right_col_nimages))
-    ALLOCATE (right_recv_type (right_row_nimages, right_col_nimages))
     right_data_sr = mp_request_null
     right_data_rr = mp_request_null
     right_index_sr = mp_request_null
