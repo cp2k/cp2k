@@ -93,7 +93,7 @@ CONTAINS
     LOGICAL                                  :: failure, force_mixing_active, &
                                                 labels_changed
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds, new_atomic_kinds
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(cp_subsys_type), POINTER            :: subsys, subsys_new
     TYPE(distribution_1d_type), POINTER      :: local_particles, &
                                                 new_local_particles
     TYPE(force_env_p_type), DIMENSION(:), &
@@ -151,14 +151,17 @@ CPSourceFileRef,&
 
         CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env, subsys=subsys, error=error)
         CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
-        CALL cp_subsys_get(subsys, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
+        CALL force_env_get(sub_force_env(force_mixing_core_subsys)%force_env, subsys=subsys_new, error=error)
+        CALL cp_subsys_get(subsys_new, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
+
         IF (ASSOCIATED(local_particles%local_particle_set)) THEN
            CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles, error=error)
         ENDIF
 
         CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env, subsys=subsys, error=error)
         CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, error=error)
-        CALL cp_subsys_get(subsys, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
+        CALL force_env_get(sub_force_env(force_mixing_extended_subsys)%force_env, subsys=subsys_new, error=error)
+        CALL cp_subsys_get(subsys_new, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles, error=error)
         IF (ASSOCIATED(local_particles%local_particle_set)) THEN
            CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles, error=error)
         ENDIF
