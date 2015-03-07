@@ -29,7 +29,6 @@ MODULE mc_ensembles
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_type,&
-                                             section_vals_release,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -537,8 +536,6 @@ CONTAINS
           ! we need a new biasing environment now, if we're into that sort of thing
           IF(lbias) THEN
              DO ibox=1,nboxes
-                CALL section_vals_release(bias_env(ibox)%force_env%root_section,&
-                     error=error)
                 CALL force_env_release(bias_env(ibox)%force_env,error=error)
                 ! determine the atom names of every particle
                 ALLOCATE (atom_names_box(1:nunits_tot(ibox)),STAT=stat)
@@ -1102,7 +1099,6 @@ CONTAINS
           final_energy(ibox)=0.0E0_dp
        ENDIF
        IF (lbias) THEN
-          CALL section_vals_release(bias_env(ibox)%force_env%root_section,error=error)
           CALL force_env_release(bias_env(ibox)%force_env,error=error)
        ENDIF
     ENDDO

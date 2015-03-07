@@ -19,23 +19,16 @@ MODULE mc_control
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE environment,                     ONLY: cp2k_read
-  USE fist_main,                       ONLY: fist_create_force_env
+  USE f77_interface,                   ONLY: create_force_env,&
+                                             destroy_force_env,&
+                                             f_env_add_defaults,&
+                                             f_env_rm_defaults,&
+                                             f_env_type
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_retain,&
                                              force_env_type
-  USE global_types,                    ONLY: global_environment_type,&
-                                             globenv_create,&
-                                             globenv_release
-  USE input_constants,                 ONLY: do_fist,&
-                                             do_qs
-  USE input_cp2k_check,                ONLY: check_cp2k_input
-  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
-                                             read_input
-  USE input_section_types,             ONLY: section_type,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
@@ -57,7 +50,6 @@ MODULE mc_control
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
-  USE qs_main,                         ONLY: quickstep_create_force_env
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -390,53 +382,30 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: method_name_id, nforce_eval
+    INTEGER                                  :: f_env_id, ierr, output_unit
     LOGICAL                                  :: failure
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section, subsys_section
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(f_env_type), POINTER                :: f_env
 
     failure= .FALSE.
-    NULLIFY(globenv, force_env, force_env_section, subsys_section )
 
-    ! init globenv with the data
-    CALL globenv_create(globenv, error=error)
+    output_unit = cp_logger_get_default_unit_nr()
+    CALL create_force_env(f_env_id, &
+                          input_declaration=input_declaration,&
+                          input_path=input_file_name,&
+                          output_unit=output_unit,&
+                          mpi_comm=para_env%group)
 
-    ! parse the input
-    root_section => read_input(input_declaration, input_file_name,initial_variables=empty_initial_variables,&
-                                              para_env=para_env,error=error)
-    ! it has been a problem that the .dat file is written incorrectly...
-    ! this will help check that
-    CPAssert(cp_error_get_level(error)<=CP_WARNING_LEVEL,cp_failure_level,routineP,error,failure)
+    CALL f_env_add_defaults(f_env_id, f_env, new_error, failure)
+    IF(failure) STOP "mc_create_force_env: f_env_add_defaults failed"
+    force_env => f_env%force_env
+    CALL force_env_retain(force_env, error)
+    CALL f_env_rm_defaults(f_env, new_error)
+    CALL destroy_force_env(f_env_id, ierr)
+    IF(ierr/=0) STOP "mc_create_force_env: destroy_force_env failed"
 
-    CALL check_cp2k_input(input_declaration,root_section,para_env=para_env,error=error)
-
-    CALL cp2k_read(root_section,para_env,globenv,error=error)
-    force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-    CALL section_vals_val_get(root_section,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
-    CALL section_vals_get(force_env_section, n_repetition=nforce_eval, error=error)
-
-    CPAssert(nforce_eval==1,cp_failure_level,routineP,error,failure)
-    SELECT CASE ( method_name_id )
-    CASE ( do_fist )
-       CALL fist_create_force_env(force_env, root_section, para_env, globenv,&
-            force_env_section=force_env_section, subsys_section=subsys_section,&
-            use_motion_section=.TRUE., error=error)
-
-    CASE ( do_qs )
-       CALL quickstep_create_force_env(force_env, root_section,  para_env,globenv, &
-            force_env_section=force_env_section, subsys_section=subsys_section,&
-            use_motion_section=.TRUE., error=error)
-    CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT
-
-    IF(PRESENT(globenv_new))THEN
-       globenv_new => globenv
-    ELSE
-       CALL globenv_release(globenv,error)
-    ENDIF
+    IF(PRESENT(globenv_new)) &
+        CALL force_env_get(force_env, globenv=globenv_new, error=error)
 
   END SUBROUTINE mc_create_force_env
 

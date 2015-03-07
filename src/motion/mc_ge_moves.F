@@ -30,8 +30,7 @@ MODULE mc_ge_moves
                                              force_env_p_type,&
                                              force_env_release
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_type,&
-                                             section_vals_release
+  USE input_section_types,             ONLY: section_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size
@@ -937,8 +936,6 @@ CONTAINS
       IF(loverlap_ins .OR. loverlap_rem) THEN
 ! deallocate some stuff
          CALL mc_molecule_info_destroy(mc_molecule_info_test)
-         CALL section_vals_release(test_env(insert_box)%force_env%root_section,error=error)
-         CALL section_vals_release(test_env(remove_box)%force_env%root_section,error=error)
          CALL force_env_release(test_env(insert_box)%force_env,error=error)
          CALL force_env_release(test_env(remove_box)%force_env,error=error)
          DEALLOCATE(insert_coords,STAT=istat)
@@ -999,7 +996,6 @@ CONTAINS
          NULLIFY(test_env(insert_box)%force_env)
          CALL mc_create_force_env(test_env(insert_box)%force_env, input_declaration, &
               para_env, dat_file(insert_box),error=error)
-!         CALL section_vals_release(insert_env%root_section)
 
          CALL force_env_calc_energy_force(test_env(insert_box)%force_env,&
             calc_force=.FALSE.,error=error)
@@ -1164,30 +1160,16 @@ CONTAINS
             r_old(1:3,ipart,remove_box)=particles_remove%els(ipart)%r(1:3)
          ENDDO
 
-         ! Only the root_section of the second subforce_env needs to be released
-         ! The other is pointing to the main force_env and must not be released
-
          ! insertion box
-         IF (insert_box/=1) THEN
-            CALL section_vals_release(test_env(insert_box)%force_env%root_section,error=error)
-         END IF
-         CALL section_vals_release(force_env(insert_box)%force_env%root_section,error=error)
          CALL force_env_release(force_env(insert_box)%force_env,error=error)
          force_env(insert_box)%force_env => test_env(insert_box)%force_env
 
          ! removal box
-         IF (remove_box/=1) THEN
-            CALL section_vals_release(test_env(remove_box)%force_env%root_section,error=error)
-         END IF
-         CALL section_vals_release(force_env(remove_box)%force_env%root_section,error=error)
          CALL force_env_release(force_env(remove_box)%force_env,error=error)
          force_env(remove_box)%force_env => test_env(remove_box)%force_env
 
 ! if we're biasing, update the bias_env
          IF(lbias) THEN
-            CALL section_vals_release(bias_env(insert_box)%force_env%root_section,error=error)
-            CALL section_vals_release(bias_env(remove_box)%force_env%root_section,error=error)
-
             CALL force_env_release(bias_env(insert_box)%force_env,error=error)
             bias_env(insert_box)%force_env =>  test_env_bias(insert_box)%force_env
             CALL force_env_release(bias_env(remove_box)%force_env,error=error)
@@ -1201,13 +1183,9 @@ CONTAINS
 
 ! reject the move
          CALL mc_molecule_info_destroy(mc_molecule_info_test)
-         CALL section_vals_release(test_env(insert_box)%force_env%root_section,error=error)
-         CALL section_vals_release(test_env(remove_box)%force_env%root_section,error=error)
          CALL force_env_release(test_env(insert_box)%force_env,error=error)
          CALL force_env_release(test_env(remove_box)%force_env,error=error)
          IF(lbias) THEN
-            CALL section_vals_release(test_env_bias(insert_box)%force_env%root_section,error=error)
-            CALL section_vals_release(test_env_bias(remove_box)%force_env%root_section,error=error)
             CALL force_env_release( test_env_bias(insert_box)%force_env,error=error)
             CALL force_env_release( test_env_bias(remove_box)%force_env,error=error)
             DEALLOCATE(test_env_bias,STAT=istat)

@@ -39,14 +39,13 @@ MODULE mc_run
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_types,                 ONLY: force_env_p_type,&
                                              force_env_release,&
+                                             force_env_retain,&
                                              force_env_type,&
                                              use_fist_force
-  USE global_types,                    ONLY: global_environment_type,&
-                                             globenv_release
+  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_release,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
@@ -143,6 +142,9 @@ CONTAINS
 
       NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
          root_section,mc_molecule_info)
+
+      CALL force_env_retain(force_env_1, error)
+
       para_env=>force_env_1%para_env
       logger=>cp_error_get_logger(error)
       iw = cp_logger_get_default_io_unit(logger)
@@ -175,7 +177,6 @@ CONTAINS
               c_val=box2_file,error=error)
          CALL mc_create_force_env(force_env_2,input_declaration,para_env,&
               box2_file,globenv_new=globenv_2,error=error)
-         CALL section_vals_release(force_env_2%root_section,error=error)
       END SELECT
 
 ! now we create the various pointers that contain information for all boxes
@@ -354,13 +355,7 @@ CONTAINS
 
          CALL mc_sim_par_destroy(mc_par(ibox)%mc_par)
          CALL mc_env_release ( mc_env(ibox)%mc_env, error )
-
-         IF (ibox == 2) THEN
-            CALL force_env_release(force_env(ibox)%force_env,error=error)
-            CALL globenv_release(globenv_2,error)
-         ELSE
-            force_env_1 => force_env(1)%force_env
-         ENDIF
+         CALL force_env_release(force_env(ibox)%force_env,error=error)
       ENDDO
 
 
