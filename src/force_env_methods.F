@@ -254,9 +254,9 @@ CONTAINS
              CALL get_qs_env(qs_env=force_env%qs_env,error=error)
           CASE (use_eip_force)
              IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
-                CALL eip_lenosky(force_env, error=error)
+                CALL eip_lenosky(force_env%eip_env, error=error)
              ELSE IF (force_env%eip_env%eip_model == use_bazant_eip) THEN
-                CALL eip_bazant(force_env, error=error)
+                CALL eip_bazant(force_env%eip_env, error=error)
              END IF
           CASE ( use_qmmm )
              CALL qmmm_energy_and_forces(force_env,calculate_forces,require_consistent_energy_force,&

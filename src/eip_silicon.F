@@ -22,13 +22,12 @@ MODULE eip_silicon
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_environment_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -56,9 +55,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Interface routine of Goedecker's Bazant EDIP to CP2K
-!> \param force_env The force environment
+!> \param eip_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param force_env The force environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Literature
 !>      http://www-math.mit.edu/~bazant/EDIP
 !>      M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
@@ -73,8 +73,8 @@ CONTAINS
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_bazant(force_env, error)
-    TYPE(force_env_type), POINTER            :: force_env
+  SUBROUTINE eip_bazant(eip_env, error)
+    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_bazant', &
@@ -93,9 +93,9 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: eip_section
@@ -104,19 +104,18 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(eip_env, cell, particle_set, eip_section, logger, atomic_kinds, &
-            atomic_kind, local_particles, subsys, atomic_kind_set)
+    NULLIFY(cell, particle_set, eip_section, logger, atomic_kinds, &
+            atomic_kind, local_particles, subsys, atomic_kind_set, para_env)
 
     ekin = 0.0_dp
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
-    CPPrecondition(ASSOCIATED(force_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN
 
-      CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
       CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
                        subsys=subsys, local_particles=local_particles, &
                        atomic_kind_set=atomic_kind_set, error=error)
@@ -159,7 +158,8 @@ CONTAINS
       END DO
 
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum(ekin, force_env%para_env%group)
+      CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
+      CALL mp_sum(ekin, para_env%group)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt
@@ -242,9 +242,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Interface routine of Goedecker's Lenosky force field to CP2K
-!> \param force_env The force environment
+!> \param eip_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param force_env The force environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Literature
 !>      T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
 !>                           Modelling Simul. Sci. Eng., 8 (2000)
@@ -254,8 +255,8 @@ CONTAINS
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_lenosky(force_env, error)
-    TYPE(force_env_type), POINTER            :: force_env
+  SUBROUTINE eip_lenosky(eip_env, error)
+    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_lenosky', &
@@ -274,9 +275,9 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: eip_section
@@ -285,19 +286,18 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(eip_env, cell, particle_set, eip_section, logger, atomic_kinds, &
-            atomic_kind, local_particles, subsys, atomic_kind_set)
+    NULLIFY(cell, particle_set, eip_section, logger, atomic_kinds, &
+            atomic_kind, local_particles, subsys, atomic_kind_set, para_env)
 
     ekin = 0.0_dp
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
-    CPPrecondition(ASSOCIATED(force_env), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN
 
-      CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
       CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
                        subsys=subsys, local_particles=local_particles, &
                        atomic_kind_set=atomic_kind_set, error=error)
@@ -340,7 +340,8 @@ CONTAINS
       END DO
 
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum(ekin, force_env%para_env%group)
+      CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
+      CALL mp_sum(ekin, para_env%group)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt
