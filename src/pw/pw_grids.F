@@ -1356,61 +1356,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     CHARACTER(len=*), PARAMETER :: routineN = 'order_mask', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i1, i2, icount
+    INTEGER                                  :: i1, i2, ic, icount, ii, im, &
+                                                jc, jj
+
 !NB load balance
-    INTEGER                                  :: im, ic, jc, ii, jj
-#ifdef ORIGINAL_RAY_DISTRIBUTION
-    INTEGER                                  :: i, ierr, j, j1, j2
-    LOGICAL                                  :: failure
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, icol, irow, rindex
-#endif
-
 !------------------------------------------------------------------------------
-
-#ifdef ORIGINAL_RAY_DISTRIBUTION
-!NB original distribution, can have bad load balance in cp_ddapc_apply_CD which
-!NB uses spherical cutoff even though overall grid is full and block distributed
-    failure = .FALSE.
-
-    i1 = SIZE ( yz_mask, 1 )
-    i2 = SIZE ( yz_mask, 2 )
-    ALLOCATE ( irow(i1), rindex(i1), STAT = ierr )
-    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-    ALLOCATE ( icol(i2), cindex(i2), STAT = ierr )
-    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-
-    yz_index = 0
-    DO i = 1, i1
-       irow(i) = SUM(yz_mask(i,:))
-    END DO
-    CALL sort ( irow, i1, rindex )
-    icount = 0
-    DO i = i1, 1, -1
-       j1 = rindex ( i )
-       icol = yz_mask(i,:)
-       CALL sort ( icol, i2, cindex )
-       DO j = i2, 1, -1
-          j2 = cindex ( j )
-          IF ( yz_mask(j1,j2) /= 0 ) THEN
-             icount = icount + 1
-             yz_index(1,icount) = j1
-             yz_index(2,icount) = j2
-          END IF
-       END DO
-    END DO
-
-    j=HUGE(j)
-    DO i=1,icount
-       j1=yz_index(1,icount)
-       j2=yz_index(2,icount)
-       IF(j < yz_mask(j1,j2)) STOP
-       j = yz_mask(j1,j2)
-    ENDDO
-
-    DEALLOCATE ( irow, rindex, icol, cindex, STAT = ierr )
-    CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
-
-#else
 !NB spiral out from origin, so that even if overall grid is full and
 !NB block distributed, spherical cutoff still leads to good load
 !NB balance in cp_ddapc_apply_CD
@@ -1473,8 +1423,6 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
          ENDIF
       END DO
    END DO
-
-#endif
 
   END SUBROUTINE order_mask
 ! *****************************************************************************
