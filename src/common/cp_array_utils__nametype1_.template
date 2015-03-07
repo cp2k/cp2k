@@ -113,7 +113,7 @@ CONTAINS
 !>      maybe I will move to a comma separated paretized list
 ! *****************************************************************************
 SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format, error)
-  [type1], DIMENSION(:), INTENT(in) :: array
+  [type1], INTENT(in) :: array(:)
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), INTENT(inout) :: error
@@ -171,7 +171,7 @@ END SUBROUTINE cp_1d_[nametype1]_write
 !>      maybe I will move to a comma separated parentized list
 ! *****************************************************************************
 SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format, error)
-  [type1], DIMENSION(:,:), INTENT(in) :: array
+  [type1], INTENT(in) :: array(:,:)
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), INTENT(inout) :: error
@@ -211,7 +211,6 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !>      the realloc in the module memory_utilities)
 !> \param array the array to reallocate if necessary
 !> \param n the wanted size
-!> \param init the initial value of the elements when resized
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
 !> \par History
@@ -222,10 +221,9 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
 ! *****************************************************************************
-  SUBROUTINE cp_1d_[nametype1]_guarantee_size(array, n, init, error)
-    [type1], DIMENSION(:), POINTER :: array
+  SUBROUTINE cp_1d_[nametype1]_guarantee_size(array, n, error)
+    [type1], POINTER :: array(:)
     INTEGER, INTENT(in) :: n
-    [type1], INTENT(in), OPTIONAL :: init
     TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -246,7 +244,6 @@ END SUBROUTINE cp_2d_[nametype1]_write
        IF (.NOT.ASSOCIATED(array)) THEN
           ALLOCATE(array(n), stat=stat)
           CPPostcondition(stat==0, cp_failure_level,routineP,error,failure)
-          IF (PRESENT(init).AND..NOT.failure) array=init
        END IF
     END IF failureIf
   END SUBROUTINE cp_1d_[nametype1]_guarantee_size
@@ -261,7 +258,6 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !> \param array the array to reallocate if necessary
 !> \param n_rows the wanted number of rows
 !> \param n_cols the wanted number of cols
-!> \param init the initial value of the elements when resized
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -271,11 +267,9 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
 ! *****************************************************************************
-  SUBROUTINE cp_2d_[nametype1]_guarantee_size(array, n_rows, n_cols ,&
-       init, error)
-    [type1], DIMENSION(:,:), POINTER :: array
+  SUBROUTINE cp_2d_[nametype1]_guarantee_size(array, n_rows, n_cols, error)
+    [type1], POINTER :: array(:,:)
     INTEGER, INTENT(in) :: n_rows, n_cols
-    [type1], INTENT(in), OPTIONAL :: init
     TYPE(cp_error_type), INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -298,7 +292,6 @@ END SUBROUTINE cp_2d_[nametype1]_write
        IF (.NOT.ASSOCIATED(array)) THEN
           ALLOCATE(array(n_rows,n_cols), stat=stat)
           CPPostconditionNoFail(stat==0, cp_failure_level,routineP,error)
-          IF (PRESENT(init).AND..NOT.failure) array=init
        END IF
     END IF failureIf
   END SUBROUTINE cp_2d_[nametype1]_guarantee_size
@@ -323,7 +316,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
 ! *****************************************************************************
 FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index, error)&
      result(res)
-  [type1], DIMENSION(:), intent(in) :: array
+  [type1], intent(in) :: array(:)
   [type1], intent(in) :: el
   INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
   type(cp_error_type), intent(inout) :: error
