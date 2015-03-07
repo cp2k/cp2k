@@ -73,7 +73,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: run_rtp
+    LOGICAL                                  :: my_calc_forces, run_rtp
+
+    my_calc_forces = .FALSE.
+    IF(PRESENT(calc_forces)) my_calc_forces = calc_forces
 
     CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
@@ -81,8 +84,7 @@ CONTAINS
     IF(run_rtp)THEN
        CALL qs_energies_rtp(qs_env,error=error)
     ELSE
-       CALL qs_energies_scf(qs_env, consistent_energies, calc_forces, &
-                          error)
+       CALL qs_energies_scf(qs_env, consistent_energies, my_calc_forces, error)
     END IF
 
   END SUBROUTINE qs_energies

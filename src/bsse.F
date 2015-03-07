@@ -24,9 +24,7 @@ MODULE bsse
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_release,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qs
@@ -40,7 +38,13 @@ MODULE bsse
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_list_types,             ONLY: particle_list_type
-  USE qs_main,                         ONLY: quickstep_create_force_env
+  USE qs_energy,                       ONLY: qs_energies
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment,                  ONLY: qs_init
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_env_create,&
+                                             qs_env_release,&
+                                             qs_environment_type
   USE string_utilities,                ONLY: compress
 #include "./common/cp_common_uses.f90"
 
@@ -84,14 +88,13 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, should_stop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(force_env_type), POINTER            :: force_env_loc
     TYPE(section_vals_type), POINTER         :: bsse_section, &
                                                 fragment_energies_section, &
                                                 n_frags, root_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       NULLIFY(bsse_section, n_frags, Em, conf, force_env_loc)
+       NULLIFY(bsse_section, n_frags, Em, conf)
        logger => cp_error_get_logger(error)
        root_section => force_env%root_section
        bsse_section => section_vals_get_subs_vals(force_env%force_env_section,"BSSE",error=error)
@@ -127,7 +130,7 @@ CONTAINS
        ! Evaluating the energy of the N-body cluster terms
        DO i = istart+1, num_of_conf
           CALL cp_iterate(logger%iter_info,last=(i==num_of_conf),iter_nr=i,error=error)
-          CALL eval_bsse_energy(conf(i,:),Em(i),force_env,force_env_loc, n_frags, &
+          CALL eval_bsse_energy(conf(i,:),Em(i),force_env, n_frags, &
                root_section,globenv, should_stop, error=error)
           IF (should_stop) EXIT
 
@@ -155,7 +158,6 @@ CONTAINS
 !> \param conf ...
 !> \param Em ...
 !> \param force_env ...
-!> \param force_env_loc ...
 !> \param n_frags ...
 !> \param root_section ...
 !> \param globenv ...
@@ -166,11 +168,11 @@ CONTAINS
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE eval_bsse_energy(conf, Em, force_env, force_env_loc, n_frags, root_section,&
+  SUBROUTINE eval_bsse_energy(conf, Em, force_env, n_frags, root_section,&
        globenv, should_stop, error)
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf
     REAL(KIND=dp), INTENT(OUT)               :: Em
-    TYPE(force_env_type), POINTER            :: force_env, force_env_loc
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: n_frags, root_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT)                     :: should_stop
@@ -194,7 +196,7 @@ CONTAINS
        Num_of_sub_frag = COUNT(conf == 1)
        Num_of_sub_conf = 0
        IF (Num_of_sub_frag == 1) THEN
-          CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf, n_frags, root_section, globenv, Em, error)
+          CALL eval_bsse_energy_low(force_env, conf, conf, n_frags, root_section, globenv, Em, error)
        ELSE
           my_energy = 0.0_dp
           DO k = 1, Num_of_sub_frag
@@ -209,7 +211,7 @@ CONTAINS
           CALL gen_Nbody_conf(Num_of_sub_frag, conf_loc)
           CALL make_plan_conf(conf, conf_loc)
           DO i = 1, Num_of_sub_conf
-             CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc(i,:), n_frags,&
+             CALL eval_bsse_energy_low(force_env, conf, conf_loc(i,:), n_frags,&
                   root_section,globenv, Em_loc(i), error)
              CALL external_control(should_stop,"BSSE",globenv=globenv,error=error)
              IF (should_stop) EXIT
@@ -232,7 +234,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Evaluate the N-body energy contribution to the BSSE evaluation
 !> \param force_env ...
-!> \param force_env_loc ...
 !> \param conf ...
 !> \param conf_loc ...
 !> \param n_frags ...
@@ -246,9 +247,9 @@ CONTAINS
 !>      2014/09/17 made atom list to be read from repeated occurance of LIST [LTong]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc, n_frags, &
+  SUBROUTINE eval_bsse_energy_low(force_env, conf, conf_loc, n_frags, &
        root_section, globenv, energy, error)
-    TYPE(force_env_type), POINTER            :: force_env, force_env_loc
+    TYPE(force_env_type), POINTER            :: force_env
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
     TYPE(section_vals_type), POINTER         :: n_frags, root_section
     TYPE(global_environment_type), POINTER   :: globenv
@@ -270,6 +271,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys, subsys_loc
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(qs_energy_type), POINTER            :: qs_energy
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: bsse_section, dft_section, &
                                                 force_env_section, &
                                                 subsys_section
@@ -347,18 +350,19 @@ CONTAINS
                sub_atom_kind_name=atom_type,para_env=para_env,&
                force_env_section=force_env_section,subsys_section=subsys_section,error=error)
 
-          CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsys=subsys_loc,&
-               force_env_section=force_env_section, subsys_section=subsys_section, use_motion_section=.FALSE.,&
-               error=error)
-
+          CALL qs_env_create(qs_env, globenv,error=error)
+          CALL qs_init(qs_env, para_env, globenv, root_section, cp_subsys=subsys_loc,&
+               force_env_section=force_env_section, subsys_section=subsys_section,&
+               use_motion_section=.FALSE., error=error)
           CALL cp_subsys_release(subsys_loc,error=error)
+
           !
           ! Evaluate Energy
           !
-          CALL force_env_calc_energy_force(force_env_loc,calc_force=.FALSE.,error=error)
-          CALL force_env_get(force_env_loc,potential_energy=energy,error=error)
-          CALL force_env_release(force_env_loc, error=error)
-          NULLIFY(force_env_loc)
+          CALL qs_energies(qs_env, error=error)
+          CALL get_qs_env(qs_env, energy=qs_energy, error=error)
+          energy = qs_energy%total
+          CALL qs_env_release(qs_env,error=error)
        ELSE
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
