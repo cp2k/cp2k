@@ -110,7 +110,10 @@ MODULE f77_interface
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                              pw_cuda_init
   USE qmmm_create,                     ONLY: qmmm_create_force_env
-  USE qs_main,                         ONLY: quickstep_create_force_env
+  USE qs_environment,                  ONLY: qs_init
+  USE qs_environment_types,            ONLY: qs_env_create,&
+                                             qs_env_release,&
+                                             qs_environment_type
   USE reference_manager,               ONLY: remove_all_references
   USE string_table,                    ONLY: string_table_allocate,&
                                              string_table_deallocate
@@ -689,6 +692,7 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER :: fe_section, force_env_section, &
       force_env_sections, fp_section, input_file, root_section, &
@@ -699,7 +703,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,error,failure)
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
-            fp_env,eip_env,mixed_env)
+            fp_env,eip_env,mixed_env,qs_env)
     new_env_id=-1
     IF (PRESENT(mpi_comm)) THEN
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.,error=error)
@@ -874,29 +878,36 @@ CPSourceFileRef,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
                   use_motion_section=use_motion_section, error=my_error )
           CASE (do_qs)
-             CALL quickstep_create_force_env( my_force_env, root_section, my_para_env, globenv,&
-                  force_env_section=force_env_section, subsys_section=subsys_section,&
-                  use_motion_section=use_motion_section, error=my_error)
+             CALL qs_env_create(qs_env,globenv,error=error)
+             CALL qs_init(qs_env, my_para_env, globenv, root_section, force_env_section=force_env_section,&
+                  subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)
+             CALL force_env_create(my_force_env, root_section, qs_env=qs_env, para_env=my_para_env, globenv=globenv,&
+                  sub_force_env=Null(), force_env_section=force_env_section,error=error)
+             CALL qs_env_release(qs_env,error=error)
+
           CASE (do_qmmm)
              CALL qmmm_create_force_env( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
                   use_motion_section=use_motion_section, error=my_error)
+
           CASE (do_eip)
              CALL eip_env_create(eip_env, error=error)
-             CALL eip_init(eip_env, root_section, para_env, force_env_section=force_env_section,&
+             CALL eip_init(eip_env, root_section, my_para_env, force_env_section=force_env_section,&
                   subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)
-             CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=para_env,&
+             CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=my_para_env,&
                   globenv=globenv, force_env_section=force_env_section, error=error)
              CALL eip_env_release(eip_env, error=error)
+
           CASE (do_mixed)
              CALL mixed_create_force_env(mixed_env, root_section, my_para_env,&
                   force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&
                   use_motion_section=use_motion_section, error=my_error)
-             CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=para_env,&
+             CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=my_para_env,&
                   globenv=globenv, force_env_section=force_env_section, error=error)
              CALL mixed_env_release(mixed_env, error=error)
              use_multiple_para_env = .TRUE.
              lgroup_distribution => my_force_env%mixed_env%group_distribution
+
           CASE default
              CALL create_force_eval_section(section,error)
              keyword => section_get_keyword(section,"METHOD",error=error)
