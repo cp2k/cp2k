@@ -204,9 +204,6 @@ ENDIF
 #if defined __CRAY_PM_FAKE_ENERGY
    flags=TRIM(flags)//" cray_pm_fake_energy"
 #endif
-#if defined __CUBLASDP
-   flags=TRIM(flags)//" cublasdp"
-#endif
 #if defined __CUDA_PROFILING
    flags=TRIM(flags)//" cuda_profiling"
 #endif

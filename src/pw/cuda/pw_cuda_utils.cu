@@ -3,7 +3,7 @@
  *  Copyright (C) 2000 - 2015  CP2K developers group                         *
  *****************************************************************************/
 
-#if defined ( __PW_CUDA ) || defined ( __CUBLASDP )
+#if defined ( __PW_CUDA )
 
 /* This file contains memory management routines for device memory. */ 
 // Revised: Sept. 2012, Andreas Gloess
