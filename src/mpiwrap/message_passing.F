@@ -3013,12 +3013,12 @@ CONTAINS
 #endif
   END SUBROUTINE mp_irecv_custom
 
-#include "message_i_passing.f90"
-#include "message_l_passing.f90"
-#include "message_r_passing.f90"
-#include "message_d_passing.f90"
-#include "message_c_passing.f90"
-#include "message_z_passing.f90"
+#include "message_passing_i.f90"
+#include "message_passing_l.f90"
+#include "message_passing_r.f90"
+#include "message_passing_d.f90"
+#include "message_passing_c.f90"
+#include "message_passing_z.f90"
 
 
 ! *****************************************************************************
