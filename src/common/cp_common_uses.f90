@@ -28,74 +28,11 @@
 ! if the following macro is defined the longest form of macro
 ! expansions is used (and the error messages are more meaningful)
 
-#ifdef FD_LONG_EXPANSIONS
-
 ! inlines the test but does not write the file name, but that should
 ! be easily recovered from the routineP variable (that should contain
 ! the module name).
-
-! (cp_precondition_failed = 200)
-#define CPPrecondition(cond,level,routineP,error,failure) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,200,routineP,\
-'PRECONDITION(cond) failed at line '//TRIM(ADJUSTL(cp_to_string(__LINE__))),error,failure)
-
-! (cp_postcondition_failed = -200)
-#define CPPostcondition(cond,level,routineP,error,failure) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-200,routineP,\
-'POSTCONDITION(cond) failed at line '//cp_to_string(__LINE__),error,failure)
-
-! (cp_invariant_failed = -100)
-#define CPInvariant(cond,level,routineP,error,failure) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -100,routineP,\
-'INVARIANT (cond) failed at line '//cp_to_string(__LINE__),error,failure)
-
-! (cp_assert_failed = -300)
-#define CPAssert(cond,level,routineP,error,failure) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-300,routineP,\
-'ASSERTION (cond) failed at line '//cp_to_string(__LINE__),error,failure)
-
-#define CPErrorMessage(level,routineP,msg,error) \
-CALL cp_error_message(level,routineP,msg//' at line '//cp_to_string(__LINE__),error)
-
-#define CPPreconditionNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,200,routineP,\
-'PRECONDITION(cond) failed at line '//cp_to_string(__LINE__),error)
-
-! (cp_postcondition_failed = -200)
-#define CPPostconditionNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-200,routineP,\
-'POSTCONDITION(cond) failed at line '//cp_to_string(__LINE__),error)
-
-! (cp_invariant_failed = -100)
-#define CPInvariantNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -100,routineP,\
-'INVARIANT (cond) failed at line '//cp_to_string(__LINE__),error)
-
-! (cp_assert_failed = -300)
-#define CPAssertNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-300,routineP,\
-'ASSERTION (cond) failed at line '//cp_to_string(__LINE__),error)
-
-
-#define CPPreconditionNoErr(cond, level, routineN) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, 200, routineN ,\
-"PRECONDITION failed on line " //cp_to_string(__LINE__))
-
-#define CPPostconditionNoErr(cond, level, routineN) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -200, routineN ,\
-"POSTCONDITION failed on line " //cp_to_string(__LINE__))
-
-#define CPInvariantNoErr(cond,level,routineP) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -100,routineP,\
-'INVARIANT (cond) failed at line '//cp_to_string(__LINE__))
-
-! (cp_assert_failed = -300)
-#define CPAssertNoErr(cond,level,routineP) \
-IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-300,routineP,\
-'ASSERTION (cond) failed at line '//cp_to_string(__LINE__))
-
-#else
-! same as before but trying to use a small amount of characters
+!
+! We are trying to use a small amount of characters
 ! the test is not inlined (you have always a function call)
 
 #define CPPrecondition(cond,level,routineP,error,failure) \
@@ -124,8 +61,6 @@ IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineN ,__LINE__)
 IF(.NOT.(cond))CALL cp_a_l(0==1, level, routineP,__LINE__)
 #define CPAssertNoErr(cond,level,routineP) \
 IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__)
-
-#endif
 
 #define CPAAssert(condition) \
 CALL cp_simple_assert(condition, routineP, __LINE__)
