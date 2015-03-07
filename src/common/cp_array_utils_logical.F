@@ -3,7 +3,8 @@
 !   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-[defines]
+#define CP_L_LESS_Q(el1,el2) ( (.not.el1).and.el2 )
+
 
 ! *****************************************************************************
 !> \brief various utilities that regard array of different kinds:
@@ -38,31 +39,31 @@
 !>      3.2002 templatized [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-MODULE cp_array_[nametype1]_utils
-  USE machine, ONLY: m_flush
+MODULE cp_array_utils_logical
+  USE machine,                         ONLY: m_flush
 #include "cp_common_uses.f90"
-  [USE]
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_array_[nametype1]_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_utils_logical'
 
   ! types
-  PUBLIC :: cp_1d_[nametype1]_p_type, cp_2d_[nametype1]_p_type, cp_3d_[nametype1]_p_type
+  PUBLIC :: cp_1d_logical_p_type, cp_2d_logical_p_type, cp_3d_logical_p_type
 
   ! generic interfaces
   PUBLIC :: cp_guarantee_size
 
   ! the underlying procedures
-  PUBLIC :: cp_1d_[nametype1]_guarantee_size, &
-       cp_1d_[nametype1]_write, cp_2d_[nametype1]_write,&
-       cp_2d_[nametype1]_guarantee_size,&
-       cp_1d_[nametype1]_bsearch
+  PUBLIC :: cp_1d_logical_guarantee_size, &
+       cp_1d_logical_write, cp_2d_logical_write,&
+       cp_2d_logical_guarantee_size,&
+       cp_1d_logical_bsearch
 
   INTERFACE cp_guarantee_size
-     MODULE PROCEDURE cp_1d_[nametype1]_guarantee_size,&
-          cp_2d_[nametype1]_guarantee_size
+     MODULE PROCEDURE cp_1d_logical_guarantee_size,&
+          cp_2d_logical_guarantee_size
   END INTERFACE
 
 !***
@@ -73,9 +74,9 @@ MODULE cp_array_[nametype1]_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  type cp_1d_[nametype1]_p_type
-     [type1], dimension(:), pointer :: array
-  end type cp_1d_[nametype1]_p_type
+  TYPE cp_1d_logical_p_type
+     LOGICAL, DIMENSION(:), POINTER :: array
+  END TYPE cp_1d_logical_p_type
 
 ! *****************************************************************************
 !> \brief represent a pointer to a 2d array
@@ -83,9 +84,9 @@ MODULE cp_array_[nametype1]_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  type cp_2d_[nametype1]_p_type
-     [type1], dimension(:,:), pointer :: array
-  end type cp_2d_[nametype1]_p_type
+  TYPE cp_2d_logical_p_type
+     LOGICAL, DIMENSION(:,:), POINTER :: array
+  END TYPE cp_2d_logical_p_type
 
 ! *****************************************************************************
 !> \brief represent a pointer to a 3d array
@@ -93,9 +94,9 @@ MODULE cp_array_[nametype1]_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  type cp_3d_[nametype1]_p_type
-     [type1], dimension(:,:,:), pointer :: array
-  end type cp_3d_[nametype1]_p_type
+  TYPE cp_3d_logical_p_type
+     LOGICAL, DIMENSION(:,:,:), POINTER :: array
+  END TYPE cp_3d_logical_p_type
 
 CONTAINS
 
@@ -112,19 +113,19 @@ CONTAINS
 !> \note
 !>      maybe I will move to a comma separated paretized list
 ! *****************************************************************************
-SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format, error)
-  [type1], DIMENSION(:), INTENT(in) :: array
-  INTEGER, INTENT(in) :: unit_nr
-  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
-  TYPE(cp_error_type), INTENT(inout) :: error
+SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format, error)
+    LOGICAL, DIMENSION(:), INTENT(in)        :: array
+    INTEGER, INTENT(in)                      :: unit_nr
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  LOGICAL :: failure
-  INTEGER :: iostat, i
-  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_[nametype1]_write',&
-        routineP=moduleN//':'//routineN
-  CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
+    CHARACTER(len=*), PARAMETER :: defaultFormat = "(l1)", &
+      routineN = 'cp_1d_logical_write', routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: i, iostat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
   CPPrecondition(iostat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -153,9 +154,9 @@ SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format, error)
      END IF
      WRITE(unit=unit_nr,fmt="(' )')")
   END IF
-  call m_flush(unit_nr)
+  CALL m_flush(unit_nr)
 
-END SUBROUTINE cp_1d_[nametype1]_write
+END SUBROUTINE cp_1d_logical_write
 
 ! *****************************************************************************
 !> \brief writes an array to the given unit
@@ -170,19 +171,20 @@ END SUBROUTINE cp_1d_[nametype1]_write
 !> \note
 !>      maybe I will move to a comma separated parentized list
 ! *****************************************************************************
-SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format, error)
-  [type1], DIMENSION(:,:), INTENT(in) :: array
-  INTEGER, INTENT(in) :: unit_nr
-  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
-  TYPE(cp_error_type), INTENT(inout) :: error
+SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format, error)
+    LOGICAL, DIMENSION(:, :), INTENT(in)     :: array
+    INTEGER, INTENT(in)                      :: unit_nr
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  LOGICAL :: failure
-  INTEGER :: iostat, i
-  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_[nametype1]_write',&
-        routineP=moduleN//':'//routineN
-  CHARACTER(len=*), PARAMETER :: defaultFormat=[defaultFormatType1]
-  CHARACTER(len=200) :: fmtstr
-  CHARACTER(len=10) :: nRiga
+    CHARACTER(len=*), PARAMETER :: defaultFormat = "(l1)", &
+      routineN = 'cp_2d_logical_write', routineP = moduleN//':'//routineN
+
+    CHARACTER(len=10)                        :: nRiga
+    CHARACTER(len=200)                       :: fmtstr
+    INTEGER                                  :: i, iostat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   nRiga=cp_to_string(SIZE(array,2))
@@ -199,8 +201,8 @@ SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format, error)
         EXIT
      END IF
   END DO
-  call m_flush(unit_nr)
-END SUBROUTINE cp_2d_[nametype1]_write
+  CALL m_flush(unit_nr)
+END SUBROUTINE cp_2d_logical_write
 
 ! *****************************************************************************
 !> \brief If the size of the array is changes reallocate it.
@@ -222,16 +224,18 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
 ! *****************************************************************************
-  SUBROUTINE cp_1d_[nametype1]_guarantee_size(array, n, init, error)
-    [type1], DIMENSION(:), POINTER :: array
-    INTEGER, INTENT(in) :: n
-    [type1], INTENT(in), OPTIONAL :: init
-    TYPE(cp_error_type), INTENT(inout) :: error
+  SUBROUTINE cp_1d_logical_guarantee_size(array, n, init, error)
+    LOGICAL, DIMENSION(:), POINTER           :: array
+    INTEGER, INTENT(in)                      :: n
+    LOGICAL, INTENT(in), OPTIONAL            :: init
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_1d_[nametype1]_guarantee_size',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_logical_guarantee_size', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(n>=0,cp_failure_level,routineP,error,failure)
@@ -249,7 +253,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
           IF (PRESENT(init).AND..NOT.failure) array=init
        END IF
     END IF failureIf
-  END SUBROUTINE cp_1d_[nametype1]_guarantee_size
+  END SUBROUTINE cp_1d_logical_guarantee_size
 
 ! *****************************************************************************
 !> \brief If the size of the array is changes reallocate it.
@@ -271,17 +275,19 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
 ! *****************************************************************************
-  SUBROUTINE cp_2d_[nametype1]_guarantee_size(array, n_rows, n_cols ,&
+  SUBROUTINE cp_2d_logical_guarantee_size(array, n_rows, n_cols ,&
        init, error)
-    [type1], DIMENSION(:,:), POINTER :: array
-    INTEGER, INTENT(in) :: n_rows, n_cols
-    [type1], INTENT(in), OPTIONAL :: init
-    TYPE(cp_error_type), INTENT(inout) :: error
+    LOGICAL, DIMENSION(:, :), POINTER        :: array
+    INTEGER, INTENT(in)                      :: n_rows, n_cols
+    LOGICAL, INTENT(in), OPTIONAL            :: init
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_2d_[nametype1]_guarantee_size',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_logical_guarantee_size', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(n_cols>=0,cp_failure_level,routineP,error,failure)
@@ -301,7 +307,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
           IF (PRESENT(init).AND..NOT.failure) array=init
        END IF
     END IF failureIf
-  END SUBROUTINE cp_2d_[nametype1]_guarantee_size
+  END SUBROUTINE cp_2d_logical_guarantee_size
 
 ! *****************************************************************************
 !> \brief returns the index at which the element el should be inserted in the
@@ -321,37 +327,49 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !> \note
 !>      the array should be ordered in growing order
 ! *****************************************************************************
-FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index, error)&
-     result(res)
-  [type1], DIMENSION(:), intent(in) :: array
-  [type1], intent(in) :: el
-  INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
-  type(cp_error_type), intent(inout) :: error
-  integer :: res
+FUNCTION cp_1d_logical_bsearch(array, el, l_index, u_index, error)&
+     RESULT(res)
+    LOGICAL, DIMENSION(:), INTENT(in)        :: array
+    LOGICAL, INTENT(in)                      :: el
+    INTEGER, INTENT(in), OPTIONAL            :: l_index, u_index
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER                                  :: res
 
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_1d_[nametype1]_bsearch',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: lindex,uindex,aindex
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_logical_bsearch', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: aindex, lindex, uindex
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   lindex=1
-  uindex=size(array)
-  if (present(l_index)) lindex=l_index
-  if (present(u_index)) uindex=u_index
+  uindex=SIZE(array)
+  IF (PRESENT(l_index)) lindex=l_index
+  IF (PRESENT(u_index)) uindex=u_index
   DO WHILE (lindex <= uindex)
      aindex=(lindex+uindex)/2
-     IF ([lessQ](array(aindex),el)) THEN
+     IF (CP_L_LESS_Q(array(aindex),el)) THEN
         lindex=aindex+1
      ELSE
         uindex=aindex-1
      END IF
   END DO
   res=lindex
-END FUNCTION cp_1d_[nametype1]_bsearch
+END FUNCTION cp_1d_logical_bsearch
 
   ! template def put here so that line numbers in template and derived
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
+! ARGS:
+!  USE = ""
+!  defaultFormatType1 = ""(l1)""
+!  defines = 
+!    "#define CP_L_LESS_Q(el1,el2) ( (.not.el1).and.el2 )
+!     "
+!  lessQ = "CP_L_LESS_Q"
+!  nametype1 = "logical"
+!  type1 = "logical"
 
-END MODULE cp_array_[nametype1]_utils
+
+END MODULE cp_array_utils_logical

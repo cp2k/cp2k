@@ -1,0 +1,22 @@
+[
+
+{'nametype1':'r',
+'type1':'real(kind=dp)',
+'USE':'USE kinds, ONLY: dp',
+'defaultFormatType1':'"(es14.6)"',
+'lessQ':'CP_R_LESS_Q',
+'defines':"#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+{'nametype1':'i4',
+'type1':'integer(kind=int_4)',
+'USE':'USE kinds,       ONLY:int_4',
+'lessQ':'CP_I_LESS_Q',
+'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+{'nametype1':'i8',
+'type1':'integer(kind=int_8)',
+'USE':'USE kinds,       ONLY:int_8',
+'lessQ':'CP_I_LESS_Q',
+'defines':"#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )\n"},
+
+]

@@ -12,7 +12,7 @@
 MODULE xc_xbecke88
   USE bibliography,                    ONLY: Becke1988,&
                                              cite_reference
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp

@@ -10,7 +10,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE xc_rho_set_types
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
   USE pw_methods,                      ONLY: pw_copy,&
                                              pw_derive,&

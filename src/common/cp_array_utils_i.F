@@ -39,7 +39,7 @@
 !>      3.2002 templatized [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-MODULE cp_array_i_utils
+MODULE cp_array_utils_i
   USE machine,                         ONLY: m_flush
 #include "cp_common_uses.f90"
 
@@ -47,7 +47,7 @@ MODULE cp_array_i_utils
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_i_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_utils_i'
 
   ! types
   PUBLIC :: cp_1d_i_p_type, cp_2d_i_p_type, cp_3d_i_p_type
@@ -372,4 +372,4 @@ END FUNCTION cp_1d_i_bsearch
 !  type1 = "integer"
 
 
-END MODULE cp_array_i_utils
+END MODULE cp_array_utils_i

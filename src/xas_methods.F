@@ -23,7 +23,7 @@ MODULE xas_methods
        init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &

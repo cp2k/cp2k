@@ -12,7 +12,7 @@
 !> \author JGH (18.02.2002)
 ! *****************************************************************************
 MODULE xc_tfw
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

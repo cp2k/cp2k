@@ -11,7 +11,7 @@
 !> \author Joost VandeVondele 7.2008, MI 02.2009
 ! *****************************************************************************
 MODULE stm_images
-  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_init,&

@@ -21,7 +21,7 @@
 ! *****************************************************************************
 MODULE distribution_1d_types
 
-  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
+  USE cp_array_utils_i,                ONLY: cp_1d_i_p_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type

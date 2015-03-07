@@ -10,8 +10,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_kpp1_env_types
-  USE cp_array_i_utils,                ONLY: cp_2d_i_write
-  USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
+  USE cp_array_utils_i,                ONLY: cp_2d_i_write
+  USE cp_array_utils_logical,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_p_type

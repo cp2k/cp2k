@@ -9,7 +9,7 @@
  'template':'../common/cp_linked_list__nametype1_.template',
  'USE':
 """USE kinds, only: dp
-USE cp_array_r_utils, only: cp_3d_r_p_type""",
+USE cp_array_utils_r, only: cp_3d_r_p_type""",
  'defines':
 """! less not much meningful... and defines oly a partial ordering.
 #define CP_SLL_R_LESS_Q(el1,el2,error) ( all(el1 < el2) )

@@ -11,7 +11,7 @@
 !> \author Matthias Krack (22.05.2001)
 ! *****************************************************************************
 MODULE cp_fm_types
-  USE cp_array_r_utils,                ONLY: cp_2d_r_write
+  USE cp_array_utils_r,                ONLY: cp_2d_r_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
                                              cp_blacs_dgebs2d,&
                                              cp_blacs_gridexit,&

@@ -16,8 +16,8 @@
 MODULE qs_linres_op
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_array_utils_i,                ONLY: cp_2d_i_p_type
+  USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_get_info,&

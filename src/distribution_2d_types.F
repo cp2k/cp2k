@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE distribution_2d_types
 
-  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type,&
+  USE cp_array_utils_i,                ONLY: cp_1d_i_p_type,&
                                              cp_1d_i_write
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&

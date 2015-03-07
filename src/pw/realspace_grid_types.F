@@ -14,7 +14,7 @@
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
 MODULE realspace_grid_types
-  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
   USE fast,                            ONLY: copy_cr,&
                                              copy_rc
   USE kahan_sum,                       ONLY: accurate_sum

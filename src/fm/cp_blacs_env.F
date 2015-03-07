@@ -11,7 +11,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_blacs_env
-  USE cp_array_i_utils,                ONLY: cp_2d_i_write
+  USE cp_array_utils_i,                ONLY: cp_2d_i_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinfo,&
                                              cp_blacs_gridinit,&

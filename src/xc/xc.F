@@ -13,7 +13,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE xc
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
   USE input_section_types,             ONLY: section_get_ival,&

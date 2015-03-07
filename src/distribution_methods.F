@@ -19,7 +19,7 @@ MODULE distribution_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
                                              real_to_scaled
-  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
+  USE cp_array_utils_i,                ONLY: cp_1d_i_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: heap_fill,&
                                              heap_get_first,&

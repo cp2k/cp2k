@@ -3,7 +3,7 @@
 !   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )
+#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 
 
 ! *****************************************************************************
@@ -25,17 +25,17 @@
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-MODULE cp_array_r_sort
+MODULE dbcsr_array_sort_i8
    
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: int_8
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_r_sort'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_array_sort_i8'
 
-  PUBLIC :: cp_1d_r_sort
+  PUBLIC :: dbcsr_1d_i8_sort
   
   CONTAINS
 
@@ -50,35 +50,36 @@ MODULE cp_array_r_sort
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-SUBROUTINE cp_1d_r_sort(arr, n, indices)
+SUBROUTINE dbcsr_1d_i8_sort(arr, n, indices)
     INTEGER, INTENT(in)                      :: n
-    REAL(kind=dp), DIMENSION(1:n), &
+    INTEGER(kind=int_8), DIMENSION(1:n), &
       INTENT(inout)                          :: arr
     INTEGER, DIMENSION(1:n), INTENT(out)     :: indices
 
     INTEGER                                  :: i, stat
+    INTEGER(kind=int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: tmp_arr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_idx
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: tmp_arr
 
    IF(n == 0) RETURN ! for some reason this is a frequent case in cp2k
    
    ! scratch space used during the merge step
    ALLOCATE(tmp_arr((SIZE(arr)+1)/2), tmp_idx((SIZE(arr)+1)/2), stat=stat)
-   IF(stat /= 0) STOP "cp_1d_r_sort: allocation failed"
+   IF(stat /= 0) STOP "dbcsr_1d_i8_sort: allocation failed"
    
    indices = (/ (i, i = 1, SIZE(arr)) /)
    
-   CALL cp_1d_r_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
+   CALL dbcsr_1d_i8_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
    
    DEALLOCATE(tmp_arr,tmp_idx)
    
-END SUBROUTINE cp_1d_r_sort
+END SUBROUTINE dbcsr_1d_i8_sort
 
 
 
 ! *****************************************************************************
 !> \brief The actual sort routing. 
-!>            Only cp_1d_r_sort and itself should call this.
+!>            Only dbcsr_1d_i8_sort and itself should call this.
 !> \param arr the array to sort
 !> \param indices elements-indices before the sort
 !> \param tmp_arr scratch space
@@ -87,19 +88,19 @@ END SUBROUTINE cp_1d_r_sort
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-RECURSIVE SUBROUTINE cp_1d_r_sort_low(arr, indices, tmp_arr, tmp_idx)
-    REAL(kind=dp), DIMENSION(:), &
+RECURSIVE SUBROUTINE dbcsr_1d_i8_sort_low(arr, indices, tmp_arr, tmp_idx)
+    INTEGER(kind=int_8), DIMENSION(:), &
       INTENT(inout)                          :: arr
     INTEGER, DIMENSION(SIZE(arr)), &
       INTENT(inout)                          :: indices
-    REAL(kind=dp), &
+    INTEGER(kind=int_8), &
       DIMENSION((SIZE(arr)+1)/2), &
       INTENT(inout)                          :: tmp_arr
     INTEGER, DIMENSION((SIZE(arr)+1)/2), &
       INTENT(inout)                          :: tmp_idx
 
     INTEGER                                  :: i, j, k, m, t
-    REAL(kind=dp)                            :: a
+    INTEGER(kind=int_8)                      :: a
     LOGICAL                                  :: swapped
 
 ! a,t:  used during swaping of elements in arr and indices
@@ -111,7 +112,7 @@ RECURSIVE SUBROUTINE cp_1d_r_sort_low(arr, indices, tmp_arr, tmp_idx)
           DO j = SIZE(arr)-1, 1, -1
             swapped = .FALSE.
             DO i = 1, j
-                 IF (CP_R_LESS_Q(arr(i+1), arr(i))) THEN
+                 IF (CP_I_LESS_Q(arr(i+1), arr(i))) THEN
                          ! swap arr(i) with arr(i+1)
                         a            = arr(i)
                         arr(i)       = arr(i+1)
@@ -130,12 +131,12 @@ RECURSIVE SUBROUTINE cp_1d_r_sort_low(arr, indices, tmp_arr, tmp_idx)
    
    ! split list in half and recusively sort both sublists
    m = (SIZE(arr)+1)/2 ! index where we going to divide the list in two
-   CALL cp_1d_r_sort_low(arr(1:m), indices(1:m), tmp_arr, tmp_idx)
-   CALL cp_1d_r_sort_low(arr(m+1:), indices(m+1:), tmp_arr, tmp_idx)
+   CALL dbcsr_1d_i8_sort_low(arr(1:m), indices(1:m), tmp_arr, tmp_idx)
+   CALL dbcsr_1d_i8_sort_low(arr(m+1:), indices(m+1:), tmp_arr, tmp_idx)
    
    ! Check for a special case: Can we just concate the two sorted sublists?
    ! This leads to O(n) scaling if the input is already sorted. 
-   IF (CP_R_LESS_Q(arr(m+1), arr(m))) THEN
+   IF (CP_I_LESS_Q(arr(m+1), arr(m))) THEN
       ! ...no - let's merge the two sorted sublists arr(:m) and arr(m+1:)
       ! Merge will be performed directly in arr. Need backup of first sublist.
       tmp_arr(1:m) = arr(1:m)
@@ -145,7 +146,7 @@ RECURSIVE SUBROUTINE cp_1d_r_sort_low(arr, indices, tmp_arr, tmp_idx)
       k = 1; ! number of elemens already merged
       
       DO WHILE(i <= m .AND. j <= SIZE(arr)-m )
-      IF (CP_R_LESS_Q(arr(m+j), tmp_arr(i))) THEN
+      IF (CP_I_LESS_Q(arr(m+j), tmp_arr(i))) THEN
          arr(k)     = arr(m+j)
          indices(k) = indices(m+j)
          j = j+1
@@ -170,22 +171,20 @@ RECURSIVE SUBROUTINE cp_1d_r_sort_low(arr, indices, tmp_arr, tmp_idx)
 
    ENDIF
    
-END SUBROUTINE cp_1d_r_sort_low
+END SUBROUTINE dbcsr_1d_i8_sort_low
 
 
   ! template def put here so that line numbers in template and derived
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,lessQ,defines)]
 ! ARGS:
-!  USE = "USE kinds, ONLY: dp"
-!  defaultFormatType1 = ""(es14.6)""
+!  USE = "USE kinds,       ONLY:int_8"
 !  defines = 
-!    "#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )
+!    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
-!  lessQ = "CP_R_LESS_Q"
-!  libname = "cp"
-!  nametype1 = "r"
-!  type1 = "real(kind=dp)"
+!  lessQ = "CP_I_LESS_Q"
+!  nametype1 = "i8"
+!  type1 = "integer(kind=int_8)"
 
 
-END MODULE cp_array_r_sort
+END MODULE dbcsr_array_sort_i8

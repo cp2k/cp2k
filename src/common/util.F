@@ -10,9 +10,9 @@
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE util
-  USE cp_array_i4_sort,                ONLY: cp_1d_i4_sort
-  USE cp_array_i8_sort,                ONLY: cp_1d_i8_sort
-  USE cp_array_r_sort,                 ONLY: cp_1d_r_sort
+  USE cp_array_sort_i4,                ONLY: cp_1d_i4_sort
+  USE cp_array_sort_i8,                ONLY: cp_1d_i8_sort
+  USE cp_array_sort_r,                 ONLY: cp_1d_r_sort
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE

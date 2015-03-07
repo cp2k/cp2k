@@ -45,7 +45,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_3d_r
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
 #include "../common//cp_common_uses.f90"
 
@@ -1021,7 +1021,7 @@ SUBROUTINE cp_sll_3d_r_insert_ordered2(sll,el,compare_function,&
 ! *****************************************************************************
      FUNCTION compare_function(el1,el2)
        USE kinds, ONLY: dp
-USE cp_array_r_utils, ONLY: cp_3d_r_p_type
+USE cp_array_utils_r, ONLY: cp_3d_r_p_type
        INTEGER :: compare_function
        REAL(kind=dp),DIMENSION(:,:,:), POINTER :: el1,el2
      END FUNCTION compare_function
@@ -1090,7 +1090,7 @@ END SUBROUTINE cp_sll_3d_r_insert_ordered2
 !  = = "=>"
 !  USE = 
 !    "USE kinds, only: dp
-!     USE cp_array_r_utils, only: cp_3d_r_p_type"
+!     USE cp_array_utils_r, only: cp_3d_r_p_type"
 !  array= = "=>"
 !  arrayEl = "%array"
 !  common_dir = "../common/"

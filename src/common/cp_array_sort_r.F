@@ -3,7 +3,8 @@
 !   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-[defines]
+#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )
+
 
 ! *****************************************************************************
 !> \brief Routine for sorting an array
@@ -24,17 +25,17 @@
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-MODULE [libname]_array_[nametype1]_sort
+MODULE cp_array_sort_r
    
-  [USE]
-  
+  USE kinds,                           ONLY: dp
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='[libname]_array_[nametype1]_sort'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_sort_r'
 
-  PUBLIC :: [libname]_1d_[nametype1]_sort
+  PUBLIC :: cp_1d_r_sort
   
   CONTAINS
 
@@ -49,35 +50,35 @@ MODULE [libname]_array_[nametype1]_sort
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-subroutine [libname]_1d_[nametype1]_sort(arr, n, indices)
-   [type1], dimension(1:n), intent(inout) :: arr
-   integer, intent(in)                  :: n
-   integer, dimension(1:n), intent(out)   :: indices
-   
-   integer :: i
-   [type1], dimension(:), allocatable :: tmp_arr 
-   integer, dimension(:), allocatable :: tmp_idx
-   integer                            :: stat
-   
-   if(n == 0) return ! for some reason this is a frequent case in cp2k
+SUBROUTINE cp_1d_r_sort(arr, n, indices)
+    INTEGER, INTENT(in)                      :: n
+    REAL(kind=dp), DIMENSION(1:n), &
+      INTENT(inout)                          :: arr
+    INTEGER, DIMENSION(1:n), INTENT(out)     :: indices
+
+    INTEGER                                  :: i, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_idx
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: tmp_arr
+
+   IF(n == 0) RETURN ! for some reason this is a frequent case in cp2k
    
    ! scratch space used during the merge step
-   allocate(tmp_arr((size(arr)+1)/2), tmp_idx((size(arr)+1)/2), stat=stat)
-   if(stat /= 0) STOP "[libname]_1d_[nametype1]_sort: allocation failed"
+   ALLOCATE(tmp_arr((SIZE(arr)+1)/2), tmp_idx((SIZE(arr)+1)/2), stat=stat)
+   IF(stat /= 0) STOP "cp_1d_r_sort: allocation failed"
    
-   indices = (/ (i, i = 1, size(arr)) /)
+   indices = (/ (i, i = 1, SIZE(arr)) /)
    
-   call [libname]_1d_[nametype1]_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
+   CALL cp_1d_r_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
    
-   deallocate(tmp_arr,tmp_idx)
+   DEALLOCATE(tmp_arr,tmp_idx)
    
-end subroutine [libname]_1d_[nametype1]_sort
+END SUBROUTINE cp_1d_r_sort
 
 
 
 ! *****************************************************************************
 !> \brief The actual sort routing. 
-!> 	   Only [libname]_1d_[nametype1]_sort and itself should call this.
+!>            Only cp_1d_r_sort and itself should call this.
 !> \param arr the array to sort
 !> \param indices elements-indices before the sort
 !> \param tmp_arr scratch space
@@ -86,25 +87,32 @@ end subroutine [libname]_1d_[nametype1]_sort
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! *****************************************************************************
-recursive subroutine [libname]_1d_[nametype1]_sort_low(arr, indices, tmp_arr, tmp_idx)
-   [type1], dimension(:), intent(inout) :: arr
-   integer, dimension(size(arr)), intent(inout) :: indices
-   [type1], dimension((size(arr)+1)/2), intent(inout) :: tmp_arr
-   integer, dimension((size(arr)+1)/2), intent(inout) :: tmp_idx
-   [type1] :: a 
-   integer :: t, m, i,j, k 
-   LOGICAL :: swapped
-   ! a,t:  used during swaping of elements in arr and indices
+RECURSIVE SUBROUTINE cp_1d_r_sort_low(arr, indices, tmp_arr, tmp_idx)
+    REAL(kind=dp), DIMENSION(:), &
+      INTENT(inout)                          :: arr
+    INTEGER, DIMENSION(SIZE(arr)), &
+      INTENT(inout)                          :: indices
+    REAL(kind=dp), &
+      DIMENSION((SIZE(arr)+1)/2), &
+      INTENT(inout)                          :: tmp_arr
+    INTEGER, DIMENSION((SIZE(arr)+1)/2), &
+      INTENT(inout)                          :: tmp_idx
+
+    INTEGER                                  :: i, j, k, m, t
+    REAL(kind=dp)                            :: a
+    LOGICAL                                  :: swapped
+
+! a,t:  used during swaping of elements in arr and indices
 
    swapped=.TRUE.
    
    ! If only a few elements are left we switch to bubble-sort for efficiency.
-   if (size(arr) <= 7) then ! 7 seems to be a good choice for the moment
-          DO j = size(arr)-1, 1, -1
+   IF (SIZE(arr) <= 7) THEN ! 7 seems to be a good choice for the moment
+          DO j = SIZE(arr)-1, 1, -1
             swapped = .FALSE.
             DO i = 1, j
-                 IF ([lessQ](arr(i+1), arr(i))) THEN
-                	 ! swap arr(i) with arr(i+1)
+                 IF (CP_R_LESS_Q(arr(i+1), arr(i))) THEN
+                         ! swap arr(i) with arr(i+1)
                         a            = arr(i)
                         arr(i)       = arr(i+1)
                         arr(i+1)     = a
@@ -112,22 +120,22 @@ recursive subroutine [libname]_1d_[nametype1]_sort_low(arr, indices, tmp_arr, tm
                         t            = indices(i)
                         indices(i)   = indices(i+1)
                         indices(i+1) = t
-                        swapped      = .true.
+                        swapped      = .TRUE.
                  END IF
             END DO
         IF (.NOT. swapped) EXIT
         END DO
-      return
-   endif
+      RETURN
+   ENDIF
    
    ! split list in half and recusively sort both sublists
-   m = (size(arr)+1)/2 ! index where we going to divide the list in two
-   call [libname]_1d_[nametype1]_sort_low(arr(1:m), indices(1:m), tmp_arr, tmp_idx)
-   call [libname]_1d_[nametype1]_sort_low(arr(m+1:), indices(m+1:), tmp_arr, tmp_idx)
+   m = (SIZE(arr)+1)/2 ! index where we going to divide the list in two
+   CALL cp_1d_r_sort_low(arr(1:m), indices(1:m), tmp_arr, tmp_idx)
+   CALL cp_1d_r_sort_low(arr(m+1:), indices(m+1:), tmp_arr, tmp_idx)
    
    ! Check for a special case: Can we just concate the two sorted sublists?
    ! This leads to O(n) scaling if the input is already sorted. 
-   if ([lessQ](arr(m+1), arr(m))) then
+   IF (CP_R_LESS_Q(arr(m+1), arr(m))) THEN
       ! ...no - let's merge the two sorted sublists arr(:m) and arr(m+1:)
       ! Merge will be performed directly in arr. Need backup of first sublist.
       tmp_arr(1:m) = arr(1:m)
@@ -136,37 +144,47 @@ recursive subroutine [libname]_1d_[nametype1]_sort_low(arr, indices, tmp_arr, tm
       j = 1; ! number of elemens consumed from 2nd sublist 
       k = 1; ! number of elemens already merged
       
-      do while(i <= m .and. j <= size(arr)-m )
-      if ([lessQ](arr(m+j), tmp_arr(i))) then
+      DO WHILE(i <= m .AND. j <= SIZE(arr)-m )
+      IF (CP_R_LESS_Q(arr(m+j), tmp_arr(i))) THEN
          arr(k)     = arr(m+j)
          indices(k) = indices(m+j)
          j = j+1
-      else
+      ELSE
          arr(k)     = tmp_arr(i)
          indices(k) = tmp_idx(i)
          i = i+1
-      endif
+      ENDIF
       k = k + 1
-      enddo
+      ENDDO
       
       ! One of the two sublist is now empty.
       ! Copy possibly remaining tail of 1st sublist
-      do while (i <= m) 
+      DO WHILE (i <= m) 
          arr(k)     = tmp_arr(i)
          indices(k) = tmp_idx(i)
          i = i + 1
          k = k + 1
-         enddo
+         ENDDO
          
      ! The possibly remaining tail of 2nd sublist is already at the right spot.
 
-   endif
+   ENDIF
    
-end subroutine [libname]_1d_[nametype1]_sort_low
+END SUBROUTINE cp_1d_r_sort_low
 
 
   ! template def put here so that line numbers in template and derived
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,lessQ,defines)]
+! ARGS:
+!  USE = "USE kinds, ONLY: dp"
+!  defaultFormatType1 = ""(es14.6)""
+!  defines = 
+!    "#define CP_R_LESS_Q(el1,el2) ( el1 < el2 )
+!     "
+!  lessQ = "CP_R_LESS_Q"
+!  nametype1 = "r"
+!  type1 = "real(kind=dp)"
 
-END MODULE [libname]_array_[nametype1]_sort
+
+END MODULE cp_array_sort_r

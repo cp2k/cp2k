@@ -13,8 +13,8 @@ MODULE qs_linres_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_array_utils_i,                ONLY: cp_2d_i_p_type
+  USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE kinds,                           ONLY: dp
