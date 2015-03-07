@@ -18,11 +18,33 @@ def main():
     print("Reading "+fn_in)
     content = open(fn_in).read()
 
+    # pass 1: find all records
+    records = dict()
+    curr_record = []
+    curr_fn = None
+    for line in content.split("\n"):
+        curr_record.append(line)
+        if(line.startswith("SF:")):
+            curr_fn = line[3:]
+            #print curr_fn
+        elif(line.startswith("end_of_record")):
+            if(not records.has_key(curr_fn)):
+                records[curr_fn] = list()
+            records[curr_fn] += curr_record
+            curr_record = []
+            curr_fn = None
+
+    # pass 3: sort records
+    content_sorted = []
+    for k in sorted(records.keys()):
+        content_sorted += records[k]
+
+    # pass 4: join records into broadcast groups
     groups = []
     prev_fn = prev_line_nums = None
     curr_fn = curr_line_nums = None
     curr_group = []
-    for line in content.split("\n"):
+    for line in content_sorted:
         curr_group.append(line)
 
         if(line.startswith("SF:")):
@@ -42,12 +64,12 @@ def main():
                 groups.append(curr_group)
             curr_group = [] # start a new group
 
-
     output = []
     for group in groups:
         FNs = dict()
         FNDAs = dict()
         DAs = dict()
+        # pass 5: broadcast coverage stats within groups
         for line in group:
             if(line.startswith("FN:")):
                 lno, name = line[3:].split(",")
@@ -60,6 +82,7 @@ def main():
                 lno, count = line[3:].split(",")
                 DAs[lno] = max(int(count), DAs.get(lno, 0))
 
+        # pass 6: write new records
         for line in group:
             if(line.startswith("FNDA:")):
                 count, name = line[5:].split(",")
@@ -95,7 +118,6 @@ def similar(a, b):
     b_parts = b_base.split("_")
     if(len(a_parts) != len(b_parts)): return(False)
     diffs = len(a_parts) - sum([i==j for i,j in zip(a_parts, b_parts)])
-    assert(diffs > 0) #there has to be a difference
     return(diffs ==  1) # at most one field may differ
 
 
