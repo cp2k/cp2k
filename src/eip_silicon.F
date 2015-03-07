@@ -58,7 +58,6 @@ CONTAINS
 !> \param eip_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param force_env The force environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Literature
 !>      http://www-math.mit.edu/~bazant/EDIP
 !>      M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
@@ -245,7 +244,6 @@ CONTAINS
 !> \param eip_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param force_env The force environment UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par Literature
 !>      T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
 !>                           Modelling Simul. Sci. Eng., 8 (2000)
