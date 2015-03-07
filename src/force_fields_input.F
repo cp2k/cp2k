@@ -1499,10 +1499,6 @@ CPSourceFileRef,&
       CALL section_vals_get(tmp_section,n_repetition=tmp_damp,error=error)
       n_damp=n_damp+tmp_damp
 
-#ifdef DEBUG_DAMPING
-      WRITE(*,*) 'DAMPING DEBUG',isec,tmp_damp
-#endif
-
     END DO
 
     IF (n_damp > 0) THEN
@@ -1510,9 +1506,6 @@ CPSourceFileRef,&
       ALLOCATE (damping_list(1:n_damp),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-#ifdef DEBUG_DAMPING
-    WRITE(*,*) 'DAMPING DEBUG',n_damp
-#endif
 
 ! *** Reads DIPOLE sections *****
     start_damp=0
@@ -1551,17 +1544,6 @@ CPSourceFileRef,&
        start_damp=start_damp+tmp_damp
 
     END DO
-
-#ifdef DEBUG_DAMPING
-    DO start_damp=1,n_damp
-     WRITE(*,*) 'DAMPING DEBUG', TRIM(damping_list(start_damp)%atm_name1),&
-                                 TRIM(damping_list(start_damp)%atm_name2),&
-                                 TRIM(damping_list(start_damp)%dtype),&
-                                 damping_list(start_damp)%order,&
-                                 damping_list(start_damp)%bij,&
-                                 damping_list(start_damp)%cij
-    END DO
-#endif
 
   END SUBROUTINE read_apol_section
 

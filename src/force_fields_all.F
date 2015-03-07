@@ -2415,19 +2415,11 @@ CPSourceFileRef,&
      NULLIFY(damping)
      nkinds=SIZE(atomic_kind_set)
 
-#ifdef DEBUG_DAMPING
-     WRITE(*,*) "DAMPING COUCOU"
-!     CALL timestop(handle2)
-!     RETURN
-#endif
      DO j=1,SIZE(atomic_kind_set)
        atomic_kind=>atomic_kind_set(j)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             name=atm_name1)
        CALL UPPERCASE(atm_name1)
-#ifdef DEBUG_DAMPING
-       WRITE(*,*) "DAMPING in",j,TRIM(atm_name1)
-#endif
        IF (ASSOCIATED(inp_info%damping_list)) THEN
          DO i=1,SIZE(inp_info%damping_list)
            my_atm_name1=inp_info%damping_list(i)%atm_name1
@@ -2435,10 +2427,6 @@ CPSourceFileRef,&
 
            IF (iw>0) WRITE(iw,*) "Damping Checking ::",TRIM(my_atm_name1),&
                                                        TRIM(atm_name1)
-#ifdef DEBUG_DAMPING
-           WRITE(*,*) "DAMPING DEBUG, checking ::",TRIM(my_atm_name1),&
-                                                   TRIM(atm_name1)
-#endif
            IF (my_atm_name1==atm_name1) THEN
               IF (.NOT.ASSOCIATED(damping)) THEN
                  CALL damping_p_create(damping,nkinds,error)
@@ -2452,12 +2440,6 @@ CPSourceFileRef,&
                  CALL UPPERCASE(atm_name2)
 
                  IF (my_atm_name2==atm_name2) THEN
-#ifdef DEBUG_DAMPING
-                   WRITE(*,*) "DAMPING FOUND",TRIM(my_atm_name1),&
-                                              TRIM(atm_name1),&
-                                              TRIM(my_atm_name2),&
-                                              TRIM(atm_name2)
-#endif
                     IF(damping%damp(k)%bij/=HUGE(0.0_dp)) found=.TRUE.
                     CALL issue_duplications(found,routineP, "Damping",&
                        atm_name1,error=error)

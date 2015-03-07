@@ -210,7 +210,7 @@ MODULE physcon
 ! *****************************************************************************
   SUBROUTINE write_physcon(output_unit)
 
-    INTEGER, INTENT(IN) :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit
 
     WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
       "*** Fundamental physical constants (SI units) ***",&
