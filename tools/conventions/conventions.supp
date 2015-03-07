@@ -1,39 +1,7 @@
-sockets.c: Copyright banner malformed
-ewalds_multipole_debug.h: Copyright banner malformed
-t_c_g0.F: Copyright banner malformed
-t_sh_p_s_c.F: Copyright banner malformed
-semi_empirical_int_args.h: Copyright banner malformed
-semi_empirical_int_debug.h: Copyright banner malformed
-f77_int.h: Copyright banner malformed
-fparser.F: Copyright banner malformed
-glob_matching.F: Copyright banner malformed
-xml_parser.F: Copyright banner malformed
-graph_utils.F: Copyright banner malformed
-graph.F: Copyright banner malformed
-graph_methods.F: Copyright banner malformed
-gopt_f77_methods.h: Copyright banner malformed
-xc_f90_lib_m.F: Copyright banner malformed
-xc_f90_types_m.F: Copyright banner malformed
-Flag ACCURATE_SUMS not mentioned in INSTALL
-Flag ACCURATE_SUMS not mentioned in cp2k_flags()
-Flag CL_VERSION_1_1 not mentioned in INSTALL
-Flag CL_VERSION_1_1 not mentioned in cp2k_flags()
-Flag CL_VERSION_1_2 not mentioned in INSTALL
-Flag CL_VERSION_1_2 not mentioned in cp2k_flags()
-Flag CODATA_VERSION not mentioned in INSTALL
-Flag CODATA_VERSION not mentioned in cp2k_flags()
-Flag CP_PREP_GLOBALS_H not mentioned in INSTALL
-Flag CP_PREP_GLOBALS_H not mentioned in cp2k_flags()
 Flag DAMPING not mentioned in INSTALL
 Flag DAMPING not mentioned in cp2k_flags()
-Flag DEBUG_DAMPING not mentioned in INSTALL
-Flag DEBUG_DAMPING not mentioned in cp2k_flags()
 Flag FD_DEBUG not mentioned in INSTALL
 Flag FD_DEBUG not mentioned in cp2k_flags()
-Flag FD_LONG_EXPANSIONS not mentioned in INSTALL
-Flag FD_LONG_EXPANSIONS not mentioned in cp2k_flags()
-Flag FFT_CUDA_UTILS_H not mentioned in INSTALL
-Flag FFT_CUDA_UTILS_H not mentioned in cp2k_flags()
 Flag FLUSH_OPT not mentioned in INSTALL
 Flag FLUSH_OPT not mentioned in cp2k_flags()
 Flag FMG_INTEGRATE not mentioned in INSTALL
@@ -42,10 +10,6 @@ Flag FMG_INTEGRATE_FULL not mentioned in INSTALL
 Flag FMG_INTEGRATE_FULL not mentioned in cp2k_flags()
 Flag FM_FLAT_GRID not mentioned in INSTALL
 Flag FM_FLAT_GRID not mentioned in cp2k_flags()
-Flag LOWER_TO_UPPER not mentioned in INSTALL
-Flag LOWER_TO_UPPER not mentioned in cp2k_flags()
-Flag ORIGINAL_RAY_DISTRIBUTION not mentioned in INSTALL
-Flag ORIGINAL_RAY_DISTRIBUTION not mentioned in cp2k_flags()
 Flag PARAMS_IN_SMEM_OPT not mentioned in INSTALL
 Flag PARAMS_IN_SMEM_OPT not mentioned in cp2k_flags()
 Flag PURE_COULOMB not mentioned in INSTALL
@@ -64,28 +28,12 @@ Flag STORE_FORCES not mentioned in INSTALL
 Flag STORE_FORCES not mentioned in cp2k_flags()
 Flag USE_NATIVE_64 not mentioned in INSTALL
 Flag USE_NATIVE_64 not mentioned in cp2k_flags()
-Flag _GNU_SOURCE not mentioned in INSTALL
-Flag _GNU_SOURCE not mentioned in cp2k_flags()
-Flag _OPENMP not mentioned in INSTALL
-Flag _OPENMP not mentioned in cp2k_flags()
 Flag _USE_GA not mentioned in cp2k_flags()
 Flag __ACC not mentioned in INSTALL
-Flag __COMPILE_ARCH not mentioned in INSTALL
-Flag __COMPILE_ARCH not mentioned in cp2k_flags()
-Flag __COMPILE_DATE not mentioned in INSTALL
-Flag __COMPILE_DATE not mentioned in cp2k_flags()
-Flag __COMPILE_HOST not mentioned in INSTALL
-Flag __COMPILE_HOST not mentioned in cp2k_flags()
-Flag __COMPILE_REVISION not mentioned in INSTALL
-Flag __COMPILE_REVISION not mentioned in cp2k_flags()
 Flag __CRAY_PM_ACCEL_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL
-Flag __CUBLASDP not mentioned in INSTALL
-Flag __CUDA_ARCH__ not mentioned in INSTALL
-Flag __CUDA_ARCH__ not mentioned in cp2k_flags()
 Flag __DATA_DIR not mentioned in cp2k_flags()
-Flag __DEBUG_HWTOPO not mentioned in INSTALL
 Flag __FFTW3_UNALIGNED not mentioned in cp2k_flags()
 Flag __GRID_CORE not mentioned in cp2k_flags()
 Flag __HAS_smm_cnt not mentioned in INSTALL
@@ -100,72 +48,28 @@ Flag __HAS_smm_stt not mentioned in INSTALL
 Flag __HAS_smm_znt not mentioned in INSTALL
 Flag __HAS_smm_ztn not mentioned in INSTALL
 Flag __HAS_smm_ztt not mentioned in INSTALL
-Flag __INTEL_COMPILER not mentioned in cp2k_flags()
 Flag __LIBDERIV_MAX_AM1 not mentioned in INSTALL
 Flag __LIBINT_MAX_AM not mentioned in INSTALL
 Flag __LINUMA not mentioned in INSTALL
 Flag __MAX_CONTR not mentioned in INSTALL
-Flag __MA_COMPONENTS_H not mentioned in INSTALL
-Flag __MA_COMPONENTS_H not mentioned in cp2k_flags()
-Flag __MA_LINUX_H not mentioned in INSTALL
-Flag __MA_LINUX_H not mentioned in cp2k_flags()
-Flag __MA_TOPOLOGY_H not mentioned in INSTALL
-Flag __MA_TOPOLOGY_H not mentioned in cp2k_flags()
 Flag __MKL not mentioned in cp2k_flags()
-Flag __OPENCL not mentioned in INSTALL
-Flag __OPENCL not mentioned in cp2k_flags()
-Flag __OPENCL_VERSION__ not mentioned in INSTALL
-Flag __OPENCL_VERSION__ not mentioned in cp2k_flags()
 Flag __PILAENV_BLOCKSIZE not mentioned in cp2k_flags()
-Flag __PLUMED_CP2K not mentioned in INSTALL
 Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL
 Flag __QUIP not mentioned in INSTALL
 Flag __RELEASE_VERSION not mentioned in INSTALL
 Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL
-Flag __SCALAPACK2 not mentioned in cp2k_flags()
-Flag __SHORT_FILE__ not mentioned in INSTALL
-Flag __SHORT_FILE__ not mentioned in cp2k_flags()
 Flag __STATM_RESIDENT not mentioned in INSTALL
 Flag __STATM_TOTAL not mentioned in INSTALL
-Flag __cplusplus not mentioned in INSTALL
-Flag __cplusplus not mentioned in cp2k_flags()
-Flag cl_amd_printf not mentioned in INSTALL
-Flag cl_amd_printf not mentioned in cp2k_flags()
-Flag cl_intel_printf not mentioned in INSTALL
-Flag cl_intel_printf not mentioned in cp2k_flags()
-Flag cl_khr_fp64 not mentioned in INSTALL
-Flag cl_khr_fp64 not mentioned in cp2k_flags()
-Flag cl_khr_int64_base_atomics not mentioned in INSTALL
-Flag cl_khr_int64_base_atomics not mentioned in cp2k_flags()
-Flag cl_nv_compiler_options not mentioned in INSTALL
-Flag cl_nv_compiler_options not mentioned in cp2k_flags()
-admm_methods.F: Unused dummy argument 'matrix_s_aux_fit' at (1)
-admm_methods.F: Unused dummy argument 'matrix_s_mixed' at (1)
-admm_methods.F: Unused dummy argument 'mo_coeff' at (1)
-admm_methods.F: Unused dummy argument 'mo_coeff_aux_fit' at (1)
-admm_methods.F: Unused dummy argument 'mo_derivs_aux_fit' at (1)
-admm_methods.F: Unused dummy argument 'mos_aux_fit' at (1)
-admm_methods.F: Unused dummy argument 'para_env' at (1)
 ai_overlap3.F: Unused dummy argument 'npgfc' at (1)
 al_system_init.F: Unused dummy argument 'temp_ext' at (1)
 almo_scf.F: Unused dummy argument 'qs_env' at (1)
 almo_scf.F: Unused dummy argument 'unit_nr' at (1)
 almo_scf_diis_types.F: Unused dummy argument 'sample_var' at (1)
 almo_scf_methods.F: Unused dummy argument 'matrix_nn' at (1)
-almo_scf_optimizer.F: Unused dummy argument 'qs_env' at (1)
-atom.F: Unused dummy argument 'iw' at (1)
-atom_fit.F: Unused dummy argument 'iw' at (1)
-atom_fit.F: Unused dummy argument 'pseudo_section' at (1)
 atom_output.F: Routine XC_F90_VERSION called with an implicit interface.
-atomic_charges.F: Unused dummy argument 'title' at (1)
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
-beta_gamma_psi.F: Found GOTO statement in procedure "brcomp"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
-bfgs_optimizer.F: Unused dummy argument 'ndf' at (1)
-bfgs_optimizer.F: Unused dummy argument 'nfree' at (1)
-bsse.F: Unused dummy argument 'num_of_conf' at (1)
-c_int_low.F: Unused parameter 'dp' which has been explicitly imported at (1)
 call_collocate.f90: Routine COLLOCATE_CORE_0 called with an implicit interface.
 call_collocate.f90: Routine COLLOCATE_CORE_1 called with an implicit interface.
 call_collocate.f90: Routine COLLOCATE_CORE_2 called with an implicit interface.
@@ -188,18 +92,12 @@ call_collocate_omp.f90: Routine COLLOCATE_CORE_7 called with an implicit interfa
 call_collocate_omp.f90: Routine COLLOCATE_CORE_8 called with an implicit interface.
 call_collocate_omp.f90: Routine COLLOCATE_CORE_9 called with an implicit interface.
 call_collocate_omp.f90: Routine COLLOCATE_CORE_DEFAULT called with an implicit interface.
-cg_utils.F: Unused dummy argument 'brent_max_iter' at (1)
-cg_utils.F: Unused dummy argument 'brent_tol' at (1)
-cg_utils.F: Unused dummy argument 'gopt_param' at (1)
-colvar_methods.F: Unused dummy argument 'subsys' at (1)
 core_ppl.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 core_ppl.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 core_ppnl.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 core_ppnl.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 cp2k_shell.F: Found GOTO statement in procedure "cp2k_shell"
 cp2k_shell.F: Found OPEN statement in procedure "get_eof_stat"
-cp_cfm_basic_linalg.F: Unused parameter 'one' declared at (1)
-cp_cfm_basic_linalg.F: Unused parameter 'zero' declared at (1)
 cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRI called with an implicit interface.
@@ -211,10 +109,6 @@ cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
-cp_dbcsr_interface.F: Unused parameter 'r' declared at (1)
-cp_dbcsr_operations.F: Unused dummy argument 'alpha' at (1)
-cp_dbcsr_operations.F: Unused dummy argument 'keep_sparsity' at (1)
-cp_dbcsr_operations.F: Unused dummy argument 'threshold' at (1)
 cp_ddapc.F: Unused dummy argument 'energy' at (1)
 cp_ddapc.F: Unused dummy argument 'ks_env' at (1)
 cp_ddapc.F: Unused dummy argument 'section_id' at (1)
@@ -222,70 +116,14 @@ cp_ddapc_forces.F: Unused dummy argument 'cell' at (1)
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Unused dummy argument 'correct_sign' at (1)
-cp_fm_basic_linalg.F: Unused parameter 'one' declared at (1)
-cp_fm_basic_linalg.F: Unused parameter 'rone' declared at (1)
-cp_fm_basic_linalg.F: Unused parameter 'rzero' declared at (1)
-cp_fm_basic_linalg.F: Unused parameter 'zero' declared at (1)
-cp_fm_diag.F: Unused parameter 'orfac' declared at (1)
 cp_fm_diag.F: Unused parameter 'vl' declared at (1)
 cp_fm_diag.F: Unused parameter 'vu' declared at (1)
-cp_lbfgs.F: Unused parameter 'one' declared at (1)
-cp_lbfgs_optimizer_gopt.F: Unused dummy argument 'max_f_per_iter' at (1)
 cp_ma_interface.F: Unused dummy argument 'para_env' at (1)
 cp_subsys_methods.F: Unused dummy argument 'cell' at (1)
 ct_methods.F: Unused dummy argument 'level' at (1)
-ct_methods.F: Unused dummy argument 'p_index_down' at (1)
-ct_methods.F: Unused dummy argument 'qp' at (1)
-ct_methods.F: Unused dummy argument 'res' at (1)
 ct_methods.F: Unused dummy argument 'tensor_type' at (1)
 ct_types.F: Unused dummy argument 'matrix_x' at (1)
 cuda_profiling.F: Unused dummy argument 'routinen' at (1)
-d3_poly.F: Unused parameter 'size_p2' declared at (1)
-dbcsr_block_access.F: Unused dummy argument 'buffer_tr' at (1)
-dbcsr_block_access.F: Unused dummy argument 'col' at (1)
-dbcsr_block_access.F: Unused dummy argument 'contiguous_pointers' at (1)
-dbcsr_block_access.F: Unused dummy argument 'read_only' at (1)
-dbcsr_block_access.F: Unused dummy argument 'row' at (1)
-dbcsr_block_access_c.f90: Unused dummy argument 'buffer_tr' at (1)
-dbcsr_block_access_c.f90: Unused dummy argument 'col' at (1)
-dbcsr_block_access_c.f90: Unused dummy argument 'contiguous_pointers' at (1)
-dbcsr_block_access_c.f90: Unused dummy argument 'main_tr' at (1)
-dbcsr_block_access_c.f90: Unused dummy argument 'read_only' at (1)
-dbcsr_block_access_c.f90: Unused dummy argument 'row' at (1)
-dbcsr_block_access_d.f90: Unused dummy argument 'buffer_tr' at (1)
-dbcsr_block_access_d.f90: Unused dummy argument 'col' at (1)
-dbcsr_block_access_d.f90: Unused dummy argument 'contiguous_pointers' at (1)
-dbcsr_block_access_d.f90: Unused dummy argument 'main_tr' at (1)
-dbcsr_block_access_d.f90: Unused dummy argument 'read_only' at (1)
-dbcsr_block_access_d.f90: Unused dummy argument 'row' at (1)
-dbcsr_block_access_s.f90: Unused dummy argument 'buffer_tr' at (1)
-dbcsr_block_access_s.f90: Unused dummy argument 'col' at (1)
-dbcsr_block_access_s.f90: Unused dummy argument 'contiguous_pointers' at (1)
-dbcsr_block_access_s.f90: Unused dummy argument 'main_tr' at (1)
-dbcsr_block_access_s.f90: Unused dummy argument 'read_only' at (1)
-dbcsr_block_access_s.f90: Unused dummy argument 'row' at (1)
-dbcsr_block_access_z.f90: Unused dummy argument 'buffer_tr' at (1)
-dbcsr_block_access_z.f90: Unused dummy argument 'col' at (1)
-dbcsr_block_access_z.f90: Unused dummy argument 'contiguous_pointers' at (1)
-dbcsr_block_access_z.f90: Unused dummy argument 'main_tr' at (1)
-dbcsr_block_access_z.f90: Unused dummy argument 'read_only' at (1)
-dbcsr_block_access_z.f90: Unused dummy argument 'row' at (1)
-dbcsr_block_operations_c.f90: Unused dummy argument 'dst_cs' at (1)
-dbcsr_block_operations_c.f90: Unused dummy argument 'dst_rs' at (1)
-dbcsr_block_operations_c.f90: Unused dummy argument 'src_cs' at (1)
-dbcsr_block_operations_c.f90: Unused dummy argument 'src_rs' at (1)
-dbcsr_block_operations_d.f90: Unused dummy argument 'dst_cs' at (1)
-dbcsr_block_operations_d.f90: Unused dummy argument 'dst_rs' at (1)
-dbcsr_block_operations_d.f90: Unused dummy argument 'src_cs' at (1)
-dbcsr_block_operations_d.f90: Unused dummy argument 'src_rs' at (1)
-dbcsr_block_operations_s.f90: Unused dummy argument 'dst_cs' at (1)
-dbcsr_block_operations_s.f90: Unused dummy argument 'dst_rs' at (1)
-dbcsr_block_operations_s.f90: Unused dummy argument 'src_cs' at (1)
-dbcsr_block_operations_s.f90: Unused dummy argument 'src_rs' at (1)
-dbcsr_block_operations_z.f90: Unused dummy argument 'dst_cs' at (1)
-dbcsr_block_operations_z.f90: Unused dummy argument 'dst_rs' at (1)
-dbcsr_block_operations_z.f90: Unused dummy argument 'src_cs' at (1)
-dbcsr_block_operations_z.f90: Unused dummy argument 'src_rs' at (1)
 dbcsr_data_methods_low_c.f90: Unused dummy argument 'coersion' at (1)
 dbcsr_data_methods_low_d.f90: Unused dummy argument 'coersion' at (1)
 dbcsr_data_methods_low_s.f90: Unused dummy argument 'coersion' at (1)
@@ -326,13 +164,6 @@ dbcsr_mm_hostdrv_z.f90: Unused dummy argument 'stack_descr' at (1)
 dbcsr_mm_multrec.F: Unused parameter 'careful' declared at (1)
 dbcsr_mm_multrec.F: Unused parameter 'dbg' declared at (1)
 dbcsr_mm_sched.F: Unused dummy argument 'this' at (1)
-dbcsr_operations.F: Unused dummy argument 'a3' at (1)
-dbcsr_operations.F: Unused dummy argument 'a4' at (1)
-dbcsr_operations.F: Unused dummy argument 'a5' at (1)
-dbcsr_operations.F: Unused dummy argument 'a6' at (1)
-dbcsr_operations.F: Unused dummy argument 'a7' at (1)
-dbcsr_operations.F: Unused dummy argument 'a8' at (1)
-dbcsr_operations.F: Unused dummy argument 'a9' at (1)
 dbcsr_operations.F: Unused dummy argument 'name' at (1)
 dbcsr_test_add.F: Unused parameter 'fmt_desc' declared at (1)
 dbcsr_test_add.F: Unused parameter 'trans' declared at (1)
@@ -350,17 +181,14 @@ dbcsr_work_operations.F: Unused dummy argument 'data_starting_offset' at (1)
 dbcsr_work_operations.F: Unused dummy argument 'reuse' at (1)
 dbcsr_work_operations.F: Unused parameter 'index_blocks' declared at (1)
 dbcsr_work_operations.F: Unused parameter 'index_data' declared at (1)
-dct.F: Unused dummy argument 'dests_expand' at (1)
 dgs.F: Unused dummy argument 'grid_b' at (1)
 dgs.F: Unused dummy argument 'npts' at (1)
-dirichlet_bc_methods.F: Unused dummy argument 'pw_pool' at (1)
 dkh_main.F: Unused dummy argument 'aa' at (1)
 dkh_main.F: Unused dummy argument 'e' at (1)
 dkh_main.F: Unused dummy argument 'n' at (1)
 dkh_main.F: Unused dummy argument 'rr' at (1)
 dkh_main.F: Unused dummy argument 'tt' at (1)
 dm_ls_scf.F: Unused dummy argument 'ls_scf_env' at (1)
-dm_ls_scf_curvy.F: Unused dummy argument 'unit_nr' at (1)
 eip_environment.F: Unused dummy argument 'use_motion_section' at (1)
 eip_silicon.F: Found GOTO statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found GOTO statement in procedure "eip_lenosky_silicon"
@@ -371,7 +199,8 @@ environment.F: Unused parameter 'start_section_label' declared at (1)
 erf_fn.F: Found GOTO statement in procedure "calerf"
 ewalds.F: Unused dummy argument 'cell' at (1)
 ewalds_multipole_debug.F: Unused dummy argument 'particle_set' at (1)
-f77_int_low.F: Unused parameter 'dp' which has been explicitly imported at (1)
+ewalds_multipole_debug.h: Copyright banner malformed
+f77_int.h: Copyright banner malformed
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
 fft_lib.F: Unused parameter 'dp' which has been explicitly imported at (1)
@@ -426,6 +255,7 @@ force_fields_input.F: Unused dummy argument 'at2' at (1)
 force_fields_input.F: Unused dummy argument 'ftd' at (1)
 force_fields_input.F: Unused dummy argument 'mm_section' at (1)
 force_fields_input.F: Unused dummy argument 'para_env' at (1)
+fparser.F: Copyright banner malformed
 ga_environment_types.F: Unused dummy argument 'g_atoms' at (1)
 ga_environment_types.F: Unused dummy argument 'g_cellnum' at (1)
 ga_environment_types.F: Unused dummy argument 'g_cnt' at (1)
@@ -451,8 +281,13 @@ glbopt_history.F: Unused dummy argument 'history' at (1)
 glbopt_master.F: Unused dummy argument 'input_path' at (1)
 glbopt_master.F: Unused dummy argument 'iw' at (1)
 gle_system_dynamics.F: Unused dummy argument 'particle_set' at (1)
+glob_matching.F: Copyright banner malformed
+gopt_f77_methods.h: Copyright banner malformed
 gopt_f_methods.F: Unused dummy argument 'ediff' at (1)
+graph.F: Copyright banner malformed
+graph_methods.F: Copyright banner malformed
 graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
+graph_utils.F: Copyright banner malformed
 graphcon.F: Found GOTO statement in procedure "all_permutations"
 hartree_local_methods.F: Unused dummy argument 'iatom' at (1)
 helium_methods.F: Unused dummy argument 'pint_env' at (1)
@@ -465,19 +300,15 @@ hfx_energy_potential.F: Routine OMP_GET_THREAD_NUM called with an implicit inter
 hfx_energy_potential.F: Unused dummy argument 'anti_symmetric' at (1)
 hfx_types.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 input_cp2k_restarts.F: Unused dummy argument 'motion_section' at (1)
-integrator.F: Unused parameter 'box_change' declared at (1)
 k290.F: Found GOTO statement in procedure "mesh"
 k290.F: Found GOTO statement in procedure "sppt2"
 k290.F: Unused dummy argument 'iout' at (1)
 k290.F: Unused dummy argument 'nsp' at (1)
-k290.F: Unused parameter 'yes' declared at (1)
 kg_tnadd_mat.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 kg_tnadd_mat.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
-kpoint_types.F: Unused dummy argument 'sab_nl' at (1)
 library_tests.F: Routine PILAENV called with an implicit interface.
 library_tests.F: Unused dummy argument 'blacs_grid_layout' at (1)
 library_tests.F: Unused dummy argument 'blacs_repeatable' at (1)
-lri_environment_methods.F: Unused dummy argument 'qs_env' at (1)
 lri_environment_types.F: Unused dummy argument 'atomic_kind_set' at (1)
 lri_ks_methods.F: Unused dummy argument 'para_env' at (1)
 lri_optimize_ri_basis.F: Unused dummy argument 'lri_env' at (1)
@@ -627,7 +458,6 @@ preconditioner_makes.F: Unused dummy argument 'solver_type' at (1)
 preconditioner_makes.F: Unused parameter 'eval_shift' declared at (1)
 preconditioner_makes.F: Unused parameter 'fudge_factor' declared at (1)
 preconditioner_solvers.F: Unused dummy argument 'matrix_s' at (1)
-ps_implicit_methods.F: Unused dummy argument 'ps_implicit_env' at (1)
 ps_wavelet_base.F: Unused dummy argument 'hgrid' at (1)
 ps_wavelet_base.F: Unused dummy argument 'hx' at (1)
 ps_wavelet_base.F: Unused dummy argument 'hy' at (1)
@@ -655,7 +485,6 @@ ps_wavelet_util.F: Unused dummy argument 'nxcr' at (1)
 ps_wavelet_util.F: Unused dummy argument 'nxt' at (1)
 ps_wavelet_util.F: Unused parameter 'nordgr' declared at (1)
 pw_env_methods.F: Unused parameter 'safety_factor' declared at (1)
-pw_poisson_types.F: Unused parameter 'nr' declared at (1)
 pw_spline_utils.F: Unused parameter 'w_border' declared at (1)
 qmmm_elpot.F: Unused parameter 'd2x' declared at (1)
 qmmm_force_mixing.F: Unused dummy argument 'breakable_bonds' at (1)
@@ -679,24 +508,12 @@ qmmm_se_forces.F: Unused dummy argument 'num_mm_atoms' at (1)
 qs_collocate_density.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 qs_collocate_density.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 qs_collocate_density.F: Unused dummy argument 'lri_env' at (1)
-qs_collocate_density.F: Unused parameter 'add_tasks' declared at (1)
-qs_collocate_density.F: Unused parameter 'max_tasks' declared at (1)
-qs_collocate_density.F: Unused parameter 'mult_tasks' declared at (1)
 qs_collocate_density.F: ‘atomic_kind_set.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
 qs_collocate_density.F: ‘atomic_kind_set.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
-qs_dftb_matrices.F: Unused dummy argument 'qmmm_env' at (1)
-qs_dispersion_nonloc.F: Unused dummy argument 'cell' at (1)
-qs_dispersion_nonloc.F: Unused dummy argument 'nl_section' at (1)
-qs_efield_berry.F: Unused dummy argument 'iatom' at (1)
-qs_efield_berry.F: Unused dummy argument 'jatom' at (1)
 qs_efield_berry.F: Unused dummy argument 'ks_env' at (1)
 qs_electric_field_gradient.F: Unused dummy argument 'grid_atom' at (1)
-qs_environment.F: Unused dummy argument 'atomic_kind_set' at (1)
 qs_environment_types.F: Unused dummy argument 'kinetic' at (1)
 qs_fb_com_tasks_types.F: Unused dummy argument 'dbcsr_matrix' at (1)
-qs_force.F: Unused dummy argument 'globenv' at (1)
-qs_harmonics_atom.F: Unused dummy argument 'azi' at (1)
-qs_harmonics_atom.F: Unused dummy argument 'cos_azi' at (1)
 qs_harmonics_atom.F: Unused dummy argument 'my_cg' at (1)
 qs_initial_guess.F: Unused dummy argument 'ispin' at (1)
 qs_integrate_potential_low.F: Routine CALL_TO_XYZ_TO_VAB called with an implicit interface.
@@ -713,45 +530,22 @@ qs_integrate_potential_low.F: Routine INTEGRATE_CORE_9 called with an implicit i
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
 qs_integrate_potential_product.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 qs_integrate_potential_product.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
-qs_integrate_potential_product.F: Unused parameter 'add_tasks' declared at (1)
-qs_integrate_potential_product.F: Unused parameter 'max_tasks' declared at (1)
-qs_integrate_potential_product.F: Unused parameter 'mult_tasks' declared at (1)
 qs_kpp1_env_methods.F: Unused dummy argument 'kpp1_env' at (1)
-qs_ks_atom.F: Unused dummy argument 'coc' at (1)
-qs_ks_atom.F: Unused dummy argument 'dista' at (1)
-qs_ks_atom.F: Unused dummy argument 'distb' at (1)
-qs_ks_atom.F: Unused dummy argument 'lpc' at (1)
-qs_ks_utils.F: Unused dummy argument 'ks_env' at (1)
-qs_ks_utils.F: Unused dummy argument 'rho_xc' at (1)
-qs_linres_current.F: Unused parameter 'add_tasks' declared at (1)
-qs_linres_current.F: Unused parameter 'mult_tasks' declared at (1)
 qs_linres_op.F: Routine INDXL2G called with an implicit interface.
 qs_loc_methods.F: Unused dummy argument 'loc_section' at (1)
 qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_localization_methods.F: Routine PZROT called with an implicit interface.
-qs_localization_methods.F: Unused dummy argument 'out_each' at (1)
-qs_localization_methods.F: Unused parameter 'grad_thresh' declared at (1)
-qs_localization_methods.F: Unused parameter 'thresh' declared at (1)
 qs_mo_io.F: Unused dummy argument 'atomic_kind_set' at (1)
 qs_oce_types.F: Unused dummy argument 'natom' at (1)
 qs_oce_types.F: Unused dummy argument 'ndim' at (1)
 qs_ot.F: Unused parameter 'ci' declared at (1)
-qs_ot.F: Unused parameter 'rone' declared at (1)
-qs_ot.F: Unused parameter 'rzero' declared at (1)
 qs_resp.F: Unused dummy argument 'input' at (1)
 qs_resp.F: Unused dummy argument 'particle_set' at (1)
 qs_scf_block_davidson.F: Unused dummy argument 'matrix_sc' at (1)
-qs_scf_diagonalization.F: Unused dummy argument 'scf_section' at (1)
-qs_scf_diagonalization.F: Unused parameter 'rone' declared at (1)
-qs_scf_diagonalization.F: Unused parameter 'rzero' declared at (1)
-qs_scf_initialization.F: Unused dummy argument 'dft_control' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'do_kpoints' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'energy_only' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'scf_control' at (1)
 qs_scf_output.F: Unused dummy argument 'last' at (1)
-qs_scf_post_gpw.F: Unused parameter 'elfeps' declared at (1)
-qs_scf_post_se.F: Unused dummy argument 'dft_section' at (1)
-qs_scf_post_se.F: Unused dummy argument 'matrix_s' at (1)
 qs_vxc_atom.F: Unused dummy argument 'drho_h' at (1)
 qs_vxc_atom.F: Unused dummy argument 'drho_s' at (1)
 realspace_grid_types.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
@@ -796,9 +590,12 @@ se_ga_tools.F: Unused dummy argument 'max_rows' at (1)
 se_ga_tools.F: Unused dummy argument 'qs_env' at (1)
 semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_int3_utils.F: Unused dummy argument 'r' at (1)
+semi_empirical_int_args.h: Copyright banner malformed
 semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
+semi_empirical_int_debug.h: Copyright banner malformed
 semi_empirical_int_gks.F: Unused dummy argument 'se_taper' at (1)
 semi_empirical_int_utils.F: Routine EVAL called with an implicit interface.
+sockets.c: Copyright banner malformed
 statistical_methods.F: Unused parameter 'bf1' declared at (1)
 statistical_methods.F: Unused parameter 'c7' declared at (1)
 statistical_methods.F: Unused parameter 'c8' declared at (1)
@@ -811,36 +608,14 @@ statistical_methods.F: Unused parameter 'z95' declared at (1)
 statistical_methods.F: Unused parameter 'z99' declared at (1)
 statistical_methods.F: Unused parameter 'zm' declared at (1)
 statistical_methods.F: Unused parameter 'zss' declared at (1)
-structure_factors.F: Unused dummy argument 'npts' at (1)
-surface_dipole.F: Unused dummy argument 'ks_env' at (1)
-swarm.F: Unused dummy argument 'n_workers' at (1)
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master"
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize"
-tamc_run.F: Unused dummy argument 'input_file_name' at (1)
-tamc_run.F: Unused dummy argument 'iter' at (1)
-tamc_run.F: Unused dummy argument 'logger' at (1)
-tamc_run.F: Unused dummy argument 'mcsec' at (1)
-tamc_run.F: Unused dummy argument 'mdenv' at (1)
-tamc_run.F: Unused dummy argument 'simpar' at (1)
+t_c_g0.F: Copyright banner malformed
+t_sh_p_s_c.F: Copyright banner malformed
 task_list_methods.F: Unused dummy argument 'cell' at (1)
-task_list_methods.F: Unused parameter 'add_tasks' declared at (1)
-task_list_methods.F: Unused parameter 'mult_tasks' declared at (1)
 termination.F: Unused dummy argument 'line_number' at (1)
-thermostat_mapping.F: Unused dummy argument 'para_env' at (1)
-thermostat_mapping.F: Unused dummy argument 'region' at (1)
-thermostat_mapping.F: Unused dummy argument 'sum_of_thermostats' at (1)
 thermostat_utils.F: Unused dummy argument 'cell' at (1)
-thermostat_utils.F: Unused dummy argument 'local_molecules' at (1)
-thermostat_utils.F: Unused dummy argument 'molecules' at (1)
-tmc_analysis.F: Unused parameter 'fmt_my' declared at (1)
-tmc_analysis.F: Unused parameter 'plabel' declared at (1)
-tmc_calculations.F: Unused dummy argument 'n' at (1)
-tmc_file_io.F: Unused dummy argument 'accepted' at (1)
 tmc_messages.F: Unused dummy argument 'msg_type' at (1)
-tmc_moves.F: Unused dummy argument 'last_acc_elem' at (1)
-tmc_tree_build.F: Unused dummy argument 'tmc_params' at (1)
-wannier_states.F: Unused dummy argument 'molecule_set' at (1)
-xas_methods.F: Found GOTO statement in procedure "xas"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
@@ -850,6 +625,8 @@ xc_atom.F: Unused dummy argument 'needs' at (1)
 xc_b97.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_b97.F: Unused parameter 'small' declared at (1)
 xc_exchange_gga.F: Unused dummy argument 'grho' at (1)
+xc_f90_lib_m.F: Copyright banner malformed
+xc_f90_types_m.F: Copyright banner malformed
 xc_hcth.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_ke_gga.F: Unused dummy argument 'grho' at (1)
 xc_libxc.F: Unused dummy argument 'epsilon_norm_drho' at (1)
@@ -918,13 +695,9 @@ xc_xlda_hole_t_c_lr.F: Unused dummy argument 'xlda_params' at (1)
 xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'ndrho' at (1)
 xc_xwpbe.F: Unused dummy argument 'epsilon_norm_drho' at (1)
+xml_parser.F: Copyright banner malformed
 xml_parser.F: Found CLOSE statement in procedure "xml_close"
 xml_parser.F: Found OPEN statement in procedure "xml_open"
-xml_parser.F: Unused dummy argument 'attribs' at (1)
-xml_parser.F: Unused dummy argument 'data' at (1)
-xml_parser.F: Unused dummy argument 'no_attribs' at (1)
-xml_parser.F: Unused dummy argument 'no_data' at (1)
-xml_parser.F: Unused parameter 'indent' declared at (1)
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_0_0 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_0_1 called with an implicit interface.
