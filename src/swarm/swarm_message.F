@@ -43,10 +43,10 @@ MODULE swarm_message
    INTEGER(KIND=int_8),                 POINTER     :: value_i8    => Null()
    REAL(KIND=real_4),                   POINTER     :: value_r4    => Null()
    REAL(KIND=real_8),                   POINTER     :: value_r8    => Null()
-   INTEGER(KIND=int_4), DIMENSION(:),   POINTER     :: value_i4_1d => Null()
-   INTEGER(KIND=int_8), DIMENSION(:),   POINTER     :: value_i8_1d => Null()
-   REAL(KIND=real_4),   DIMENSION(:),   POINTER     :: value_r4_1d => Null()
-   REAL(KIND=real_8),   DIMENSION(:),   POINTER     :: value_r8_1d => Null()
+   INTEGER(KIND=int_4), DIMENSION(:),   POINTER     :: value_1d_i4 => Null()
+   INTEGER(KIND=int_8), DIMENSION(:),   POINTER     :: value_1d_i8 => Null()
+   REAL(KIND=real_4),   DIMENSION(:),   POINTER     :: value_1d_r4 => Null()
+   REAL(KIND=real_8),   DIMENSION(:),   POINTER     :: value_1d_r8 => Null()
  END TYPE message_entry_type
 
 
@@ -58,8 +58,8 @@ MODULE swarm_message
     MODULE PROCEDURE swarm_message_add_str
     MODULE PROCEDURE swarm_message_add_i4,    swarm_message_add_i8
     MODULE PROCEDURE swarm_message_add_r4,    swarm_message_add_r8
-    MODULE PROCEDURE swarm_message_add_i4_1d, swarm_message_add_i8_1d
-    MODULE PROCEDURE swarm_message_add_r4_1d, swarm_message_add_r8_1d
+    MODULE PROCEDURE swarm_message_add_1d_i4, swarm_message_add_1d_i8
+    MODULE PROCEDURE swarm_message_add_1d_r4, swarm_message_add_1d_r8
  END INTERFACE swarm_message_add
 
 
@@ -71,8 +71,8 @@ MODULE swarm_message
     MODULE PROCEDURE swarm_message_get_str
     MODULE PROCEDURE swarm_message_get_i4,    swarm_message_get_i8
     MODULE PROCEDURE swarm_message_get_r4,    swarm_message_get_r8
-    MODULE PROCEDURE swarm_message_get_i4_1d, swarm_message_get_i8_1d
-    MODULE PROCEDURE swarm_message_get_r4_1d, swarm_message_get_r8_1d
+    MODULE PROCEDURE swarm_message_get_1d_i4, swarm_message_get_1d_i8
+    MODULE PROCEDURE swarm_message_get_1d_r4, swarm_message_get_1d_r8
  END INTERFACE swarm_message_get
 
 
@@ -150,10 +150,10 @@ MODULE swarm_message
        IF(ASSOCIATED(entry%value_i8))       DEALLOCATE(entry%value_i8)
        IF(ASSOCIATED(entry%value_r4))       DEALLOCATE(entry%value_r4)
        IF(ASSOCIATED(entry%value_r8))       DEALLOCATE(entry%value_r8)
-       IF(ASSOCIATED(entry%value_i4_1d))    DEALLOCATE(entry%value_i4_1d)
-       IF(ASSOCIATED(entry%value_i8_1d))    DEALLOCATE(entry%value_i8_1d)
-       IF(ASSOCIATED(entry%value_r4_1d))    DEALLOCATE(entry%value_r4_1d)
-       IF(ASSOCIATED(entry%value_r8_1d))    DEALLOCATE(entry%value_r8_1d)
+       IF(ASSOCIATED(entry%value_1d_i4))    DEALLOCATE(entry%value_1d_i4)
+       IF(ASSOCIATED(entry%value_1d_i8))    DEALLOCATE(entry%value_1d_i8)
+       IF(ASSOCIATED(entry%value_1d_r4))    DEALLOCATE(entry%value_1d_r4)
+       IF(ASSOCIATED(entry%value_1d_r8))    DEALLOCATE(entry%value_1d_r8)
        old_entry => ENTRY
        ENTRY => entry%next
        DEALLOCATE(old_entry)
@@ -424,21 +424,21 @@ MODULE swarm_message
            IF(.NOT. ASSOCIATED(entry2%value_r8)) RETURN
            IF(ABS(entry1%value_r8-entry2%value_r8)>1e-10) RETURN
 
-        ELSE IF(ASSOCIATED(entry1%value_i4_1d)) THEN
-           IF(.NOT. ASSOCIATED(entry2%value_i4_1d)) RETURN
-           IF(ANY(entry1%value_i4_1d /= entry2%value_i4_1d)) RETURN
+        ELSE IF(ASSOCIATED(entry1%value_1d_i4)) THEN
+           IF(.NOT. ASSOCIATED(entry2%value_1d_i4)) RETURN
+           IF(ANY(entry1%value_1d_i4 /= entry2%value_1d_i4)) RETURN
 
-        ELSE IF(ASSOCIATED(entry1%value_i8_1d)) THEN
-           IF(.NOT. ASSOCIATED(entry2%value_i8_1d)) RETURN
-           IF(ANY(entry1%value_i8_1d /= entry2%value_i8_1d)) RETURN
+        ELSE IF(ASSOCIATED(entry1%value_1d_i8)) THEN
+           IF(.NOT. ASSOCIATED(entry2%value_1d_i8)) RETURN
+           IF(ANY(entry1%value_1d_i8 /= entry2%value_1d_i8)) RETURN
 
-        ELSE IF(ASSOCIATED(entry1%value_r4_1d)) THEN
-           IF(.NOT. ASSOCIATED(entry2%value_r4_1d)) RETURN
-           IF(ANY(ABS(entry1%value_r4_1d-entry2%value_r4_1d)>1e-5)) RETURN
+        ELSE IF(ASSOCIATED(entry1%value_1d_r4)) THEN
+           IF(.NOT. ASSOCIATED(entry2%value_1d_r4)) RETURN
+           IF(ANY(ABS(entry1%value_1d_r4-entry2%value_1d_r4)>1e-5)) RETURN
 
-        ELSE IF(ASSOCIATED(entry1%value_r8_1d)) THEN
-           IF(.NOT. ASSOCIATED(entry2%value_r8_1d)) RETURN
-           IF(ANY(ABS(entry1%value_r8_1d-entry2%value_r8_1d)>1e-10)) RETURN
+        ELSE IF(ASSOCIATED(entry1%value_1d_r8)) THEN
+           IF(.NOT. ASSOCIATED(entry2%value_1d_r8)) RETURN
+           IF(ANY(ABS(entry1%value_1d_r8-entry2%value_1d_r8)>1e-10)) RETURN
         ELSE
            STOP "swarm_message_equal_oneway: no value ASSOCIATED"
         END IF
@@ -486,25 +486,25 @@ MODULE swarm_message
        CALL mp_send(4, dest, tag, group)
        CALL mp_send(entry%value_r8, dest, tag, group)
 
-    ELSE IF(ASSOCIATED(entry%value_i4_1d)) THEN
+    ELSE IF(ASSOCIATED(entry%value_1d_i4)) THEN
        CALL mp_send(5, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_i4_1d), dest, tag, group)
-       CALL mp_send(entry%value_i4_1d, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_1d_i4), dest, tag, group)
+       CALL mp_send(entry%value_1d_i4, dest, tag, group)
 
-    ELSE IF(ASSOCIATED(entry%value_i8_1d)) THEN
+    ELSE IF(ASSOCIATED(entry%value_1d_i8)) THEN
        CALL mp_send(6, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_i8_1d), dest, tag, group)
-       CALL mp_send(entry%value_i8_1d, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_1d_i8), dest, tag, group)
+       CALL mp_send(entry%value_1d_i8, dest, tag, group)
 
-    ELSE IF(ASSOCIATED(entry%value_r4_1d)) THEN
+    ELSE IF(ASSOCIATED(entry%value_1d_r4)) THEN
        CALL mp_send(7, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_r4_1d), dest, tag, group)
-       CALL mp_send(entry%value_r4_1d, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_1d_r4), dest, tag, group)
+       CALL mp_send(entry%value_1d_r4, dest, tag, group)
 
-    ELSE IF(ASSOCIATED(entry%value_r8_1d)) THEN
+    ELSE IF(ASSOCIATED(entry%value_1d_r8)) THEN
        CALL mp_send(8, dest, tag, group)
-       CALL mp_send(SIZE(entry%value_r8_1d), dest, tag, group)
-       CALL mp_send(entry%value_r8_1d, dest, tag, group)
+       CALL mp_send(SIZE(entry%value_1d_r8), dest, tag, group)
+       CALL mp_send(entry%value_1d_r8, dest, tag, group)
 
     ELSE IF(ASSOCIATED(entry%value_str)) THEN
        CALL mp_send(9, dest, tag, group)
@@ -556,20 +556,20 @@ MODULE swarm_message
 
     CASE(5)
        CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_i4_1d(s))
-       CALL mp_recv(entry%value_i4_1d, src, tag, group)
+       ALLOCATE(entry%value_1d_i4(s))
+       CALL mp_recv(entry%value_1d_i4, src, tag, group)
     CASE(6)
        CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_i8_1d(s))
-       CALL mp_recv(entry%value_i8_1d, src, tag, group)
+       ALLOCATE(entry%value_1d_i8(s))
+       CALL mp_recv(entry%value_1d_i8, src, tag, group)
     CASE(7)
        CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_r4_1d(s))
-       CALL mp_recv(entry%value_r4_1d, src, tag, group)
+       ALLOCATE(entry%value_1d_r4(s))
+       CALL mp_recv(entry%value_1d_r4, src, tag, group)
     CASE(8)
        CALL mp_recv(s, src, tag, group)
-       ALLOCATE(entry%value_r8_1d(s))
-       CALL mp_recv(entry%value_r8_1d, src, tag, group)
+       ALLOCATE(entry%value_1d_r8(s))
+       CALL mp_recv(entry%value_1d_r8, src, tag, group)
     CASE(9)
        ALLOCATE(entry%value_str)
        CALL mp_recv(value_str_arr, src, tag, group)
@@ -611,18 +611,18 @@ MODULE swarm_message
           datatype = 3
        ELSE IF(ASSOCIATED(entry%value_r8)) THEN
           datatype = 4
-       ELSE IF(ASSOCIATED(entry%value_i4_1d)) THEN
+       ELSE IF(ASSOCIATED(entry%value_1d_i4)) THEN
           datatype = 5
-          datasize = SIZE(entry%value_i4_1d)
-       ELSE IF(ASSOCIATED(entry%value_i8_1d)) THEN
+          datasize = SIZE(entry%value_1d_i4)
+       ELSE IF(ASSOCIATED(entry%value_1d_i8)) THEN
           datatype = 6
-          datasize = SIZE(entry%value_i8_1d)
-       ELSE IF(ASSOCIATED(entry%value_r4_1d)) THEN
+          datasize = SIZE(entry%value_1d_i8)
+       ELSE IF(ASSOCIATED(entry%value_1d_r4)) THEN
           datatype = 7
-          datasize = SIZE(entry%value_r4_1d)
-       ELSE IF(ASSOCIATED(entry%value_r8_1d)) THEN
+          datasize = SIZE(entry%value_1d_r4)
+       ELSE IF(ASSOCIATED(entry%value_1d_r8)) THEN
           datatype = 8
-          datasize = SIZE(entry%value_r8_1d)
+          datasize = SIZE(entry%value_1d_r8)
        ELSE IF(ASSOCIATED(entry%value_str)) THEN
           datatype = 9
        ELSE
@@ -646,17 +646,17 @@ MODULE swarm_message
        IF(src/=mepos) ALLOCATE(entry%value_r8)
        CALL mp_bcast(entry%value_r8, src, group)
     CASE(5)
-       IF(src/=mepos) ALLOCATE(entry%value_i4_1d(datasize))
-       CALL mp_bcast(entry%value_i4_1d, src, group)
+       IF(src/=mepos) ALLOCATE(entry%value_1d_i4(datasize))
+       CALL mp_bcast(entry%value_1d_i4, src, group)
     CASE(6)
-       IF(src/=mepos) ALLOCATE(entry%value_i8_1d(datasize))
-       CALL mp_bcast(entry%value_i8_1d, src, group)
+       IF(src/=mepos) ALLOCATE(entry%value_1d_i8(datasize))
+       CALL mp_bcast(entry%value_1d_i8, src, group)
     CASE(7)
-       IF(src/=mepos) ALLOCATE(entry%value_r4_1d(datasize))
-       CALL mp_bcast(entry%value_r4_1d, src, group)
+       IF(src/=mepos) ALLOCATE(entry%value_1d_r4(datasize))
+       CALL mp_bcast(entry%value_1d_r4, src, group)
     CASE(8)
-       IF(src/=mepos) ALLOCATE(entry%value_r8_1d(datasize))
-       CALL mp_bcast(entry%value_r8_1d, src, group)
+       IF(src/=mepos) ALLOCATE(entry%value_1d_r8(datasize))
+       CALL mp_bcast(entry%value_1d_r8, src, group)
     CASE(9)
        IF(src==mepos) value_str_arr = str2iarr(entry%value_str)
        CALL mp_bcast(value_str_arr, src, group)
@@ -704,32 +704,32 @@ MODULE swarm_message
        WRITE(unit,"(A)") "datatype: str"
        WRITE(unit,"(A,A)") "value: ", entry%value_str
 
-    ELSE IF(ASSOCIATED(entry%value_i4_1d)) THEN
-       WRITE(unit,"(A)") "datatype: i4_1d"
-       WRITE(unit,"(A,I10)") "size: ", SIZE(entry%value_i4_1d)
-       DO i=1, SIZE(entry%value_i4_1d)
-         WRITE(unit,*) entry%value_i4_1d(i)
+    ELSE IF(ASSOCIATED(entry%value_1d_i4)) THEN
+       WRITE(unit,"(A)") "datatype: 1d_i4"
+       WRITE(unit,"(A,I10)") "size: ", SIZE(entry%value_1d_i4)
+       DO i=1, SIZE(entry%value_1d_i4)
+         WRITE(unit,*) entry%value_1d_i4(i)
        END DO
 
-    ELSE IF(ASSOCIATED(entry%value_i8_1d)) THEN
-       WRITE(unit,"(A)") "datatype: i8_1d"
-       WRITE(unit,"(A,I20)") "size: ", SIZE(entry%value_i8_1d)
-       DO i=1, SIZE(entry%value_i8_1d)
-         WRITE(unit,*) entry%value_i8_1d(i)
+    ELSE IF(ASSOCIATED(entry%value_1d_i8)) THEN
+       WRITE(unit,"(A)") "datatype: 1d_i8"
+       WRITE(unit,"(A,I20)") "size: ", SIZE(entry%value_1d_i8)
+       DO i=1, SIZE(entry%value_1d_i8)
+         WRITE(unit,*) entry%value_1d_i8(i)
        END DO
 
-    ELSE IF(ASSOCIATED(entry%value_r4_1d)) THEN
-       WRITE(unit,"(A)") "datatype: r4_1d"
-       WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_r4_1d)
-       DO i=1, SIZE(entry%value_r4_1d)
-         WRITE(unit,"(1X,E30.20)") entry%value_r4_1d(i)
+    ELSE IF(ASSOCIATED(entry%value_1d_r4)) THEN
+       WRITE(unit,"(A)") "datatype: 1d_r4"
+       WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_1d_r4)
+       DO i=1, SIZE(entry%value_1d_r4)
+         WRITE(unit,"(1X,E30.20)") entry%value_1d_r4(i)
        END DO
 
-    ELSE IF(ASSOCIATED(entry%value_r8_1d)) THEN
-       WRITE(unit,"(A)") "datatype: r8_1d"
-       WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_r8_1d)
-       DO i=1, SIZE(entry%value_r8_1d)
-         WRITE(unit,"(1X,E30.20)") entry%value_r8_1d(i)
+    ELSE IF(ASSOCIATED(entry%value_1d_r8)) THEN
+       WRITE(unit,"(A)") "datatype: 1d_r8"
+       WRITE(unit,"(A,I8)") "size: ", SIZE(entry%value_1d_r8)
+       DO i=1, SIZE(entry%value_1d_r8)
+         WRITE(unit,"(1X,E30.20)") entry%value_1d_r8(i)
        END DO
 
     ELSE
@@ -804,14 +804,14 @@ MODULE swarm_message
     IF(TRIM(label)/="size:") STOP "swarm_message_entry_file_read failed (4)"
 
     SELECT CASE (TRIM(datatype))
-      CASE("i4_1d")
-        ALLOCATE(entry%value_i4_1d(arr_size))
-      CASE("i8_1d")
-       ALLOCATE(entry%value_i8_1d(arr_size))
-      CASE("r4_1d")
-        ALLOCATE(entry%value_r4_1d(arr_size))
-      CASE("r8_1d")
-        ALLOCATE(entry%value_r8_1d(arr_size))
+      CASE("1d_i4")
+        ALLOCATE(entry%value_1d_i4(arr_size))
+      CASE("1d_i8")
+       ALLOCATE(entry%value_1d_i8(arr_size))
+      CASE("1d_r4")
+        ALLOCATE(entry%value_1d_r4(arr_size))
+      CASE("1d_r8")
+        ALLOCATE(entry%value_1d_r8(arr_size))
       CASE DEFAULT
        STOP "swarm_message_entry_file_read: unkown datatype"
     END SELECT
@@ -823,14 +823,14 @@ MODULE swarm_message
 
       !Numbers were written with at most 31 characters.
       SELECT CASE (TRIM(datatype))
-        CASE("i4_1d")
-          READ (parser%input_line(1:31),*) entry%value_i4_1d(i)
-        CASE("i8_1d")
-          READ (parser%input_line(1:31),*) entry%value_i8_1d(i)
-        CASE("r4_1d")
-          READ (parser%input_line(1:31),*) entry%value_r4_1d(i)
-        CASE("r8_1d")
-          READ (parser%input_line(1:31),*) entry%value_r8_1d(i)
+        CASE("1d_i4")
+          READ (parser%input_line(1:31),*) entry%value_1d_i4(i)
+        CASE("1d_i8")
+          READ (parser%input_line(1:31),*) entry%value_1d_i8(i)
+        CASE("1d_r4")
+          READ (parser%input_line(1:31),*) entry%value_1d_r4(i)
+        CASE("1d_r8")
+          READ (parser%input_line(1:31),*) entry%value_1d_r8(i)
         CASE DEFAULT
           STOP "swarm_message_entry_file_read: unkown datatype"
       END SELECT
@@ -881,10 +881,10 @@ MODULE swarm_message
 #include "swarm_message_i8.f90"
 #include "swarm_message_r4.f90"
 #include "swarm_message_r8.f90"
-#include "swarm_message_i4_1d.f90"
-#include "swarm_message_i8_1d.f90"
-#include "swarm_message_r4_1d.f90"
-#include "swarm_message_r8_1d.f90"
+#include "swarm_message_1d_i4.f90"
+#include "swarm_message_1d_i8.f90"
+#include "swarm_message_1d_r4.f90"
+#include "swarm_message_1d_r8.f90"
 
 
 END MODULE swarm_message
