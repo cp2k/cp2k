@@ -55,8 +55,8 @@ subroutine cp_1d_[nametype1]_sort(arr, n, indices)
    integer, dimension(1:n), intent(out)   :: indices
    
    integer :: i
-   [type1], dimension(:), allocatable :: tmp_arr 
-   integer, dimension(:), allocatable :: tmp_idx
+   [type1], pointer                   :: tmp_arr(:)
+   integer, pointer                   :: tmp_idx(:)
    integer                            :: stat
    
    if(n == 0) return ! for some reason this is a frequent case in cp2k

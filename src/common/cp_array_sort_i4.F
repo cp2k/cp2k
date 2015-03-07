@@ -57,9 +57,8 @@ SUBROUTINE cp_1d_i4_sort(arr, n, indices)
     INTEGER, DIMENSION(1:n), INTENT(out)     :: indices
 
     INTEGER                                  :: i, stat
-    INTEGER(kind=int_4), ALLOCATABLE, &
-      DIMENSION(:)                           :: tmp_arr
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_idx
+    INTEGER(kind=int_4), POINTER             :: tmp_arr(:)
+    INTEGER, POINTER                         :: tmp_idx(:)
 
    IF(n == 0) RETURN ! for some reason this is a frequent case in cp2k
    

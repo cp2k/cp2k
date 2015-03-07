@@ -41,6 +41,7 @@
 ! *****************************************************************************
 MODULE cp_array_utils_logical
   USE machine,                         ONLY: m_flush
+! dummy line needed for coverage broadcasting
 #include "cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -362,7 +363,7 @@ END FUNCTION cp_1d_logical_bsearch
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
 ! ARGS:
-!  USE = ""
+!  USE = "! dummy line needed for coverage broadcasting"
 !  defaultFormatType1 = ""(l1)""
 !  defines = 
 !    "#define CP_L_LESS_Q(el1,el2) ( (.not.el1).and.el2 )

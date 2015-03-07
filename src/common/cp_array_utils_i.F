@@ -40,6 +40,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_array_utils_i
+  USE kinds,                           ONLY: int_4
   USE machine,                         ONLY: m_flush
 #include "cp_common_uses.f90"
 
@@ -75,7 +76,7 @@ MODULE cp_array_utils_i
 !> \author fawzi
 ! *****************************************************************************
   TYPE cp_1d_i_p_type
-     INTEGER, DIMENSION(:), POINTER :: array
+     INTEGER(kind=int_4), DIMENSION(:), POINTER :: array
   END TYPE cp_1d_i_p_type
 
 ! *****************************************************************************
@@ -85,7 +86,7 @@ MODULE cp_array_utils_i
 !> \author fawzi
 ! *****************************************************************************
   TYPE cp_2d_i_p_type
-     INTEGER, DIMENSION(:,:), POINTER :: array
+     INTEGER(kind=int_4), DIMENSION(:,:), POINTER :: array
   END TYPE cp_2d_i_p_type
 
 ! *****************************************************************************
@@ -95,7 +96,7 @@ MODULE cp_array_utils_i
 !> \author fawzi
 ! *****************************************************************************
   TYPE cp_3d_i_p_type
-     INTEGER, DIMENSION(:,:,:), POINTER :: array
+     INTEGER(kind=int_4), DIMENSION(:,:,:), POINTER :: array
   END TYPE cp_3d_i_p_type
 
 CONTAINS
@@ -114,7 +115,8 @@ CONTAINS
 !>      maybe I will move to a comma separated paretized list
 ! *****************************************************************************
 SUBROUTINE cp_1d_i_write(array, unit_nr, el_format, error)
-    INTEGER, DIMENSION(:), INTENT(in)        :: array
+    INTEGER(kind=int_4), DIMENSION(:), &
+      INTENT(in)                             :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -172,7 +174,8 @@ END SUBROUTINE cp_1d_i_write
 !>      maybe I will move to a comma separated parentized list
 ! *****************************************************************************
 SUBROUTINE cp_2d_i_write(array, unit_nr, el_format, error)
-    INTEGER, DIMENSION(:, :), INTENT(in)     :: array
+    INTEGER(kind=int_4), DIMENSION(:, :), &
+      INTENT(in)                             :: array
     INTEGER, INTENT(in)                      :: unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -225,9 +228,11 @@ END SUBROUTINE cp_2d_i_write
 !>      memory_utilities. It is quite low level
 ! *****************************************************************************
   SUBROUTINE cp_1d_i_guarantee_size(array, n, init, error)
-    INTEGER, DIMENSION(:), POINTER           :: array
+    INTEGER(kind=int_4), DIMENSION(:), &
+      POINTER                                :: array
     INTEGER, INTENT(in)                      :: n
-    INTEGER, INTENT(in), OPTIONAL            :: init
+    INTEGER(kind=int_4), INTENT(in), &
+      OPTIONAL                               :: init
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_i_guarantee_size', &
@@ -277,9 +282,11 @@ END SUBROUTINE cp_2d_i_write
 ! *****************************************************************************
   SUBROUTINE cp_2d_i_guarantee_size(array, n_rows, n_cols ,&
        init, error)
-    INTEGER, DIMENSION(:, :), POINTER        :: array
+    INTEGER(kind=int_4), DIMENSION(:, :), &
+      POINTER                                :: array
     INTEGER, INTENT(in)                      :: n_rows, n_cols
-    INTEGER, INTENT(in), OPTIONAL            :: init
+    INTEGER(kind=int_4), INTENT(in), &
+      OPTIONAL                               :: init
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_i_guarantee_size', &
@@ -329,8 +336,9 @@ END SUBROUTINE cp_2d_i_write
 ! *****************************************************************************
 FUNCTION cp_1d_i_bsearch(array, el, l_index, u_index, error)&
      RESULT(res)
-    INTEGER, DIMENSION(:), INTENT(in)        :: array
-    INTEGER, INTENT(in)                      :: el
+    INTEGER(kind=int_4), DIMENSION(:), &
+      INTENT(in)                             :: array
+    INTEGER(kind=int_4), INTENT(in)          :: el
     INTEGER, INTENT(in), OPTIONAL            :: l_index, u_index
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
@@ -362,14 +370,14 @@ END FUNCTION cp_1d_i_bsearch
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,defaultFormatType1,lessQ,defines)]
 ! ARGS:
-!  USE = ""
+!  USE = "USE kinds, only: int_4"
 !  defaultFormatType1 = ""(i6)""
 !  defines = 
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
 !  lessQ = "CP_I_LESS_Q"
 !  nametype1 = "i"
-!  type1 = "integer"
+!  type1 = "integer(kind=int_4)"
 
 
 END MODULE cp_array_utils_i
