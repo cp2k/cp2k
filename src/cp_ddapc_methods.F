@@ -273,11 +273,8 @@ CONTAINS
                    idim2 = (iparticle2-1)*SIZE(radii)+igauss2
                    my_Amw(s_dim:igmax) = my_Am(s_dim:igmax)*gfunc_sq(s_dim:igmax,igauss1,igauss2)
 !NB no loss of accuracy in my test cases
-#ifdef ACCURATE_SUMS
-                   tmp = accurate_sum(my_Amw)
-#else
+                   !tmp = accurate_sum(my_Amw)
                    tmp = SUM(my_Amw)
-#endif
                    Am (idim2,idim1) = tmp
                    Am (idim1,idim2) = tmp
                 END DO
